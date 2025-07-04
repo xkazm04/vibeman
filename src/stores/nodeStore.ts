@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { AppState, AppStore, EventLogEntry, CustomBacklogItem, BacklogProposal } from '../types';
 
-// Mock data for backlog proposals with status
+// Mock data for backlog proposals with status and impacted files
 const mockBacklogProposals: BacklogProposal[] = [
   {
     id: '1',
@@ -10,7 +10,8 @@ const mockBacklogProposals: BacklogProposal[] = [
     title: 'Optimize component re-renders',
     description: 'Implement React.memo and useCallback to reduce unnecessary re-renders in the tree structure. This will improve performance significantly, especially for large component trees.',
     timestamp: new Date(Date.now() - 300000),
-    status: 'pending'
+    status: 'pending',
+    impactedFiles: ['components', 'agent-manager', 'AgentManager.tsx', 'AgentButton.tsx']
   },
   {
     id: '2',
@@ -18,7 +19,8 @@ const mockBacklogProposals: BacklogProposal[] = [
     title: 'Add unit tests for state management',
     description: 'Create comprehensive test suite covering all Zustand store actions and state mutations. Include edge cases and error scenarios.',
     timestamp: new Date(Date.now() - 600000),
-    status: 'pending'
+    status: 'pending',
+    impactedFiles: ['lib', 'store', 'app-store.ts', 'utils.ts']
   },
   {
     id: '3',
@@ -26,7 +28,8 @@ const mockBacklogProposals: BacklogProposal[] = [
     title: 'Enhance accessibility features',
     description: 'Implement keyboard navigation and screen reader support for the code structure viewer. Add ARIA labels and focus management.',
     timestamp: new Date(Date.now() - 900000),
-    status: 'accepted'
+    status: 'accepted',
+    impactedFiles: ['components', 'ui', 'GlowCard.tsx', 'Button.tsx', 'Input.tsx']
   },
   {
     id: '4',
@@ -34,7 +37,8 @@ const mockBacklogProposals: BacklogProposal[] = [
     title: 'Integrate real-time collaboration',
     description: 'Add WebSocket support for multi-user agent coordination and shared state management. Include conflict resolution and synchronization.',
     timestamp: new Date(Date.now() - 1200000),
-    status: 'pending'
+    status: 'pending',
+    impactedFiles: ['lib', 'api.ts', 'components', 'layout', 'MainLayout.tsx']
   },
   {
     id: '5',
@@ -42,7 +46,8 @@ const mockBacklogProposals: BacklogProposal[] = [
     title: 'Implement code splitting',
     description: 'Add dynamic imports and lazy loading for better performance. Split routes and components to reduce initial bundle size.',
     timestamp: new Date(Date.now() - 1500000),
-    status: 'accepted'
+    status: 'accepted',
+    impactedFiles: ['components', 'layout', 'MainLayout.tsx', 'Sidebar.tsx']
   }
 ];
 
@@ -52,9 +57,10 @@ export const useStore = (() => {
     activeTab: 'developer',
     activeAgents: new Set(),
     selectedNodes: new Set(),
+    highlightedNodes: new Set(),
     eventLog: [],
     backlogProposals: [...mockBacklogProposals],
-    inProgressProposals: [], // New field for in-progress items
+    inProgressProposals: [],
     customBacklogItems: []
   };
   
@@ -101,6 +107,14 @@ export const useStore = (() => {
         }
         return { ...prev, selectedNodes: newSelectedNodes };
       }),
+      highlightNodes: (nodeIds: string[]) => setState(prev => ({
+        ...prev,
+        highlightedNodes: new Set(nodeIds)
+      })),
+      clearHighlights: () => setState(prev => ({
+        ...prev,
+        highlightedNodes: new Set()
+      })),
       addEvent: (event: EventLogEntry) => setState(prev => ({
         ...prev,
         eventLog: [event, ...prev.eventLog].slice(0, 100)
@@ -122,7 +136,9 @@ export const useStore = (() => {
           timestamp: new Date(),
           type: 'proposal_accepted',
           message: `Accepted proposal: ${proposal.title}`,
-          agent: proposal.agent
+          agent: proposal.agent,
+          title: 'Proposal Accepted',
+          description: `Accepted proposal: ${proposal.title}`
         };
         
         return {
@@ -141,7 +157,9 @@ export const useStore = (() => {
           timestamp: new Date(),
           type: 'proposal_rejected',
           message: `Rejected proposal: ${proposal.title}`,
-          agent: proposal.agent
+          agent: proposal.agent,
+          title: 'Proposal Rejected',
+          description: `Rejected proposal: ${proposal.title}`
         };
         
         return {
@@ -154,7 +172,6 @@ export const useStore = (() => {
         ...prev,
         customBacklogItems: [item, ...prev.customBacklogItems]
       })),
-      // New method to move accepted proposals to in-progress
       moveToInProgress: (proposalId: string) => setState(prev => {
         const proposal = prev.backlogProposals.find(p => p.id === proposalId);
         if (!proposal || proposal.status !== 'accepted') return prev;

@@ -52,6 +52,8 @@ export interface BacklogProposal {
   title: string;
   description: string;
   timestamp: Date;
+  status?: 'pending' | 'accepted' | 'rejected' | 'in_progress';
+  impactedFiles?: string[]; // Array of file/folder IDs that this proposal affects
 }
 
 export interface CustomBacklogItem {
@@ -60,22 +62,27 @@ export interface CustomBacklogItem {
   description: string;
   timestamp: Date;
   type: 'custom';
+  impactedFiles?: string[]; // Array of file/folder IDs that this item affects
 }
 
 export interface EventLogEntry {
   id: string;
   title: string;
   description: string;
-  type: 'info' | 'warning' | 'error' | 'success';
+  type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
   timestamp: Date;
+  agent?: string;
+  message?: string;
 }
 
 export interface AppState {
   activeTab: string;
   activeAgents: Set<string>;
   selectedNodes: Set<string>;
+  highlightedNodes: Set<string>; // New: nodes highlighted by backlog items
   eventLog: EventLogEntry[];
   backlogProposals: BacklogProposal[];
+  inProgressProposals: BacklogProposal[]; // New: accepted proposals in progress
   customBacklogItems: CustomBacklogItem[];
 }
 
@@ -83,8 +90,11 @@ export interface AppStore extends AppState {
   setActiveTab: (tabId: string) => void;
   toggleAgent: (agentId: string) => void;
   toggleNode: (nodeId: string) => void;
+  highlightNodes: (nodeIds: string[]) => void; // New: highlight specific nodes
+  clearHighlights: () => void; // New: clear all highlights
   addEvent: (event: EventLogEntry) => void;
   acceptProposal: (proposalId: string) => void;
   rejectProposal: (proposalId: string) => void;
   addCustomBacklogItem: (item: CustomBacklogItem) => void;
+  moveToInProgress: (proposalId: string) => void; // New: move accepted proposals to in-progress
 }

@@ -91,7 +91,7 @@ export default function PreviewLayout() {
   const activeProject = activeTab ? tabProjects.find(tp => tp.project.id === activeTab) : undefined;
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="bg-gray-950 flex flex-col">
       {/* Tab Navigation */}
       <div className="bg-gray-900/50 border-b border-gray-800 px-4 flex-shrink-0">
         <div className="max-w-7xl mx-auto">

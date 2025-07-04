@@ -73,7 +73,7 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
   };
 
   return (
-    <div className="flex-1 p-4" style={{ minHeight: '50vh' }}>
+    <div className="flex-1 p-4">
       <AnimatePresence mode="wait">
         {activeProject ? (
           <motion.div
@@ -81,8 +81,6 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="h-full"
-            style={{ minHeight: '50vh' }}
           >
             {activeProject.isRunning ? (
               <div className="h-full bg-gray-900 rounded-lg border border-gray-800 overflow-hidden relative">
@@ -134,7 +132,7 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
                     />
                   </>
                 ) : (
-                  <div className="h-full flex items-center justify-center" style={{ minHeight: '50vh' }}>
+                  <div className="h-full flex items-center justify-center">
                     <div className="text-center max-w-md">
                       <AlertTriangle size={48} className="text-yellow-500 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-gray-100 mb-2">
@@ -169,7 +167,7 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
                 )}
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center" style={{ minHeight: '50vh' }}>
+              <div className="h-full flex items-center justify-center">
                 <div className="text-center max-w-md">
                   <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Play size={24} className="text-gray-500" />
@@ -193,21 +191,7 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
               </div>
             )}
           </motion.div>
-        ) : (
-          <div className="h-full flex items-center justify-center" style={{ minHeight: '50vh' }}>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Eye size={24} className="text-gray-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-100 mb-2">
-                No Preview Selected
-              </h3>
-              <p className="text-gray-400">
-                Select a running project tab to start previewing.
-              </p>
-            </div>
-          </div>
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   );
