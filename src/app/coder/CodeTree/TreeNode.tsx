@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, File, ChevronRight, FolderOpen, Zap } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '../../../types';
 import { useStore } from '../../../stores/nodeStore';
+import { getFileTypeColor } from '@/helpers/typeStyles';
 
 interface TreeNodeProps {
   node: TreeNodeType;
@@ -25,33 +26,10 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
   };
 
   const Icon = getIcon();
-
-  const getFileTypeColor = (fileName: string) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'tsx':
-      case 'jsx':
-        return 'text-blue-400';
-      case 'ts':
-      case 'js':
-        return 'text-yellow-400';
-      case 'css':
-      case 'scss':
-        return 'text-pink-400';
-      case 'json':
-        return 'text-green-400';
-      case 'md':
-        return 'text-gray-400';
-      default:
-        return 'text-gray-300';
-    }
-  };
-
   const handleNodeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggle(node.id);
     
-    // Auto-expand/collapse folders when selected
     if (hasChildren) {
       setIsExpanded(!isExpanded);
     }
@@ -78,7 +56,7 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
       <motion.div
         whileHover={{ backgroundColor: 'rgba(55, 65, 81, 0.2)' }}
         className={`
-          group flex items-center py-2 px-2 rounded-sm cursor-pointer transition-all duration-200
+          group flex items-center my-[0.5px] py-2 relative px-2 rounded-sm cursor-pointer transition-all duration-200
           ${getNodeStyling()}
           hover:bg-gray-700/30
         `}
@@ -124,20 +102,6 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
             {/* Highlight indicator */}
             {isHighlighted && (
               <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="flex items-center space-x-1"
-              >
-                <Zap className="w-3 h-3 text-orange-400" />
-                <span className="text-xs text-orange-400 font-medium">AI Impact</span>
-              </motion.div>
-            )}
-          </div>
-          
-          {/* Always show description for highlighted nodes, show on hover for others */}
-          <AnimatePresence>
-            {isHighlighted && (
-              <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
@@ -149,14 +113,12 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
                 </p>
               </motion.div>
             )}
-          </AnimatePresence>
-          
-          {/* Hover description for non-highlighted nodes */}
           {!isHighlighted && (
             <span className="text-xs text-gray-500 truncate hidden group-hover:inline mt-1">
               {node.description}
             </span>
           )}
+          </div>
         </div>
 
         {/* Selection indicator */}
@@ -164,15 +126,9 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-sm shadow-cyan-400/50 flex-shrink-0 ml-2"
+            className="absolute right-2
+            w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-sm shadow-cyan-400/50 flex-shrink-0 ml-2"
           />
-        )}
-
-        {/* File count for folders */}
-        {hasChildren && (
-          <span className="text-xs text-gray-500 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {node.children!.length}
-          </span>
         )}
       </motion.div>
       

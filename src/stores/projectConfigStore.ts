@@ -1,110 +1,160 @@
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 import { Project } from '@/types';
-import { getAllProjects as getDefaultProjects } from '@/lib/config';
 
 interface ProjectConfigStore {
   // State
   projects: Project[];
   initialized: boolean;
+  loading: boolean;
   
   // Actions
-  initializeProjects: () => void;
-  updateProject: (projectId: string, updates: Partial<Project>) => void;
-  addProject: (project: Project) => void;
-  removeProject: (projectId: string) => void;
-  resetToDefaults: () => void;
+  initializeProjects: () => Promise<void>;
+  updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
+  addProject: (project: Project) => Promise<void>;
+  removeProject: (projectId: string) => Promise<void>;
+  resetToDefaults: () => Promise<void>;
   getProject: (projectId: string) => Project | undefined;
   getAllProjects: () => Project[];
+  syncWithServer: () => Promise<void>;
 }
 
 export const useProjectConfigStore = create<ProjectConfigStore>()(
   devtools(
-    persist(
-      (set, get) => ({
-        // Initial state
-        projects: [],
-        initialized: false,
-        
-        // Initialize projects from default config if not already done
-        initializeProjects: () => {
-          const state = get();
-          if (state.initialized) return;
-          
-          // If no projects in localStorage, load defaults
-          if (state.projects.length === 0) {
-            const defaultProjects = getDefaultProjects();
-            set({ 
-              projects: defaultProjects,
-              initialized: true 
-            });
-          } else {
-            set({ initialized: true });
+    (set, get) => ({
+      // Initial state
+      projects: [],
+      initialized: false,
+      loading: false,
+      
+      // Sync with server
+      syncWithServer: async () => {
+        try {
+          const response = await fetch('/api/projects');
+          if (response.ok) {
+            const data = await response.json();
+            set({ projects: data.projects });
+            return data.projects;
           }
-        },
+        } catch (error) {
+          console.error('Failed to sync with server:', error);
+        }
+        return [];
+      },
+      
+      // Initialize projects from server
+      initializeProjects: async () => {
+        const state = get();
+        if (state.initialized) return;
         
-        // Update a specific project
-        updateProject: (projectId, updates) => {
-          set((state) => ({
-            projects: state.projects.map((project) =>
-              project.id === projectId ? { ...project, ...updates } : project
-            ),
-          }));
-        },
-        
-        // Add a new project
-        addProject: (project) => {
-          set((state) => ({
-            projects: [...state.projects, project],
-          }));
-        },
-        
-        // Remove a project
-        removeProject: (projectId) => {
-          set((state) => ({
-            projects: state.projects.filter((project) => project.id !== projectId),
-          }));
-        },
-        
-        // Reset to default configuration
-        resetToDefaults: () => {
-          const defaultProjects = getDefaultProjects();
-          set({ 
-            projects: defaultProjects,
-            initialized: true 
+        set({ loading: true });
+        try {
+          await get().syncWithServer();
+          set({ initialized: true });
+        } catch (error) {
+          console.error('Failed to initialize projects:', error);
+        } finally {
+          set({ loading: false });
+        }
+      },
+      
+      // Update a specific project
+      updateProject: async (projectId, updates) => {
+        try {
+          const response = await fetch('/api/projects', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, updates }),
           });
-        },
-        
-        // Get a specific project
-        getProject: (projectId) => {
-          const state = get();
-          return state.projects.find((project) => project.id === projectId);
-        },
-        
-        // Get all projects
-        getAllProjects: () => {
-          const state = get();
-          // Initialize if not already done
-          if (!state.initialized) {
-            state.initializeProjects();
+          
+          if (response.ok) {
+            // Update local state
+            set((state) => ({
+              projects: state.projects.map((project) =>
+                project.id === projectId ? { ...project, ...updates } : project
+              ),
+            }));
+          } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update project');
           }
-          return get().projects;
-        },
-      }),
-      {
-        name: 'project-config-store',
-        version: 1,
-        // Custom storage to handle initialization
-        onRehydrateStorage: () => (state) => {
-          if (state) {
-            // Ensure initialization happens after rehydration
-            setTimeout(() => {
-              state.initializeProjects();
-            }, 0);
+        } catch (error) {
+          console.error('Failed to update project:', error);
+          throw error;
+        }
+      },
+      
+      // Add a new project
+      addProject: async (project) => {
+        try {
+          const response = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(project),
+          });
+          
+          if (response.ok) {
+            // Update local state
+            set((state) => ({
+              projects: [...state.projects, project],
+            }));
+          } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add project');
           }
-        },
-      }
-    )
+        } catch (error) {
+          console.error('Failed to add project:', error);
+          throw error;
+        }
+      },
+      
+      // Remove a project
+      removeProject: async (projectId) => {
+        try {
+          const response = await fetch('/api/projects', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId }),
+          });
+          
+          if (response.ok) {
+            // Update local state
+            set((state) => ({
+              projects: state.projects.filter((project) => project.id !== projectId),
+            }));
+          } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to remove project');
+          }
+        } catch (error) {
+          console.error('Failed to remove project:', error);
+          throw error;
+        }
+      },
+      
+      // Reset to default configuration
+      resetToDefaults: async () => {
+        try {
+          // This would need a separate API endpoint
+          await get().syncWithServer();
+        } catch (error) {
+          console.error('Failed to reset to defaults:', error);
+          throw error;
+        }
+      },
+      
+      // Get a specific project
+      getProject: (projectId) => {
+        const state = get();
+        return state.projects.find((project) => project.id === projectId);
+      },
+      
+      // Get all projects
+      getAllProjects: () => {
+        const state = get();
+        return state.projects;
+      },
+    })
   )
 );
 

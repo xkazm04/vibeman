@@ -34,8 +34,8 @@ class ProcessManager {
   private async detectExistingProcesses(): Promise<void> {
     try {
       // Import dynamically to avoid circular dependency
-      const { useProjectConfigStore } = await import('../stores/projectConfigStore');
-      const projects = useProjectConfigStore.getState().getAllProjects();
+      const { projectService } = await import('./projectService');
+      const projects = await projectService.getAllProjects();
       console.log('Checking for existing processes for projects:', projects.map((p: any) => `${p.name}:${p.port}`));
       
       for (const project of projects) {
@@ -50,19 +50,32 @@ class ProcessManager {
           const pid = await this.getPidForPort(project.port);
           console.log(`PID for port ${project.port}: ${pid}`);
           
-          // Create a process info entry for the existing process
-          const processInfo: ProcessInfo = {
-            pid: pid || 0,
-            port: project.port,
-            status: 'running',
-            startTime: new Date(), // We don't know the actual start time
-            logs: [`[INFO] Detected existing process on port ${project.port}${pid ? ` (PID: ${pid})` : ''}`]
-          };
-          
-          this.processes.set(project.id, processInfo);
-          this.logBuffers.set(project.id, processInfo.logs);
-          
-          console.log(`Added existing process for ${project.id}:`, processInfo);
+          // Only add if we can get a valid PID (more reliable detection)
+          if (pid && pid > 0) {
+            // Create a process info entry for the existing process
+            const processInfo: ProcessInfo = {
+              pid: pid,
+              port: project.port,
+              status: 'running',
+              startTime: new Date(), // We don't know the actual start time
+              logs: [`[INFO] Detected existing process on port ${project.port} (PID: ${pid})`]
+            };
+            
+            this.processes.set(project.id, processInfo);
+            this.logBuffers.set(project.id, processInfo.logs);
+            
+            console.log(`Added existing process for ${project.id}:`, processInfo);
+          } else {
+            console.log(`Port ${project.port} is in use but could not get PID - skipping detection`);
+          }
+        } else {
+          // Port is not in use, make sure we don't have any stale entries
+          if (this.processes.has(project.id)) {
+            console.log(`Removing stale process entry for ${project.id}`);
+            this.processes.delete(project.id);
+            this.logBuffers.delete(project.id);
+            this.childProcesses.delete(project.id);
+          }
         }
       }
       
@@ -217,7 +230,7 @@ class ProcessManager {
   }
 
   async stopProcess(projectId: string): Promise<void> {
-    console.log(`Stopping process for ${projectId}`);
+    console.log(`[ProcessManager] Stopping process for ${projectId}`);
     
     // Initialize if not already done
     await this.initialize();
@@ -225,31 +238,38 @@ class ProcessManager {
     const processInfo = this.processes.get(projectId);
     const child = this.childProcesses.get(projectId);
     
+    console.log(`[ProcessManager] Process info for ${projectId}:`, processInfo);
+    console.log(`[ProcessManager] Child process exists: ${!!child}`);
+    
     if (!processInfo || processInfo.status !== 'running') {
+      console.log(`[ProcessManager] Process ${projectId} not running (status: ${processInfo?.status})`);
       throw new Error('Process not running');
     }
 
     try {
       if (child) {
         // Process we started - use child process control
+        console.log(`[ProcessManager] Killing child process for ${projectId} with PID ${child.pid}`);
         child.kill('SIGTERM');
         
         // Wait for graceful shutdown
         await new Promise<void>((resolve) => {
           let timeout = setTimeout(() => {
             // Force kill if not stopped
+            console.log(`[ProcessManager] Graceful shutdown timeout, force killing ${projectId}`);
             child.kill('SIGKILL');
             resolve();
           }, 5000);
           
           child.on('exit', () => {
+            console.log(`[ProcessManager] Child process ${projectId} exited`);
             clearTimeout(timeout);
             resolve();
           });
         });
       } else if (processInfo.pid && processInfo.pid > 0) {
         // Process we detected - use OS-level kill
-        console.log(`Stopping detected process with PID ${processInfo.pid}`);
+        console.log(`[ProcessManager] Stopping detected process ${projectId} with PID ${processInfo.pid}`);
         if (process.platform === 'win32') {
           await execAsync(`taskkill /PID ${processInfo.pid} /T /F`);
         } else {
@@ -261,6 +281,7 @@ class ProcessManager {
         const portStillInUse = await this.isPortInUse(processInfo.port);
         if (portStillInUse) {
           // Try force kill
+          console.log(`[ProcessManager] Port ${processInfo.port} still in use, force killing PID ${processInfo.pid}`);
           if (process.platform === 'win32') {
             await execAsync(`taskkill /PID ${processInfo.pid} /T /F`);
           } else {
@@ -269,13 +290,16 @@ class ProcessManager {
         }
       } else {
         // No PID available, can't stop the process
+        console.log(`[ProcessManager] No PID available for ${projectId}, cannot stop`);
         throw new Error('Cannot stop process: no PID available');
       }
       
       // Verify the process is actually stopped by checking the port
       const portStillInUse = await this.isPortInUse(processInfo.port);
+      console.log(`[ProcessManager] After stop attempt, port ${processInfo.port} still in use: ${portStillInUse}`);
+      
       if (portStillInUse) {
-        console.warn(`Port ${processInfo.port} still in use after attempting to stop process ${projectId}`);
+        console.warn(`[ProcessManager] Port ${processInfo.port} still in use after attempting to stop process ${projectId}`);
         // Don't mark as stopped if port is still in use
         processInfo.status = 'error';
         const logs = this.logBuffers.get(projectId);
@@ -283,6 +307,7 @@ class ProcessManager {
           logs.push('[ERROR] Failed to stop process - port still in use');
         }
       } else {
+        console.log(`[ProcessManager] Successfully stopped process ${projectId}, marking as stopped`);
         processInfo.status = 'stopped';
         // Add stop log
         const logs = this.logBuffers.get(projectId);
@@ -294,9 +319,11 @@ class ProcessManager {
       this.childProcesses.delete(projectId);
       
     } catch (error) {
-      console.error(`Error stopping process for ${projectId}:`, error);
+      console.error(`[ProcessManager] Error stopping process for ${projectId}:`, error);
       // Check if process is actually stopped despite the error
       const portStillInUse = await this.isPortInUse(processInfo.port);
+      console.log(`[ProcessManager] After error, port ${processInfo.port} still in use: ${portStillInUse}`);
+      
       if (portStillInUse) {
         processInfo.status = 'error';
         const logs = this.logBuffers.get(projectId);
@@ -304,6 +331,7 @@ class ProcessManager {
           logs.push(`[ERROR] Failed to stop process: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       } else {
+        console.log(`[ProcessManager] Process ${projectId} appears to be stopped despite error`);
         processInfo.status = 'stopped';
         const logs = this.logBuffers.get(projectId);
         if (logs) {
@@ -315,7 +343,13 @@ class ProcessManager {
   }
 
   getStatus(projectId: string): ProcessInfo | null {
-    return this.processes.get(projectId) || null;
+    console.log(`[ProcessManager] getStatus called for ${projectId}`);
+    console.log(`[ProcessManager] Current processes in map:`, Array.from(this.processes.keys()));
+    
+    const status = this.processes.get(projectId) || null;
+    console.log(`[ProcessManager] Status for ${projectId}:`, status);
+    
+    return status;
   }
 
   async getAllStatuses(): Promise<Record<string, ProcessInfo>> {
@@ -345,9 +379,40 @@ class ProcessManager {
             info.status = 'stopped';
           }
         }
+      } else if (info.status === 'error') {
+        // Re-check error state processes - they might have recovered
+        console.log(`${id}: Re-checking error state process...`);
+        const portInUse = await this.isPortInUse(info.port);
+        console.log(`${id}: Port ${info.port} in use: ${portInUse}`);
+        if (!portInUse) {
+          console.log(`${id}: Port no longer in use, marking as stopped (recovered from error)`);
+          info.status = 'stopped';
+          const logs = this.logBuffers.get(id);
+          if (logs) {
+            logs.push('[INFO] Process recovered from error state - port is now free');
+          }
+        } else if (child && !child.killed && child.exitCode === null) {
+          // Child process is still running, mark as running
+          console.log(`${id}: Child process still running, marking as running (recovered from error)`);
+          info.status = 'running';
+          const logs = this.logBuffers.get(id);
+          if (logs) {
+            logs.push('[INFO] Process recovered from error state - now running normally');
+          }
+        }
       }
       
-      statuses[id] = info;
+      // Only include running and error processes in the status
+      // Stopped processes should be cleaned up and not returned
+      if (info.status === 'running' || info.status === 'error') {
+        statuses[id] = info;
+      } else if (info.status === 'stopped') {
+        console.log(`${id}: Process is stopped, removing from process manager`);
+        // Clean up stopped processes immediately
+        this.processes.delete(id);
+        this.logBuffers.delete(id);
+        this.childProcesses.delete(id);
+      }
     }
     
     console.log(`getAllStatuses: returning ${Object.keys(statuses).length} statuses`);
@@ -356,6 +421,27 @@ class ProcessManager {
 
   getLogs(projectId: string): string[] {
     return this.logBuffers.get(projectId) || [];
+  }
+
+  // Clear error state and allow manual recovery
+  clearErrorState(projectId: string): void {
+    const process = this.processes.get(projectId);
+    if (process && process.status === 'error') {
+      console.log(`Clearing error state for ${projectId}`);
+      process.status = 'stopped';
+      const logs = this.logBuffers.get(projectId);
+      if (logs) {
+        logs.push('[INFO] Error state cleared manually');
+      }
+    }
+  }
+
+  // Remove a process completely (for cleanup)
+  removeProcess(projectId: string): void {
+    console.log(`Removing process ${projectId}`);
+    this.processes.delete(projectId);
+    this.logBuffers.delete(projectId);
+    this.childProcesses.delete(projectId);
   }
 
   private async isPortInUse(port: number): Promise<boolean> {

@@ -28,3 +28,24 @@ export const agentIcons = {
     tester: TestTube,
     artist: Palette
   };
+
+export const getFileTypeColor = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'tsx':
+      case 'jsx':
+        return 'text-blue-400';
+      case 'ts':
+      case 'js':
+        return 'text-yellow-400';
+      case 'css':
+      case 'scss':
+        return 'text-pink-400';
+      case 'json':
+        return 'text-green-400';
+      case 'md':
+        return 'text-gray-400';
+      default:
+        return 'text-gray-300';
+    }
+  };

@@ -5,7 +5,7 @@ import { useProjectConfigStore } from './projectConfigStore';
 
 interface ServerProjectStore {
   // State
-  processes: Map<string, ProcessInfo>;
+  processes: Record<string, ProcessInfo>;
   
   // Actions
   setProcess: (projectId: string, info: ProcessInfo) => void;
@@ -23,6 +23,7 @@ interface ServerProjectStore {
   stopServer: (projectId: string) => Promise<void>;
   fetchStatuses: () => Promise<void>;
   fetchLogs: (projectId: string) => Promise<string[]>;
+  forceRefresh: () => Promise<void>;
 }
 
 export const useServerProjectStore = create<ServerProjectStore>()(
@@ -30,46 +31,45 @@ export const useServerProjectStore = create<ServerProjectStore>()(
     persist(
       (set, get) => ({
         // Initial state
-        processes: new Map(),
+        processes: {},
         
         // Process management
         setProcess: (projectId, info) => 
-          set((state) => {
-            const newProcesses = new Map(state.processes);
-            newProcesses.set(projectId, info);
-            return { processes: newProcesses };
-          }),
+          set((state) => ({
+            processes: {
+              ...state.processes,
+              [projectId]: info
+            }
+          })),
           
         removeProcess: (projectId) =>
           set((state) => {
-            const newProcesses = new Map(state.processes);
-            newProcesses.delete(projectId);
-            return { processes: newProcesses };
+            const { [projectId]: _, ...rest } = state.processes;
+            return { processes: rest };
           }),
           
         updateProcessStatus: (projectId, status) =>
           set((state) => {
-            const process = state.processes.get(projectId);
+            const process = state.processes[projectId];
             if (process) {
-              const newProcesses = new Map(state.processes);
-              newProcesses.set(projectId, { ...process, status });
-              return { processes: newProcesses };
+              return {
+                processes: {
+                  ...state.processes,
+                  [projectId]: { ...process, status }
+                }
+              };
             }
             return state;
           }),
           
         getProcess: (projectId) => {
           const state = get();
-          return state.processes.get(projectId);
+          return state.processes[projectId];
         },
         
         getAllProcesses: () => {
           const state = get();
-          const result: Record<string, ProcessInfo> = {};
-          state.processes.forEach((value, key) => {
-            result[key] = value;
-          });
-          return result;
+          return state.processes;
         },
         
         // Project management (delegated to config store)
@@ -103,6 +103,12 @@ export const useServerProjectStore = create<ServerProjectStore>()(
         
         stopServer: async (projectId) => {
           try {
+            // Immediately update UI to show stopping state
+            const currentProcess = get().processes[projectId];
+            if (currentProcess) {
+              get().setProcess(projectId, { ...currentProcess, status: 'stopping' });
+            }
+            
             const res = await fetch('/api/server/stop', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -112,10 +118,21 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             
-            // Remove process from store
-            get().removeProcess(projectId);
+            // Don't immediately remove from store - let fetchStatuses handle cleanup
+            // This prevents race conditions where the process is removed but still exists in process manager
+            console.log('stopServer: Process stop requested, waiting for status sync...');
+            
+            // Trigger an immediate status fetch to update the UI
+            setTimeout(() => {
+              get().fetchStatuses();
+            }, 1000);
           } catch (error) {
             console.error('Failed to stop server:', error);
+            // Revert the status if stopping failed
+            const currentProcess = get().processes[projectId];
+            if (currentProcess && currentProcess.status === 'stopping') {
+              get().setProcess(projectId, { ...currentProcess, status: 'running' });
+            }
             throw error;
           }
         },
@@ -139,11 +156,19 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             
             const data = await res.json();
             const statuses = data.statuses || {};
+            console.log('fetchStatuses: received statuses from API:', statuses);
+            
+            // Get current projects from config store
+            const currentProjects = useProjectConfigStore.getState().getAllProjects();
+            console.log('fetchStatuses: current projects in config store:', currentProjects.map(p => ({ id: p.id, name: p.name, port: p.port })));
+            
             const { setProcess, removeProcess } = get();
             
             // Remove processes that are no longer running
             const currentProcessIds = new Set(Object.keys(statuses));
-            get().processes.forEach((_, projectId) => {
+            console.log('fetchStatuses: process IDs from API:', Array.from(currentProcessIds));
+            
+            Object.keys(get().processes).forEach((projectId) => {
               if (!currentProcessIds.has(projectId)) {
                 console.log(`Removing process ${projectId} (no longer in status)`);
                 removeProcess(projectId);
@@ -152,8 +177,16 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             
             // Update or add processes
             Object.entries(statuses).forEach(([projectId, status]) => {
+              console.log(`Setting process ${projectId} with status:`, status);
               setProcess(projectId, status as ProcessInfo);
             });
+            
+            // Log final state
+            const finalProcesses = get().getAllProcesses();
+            console.log('fetchStatuses: final processes in store:', Object.keys(finalProcesses));
+            
+            // Force a re-render by updating the store
+            set(state => ({ ...state }));
           } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
               console.warn('Request timed out');
@@ -172,6 +205,14 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             console.error('Failed to fetch logs:', error);
             return [];
           }
+        },
+
+        forceRefresh: async () => {
+          console.log('forceRefresh called - clearing store and fetching fresh data');
+          // Clear current processes
+          set({ processes: {} });
+          // Fetch fresh data
+          await get().fetchStatuses();
         },
       }),
       {

@@ -3,42 +3,46 @@ import { Project } from '@/types';
 // Base projects that can be instantiated multiple times
 export const baseProjects: Project[] = [
   {
-    id: 'vibeman-app',
-    name: 'Vibeman App',
-    path: 'C:\\Users\\kazda\\mk\\vibeman',
+    id: 'simple-app',
+    name: 'Simple App',
+    path: 'C:\\Users\\kazda\\mk\\simple',
     port: 3001,
-    description: 'Main Vibeman application',
+    description: 'Simple Next.js application',
     allowMultipleInstances: true,
     basePort: 3001,
     git: {
-      repository: 'https://github.com/yourusername/vibeman.git',
+      repository: 'https://github.com/yourusername/simple.git',
       branch: 'main',
       autoSync: true
     }
   },
   {
-    id: 'first-app',
-    name: 'First App',
-    path: 'C:\\Users\\kazda\\mk\\first',
+    id: 'vibe-app',
+    name: 'Vibe App',
+    path: 'C:\\Users\\kazda\\mk\\vibe',
     port: 3002,
-    description: 'First test application',
+    description: 'Vibe management application',
     allowMultipleInstances: true,
     basePort: 3002,
     git: {
-      repository: 'https://github.com/yourusername/first-app.git',
-      branch: 'develop',
+      repository: 'https://github.com/yourusername/vibe.git',
+      branch: 'main',
       autoSync: false
     }
   },
   {
-    id: 'test-project',
-    name: 'Test Project',
-    path: 'C:\\Users\\kazda\\mk\\test-project',
+    id: 'vibeman-app',
+    name: 'Vibeman App',
+    path: 'C:\\Users\\kazda\\mk\\vibeman',
     port: 3003,
-    description: 'Additional test project',
+    description: 'Vibeman application',
     allowMultipleInstances: false,
-    basePort: 3003
-    // No git config - not all projects need to be git-enabled
+    basePort: 3003,
+    git: {
+      repository: 'https://github.com/yourusername/vibeman.git',
+      branch: 'main',
+      autoSync: false
+    }
   }
 ];
 

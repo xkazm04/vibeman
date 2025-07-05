@@ -1,14 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Code2, Palette } from 'lucide-react';
-import { useStore } from '../../../stores/nodeStore';
+import { useBacklog } from '../../../hooks/useBacklog';
+import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import BacklogItem from './BacklogItem';
 import BacklogFormAdd from './BacklogFormAdd';
 import { GlowCard } from '@/components/GlowCard';
 import { agentThemes } from '@/helpers/typeStyles';
 
 export default function Backlog() {
-  const { backlogProposals, customBacklogItems, acceptProposal, rejectProposal, addCustomBacklogItem } = useStore();
+  const { activeProject } = useActiveProjectStore();
+  const { 
+    backlogProposals, 
+    customBacklogItems, 
+    loading, 
+    error,
+    newItemIds,
+    acceptProposal, 
+    rejectProposal, 
+    createBacklogItem 
+  } = useBacklog(activeProject?.id || null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
   // Group all items by agent type
@@ -40,6 +51,13 @@ export default function Backlog() {
   };
 
   const totalItems = backlogProposals.length + customBacklogItems.length;
+
+  const handleAddCustomBacklogItem = async (itemData: any) => {
+    await createBacklogItem({
+      ...itemData,
+      type: 'custom'
+    });
+  };
 
   const AgentSection = ({ 
     agentType, 
@@ -75,6 +93,7 @@ export default function Backlog() {
                 proposal={item}
                 onAccept={acceptProposal}
                 onReject={rejectProposal}
+                isNew={newItemIds.has(item.id)}
               />
             ))}
           </AnimatePresence>
@@ -108,25 +127,29 @@ export default function Backlog() {
     </div>
   );
 
+  if (loading) {
+    return (
+      <GlowCard className="p-6 h-full flex flex-col max-h-[60vh]">
+        <div className="flex items-center justify-center h-full">
+          <div className="text-gray-400">Loading backlog items...</div>
+        </div>
+      </GlowCard>
+    );
+  }
+
+  if (error) {
+    return (
+      <GlowCard className="p-6 h-full flex flex-col max-h-[60vh]">
+        <div className="flex items-center justify-center h-full">
+          <div className="text-red-400">Error: {error}</div>
+        </div>
+      </GlowCard>
+    );
+  }
+
   return (
     <>
-      <GlowCard className="p-6 h-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-r from-cyan-500/20 to-pink-500/20 rounded-lg">
-              <Plus className="w-5 h-5 text-white" />
-            </div>
-            <h2 className="text-xl font-semibold text-white font-mono">Project Backlog</h2>
-          </div>
-          <div className="flex items-center space-x-3 text-sm text-gray-400">
-            <div className="flex items-center space-x-1">
-              <span className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-pink-400 rounded-full"></span>
-              <span>{totalItems} total items</span>
-            </div>
-          </div>
-        </div>
-        
+      <GlowCard className="p-6 h-full flex flex-col max-h-[60vh]">        
         {/* Two Column Layout - Developer and Artist */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Developer Column */}
@@ -162,7 +185,7 @@ export default function Backlog() {
       <BacklogFormAdd
         isOpen={isFormModalOpen}
         onClose={handleCloseForm}
-        onSubmit={addCustomBacklogItem}
+        onSubmit={handleAddCustomBacklogItem}
       />
     </>
   );

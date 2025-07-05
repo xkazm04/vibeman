@@ -6,22 +6,26 @@ interface StatusLeverProps {
   isLoading: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  hasError?: boolean;
+  isStopping?: boolean;
 }
 
 export const StatusLever: React.FC<StatusLeverProps> = ({
   isRunning,
   isLoading,
   onToggle,
-  disabled = false
+  disabled = false,
+  hasError = false,
+  isStopping = false
 }) => {
   return (
     <motion.button
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onToggle}
-      disabled={disabled || isLoading}
+      disabled={disabled || isLoading || isStopping}
       className="relative cursor-pointer w-6 h-12 bg-gray-800 rounded-full border border-gray-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-      title={isRunning ? 'Stop Server' : 'Start Server'}
+      title={isStopping ? 'Stopping Server...' : hasError ? 'Clear Error State' : isRunning ? 'Stop Server' : 'Start Server'}
     >
       {/* Lever Track */}
       <div className="absolute inset-1 bg-gray-900 rounded-full">
@@ -41,13 +45,17 @@ export const StatusLever: React.FC<StatusLeverProps> = ({
           {/* Main Circle */}
           <div
             className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${
-              isRunning
+              isStopping
+                ? 'bg-yellow-500 border-yellow-400 shadow-lg shadow-yellow-500/40'
+                : hasError
+                ? 'bg-orange-500 border-orange-400 shadow-lg shadow-orange-500/40'
+                : isRunning
                 ? 'bg-green-500 border-green-400 shadow-lg shadow-green-500/40'
                 : 'bg-red-500 border-red-400 shadow-lg shadow-red-500/40'
             }`}
           >
             {/* Loading Spinner */}
-            {isLoading && (
+            {(isLoading || isStopping) && (
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -56,17 +64,17 @@ export const StatusLever: React.FC<StatusLeverProps> = ({
             )}
 
             {/* Inner Glow Dot */}
-            {!isLoading && (
+            {!isLoading && !isStopping && (
               <div
                 className={`absolute inset-1 rounded-full transition-all duration-300 ${
-                  isRunning ? 'bg-green-300' : 'bg-red-300'
+                  hasError ? 'bg-orange-300' : isRunning ? 'bg-green-300' : 'bg-red-300'
                 }`}
               />
             )}
           </div>
 
           {/* Outer Glow Effect */}
-          {isRunning && !isLoading && (
+          {isRunning && !isLoading && !isStopping && (
             <motion.div
               animate={{
                 boxShadow: [
@@ -94,7 +102,7 @@ export const StatusLever: React.FC<StatusLeverProps> = ({
         }}
         transition={{ duration: 0.3 }}
         className={`absolute inset-0 rounded-full blur-md -z-10 ${
-          isRunning ? 'bg-green-500/20' : 'bg-red-500/20'
+          isStopping ? 'bg-yellow-500/20' : hasError ? 'bg-orange-500/20' : isRunning ? 'bg-green-500/20' : 'bg-red-500/20'
         }`}
       />
     </motion.button>

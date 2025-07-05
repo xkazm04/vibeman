@@ -48,15 +48,15 @@ export default function BacklogDetail({
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div className={`relative w-full max-w-2xl max-h-[90vh] border border-gray-700/30 rounded-xl overflow-hidden bg-gray-950/80`}>
+            <div className="relative w-full max-w-2xl max-h-[90vh] bg-slate-900/95 border border-slate-700/40 rounded-xl overflow-hidden backdrop-blur-xl shadow-2xl">
               {/* Header */}
-              <div className="relative z-10 p-6 border-b border-gray-700/30">
+              <div className="p-6 border-b border-slate-700/30">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 pr-20">
-                    <h2 className="text-xl font-semibold text-white mb-2">
+                    <h2 className="text-xl font-semibold text-white mb-2 tracking-wide">
                       {proposal.title}
                     </h2>
-                    <div className="flex items-center space-x-4 text-sm text-gray-400">
+                    <div className="flex items-center space-x-4 text-sm text-slate-400">
                       <div className="flex items-center space-x-1">
                         <User className="w-4 h-4" />
                         <span>{agentNames[proposal.agent]}</span>
@@ -70,9 +70,9 @@ export default function BacklogDetail({
                   
                   <button
                     onClick={onClose}
-                    className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                    className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
                   >
-                    <X className="w-5 h-5 text-gray-400" />
+                    <X className="w-5 h-5 text-slate-400" />
                   </button>
                 </div>
               </div>
@@ -82,27 +82,27 @@ export default function BacklogDetail({
                 <div className="space-y-6">
                   {/* Description */}
                   <div>
-                    <h3 className="text-lg font-medium text-white mb-3">Description</h3>
-                    <p className="text-gray-300 leading-relaxed">
+                    <h3 className="text-lg font-medium text-white mb-3 tracking-wide">Description</h3>
+                    <p className="text-slate-200 leading-relaxed">
                       {proposal.description}
                     </p>
                   </div>
 
-                  {/* Additional Details Section - Placeholder for future expansion */}
+                  {/* Additional Details Section */}
                   <div>
-                    <h3 className="text-lg font-medium text-white mb-3">Details</h3>
+                    <h3 className="text-lg font-medium text-white mb-3 tracking-wide">Details</h3>
                     <div className="space-y-3">
-                      <div className="p-4 bg-gray-800/30 rounded-lg">
-                        <h4 className="text-sm font-medium text-gray-300 mb-1">Proposed By</h4>
-                        <p className="text-sm text-gray-400">{agentNames[proposal.agent]} Agent</p>
+                      <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                        <h4 className="text-sm font-medium text-slate-300 mb-1">Proposed By</h4>
+                        <p className="text-sm text-slate-400">{agentNames[proposal.agent]} Agent</p>
                       </div>
-                      <div className="p-4 bg-gray-800/30 rounded-lg">
-                        <h4 className="text-sm font-medium text-gray-300 mb-1">Created</h4>
-                        <p className="text-sm text-gray-400">{proposal.timestamp.toLocaleString()}</p>
+                      <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                        <h4 className="text-sm font-medium text-slate-300 mb-1">Created</h4>
+                        <p className="text-sm text-slate-400">{proposal.timestamp.toLocaleString()}</p>
                       </div>
-                      <div className="p-4 bg-gray-800/30 rounded-lg">
-                        <h4 className="text-sm font-medium text-gray-300 mb-1">Priority</h4>
-                        <p className="text-sm text-gray-400">Medium</p>
+                      <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                        <h4 className="text-sm font-medium text-slate-300 mb-1">Priority</h4>
+                        <p className="text-sm text-slate-400">Medium</p>
                       </div>
                     </div>
                   </div>
@@ -110,7 +110,7 @@ export default function BacklogDetail({
               </div>
 
               {/* Action Buttons */}
-              <div className="p-6 border-t border-gray-700/30 bg-gray-800/20">
+              <div className="p-6 border-t border-slate-700/30 bg-slate-800/20">
                 <div className="flex justify-end space-x-3">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -119,7 +119,7 @@ export default function BacklogDetail({
                       onReject(proposal.id);
                       onClose();
                     }}
-                    className="px-6 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 text-red-400 rounded-lg transition-colors"
+                    className="px-6 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 text-red-400 rounded-lg transition-colors font-medium"
                   >
                     Reject
                   </motion.button>
@@ -130,7 +130,7 @@ export default function BacklogDetail({
                       onAccept(proposal.id);
                       onClose();
                     }}
-                    className="px-6 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-600/30 text-green-400 rounded-lg transition-colors"
+                    className="px-6 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-600/30 text-green-400 rounded-lg transition-colors font-medium"
                   >
                     Accept
                   </motion.button>

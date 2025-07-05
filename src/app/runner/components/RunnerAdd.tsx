@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { Project } from "@/types";
+import { useState } from "react";
 
 type Props = {
     showAddProject: boolean;
@@ -12,19 +13,41 @@ type Props = {
 }
 
 const RunnerAdd = ({ showAddProject, setShowAddProject, newProject, setNewProject, addProject, projects }: Props) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleAddProject = () => {
+    const handleAddProject = async () => {
         if (newProject.name && newProject.path && newProject.port) {
-            const id = `project-${Date.now()}`;
-            addProject({
-                id,
-                name: newProject.name,
-                path: newProject.path,
-                port: newProject.port,
-                description: newProject.description || ''
-            } as Project);
-            setNewProject({ name: '', path: '', port: 3000, description: '' });
-            setShowAddProject(false);
+            // Check for duplicate paths
+            const existingProject = projects.find(p => p.path === newProject.path);
+            if (existingProject) {
+                alert(`A project with the same path already exists: ${existingProject.name}`);
+                return;
+            }
+            
+            // Check for duplicate ports
+            const existingPort = projects.find(p => p.port === newProject.port);
+            if (existingPort) {
+                alert(`Port ${newProject.port} is already in use by: ${existingPort.name}`);
+                return;
+            }
+            
+            setIsSubmitting(true);
+            try {
+                const id = `project-${Date.now()}`;
+                await addProject({
+                    id,
+                    name: newProject.name,
+                    path: newProject.path,
+                    port: newProject.port,
+                    description: newProject.description || ''
+                } as Project);
+                setNewProject({ name: '', path: '', port: 3000, description: '' });
+                setShowAddProject(false);
+            } catch (error) {
+                alert(error instanceof Error ? error.message : 'Failed to add project');
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -72,13 +95,15 @@ const RunnerAdd = ({ showAddProject, setShowAddProject, newProject, setNewProjec
                     <div className="flex gap-1">
                         <button
                             onClick={handleAddProject}
-                            className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                            disabled={isSubmitting}
+                            className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Add
+                            {isSubmitting ? 'Adding...' : 'Add'}
                         </button>
                         <button
                             onClick={() => setShowAddProject(false)}
-                            className="flex-1 px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
+                            disabled={isSubmitting}
+                            className="flex-1 px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Cancel
                         </button>

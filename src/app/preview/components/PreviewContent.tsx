@@ -13,7 +13,7 @@ interface TabProject {
 interface PreviewContentProps {
   activeProject: TabProject | undefined;
   refreshKey: number;
-  onStartServer: (projectId: string) => void;
+  onStartServer?: (projectId: string) => void;
   onRefresh: () => void;
   onIframeError: (projectId: string) => void;
   onIframeLoad: (projectId: string) => void;
@@ -178,15 +178,17 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
                   <p className="text-gray-400 mb-4">
                     {activeProject.project.name} is not currently running. Start the server to preview it.
                   </p>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onStartServer(activeProject.project.id)}
-                    className="px-6 py-3 bg-green-600 text-white rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors mx-auto"
-                  >
-                    <Play size={16} />
-                    Start Server
-                  </motion.button>
+                  {onStartServer && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onStartServer(activeProject.project.id)}
+                      className="px-6 py-3 bg-green-600 text-white rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors mx-auto"
+                    >
+                      <Play size={16} />
+                      Start Server
+                    </motion.button>
+                  )}
                 </div>
               </div>
             )}

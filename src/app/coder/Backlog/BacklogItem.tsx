@@ -10,9 +10,10 @@ interface ProposalItemProps {
   proposal: BacklogProposal;
   onAccept: (proposalId: string) => void;
   onReject: (proposalId: string) => void;
+  isNew?: boolean;
 }
 
-export default function BacklogItem({ proposal, onAccept, onReject }: ProposalItemProps) {
+export default function BacklogItem({ proposal, onAccept, onReject, isNew = false }: ProposalItemProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const { highlightNodes, clearHighlights, highlightedNodes } = useStore();
@@ -63,12 +64,19 @@ export default function BacklogItem({ proposal, onAccept, onReject }: ProposalIt
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
+        initial={isNew ? { opacity: 0, scale: 0.8, y: -20 } : false}
+        animate={isNew ? { opacity: 1, scale: 1, y: 0 } : {}}
+        transition={isNew ? { 
+          type: "spring", 
+          damping: 20, 
+          stiffness: 300,
+          delay: 0.1
+        } : {}}
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
-        className={`relative rounded-lg border transition-all duration-200 overflow-hidden ${theme.bg} ${theme.hoverBg} hover:shadow-lg`}
+        className={`relative rounded-lg border transition-all duration-200 overflow-hidden ${theme.bg} ${theme.hoverBg} hover:shadow-lg ${
+          isNew ? 'ring-2 ring-purple-500/50 shadow-lg shadow-purple-500/25' : ''
+        }`}
       >
         {/* Background Icon */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -104,12 +112,12 @@ export default function BacklogItem({ proposal, onAccept, onReject }: ProposalIt
 
         {/* Bottom Highlight Button */}
         {proposal.impactedFiles && proposal.impactedFiles.length > 0 && (
-          <div className="absolute bottom-0 left-3 right-3 h-8 flex items-center justify-center">
+          <div className="absolute bottom-0  left-3 right-3 h-4 flex items-center justify-center">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleHighlightFiles}
-              className={`flex items-center space-x-2 px-3 py-1 rounded-t-lg text-xs font-medium transition-all duration-200 z-40 ${
+              className={`flex min-w-[300px] cursor-pointer items-center space-x-2 px-3 py-1 rounded-t-lg text-xs font-medium transition-all duration-200 z-40 ${
                 isHighlighted
                   ? 'bg-orange-500/30 text-orange-300 border-t border-orange-400/50'
                   : 'bg-gray-700/50 text-gray-400 hover:bg-orange-500/20 hover:text-orange-300 border-t border-gray-600/50'
@@ -117,8 +125,6 @@ export default function BacklogItem({ proposal, onAccept, onReject }: ProposalIt
               title={isHighlighted ? "Clear highlights" : "Highlight impacted files"}
             >
               <Zap className={`w-3 h-3 ${isHighlighted ? 'text-orange-400' : 'text-gray-400'}`} />
-              <span>{isHighlighted ? 'Clear' : 'Highlight'}</span>
-              <span className="text-gray-500">({proposal.impactedFiles.length})</span>
             </motion.button>
           </div>
         )}
@@ -138,15 +144,9 @@ export default function BacklogItem({ proposal, onAccept, onReject }: ProposalIt
           </div>
 
           {/* Description Preview */}
-          <p className="text-gray-300 text-xs leading-relaxed mb-3 pr-12 line-clamp-2">
+          <p className="text-gray-300 text-xs leading-relaxed mb-1 pr-12 line-clamp-2">
             {proposal.description}
           </p>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span className="capitalize font-medium">{proposal.agent}</span>
-            <span>{formatTimeAgo(proposal.timestamp)}</span>
-          </div>
         </div>
 
         {/* Hover Indicator */}

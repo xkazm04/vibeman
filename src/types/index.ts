@@ -17,7 +17,7 @@ export interface Project {
 export interface ProcessInfo {
   pid: number;
   port: number;
-  status: 'running' | 'stopped' | 'error';
+  status: 'running' | 'stopped' | 'error' | 'stopping';
   startTime?: Date;
   logs: string[];
 }
@@ -86,6 +86,17 @@ export interface AppState {
   customBacklogItems: CustomBacklogItem[];
 }
 
+export interface Goal {
+  id: string;
+  order: number;
+  title: string;
+  description?: string;
+  status: 'open' | 'in_progress' | 'done';
+  // Database fields (optional for compatibility)
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface AppStore extends AppState {
   setActiveTab: (tabId: string) => void;
   toggleAgent: (agentId: string) => void;
@@ -97,4 +108,32 @@ export interface AppStore extends AppState {
   rejectProposal: (proposalId: string) => void;
   addCustomBacklogItem: (item: CustomBacklogItem) => void;
   moveToInProgress: (proposalId: string) => void; // New: move accepted proposals to in-progress
+}
+
+// Database-related types
+export interface DatabaseGoal {
+  id: string;
+  project_id: string;
+  order_index: number;
+  title: string;
+  description: string | null;
+  status: 'open' | 'in_progress' | 'done';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DatabaseBacklogItem {
+  id: string;
+  project_id: string;
+  goal_id: string | null;
+  agent: 'developer' | 'mastermind' | 'tester' | 'artist' | 'custom';
+  title: string;
+  description: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
+  type: 'proposal' | 'custom';
+  impacted_files: string[] | null;
+  created_at: string;
+  updated_at: string;
+  accepted_at: string | null;
+  rejected_at: string | null;
 }
