@@ -5,9 +5,10 @@ interface AnalysisStore {
   // State
   isActive: boolean;
   currentGoalId: string | null;
+  currentProjectId: string | null;
   
   // Actions
-  startAnalysis: (goalId: string) => void;
+  startAnalysis: (goalId: string, projectId: string) => void;
   stopAnalysis: () => void;
 }
 
@@ -17,23 +18,36 @@ export const useAnalysisStore = create<AnalysisStore>()(
       // Initial state
       isActive: false,
       currentGoalId: null,
+      currentProjectId: null,
       
       // Start analysis and set timeout
-      startAnalysis: (goalId) => {
-        set({ isActive: true, currentGoalId: goalId });
+      startAnalysis: (goalId, projectId) => {
+        console.log('Starting analysis for goal:', goalId, 'project:', projectId);
+        
+        set({ 
+          isActive: true, 
+          currentGoalId: goalId,
+          currentProjectId: projectId
+        });
         
         // Auto-stop after 30 seconds
         setTimeout(() => {
           const state = get();
           if (state.isActive && state.currentGoalId === goalId) {
-            set({ isActive: false, currentGoalId: null });
+            console.log('Auto-stopping analysis after timeout');
+            get().stopAnalysis();
           }
         }, 30000);
       },
       
       // Stop analysis manually
       stopAnalysis: () => {
-        set({ isActive: false, currentGoalId: null });
+        console.log('Stopping analysis');
+        set({ 
+          isActive: false, 
+          currentGoalId: null,
+          currentProjectId: null
+        });
       },
     }),
     {

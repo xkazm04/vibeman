@@ -11,11 +11,12 @@ import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useAnalysisStore } from '../../../stores/analysisStore';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
 import AnalysisClient from '../../../lib/analysisClient';
+import GoalsTitle from './GoalsTitle';
 
 export default function GoalsLayout() {
   const { activeProject } = useActiveProjectStore();
-  const { goals, loading, error, createGoal, updateGoal } = useGoals(activeProject?.id || null);
-  const { startAnalysis } = useAnalysisStore();
+  const { goals, loading, error, createGoal, updateGoal, fetchGoals } = useGoals(activeProject?.id || null);
+  const { startAnalysis, isActive } = useAnalysisStore();
   const { getProject } = useProjectConfigStore();
   
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
@@ -62,15 +63,16 @@ export default function GoalsLayout() {
       return;
     }
     
-    // Start analysis state
-    startAnalysis(selectedGoal.id);
+    // Start analysis state with project ID
+    startAnalysis(selectedGoal.id, activeProject.id);
     
     // Trigger n8n webhook
     try {
       const response = await AnalysisClient.triggerAnalysis({
         repository: project.git.repository,
         goal: selectedGoal.title,
-        branch: project.git.branch
+        branch: project.git.branch,
+        projectId: activeProject.id
       });
       
       if (!response.success) {
@@ -119,8 +121,9 @@ export default function GoalsLayout() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full h-16 
-        bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 mb-6"
+        className={`w-full py-1 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 ${
+          isActive ? 'shadow-lg shadow-purple-500/20' : ''
+        }`}
       >
         <div className="h-full w-full flex items-center justify-between px-6">
           {/* Timeline on the left */}
@@ -133,45 +136,11 @@ export default function GoalsLayout() {
           </div>
 
           {/* Goal title in the center */}
-          <div className="flex-1 flex justify-center px-8">
-            {selectedGoal && (
-              <motion.div
-                key={selectedGoal.id} // Force re-render on goal change
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ 
-                  opacity: isTransitioning ? 0 : 1, 
-                  y: isTransitioning ? -5 : 0 
-                }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="text-center cursor-pointer group"
-                onClick={handleGoalDetailClick}
-              >
-                <motion.h2
-                  initial={{ opacity: 0 }}
-                  animate={{ 
-                    opacity: isTransitioning ? 0 : 1,
-                    y: isTransitioning ? -3 : 0
-                  }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="text-lg font-semibold text-white tracking-wide leading-tight group-hover:text-slate-200 transition-colors duration-200"
-                >
-                  {selectedGoal.title}
-                </motion.h2>
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ 
-                    opacity: isTransitioning ? 0 : 1,
-                    y: isTransitioning ? -2 : 0
-                  }}
-                  transition={{ duration: 0.3, delay: 0.05, ease: "easeInOut" }}
-                  className="text-xs text-slate-400 capitalize mt-1 font-medium tracking-wider group-hover:text-slate-300 transition-colors duration-200"
-                >
-                  {selectedGoal.status.replace('_', ' ')}
-                </motion.p>
-              </motion.div>
-            )}
-          </div>
+          {selectedGoal && <GoalsTitle
+            selectedGoal={selectedGoal}
+            isTransitioning={isTransitioning}
+            handleGoalDetailClick={handleGoalDetailClick}
+          />}
 
           {/* Actions on the right */}
           <div className="flex-shrink-0">
@@ -179,6 +148,7 @@ export default function GoalsLayout() {
               selectedGoal={selectedGoal}
               onAddGoal={handleAddGoal}
               onAnalyzeGoal={handleAnalyzeGoal}
+              onRefresh={fetchGoals}
             />
           </div>
         </div>

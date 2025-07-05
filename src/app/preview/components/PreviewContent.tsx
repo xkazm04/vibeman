@@ -73,7 +73,7 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
   };
 
   return (
-    <div className="flex-1 p-4">
+    <div className="flex-1 min-h-0 p-4">
       <AnimatePresence mode="wait">
         {activeProject ? (
           <motion.div
@@ -81,6 +81,7 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            className="h-full"
           >
             {activeProject.isRunning ? (
               <div className="h-full bg-gray-900 rounded-lg border border-gray-800 overflow-hidden relative">
@@ -124,7 +125,7 @@ export const PreviewContent: React.FC<PreviewContentProps> = ({
                       exit="exit"
                       src={`http://localhost:${activeProject.project.port}`}
                       className="w-full h-full"
-                      style={{ border: 'none', minHeight: '50vh' }}
+                      style={{ border: 'none', minHeight: '80vh' }}
                       title={activeProject.project.name}
                       onLoad={handleIframeLoad}
                       onError={handleIframeError}

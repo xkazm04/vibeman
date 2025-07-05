@@ -4,7 +4,7 @@
     "name": "Simple App",
     "path": "C:\\Users\\kazda\\mk\\simple",
     "port": 3001,
-    "description": "Simple Next.js application",
+    "description": "Simple Next.js applicationssdasdadsadddsdasdasdasdddasdsd",
     "allowMultipleInstances": true,
     "basePort": 3001,
     "git": {
@@ -18,7 +18,7 @@
     "name": "Vibe App",
     "path": "C:\\Users\\kazda\\mk\\vibe",
     "port": 3002,
-    "description": "Vibe management application",
+    "description": "Vibe management applicationssddasdsdsa",
     "allowMultipleInstances": true,
     "basePort": 3002,
     "git": {

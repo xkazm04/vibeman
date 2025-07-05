@@ -185,8 +185,8 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             const finalProcesses = get().getAllProcesses();
             console.log('fetchStatuses: final processes in store:', Object.keys(finalProcesses));
             
-            // Force a re-render by updating the store
-            set(state => ({ ...state }));
+            // Note: Removed forced re-render as it was causing unnecessary updates
+            // The store will automatically notify subscribers when processes change
           } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
               console.warn('Request timed out');

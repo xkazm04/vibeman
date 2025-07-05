@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Info, AlertTriangle, XCircle, CheckCircle, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useStore } from '@/stores/nodeStore';
+import { useAnalysisStore } from '@/stores/analysisStore';
 import { GlowCard } from '@/components/GlowCard';
 import EventTable from './EventTable';
 
@@ -10,8 +11,9 @@ const MAX_EVENTS = 50;
 
 export default function EventLayout() {
   const { eventLog } = useStore();
+  const { isActive } = useAnalysisStore();
   const [filter, setFilter] = useState('all');
-  const [viewState, setViewState] = useState<'normal' | 'maximized' | 'minimized'>('normal');
+  const [viewState, setViewState] = useState<'normal' | 'maximized' | 'minimized'>('minimized');
 
   const limitedEvents = useMemo(() => {
     return eventLog.slice(0, MAX_EVENTS);
@@ -64,7 +66,7 @@ export default function EventLayout() {
     >
       <GlowCard className={`p-4 h-full flex flex-col relative shadow-[0_-4px_20px_rgba(255,255,255,0.1)] border-t-white/20 ${
         viewState === 'minimized' ? 'items-center justify-center' : ''
-      }`}>
+      } ${isActive ? 'shadow-lg shadow-purple-500/20' : ''}`}>
         {/* Control Buttons - Top Right */}
         <div className="absolute top-2 right-2 flex gap-1 z-10">
           {viewState !== 'minimized' && (

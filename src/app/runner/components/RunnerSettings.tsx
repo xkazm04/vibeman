@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Project } from '@/types';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { RunnerSetting } from './RunnerSetting';
+import { UniversalModal } from '@/components/UniversalModal';
+import RunnerSetting  from './RunnerSetting';
 
-interface RunnerSettingsProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
   projects: Project[];
@@ -13,53 +13,57 @@ interface RunnerSettingsProps {
   onDeleteProject: (projectId: string) => void;
 }
 
-export const RunnerSettings: React.FC<RunnerSettingsProps> = React.memo(({
+const RunnerSettings = React.memo(function RunnerSettings({
   isOpen,
   onClose,
   projects,
   onUpdateProject,
   onDeleteProject
-}) => {
+}: Props) {
   const { updateProject } = useProjectConfigStore();
   const [editedProjects, setEditedProjects] = useState<Record<string, Project>>({});
   const [hasChanges, setHasChanges] = useState<Record<string, boolean>>({});
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
-  const handleProjectChange = useCallback((projectId: string, field: keyof Project | string, value: any) => {
+  const handleProjectChange = useCallback((projectId: string, field: keyof Project | string, value: unknown) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
 
-    const currentEdited = editedProjects[projectId] || project;
-    
     // Handle nested git properties
     if (field.startsWith('git.')) {
       const gitField = field.replace('git.', '');
-      const updatedProject: Project = {
-        ...currentEdited,
-        git: {
-          repository: currentEdited.git?.repository || '',
-          branch: currentEdited.git?.branch || '',
-          autoSync: currentEdited.git?.autoSync || false,
-          ...currentEdited.git,
-          [gitField]: value
-        }
-      };
-      setEditedProjects(prev => ({
-        ...prev,
-        [projectId]: updatedProject
-      }));
+      setEditedProjects(prev => {
+        const currentEdited = prev[projectId] || project;
+        const updatedProject: Project = {
+          ...currentEdited,
+          git: {
+            repository: currentEdited.git?.repository || '',
+            branch: currentEdited.git?.branch || '',
+            autoSync: currentEdited.git?.autoSync || false,
+            ...currentEdited.git,
+            [gitField]: value
+          }
+        };
+        return {
+          ...prev,
+          [projectId]: updatedProject
+        };
+      });
     } else {
-      setEditedProjects(prev => ({
-        ...prev,
-        [projectId]: { ...currentEdited, [field]: value }
-      }));
+      setEditedProjects(prev => {
+        const currentEdited = prev[projectId] || project;
+        return {
+          ...prev,
+          [projectId]: { ...currentEdited, [field]: value }
+        };
+      });
     }
     
     setHasChanges(prev => ({
       ...prev,
       [projectId]: true
     }));
-  }, [projects, editedProjects]);
+  }, [projects]); // Removed editedProjects dependency
 
   const handleSaveProject = useCallback((projectId: string) => {
     const editedProject = editedProjects[projectId];
@@ -98,100 +102,100 @@ export const RunnerSettings: React.FC<RunnerSettingsProps> = React.memo(({
     onClose();
   }, [onClose]);
 
-  const getProjectData = useCallback((projectId: string) => {
-    return editedProjects[projectId] || projects.find(p => p.id === projectId);
-  }, [editedProjects, projects]);
-
-  // Memoize project settings to prevent unnecessary re-renders
+  // Improved memoization with stable dependencies
   const projectSettings = useMemo(() => {
-    return projects.map(project => {
-      const projectData = getProjectData(project.id);
-      const projectHasChanges = hasChanges[project.id] || false;
-      const isExpanded = expandedProject === project.id;
+    const settings = projects.map((project, index) => {
+      // Ensure project has a valid ID - use index as fallback
+      if (!project.id || project.id.trim() === '') {
+        console.warn('RunnerSettings: Project missing or empty ID, using index as fallback:', project, 'index:', index);
+      }
+      
+      const safeId = (project.id && project.id.trim()) || `project-${index}`;
+      const projectData = editedProjects[safeId] || project;
+      const projectHasChanges = hasChanges[safeId] || false;
+      const isExpanded = expandedProject === safeId;
+
+      // Robust key generation with fallback and unique identifier
+      const baseKey = `project-${safeId}-${projectHasChanges ? 'changed' : 'unchanged'}-${isExpanded ? 'expanded' : 'collapsed'}`;
+      const uniqueKey = `${baseKey}-${index}`;
+      const key = uniqueKey || `fallback-${index}-${Date.now()}`;
+      
+      // Final safety check
+      if (!key || key === '') {
+        console.error('RunnerSettings: Generated empty key! Using emergency fallback.');
+        const emergencyKey = `emergency-${index}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('RunnerSettings: Emergency key:', emergencyKey);
+        
+        return {
+          project: { ...project, id: safeId },
+          projectData,
+          projectHasChanges,
+          isExpanded,
+          key: emergencyKey
+        };
+      }
 
       return {
-        project,
+        project: { ...project, id: safeId }, // Ensure project has the safe ID
         projectData,
         projectHasChanges,
         isExpanded,
-        key: `${project.id}-${projectHasChanges}-${isExpanded}`
+        key
       };
-    });
-  }, [projects, getProjectData, hasChanges, expandedProject]);
-
-  if (!isOpen) return null;
+    }).filter((setting): setting is NonNullable<typeof setting> => setting !== null);
+    
+    return settings;
+  }, [projects, editedProjects, hasChanges, expandedProject]);
 
   return (
-    <AnimatePresence>
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-        onClick={handleClose}
-      />
-
-      {/* Modal */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12"
-      >
-        <div className="relative w-full max-w-4xl max-h-[85vh] bg-slate-900/95 border border-slate-700/40 rounded-xl overflow-hidden backdrop-blur-xl shadow-2xl">
-          {/* Header */}
-          <div className="p-6 border-b border-slate-700/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-r from-slate-800/60 to-slate-900/60 rounded-lg border border-slate-600/30">
-                  <Settings className="w-5 h-5 text-slate-300" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-white tracking-wide">Project Settings</h2>
-                  <p className="text-xs text-slate-400 font-medium">Configure your development projects</p>
-                </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Project Settings"
+      subtitle="Configure your development projects"
+      icon={Settings}
+      iconBgColor="from-blue-600/20 to-indigo-600/20"
+      iconColor="text-blue-400"
+      maxWidth="max-w-5xl"
+    >
+      {projects.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="relative">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-800/20 to-slate-700/20 rounded-2xl" />
+            
+            {/* Content */}
+            <div className="relative p-8">
+              <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-slate-700/50 to-slate-600/50 rounded-2xl flex items-center justify-center border border-slate-600/30">
+                <Settings className="w-8 h-8 text-slate-400" />
               </div>
-              
-              <button
-                onClick={handleClose}
-                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
+              <h3 className="text-lg font-medium text-slate-300 mb-2">No Projects to Configure</h3>
+              <p className="text-slate-500 text-sm">Add projects to get started with configuration</p>
             </div>
           </div>
-
-          {/* Content */}
-          <div className="p-6 max-h-[70vh] overflow-y-auto">
-            {projects.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p className="text-slate-400">No projects to configure</p>
-                <p className="text-xs text-slate-500 mt-2">Add projects to get started</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {projectSettings.map(({ project, projectData, projectHasChanges, isExpanded, key }) => (
-                  <RunnerSetting
-                    key={key}
-                    project={project}
-                    projectData={projectData}
-                    projectHasChanges={projectHasChanges}
-                    isExpanded={isExpanded}
-                    onToggleExpanded={() => handleToggleExpanded(project.id)}
-                    onProjectChange={handleProjectChange}
-                    onSaveProject={handleSaveProject}
-                    onResetProject={handleResetProject}
-                    onDeleteProject={onDeleteProject}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
         </div>
-      </motion.div>
-    </AnimatePresence>
+      ) : (
+        <div className="space-y-4">
+          {projectSettings.map(({ project, projectData, projectHasChanges, isExpanded, key }, index) => (
+            <RunnerSetting
+              key={key || `fallback-${index}`}
+              project={project}
+              projectData={projectData}
+              projectHasChanges={projectHasChanges}
+              isExpanded={isExpanded}
+              onToggleExpanded={() => handleToggleExpanded(project.id)}
+              onProjectChange={handleProjectChange}
+              onSaveProject={handleSaveProject}
+              onResetProject={handleResetProject}
+              onDeleteProject={onDeleteProject}
+            />
+          ))}
+        </div>
+      )}
+    </UniversalModal>
   );
-}); 
+});
+
+RunnerSettings.displayName = 'RunnerSettings';
+
+export default RunnerSettings; 

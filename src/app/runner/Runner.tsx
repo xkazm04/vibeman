@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RunnerSwitch from '@/app/runner/components/RunnerSwitch';
 import RunnerAdd from './components/RunnerAdd';
-import { RunnerSettings } from './components/RunnerSettings';
 import { StandalonePreviewLever } from './components/StandalonePreviewLever';
-import { EmergencyKillModal } from './components/EmergencyKillModal';
+import EmergencyKillModal  from './components/EmergencyKillModal';
 import { Project } from '@/types';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import RunnerRightPanel from './components/RunnerRightPanel';
+import { RefreshCcw, Skull } from 'lucide-react';
+import RunnerSettings from './components/RunnerSettings';
 
 export default function Runner() {
   const {
@@ -42,7 +43,6 @@ export default function Runner() {
     const initProjects = async () => {
       try {
         await initializeProjects();
-        console.log('Runner: Projects initialized, current projects:', projects.map(p => ({ id: p.id, name: p.name, port: p.port })));
       } catch (error) {
         console.error('Runner: Failed to initialize projects:', error);
       }
@@ -75,21 +75,21 @@ export default function Runner() {
     };
   }, [fetchStatuses]);
 
-  const handleUpdateProject = async (projectId: string, updates: Partial<Project>) => {
+  const handleUpdateProject = useCallback(async (projectId: string, updates: Partial<Project>) => {
     try {
       await updateProject(projectId, updates);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to update project');
     }
-  };
+  }, [updateProject]);
 
-  const handleDeleteProject = async (projectId: string) => {
+  const handleDeleteProject = useCallback(async (projectId: string) => {
     try {
       await removeProject(projectId);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to delete project');
     }
-  };
+  }, [removeProject]);
 
   const handleEmergencyRefresh = async () => {
     try {
@@ -117,7 +117,7 @@ export default function Runner() {
                 ${disabled && 'opacity-50'}`}>
                 {projects.map((project, index) => (
                   <RunnerSwitch
-                    key={project.id}
+                    key={project.id || `project-${index}`}
                     project={project}
                     index={index}
                     disabled={disabled}
@@ -131,18 +131,20 @@ export default function Runner() {
               </div>
               
               {/* Emergency actions */}
-              <div className="flex items-center space-x-2 mt-2">
+              <div className="flex absolute left-2 top-0 items-center space-x-2 mt-2">
                 <button
                   onClick={() => setShowEmergencyKill(true)}
-                  className="text-xs px-2 py-1 bg-orange-600/20 text-orange-400 border border-orange-600/30 rounded hover:bg-orange-600/30 transition-colors"
+                  title="Emergency Kill"
+                  className="text-xs px-2 py-1 cursor-pointer text-orange-400 border border-orange-600/10 rounded hover:bg-orange-600/30 transition-colors"
                 >
-                  Emergency Kill
+                  <Skull size={16} />
                 </button>
                 <button
                   onClick={handleEmergencyRefresh}
-                  className="text-xs px-2 py-1 bg-blue-600/20 text-blue-400 border border-blue-600/30 rounded hover:bg-blue-600/30 transition-colors"
+                  title="Force Refresh"
+                  className="text-xs px-2 py-1 cursor-pointer text-blue-400 border border-blue-600/10 rounded hover:bg-blue-600/30 transition-colors"
                 >
-                  Force Refresh
+                  <RefreshCcw size={16} />
                 </button>
               </div>
             </div>

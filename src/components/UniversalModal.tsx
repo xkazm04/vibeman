@@ -38,6 +38,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
       {/* Enhanced Backdrop with Gradient */}
       {showBackdrop && (
         <motion.div
+          key="modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -52,6 +53,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
 
       {/* Enhanced Modal Container */}
       <motion.div
+        key="modal-container"
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}

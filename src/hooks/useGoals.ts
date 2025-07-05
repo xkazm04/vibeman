@@ -28,7 +28,12 @@ export const useGoals = (projectId: string | null) => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/goals?projectId=${encodeURIComponent(projectId)}`);
+      const response = await fetch(`/api/goals?projectId=${encodeURIComponent(projectId)}&_t=${Date.now()}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch goals');

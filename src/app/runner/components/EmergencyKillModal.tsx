@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, X, Zap, Terminal, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertTriangle, Zap, Terminal, RefreshCw } from 'lucide-react';
+import { UniversalModal } from '@/components/UniversalModal';
 
-interface EmergencyKillModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
   onRefresh: () => void;
@@ -14,11 +15,11 @@ interface ProcessInfo {
   command?: string;
 }
 
-export const EmergencyKillModal: React.FC<EmergencyKillModalProps> = ({
+export default function EmergencyKillModal({
   isOpen,
   onClose,
   onRefresh
-}) => {
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [foundProcesses, setFoundProcesses] = useState<ProcessInfo[]>([]);
@@ -40,8 +41,8 @@ export const EmergencyKillModal: React.FC<EmergencyKillModalProps> = ({
         const data = await response.json();
         setFoundProcesses(data.processes || []);
       }
-    } catch (error) {
-      console.error('Failed to scan for processes:', error);
+    } catch {
+      console.error('Failed to scan for processes');
     } finally {
       setScanning(false);
     }
@@ -66,7 +67,7 @@ export const EmergencyKillModal: React.FC<EmergencyKillModalProps> = ({
       
       // Refresh the scan after killing
       setTimeout(scanForProcesses, 1000);
-    } catch (error) {
+    } catch {
       setKillResults(prev => ({
         ...prev,
         [port]: 'Network error'
@@ -92,147 +93,142 @@ export const EmergencyKillModal: React.FC<EmergencyKillModalProps> = ({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-gray-900 rounded-lg border border-gray-700 p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/20 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-orange-500" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Emergency Process Manager</h2>
-                  <p className="text-sm text-gray-400">Detect and kill orphaned development servers</p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Emergency Process Manager"
+      subtitle="Detect and kill orphaned development servers"
+      icon={AlertTriangle}
+      iconBgColor="from-orange-600/20 to-red-600/20"
+      iconColor="text-orange-400"
+      maxWidth="max-w-3xl"
+    >
+      <div className="space-y-6">
+        {/* Scan Section */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-xl" />
+          <div className="relative p-4">
+            <button
+              onClick={scanForProcesses}
+              disabled={scanning}
+              className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 disabled:from-blue-600/10 disabled:to-indigo-600/10 text-blue-400 rounded-xl transition-all duration-200 border border-blue-600/30 hover:border-blue-600/50 disabled:border-blue-600/20 font-medium"
+            >
+              <Terminal className="w-5 h-5" />
+              {scanning ? 'Scanning...' : 'Scan for Processes'}
+            </button>
+          </div>
+        </div>
 
-            {/* Scan Section */}
-            <div className="mb-6">
-              <button
-                onClick={scanForProcesses}
-                disabled={scanning}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors"
+        {/* Results */}
+        {foundProcesses.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-slate-300">Found Processes</h3>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={killAllProcesses}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600/20 to-red-700/20 hover:from-red-600/30 hover:to-red-700/30 disabled:from-red-600/10 disabled:to-red-700/10 text-red-400 rounded-xl transition-all duration-200 border border-red-600/30 hover:border-red-600/50 disabled:border-red-600/20 font-medium"
               >
-                <Terminal className="w-4 h-4" />
-                {scanning ? 'Scanning...' : 'Scan for Processes'}
-              </button>
+                <Zap className="w-4 h-4" />
+                Kill All
+              </motion.button>
             </div>
-
-            {/* Results */}
-            {foundProcesses.length > 0 && (
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-md font-medium text-white">Found Processes</h3>
-                  <button
-                    onClick={killAllProcesses}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white text-sm rounded-lg transition-colors"
-                  >
-                    <Zap className="w-4 h-4" />
-                    Kill All
-                  </button>
-                </div>
-                
-                <div className="space-y-2">
-                  {foundProcesses.map((process) => (
-                    <div
-                      key={process.port}
-                      className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm">
-                          <div className="text-white font-medium">Port {process.port}</div>
-                          <div className="text-gray-400">
-                            PID: {process.pid || 'Unknown'}
-                            {process.command && (
-                              <span className="ml-2 text-xs font-mono">
-                                {process.command.substring(0, 50)}...
-                              </span>
-                            )}
-                          </div>
+            
+            <div className="space-y-3">
+              {foundProcesses.map((process) => (
+                <motion.div
+                  key={process.port}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="relative bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl border border-slate-700/50 p-4 hover:border-slate-600/50 transition-all duration-200"
+                >
+                  {/* Background Pattern */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-700/5 to-transparent rounded-xl" />
+                  
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-r from-orange-400 to-red-400 animate-pulse" />
+                      <div className="text-sm">
+                        <div className="text-white font-medium">Port {process.port}</div>
+                        <div className="text-slate-400">
+                          PID: {process.pid || 'Unknown'}
+                          {process.command && (
+                            <span className="ml-2 text-xs font-mono">
+                              {process.command.substring(0, 50)}...
+                            </span>
+                          )}
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {killResults[process.port] && (
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            killResults[process.port].includes('success')
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'bg-red-500/20 text-red-400'
-                          }`}>
-                            {killResults[process.port]}
-                          </span>
-                        )}
-                        
-                        <button
-                          onClick={() => killProcess(process.port, process.pid)}
-                          disabled={loading || !process.pid}
-                          className="flex items-center gap-1 px-2 py-1 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white text-xs rounded transition-colors"
-                        >
-                          <Zap className="w-3 h-3" />
-                          Kill
-                        </button>
-                      </div>
                     </div>
-                  ))}
+                    
+                    <div className="flex items-center gap-3">
+                      {killResults[process.port] && (
+                        <span className={`text-xs px-3 py-1 rounded-lg border ${
+                          killResults[process.port].includes('success')
+                            ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                            : 'bg-red-500/20 text-red-400 border-red-500/30'
+                        }`}>
+                          {killResults[process.port]}
+                        </span>
+                      )}
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => killProcess(process.port, process.pid)}
+                        disabled={loading || !process.pid}
+                        className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-600/20 to-red-700/20 hover:from-red-600/30 hover:to-red-700/30 disabled:from-red-600/10 disabled:to-red-700/10 text-red-400 rounded-lg transition-all duration-200 border border-red-600/30 hover:border-red-600/50 disabled:border-red-600/20 font-medium"
+                      >
+                        <Zap className="w-4 h-4" />
+                        Kill
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {foundProcesses.length === 0 && !scanning && (
+          <div className="text-center py-12">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-800/20 to-slate-700/20 rounded-2xl" />
+              <div className="relative p-8">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-slate-700/50 to-slate-600/50 rounded-2xl flex items-center justify-center border border-slate-600/30">
+                  <Terminal className="w-8 h-8 text-slate-400" />
                 </div>
-              </div>
-            )}
-
-            {/* No processes found */}
-            {foundProcesses.length === 0 && !scanning && (
-              <div className="text-center py-8 text-gray-400">
-                <Terminal className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No processes found on common development ports</p>
-                <p className="text-sm">Click "Scan for Processes" to check for running servers</p>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-700">
-              <div className="text-xs text-gray-500">
-                Scans ports 3000-3005 for development servers
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRefreshAndClose}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh & Close
-                </button>
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors"
-                >
-                  Close
-                </button>
+                                 <h3 className="text-lg font-medium text-slate-300 mb-2">No Processes Found</h3>
+                 <p className="text-slate-500 text-sm">Click &quot;Scan for Processes&quot; to detect running servers</p>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-3 pt-4 border-t border-slate-700/30">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onClose}
+            className="px-4 py-2 bg-gradient-to-r from-slate-700/50 to-slate-600/50 hover:from-slate-700/70 hover:to-slate-600/70 border border-slate-600/50 text-slate-300 rounded-xl transition-all duration-200 font-medium"
+          >
+            Close
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleRefreshAndClose}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-600/30 text-blue-400 rounded-xl transition-all duration-200 font-medium"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh & Close
+          </motion.button>
+        </div>
+      </div>
+    </UniversalModal>
   );
 }; 

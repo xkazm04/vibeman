@@ -110,9 +110,9 @@ export default function TreeLayout() {
                 </button>
                 {showProjectSelector && (
                   <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 min-w-[200px]">
-                    {getAllProjects().map((project) => (
+                    {getAllProjects().map((project, index) => (
                       <button
-                        key={project.id}
+                        key={project.id || `project-${index}`}
                         onClick={() => {
                           loadProjectFileStructure(project.id);
                           setShowProjectSelector(false);

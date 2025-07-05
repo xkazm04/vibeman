@@ -2,6 +2,7 @@ interface AnalysisRequest {
   repository: string;
   goal: string;
   branch?: string;
+  projectId?: string;
 }
 
 interface AnalysisResponse {

@@ -16,7 +16,7 @@ export default function CoderLayout() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="h-[calc(100vh-200px)]" // Fixed height for resizable panels
+          className="h-[calc(100vh-200px)]" 
         >
           <PanelGroup direction="horizontal" className="">
             {/* Tree Layout Panel */}

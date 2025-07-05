@@ -42,6 +42,25 @@ CREATE TABLE event_log (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Flow events table for n8n workflow tracking
+CREATE TABLE flow_events (
+    id BIGSERIAL PRIMARY KEY,
+    flow_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    flow_name TEXT NOT NULL,
+    trigger_type TEXT,
+    status TEXT NOT NULL,
+    step TEXT,
+    parameters JSONB DEFAULT '{}',
+    input_data JSONB DEFAULT '{}',
+    result JSONB DEFAULT '{}',
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    duration_ms INTEGER,
+    error_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes for better performance
 CREATE INDEX idx_goals_project_id ON goals(project_id);
 CREATE INDEX idx_goals_status ON goals(status);
@@ -55,6 +74,11 @@ CREATE INDEX idx_backlog_items_type ON backlog_items(type);
 
 CREATE INDEX idx_event_log_project_id ON event_log(project_id);
 CREATE INDEX idx_event_log_created_at ON event_log(created_at);
+
+CREATE INDEX idx_flow_events_flow_id ON flow_events(flow_id);
+CREATE INDEX idx_flow_events_session_id ON flow_events(session_id);
+CREATE INDEX idx_flow_events_status ON flow_events(status);
+CREATE INDEX idx_flow_events_timestamp ON flow_events(timestamp);
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -71,15 +95,20 @@ CREATE TRIGGER update_goals_updated_at BEFORE UPDATE ON goals
 CREATE TRIGGER update_backlog_items_updated_at BEFORE UPDATE ON backlog_items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_flow_events_updated_at BEFORE UPDATE ON flow_events
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- RLS (Row Level Security) policies
 ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE backlog_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE flow_events ENABLE ROW LEVEL SECURITY;
 
 -- For now, allow all operations (you can restrict this based on your auth requirements)
 CREATE POLICY "Allow all operations on goals" ON goals FOR ALL USING (true);
 CREATE POLICY "Allow all operations on backlog_items" ON backlog_items FOR ALL USING (true);
 CREATE POLICY "Allow all operations on event_log" ON event_log FOR ALL USING (true);
+CREATE POLICY "Allow all operations on flow_events" ON flow_events FOR ALL USING (true);
 
 -- Insert sample data based on the mocked data
 INSERT INTO goals (project_id, order_index, title, description, status) VALUES

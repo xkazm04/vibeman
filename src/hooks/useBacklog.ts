@@ -48,7 +48,12 @@ export const useBacklog = (projectId: string | null) => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/backlog?projectId=${encodeURIComponent(projectId)}`);
+      const response = await fetch(`/api/backlog?projectId=${encodeURIComponent(projectId)}&_t=${Date.now()}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch backlog items');

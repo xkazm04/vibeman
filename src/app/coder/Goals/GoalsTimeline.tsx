@@ -74,36 +74,38 @@ export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: Goa
         
         {/* Goal Points */}
         <div className="flex items-center relative">
-          {sortedGoals.map((goal, index) => (
-            <motion.div
-              key={goal.id}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className="relative flex items-center"
-              onClick={() => onGoalSelect(goal)}
-            >
-              {/* Goal Point */}
-              <div className={getStatusStyle(goal.status, selectedGoal?.id === goal.id)}>
-                {getStatusIcon(goal.status)}
-                
-                {/* Glow effect for in progress goal */}
-                {goal.status === 'in_progress' && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 2 }}
-                    transition={{ duration: 0.3 }}
-                    className="absolute inset-0 rounded-full bg-yellow-600/30 blur-sm -z-10"
-                  />
-                )}
-              </div>
+          {sortedGoals.map((goal, index) => {
+            return (
+              <motion.div
+                key={goal.id}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+                className="relative flex items-center"
+                onClick={() => onGoalSelect(goal)}
+              >
+                {/* Goal Point */}
+                <div className={getStatusStyle(goal.status, selectedGoal?.id === goal.id)}>
+                  {getStatusIcon(goal.status)}
+                  
+                  {/* Standard glow effect for in progress goal */}
+                  {goal.status === 'in_progress' && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 2 }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute inset-0 rounded-full bg-yellow-600/30 blur-sm -z-10"
+                    />
+                  )}
+                </div>
 
-              {/* Spacing between dots */}
-              {index < sortedGoals.length - 1 && (
-                <div className="w-16 h-px" />
-              )}
-            </motion.div>
-          ))}
+                {/* Spacing between dots */}
+                {index < sortedGoals.length - 1 && (
+                  <div className="w-16 h-px" />
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </div>
