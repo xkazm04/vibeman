@@ -93,7 +93,15 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createServerSupabaseClient();
 
-    const updateData: any = {};
+    const updateData: {
+      status?: string;
+      accepted_at?: string;
+      rejected_at?: string;
+      goal_id?: string | null;
+      title?: string;
+      description?: string;
+      impacted_files?: string[];
+    } = {};
     if (status !== undefined) {
       updateData.status = status;
       if (status === 'accepted') {

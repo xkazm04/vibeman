@@ -94,7 +94,12 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createServerSupabaseClient();
 
-    const updateData: any = {};
+    const updateData: {
+      title?: string;
+      description?: string;
+      status?: string;
+      order_index?: number;
+    } = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;

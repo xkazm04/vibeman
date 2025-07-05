@@ -14,7 +14,7 @@ import AnalysisClient from '../../../lib/analysisClient';
 
 export default function GoalsLayout() {
   const { activeProject } = useActiveProjectStore();
-  const { goals, loading, error, createGoal, updateGoal, deleteGoal } = useGoals(activeProject?.id || null);
+  const { goals, loading, error, createGoal, updateGoal } = useGoals(activeProject?.id || null);
   const { startAnalysis } = useAnalysisStore();
   const { getProject } = useProjectConfigStore();
   
@@ -189,6 +189,7 @@ export default function GoalsLayout() {
         goal={selectedGoal}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
+        onSave={updateGoal}
       />
 
       {/* Add Goal Modal */}
