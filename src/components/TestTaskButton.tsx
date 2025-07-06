@@ -12,7 +12,7 @@ export default function TestTaskButton() {
     setError(null);
     
     try {
-      const response = await fetch('/api/cursor-tasks/generate', {
+      const response = await fetch('/api/tasks/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -20,8 +20,9 @@ export default function TestTaskButton() {
         body: JSON.stringify({
           title: 'Create Hello Page',
           description: 'Create a new page called "Hello" in the current project directory. The page should display a simple greeting message "Hello from Cursor Background Agent!" with some basic styling using Tailwind CSS.',
-          type: 'feature',
-          priority: 'high'
+          type: 'Feature',
+          priority: 'High',
+          location: 'src/app/hello/page.tsx'
         }),
       });
 
@@ -33,7 +34,7 @@ export default function TestTaskButton() {
       setLastTask(result.taskId);
       
       // Show success message
-      alert(`Task generated successfully! Task ID: ${result.taskId}\n\nNext steps:\n1. Open Cursor IDE\n2. Press Cmd/Ctrl+E to start Background Agent\n3. Tell the agent: "Execute task ${result.taskId} from cursor-tasks directory"`);
+      alert(`Task generated successfully! Task ID: ${result.taskId}\n\nNext steps:\n1. Press Cmd/Ctrl+E in Cursor to start Background Agent\n2. Tell the agent: "Read the TASKS.md file and implement the first pending task"\n3. Or: "Create a Hello page as described in TASKS.md"`);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
