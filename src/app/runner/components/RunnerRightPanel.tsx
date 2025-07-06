@@ -2,6 +2,9 @@ import LogoSvg from "@/components/LogoSvg";
 import { motion } from "framer-motion"
 import { Plus, Settings } from "lucide-react"
 import { useChargingLevel } from "@/hooks/useChargingLevel"
+import { useEffect } from "react"
+import { useServerProjectStore } from "@/stores/serverProjectStore"
+import { useProjectConfigStore } from "@/stores/projectConfigStore"
 
 type Props = {
     disabled: boolean;
@@ -13,6 +16,23 @@ type Props = {
 
 const RunnerRightPanel = ({ disabled, showSettings, setShowSettings, showAddProject, setShowAddProject }: Props) => {
     const chargingLevel = useChargingLevel();
+    
+    // Direct store access for debugging
+    const processes = useServerProjectStore(state => state.processes);
+    const projects = useProjectConfigStore(state => state.projects);
+    
+    // Debug effect to track charging level changes
+    useEffect(() => {
+        console.log('RunnerRightPanel: charging level updated to:', chargingLevel);
+        console.log('RunnerRightPanel: Raw store data:', {
+            processesCount: Object.keys(processes).length,
+            projectsCount: projects.length,
+            processStatuses: Object.entries(processes).map(([id, proc]) => ({
+                id,
+                status: proc.status
+            }))
+        });
+    }, [chargingLevel, processes, projects]);
     
     // Color interpolation based on charging level
     const getInterpolatedColor = (startColor: string, endColor: string, progress: number) => {

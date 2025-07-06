@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { BacklogProposal, CustomBacklogItem } from '@/types';
 import { Database, supabase } from '@/lib/supabase';
 import { useAnalysisStore } from '@/stores/analysisStore';
+import { parseImpactedFilesFromDb } from '@/lib/impactedFilesUtils';
 
 type DbBacklogItem = Database['public']['Tables']['backlog_items']['Row'];
 
@@ -12,7 +13,7 @@ const convertDbBacklogItemToAppType = (dbItem: DbBacklogItem): BacklogProposal |
     title: dbItem.title,
     description: dbItem.description,
     timestamp: new Date(dbItem.created_at),
-    impactedFiles: dbItem.impacted_files || []
+    impactedFiles: parseImpactedFilesFromDb(dbItem.impacted_files)
   };
 
   if (dbItem.type === 'custom') {

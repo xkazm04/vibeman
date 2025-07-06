@@ -11,8 +11,6 @@ interface BacklogSectionProps {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   newItemIds: Set<string>;
-  onAccept: (proposalId: string) => void;
-  onReject: (proposalId: string) => void;
   onOpenForm: () => void;
   onRefresh?: () => void;
 }
@@ -23,8 +21,6 @@ export default function BacklogSection({
   icon: Icon,
   title,
   newItemIds,
-  onAccept,
-  onReject,
   onOpenForm,
   onRefresh
 }: BacklogSectionProps) {
@@ -72,8 +68,6 @@ export default function BacklogSection({
             <BacklogItem
               key={item.id}
               proposal={item}
-              onAccept={onAccept}
-              onReject={onReject}
               isNew={newItemIds.has(item.id)}
             />
           ))

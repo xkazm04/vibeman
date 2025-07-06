@@ -2,6 +2,7 @@ interface AnalysisRequest {
   repository: string;
   goal: string;
   description?: string;
+  goalId?: string;
   branch?: string;
   projectId?: string;
   impactedFiles?: string[];
@@ -12,9 +13,10 @@ interface AnalysisResponse {
   message?: string;
   error?: string;
 }
-
+const testHook = 'http://localhost:5678/webhook-test/business-analyst'
+const prodHook = 'http://localhost:5678/webhook/business-analyst'
 export class AnalysisClient {
-  private static readonly WEBHOOK_URL = 'http://localhost:5678/webhook-test/business-analyst';
+  private static readonly WEBHOOK_URL = prodHook;
   
   static async triggerAnalysis(request: AnalysisRequest): Promise<AnalysisResponse> {
     try {

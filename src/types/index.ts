@@ -46,6 +46,11 @@ export interface TreeNode {
   children?: TreeNode[];
 }
 
+export interface ImpactedFile {
+  filepath: string;
+  type: 'update' | 'create' | 'delete';
+}
+
 export interface BacklogProposal {
   id: string;
   agent: 'developer' | 'mastermind' | 'tester' | 'artist';
@@ -53,7 +58,7 @@ export interface BacklogProposal {
   description: string;
   timestamp: Date;
   status?: 'pending' | 'accepted' | 'rejected' | 'in_progress';
-  impactedFiles?: string[]; // Array of file/folder IDs that this proposal affects
+  impactedFiles?: ImpactedFile[]; // Array of file objects with filepath and type
 }
 
 export interface CustomBacklogItem {
@@ -62,7 +67,7 @@ export interface CustomBacklogItem {
   description: string;
   timestamp: Date;
   type: 'custom';
-  impactedFiles?: string[]; // Array of file/folder IDs that this item affects
+  impactedFiles?: ImpactedFile[]; // Array of file objects with filepath and type
 }
 
 export interface EventLogEntry {
@@ -132,7 +137,7 @@ export interface DatabaseBacklogItem {
   description: string;
   status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
   type: 'proposal' | 'custom';
-  impacted_files: string[] | null;
+  impacted_files: ImpactedFile[] | null;
   created_at: string;
   updated_at: string;
   accepted_at: string | null;

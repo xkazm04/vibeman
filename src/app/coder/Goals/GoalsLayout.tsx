@@ -87,10 +87,12 @@ export default function GoalsLayout() {
     
     // Trigger n8n webhook
     try {
+      console.log('impactedFiles', impactedFiles);  
       const response = await AnalysisClient.triggerAnalysis({
         repository: project.git.repository,
         goal: selectedGoal.title,
         description: selectedGoal.description,
+        goalId: selectedGoal.id,
         branch: project.git.branch,
         projectId: activeProject.id,
         impactedFiles: impactedFiles.length > 0 ? impactedFiles : undefined

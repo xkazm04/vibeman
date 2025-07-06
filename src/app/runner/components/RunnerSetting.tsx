@@ -38,9 +38,6 @@ const RunnerSetting = React.memo<Props>(({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }} 
       className="relative bg-gradient-to-br from-slate-800/40 via-slate-800/30 to-slate-700/40 border border-slate-700/50 rounded-xl overflow-hidden backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300"
     >
       <RunnerSettingHeader
@@ -72,6 +69,7 @@ const RunnerSetting = React.memo<Props>(({
   );
 }, (prevProps, nextProps) => {
   // Optimized comparison function for React.memo
+  // Only compare the essential props that actually affect rendering
   if (
     prevProps.project.id !== nextProps.project.id ||
     prevProps.projectHasChanges !== nextProps.projectHasChanges ||
@@ -80,22 +78,36 @@ const RunnerSetting = React.memo<Props>(({
     return false;
   }
 
-  // Shallow comparison of projectData - only check key properties that might change
+  // Compare projectData more efficiently - only if both exist
   const prevData = prevProps.projectData;
   const nextData = nextProps.projectData;
   
-  if (prevData === nextData) return true;
-  if (!prevData || !nextData) return prevData === nextData;
+  // If both are undefined/null, they're equal
+  if (!prevData && !nextData) return true;
   
-  // Compare only the properties that actually matter for rendering
+  // If one is undefined and the other isn't, they're different
+  if (!prevData || !nextData) return false;
+  
+  // Compare only the essential properties that affect display
+  // Use strict equality for primitive values
+  const fieldsToCompare = ['name', 'port', 'path', 'description'] as const;
+  for (const field of fieldsToCompare) {
+    if (prevData[field] !== nextData[field]) {
+      return false;
+    }
+  }
+  
+  // Compare git properties if they exist
+  const prevGit = prevData.git;
+  const nextGit = nextData.git;
+  
+  if (!prevGit && !nextGit) return true;
+  if (!prevGit || !nextGit) return false;
+  
   return (
-    prevData.name === nextData.name &&
-    prevData.port === nextData.port &&
-    prevData.path === nextData.path &&
-    prevData.description === nextData.description &&
-    prevData.git?.repository === nextData.git?.repository &&
-    prevData.git?.branch === nextData.git?.branch &&
-    prevData.git?.autoSync === nextData.git?.autoSync
+    prevGit.repository === nextGit.repository &&
+    prevGit.branch === nextGit.branch &&
+    prevGit.autoSync === nextGit.autoSync
   );
 });
 

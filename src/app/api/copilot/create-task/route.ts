@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CopilotIntegration } from '@/lib/copilot-integration';
 import { CopilotTask } from '@/types/copilot';
 
-const copilot = new CopilotIntegration('http://localhost:5678/webhook/create-copilot-task');
+const testHook = 'http://localhost:5678/webhook-test/create-copilot-task'
+const prodHook = 'http://localhost:5678/webhook/create-copilot-task'
+
+const copilot = new CopilotIntegration(prodHook);
 
 export async function POST(request: NextRequest) {
   try {

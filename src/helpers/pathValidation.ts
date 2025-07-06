@@ -40,8 +40,22 @@ export const constructFullPath = (basePath: string, relativePath: string): strin
   // Remove leading slashes from relative path
   const cleanRelativePath = relativePath.replace(/^[\\\/]+/, '');
   
-  // Construct full path with proper separator
-  const separator = process.platform === 'win32' ? '\\' : '/';
+  // Determine separator based on platform or existing path format
+  let separator = '\\'; // Default to Windows separator
+  
+  // Check if we're in a browser environment or explicitly on Windows
+  if (typeof window !== 'undefined' || (typeof process !== 'undefined' && process.platform === 'win32')) {
+    separator = '\\';
+  } else if (typeof process !== 'undefined' && process.platform !== 'win32') {
+    separator = '/';
+  } else if (basePath.includes('\\')) {
+    // If basePath contains backslashes, assume Windows
+    separator = '\\';
+  } else if (basePath.includes('/')) {
+    // If basePath contains forward slashes, assume Unix
+    separator = '/';
+  }
+  
   return `${cleanBasePath}${separator}${cleanRelativePath}`;
 };
 

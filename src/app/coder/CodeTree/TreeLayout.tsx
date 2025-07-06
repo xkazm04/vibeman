@@ -21,15 +21,43 @@ export default function TreeLayout() {
     initializeWithFirstProject,
     loadProjectFileStructure
   } = useActiveProjectStore();
-  const { getAllProjects } = useProjectConfigStore();
+  const { getAllProjects, initializeProjects } = useProjectConfigStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'files' | 'folders'>('all');
   const [showProjectSelector, setShowProjectSelector] = useState(false);
 
-  // Initialize with first project on mount
+  // Initialize projects and then active project
   useEffect(() => {
-    initializeWithFirstProject();
-  }, [initializeWithFirstProject]);
+    const initializeSequence = async () => {
+      await initializeProjects();
+      
+      // Test: Force call the structure API with a known project
+      const projects = getAllProjects();
+      console.log('Available projects:', projects);
+      
+      if (projects.length > 0) {
+        console.log('Forcing structure API call for project:', projects[0]);
+        try {
+          const response = await fetch('/api/project/structure', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ projectPath: projects[0].path }),
+          });
+          console.log('Structure API response:', response.status);
+          const data = await response.json();
+          console.log('Structure data:', data);
+        } catch (error) {
+          console.error('Structure API error:', error);
+        }
+      }
+      
+      initializeWithFirstProject();
+    };
+    
+    initializeSequence();
+  }, [initializeProjects, initializeWithFirstProject, getAllProjects]);
 
   // Close project selector when clicking outside
   useEffect(() => {

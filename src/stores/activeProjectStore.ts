@@ -102,13 +102,16 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
           const { activeProject } = get();
           if (activeProject) return; // Already initialized
           
-          const projectConfigStore = useProjectConfigStore.getState();
-          const projects = projectConfigStore.getAllProjects();
-          
-          if (projects.length > 0) {
-            const firstProject = projects[0];
-            get().loadProjectFileStructure(firstProject.id);
-          }
+          // Add a small delay to ensure projects are fully loaded
+          setTimeout(() => {
+            const projectConfigStore = useProjectConfigStore.getState();
+            const projects = projectConfigStore.getAllProjects();
+            
+            if (projects.length > 0) {
+              const firstProject = projects[0];
+              get().loadProjectFileStructure(firstProject.id);
+            }
+          }, 500);
         },
         
         // Preview control

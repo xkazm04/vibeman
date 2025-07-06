@@ -58,7 +58,7 @@ export interface Database {
           description: string;
           status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
           type: 'proposal' | 'custom';
-          impacted_files: string[] | null;
+          impacted_files: Array<{filepath: string; type: 'update' | 'create' | 'delete'}> | string | null;
           created_at: string;
           updated_at: string;
           accepted_at: string | null;
@@ -73,7 +73,7 @@ export interface Database {
           description: string;
           status?: 'pending' | 'accepted' | 'rejected' | 'in_progress';
           type?: 'proposal' | 'custom';
-          impacted_files?: string[] | null;
+          impacted_files?: Array<{filepath: string; type: 'update' | 'create' | 'delete'}> | null;
           created_at?: string;
           updated_at?: string;
           accepted_at?: string | null;
@@ -88,7 +88,7 @@ export interface Database {
           description?: string;
           status?: 'pending' | 'accepted' | 'rejected' | 'in_progress';
           type?: 'proposal' | 'custom';
-          impacted_files?: string[] | null;
+          impacted_files?: Array<{filepath: string; type: 'update' | 'create' | 'delete'}> | null;
           created_at?: string;
           updated_at?: string;
           accepted_at?: string | null;
@@ -125,6 +125,59 @@ export interface Database {
           agent?: string | null;
           message?: string | null;
           created_at?: string;
+        };
+      };
+      flow_events: {
+        Row: {
+          id: string;
+          flow_id: string;
+          session_id: string;
+          flow_name: string;
+          trigger_type: string | null;
+          status: string;
+          step: string | null;
+          parameters: Record<string, any>;
+          input_data: Record<string, any>;
+          result: Record<string, any>;
+          timestamp: string;
+          duration_ms: number | null;
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          flow_id: string;
+          session_id: string;
+          flow_name: string;
+          trigger_type?: string | null;
+          status: string;
+          step?: string | null;
+          parameters?: Record<string, any>;
+          input_data?: Record<string, any>;
+          result?: Record<string, any>;
+          timestamp?: string;
+          duration_ms?: number | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          flow_id?: string;
+          session_id?: string;
+          flow_name?: string;
+          trigger_type?: string | null;
+          status?: string;
+          step?: string | null;
+          parameters?: Record<string, any>;
+          input_data?: Record<string, any>;
+          result?: Record<string, any>;
+          timestamp?: string;
+          duration_ms?: number | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
       };
     };

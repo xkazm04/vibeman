@@ -1,6 +1,3 @@
-'use client';
-import React from 'react';
-import { Calendar } from 'lucide-react';
 import { Goal } from '../../../types';
 
 interface GoalsDetailDescriptionProps {
@@ -34,41 +31,6 @@ export default function GoalsDetailDescription({
             {editedGoal.description || 'No description provided'}
           </p>
         )}
-      </div>
-
-      {/* Details Section */}
-      <div>
-        <h3 className="text-lg font-medium text-white mb-3 tracking-wide">Details</h3>
-        <div className="space-y-4">
-          <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/30">
-            <h4 className="text-sm font-medium text-slate-300 mb-1">Order</h4>
-            <p className="text-sm text-slate-400">#{editedGoal.order}</p>
-          </div>
-          
-          {goal.created_at && (
-            <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/30">
-              <h4 className="text-sm font-medium text-slate-300 mb-1">Created</h4>
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-3 h-3 text-slate-400" />
-                <span className="text-sm text-slate-400">
-                  {new Date(goal.created_at).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          )}
-          
-          {goal.updated_at && goal.updated_at !== goal.created_at && (
-            <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/30">
-              <h4 className="text-sm font-medium text-slate-300 mb-1">Last Updated</h4>
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-3 h-3 text-slate-400" />
-                <span className="text-sm text-slate-400">
-                  {new Date(goal.updated_at).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

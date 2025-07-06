@@ -11,7 +11,10 @@ const mockBacklogProposals: BacklogProposal[] = [
     description: 'Implement React.memo and useCallback to reduce unnecessary re-renders in the tree structure. This will improve performance significantly, especially for large component trees.',
     timestamp: new Date(Date.now() - 300000),
     status: 'pending',
-    impactedFiles: ['components', 'agent-manager', 'AgentManager.tsx', 'AgentButton.tsx']
+    impactedFiles: [
+      { filepath: 'components/agent-manager/AgentManager.tsx', type: 'update' },
+      { filepath: 'components/agent-manager/AgentButton.tsx', type: 'update' }
+    ]
   },
   {
     id: '2',
@@ -20,7 +23,11 @@ const mockBacklogProposals: BacklogProposal[] = [
     description: 'Create comprehensive test suite covering all Zustand store actions and state mutations. Include edge cases and error scenarios.',
     timestamp: new Date(Date.now() - 600000),
     status: 'pending',
-    impactedFiles: ['lib', 'store', 'app-store.ts', 'utils.ts']
+    impactedFiles: [
+      { filepath: 'lib/store/app-store.ts', type: 'update' },
+      { filepath: 'lib/utils.ts', type: 'update' },
+      { filepath: 'tests/store.test.ts', type: 'create' }
+    ]
   },
   {
     id: '3',
@@ -29,7 +36,11 @@ const mockBacklogProposals: BacklogProposal[] = [
     description: 'Implement keyboard navigation and screen reader support for the code structure viewer. Add ARIA labels and focus management.',
     timestamp: new Date(Date.now() - 900000),
     status: 'accepted',
-    impactedFiles: ['components', 'ui', 'GlowCard.tsx', 'Button.tsx', 'Input.tsx']
+    impactedFiles: [
+      { filepath: 'components/ui/GlowCard.tsx', type: 'update' },
+      { filepath: 'components/ui/Button.tsx', type: 'update' },
+      { filepath: 'components/ui/Input.tsx', type: 'update' }
+    ]
   },
   {
     id: '4',
@@ -38,7 +49,11 @@ const mockBacklogProposals: BacklogProposal[] = [
     description: 'Add WebSocket support for multi-user agent coordination and shared state management. Include conflict resolution and synchronization.',
     timestamp: new Date(Date.now() - 1200000),
     status: 'pending',
-    impactedFiles: ['lib', 'api.ts', 'components', 'layout', 'MainLayout.tsx']
+    impactedFiles: [
+      { filepath: 'lib/api.ts', type: 'update' },
+      { filepath: 'components/layout/MainLayout.tsx', type: 'update' },
+      { filepath: 'lib/websocket.ts', type: 'create' }
+    ]
   },
   {
     id: '5',
@@ -47,7 +62,10 @@ const mockBacklogProposals: BacklogProposal[] = [
     description: 'Add dynamic imports and lazy loading for better performance. Split routes and components to reduce initial bundle size.',
     timestamp: new Date(Date.now() - 1500000),
     status: 'accepted',
-    impactedFiles: ['components', 'layout', 'MainLayout.tsx', 'Sidebar.tsx']
+    impactedFiles: [
+      { filepath: 'components/layout/MainLayout.tsx', type: 'update' },
+      { filepath: 'components/layout/Sidebar.tsx', type: 'update' }
+    ]
   }
 ];
 
@@ -85,7 +103,9 @@ export const useStore = (() => {
     const traverseTree = (node: TreeNode) => {
       // Only include files (not folders) and only if they're selected
       if (node.type === 'file' && state.selectedNodes.has(node.id)) {
-        selectedPaths.push(node.id); // The id is the relative path
+        // Normalize path separators: convert backslashes to forward slashes for backend compatibility
+        const normalizedPath = node.id.replace(/\\/g, '/');
+        selectedPaths.push(normalizedPath);
       }
       
       // Recursively check children

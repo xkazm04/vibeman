@@ -30,14 +30,15 @@ const RunnerSettings = React.memo(function RunnerSettings({
   const [tempBasePath, setTempBasePath] = useState(basePath);
 
   const handleProjectChange = useCallback((projectId: string, field: keyof Project | string, value: unknown) => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return;
-
-    // Handle nested git properties
-    if (field.startsWith('git.')) {
-      const gitField = field.replace('git.', '');
-      setEditedProjects(prev => {
-        const currentEdited = prev[projectId] || project;
+    setEditedProjects(prev => {
+      const project = projects.find(p => p.id === projectId);
+      if (!project) return prev;
+      
+      const currentEdited = prev[projectId] || project;
+      
+      // Handle nested git properties
+      if (field.startsWith('git.')) {
+        const gitField = field.replace('git.', '');
         const updatedProject: Project = {
           ...currentEdited,
           git: {
@@ -52,47 +53,51 @@ const RunnerSettings = React.memo(function RunnerSettings({
           ...prev,
           [projectId]: updatedProject
         };
-      });
-    } else {
-      setEditedProjects(prev => {
-        const currentEdited = prev[projectId] || project;
+      } else {
         return {
           ...prev,
           [projectId]: { ...currentEdited, [field]: value }
         };
-      });
-    }
+      }
+    });
     
     setHasChanges(prev => ({
       ...prev,
       [projectId]: true
     }));
-  }, [projects]); // Removed editedProjects dependency
+  }, [projects]); // Keep projects dependency as it's needed for finding the original project
 
   const handleSaveProject = useCallback((projectId: string) => {
-    const editedProject = editedProjects[projectId];
-    if (editedProject) {
-      updateProject(projectId, editedProject);
-      onUpdateProject(projectId, editedProject);
-      setHasChanges(prev => ({
-        ...prev,
-        [projectId]: false
-      }));
-    }
-  }, [editedProjects, updateProject, onUpdateProject]);
+    setEditedProjects(prev => {
+      const editedProject = prev[projectId];
+      if (editedProject) {
+        updateProject(projectId, editedProject);
+        onUpdateProject(projectId, editedProject);
+      }
+      return prev;
+    });
+    
+    setHasChanges(prev => ({
+      ...prev,
+      [projectId]: false
+    }));
+  }, [updateProject, onUpdateProject]);
 
   const handleResetProject = useCallback((projectId: string) => {
-    const originalProject = projects.find(p => p.id === projectId);
-    if (originalProject) {
-      setEditedProjects(prev => ({
+    setEditedProjects(prev => {
+      const originalProject = projects.find(p => p.id === projectId);
+      if (!originalProject) return prev;
+      
+      return {
         ...prev,
         [projectId]: originalProject
-      }));
-      setHasChanges(prev => ({
-        ...prev,
-        [projectId]: false
-      }));
-    }
+      };
+    });
+    
+    setHasChanges(prev => ({
+      ...prev,
+      [projectId]: false
+    }));
   }, [projects]);
 
   const handleToggleExpanded = useCallback((projectId: string) => {

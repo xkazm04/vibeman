@@ -101,7 +101,7 @@ export async function PUT(request: NextRequest) {
       goal_id?: string | null;
       title?: string;
       description?: string;
-      impacted_files?: string[];
+      impacted_files?: Array<{filepath: string; type: 'update' | 'create' | 'delete'}> | string[];
     } = {};
     if (status !== undefined) {
       updateData.status = status;

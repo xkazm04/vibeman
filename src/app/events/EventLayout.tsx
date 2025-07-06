@@ -2,15 +2,22 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Info, AlertTriangle, XCircle, CheckCircle, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
-import { useStore } from '@/stores/nodeStore';
 import { useAnalysisStore } from '@/stores/analysisStore';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import { GlowCard } from '@/components/GlowCard';
 import EventTable from './EventTable';
 
 const MAX_EVENTS = 50;
 
 export default function EventLayout() {
-  const { eventLog } = useStore();
+  const { 
+    events: eventLog, 
+    isLoading, 
+    error, 
+    isConnected, 
+    isPolling, 
+    lastUpdated 
+  } = useRealtimeEvents({ limit: MAX_EVENTS });
   const { isActive } = useAnalysisStore();
   const [filter, setFilter] = useState('all');
   const [viewState, setViewState] = useState<'normal' | 'maximized' | 'minimized'>('minimized');
@@ -58,12 +65,13 @@ export default function EventLayout() {
   };
 
   return (
-    <motion.div
-      className={`fixed bottom-0 left-0 right-0 z-50 ${getContainerHeight()} transition-all duration-300 ease-in-out`}
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-    >
+    <>
+      <motion.div
+        className={`fixed bottom-0 left-0 right-0 z-50 ${getContainerHeight()} transition-all duration-300 ease-in-out`}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      >
       <GlowCard className={`p-4 h-full flex flex-col relative shadow-[0_-4px_20px_rgba(255,255,255,0.1)] border-t-white/20 ${
         viewState === 'minimized' ? 'items-center justify-center' : ''
       } ${isActive ? 'shadow-lg shadow-purple-500/20' : ''}`}>
@@ -97,7 +105,14 @@ export default function EventLayout() {
             title="Expand Event Log"
           >
             <ChevronUp className="w-4 h-4" />
-            <span className="text-sm font-medium">Event Log ({limitedEvents.length})</span>
+            <span className="text-sm font-medium">
+              Event Log ({limitedEvents.length})
+              {isLoading && <span className="ml-1 animate-pulse">⟳</span>}
+              {isPolling && <span className="ml-1 text-blue-400 animate-pulse">📡</span>}
+              {isConnected && !isPolling && <span className="ml-1 text-green-400">🟢</span>}
+              {!isConnected && !isPolling && <span className="ml-1 text-yellow-400">🟡</span>}
+              {error && <span className="ml-1 text-red-400">⚠</span>}
+            </span>
           </button>
         )}
 
@@ -123,13 +138,45 @@ export default function EventLayout() {
                   </span>
                 </button>
               ))}
+              {isLoading && (
+                <div className="flex items-center text-xs text-gray-400">
+                  <span className="animate-pulse">Loading events...</span>
+                </div>
+              )}
+              {isPolling && (
+                <div className="flex items-center text-xs text-blue-400">
+                  <span className="animate-pulse">📡 Polling active (5s interval)</span>
+                </div>
+              )}
+              {isConnected && !isPolling && (
+                <div className="flex items-center text-xs text-green-400">
+                  <span>🟢 Realtime connected</span>
+                </div>
+              )}
+              {!isConnected && !isPolling && !isLoading && (
+                <div className="flex items-center text-xs text-yellow-400">
+                  <span>🟡 Realtime disconnected</span>
+                </div>
+              )}
             </div>
             
+            {/* Error State */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-center gap-2 text-red-400">
+                  <XCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">Error loading events</span>
+                </div>
+                <p className="text-xs text-red-300 mt-1">{error.message}</p>
+              </div>
+            )}
+            
             {/* Table Container with Dynamic Height */}
-            <EventTable viewState={viewState} filter={filter} filteredEvents={filteredEvents} />
+            <EventTable viewState={viewState} filter={filter} filteredEvents={filteredEvents} isLoading={isLoading} />
           </>
         )}
       </GlowCard>
     </motion.div>
+    </>
   );
 }; 

@@ -34,7 +34,7 @@ export default function EmergencyKillModal({
       const response = await fetch('/api/server/debug/scan-ports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ports: [3000, 3001, 3002, 3003, 3004, 3005] })
+        body: JSON.stringify({ ports: [3100, 3001, 3002, 3003, 3004, 3005] })
       });
       
       if (response.ok) {

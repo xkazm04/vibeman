@@ -1,5 +1,6 @@
 import { Code2, Brain, TestTube, Palette } from 'lucide-react';
-export const agentThemes = {
+
+const baseAgentThemes = {
     developer: {
       bg: 'bg-cyan-500/10 border-cyan-500/20',
       hoverBg: 'hover:bg-cyan-500/15',
@@ -22,12 +23,24 @@ export const agentThemes = {
     }
   };
 
-export const agentIcons = {
+const baseAgentIcons = {
     developer: Code2,
     mastermind: Brain,
     tester: TestTube,
     artist: Palette
   };
+
+export const agentThemes = new Proxy(baseAgentThemes, {
+  get(target, prop) {
+    return target[prop as keyof typeof target] || target.developer;
+  }
+});
+
+export const agentIcons = new Proxy(baseAgentIcons, {
+  get(target, prop) {
+    return target[prop as keyof typeof target] || target.developer;
+  }
+});
 
 export const getFileTypeColor = (fileName: string) => {
     const ext = fileName.split('.').pop()?.toLowerCase();

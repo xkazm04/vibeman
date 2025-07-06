@@ -2,9 +2,9 @@
   {
     "id": "simple-app",
     "name": "Simple #1",
-    "path": "C:\\Users\\kazda\\mk/simple",
+    "path": "C:\\Users\\kazda\\mk\\simple",
     "port": 3001,
-    "description": "Descriptiond",
+    "description": "Prototype 1",
     "allowMultipleInstances": true,
     "basePort": 3001,
     "git": {
@@ -15,14 +15,14 @@
   },
   {
     "id": "vibe-app",
-    "name": "Vibe App",
-    "path": "C:\\Users\\kazda\\mk",
+    "name": "Simple #2",
+    "path": "C:\\Users\\kazda\\mk\\simple",
     "port": 3002,
-    "description": "Descriptionsd",
+    "description": "Prototype 2",
     "allowMultipleInstances": true,
     "basePort": 3002,
     "git": {
-      "repository": "https://github.com/yourusername/vibe.git",
+      "repository": "https://github.com/xkazm04/simple",
       "branch": "master",
       "autoSync": false
     }
@@ -43,11 +43,16 @@
   },
   {
     "id": "app-manager-neighbor",
-    "name": "App Manager (Secondary)",
-    "path": "C:\\Users\\kazda\\mk\\vibe",
+    "name": "Simple #3",
+    "path": "C:\\Users\\kazda\\mk\\simple",
     "port": 3100,
-    "description": "Secondary instance of App Manager",
+    "description": "",
     "allowMultipleInstances": true,
-    "basePort": 3100
+    "basePort": 3100,
+    "git": {
+      "repository": "https://github.com/xkazm04/simple",
+      "branch": "master",
+      "autoSync": false
+    }
   }
 ]

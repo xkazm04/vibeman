@@ -6,6 +6,7 @@ import { CopilotTask } from '@/types/copilot';
 import { useStore } from '../../../stores/nodeStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useBacklog } from '../../../hooks/useBacklog';
+import { formatImpactedFilesForDisplay } from '@/lib/impactedFilesUtils';
 
 interface BacklogItemActionsProps {
   proposal: BacklogProposal;
@@ -80,21 +81,24 @@ export default function BacklogItemActions({
   const handleHighlightFiles = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (proposal.impactedFiles && proposal.impactedFiles.length > 0) {
+      // Extract filepaths from the new structure
+      const filePaths = proposal.impactedFiles.map(file => file.filepath);
+      
       // Check if any of the proposal's files are currently highlighted
-      const isCurrentlyHighlighted = proposal.impactedFiles.some(fileId => 
-        highlightedNodes.has(fileId)
+      const isCurrentlyHighlighted = filePaths.some(filepath => 
+        highlightedNodes.has(filepath)
       );
       
       if (isCurrentlyHighlighted) {
         clearHighlights();
       } else {
-        highlightNodes(proposal.impactedFiles);
+        highlightNodes(filePaths);
       }
     }
   };
 
   const isHighlighted = proposal.impactedFiles && 
-    proposal.impactedFiles.some(fileId => highlightedNodes.has(fileId));
+    proposal.impactedFiles.some(file => highlightedNodes.has(file.filepath));
 
   return (
     <>
@@ -138,6 +142,9 @@ export default function BacklogItemActions({
             title={isHighlighted ? "Clear highlights" : "Highlight impacted files"}
           >
             <Zap className={`w-3 h-3 ${isHighlighted ? 'text-orange-400' : 'text-gray-400'}`} />
+            <span className="text-xs">
+              {formatImpactedFilesForDisplay(proposal.impactedFiles || [])}
+            </span>
           </motion.button>
         </div>
       )}
