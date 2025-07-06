@@ -10,14 +10,16 @@ import { useGoals } from '../../../hooks/useGoals';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useAnalysisStore } from '../../../stores/analysisStore';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
+import { useStore } from '../../../stores/nodeStore';
 import AnalysisClient from '../../../lib/analysisClient';
 import GoalsTitle from './GoalsTitle';
 
 export default function GoalsLayout() {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject, fileStructure } = useActiveProjectStore();
   const { goals, loading, error, createGoal, updateGoal, fetchGoals } = useGoals(activeProject?.id || null);
   const { startAnalysis, isActive } = useAnalysisStore();
   const { getProject } = useProjectConfigStore();
+  const { getSelectedFilePaths } = useStore();
   
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -30,6 +32,20 @@ export default function GoalsLayout() {
       const inProgressGoal = goals.find(goal => goal.status === 'in_progress');
       const firstGoal = goals[0];
       setSelectedGoal(inProgressGoal || firstGoal);
+    }
+  }, [goals, selectedGoal]);
+
+  // Update selected goal when goals array changes (after updates)
+  useEffect(() => {
+    if (selectedGoal && goals.length > 0) {
+      const updatedGoal = goals.find(goal => goal.id === selectedGoal.id);
+      if (updatedGoal && (
+        updatedGoal.title !== selectedGoal.title ||
+        updatedGoal.description !== selectedGoal.description ||
+        updatedGoal.status !== selectedGoal.status
+      )) {
+        setSelectedGoal(updatedGoal);
+      }
     }
   }, [goals, selectedGoal]);
 
@@ -63,6 +79,9 @@ export default function GoalsLayout() {
       return;
     }
     
+    // Get selected file paths from the current project
+    const impactedFiles = getSelectedFilePaths(fileStructure, activeProject.id);
+    
     // Start analysis state with project ID
     startAnalysis(selectedGoal.id, activeProject.id);
     
@@ -71,14 +90,19 @@ export default function GoalsLayout() {
       const response = await AnalysisClient.triggerAnalysis({
         repository: project.git.repository,
         goal: selectedGoal.title,
+        description: selectedGoal.description,
         branch: project.git.branch,
-        projectId: activeProject.id
+        projectId: activeProject.id,
+        impactedFiles: impactedFiles.length > 0 ? impactedFiles : undefined
       });
       
       if (!response.success) {
         console.error('Analysis failed:', response.error);
       } else {
         console.log('Analysis started successfully:', response.message);
+        if (impactedFiles.length > 0) {
+          console.log('Impacted files:', impactedFiles);
+        }
       }
     } catch (error) {
       console.error('Failed to trigger analysis:', error);

@@ -1,168 +1,119 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Goal } from '@/types';
-import { Database } from '@/lib/supabase';
-
-type DbGoal = Database['public']['Tables']['goals']['Row'];
-
-// Convert database goal to app Goal type
-const convertDbGoalToGoal = (dbGoal: DbGoal): Goal => ({
-  id: dbGoal.id,
-  order: dbGoal.order_index,
-  title: dbGoal.title,
-  description: dbGoal.description || undefined,
-  status: dbGoal.status
-});
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Goal } from '../types';
+import { goalApi, goalKeys } from '../lib/queries/goalQueries';
 
 export const useGoals = (projectId: string | null) => {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchGoals = useCallback(async () => {
-    if (!projectId) {
-      setGoals([]);
-      return;
-    }
+  // Query for fetching goals
+  const {
+    data: goals = [],
+    isLoading: loading,
+    error: queryError,
+    refetch: fetchGoals,
+  } = useQuery({
+    queryKey: goalKeys.byProject(projectId || ''),
+    queryFn: () => goalApi.fetchGoals(projectId!),
+    enabled: !!projectId,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 35 * 60 * 1000, // 35 minutes
+  });
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/goals?projectId=${encodeURIComponent(projectId)}&_t=${Date.now()}`, {
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch goals');
+  // Mutation for creating goals
+  const createGoalMutation = useMutation({
+    mutationFn: goalApi.createGoal,
+    onSuccess: () => {
+      // Refetch goals after successful creation
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: goalKeys.byProject(projectId) });
       }
+    },
+  });
 
-      const data = await response.json();
-      const convertedGoals = data.goals.map(convertDbGoalToGoal);
-      setGoals(convertedGoals);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch goals');
-      console.error('Error fetching goals:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+  // Mutation for updating goals
+  const updateGoalMutation = useMutation({
+    mutationFn: goalApi.updateGoal,
+    onSuccess: () => {
+      // Refetch goals after successful update
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: goalKeys.byProject(projectId) });
+      }
+    },
+  });
 
-  const createGoal = useCallback(async (goalData: Omit<Goal, 'id'>) => {
+  // Mutation for deleting goals
+  const deleteGoalMutation = useMutation({
+    mutationFn: goalApi.deleteGoal,
+    onSuccess: () => {
+      // Refetch goals after successful deletion
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: goalKeys.byProject(projectId) });
+      }
+    },
+  });
+
+  // Helper functions
+  const createGoal = async (goalData: Omit<Goal, 'id'>) => {
     if (!projectId) return null;
 
     try {
-      const response = await fetch('/api/goals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          projectId,
-          title: goalData.title,
-          description: goalData.description,
-          status: goalData.status,
-          orderIndex: goalData.order
-        }),
+      const result = await createGoalMutation.mutateAsync({
+        projectId,
+        title: goalData.title,
+        description: goalData.description,
+        status: goalData.status,
+        orderIndex: goalData.order,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create goal');
-      }
-
-      const data = await response.json();
-      const newGoal = convertDbGoalToGoal(data.goal);
-      
-      setGoals(prev => [...prev, newGoal].sort((a, b) => a.order - b.order));
-      return newGoal;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create goal');
-      console.error('Error creating goal:', err);
+      return result;
+    } catch (error) {
+      console.error('Error creating goal:', error);
       return null;
     }
-  }, [projectId]);
+  };
 
-  const updateGoal = useCallback(async (goalId: string, updates: Partial<Goal>) => {
+  const updateGoal = async (goalId: string, updates: Partial<Goal>) => {
     try {
-      const response = await fetch('/api/goals', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: goalId,
-          title: updates.title,
-          description: updates.description,
-          status: updates.status,
-          orderIndex: updates.order
-        }),
+      const result = await updateGoalMutation.mutateAsync({
+        id: goalId,
+        title: updates.title,
+        description: updates.description,
+        status: updates.status,
+        orderIndex: updates.order,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update goal');
-      }
-
-      const data = await response.json();
-      const updatedGoal = convertDbGoalToGoal(data.goal);
-      
-      setGoals(prev => 
-        prev.map(goal => 
-          goal.id === goalId ? updatedGoal : goal
-        ).sort((a, b) => a.order - b.order)
-      );
-      
-      return updatedGoal;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update goal');
-      console.error('Error updating goal:', err);
+      return result;
+    } catch (error) {
+      console.error('Error updating goal:', error);
       return null;
     }
-  }, []);
+  };
 
-  const deleteGoal = useCallback(async (goalId: string) => {
+  const deleteGoal = async (goalId: string) => {
     try {
-      const response = await fetch(`/api/goals?id=${encodeURIComponent(goalId)}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete goal');
-      }
-
-      setGoals(prev => prev.filter(goal => goal.id !== goalId));
+      await deleteGoalMutation.mutateAsync(goalId);
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete goal');
-      console.error('Error deleting goal:', err);
+    } catch (error) {
+      console.error('Error deleting goal:', error);
       return false;
     }
-  }, []);
+  };
 
-  const reorderGoals = useCallback(async (reorderedGoals: Goal[]) => {
-    // Optimistic update
-    setGoals(reorderedGoals);
-
+  const reorderGoals = async (reorderedGoals: Goal[]) => {
     try {
-      // Update order in database
+      // Update order in database for each goal
       const updatePromises = reorderedGoals.map((goal, index) => 
         updateGoal(goal.id, { order: index + 1 })
       );
       
       await Promise.all(updatePromises);
-    } catch (err) {
-      // Revert on error
-      fetchGoals();
-      setError(err instanceof Error ? err.message : 'Failed to reorder goals');
-      console.error('Error reordering goals:', err);
+    } catch (error) {
+      console.error('Error reordering goals:', error);
     }
-  }, [updateGoal, fetchGoals]);
+  };
 
-  // Fetch goals when projectId changes
-  useEffect(() => {
-    fetchGoals();
-  }, [fetchGoals]);
+  // Convert query error to string
+  const error = queryError ? 
+    (queryError instanceof Error ? queryError.message : 'An error occurred') : 
+    null;
 
   return {
     goals,
@@ -173,6 +124,15 @@ export const useGoals = (projectId: string | null) => {
     updateGoal,
     deleteGoal,
     reorderGoals,
-    clearError: () => setError(null)
+    clearError: () => {
+      // Clear error by refetching
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: goalKeys.byProject(projectId) });
+      }
+    },
+    // Expose mutation states for advanced use cases
+    isCreating: createGoalMutation.isPending,
+    isUpdating: updateGoalMutation.isPending,
+    isDeleting: deleteGoalMutation.isPending,
   };
 }; 

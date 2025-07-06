@@ -108,6 +108,7 @@ export interface AppStore extends AppState {
   rejectProposal: (proposalId: string) => void;
   addCustomBacklogItem: (item: CustomBacklogItem) => void;
   moveToInProgress: (proposalId: string) => void; // New: move accepted proposals to in-progress
+  getSelectedFilePaths: (fileStructure: TreeNode | null, activeProjectId: string | null) => string[]; // New: get selected file paths
 }
 
 // Database-related types

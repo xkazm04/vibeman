@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Goal } from '../../../types';
-import { HammerIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getStatusIcon, getStatusStyle } from '@/helpers/timelineStyles';
 
 interface GoalsTimelineProps {
   goals: Goal[];
@@ -70,58 +71,6 @@ export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: Goa
     }
   };
 
-  const getStatusStyle = (status: Goal['status'], isSelected: boolean) => {
-    const baseClasses = "w-4 h-4 rounded-full border cursor-pointer transition-all duration-300 flex items-center justify-center relative";
-    
-    switch (status) {
-      case 'done':
-        return `${baseClasses} bg-gradient-to-r from-yellow-600 to-yellow-800 border-yellow-700 ${
-          isSelected ? 'scale-125' : 'hover:scale-110'
-        }`;
-      case 'in_progress':
-        return `${baseClasses} bg-gradient-to-r from-yellow-600 to-yellow-800 border-yellow-700 shadow-lg shadow-yellow-600/50 ${
-          isSelected ? 'scale-125' : 'hover:scale-110'
-        }`;
-      case 'open':
-        return `${baseClasses} bg-gradient-to-r from-yellow-600 to-yellow-800 border-yellow-700 ${
-          isSelected ? 'scale-125' : 'hover:scale-110'
-        }`;
-      default:
-        return baseClasses;
-    }
-  };
-
-  const getStatusIcon = (status: Goal['status']) => {
-    switch (status) {
-      case 'done':
-        return (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-green-300 text-xs font-bold"
-          >
-            ✓
-          </motion.div>
-        );
-      case 'in_progress':
-        return (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-yellow-300 text-xs font-bold"
-          >
-            <HammerIcon size={12} />
-          </motion.div>
-        );
-      case 'open':
-        return null; // No icon for open
-      default:
-        return null;
-    }
-  };
-
   return (
     <div 
       className="flex items-center py-2 relative justify-center"
@@ -154,7 +103,7 @@ export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: Goa
         
         {/* Sliding Goals Container */}
         <motion.div
-          className="flex items-center relative"
+          className="flex py-2 items-center relative"
           animate={{ x: -slideOffset }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
           style={{ width: `${sortedGoals.length * GOAL_WIDTH}px` }}
@@ -174,12 +123,69 @@ export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: Goa
                 <div className={getStatusStyle(goal.status, selectedGoal?.id === goal.id)}>
                   {getStatusIcon(goal.status)}
                   
+                  {/* Enhanced glow effects */}
+                  {selectedGoal?.id === goal.id && (
+                    <>
+                      {/* Pulsing outer glow */}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ 
+                          opacity: [0.4, 0.8, 0.4],
+                          scale: [1.5, 2.5, 1.5]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                        className="absolute inset-0 rounded-full bg-yellow-400/40 blur-md -z-20"
+                      />
+                      
+                      {/* Breathing inner glow */}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ 
+                          opacity: [0.6, 1, 0.6],
+                          scale: [1, 1.3, 1]
+                        }}
+                        transition={{ 
+                          duration: 1.5,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                        className="absolute inset-0 rounded-full bg-yellow-300/60 blur-sm -z-10"
+                      />
+                      
+                      {/* Shimmer effect */}
+                      <motion.div
+                        initial={{ opacity: 0, rotate: 0 }}
+                        animate={{ 
+                          opacity: [0, 1, 0],
+                          rotate: 360
+                        }}
+                        transition={{ 
+                          duration: 3,
+                          repeat: Infinity,
+                          ease: "linear"
+                        }}
+                        className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-yellow-200/80 to-transparent blur-[1px] -z-5"
+                      />
+                    </>
+                  )}
+                  
                   {/* Standard glow effect for in progress goal */}
-                  {goal.status === 'in_progress' && (
+                  {goal.status === 'in_progress' && selectedGoal?.id !== goal.id && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 2 }}
-                      transition={{ duration: 0.3 }}
+                      animate={{ 
+                        opacity: [0.3, 0.6, 0.3],
+                        scale: [1.2, 1.8, 1.2]
+                      }}
+                      transition={{ 
+                        duration: 1.8,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
                       className="absolute inset-0 rounded-full bg-yellow-600/30 blur-sm -z-10"
                     />
                   )}

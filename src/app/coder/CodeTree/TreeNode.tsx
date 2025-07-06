@@ -26,18 +26,19 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
   };
 
   const Icon = getIcon();
+  
   const handleNodeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Only toggle selection, not expansion
     onToggle(node.id);
-    
-    if (hasChildren) {
-      setIsExpanded(!isExpanded);
-    }
   };
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(!isExpanded);
+    // Only handle expansion/collapse for folders
+    if (hasChildren) {
+      setIsExpanded(!isExpanded);
+    }
   };
 
   const getNodeStyling = () => {

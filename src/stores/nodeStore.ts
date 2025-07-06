@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { AppState, AppStore, EventLogEntry, CustomBacklogItem, BacklogProposal } from '../types';
+import { AppState, AppStore, EventLogEntry, CustomBacklogItem, BacklogProposal, TreeNode } from '../types';
 
 // Mock data for backlog proposals with status and impacted files
 const mockBacklogProposals: BacklogProposal[] = [
@@ -74,6 +74,28 @@ export const useStore = (() => {
   const subscribe = (listener: (state: AppState) => void) => {
     listeners.add(listener);
     return () => listeners.delete(listener);
+  };
+  
+  // Helper function to get selected file paths from tree structure
+  const getSelectedFilePaths = (fileStructure: TreeNode | null, activeProjectId: string | null): string[] => {
+    if (!fileStructure || !activeProjectId) return [];
+    
+    const selectedPaths: string[] = [];
+    
+    const traverseTree = (node: TreeNode) => {
+      // Only include files (not folders) and only if they're selected
+      if (node.type === 'file' && state.selectedNodes.has(node.id)) {
+        selectedPaths.push(node.id); // The id is the relative path
+      }
+      
+      // Recursively check children
+      if (node.children) {
+        node.children.forEach(traverseTree);
+      }
+    };
+    
+    traverseTree(fileStructure);
+    return selectedPaths;
   };
   
   return (): AppStore => {
@@ -180,7 +202,8 @@ export const useStore = (() => {
           ...prev,
           inProgressProposals: [...prev.inProgressProposals, { ...proposal, status: 'in_progress' as const }]
         };
-      })
+      }),
+      getSelectedFilePaths
     };
   };
 })();

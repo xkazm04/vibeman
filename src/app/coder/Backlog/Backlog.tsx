@@ -17,8 +17,6 @@ export default function Backlog() {
     loading, 
     error,
     newItemIds,
-    acceptProposal, 
-    rejectProposal, 
     createBacklogItem,
     fetchBacklogItems
   } = useBacklog(activeProject?.id || null);
@@ -122,8 +120,6 @@ export default function Backlog() {
                 <div key={item.id} className="w-80 flex-shrink-0">
                   <BacklogItem
                     proposal={item}
-                    onAccept={acceptProposal}
-                    onReject={rejectProposal}
                     isNew={newItemIds.has(item.id)}
                   />
                 </div>

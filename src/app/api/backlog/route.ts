@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       .from('backlog_items')
       .select('*')
       .eq('project_id', projectId)
+      .neq('status', 'rejected')
       .order('created_at', { ascending: false });
 
     if (error) {

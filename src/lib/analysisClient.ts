@@ -1,8 +1,10 @@
 interface AnalysisRequest {
   repository: string;
   goal: string;
+  description?: string;
   branch?: string;
   projectId?: string;
+  impactedFiles?: string[];
 }
 
 interface AnalysisResponse {

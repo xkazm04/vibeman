@@ -1,25 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Zap } from 'lucide-react';
+import { PropagateLoader } from 'react-spinners';
 import { BacklogProposal } from '../../../types';
 import { agentIcons, agentThemes } from '@/helpers/typeStyles'; 
 import BacklogDetail from './BacklogDetail';
-import { useStore } from '../../../stores/nodeStore';
+import BacklogItemActions from './BacklogItemActions';
+import { useBacklog } from '../../../hooks/useBacklog';
+import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 
 interface ProposalItemProps {
   proposal: BacklogProposal;
-  onAccept: (proposalId: string) => void;
-  onReject: (proposalId: string) => void;
   isNew?: boolean;
 }
 
-export default function BacklogItem({ proposal, onAccept, onReject, isNew = false }: ProposalItemProps) {
+export default function BacklogItem({ proposal, isNew = false }: ProposalItemProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const { highlightNodes, clearHighlights, highlightedNodes } = useStore();
+  const [isInProgress, setIsInProgress] = useState(proposal.status === 'in_progress');
+  const [isRejected, setIsRejected] = useState(false);
+  const { activeProject } = useActiveProjectStore();
+  const { moveToInProgress, rejectProposal } = useBacklog(activeProject?.id || null);
   
   const AgentIcon = agentIcons[proposal.agent];
   const theme = agentThemes[proposal.agent];
+
+  // Sync local state with proposal status, but don't override local in-progress state
+  useEffect(() => {
+    if (proposal.status === 'in_progress') {
+      setIsInProgress(true);
+    } else if (proposal.status === 'accepted' || proposal.status === 'rejected') {
+      setIsInProgress(false);
+    }
+  }, [proposal.status]);
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -29,44 +41,28 @@ export default function BacklogItem({ proposal, onAccept, onReject, isNew = fals
     setIsModalOpen(false);
   };
 
-  const handleHighlightFiles = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (proposal.impactedFiles && proposal.impactedFiles.length > 0) {
-      // Check if any of the proposal's files are currently highlighted
-      const isCurrentlyHighlighted = proposal.impactedFiles.some(fileId => 
-        highlightedNodes.has(fileId)
-      );
-      
-      if (isCurrentlyHighlighted) {
-        clearHighlights();
-      } else {
-        highlightNodes(proposal.impactedFiles);
-      }
-    }
+  const handleStartCoding = () => {
+    setIsInProgress(true);
+    moveToInProgress(proposal.id);
   };
 
-  const isHighlighted = proposal.impactedFiles && 
-    proposal.impactedFiles.some(fileId => highlightedNodes.has(fileId));
-
-  const formatTimeAgo = (timestamp: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
+  const handleReject = async () => {
+    setIsRejected(true);
+    // Wait for animation to complete before calling API
+    setTimeout(async () => {
+      await rejectProposal(proposal.id);
+    }, 300);
   };
 
   return (
     <>
       <motion.div
         initial={isNew ? { opacity: 0, scale: 0.8, y: -20 } : false}
-        animate={isNew ? { opacity: 1, scale: 1, y: 0 } : {}}
-        transition={isNew ? { 
+        animate={isRejected ? { opacity: 0, scale: 0.8, y: -20 } : isNew ? { opacity: 1, scale: 1, y: 0 } : {}}
+        transition={isRejected ? { 
+          duration: 0.3,
+          ease: "easeInOut"
+        } : isNew ? { 
           type: "spring", 
           damping: 20, 
           stiffness: 300,
@@ -80,54 +76,22 @@ export default function BacklogItem({ proposal, onAccept, onReject, isNew = fals
       >
         {/* Background Icon */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <AgentIcon className={`w-10 h-10 ${theme.icon} transition-all duration-200 ${isHovered ? 'scale-110' : ''}`} />
+          {isInProgress ? (
+            <div className="w-10 h-10 flex items-center justify-center">
+              <PropagateLoader color="#fb923c" size={8} speedMultiplier={0.8} />
+            </div>
+          ) : (
+            <AgentIcon className={`w-10 h-10 ${theme.icon} transition-all duration-200 ${isHovered ? 'scale-110' : ''}`} />
+          )}
         </div>
 
-        {/* Side Action Buttons */}
-        <div className="absolute left-0 top-0 bottom-0 w-3 flex flex-col">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onReject(proposal.id);
-            }}
-            className="flex-1 bg-red-700/20 hover:bg-red-500/60 transition-colors rounded-tl-lg z-40 cursor-pointer"
-            title="Reject" 
-          />
-        </div>
-
-        <div className="absolute right-0 top-0 bottom-0 w-3 flex flex-col">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAccept(proposal.id);
-            }}
-            className="flex-1 bg-green-700/20 hover:bg-green-500/60 transition-colors rounded-tr-lg z-40 cursor-pointer"
-            title="Accept"
-          />
-        </div>
-
-        {/* Bottom Highlight Button */}
-        {proposal.impactedFiles && proposal.impactedFiles.length > 0 && (
-          <div className="absolute bottom-0  left-3 right-3 h-4 flex items-center justify-center">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleHighlightFiles}
-              className={`flex min-w-[300px] cursor-pointer items-center space-x-2 px-3 py-1 rounded-t-lg text-xs font-medium transition-all duration-200 z-40 ${
-                isHighlighted
-                  ? 'bg-orange-500/30 text-orange-300 border-t border-orange-400/50'
-                  : 'bg-gray-700/50 text-gray-400 hover:bg-orange-500/20 hover:text-orange-300 border-t border-gray-600/50'
-              }`}
-              title={isHighlighted ? "Clear highlights" : "Highlight impacted files"}
-            >
-              <Zap className={`w-3 h-3 ${isHighlighted ? 'text-orange-400' : 'text-gray-400'}`} />
-            </motion.button>
-          </div>
-        )}
+        {/* Action Buttons */}
+        <BacklogItemActions
+          proposal={proposal}
+          isInProgress={isInProgress}
+          onStartCoding={handleStartCoding}
+          onReject={handleReject}
+        />
 
         {/* Main Content */}
         <div 
@@ -164,8 +128,8 @@ export default function BacklogItem({ proposal, onAccept, onReject, isNew = fals
         proposal={proposal}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onAccept={onAccept}
-        onReject={onReject}
+        onAccept={() => {}}
+        onReject={() => {}}
       />
     </>
   );
