@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Code2, Palette } from 'lucide-react';
+import { Code2, Palette, Plus, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useBacklog } from '../../../hooks/useBacklog';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useAnalysisStore } from '../../../stores/analysisStore';
-import BacklogSection from './BacklogSection';
+import BacklogItem from './BacklogItem';
 import BacklogFormAdd from './BacklogFormAdd';
 import { GlowCard } from '@/components/GlowCard';
 
@@ -24,9 +24,9 @@ export default function Backlog() {
   } = useBacklog(activeProject?.id || null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
-  // Group all items by agent type
-  const groupedItems = useMemo(() => {
-    const allItems = [
+  // Combine and sort all items, limit to 20
+  const allItems = useMemo(() => {
+    const combined = [
       ...backlogProposals,
       ...customBacklogItems.map(item => ({
         ...item,
@@ -35,13 +35,10 @@ export default function Backlog() {
       }))
     ];
 
-    const developerItems = allItems.filter(item => item.agent === 'developer');
-    const artistItems = allItems.filter(item => item.agent === 'artist');
-
-    return {
-      developer: developerItems,
-      artist: artistItems
-    };
+    // Sort by timestamp (newest first) and limit to 20 items
+    return combined
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 20);
   }, [backlogProposals, customBacklogItems]);
 
   const handleOpenForm = () => {
@@ -84,45 +81,56 @@ export default function Backlog() {
       <GlowCard className={`p-6 h-full flex flex-col max-h-[60vh] ${
         isActive ? 'shadow-lg shadow-purple-500/20' : ''
       }`}>        
-        {/* Two Column Layout - Developer and Artist */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Developer Column */}
-          <BacklogSection
-            agentType="developer"
-            items={groupedItems.developer}
-            icon={Code2}
-            title="Developer Tasks"
-            newItemIds={newItemIds}
-            onAccept={acceptProposal}
-            onReject={rejectProposal}
-            onOpenForm={handleOpenForm}
-            onRefresh={fetchBacklogItems}
-          />
-
-          {/* Artist Column */}
-          <BacklogSection
-            agentType="artist"
-            items={groupedItems.artist}
-            icon={Palette}
-            title="Design Tasks"
-            newItemIds={newItemIds}
-            onAccept={acceptProposal}
-            onReject={rejectProposal}
-            onOpenForm={handleOpenForm}
-            onRefresh={fetchBacklogItems}
-          />
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <Code2 className="w-5 h-5 text-cyan-400" />
+            <h3 className="text-lg font-semibold text-white">Backlog</h3>
+            <span className="text-sm text-gray-400">({allItems.length})</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={fetchBacklogItems}
+              className="p-2 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-600/30 rounded-md text-gray-400 hover:text-gray-300 transition-all"
+              title="Refresh backlog"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleOpenForm}
+              className="p-2 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-600/30 rounded-md text-gray-400 hover:text-gray-300 transition-all"
+              title="Add custom item"
+            >
+              <Plus className="w-4 h-4" />
+            </motion.button>
+          </div>
         </div>
 
-        {/* Floating Action Button */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleOpenForm}
-          className="fixed bottom-8 right-8 p-4 bg-gradient-to-r from-cyan-500 to-pink-500 hover:from-cyan-600 hover:to-pink-600 rounded-full shadow-lg shadow-cyan-500/25 transition-all duration-200 z-50"
-          title="Add Custom Item"
-        >
-          <Plus className="w-6 h-6 text-white" />
-        </motion.button>
+        {/* Items Grid */}
+        <div className="flex-1 overflow-y-auto">
+          {allItems.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
+              No backlog items yet
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-4">
+              {allItems.map((item) => (
+                <div key={item.id} className="w-80 flex-shrink-0">
+                  <BacklogItem
+                    proposal={item}
+                    onAccept={acceptProposal}
+                    onReject={rejectProposal}
+                    isNew={newItemIds.has(item.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </GlowCard>
 
       {/* Custom Backlog Form Modal */}

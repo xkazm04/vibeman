@@ -1,10 +1,10 @@
 [
   {
     "id": "simple-app",
-    "name": "Simple App",
-    "path": "C:\\Users\\kazda\\mk\\simple",
+    "name": "Simple #1",
+    "path": "C:\\Users\\kazda\\mk/simple",
     "port": 3001,
-    "description": "Simple Next.js applicationssdasdadsadddsdasdasdasdddasdsd",
+    "description": "Descriptiond",
     "allowMultipleInstances": true,
     "basePort": 3001,
     "git": {
@@ -16,9 +16,9 @@
   {
     "id": "vibe-app",
     "name": "Vibe App",
-    "path": "C:\\Users\\kazda\\mk\\vibe",
+    "path": "C:\\Users\\kazda\\mk",
     "port": 3002,
-    "description": "Vibe management applicationssddasdsdsa",
+    "description": "Descriptionsd",
     "allowMultipleInstances": true,
     "basePort": 3002,
     "git": {

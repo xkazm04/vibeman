@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.0",
     "@supabase/supabase-js": "^2.50.3",
     "framer-motion": "^12.23.0",
     "lucide-react": "^0.525.0",

@@ -160,6 +160,7 @@ export default function GoalsLayout() {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         onSave={updateGoal}
+        projectId={activeProject?.id || null}
       />
 
       {/* Add Goal Modal */}

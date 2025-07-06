@@ -1,0 +1,16 @@
+{
+  "generated": "2025-07-06T09:10:25.152Z",
+  "tasks": [
+    {
+      "id": "task-1751793025150",
+      "file": "task-1751793025150.md",
+      "status": "pending",
+      "title": "Create Hello Page",
+      "type": "feature",
+      "priority": "high",
+      "created": "2025-07-06T09:10:25.152Z"
+    }
+  ],
+  "totalTasks": 1,
+  "lastUpdated": "2025-07-06T09:10:25.152Z"
+}

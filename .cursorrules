@@ -1,0 +1,51 @@
+# Project Rules for Background Agents
+
+## Code Style
+- Use TypeScript for all new code
+- Follow ESLint configuration
+- Use functional components for React
+- Implement proper error handling with try-catch blocks
+
+## File Structure
+- Place new pages in `/src/app/[page-name]/`
+- Keep components in `/src/components/`
+- Use barrel exports (index.ts files) when appropriate
+
+## NextJS App Router Conventions
+- Use page.tsx for pages
+- Use layout.tsx for layouts
+- Use loading.tsx for loading states
+- Use error.tsx for error boundaries
+
+## Styling
+- Use Tailwind CSS for styling
+- Follow existing design patterns
+- Use responsive design principles
+
+## Testing Requirements
+- Write tests for all new functions when applicable
+- Use Jest and React Testing Library
+- Focus on user behavior testing
+
+## Documentation
+- Add JSDoc comments for complex functions
+- Update README.md for new features when significant
+- Include usage examples for new components
+
+## Git Commit Messages
+- Use conventional commits (feat:, fix:, docs:, etc.)
+- Keep messages concise but descriptive
+- Reference task IDs when applicable
+
+## Security
+- Sanitize all user inputs
+- Use parameterized queries for database operations
+- Implement proper authentication checks
+- Never commit sensitive data
+
+## Background Agent Specific Instructions
+- Always read the full task description before starting
+- Create new branches for each task using the suggested branch name
+- Test your implementation before marking as complete
+- Update task status in the manifest when done
+- Follow the existing project patterns and conventions 

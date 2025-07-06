@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings, Folder, Save } from 'lucide-react';
 import { Project } from '@/types';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useUserConfigStore } from '@/stores/userConfigStore';
 import { UniversalModal } from '@/components/UniversalModal';
 import RunnerSetting  from './RunnerSetting';
 
@@ -21,9 +22,12 @@ const RunnerSettings = React.memo(function RunnerSettings({
   onDeleteProject
 }: Props) {
   const { updateProject } = useProjectConfigStore();
+  const { basePath, setBasePath } = useUserConfigStore();
   const [editedProjects, setEditedProjects] = useState<Record<string, Project>>({});
   const [hasChanges, setHasChanges] = useState<Record<string, boolean>>({});
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
+  const [editingBasePath, setEditingBasePath] = useState(false);
+  const [tempBasePath, setTempBasePath] = useState(basePath);
 
   const handleProjectChange = useCallback((projectId: string, field: keyof Project | string, value: unknown) => {
     const project = projects.find(p => p.id === projectId);
@@ -99,8 +103,25 @@ const RunnerSettings = React.memo(function RunnerSettings({
     setEditedProjects({});
     setHasChanges({});
     setExpandedProject(null);
+    setEditingBasePath(false);
+    setTempBasePath(basePath);
     onClose();
-  }, [onClose]);
+  }, [onClose, basePath]);
+
+  const handleBasePathEdit = useCallback(() => {
+    setEditingBasePath(true);
+    setTempBasePath(basePath);
+  }, [basePath]);
+
+  const handleBasePathSave = useCallback(() => {
+    setBasePath(tempBasePath);
+    setEditingBasePath(false);
+  }, [tempBasePath, setBasePath]);
+
+  const handleBasePathCancel = useCallback(() => {
+    setTempBasePath(basePath);
+    setEditingBasePath(false);
+  }, [basePath]);
 
   // Improved memoization with stable dependencies
   const projectSettings = useMemo(() => {
@@ -158,6 +179,52 @@ const RunnerSettings = React.memo(function RunnerSettings({
       iconColor="text-blue-400"
       maxWidth="max-w-5xl"
     >
+      {/* Base Path Configuration */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-slate-800/30 to-slate-700/30 rounded-xl border border-slate-700/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Folder className="w-4 h-4 text-slate-400" />
+            <span className="text-sm font-medium text-slate-300">Base Path</span>
+          </div>
+          {!editingBasePath && (
+            <button
+              onClick={handleBasePathEdit}
+              className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+        <div className="mt-2">
+          {editingBasePath ? (
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={tempBasePath}
+                onChange={(e) => setTempBasePath(e.target.value)}
+                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white text-sm font-mono focus:outline-none focus:border-slate-500/50 focus:ring-2 focus:ring-slate-500/20"
+                placeholder="C:\\Users\\kazda\\mk"
+              />
+              <button
+                onClick={handleBasePathSave}
+                className="p-2 text-green-400 hover:text-green-300 hover:bg-green-400/10 rounded-lg transition-all"
+                title="Save"
+              >
+                <Save className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleBasePathCancel}
+                className="p-2 text-slate-400 hover:text-slate-300 hover:bg-slate-400/10 rounded-lg transition-all"
+                title="Cancel"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 font-mono">{basePath}</p>
+          )}
+        </div>
+      </div>
       {projects.length === 0 ? (
         <div className="text-center py-16">
           <div className="relative">
