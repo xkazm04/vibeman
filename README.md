@@ -1,6 +1,6 @@
-![Vibeman](public\logo\vibeman_logo.png)
+![Vibeman](public/logo/vibeman_logo.png)
 
-> **Transform your development workflow with intelligent automation, real-time monitoring, and AI-driven insights**
+> *Transform your development workflow with intelligent automation, real-time monitoring, and AI-driven insights*
 
 ## 🎯 Business Overview
 
@@ -21,12 +21,13 @@
 - **📈 Intelligent Backlog**: AI-generated proposals and custom task management with impact analysis
 - **🌐 GitHub Copilot Integration**: Seamless task creation and workflow automation through n8n webhooks
 - **🔍 Code Structure Visualization**: Interactive file tree exploration with intelligent filtering and search
-
+![n8n](public/workflow_analyst.png)
 
 ### 🌐 Integration Ecosystem
-![architecture](public\archi.png)
 - **Local management**: All files and servers are accessible locally for direct manipulation via NextJS management UI
 - **n8n Workflow Automation**: Extensible webhook system for custom integrations to Groq LLM models, Gitub automations and embedding mechanism
+
+![architecture](public/archi.png)
 
 ## 🏆 Competitive Advantages
 
@@ -49,6 +50,8 @@
 - **TanStack Query 5.81** - Powerful data synchronization
 - **Zustand 5.0** - Lightweight state management
 - **Node.js Process Management** - Server lifecycle control
+
+![screenshot](public/screenshot.png)
 
 ## 📦 Dependencies & Installation
 
