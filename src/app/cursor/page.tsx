@@ -4,6 +4,8 @@ import { CursorReqCreator } from './CursorReqCreator';
 import { CursorProjectMonitor } from './CursorProjectMonitor';
 import { CursorTaskStatus } from './CursorTaskStatus';
 import { DevelopmentRequirement } from '@/types/development';
+import CodeAnalyzer from './CodeAnalyzer';
+import RepositorySync from './RepoSync';
 
 // Configure your monitored projects here
 const MONITORED_PROJECTS = [
@@ -23,18 +25,7 @@ export default function Dashboard() {
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]" />
       
-      <div className="relative container mx-auto py-12 px-4 max-w-6xl">
-        {/* Header Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent mb-4">
-            Development Brain
-          </h1>
-          <p className="text-xl text-gray-300 font-light">
-            Claude Code Integration Dashboard
-          </p>
-          <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mx-auto mt-6" />
-        </div>
-        
+        <RepositorySync />
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Requirement Creator - Takes up 2/3 on large screens */}
@@ -111,6 +102,5 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
