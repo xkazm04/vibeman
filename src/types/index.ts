@@ -93,6 +93,7 @@ export interface AppState {
 
 export interface Goal {
   id: string;
+  projectId: string;
   order: number;
   title: string;
   description?: string;

@@ -21,6 +21,7 @@ interface DbGoal {
 // Convert database goal to app Goal type
 const convertDbGoalToGoal = (dbGoal: DbGoal): Goal => ({
   id: dbGoal.id,
+  projectId: dbGoal.project_id,
   order: dbGoal.order_index,
   title: dbGoal.title,
   description: dbGoal.description || undefined,

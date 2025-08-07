@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { goalDb } from '@/lib/database';
+import { randomUUID } from 'crypto';
 
 // GET /api/goals?projectId=xxx
 export async function GET(request: NextRequest) {
@@ -11,20 +12,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
     }
 
-    const supabase = createServerSupabaseClient();
-    
-    const { data, error } = await supabase
-      .from('goals')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('order_index', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching goals:', error);
-      return NextResponse.json({ error: 'Failed to fetch goals' }, { status: 500 });
-    }
-
-    return NextResponse.json({ goals: data });
+    const goals = goalDb.getGoalsByProject(projectId);
+    return NextResponse.json({ goals });
   } catch (error) {
     console.error('Error in GET /api/goals:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -41,41 +30,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project ID and title are required' }, { status: 400 });
     }
 
-    const supabase = createServerSupabaseClient();
-
     // If no order index provided, get the next available one
     let finalOrderIndex = orderIndex;
     if (finalOrderIndex === undefined) {
-      const { data: maxOrderData } = await supabase
-        .from('goals')
-        .select('order_index')
-        .eq('project_id', projectId)
-        .order('order_index', { ascending: false })
-        .limit(1);
-
-      finalOrderIndex = maxOrderData && maxOrderData.length > 0 
-        ? maxOrderData[0].order_index + 1 
-        : 1;
+      finalOrderIndex = goalDb.getMaxOrderIndex(projectId) + 1;
     }
 
-    const { data, error } = await supabase
-      .from('goals')
-      .insert({
-        project_id: projectId,
-        title,
-        description,
-        status,
-        order_index: finalOrderIndex
-      })
-      .select()
-      .single();
+    const goal = goalDb.createGoal({
+      id: randomUUID(),
+      project_id: projectId,
+      title,
+      description,
+      status,
+      order_index: finalOrderIndex
+    });
 
-    if (error) {
-      console.error('Error creating goal:', error);
-      return NextResponse.json({ error: 'Failed to create goal' }, { status: 500 });
-    }
-
-    return NextResponse.json({ goal: data });
+    return NextResponse.json({ goal });
   } catch (error) {
     console.error('Error in POST /api/goals:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -92,12 +62,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Goal ID is required' }, { status: 400 });
     }
 
-    const supabase = createServerSupabaseClient();
-
     const updateData: {
       title?: string;
       description?: string;
-      status?: string;
+      status?: 'open' | 'in_progress' | 'done';
       order_index?: number;
     } = {};
     if (title !== undefined) updateData.title = title;
@@ -105,19 +73,13 @@ export async function PUT(request: NextRequest) {
     if (status !== undefined) updateData.status = status;
     if (orderIndex !== undefined) updateData.order_index = orderIndex;
 
-    const { data, error } = await supabase
-      .from('goals')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const goal = goalDb.updateGoal(id, updateData);
 
-    if (error) {
-      console.error('Error updating goal:', error);
-      return NextResponse.json({ error: 'Failed to update goal' }, { status: 500 });
+    if (!goal) {
+      return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ goal: data });
+    return NextResponse.json({ goal });
   } catch (error) {
     console.error('Error in PUT /api/goals:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -134,16 +96,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Goal ID is required' }, { status: 400 });
     }
 
-    const supabase = createServerSupabaseClient();
+    const success = goalDb.deleteGoal(id);
 
-    const { error } = await supabase
-      .from('goals')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting goal:', error);
-      return NextResponse.json({ error: 'Failed to delete goal' }, { status: 500 });
+    if (!success) {
+      return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });

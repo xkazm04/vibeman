@@ -8,9 +8,10 @@ import TreeHeader from './TreeHeader';
 import TreeView from './TreeView';
 import TreeFooter from './TreeFooter';
 import TreeSearch from './TreeSearch';
+import ContextBar from '../Context/ContextBar';
 
 export default function TreeLayout() {
-  const { selectedNodes, highlightedNodes, toggleNode, clearHighlights } = useStore();
+  const { selectedNodes, highlightedNodes, toggleNode, clearHighlights, getSelectedFilePaths } = useStore();
   const { 
     activeProject, 
     fileStructure, 
@@ -130,6 +131,7 @@ export default function TreeLayout() {
   const handleClearSelection = () => {
     selectedNodes.forEach(nodeId => toggleNode(nodeId));
   };
+
 
   return (
     <GlowCard className="p-6 h-full min-w-[550px] max-h-[60vh] flex flex-col">

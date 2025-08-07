@@ -111,9 +111,15 @@ export default function GoalsLayout() {
     }
   };
 
-  const handleAddNewGoal = async (newGoal: Omit<Goal, 'id' | 'order'>) => {
+  const handleAddNewGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
+    if (!activeProject) return;
+    
     const maxOrder = Math.max(...goals.map(g => g.order), 0);
-    const goalWithOrder = { ...newGoal, order: maxOrder + 1 };
+    const goalWithOrder = { 
+      ...newGoal, 
+      projectId: activeProject.id,
+      order: maxOrder + 1 
+    };
     
     const createdGoal = await createGoal(goalWithOrder);
     if (createdGoal) {

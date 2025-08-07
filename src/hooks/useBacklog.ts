@@ -1,10 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BacklogProposal, CustomBacklogItem } from '@/types';
-import { Database, supabase } from '@/lib/supabase';
+import { BacklogProposal, CustomBacklogItem, ImpactedFile } from '@/types';
 import { useAnalysisStore } from '@/stores/analysisStore';
-import { parseImpactedFilesFromDb } from '@/lib/impactedFilesUtils';
 
-type DbBacklogItem = Database['public']['Tables']['backlog_items']['Row'];
+// Database backlog item structure (from SQLite)
+interface DbBacklogItem {
+  id: string;
+  project_id: string;
+  goal_id: string | null;
+  agent: 'developer' | 'mastermind' | 'tester' | 'artist' | 'custom';
+  title: string;
+  description: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
+  type: 'proposal' | 'custom';
+  impacted_files: string | null; // JSON string
+  created_at: string;
+  updated_at: string;
+  accepted_at: string | null;
+  rejected_at: string | null;
+}
+
+// Parse impacted files from JSON string
+const parseImpactedFilesFromDb = (impactedFilesJson: string | null): ImpactedFile[] => {
+  if (!impactedFilesJson) return [];
+  try {
+    return JSON.parse(impactedFilesJson);
+  } catch (error) {
+    console.error('Error parsing impacted files:', error);
+    return [];
+  }
+};
 
 // Convert database backlog item to app types
 const convertDbBacklogItemToAppType = (dbItem: DbBacklogItem): BacklogProposal | CustomBacklogItem => {
@@ -220,49 +244,18 @@ export const useBacklog = (projectId: string | null) => {
     fetchBacklogItems();
   }, [fetchBacklogItems]);
 
-  // Real-time subscription for new backlog items during analysis
+  // Polling for new backlog items during analysis (replaces real-time subscription)
   useEffect(() => {
     if (!projectId || !isActive) return;
 
-    const subscription = supabase
-      .channel('backlog_items')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'backlog_items',
-          filter: `project_id=eq.${projectId}`,
-        },
-        (payload) => {
-          const newItem = convertDbBacklogItemToAppType(payload.new as DbBacklogItem);
-          
-          // Mark as new for animation
-          setNewItemIds(prev => new Set([...prev, newItem.id]));
-          
-          // Remove the "new" flag after animation
-          setTimeout(() => {
-            setNewItemIds(prev => {
-              const updated = new Set(prev);
-              updated.delete(newItem.id);
-              return updated;
-            });
-          }, 2000);
-          
-          // Add to appropriate list
-          if ('type' in newItem && newItem.type === 'custom') {
-            setCustomBacklogItems(prev => [newItem as CustomBacklogItem, ...prev]);
-          } else {
-            setBacklogProposals(prev => [newItem as BacklogProposal, ...prev]);
-          }
-        }
-      )
-      .subscribe();
+    const pollInterval = setInterval(() => {
+      fetchBacklogItems();
+    }, 3000); // Poll every 3 seconds during analysis
 
     return () => {
-      subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
-  }, [projectId, isActive]);
+  }, [projectId, isActive, fetchBacklogItems]);
 
   return {
     backlogProposals,

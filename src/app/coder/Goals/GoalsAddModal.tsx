@@ -7,7 +7,7 @@ import { Goal } from '../../../types';
 interface GoalsAddModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (goal: Omit<Goal, 'id' | 'order'>) => void;
+  onSubmit: (goal: Omit<Goal, 'id' | 'order' | 'projectId'>) => void;
 }
 
 export default function GoalsAddModal({ isOpen, onClose, onSubmit }: GoalsAddModalProps) {
@@ -169,35 +169,6 @@ export default function GoalsAddModal({ isOpen, onClose, onSubmit }: GoalsAddMod
                     })}
                   </div>
                 </div>
-
-                {/* Preview Section */}
-                {title.trim() && (
-                  <div className="border-t border-slate-700/30 pt-4">
-                    <h3 className="text-sm font-medium text-slate-300 mb-3 tracking-wide">Preview</h3>
-                    <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/30 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-white font-medium">{title}</h4>
-                        <div className="px-2 py-1 rounded text-xs font-medium bg-slate-800/60 border border-slate-600/50 text-slate-300">
-                          {getStatusInfo(status).text}
-                        </div>
-                      </div>
-                      {description.trim() && (
-                        <p className="text-slate-200 text-sm leading-relaxed">
-                          {description}
-                        </p>
-                      )}
-                      <div className="flex items-center space-x-4 text-xs text-slate-500">
-                        <div className="flex items-center space-x-1">
-                          <Target className="w-3 h-3" />
-                          <span>New Goal</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <span>{new Date().toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Action Buttons */}
                 <div className="flex justify-end space-x-3 pt-4">
