@@ -157,6 +157,43 @@ export const useStore = (() => {
         ...prev,
         highlightedNodes: new Set()
       })),
+      
+      // Clear all selected nodes
+      clearSelection: () => setState(prev => ({
+        ...prev,
+        selectedNodes: new Set()
+      })),
+      
+      // Select specific files by their paths
+      selectFilesByPaths: (filePaths: string[], fileStructure: TreeNode | null) => {
+        if (!fileStructure || filePaths.length === 0) return;
+        
+        const nodeIdsToSelect = new Set<string>();
+        
+        // Helper function to find node IDs for given file paths
+        const findNodeIds = (node: TreeNode) => {
+          // Check if this node's ID (which represents the path) matches any of our target paths
+          const normalizedNodePath = node.id.replace(/\\/g, '/');
+          if (node.type === 'file' && filePaths.some(path => {
+            const normalizedPath = path.replace(/\\/g, '/');
+            return normalizedNodePath === normalizedPath || normalizedNodePath.endsWith('/' + normalizedPath) || normalizedPath.endsWith('/' + normalizedNodePath);
+          })) {
+            nodeIdsToSelect.add(node.id);
+          }
+          
+          // Recursively check children
+          if (node.children) {
+            node.children.forEach(findNodeIds);
+          }
+        };
+        
+        findNodeIds(fileStructure);
+        
+        setState(prev => ({
+          ...prev,
+          selectedNodes: nodeIdsToSelect
+        }));
+      },
       addEvent: (event: EventLogEntry) => setState(prev => ({
         ...prev,
         eventLog: [event, ...prev.eventLog].slice(0, 100)

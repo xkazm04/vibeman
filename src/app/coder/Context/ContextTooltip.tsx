@@ -18,7 +18,7 @@ export default function ContextTooltip({ context, isVisible, position }: Context
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 10 }}
           transition={{ duration: 0.15 }}
-          className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-3 max-w-xs pointer-events-none"
+          className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 max-w-sm pointer-events-none"
           style={{
             left: position.x,
             top: position.y - 10,
@@ -26,37 +26,43 @@ export default function ContextTooltip({ context, isVisible, position }: Context
           }}
         >
           {/* Header */}
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="p-1 bg-purple-500/20 rounded-sm">
-              <FolderTree className="w-3 h-3 text-purple-400" />
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="p-2 bg-purple-500/20 rounded-md">
+              <FolderTree className="w-4 h-4 text-purple-400" />
             </div>
-            <h4 className="text-sm font-semibold text-white font-mono">{context.name}</h4>
+            <div>
+              <h4 className="text-sm font-semibold text-white font-mono">{context.name}</h4>
+              <div className="flex items-center space-x-3 mt-1 text-xs text-gray-400">
+                <div className="flex items-center space-x-1">
+                  <FileText className="w-3 h-3" />
+                  <span>{context.filePaths.length} files</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>{context.createdAt.toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Description */}
           {context.description && (
-            <p className="text-xs text-gray-300 mb-3">{context.description}</p>
+            <div className="mb-4">
+              <p className="text-xs font-medium text-gray-300 mb-1">Description:</p>
+              <p className="text-xs text-gray-400 leading-relaxed">{context.description}</p>
+            </div>
           )}
 
-          {/* Stats */}
-          <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-            <div className="flex items-center space-x-1">
-              <FileText className="w-3 h-3" />
-              <span>{context.filePaths.length} files</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Calendar className="w-3 h-3" />
-              <span>{context.createdAt.toLocaleDateString()}</span>
-            </div>
-          </div>
-
           {/* Files List */}
-          <div className="border-t border-gray-600/30 pt-2">
-            <p className="text-xs text-gray-400 mb-1">Files:</p>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
+          <div className="border-t border-gray-600/30 pt-3">
+            <p className="text-xs font-medium text-gray-300 mb-2">Files:</p>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {context.filePaths.map((path, index) => (
-                <div key={index} className="text-xs text-gray-300 font-mono truncate" title={path}>
-                  {path}
+                <div key={index} className="flex items-center space-x-2">
+                  <div className="w-1 h-1 bg-gray-500 rounded-full flex-shrink-0"></div>
+                  <div className="text-xs text-gray-300 font-mono truncate" title={path}>
+                    {path}
+                  </div>
                 </div>
               ))}
             </div>

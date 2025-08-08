@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, FolderTree, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import { useStore } from '../../../stores/nodeStore';
+import { Save, FolderTree, Plus, ChevronDown, ChevronUp, Grid3X3 } from 'lucide-react';
 import { useContextStore } from '../../../stores/contextStore';
-import ContextSaveModal from './ContextSaveModal';
-import ContextSection from './ContextSection';
+import { useActiveProjectStore } from '../../../stores/activeProjectStore';
+import ContextSaveModal from './ContextMenu/ContextSaveModal';
+import ContextSection from './ContextGroups/ContextSection';
+import GroupManagementModal from './ContextGroups/GroupManagementModal';
 
 interface HorizontalContextBarProps {
   selectedFilesCount: number;
@@ -12,13 +13,25 @@ interface HorizontalContextBarProps {
 }
 
 export default function HorizontalContextBar({ selectedFilesCount, selectedFilePaths }: HorizontalContextBarProps) {
-  const { contexts } = useContextStore();
+  const { contexts, groups, loading, loadProjectData } = useContextStore();
+  const { activeProject } = useActiveProjectStore();
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
+  const lastProjectIdRef = useRef<string | null>(null);
 
-  const leftContexts = contexts.filter(ctx => ctx.section === 'left');
-  const centerContexts = contexts.filter(ctx => ctx.section === 'center');
-  const rightContexts = contexts.filter(ctx => ctx.section === 'right');
+  // Load project data when active project changes
+  useEffect(() => {
+    if (activeProject?.id && activeProject.id !== lastProjectIdRef.current) {
+      lastProjectIdRef.current = activeProject.id;
+      loadProjectData(activeProject.id);
+    }
+  }, [activeProject?.id]); // Remove loadProjectData from dependencies
+
+  // Don't render if no active project
+  if (!activeProject) {
+    return null;
+  }
 
   return (
     <>
@@ -31,51 +44,56 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
         {/* Header Bar */}
         <div className="flex items-center justify-between px-4 py-2 bg-gray-800/30 border-b border-gray-600/20">
           <div className="flex items-center space-x-3">
-            <div className="p-1.5 bg-purple-500/20 rounded-md">
-              <FolderTree className="w-4 h-4 text-purple-400" />
-            </div>
+            {/* Smart Save Button - glows when files are selected */}
+            <button
+              onClick={selectedFilesCount > 0 && groups.length > 0 ? () => setShowSaveModal(true) : () => setShowGroupModal(true)}
+              className={`p-2 rounded-full transition-all duration-300 ${selectedFilesCount > 0 && groups.length > 0
+                ? 'bg-cyan-500/30 text-cyan-300 shadow-lg shadow-cyan-500/20 hover:bg-cyan-500/40 hover:shadow-cyan-500/30'
+                : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
+                }`}
+              title={selectedFilesCount > 0 && groups.length > 0 ? `Save ${selectedFilesCount} selected files` : 'Manage groups'}
+            >
+              {selectedFilesCount > 0 && groups.length > 0 ? (
+                <Save className="w-5 h-5" />
+              ) : (
+                <Grid3X3 className="w-5 h-5" />
+              )}
+            </button>
+
             <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-semibold text-white font-mono">Contexts</h3>
+              <h3 className="text-sm font-semibold text-white font-mono">Context Groups</h3>
               <div className="flex items-center space-x-1">
-                <span className="text-xs text-gray-400">({contexts.length}/10)</span>
-                {contexts.length >= 8 && (
-                  <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-sm">
-                    {contexts.length >= 10 ? 'Full' : 'Almost Full'}
-                  </span>
+                <span className="text-xs text-gray-400">
+                  {groups.length} groups • {contexts.length} contexts
+                </span>
+                {loading && (
+                  <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin"></div>
                 )}
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            {selectedFilesCount > 0 && (
-              <div className="flex items-center space-x-2 px-2 py-1 bg-cyan-500/10 rounded-md">
-                <span className="text-xs text-cyan-400">{selectedFilesCount} files selected</span>
-                <button
-                  onClick={() => setShowSaveModal(true)}
-                  disabled={contexts.length >= 10}
-                  className="flex items-center space-x-1 px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded-sm hover:bg-cyan-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs font-mono"
-                >
-                  <Save className="w-3 h-3" />
-                  <span>Save</span>
-                </button>
-              </div>
+
+          {/* Status indicator for selected files */}
+          {selectedFilesCount > 0 && (
+            <div className="flex items-center space-x-2 text-xs text-cyan-400">
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+              <span>{selectedFilesCount} files ready</span>
+            </div>
+          )}
+
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 hover:bg-gray-700/50 rounded-sm transition-colors"
+          >
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
             )}
-            
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1 hover:bg-gray-700/50 rounded-sm transition-colors"
-            >
-              {isExpanded ? (
-                <ChevronUp className="w-4 h-4 text-gray-400" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              )}
-            </button>
-          </div>
+          </button>
         </div>
 
-        {/* Context Sections */}
+        {/* Context Groups Grid */}
         <AnimatePresence>
           {isExpanded && (
             <motion.div
@@ -85,31 +103,59 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="flex h-20">
-                {/* Left Section */}
-                <ContextSection
-                  section="left"
-                  contexts={leftContexts}
-                  title="Development"
-                  className="flex-1 border-r border-gray-600/20"
-                />
-                
-                {/* Center Section */}
-                <ContextSection
-                  section="center"
-                  contexts={centerContexts}
-                  title="Testing"
-                  className="flex-1 border-r border-gray-600/20"
-                />
-                
-                {/* Right Section */}
-                <ContextSection
-                  section="right"
-                  contexts={rightContexts}
-                  title="Production"
-                  className="flex-1"
-                />
-              </div>
+              {groups.length === 0 ? (
+                <div className="h-20 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-8 h-8 mx-auto mb-2 bg-gray-700/30 rounded-full flex items-center justify-center">
+                      <Plus className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">No context groups yet</p>
+                    <button
+                      onClick={() => setShowGroupModal(true)}
+                      className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      Create your first group
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1 p-2 min-h-[80px] bg-gray-600/10">
+                  {/* Render existing groups */}
+                  {groups.map((group) => {
+                    const groupContexts = contexts.filter(ctx => ctx.groupId === group.id);
+
+                    return (
+                      <div key={group.id} className="flex-1 min-w-[200px] max-w-[300px]">
+                        <ContextSection
+                          group={group}
+                          contexts={groupContexts}
+                          projectId={activeProject.id}
+                          className="bg-gray-800/20 hover:bg-gray-800/30 transition-colors border border-gray-600/20 rounded-md h-full"
+                          isEmpty={false}
+                          availableGroups={groups}
+                          selectedFilePaths={selectedFilePaths}
+                        />
+                      </div>
+                    );
+                  })}
+
+                  {/* Add new group slot (only show if less than 9 groups) */}
+                  {groups.length < 9 && (
+                    <div className="flex-1 min-w-[200px] max-w-[300px]">
+                      <ContextSection
+                        group={undefined}
+                        contexts={[]}
+                        projectId={activeProject.id}
+                        className="bg-gray-800/10 hover:bg-gray-800/20 transition-colors border border-gray-600/10 border-dashed rounded-md h-full"
+                        isEmpty={true}
+                        onCreateGroup={() => setShowGroupModal(true)}
+                        availableGroups={groups}
+                        selectedFilePaths={selectedFilePaths}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -119,6 +165,15 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
         isOpen={showSaveModal}
         onClose={() => setShowSaveModal(false)}
         selectedFilePaths={selectedFilePaths}
+        projectId={activeProject.id}
+        availableGroups={groups}
+      />
+
+      <GroupManagementModal
+        isOpen={showGroupModal}
+        onClose={() => setShowGroupModal(false)}
+        projectId={activeProject.id}
+        groups={groups}
       />
     </>
   );

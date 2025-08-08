@@ -65,6 +65,53 @@ function initializeTables() {
     );
   `);
   
+  // Create context_groups table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS context_groups (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  
+  // Create contexts table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS contexts (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      group_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      file_paths TEXT NOT NULL, -- JSON string of file paths array
+      has_context_file INTEGER DEFAULT 0, -- Boolean flag for context file existence
+      context_file_path TEXT, -- Path to the context file
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE CASCADE
+    );
+  `);
+  
+  // Create events table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('info', 'warning', 'error', 'success', 'proposal_accepted', 'proposal_rejected')),
+      agent TEXT,
+      message TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Run migrations for existing databases
+  runMigrations();
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id);
@@ -72,7 +119,50 @@ function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_backlog_items_project_id ON backlog_items(project_id);
     CREATE INDEX IF NOT EXISTS idx_backlog_items_goal_id ON backlog_items(goal_id);
     CREATE INDEX IF NOT EXISTS idx_backlog_items_status ON backlog_items(project_id, status);
+    CREATE INDEX IF NOT EXISTS idx_context_groups_project_id ON context_groups(project_id);
+    CREATE INDEX IF NOT EXISTS idx_context_groups_position ON context_groups(project_id, position);
+    CREATE INDEX IF NOT EXISTS idx_contexts_project_id ON contexts(project_id);
+    CREATE INDEX IF NOT EXISTS idx_contexts_group_id ON contexts(group_id);
+    CREATE INDEX IF NOT EXISTS idx_events_project_id ON events(project_id);
+    CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(project_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_events_type ON events(project_id, type);
   `);
+}
+
+function runMigrations() {
+  if (!db) return;
+
+  try {
+    // Check if contexts table has the new columns
+    const tableInfo = db.prepare("PRAGMA table_info(contexts)").all() as Array<{
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: any;
+      pk: number;
+    }>;
+
+    const hasContextFileColumn = tableInfo.some(col => col.name === 'has_context_file');
+    const hasContextFilePathColumn = tableInfo.some(col => col.name === 'context_file_path');
+
+    // Add missing columns if they don't exist
+    if (!hasContextFileColumn) {
+      console.log('Adding has_context_file column to contexts table');
+      db.exec(`ALTER TABLE contexts ADD COLUMN has_context_file INTEGER DEFAULT 0`);
+    }
+
+    if (!hasContextFilePathColumn) {
+      console.log('Adding context_file_path column to contexts table');
+      db.exec(`ALTER TABLE contexts ADD COLUMN context_file_path TEXT`);
+    }
+
+    console.log('Database migrations completed successfully');
+  } catch (error) {
+    console.error('Error running database migrations:', error);
+    // Don't throw the error to prevent app from crashing
+    // The app should still work with the existing schema
+  }
 }
 
 // Goal database operations
@@ -379,20 +469,450 @@ export const backlogDb = {
   }
 };
 
+// Context Group database operations
+export interface DbContextGroup {
+  id: string;
+  project_id: string;
+  name: string;
+  color: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const contextGroupDb = {
+  // Get all context groups for a project
+  getGroupsByProject: (projectId: string): DbContextGroup[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM context_groups 
+      WHERE project_id = ? 
+      ORDER BY position ASC
+    `);
+    return stmt.all(projectId) as DbContextGroup[];
+  },
+
+  // Create a new context group
+  createGroup: (group: {
+    id: string;
+    project_id: string;
+    name: string;
+    color: string;
+    position: number;
+  }): DbContextGroup => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    
+    const stmt = db.prepare(`
+      INSERT INTO context_groups (id, project_id, name, color, position, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+      group.id,
+      group.project_id,
+      group.name,
+      group.color,
+      group.position,
+      now,
+      now
+    );
+    
+    // Return the created group
+    const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
+    return selectStmt.get(group.id) as DbContextGroup;
+  },
+
+  // Update a context group
+  updateGroup: (id: string, updates: {
+    name?: string;
+    color?: string;
+    position?: number;
+  }): DbContextGroup | null => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    
+    // Build dynamic update query
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    
+    if (updates.name !== undefined) {
+      updateFields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.color !== undefined) {
+      updateFields.push('color = ?');
+      values.push(updates.color);
+    }
+    if (updates.position !== undefined) {
+      updateFields.push('position = ?');
+      values.push(updates.position);
+    }
+    
+    if (updateFields.length === 0) {
+      // No updates to make
+      const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
+      return selectStmt.get(id) as DbContextGroup | null;
+    }
+    
+    updateFields.push('updated_at = ?');
+    values.push(now);
+    values.push(id);
+    
+    const stmt = db.prepare(`
+      UPDATE context_groups 
+      SET ${updateFields.join(', ')} 
+      WHERE id = ?
+    `);
+    
+    const result = stmt.run(...values);
+    
+    if (result.changes === 0) {
+      return null; // Group not found
+    }
+    
+    // Return the updated group
+    const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
+    return selectStmt.get(id) as DbContextGroup;
+  },
+
+  // Delete a context group (will cascade delete contexts)
+  deleteGroup: (id: string): boolean => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM context_groups WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  },
+
+  // Get the maximum position for a project
+  getMaxPosition: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT MAX(position) as max_position 
+      FROM context_groups 
+      WHERE project_id = ?
+    `);
+    const result = stmt.get(projectId) as { max_position: number | null };
+    return result.max_position || 0;
+  },
+
+  // Get group count for a project
+  getGroupCount: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM context_groups 
+      WHERE project_id = ?
+    `);
+    const result = stmt.get(projectId) as { count: number };
+    return result.count;
+  },
+
+  // Close database connection (for cleanup)
+  close: () => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+  }
+};
+
+// Context database operations
+export interface DbContext {
+  id: string;
+  project_id: string;
+  group_id: string;
+  name: string;
+  description: string | null;
+  file_paths: string; // JSON string of file paths array
+  has_context_file: number; // SQLite boolean (0/1)
+  context_file_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const contextDb = {
+  // Get all contexts for a project
+  getContextsByProject: (projectId: string): DbContext[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT c.*, cg.name as group_name, cg.color as group_color
+      FROM contexts c
+      JOIN context_groups cg ON c.group_id = cg.id
+      WHERE c.project_id = ? 
+      ORDER BY cg.position ASC, c.created_at DESC
+    `);
+    return stmt.all(projectId) as DbContext[];
+  },
+
+  // Get contexts by group
+  getContextsByGroup: (groupId: string): DbContext[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM contexts 
+      WHERE group_id = ? 
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(groupId) as DbContext[];
+  },
+
+  // Create a new context
+  createContext: (context: {
+    id: string;
+    project_id: string;
+    group_id: string;
+    name: string;
+    description?: string;
+    file_paths: string[];
+  }): DbContext => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    
+    const stmt = db.prepare(`
+      INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+      context.id,
+      context.project_id,
+      context.group_id,
+      context.name,
+      context.description || null,
+      JSON.stringify(context.file_paths),
+      0, // Default: no context file
+      null, // Default: no context file path
+      now,
+      now
+    );
+    
+    // Return the created context
+    const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
+    return selectStmt.get(context.id) as DbContext;
+  },
+
+  // Update a context
+  updateContext: (id: string, updates: {
+    name?: string;
+    description?: string;
+    file_paths?: string[];
+    group_id?: string;
+    has_context_file?: boolean;
+    context_file_path?: string;
+  }): DbContext | null => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    
+    // Build dynamic update query
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    
+    if (updates.name !== undefined) {
+      updateFields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.description !== undefined) {
+      updateFields.push('description = ?');
+      values.push(updates.description || null);
+    }
+    if (updates.file_paths !== undefined) {
+      updateFields.push('file_paths = ?');
+      values.push(JSON.stringify(updates.file_paths));
+    }
+    if (updates.group_id !== undefined) {
+      updateFields.push('group_id = ?');
+      values.push(updates.group_id);
+    }
+    if (updates.has_context_file !== undefined) {
+      updateFields.push('has_context_file = ?');
+      values.push(updates.has_context_file ? 1 : 0);
+    }
+    if (updates.context_file_path !== undefined) {
+      updateFields.push('context_file_path = ?');
+      values.push(updates.context_file_path);
+    }
+    
+    if (updateFields.length === 0) {
+      // No updates to make
+      const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
+      return selectStmt.get(id) as DbContext | null;
+    }
+    
+    updateFields.push('updated_at = ?');
+    values.push(now);
+    values.push(id);
+    
+    const stmt = db.prepare(`
+      UPDATE contexts 
+      SET ${updateFields.join(', ')} 
+      WHERE id = ?
+    `);
+    
+    const result = stmt.run(...values);
+    
+    if (result.changes === 0) {
+      return null; // Context not found
+    }
+    
+    // Return the updated context
+    const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
+    return selectStmt.get(id) as DbContext;
+  },
+
+  // Delete a context
+  deleteContext: (id: string): boolean => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM contexts WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  },
+
+  // Move context to different group
+  moveContextToGroup: (contextId: string, newGroupId: string): DbContext | null => {
+    return contextDb.updateContext(contextId, { group_id: newGroupId });
+  },
+
+  // Get context count for a group
+  getContextCountByGroup: (groupId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM contexts 
+      WHERE group_id = ?
+    `);
+    const result = stmt.get(groupId) as { count: number };
+    return result.count;
+  },
+
+  // Close database connection (for cleanup)
+  close: () => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+  }
+};
+
+// Events database operations
+export interface DbEvent {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
+  agent: string | null;
+  message: string | null;
+  created_at: string;
+}
+
+export const eventDb = {
+  // Get all events for a project
+  getEventsByProject: (projectId: string, limit: number = 50): DbEvent[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM events 
+      WHERE project_id = ? 
+      ORDER BY created_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(projectId, limit) as DbEvent[];
+  },
+
+  // Create a new event
+  createEvent: (event: {
+    id: string;
+    project_id: string;
+    title: string;
+    description: string;
+    type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
+    agent?: string;
+    message?: string;
+  }): DbEvent => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    
+    const stmt = db.prepare(`
+      INSERT INTO events (id, project_id, title, description, type, agent, message, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+      event.id,
+      event.project_id,
+      event.title,
+      event.description,
+      event.type,
+      event.agent || null,
+      event.message || null,
+      now
+    );
+    
+    // Return the created event
+    const selectStmt = db.prepare('SELECT * FROM events WHERE id = ?');
+    return selectStmt.get(event.id) as DbEvent;
+  },
+
+  // Delete old events (keep only the latest N events)
+  cleanupOldEvents: (projectId: string, keepCount: number = 100): number => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      DELETE FROM events 
+      WHERE project_id = ? 
+      AND id NOT IN (
+        SELECT id FROM events 
+        WHERE project_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT ?
+      )
+    `);
+    const result = stmt.run(projectId, projectId, keepCount);
+    return result.changes;
+  },
+
+  // Get events by type
+  getEventsByType: (projectId: string, type: string, limit: number = 50): DbEvent[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM events 
+      WHERE project_id = ? AND type = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(projectId, type, limit) as DbEvent[];
+  },
+
+  // Close database connection (for cleanup)
+  close: () => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+  }
+};
+
 // Cleanup on process exit
 process.on('exit', () => {
   goalDb.close();
   backlogDb.close();
+  contextGroupDb.close();
+  contextDb.close();
+  eventDb.close();
 });
 
 process.on('SIGINT', () => {
   goalDb.close();
   backlogDb.close();
+  contextGroupDb.close();
+  contextDb.close();
+  eventDb.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   goalDb.close();
   backlogDb.close();
+  contextGroupDb.close();
+  contextDb.close();
+  eventDb.close();
   process.exit(0);
 });

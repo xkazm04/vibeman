@@ -77,9 +77,9 @@ export const getAllProjects = (): Project[] => {
 };
 
 export const createProjectInstance = (baseProjectId: string, customPort?: number): Project | null => {
-  const baseProject = baseProjects.find(p => p.id === baseProjectId) || 
-                     (baseProjectId === neighborProject.id ? neighborProject : null);
-  
+  const baseProject = baseProjects.find(p => p.id === baseProjectId) ||
+    (baseProjectId === neighborProject.id ? neighborProject : null);
+
   if (!baseProject || !baseProject.allowMultipleInstances) {
     return null;
   }
@@ -88,7 +88,7 @@ export const createProjectInstance = (baseProjectId: string, customPort?: number
   const usedPorts = new Set(
     Array.from(projectInstances.values()).map(p => p.port)
   );
-  
+
   let newPort = customPort || baseProject.basePort || baseProject.port;
   while (usedPorts.has(newPort)) {
     newPort++;

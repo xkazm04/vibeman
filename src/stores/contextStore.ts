@@ -1,75 +1,263 @@
 'use client';
 import { useState, useEffect } from 'react';
 
+// Predefined colors for context groups (9 colors for 3x3 grid)
+export const CONTEXT_GROUP_COLORS = [
+  '#8B5CF6', // Purple
+  '#06B6D4', // Cyan
+  '#10B981', // Emerald
+  '#F59E0B', // Amber
+  '#EF4444', // Red
+  '#3B82F6', // Blue
+  '#EC4899', // Pink
+  '#84CC16', // Lime
+  '#6366F1', // Indigo
+] as const;
+
+// Context Types (moved from queries to avoid server-side imports)
+export interface ContextGroup {
+  id: string;
+  projectId: string;
+  name: string;
+  color: string;
+  position: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Context {
   id: string;
+  projectId: string;
+  groupId: string;
   name: string;
-  description: string;
+  description?: string;
   filePaths: string[];
   createdAt: Date;
-  section: 'left' | 'center' | 'right';
+  updatedAt: Date;
+  // Context file configuration
+  hasContextFile?: boolean;
+  contextFilePath?: string;
+  // Additional fields from JOIN queries
+  groupName?: string;
+  groupColor?: string;
 }
+
+// API client functions
+const contextAPI = {
+  // Get all contexts and groups for a project
+  getProjectData: async (projectId: string): Promise<{ contexts: Context[]; groups: ContextGroup[] }> => {
+    const response = await fetch(`/api/contexts?projectId=${projectId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch project data');
+    }
+    const result = await response.json();
+    
+    // Convert date strings back to Date objects
+    const contexts = result.data.contexts.map((ctx: any) => ({
+      ...ctx,
+      createdAt: new Date(ctx.createdAt),
+      updatedAt: new Date(ctx.updatedAt),
+    }));
+    
+    const groups = result.data.groups.map((group: any) => ({
+      ...group,
+      createdAt: new Date(group.createdAt),
+      updatedAt: new Date(group.updatedAt),
+    }));
+    
+    return { contexts, groups };
+  },
+
+  // Create a new context
+  createContext: async (contextData: {
+    projectId: string;
+    groupId: string;
+    name: string;
+    description?: string;
+    filePaths: string[];
+  }): Promise<Context> => {
+    const response = await fetch('/api/contexts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(contextData),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create context');
+    }
+    
+    const result = await response.json();
+    return {
+      ...result.data,
+      createdAt: new Date(result.data.createdAt),
+      updatedAt: new Date(result.data.updatedAt),
+    };
+  },
+
+  // Update a context
+  updateContext: async (contextId: string, updates: {
+    name?: string;
+    description?: string;
+    filePaths?: string[];
+    groupId?: string;
+  }): Promise<Context> => {
+    const response = await fetch('/api/contexts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contextId, updates }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update context');
+    }
+    
+    const result = await response.json();
+    return {
+      ...result.data,
+      createdAt: new Date(result.data.createdAt),
+      updatedAt: new Date(result.data.updatedAt),
+    };
+  },
+
+  // Delete a context
+  deleteContext: async (contextId: string): Promise<boolean> => {
+    const response = await fetch(`/api/contexts?contextId=${contextId}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete context');
+    }
+    
+    return true;
+  },
+
+  // Create a new group
+  createGroup: async (groupData: {
+    projectId: string;
+    name: string;
+    color?: string;
+  }): Promise<ContextGroup> => {
+    const response = await fetch('/api/context-groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(groupData),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create group');
+    }
+    
+    const result = await response.json();
+    return {
+      ...result.data,
+      createdAt: new Date(result.data.createdAt),
+      updatedAt: new Date(result.data.updatedAt),
+    };
+  },
+
+  // Update a group
+  updateGroup: async (groupId: string, updates: {
+    name?: string;
+    color?: string;
+  }): Promise<ContextGroup> => {
+    const response = await fetch('/api/context-groups', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupId, updates }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update group');
+    }
+    
+    const result = await response.json();
+    return {
+      ...result.data,
+      createdAt: new Date(result.data.createdAt),
+      updatedAt: new Date(result.data.updatedAt),
+    };
+  },
+
+  // Delete a group
+  deleteGroup: async (groupId: string): Promise<boolean> => {
+    const response = await fetch(`/api/context-groups?groupId=${groupId}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete group');
+    }
+    
+    return true;
+  },
+};
 
 interface ContextState {
   contexts: Context[];
+  groups: ContextGroup[];
+  loading: boolean;
+  error: string | null;
+  initialized: boolean;
 }
 
 interface ContextStore extends ContextState {
-  addContext: (context: Omit<Context, 'id'>) => void;
-  removeContext: (contextId: string) => void;
-  moveContext: (contextId: string, newSection: 'left' | 'center' | 'right') => void;
+  // Context operations
+  addContext: (contextData: {
+    projectId: string;
+    groupId: string;
+    name: string;
+    description?: string;
+    filePaths: string[];
+  }) => Promise<void>;
+  removeContext: (contextId: string) => Promise<void>;
+  updateContext: (contextId: string, updates: {
+    name?: string;
+    description?: string;
+    filePaths?: string[];
+  }) => Promise<void>;
+  moveContext: (contextId: string, newGroupId: string) => Promise<void>;
+  
+  // Group operations
+  addGroup: (groupData: {
+    projectId: string;
+    name: string;
+    color?: string;
+  }) => Promise<void>;
+  removeGroup: (groupId: string) => Promise<void>;
+  updateGroup: (groupId: string, updates: {
+    name?: string;
+    color?: string;
+  }) => Promise<void>;
+  
+  // Data loading
+  loadProjectData: (projectId: string) => Promise<void>;
   clearAllContexts: () => void;
   getContext: (contextId: string) => Context | undefined;
+  getGroup: (groupId: string) => ContextGroup | undefined;
+  getContextsByGroup: (groupId: string) => Context[];
 }
 
-// Local storage key
-const STORAGE_KEY = 'vibeman-contexts';
-
-// Load contexts from localStorage
-const loadContextsFromStorage = (): Context[] => {
-  if (typeof window === 'undefined') return [];
-  
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return [];
-    
-    const parsed = JSON.parse(stored);
-    // Convert date strings back to Date objects
-    return parsed.map((ctx: any) => ({
-      ...ctx,
-      createdAt: new Date(ctx.createdAt)
-    }));
-  } catch (error) {
-    console.error('Failed to load contexts from storage:', error);
-    return [];
-  }
-};
-
-// Save contexts to localStorage
-const saveContextsToStorage = (contexts: Context[]) => {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(contexts));
-  } catch (error) {
-    console.error('Failed to save contexts to storage:', error);
-  }
-};
-
-// Zustand-like state management for contexts
+// Zustand-like state management for contexts with database integration
 export const useContextStore = (() => {
   let state: ContextState = {
-    contexts: []
+    contexts: [],
+    groups: [],
+    loading: false,
+    error: null,
+    initialized: false,
   };
   
   const listeners = new Set<(state: ContextState) => void>();
   
   const setState = (updater: ((prev: ContextState) => ContextState) | Partial<ContextState>) => {
     state = typeof updater === 'function' ? updater(state) : { ...state, ...updater };
-    
-    // Save to localStorage whenever state changes
-    saveContextsToStorage(state.contexts);
-    
     listeners.forEach(listener => listener(state));
   };
   
@@ -78,18 +266,10 @@ export const useContextStore = (() => {
     return () => listeners.delete(listener);
   };
   
-  // Initialize state from localStorage
-  if (typeof window !== 'undefined') {
-    state.contexts = loadContextsFromStorage();
-  }
-  
   return (): ContextStore => {
     const [, forceUpdate] = useState({});
     
     useEffect(() => {
-      // Load from storage on mount
-      setState({ contexts: loadContextsFromStorage() });
-      
       const unsubscribe = subscribe(() => forceUpdate({}));
       return () => {
         unsubscribe();
@@ -98,44 +278,243 @@ export const useContextStore = (() => {
     
     return {
       ...state,
-      addContext: (contextData: Omit<Context, 'id'>) => setState(prev => {
-        // Check if we're at the limit
-        if (prev.contexts.length >= 10) {
-          console.warn('Maximum of 10 contexts allowed');
-          return prev;
+      
+      // Load all project data (groups and contexts)
+      loadProjectData: async (projectId: string) => {
+        if (!projectId) return;
+        
+        setState(prev => ({ ...prev, loading: true, error: null }));
+        
+        try {
+          const { groups, contexts } = await contextAPI.getProjectData(projectId);
+          
+          setState(prev => ({
+            ...prev,
+            groups,
+            contexts,
+            loading: false,
+            initialized: true,
+          }));
+        } catch (error) {
+          console.error('Failed to load project context data:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to load contexts',
+          }));
         }
+      },
+      
+      // Add a new context
+      addContext: async (contextData) => {
+        setState(prev => ({ ...prev, loading: true, error: null }));
         
-        const newContext: Context = {
-          ...contextData,
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
-        };
+        try {
+          const newContext = await contextAPI.createContext(contextData);
+          
+          setState(prev => ({
+            ...prev,
+            contexts: [newContext, ...prev.contexts],
+            loading: false,
+          }));
+        } catch (error) {
+          console.error('Failed to add context:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to add context',
+          }));
+          throw error;
+        }
+      },
+      
+      // Remove a context
+      removeContext: async (contextId: string) => {
+        setState(prev => ({ ...prev, loading: true, error: null }));
         
-        return {
-          ...prev,
-          contexts: [newContext, ...prev.contexts]
-        };
-      }),
+        try {
+          const success = await contextAPI.deleteContext(contextId);
+          
+          if (success) {
+            setState(prev => ({
+              ...prev,
+              contexts: prev.contexts.filter(ctx => ctx.id !== contextId),
+              loading: false,
+            }));
+          } else {
+            throw new Error('Context not found');
+          }
+        } catch (error) {
+          console.error('Failed to remove context:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to remove context',
+          }));
+          throw error;
+        }
+      },
       
-      removeContext: (contextId: string) => setState(prev => ({
-        ...prev,
-        contexts: prev.contexts.filter(ctx => ctx.id !== contextId)
-      })),
+      // Update a context
+      updateContext: async (contextId: string, updates) => {
+        setState(prev => ({ ...prev, loading: true, error: null }));
+        
+        try {
+          const updatedContext = await contextAPI.updateContext(contextId, updates);
+          
+          if (updatedContext) {
+            setState(prev => ({
+              ...prev,
+              contexts: prev.contexts.map(ctx => 
+                ctx.id === contextId ? updatedContext : ctx
+              ),
+              loading: false,
+            }));
+          } else {
+            throw new Error('Context not found');
+          }
+        } catch (error) {
+          console.error('Failed to update context:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to update context',
+          }));
+          throw error;
+        }
+      },
       
-      moveContext: (contextId: string, newSection: 'left' | 'center' | 'right') => setState(prev => ({
-        ...prev,
-        contexts: prev.contexts.map(ctx => 
-          ctx.id === contextId ? { ...ctx, section: newSection } : ctx
-        )
-      })),
+      // Move context to different group
+      moveContext: async (contextId: string, newGroupId: string) => {
+        setState(prev => ({ ...prev, loading: true, error: null }));
+        
+        try {
+          const updatedContext = await contextAPI.updateContext(contextId, { groupId: newGroupId });
+          
+          if (updatedContext) {
+            setState(prev => ({
+              ...prev,
+              contexts: prev.contexts.map(ctx => 
+                ctx.id === contextId ? updatedContext : ctx
+              ),
+              loading: false,
+            }));
+          } else {
+            throw new Error('Context not found');
+          }
+        } catch (error) {
+          console.error('Failed to move context:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to move context',
+          }));
+          throw error;
+        }
+      },
       
+      // Add a new group
+      addGroup: async (groupData) => {
+        setState(prev => ({ ...prev, loading: true, error: null }));
+        
+        try {
+          const newGroup = await contextAPI.createGroup(groupData);
+          
+          setState(prev => ({
+            ...prev,
+            groups: [...prev.groups, newGroup].sort((a, b) => a.position - b.position),
+            loading: false,
+          }));
+        } catch (error) {
+          console.error('Failed to add group:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to add group',
+          }));
+          throw error;
+        }
+      },
+      
+      // Remove a group
+      removeGroup: async (groupId: string) => {
+        setState(prev => ({ ...prev, loading: true, error: null }));
+        
+        try {
+          const success = await contextAPI.deleteGroup(groupId);
+          
+          if (success) {
+            setState(prev => ({
+              ...prev,
+              groups: prev.groups.filter(group => group.id !== groupId),
+              contexts: prev.contexts.filter(ctx => ctx.groupId !== groupId),
+              loading: false,
+            }));
+          } else {
+            throw new Error('Group not found');
+          }
+        } catch (error) {
+          console.error('Failed to remove group:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to remove group',
+          }));
+          throw error;
+        }
+      },
+      
+      // Update a group
+      updateGroup: async (groupId: string, updates) => {
+        setState(prev => ({ ...prev, loading: true, error: null }));
+        
+        try {
+          const updatedGroup = await contextAPI.updateGroup(groupId, updates);
+          
+          if (updatedGroup) {
+            setState(prev => ({
+              ...prev,
+              groups: prev.groups.map(group => 
+                group.id === groupId ? updatedGroup : group
+              ).sort((a, b) => a.position - b.position),
+              loading: false,
+            }));
+          } else {
+            throw new Error('Group not found');
+          }
+        } catch (error) {
+          console.error('Failed to update group:', error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to update group',
+          }));
+          throw error;
+        }
+      },
+      
+      // Clear all contexts (local state only)
       clearAllContexts: () => setState(prev => ({
         ...prev,
-        contexts: []
+        contexts: [],
+        groups: [],
+        initialized: false,
       })),
       
+      // Get a specific context
       getContext: (contextId: string) => {
         return state.contexts.find(ctx => ctx.id === contextId);
-      }
+      },
+      
+      // Get a specific group
+      getGroup: (groupId: string) => {
+        return state.groups.find(group => group.id === groupId);
+      },
+      
+      // Get contexts by group
+      getContextsByGroup: (groupId: string) => {
+        return state.contexts.filter(ctx => ctx.groupId === groupId);
+      },
     };
   };
 })();

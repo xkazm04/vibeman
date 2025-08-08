@@ -1,55 +1,31 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
 import { EventLogEntry } from '@/types';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useAnalysisStore } from '@/stores/analysisStore';
 
-// Flow events from Supabase
-interface FlowEvent {
+// Database event from local SQLite
+interface DbEvent {
   id: string;
-  flow_id: string;
-  session_id: string;
-  flow_name: string;
-  trigger_type: string | null;
-  status: string;
-  step: string | null;
-  parameters: Record<string, any>;
-  input_data: Record<string, any>;
-  result: Record<string, any>;
-  timestamp: string;
-  duration_ms: number | null;
-  error_message: string | null;
+  project_id: string;
+  title: string;
+  description: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
+  agent: string | null;
+  message: string | null;
   created_at: string;
-  updated_at: string;
 }
 
-// Transform flow event to EventLogEntry
-const transformFlowEvent = (flowEvent: FlowEvent): EventLogEntry => {
-  let type: EventLogEntry['type'] = 'info';
-  
-  // Determine event type based on status and error
-  if (flowEvent.error_message) {
-    type = 'error';
-  } else if (flowEvent.status === 'completed' || flowEvent.status === 'success') {
-    type = 'success';
-  } else if (flowEvent.status === 'failed' || flowEvent.status === 'error') {
-    type = 'error';
-  } else if (flowEvent.status === 'warning') {
-    type = 'warning';
-  }
-
+// Transform database event to EventLogEntry
+const transformDbEvent = (dbEvent: DbEvent): EventLogEntry => {
   return {
-    id: flowEvent.id,
-    title: flowEvent.flow_name || 'Flow Event',
-    description: flowEvent.error_message || 
-                 flowEvent.step || 
-                 `Flow ${flowEvent.status}` || 
-                 'Flow event occurred',
-    type,
-    timestamp: new Date(flowEvent.timestamp),
-    agent: flowEvent.trigger_type || 'system',
-    message: flowEvent.error_message || `Flow ${flowEvent.flow_name} ${flowEvent.status}`
+    id: dbEvent.id,
+    title: dbEvent.title,
+    description: dbEvent.description,
+    type: dbEvent.type,
+    timestamp: new Date(dbEvent.created_at),
+    agent: dbEvent.agent || undefined,
+    message: dbEvent.message || undefined
   };
 };
 
@@ -82,28 +58,24 @@ export function useRealtimeEvents(options?: {
   // Fetch initial events
   const fetchEvents = async (): Promise<EventLogEntry[]> => {
     try {
-      let query = supabase
-        .from('flow_events')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(limit);
+      const params = new URLSearchParams({
+        projectId,
+        limit: limit.toString()
+      });
 
-      // Add filters if provided
-      if (sessionId) {
-        query = query.eq('session_id', sessionId);
-      }
-      if (flowId) {
-        query = query.eq('flow_id', flowId);
-      }
-
-      const { data, error } = await query;
+      const response = await fetch(`/api/kiro/events?${params}`);
       
-      if (error) {
-        console.error('Error fetching events:', error);
-        throw error;
+      if (!response.ok) {
+        throw new Error(`Failed to fetch events: ${response.status}`);
       }
 
-      return (data || []).map(transformFlowEvent);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch events');
+      }
+
+      return (result.events || []).map(transformDbEvent);
     } catch (error) {
       console.error('Error in fetchEvents:', error);
       throw error;
@@ -118,70 +90,48 @@ export function useRealtimeEvents(options?: {
     refetchIntervalInBackground: false, // Don't poll when tab is not active
   });
 
-  // Set up realtime subscription
+  // Set up polling for local database updates
   useEffect(() => {
-    const setupRealtimeSubscription = async () => {
-      // Clean up existing subscription
-      if (realtimeChannelRef.current) {
-        console.log('Cleaning up existing realtime subscription');
-        await supabase.removeChannel(realtimeChannelRef.current);
-        realtimeChannelRef.current = null;
+    const setupPolling = () => {
+      // Clean up existing polling
+      if (pollingIntervalRef.current) {
+        console.log('Cleaning up existing polling interval');
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
 
-      const channelName = `flow-events-${projectId}-${Date.now()}`;
-      console.log('Setting up realtime subscription:', channelName);
-      
-      const channel = supabase
-        .channel(channelName)
-        .on(
-          'postgres_changes',
-          {
-            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
-            schema: 'public',
-            table: 'flow_events',
-          },
-          (payload) => {
-            console.log('Realtime event received:', payload);
-            
-            // Invalidate and refetch queries to get fresh data
-            queryClient.invalidateQueries({ queryKey: eventKeys.all });
-            
-            // Also refetch the specific query
-            queryClient.refetchQueries({ queryKey });
-          }
-        )
-        .subscribe((status, err) => {
-          console.log('Realtime subscription status:', status, err);
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to realtime events');
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error('Realtime subscription error:', err);
-          } else if (status === 'TIMED_OUT') {
-            console.warn('Realtime subscription timed out');
-          } else if (status === 'CLOSED') {
-            console.log('Realtime subscription closed');
-          }
-        });
-
-      realtimeChannelRef.current = channel;
+      // Set up polling when analysis is active
+      if (isActive) {
+        console.log('Setting up polling for local events');
+        
+        pollingIntervalRef.current = setInterval(() => {
+          console.log('Polling for new events');
+          
+          // Invalidate and refetch queries to get fresh data
+          queryClient.invalidateQueries({ queryKey: eventKeys.all });
+          
+          // Also refetch the specific query
+          queryClient.refetchQueries({ queryKey });
+        }, 5000); // Poll every 5 seconds
+      }
     };
 
-    setupRealtimeSubscription();
+    setupPolling();
 
     return () => {
-      if (realtimeChannelRef.current) {
-        console.log('Cleaning up realtime subscription on unmount');
-        supabase.removeChannel(realtimeChannelRef.current);
-        realtimeChannelRef.current = null;
+      if (pollingIntervalRef.current) {
+        console.log('Cleaning up polling interval on unmount');
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     };
-  }, [queryClient, projectId, sessionId, flowId, queryKey]);
+  }, [queryClient, projectId, isActive, queryKey]);
 
   return {
     ...query,
     events: query.data || [],
-    isConnected: realtimeChannelRef.current?.state === 'joined',
-    isPolling: isActive && !query.isLoading,
+    isConnected: pollingIntervalRef.current !== null,
+    isPolling: isActive && pollingIntervalRef.current !== null,
     lastUpdated: query.dataUpdatedAt,
   };
 }

@@ -1,34 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FolderTree, FileText, X, Calendar } from 'lucide-react';
-import { Context, useContextStore } from '../../../stores/contextStore';
+import { FolderTree, X, BookCheck } from 'lucide-react';
+import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
 import ContextTooltip from './ContextTooltip';
-import ContextMenu from './ContextMenu';
+import ContextMenu from './ContextMenu/ContextMenu';
 
 interface ContextCardProps {
   context: Context;
+  groupColor?: string;
+  availableGroups: ContextGroup[];
+  selectedFilePaths: string[];
 }
 
-export default function ContextCard({ context }: ContextCardProps) {
-  const { removeContext, moveContext } = useContextStore();
+export default function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
+  const { removeContext } = useContextStore();
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handleMoveContext = (e: CustomEvent) => {
-      const { contextId, newSection } = e.detail;
-      if (contextId === context.id) {
-        moveContext(contextId, newSection);
-      }
-    };
-
-    window.addEventListener('moveContext', handleMoveContext as EventListener);
-    return () => {
-      window.removeEventListener('moveContext', handleMoveContext as EventListener);
-    };
-  }, [context.id, moveContext]);
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', context.id);
@@ -36,9 +25,13 @@ export default function ContextCard({ context }: ContextCardProps) {
     setShowTooltip(false);
   };
 
-  const handleRemove = (e: React.MouseEvent) => {
+  const handleRemove = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    removeContext(context.id);
+    try {
+      await removeContext(context.id);
+    } catch (error) {
+      console.error('Failed to remove context:', error);
+    }
   };
 
   const handleMouseEnter = (e: React.MouseEvent) => {
@@ -91,9 +84,17 @@ export default function ContextCard({ context }: ContextCardProps) {
 
       {/* Context Header */}
       <div className="flex items-start space-x-2 mb-2">
-        <div className="p-1 bg-purple-500/20 rounded-sm flex-shrink-0">
-          <FolderTree className="w-3 h-3 text-purple-400" />
-        </div>
+        {context.hasContextFile && (
+          <div 
+            className="p-1 rounded-sm flex-shrink-0"
+            style={{ backgroundColor: `${groupColor || '#8B5CF6'}20` }}
+          >
+            <BookCheck 
+              className="w-3 h-3" 
+              style={{ color: groupColor || '#8B5CF6' }}
+            />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <h5 className="text-xs font-semibold text-white font-mono truncate" title={context.name}>
             {context.name}
@@ -101,43 +102,11 @@ export default function ContextCard({ context }: ContextCardProps) {
         </div>
       </div>
 
-      {/* Description */}
-      {context.description && (
-        <p className="text-xs text-gray-400 mb-2 line-clamp-2" title={context.description}>
-          {context.description}
-        </p>
-      )}
-
-      {/* File Count and Date */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center space-x-1">
-          <FileText className="w-2.5 h-2.5" />
-          <span>{context.filePaths.length}</span>
-        </div>
-        <div className="flex items-center space-x-1">
-          <Calendar className="w-2.5 h-2.5" />
-          <span>{context.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-        </div>
-      </div>
-
-      {/* Files Preview */}
-      <div className="mt-2 pt-2 border-t border-gray-600/20">
-        <div className="flex flex-wrap gap-1">
-          {context.filePaths.slice(0, 2).map((path, index) => (
-            <span
-              key={index}
-              className="inline-block px-1 py-0.5 bg-gray-900/50 text-xs text-gray-400 rounded-sm font-mono truncate max-w-full"
-              title={path}
-            >
-              {path.split('/').pop()}
-            </span>
-          ))}
-          {context.filePaths.length > 2 && (
-            <span className="inline-block px-1 py-0.5 bg-gray-900/50 text-xs text-gray-500 rounded-sm">
-              +{context.filePaths.length - 2}
-            </span>
-          )}
-        </div>
+      {/* File Count Badge */}
+      <div className="flex items-center justify-center mt-1">
+        <span className="text-xs text-gray-500 bg-gray-700/30 px-1.5 py-0.5 rounded-full">
+          {context.filePaths.length}
+        </span>
       </div>
       </motion.div>
 
@@ -152,6 +121,8 @@ export default function ContextCard({ context }: ContextCardProps) {
         isVisible={showContextMenu}
         position={contextMenuPosition}
         onClose={handleCloseContextMenu}
+        availableGroups={availableGroups}
+        selectedFilePaths={selectedFilePaths}
       />
     </>
   );

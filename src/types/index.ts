@@ -109,6 +109,8 @@ export interface AppStore extends AppState {
   toggleNode: (nodeId: string) => void;
   highlightNodes: (nodeIds: string[]) => void; // New: highlight specific nodes
   clearHighlights: () => void; // New: clear all highlights
+  clearSelection: () => void; // New: clear all selected nodes
+  selectFilesByPaths: (filePaths: string[], fileStructure: TreeNode | null) => void; // New: select files by paths
   addEvent: (event: EventLogEntry) => void;
   acceptProposal: (proposalId: string) => void;
   rejectProposal: (proposalId: string) => void;

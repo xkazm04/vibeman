@@ -8,7 +8,6 @@ import TreeHeader from './TreeHeader';
 import TreeView from './TreeView';
 import TreeFooter from './TreeFooter';
 import TreeSearch from './TreeSearch';
-import ContextBar from '../Context/ContextBar';
 
 export default function TreeLayout() {
   const { selectedNodes, highlightedNodes, toggleNode, clearHighlights, getSelectedFilePaths } = useStore();

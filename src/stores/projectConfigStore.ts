@@ -7,7 +7,7 @@ interface ProjectConfigStore {
   projects: Project[];
   initialized: boolean;
   loading: boolean;
-  
+
   // Actions
   initializeProjects: () => Promise<void>;
   updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
@@ -26,7 +26,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
       projects: [],
       initialized: false,
       loading: false,
-      
+
       // Sync with server
       syncWithServer: async () => {
         try {
@@ -41,12 +41,12 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
         }
         return [];
       },
-      
+
       // Initialize projects from server
       initializeProjects: async () => {
         const state = get();
         if (state.initialized) return;
-        
+
         set({ loading: true });
         try {
           await get().syncWithServer();
@@ -57,7 +57,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
           set({ loading: false });
         }
       },
-      
+
       // Update a specific project
       updateProject: async (projectId, updates) => {
         try {
@@ -66,7 +66,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ projectId, updates }),
           });
-          
+
           if (response.ok) {
             // Update local state
             set((state) => ({
@@ -83,7 +83,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
           throw error;
         }
       },
-      
+
       // Add a new project
       addProject: async (project) => {
         try {
@@ -92,7 +92,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(project),
           });
-          
+
           if (response.ok) {
             // Update local state
             set((state) => ({
@@ -107,7 +107,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
           throw error;
         }
       },
-      
+
       // Remove a project
       removeProject: async (projectId) => {
         try {
@@ -116,7 +116,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ projectId }),
           });
-          
+
           if (response.ok) {
             // Update local state
             set((state) => ({
@@ -131,7 +131,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
           throw error;
         }
       },
-      
+
       // Reset to default configuration
       resetToDefaults: async () => {
         try {
@@ -142,13 +142,13 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
           throw error;
         }
       },
-      
+
       // Get a specific project
       getProject: (projectId) => {
         const state = get();
         return state.projects.find((project) => project.id === projectId);
       },
-      
+
       // Get all projects
       getAllProjects: () => {
         const state = get();
