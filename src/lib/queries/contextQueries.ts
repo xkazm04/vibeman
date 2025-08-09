@@ -15,7 +15,7 @@ export interface ContextGroup {
 export interface Context {
   id: string;
   projectId: string;
-  groupId: string;
+  groupId: string | null; // Allow null for ungrouped contexts
   name: string;
   description?: string;
   filePaths: string[];
@@ -184,7 +184,7 @@ export const contextQueries = {
   // Create a new context
   createContext: async (data: {
     projectId: string;
-    groupId: string;
+    groupId: string | null;
     name: string;
     description?: string;
     filePaths: string[];

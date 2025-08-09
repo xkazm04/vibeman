@@ -1,18 +1,6 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { goalDb } from '../../../lib/database';
-import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
-import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
-import { section } from 'framer-motion/client';
-import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
-import { section } from 'framer-motion/client';
-import { section } from 'framer-motion/client';
-import { section } from 'framer-motion/client';
-import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
-import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
-import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
-import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
-import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
 
 const OLLAMA_BASE_URL = 'http://localhost:11434';
 const DEFAULT_MODEL = 'gpt-oss:20b';
@@ -67,17 +55,38 @@ export async function generateGoals(projectName: string, projectId: string, anal
   
   let promptTemplate = '';
   try {
-    const templatePath = join(process.cwd(), 'vibeman', 'src', 'app', 'projects', 'templates', 'project-goals.md');
-    promptTemplate = await readFile(templatePath, 'utf-8');
+    // Try multiple possible paths
+    const possiblePaths = [
+      join(process.cwd(), 'vibeman', 'src', 'app', 'projects', 'templates', 'project-goals.md'),
+      join(process.cwd(), 'src', 'app', 'projects', 'templates', 'project-goals.md'),
+      join(__dirname, '..', '..', 'templates', 'project-goals.md'),
+      join(__dirname, '..', '..', '..', 'templates', 'project-goals.md')
+    ];
+    
+    for (const templatePath of possiblePaths) {
+      try {
+        console.log(`Attempting to read project-goals template from: ${templatePath}`);
+        promptTemplate = await readFile(templatePath, 'utf-8');
+        console.log(`Successfully read project-goals.md template (${promptTemplate.length} characters)`);
+        break;
+      } catch (pathError) {
+        console.log(`Path ${templatePath} failed:`, pathError.message);
+        continue;
+      }
+    }
+    
+    if (!promptTemplate) {
+      throw new Error('Could not find project-goals.md in any of the expected locations');
+    }
   } catch (error) {
-    console.warn('Could not read project-goals.md template, using fallback');
+    console.warn('Could not read project-goals.md template, using fallback. Error:', error);
     promptTemplate = `Based on the repository analysis above, generate exactly 3 high-level strategic directions that would transform this application into a high-quality, market-competitive product. Focus on user-centric value creation and market differentiation rather than just technical improvements.
 
 **CRITICAL: Avoid duplicating any existing goals that have already been generated for this project.**
 
 Return the directions in strict JSON format following this schema:
 
-\\`\\`\\`json
+\`\`\`json
 [
   {
     "title": "string (2-5 words)",
@@ -90,7 +99,7 @@ Return the directions in strict JSON format following this schema:
     "reason": "string (1-2 sentences explaining the market opportunity or competitive advantage)"
   }
 ]
-\\`\\`\\`
+\`\`\`
 
 Selection criteria for strategic directions:
 - Business Impact: Prioritize initiatives that could significantly expand user base, revenue potential, or market position
@@ -110,43 +119,43 @@ Ensure the JSON is valid and parseable. Mark as "Business" if primarily about us
 
   // Build the analysis data section with safe fallbacks
   const buildAnalysisSection = () => {
-    let section = `## Project Analysis Data\\n\\n**Project Name**: ${projectName}\\n\\n`;
+    let section = `## Project Analysis Data\n\n**Project Name**: ${projectName}\n\n`;
     
     // Add project structure if available
     if (analysis?.structure) {
-      section += `**Project Structure**:\\n\\`\\`\\`\\n${JSON.stringify(analysis.structure, null, 2)}\\n\\`\\`\\`\\n\\n`;
+      section += `**Project Structure**:\n\`\`\`\n${JSON.stringify(analysis.structure, null, 2)}\n\`\`\`\n\n`;
     }
     
     // Add technologies if available
     if (analysis?.stats?.technologies?.length > 0) {
-      section += `**Technologies Detected**: ${analysis.stats.technologies.join(', ')}\\n\\n`;
+      section += `**Technologies Detected**: ${analysis.stats.technologies.join(', ')}\n\n`;
     }
     
     // Add configuration files if available
     if (analysis?.codebase?.configFiles?.length > 0) {
-      section += `**Key Configuration Files**:\\n`;
+      section += `**Key Configuration Files**:\n`;
       section += analysis.codebase.configFiles.map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`${f.type || 'text'}\\n${f.content || 'Content not available'}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${f.content || 'Content not available'}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
     
     // Add main implementation files if available
     if (analysis?.codebase?.mainFiles?.length > 0) {
-      section += `**Main Implementation Files** (sample):\\n`;
+      section += `**Main Implementation Files** (sample):\n`;
       section += analysis.codebase.mainFiles.slice(0, 8).map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`${f.type || 'text'}\\n${(f.content || 'Content not available').slice(0, 1500)}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${(f.content || 'Content not available').slice(0, 1500)}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
     
     // Add documentation files if available
     if (analysis?.codebase?.documentationFiles?.length > 0) {
-      section += `**Documentation Files**:\\n`;
+      section += `**Documentation Files**:\n`;
       section += analysis.codebase.documentationFiles.map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`markdown\\n${(f.content || 'Content not available').slice(0, 2000)}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+        `\n### ${f.path}\n\`\`\`markdown\n${(f.content || 'Content not available').slice(0, 2000)}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
     
     return section;
@@ -155,16 +164,16 @@ Ensure the JSON is valid and parseable. Mark as "Business" if primarily about us
   // Build existing goals section for duplicate prevention
   const buildExistingGoalsSection = () => {
     if (existingGoals.length === 0) {
-      return '**Existing Goals**: None\\n\\n';
+      return '**Existing Goals**: None\n\n';
     }
     
-    let section = `**Existing Goals** (DO NOT DUPLICATE):\\n`;
+    let section = `**Existing Goals** (DO NOT DUPLICATE):\n`;
     existingGoals.forEach((goal, index) => {
-      section += `\\n${index + 1}. **${goal.title}** (${goal.status})\\n`;
-      section += `   - Description: ${goal.description || 'No description'}\\n`;
-      section += `   - Created: ${new Date(goal.created_at).toLocaleDateString()}\\n`;
+      section += `\n${index + 1}. **${goal.title}** (${goal.status})\n`;
+      section += `   - Description: ${goal.description || 'No description'}\n`;
+      section += `   - Created: ${new Date(goal.created_at).toLocaleDateString()}\n`;
     });
-    section += '\\n';
+    section += '\n';
     
     return section;
   };
@@ -186,9 +195,9 @@ The following comprehensive analysis was previously generated for this project a
 - Notable observations and technical debt
 
 **AI Documentation Content:**
-\\`\\`\\`markdown
+\`\`\`markdown
 ${aiDocsContent.slice(0, 8000)} ${aiDocsContent.length > 8000 ? '... [truncated for length]' : ''}
-\\`\\`\\`
+\`\`\`
 
 This documentation provides deep context about the current state of the application, its strengths, weaknesses, and potential areas for strategic improvement. Use this information to inform your strategic goal recommendations.
 

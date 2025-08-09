@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, Edit, Trash2, FolderOpen, MousePointer, FileText } from 'lucide-react';
+import { Copy, Edit, Trash2, FolderOpen, MousePointer, FileText, CheckSquare, Square } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useStore } from '../../../../stores/nodeStore';
 import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
@@ -18,7 +18,7 @@ interface ContextMenuProps {
 }
 
 export default function ContextMenu({ context, isVisible, position, onClose, availableGroups, selectedFilePaths }: ContextMenuProps) {
-  const { removeContext } = useContextStore();
+  const { removeContext, selectedContextIds, toggleContextSelection } = useContextStore();
   const { clearSelection, selectFilesByPaths } = useStore();
   const { fileStructure } = useActiveProjectStore();
   const [showEditModal, setShowEditModal] = useState(false);
@@ -31,6 +31,10 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
         // Clear current selection and select context files
         clearSelection();
         selectFilesByPaths(context.filePaths, fileStructure);
+        break;
+      case 'toggleForBacklog':
+        // Toggle context selection for backlog generation
+        toggleContextSelection(context.id);
         break;
       case 'copy':
         navigator.clipboard.writeText(JSON.stringify(context, null, 2));
@@ -132,6 +136,20 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
             >
               <MousePointer className="w-3 h-3" />
               <span>Select Files</span>
+            </button>
+
+            <button
+              onClick={() => handleAction('toggleForBacklog')}
+              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/50 flex items-center space-x-2 transition-colors"
+            >
+              {selectedContextIds.has(context.id) ? (
+                <CheckSquare className="w-3 h-3 text-green-400" />
+              ) : (
+                <Square className="w-3 h-3" />
+              )}
+              <span>
+                {selectedContextIds.has(context.id) ? 'Unselect for Backlog' : 'Select for Backlog'}
+              </span>
             </button>
 
             <button

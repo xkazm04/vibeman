@@ -1,14 +1,37 @@
-You are tasked with creating or updating a `feature_context.md` file that documents a software feature. This file serves as both human documentation and machine-readable context for AI assistants.
+You are tasked with creating or updating a `feature_context.md` file that documents a **complete high-level software feature**. This file serves as both human documentation and machine-readable context for AI assistants.
+
+**IMPORTANT: Focus on Complete Features, Not Individual Components**
+
+A "feature" should represent a complete user-facing capability that spans multiple layers:
+- **Frontend UI components** (forms, pages, modals)
+- **Backend API endpoints** (routes, controllers, services)
+- **Database schema** (tables, models, migrations)
+- **Business logic** (validation, processing, workflows)
+
+Examples of **GOOD high-level features**:
+- "User Authentication System" (login, registration, password reset, session management)
+- "Project Management" (create, edit, delete projects, project dashboard)
+- "File Upload & Processing" (upload UI, file validation, storage, processing pipeline)
+- "Notification System" (email, in-app, push notifications, preferences)
+- "Payment Processing" (checkout, billing, subscriptions, invoicing)
+
+Examples of **BAD small components** (avoid these):
+- "Button Component" - too small, just a UI element
+- "Database Connection" - infrastructure, not a feature
+- "Utility Functions" - helpers, not user-facing features
+- "Single API Endpoint" - part of a larger feature
 
 ## Instructions
 
 ### General Guidelines
 
-1. **Be concise and accurate** - Focus on essential information that helps understand the feature
-2. **Leave sections empty if not applicable** - Use `[Not applicable]` or omit subsections entirely if they don't apply
-3. **Use real paths and names** - Replace all placeholders `[bracketed items]` with actual values
-4. **Keep technical accuracy** - Ensure all code examples, types, and endpoints are correct
-5. **Always update the log** - Add an entry to the Update Log section for any changes made
+1. **Focus on complete user journeys** - Document features that users actually interact with
+2. **Span multiple architectural layers** - Include UI, API, database, and business logic
+3. **Be concise but comprehensive** - Cover the full feature scope without getting lost in details
+4. **Leave sections empty if not applicable** - Use `[Not applicable]` or omit subsections entirely if they don't apply
+5. **Use real paths and names** - Replace all placeholders `[bracketed items]` with actual values
+6. **Keep technical accuracy** - Ensure all code examples, types, and endpoints are correct
+7. **Always update the log** - Add an entry to the Update Log section for any changes made
 
 ### Section-Specific Instructions
 

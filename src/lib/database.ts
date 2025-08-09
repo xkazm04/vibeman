@@ -83,7 +83,7 @@ function initializeTables() {
     CREATE TABLE IF NOT EXISTS contexts (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
-      group_id TEXT NOT NULL,
+      group_id TEXT, -- Optional group assignment
       name TEXT NOT NULL,
       description TEXT,
       file_paths TEXT NOT NULL, -- JSON string of file paths array
@@ -91,7 +91,7 @@ function initializeTables() {
       context_file_path TEXT, -- Path to the context file
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE CASCADE
+      FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE SET NULL
     );
   `);
 
@@ -157,6 +157,82 @@ function runMigrations() {
       db.exec(`ALTER TABLE contexts ADD COLUMN context_file_path TEXT`);
     }
 
+    // Check if group_id constraint needs to be updated to allow NULL
+    try {
+      const contextTableInfo = db.prepare("PRAGMA table_info(contexts)").all() as Array<{
+        cid: number;
+        name: string;
+        type: string;
+        notnull: number;
+        dflt_value: any;
+        pk: number;
+      }>;
+
+      const groupIdColumn = contextTableInfo.find(col => col.name === 'group_id');
+
+      // If group_id is NOT NULL, we need to update the schema
+      if (groupIdColumn && groupIdColumn.notnull === 1) {
+        console.log('Updating contexts table to make group_id optional...');
+
+        // Backup existing contexts
+        const existingContexts = db.prepare('SELECT * FROM contexts').all();
+
+        // Drop and recreate the contexts table with optional group_id
+        db.exec('DROP TABLE IF EXISTS contexts_backup');
+        db.exec(`CREATE TABLE contexts_backup AS SELECT * FROM contexts`);
+
+        db.exec('DROP TABLE contexts');
+
+        db.exec(`
+          CREATE TABLE contexts (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            group_id TEXT, -- Optional group assignment
+            name TEXT NOT NULL,
+            description TEXT,
+            file_paths TEXT NOT NULL, -- JSON string of file paths array
+            has_context_file INTEGER DEFAULT 0, -- Boolean flag for context file existence
+            context_file_path TEXT, -- Path to the context file
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE SET NULL
+          )
+        `);
+
+        // Restore data
+        if (existingContexts.length > 0) {
+          const insertStmt = db.prepare(`
+            INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          for (const context of existingContexts) {
+            insertStmt.run(
+              context.id,
+              context.project_id,
+              context.group_id,
+              context.name,
+              context.description,
+              context.file_paths,
+              context.has_context_file || 0,
+              context.context_file_path || null,
+              context.created_at,
+              context.updated_at
+            );
+          }
+        }
+
+        // Clean up backup table
+        db.exec('DROP TABLE contexts_backup');
+
+        console.log('Contexts table migration completed successfully');
+      } else {
+        console.log('Contexts table already supports optional group_id');
+      }
+    } catch (contextMigrationError) {
+      console.error('Error during contexts table migration:', contextMigrationError);
+    }
+
     // Check if goals table needs status constraint update
     try {
       // Try to insert a test record with 'undecided' status to check if constraint allows it
@@ -165,29 +241,29 @@ function runMigrations() {
         INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      
+
       try {
         testStmt.run(testId, 'test-project', 1, 'Test Goal', 'Test Description', 'undecided', new Date().toISOString(), new Date().toISOString());
-        
+
         // If successful, clean up the test record
         const deleteStmt = db.prepare('DELETE FROM goals WHERE id = ?');
         deleteStmt.run(testId);
-        
+
         console.log('Goals table already supports new status values');
       } catch (constraintError) {
         console.log('Goals table needs status constraint migration, recreating table...');
-        
+
         // Backup existing goals
         const existingGoals = db.prepare('SELECT * FROM goals').all();
-        
+
         // Drop and recreate the goals table with updated constraint
         db.exec('DROP TABLE IF EXISTS goals_backup');
         db.exec(`
           CREATE TABLE goals_backup AS SELECT * FROM goals
         `);
-        
+
         db.exec('DROP TABLE goals');
-        
+
         db.exec(`
           CREATE TABLE goals (
             id TEXT PRIMARY KEY,
@@ -200,14 +276,14 @@ function runMigrations() {
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
           )
         `);
-        
+
         // Restore data
         if (existingGoals.length > 0) {
           const insertStmt = db.prepare(`
             INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `);
-          
+
           for (const goal of existingGoals) {
             insertStmt.run(
               goal.id,
@@ -221,10 +297,10 @@ function runMigrations() {
             );
           }
         }
-        
+
         // Clean up backup table
         db.exec('DROP TABLE goals_backup');
-        
+
         console.log('Goals table migration completed successfully');
       }
     } catch (migrationError) {
@@ -695,7 +771,7 @@ export const contextGroupDb = {
 export interface DbContext {
   id: string;
   project_id: string;
-  group_id: string;
+  group_id: string | null; // Optional group assignment
   name: string;
   description: string | null;
   file_paths: string; // JSON string of file paths array
@@ -706,15 +782,15 @@ export interface DbContext {
 }
 
 export const contextDb = {
-  // Get all contexts for a project
+  // Get all contexts for a project (including those without groups)
   getContextsByProject: (projectId: string): DbContext[] => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT c.*, cg.name as group_name, cg.color as group_color
       FROM contexts c
-      JOIN context_groups cg ON c.group_id = cg.id
+      LEFT JOIN context_groups cg ON c.group_id = cg.id
       WHERE c.project_id = ? 
-      ORDER BY cg.position ASC, c.created_at DESC
+      ORDER BY COALESCE(cg.position, 999) ASC, c.created_at DESC
     `);
     return stmt.all(projectId) as DbContext[];
   },
@@ -734,10 +810,12 @@ export const contextDb = {
   createContext: (context: {
     id: string;
     project_id: string;
-    group_id: string;
+    group_id?: string | null;
     name: string;
     description?: string;
     file_paths: string[];
+    has_context_file?: boolean;
+    context_file_path?: string;
   }): DbContext => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -750,12 +828,12 @@ export const contextDb = {
     stmt.run(
       context.id,
       context.project_id,
-      context.group_id,
+      context.group_id || null,
       context.name,
       context.description || null,
       JSON.stringify(context.file_paths),
-      0, // Default: no context file
-      null, // Default: no context file path
+      context.has_context_file ? 1 : 0,
+      context.context_file_path || null,
       now,
       now
     );
@@ -763,6 +841,32 @@ export const contextDb = {
     // Return the created context
     const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
     return selectStmt.get(context.id) as DbContext;
+  },
+
+  // Create context from generated file
+  createContextFromFile: (context: {
+    id: string;
+    project_id: string;
+    name: string;
+    description?: string;
+    file_paths: string[];
+    context_file_path: string;
+  }): DbContext => {
+    return contextDb.createContext({
+      ...context,
+      has_context_file: true,
+      context_file_path: context.context_file_path
+    });
+  },
+
+  // Find context by file path
+  findContextByFilePath: (projectId: string, contextFilePath: string): DbContext | null => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM contexts 
+      WHERE project_id = ? AND context_file_path = ?
+    `);
+    return stmt.get(projectId, contextFilePath) as DbContext | null;
   },
 
   // Update a context

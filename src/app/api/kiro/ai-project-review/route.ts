@@ -4,6 +4,8 @@ import { join, extname } from 'path';
 
 import { motion } from 'framer-motion';
 import { generateAIReview, generateGoals, generateTasks } from '@/app/projects/ProjectAI/promptFunctions';
+import { generateContexts } from '@/app/projects/ProjectAI/generateContexts';
+import { generateCodeTasks } from '@/app/projects/ProjectAI/generateCodeTasks';
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,6 +92,45 @@ export async function POST(request: NextRequest) {
             result = {
               success: true,
               rawResponse: goalsResponse,
+              projectInfo: {
+                name: projectName,
+                path: projectPath
+              }
+            };
+          }
+          break;
+          
+        case 'context':
+          const contextResult = await generateContexts(projectName, projectPath, projectAnalysis, projectId);
+          result = {
+            success: contextResult.success,
+            contexts: contextResult.contexts,
+            error: contextResult.error,
+            projectInfo: {
+              name: projectName,
+              path: projectPath
+            }
+          };
+          break;
+          
+        case 'code':
+          const codeTasksResponse = await generateCodeTasks(projectName, projectId, projectAnalysis);
+          try {
+            // Try to parse JSON response, handling ```json wrapper
+            const codeTasks = parseAIJsonResponse(codeTasksResponse);
+            result = {
+              success: true,
+              tasks: codeTasks,
+              projectInfo: {
+                name: projectName,
+                path: projectPath
+              }
+            };
+          } catch (parseError) {
+            // If JSON parsing fails, return raw response
+            result = {
+              success: true,
+              rawResponse: codeTasksResponse,
               projectInfo: {
                 name: projectName,
                 path: projectPath

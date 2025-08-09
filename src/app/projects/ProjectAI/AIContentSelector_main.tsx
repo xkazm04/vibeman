@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FileText, CheckSquare, Target, Brain, Zap, Play, Pause, FileCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
-
+import { Brain, Zap, Play, Pause, FileCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { codebaseScanCards, ideaGenerationCards, AIContentCard } from './aiContentConfig';
 
 interface AIContentSelectorProps {
-  onSelectMode: (mode: 'docs' | 'tasks' | 'goals', backgroundTask?: boolean) => void;
+  onSelectMode: (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask?: boolean) => void;
   activeProject: any;
 }
 
@@ -40,43 +40,8 @@ export default function AIContentSelector({ onSelectMode, activeProject }: AICon
 
     checkAIDocs();
   }, [activeProject?.path]);
-  const codebaseScanCards = [
-    {
-      id: 'docs',
-      title: 'AI Docs',
-      description: 'Generate comprehensive project documentation and analysis',
-      icon: FileText,
-      gradient: 'from-blue-500/20 to-cyan-500/20',
-      borderColor: 'border-blue-500/30',
-      hoverGradient: 'hover:from-blue-500/30 hover:to-cyan-500/30',
-      iconColor: 'text-blue-400'
-    }
-  ];
 
-  const ideaGenerationCards = [
-    {
-      id: 'tasks',
-      title: 'Task Generator',
-      description: 'Generate 5 high-impact implementation tasks for your project',
-      icon: CheckSquare,
-      gradient: 'from-purple-500/20 to-pink-500/20',
-      borderColor: 'border-purple-500/30',
-      hoverGradient: 'hover:from-purple-500/30 hover:to-pink-500/30',
-      iconColor: 'text-purple-400'
-    },
-    {
-      id: 'goals',
-      title: 'Goal Generator',
-      description: 'Generate 3 strategic directions to transform your application',
-      icon: Target,
-      gradient: 'from-amber-500/20 to-orange-500/20',
-      borderColor: 'border-amber-500/30',
-      hoverGradient: 'hover:from-amber-500/30 hover:to-orange-500/30',
-      iconColor: 'text-amber-400'
-    }
-  ];
-
-  const renderCard = (card: any, index: number, disabled: boolean = false) => {
+  const renderCard = (card: AIContentCard, index: number, disabled: boolean = false) => {
     const Icon = card.icon;
     return (
       <motion.button
@@ -86,7 +51,7 @@ export default function AIContentSelector({ onSelectMode, activeProject }: AICon
         transition={{ duration: 0.3, delay: index * 0.1 }}
         whileHover={disabled ? {} : { scale: 1.02, y: -2 }}
         whileTap={disabled ? {} : { scale: 0.98 }}
-        onClick={() => !disabled && onSelectMode(card.id as 'docs' | 'tasks' | 'goals', backgroundTask)}
+        onClick={() => !disabled && onSelectMode(card.id as 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask)}
         disabled={disabled}
         className={`group relative p-6 bg-gradient-to-br ${card.gradient} ${disabled ? '' : card.hoverGradient} border ${card.borderColor} rounded-xl transition-all duration-300 text-left overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
           }`}
@@ -150,18 +115,6 @@ export default function AIContentSelector({ onSelectMode, activeProject }: AICon
     <div className="flex h-full">
       {/* Left Panel - Status Indicators */}
       <div className="w-64 bg-gray-900/50 border-r border-gray-700/30 p-6 flex flex-col">
-        <div className="mb-8">
-          <div className="flex items-center mb-4">
-            <div className="p-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg border border-purple-500/30">
-              <Brain className="w-6 h-6 text-purple-400" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-lg font-semibold text-white">AI Assistant</h3>
-              <p className="text-xs text-gray-400">Project Analysis</p>
-            </div>
-          </div>
-        </div>
-
         {/* Status Indicators */}
         <div className="space-y-4 flex-1">
           {/* AI Docs Status */}
@@ -273,7 +226,7 @@ export default function AIContentSelector({ onSelectMode, activeProject }: AICon
           <p className="text-sm text-gray-400 mb-4">
             Analyze your project structure, code quality, and generate comprehensive documentation.
           </p>
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {codebaseScanCards.map((card, index) => renderCard(card, index))}
           </div>
         </div>

@@ -34,10 +34,31 @@ export async function generateAIReview(projectName: string, analysis: any): Prom
   // Read the project prompt template
   let promptTemplate = '';
   try {
-    const templatePath = join(process.cwd(), 'vibeman', 'src', 'app', 'projects', 'templates', 'project-prompt.md');
-    promptTemplate = await readFile(templatePath, 'utf-8');
+    // Try multiple possible paths
+    const possiblePaths = [
+      join(process.cwd(), 'vibeman', 'src', 'app', 'projects', 'templates', 'project-prompt.md'),
+      join(process.cwd(), 'src', 'app', 'projects', 'templates', 'project-prompt.md'),
+      join(__dirname, '..', '..', 'templates', 'project-prompt.md'),
+      join(__dirname, '..', '..', '..', 'templates', 'project-prompt.md')
+    ];
+    
+    for (const templatePath of possiblePaths) {
+      try {
+        console.log(`Attempting to read project-prompt template from: ${templatePath}`);
+        promptTemplate = await readFile(templatePath, 'utf-8');
+        console.log(`Successfully read project-prompt.md template (${promptTemplate.length} characters)`);
+        break;
+      } catch (pathError) {
+        console.log(`Path ${templatePath} failed:`, pathError.message);
+        continue;
+      }
+    }
+    
+    if (!promptTemplate) {
+      throw new Error('Could not find project-prompt.md in any of the expected locations');
+    }
   } catch (error) {
-    console.warn('Could not read project-prompt.md template, using fallback');
+    console.warn('Could not read project-prompt.md template, using fallback. Error:', error);
     promptTemplate = `Please conduct a thorough analysis of this repository and provide detailed insights on:
 
 ## 1. Application Overview
@@ -87,45 +108,45 @@ Please structure your response with clear headings and bullet points for readabi
 
   // Build the analysis data section with safe fallbacks
   const buildAnalysisSection = () => {
-    let section = `## Project Analysis Data\\n\\n**Project Name**: ${projectName}\\n\\n`;
-    
+    let section = `## Project Analysis Data\n\n**Project Name**: ${projectName}\n\n`;
+
     // Add project structure if available
     if (analysis?.structure) {
-      section += `**Project Structure**:\\n\\`\\`\\`\\n${JSON.stringify(analysis.structure, null, 2)}\\n\\`\\`\\`\\n\\n`;
+      section += `**Project Structure**:\n\`\`\`\n${JSON.stringify(analysis.structure, null, 2)}\n\`\`\`\n\n`;
     }
-    
+
     // Add technologies if available
     if (analysis?.stats?.technologies?.length > 0) {
-      section += `**Technologies Detected**: ${analysis.stats.technologies.join(', ')}\\n\\n`;
+      section += `**Technologies Detected**: ${analysis.stats.technologies.join(', ')}\n\n`;
     }
-    
+
     // Add configuration files if available
     if (analysis?.codebase?.configFiles?.length > 0) {
-      section += `**Key Configuration Files**:\\n`;
-      section += analysis.codebase.configFiles.map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`${f.type || 'text'}\\n${f.content || 'Content not available'}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+      section += `**Key Configuration Files**:\n`;
+      section += analysis.codebase.configFiles.map((f: any) =>
+        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${f.content || 'Content not available'}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
-    
+
     // Add main implementation files if available
     if (analysis?.codebase?.mainFiles?.length > 0) {
-      section += `**Main Implementation Files** (sample):\\n`;
-      section += analysis.codebase.mainFiles.slice(0, 8).map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`${f.type || 'text'}\\n${(f.content || 'Content not available').slice(0, 1500)}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+      section += `**Main Implementation Files** (sample):\n`;
+      section += analysis.codebase.mainFiles.slice(0, 8).map((f: any) =>
+        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${(f.content || 'Content not available').slice(0, 1500)}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
-    
+
     // Add documentation files if available
     if (analysis?.codebase?.documentationFiles?.length > 0) {
-      section += `**Documentation Files**:\\n`;
-      section += analysis.codebase.documentationFiles.map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`markdown\\n${(f.content || 'Content not available').slice(0, 2000)}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+      section += `**Documentation Files**:\n`;
+      section += analysis.codebase.documentationFiles.map((f: any) =>
+        `\n### ${f.path}\n\`\`\`markdown\n${(f.content || 'Content not available').slice(0, 2000)}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
-    
+
     return section;
   };
 

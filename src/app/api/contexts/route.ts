@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { projectId, groupId, name, description, filePaths } = body;
 
-    if (!projectId || !groupId || !name || !filePaths) {
+    if (!projectId || !name || !filePaths) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }

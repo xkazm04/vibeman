@@ -20,6 +20,21 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
   const [isExpanded, setIsExpanded] = useState(true);
   const lastProjectIdRef = useRef<string | null>(null);
 
+  // Create synthetic "To group" for ungrouped contexts
+  const ungroupedContexts = contexts.filter(ctx => !ctx.groupId);
+  const syntheticToGroup = {
+    id: 'synthetic-to-group',
+    projectId: activeProject?.id || '',
+    name: 'To group',
+    color: '#6B7280', // Gray color
+    position: -1, // Always first
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  // Combine synthetic group with real groups, but only show synthetic if there are ungrouped contexts
+  const allGroups = ungroupedContexts.length > 0 ? [syntheticToGroup, ...groups] : groups;
+
   // Load project data when active project changes
   useEffect(() => {
     if (activeProject?.id && activeProject.id !== lastProjectIdRef.current) {
@@ -64,7 +79,10 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
               <h3 className="text-sm font-semibold text-white font-mono">Context Groups</h3>
               <div className="flex items-center space-x-1">
                 <span className="text-xs text-gray-400">
-                  {groups.length} groups • {contexts.length} contexts
+                  {allGroups.length} groups • {contexts.length} contexts
+                  {ungroupedContexts.length > 0 && (
+                    <span className="text-yellow-400 ml-1">({ungroupedContexts.length} ungrouped)</span>
+                  )}
                 </span>
                 {loading && (
                   <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin"></div>
@@ -103,7 +121,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              {groups.length === 0 ? (
+              {allGroups.length === 0 ? (
                 <div className="h-20 flex items-center justify-center">
                   <div className="text-center">
                     <div className="w-8 h-8 mx-auto mb-2 bg-gray-700/30 rounded-full flex items-center justify-center">
@@ -120,9 +138,12 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-1 p-2 min-h-[80px] bg-gray-600/10">
-                  {/* Render existing groups */}
-                  {groups.map((group) => {
-                    const groupContexts = contexts.filter(ctx => ctx.groupId === group.id);
+                  {/* Render all groups (including synthetic "To group") */}
+                  {allGroups.map((group) => {
+                    const isSyntheticGroup = group.id === 'synthetic-to-group';
+                    const groupContexts = isSyntheticGroup ? 
+                      ungroupedContexts : 
+                      contexts.filter(ctx => ctx.groupId === group.id);
 
                     return (
                       <div key={group.id} className="flex-1 min-w-[200px] max-w-[300px]">
@@ -130,16 +151,20 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                           group={group}
                           contexts={groupContexts}
                           projectId={activeProject.id}
-                          className="bg-gray-800/20 hover:bg-gray-800/30 transition-colors border border-gray-600/20 rounded-md h-full"
+                          className={`transition-colors border rounded-md h-full ${
+                            isSyntheticGroup 
+                              ? 'bg-gray-700/20 hover:bg-gray-700/30 border-gray-500/30 border-dashed'
+                              : 'bg-gray-800/20 hover:bg-gray-800/30 border-gray-600/20'
+                          }`}
                           isEmpty={false}
-                          availableGroups={groups}
+                          availableGroups={groups} // Pass only real groups for moving contexts
                           selectedFilePaths={selectedFilePaths}
                         />
                       </div>
                     );
                   })}
 
-                  {/* Add new group slot (only show if less than 9 groups) */}
+                  {/* Add new group slot (only show if less than 9 real groups) */}
                   {groups.length < 9 && (
                     <div className="flex-1 min-w-[200px] max-w-[300px]">
                       <ContextSection

@@ -28,7 +28,7 @@ export interface ContextGroup {
 export interface Context {
   id: string;
   projectId: string;
-  groupId: string;
+  groupId: string | null; // Optional group assignment
   name: string;
   description?: string;
   filePaths: string[];
@@ -71,10 +71,12 @@ const contextAPI = {
   // Create a new context
   createContext: async (contextData: {
     projectId: string;
-    groupId: string;
+    groupId?: string | null;
     name: string;
     description?: string;
     filePaths: string[];
+    hasContextFile?: boolean;
+    contextFilePath?: string;
   }): Promise<Context> => {
     const response = await fetch('/api/contexts', {
       method: 'POST',
@@ -205,16 +207,19 @@ interface ContextState {
   loading: boolean;
   error: string | null;
   initialized: boolean;
+  selectedContextIds: Set<string>; // For backlog task generation
 }
 
 interface ContextStore extends ContextState {
   // Context operations
   addContext: (contextData: {
     projectId: string;
-    groupId: string;
+    groupId?: string | null;
     name: string;
     description?: string;
     filePaths: string[];
+    hasContextFile?: boolean;
+    contextFilePath?: string;
   }) => Promise<void>;
   removeContext: (contextId: string) => Promise<void>;
   updateContext: (contextId: string, updates: {
@@ -236,6 +241,11 @@ interface ContextStore extends ContextState {
     color?: string;
   }) => Promise<void>;
   
+  // Context selection for backlog generation
+  toggleContextSelection: (contextId: string) => void;
+  clearContextSelection: () => void;
+  selectAllContexts: () => void;
+  
   // Data loading
   loadProjectData: (projectId: string) => Promise<void>;
   clearAllContexts: () => void;
@@ -252,6 +262,7 @@ export const useContextStore = (() => {
     loading: false,
     error: null,
     initialized: false,
+    selectedContextIds: new Set(),
   };
   
   const listeners = new Set<(state: ContextState) => void>();
@@ -514,6 +525,30 @@ export const useContextStore = (() => {
       // Get contexts by group
       getContextsByGroup: (groupId: string) => {
         return state.contexts.filter(ctx => ctx.groupId === groupId);
+      },
+      
+      // Context selection for backlog generation
+      toggleContextSelection: (contextId: string) => {
+        setState(prev => {
+          const newSelectedContextIds = new Set(prev.selectedContextIds);
+          if (newSelectedContextIds.has(contextId)) {
+            newSelectedContextIds.delete(contextId);
+          } else {
+            newSelectedContextIds.add(contextId);
+          }
+          return { ...prev, selectedContextIds: newSelectedContextIds };
+        });
+      },
+      
+      clearContextSelection: () => {
+        setState(prev => ({ ...prev, selectedContextIds: new Set() }));
+      },
+      
+      selectAllContexts: () => {
+        setState(prev => ({
+          ...prev,
+          selectedContextIds: new Set(prev.contexts.map(ctx => ctx.id))
+        }));
       },
     };
   };

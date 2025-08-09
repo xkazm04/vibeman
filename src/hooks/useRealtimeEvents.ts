@@ -40,11 +40,13 @@ export function useRealtimeEvents(options?: {
   sessionId?: string;
   flowId?: string;
   limit?: number;
+  autoRefresh?: boolean;
+  refreshInterval?: number;
 }) {
   const queryClient = useQueryClient();
   const { activeProject } = useActiveProjectStore();
   const { isActive } = useAnalysisStore();
-  const { sessionId, flowId, limit = 50 } = options || {};
+  const { sessionId, flowId, limit = 50, autoRefresh = false, refreshInterval = 5000 } = options || {};
   const realtimeChannelRef = useRef<any>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -86,53 +88,51 @@ export function useRealtimeEvents(options?: {
     queryKey,
     queryFn: fetchEvents,
     staleTime: 0, // Always consider stale to allow realtime updates
-    refetchInterval: isActive ? 5000 : false, // Poll every 5 seconds when analysis is active
+    refetchInterval: autoRefresh ? refreshInterval : false, // Use manual control instead of isActive
     refetchIntervalInBackground: false, // Don't poll when tab is not active
   });
 
-  // Set up polling for local database updates
+  // Manual polling control functions
+  const startAutoRefresh = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    pollingIntervalRef.current = setInterval(() => {
+      console.log('Polling for new events');
+      queryClient.invalidateQueries({ queryKey: eventKeys.all });
+      queryClient.refetchQueries({ queryKey });
+    }, refreshInterval);
+  };
+
+  const stopAutoRefresh = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
+  // Set up polling based on autoRefresh parameter
   useEffect(() => {
-    const setupPolling = () => {
-      // Clean up existing polling
-      if (pollingIntervalRef.current) {
-        console.log('Cleaning up existing polling interval');
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-
-      // Set up polling when analysis is active
-      if (isActive) {
-        console.log('Setting up polling for local events');
-        
-        pollingIntervalRef.current = setInterval(() => {
-          console.log('Polling for new events');
-          
-          // Invalidate and refetch queries to get fresh data
-          queryClient.invalidateQueries({ queryKey: eventKeys.all });
-          
-          // Also refetch the specific query
-          queryClient.refetchQueries({ queryKey });
-        }, 5000); // Poll every 5 seconds
-      }
-    };
-
-    setupPolling();
+    if (autoRefresh) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
 
     return () => {
-      if (pollingIntervalRef.current) {
-        console.log('Cleaning up polling interval on unmount');
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
+      stopAutoRefresh();
     };
-  }, [queryClient, projectId, isActive, queryKey]);
+  }, [autoRefresh, refreshInterval, queryClient, queryKey]);
 
   return {
     ...query,
     events: query.data || [],
     isConnected: pollingIntervalRef.current !== null,
-    isPolling: isActive && pollingIntervalRef.current !== null,
+    isPolling: pollingIntervalRef.current !== null,
     lastUpdated: query.dataUpdatedAt,
+    startAutoRefresh,
+    stopAutoRefresh,
   };
 }
 

@@ -39,13 +39,6 @@ export default function Backlog() {
       .slice(0, 20);
   }, [backlogProposals, customBacklogItems]);
 
-  const handleOpenForm = () => {
-    setIsFormModalOpen(true);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormModalOpen(false);
-  };
 
   const handleAddCustomBacklogItem = async (itemData: any) => {
     await createBacklogItem({
@@ -96,15 +89,6 @@ export default function Backlog() {
             >
               <RefreshCw className="w-4 h-4" />
             </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleOpenForm}
-              className="p-2 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-600/30 rounded-md text-gray-400 hover:text-gray-300 transition-all"
-              title="Add custom item"
-            >
-              <Plus className="w-4 h-4" />
-            </motion.button>
           </div>
         </div>
 
@@ -128,13 +112,6 @@ export default function Backlog() {
           )}
         </div>
       </GlowCard>
-
-      {/* Custom Backlog Form Modal */}
-      <BacklogFormAdd
-        isOpen={isFormModalOpen}
-        onClose={handleCloseForm}
-        onSubmit={handleAddCustomBacklogItem}
-      />
     </>
   );
 };

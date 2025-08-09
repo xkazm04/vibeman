@@ -37,17 +37,38 @@ export async function generateTasks(projectName: string, projectId: string, anal
   
   let promptTemplate = '';
   try {
-    const templatePath = join(process.cwd(), 'vibeman', 'src', 'app', 'projects', 'templates', 'project-tasks.md');
-    promptTemplate = await readFile(templatePath, 'utf-8');
+    // Try multiple possible paths
+    const possiblePaths = [
+      join(process.cwd(), 'vibeman', 'src', 'app', 'projects', 'templates', 'project-tasks.md'),
+      join(process.cwd(), 'src', 'app', 'projects', 'templates', 'project-tasks.md'),
+      join(__dirname, '..', '..', 'templates', 'project-tasks.md'),
+      join(__dirname, '..', '..', '..', 'templates', 'project-tasks.md')
+    ];
+    
+    for (const templatePath of possiblePaths) {
+      try {
+        console.log(`Attempting to read project-tasks template from: ${templatePath}`);
+        promptTemplate = await readFile(templatePath, 'utf-8');
+        console.log(`Successfully read project-tasks.md template (${promptTemplate.length} characters)`);
+        break;
+      } catch (pathError) {
+        console.log(`Path ${templatePath} failed:`, pathError.message);
+        continue;
+      }
+    }
+    
+    if (!promptTemplate) {
+      throw new Error('Could not find project-tasks.md in any of the expected locations');
+    }
   } catch (error) {
-    console.warn('Could not read project-tasks.md template, using fallback');
+    console.warn('Could not read project-tasks.md template, using fallback. Error:', error);
     promptTemplate = `Based on the repository analysis above, generate exactly 5 implementation tasks that would provide the most value to this application. Consider the identified improvement opportunities, missing features, and technical debt.
 
 **CRITICAL: Avoid duplicating any existing tasks that have already been generated for this project.**
 
 Return the tasks in strict JSON format following this schema:
 
-\\`\\`\\`json
+\`\`\`json
 [
   {
     "title": "string (2-5 words)",
@@ -60,7 +81,7 @@ Return the tasks in strict JSON format following this schema:
     "reason": "string (1-2 sentences explaining the business or technical value)"
   }
 ]
-\\`\\`\\`
+\`\`\`
 
 Selection criteria for tasks:
 - Prioritize high-impact improvements that address critical issues
@@ -74,34 +95,34 @@ Ensure the JSON is valid and parseable. Include a mix of task types if possible.
 
   // Build the analysis data section with safe fallbacks
   const buildAnalysisSection = () => {
-    let section = `## Project Analysis Data\\n\\n**Project Name**: ${projectName}\\n\\n`;
+    let section = `## Project Analysis Data\n\n**Project Name**: ${projectName}\n\n`;
     
     // Add project structure if available
     if (analysis?.structure) {
-      section += `**Project Structure**:\\n\\`\\`\\`\\n${JSON.stringify(analysis.structure, null, 2)}\\n\\`\\`\\`\\n\\n`;
+      section += `**Project Structure**:\n\`\`\`\n${JSON.stringify(analysis.structure, null, 2)}\n\`\`\`\n\n`;
     }
     
     // Add technologies if available
     if (analysis?.stats?.technologies?.length > 0) {
-      section += `**Technologies Detected**: ${analysis.stats.technologies.join(', ')}\\n\\n`;
+      section += `**Technologies Detected**: ${analysis.stats.technologies.join(', ')}\n\n`;
     }
     
     // Add configuration files if available
     if (analysis?.codebase?.configFiles?.length > 0) {
-      section += `**Key Configuration Files**:\\n`;
+      section += `**Key Configuration Files**:\n`;
       section += analysis.codebase.configFiles.map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`${f.type || 'text'}\\n${f.content || 'Content not available'}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${f.content || 'Content not available'}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
     
     // Add main implementation files if available
     if (analysis?.codebase?.mainFiles?.length > 0) {
-      section += `**Main Implementation Files** (sample):\\n`;
+      section += `**Main Implementation Files** (sample):\n`;
       section += analysis.codebase.mainFiles.slice(0, 8).map((f: any) => 
-        `\\n### ${f.path}\\n\\`\\`\\`${f.type || 'text'}\\n${(f.content || 'Content not available').slice(0, 1500)}\\n\\`\\`\\``
-      ).join('\\n');
-      section += '\\n\\n';
+        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${(f.content || 'Content not available').slice(0, 1500)}\n\`\`\``
+      ).join('\n');
+      section += '\n\n';
     }
     
     return section;
@@ -110,17 +131,17 @@ Ensure the JSON is valid and parseable. Include a mix of task types if possible.
   // Build existing tasks section for duplicate prevention
   const buildExistingTasksSection = () => {
     if (existingTasks.length === 0) {
-      return '**Existing Tasks**: None\\n\\n';
+      return '**Existing Tasks**: None\n\n';
     }
     
-    let section = `**Existing Tasks** (DO NOT DUPLICATE):\\n`;
+    let section = `**Existing Tasks** (DO NOT DUPLICATE):\n`;
     existingTasks.forEach((task, index) => {
-      section += `\\n${index + 1}. **${task.title}** (${task.type})\\n`;
-      section += `   - Status: ${task.status}\\n`;
-      section += `   - Description: ${task.description}\\n`;
-      section += `   - Agent: ${task.agent}\\n`;
+      section += `\n${index + 1}. **${task.title}** (${task.type})\n`;
+      section += `   - Status: ${task.status}\n`;
+      section += `   - Description: ${task.description}\n`;
+      section += `   - Agent: ${task.agent}\n`;
     });
-    section += '\\n';
+    section += '\n';
     
     return section;
   };

@@ -7,6 +7,7 @@ import AIContentSelector from './ProjectAI/AIContentSelector_main';
 import AIDocsDisplay from './ProjectAI/AIDocsDisplay';
 import TaskResultDisplay from './ProjectAI/TaskResultDisplay';
 import GoalResultDisplay from './ProjectAI/GoalResultDisplay';
+import ContextResultDisplay from './ProjectAI/ContextResultDisplay';
 
 interface AIProjectReviewModalProps {
   isOpen: boolean;
@@ -50,11 +51,11 @@ function parseAIJsonResponse(response: string): any {
   // Check if response has ```json wrapper first
   if (response.includes('```json')) {
     console.log('Found ```json marker, extracting...');
-    
+
     // Find the start of JSON content after ```json
     const startIndex = response.indexOf('```json') + 7; // 7 = length of '```json'
     const endIndex = response.indexOf('```', startIndex);
-    
+
     if (endIndex !== -1) {
       const jsonContent = response.substring(startIndex, endIndex).trim();
       console.log('Extracted JSON content:', jsonContent.substring(0, 100) + '...');
@@ -87,25 +88,31 @@ export default function AIProjectReviewModal({
   onClose
 }: AIProjectReviewModalProps) {
   const { activeProject } = useActiveProjectStore();
-  
+
   // UI State
-  const [currentView, setCurrentView] = useState<'selector' | 'docs' | 'tasks' | 'goals'>('selector');
+  const [currentView, setCurrentView] = useState<'selector' | 'docs' | 'tasks' | 'goals' | 'context' | 'code'>('selector');
   const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('preview');
-  
+
   // Content State
   const [docsContent, setDocsContent] = useState('');
   const [tasks, setTasks] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
-  
+  const [contexts, setContexts] = useState<Array<{ filename: string; content: string }>>([]);
+  const [codeTasks, setCodeTasks] = useState<any[]>([]);
+
   // Loading States
   const [docsLoading, setDocsLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [goalsLoading, setGoalsLoading] = useState(false);
-  
+  const [contextsLoading, setContextsLoading] = useState(false);
+  const [codeLoading, setCodeLoading] = useState(false);
+
   // Error States
   const [docsError, setDocsError] = useState<string | null>(null);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [goalsError, setGoalsError] = useState<string | null>(null);
+  const [contextsError, setContextsError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -114,14 +121,18 @@ export default function AIProjectReviewModal({
       setDocsContent('');
       setTasks([]);
       setGoals([]);
+      setContexts([]);
+      setCodeTasks([]);
       setDocsError(null);
       setTasksError(null);
       setGoalsError(null);
+      setContextsError(null);
+      setCodeError(null);
       setPreviewMode('preview');
     }
   }, [isOpen]);
 
-  const handleSelectMode = async (mode: 'docs' | 'tasks' | 'goals', backgroundTask?: boolean) => {
+  const handleSelectMode = async (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask?: boolean) => {
     if (!activeProject) {
       return;
     }
@@ -145,21 +156,28 @@ export default function AIProjectReviewModal({
       case 'goals':
         await generateGoals();
         break;
+      case 'context':
+        await generateContexts();
+        break;
+      case 'code':
+        await generateCodeTasks();
+        break;
     }
   };
 
-  const handleBackgroundGeneration = async (mode: 'docs' | 'tasks' | 'goals') => {
+  const handleBackgroundGeneration = async (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code') => {
     if (!activeProject) return;
 
     try {
-      const response = await fetch('/api/kiro/ai-project-background', {
+      const response = await fetch('/api/kiro/background-tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: activeProject.id,
           projectPath: activeProject.path,
           projectName: activeProject.name,
-          mode: mode
+          taskType: mode,
+          priority: 1 // Higher priority for user-initiated tasks
         }),
       });
 
@@ -167,13 +185,13 @@ export default function AIProjectReviewModal({
 
       if (result.success) {
         // Show success message and close modal
-        console.log(`Background ${mode} generation started`);
+        console.log(`Background ${mode} task queued:`, result.task);
         handleClose();
       } else {
-        throw new Error(result.error || `Failed to start background ${mode} generation`);
+        throw new Error(result.error || `Failed to queue background ${mode} task`);
       }
     } catch (error) {
-      console.error(`Failed to start background ${mode} generation:`, error);
+      console.error(`Failed to queue background ${mode} task:`, error);
       // You might want to show an error toast here
     }
   };
@@ -294,6 +312,84 @@ export default function AIProjectReviewModal({
     }
   };
 
+  const generateContexts = async () => {
+    if (!activeProject) return;
+
+    setContextsLoading(true);
+    setContextsError(null);
+
+    try {
+      const response = await fetch('/api/kiro/ai-project-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: activeProject.id,
+          projectPath: activeProject.path,
+          projectName: activeProject.name,
+          mode: 'context'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate context files');
+      }
+
+      if (result.contexts) {
+        setContexts(result.contexts);
+      } else {
+        throw new Error('No context files were generated');
+      }
+    } catch (error) {
+      setContextsError(error instanceof Error ? error.message : 'Failed to generate context files');
+    } finally {
+      setContextsLoading(false);
+    }
+  };
+
+  const generateCodeTasks = async () => {
+    if (!activeProject) return;
+
+    setCodeLoading(true);
+    setCodeError(null);
+
+    try {
+      const response = await fetch('/api/kiro/ai-project-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: activeProject.id,
+          projectPath: activeProject.path,
+          projectName: activeProject.name,
+          mode: 'code'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate code optimization tasks');
+      }
+
+      if (result.tasks) {
+        setCodeTasks(result.tasks);
+      } else if (result.rawResponse) {
+        // Try to extract JSON from raw response using robust parser
+        try {
+          const parsedTasks = parseAIJsonResponse(result.rawResponse);
+          setCodeTasks(parsedTasks);
+        } catch (parseError) {
+          throw new Error('Failed to parse code tasks from AI response');
+        }
+      }
+    } catch (error) {
+      setCodeError(error instanceof Error ? error.message : 'Failed to generate code optimization tasks');
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
   const handleBack = () => {
     setCurrentView('selector');
   };
@@ -323,9 +419,13 @@ export default function AIProjectReviewModal({
     setDocsContent('');
     setTasks([]);
     setGoals([]);
+    setContexts([]);
+    setCodeTasks([]);
     setDocsError(null);
     setTasksError(null);
     setGoalsError(null);
+    setContextsError(null);
+    setCodeError(null);
     onClose();
   };
 
@@ -338,7 +438,7 @@ export default function AIProjectReviewModal({
             activeProject={activeProject}
           />
         );
-      
+
       case 'docs':
         return (
           <AIDocsDisplay
@@ -351,7 +451,7 @@ export default function AIProjectReviewModal({
             onContentChange={setDocsContent}
           />
         );
-      
+
       case 'tasks':
         return (
           <TaskResultDisplay
@@ -364,7 +464,7 @@ export default function AIProjectReviewModal({
             activeProject={activeProject}
           />
         );
-      
+
       case 'goals':
         return (
           <GoalResultDisplay
@@ -377,7 +477,31 @@ export default function AIProjectReviewModal({
             activeProject={activeProject}
           />
         );
-      
+
+      case 'context':
+        return (
+          <ContextResultDisplay
+            contexts={contexts}
+            loading={contextsLoading}
+            error={contextsError}
+            onBack={handleBack}
+            activeProject={activeProject}
+          />
+        );
+
+      case 'code':
+        return (
+          <TaskResultDisplay
+            tasks={codeTasks}
+            loading={codeLoading}
+            error={codeError}
+            onBack={handleBack}
+            onAcceptTask={handleAcceptTask}
+            onRejectTask={handleRejectTask}
+            activeProject={activeProject}
+          />
+        );
+
       default:
         return null;
     }

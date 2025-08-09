@@ -1,50 +1,81 @@
-# Feature Context: [Feature Name]
+# Feature Context: [Complete Feature Name]
 
 file: feature_context.md
 
 ## Core Functionality
 
-[2-3 sentences describing the main responsibility and how it fits into the system]
+[2-3 sentences describing the complete user-facing capability, how users interact with it, and how it spans multiple architectural layers]
 
 ## Architecture
 
 ### Location Map
 
 ```
-[Project structure showing where feature files are located]
-Example:
+[Complete project structure showing ALL layers of the feature]
+Example for a complete feature:
 src/
-├── api/
-│   └── [feature]/
 ├── components/
-│   └── [feature]/
-├── services/
-│   └── [feature]/
-└── types/
-    └── [feature]/
+│   └── [feature]/           # Frontend UI components
+│       ├── [Feature]Page.tsx
+│       ├── [Feature]Form.tsx
+│       └── [Feature]List.tsx
+├── api/
+│   └── [feature]/           # Backend API endpoints
+│       ├── route.ts
+│       └── [feature].service.ts
+├── lib/
+│   ├── database.ts          # Database schema/models
+│   └── [feature]Utils.ts    # Business logic
+├── types/
+│   └── [feature].ts         # Type definitions
+└── hooks/
+    └── use[Feature].ts      # State management
 
 ```
 
-### Key Files
+### Key Files by Layer
 
+**Frontend Layer:**
 | File | Purpose | Modify When |
 | --- | --- | --- |
-| `[path/to/file]` | [what it does] | [when to change it] |
-| `[path/to/file]` | [what it does] | [when to change it] |
+| `[path/to/component]` | [UI component responsibility] | [when to change UI] |
+| `[path/to/hook]` | [state management] | [when to change data flow] |
+
+**Backend Layer:**
+| File | Purpose | Modify When |
+| --- | --- | --- |
+| `[path/to/api]` | [API endpoint responsibility] | [when to change endpoints] |
+| `[path/to/service]` | [business logic] | [when to change rules] |
+
+**Database Layer:**
+| File | Purpose | Modify When |
+| --- | --- | --- |
+| `[path/to/schema]` | [data model] | [when to change schema] |
 
 ## Data Flow
 
-```
-[Visual representation or description of how data flows through the feature]
+### Complete User Journey
 
 ```
+[End-to-end flow from user interaction to data persistence]
+Example:
+User Action → Frontend Component → API Call → Business Logic → Database → Response → UI Update
 
-### State Management
+1. User interacts with [UI Component]
+2. Frontend validates and sends request to [API Endpoint]
+3. Backend processes via [Service/Controller]
+4. Data persisted to [Database Table/Collection]
+5. Response sent back to frontend
+6. UI updated with new state
 
-- **Local State**: [what's managed locally]
-- **Global State**: [what's in global store]
-- **Server State**: [what's synchronized with backend]
-- **Cache Strategy**: [how data is cached]
+```
+
+### State Management Across Layers
+
+- **Frontend State**: [React state, form data, UI state]
+- **API State**: [request/response handling, caching]
+- **Database State**: [persistent data, relationships]
+- **Cache Strategy**: [how data is cached across layers]
 
 ## Data Models
 
@@ -87,11 +118,13 @@ interface [ModelName] {
 
 ## API Specifications
 
-### [Operation Name]
+### Complete Feature API Endpoints
+
+#### [Primary Operation] (e.g., Create/Read/Update/Delete)
 
 **Endpoint**: `[METHOD] [path]`
 
-**Purpose**: [what it does]
+**Purpose**: [main user action this supports]
 
 **Request**:
 
@@ -105,6 +138,22 @@ interface [ModelName] {
 **Response**: `[status code]` [description]
 
 **Errors**: `[code]` [condition]
+
+#### [Secondary Operation] (if applicable)
+
+**Endpoint**: `[METHOD] [path]`
+
+**Purpose**: [supporting user action]
+
+**Request**: [request format]
+
+**Response**: `[status code]` [description]
+
+### Integration Points
+
+- **External APIs**: [third-party services used]
+- **Internal Services**: [other system components this feature depends on]
+- **Webhooks/Events**: [async processing or notifications]
 
 ---
 

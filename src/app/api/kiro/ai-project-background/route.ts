@@ -5,6 +5,8 @@ import { goalDb, backlogDb, eventDb } from '../../../../lib/database';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
 import { generateGoals, generateAIReview, generateTasks } from '@/app/projects/ProjectAI/promptFunctions';
+import { generateContexts } from '@/app/projects/ProjectAI/generateContexts';
+import { generateCodeTasks } from '@/app/projects/ProjectAI/generateCodeTasks';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +57,7 @@ async function processBackgroundGeneration({
   projectId: string;
   projectPath: string;
   projectName: string;
-  mode: 'docs' | 'tasks' | 'goals';
+  mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code';
 }) {
   try {
     // Log start event
@@ -177,6 +179,57 @@ async function processBackgroundGeneration({
           console.error('Error in goals processing:', parseError);
           console.log('Full goals response:', goalsResponse);
           throw new Error(`Failed to process goals: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        }
+        break;
+
+      case 'context':
+        const contextResult = await generateContexts(projectName, projectPath, projectAnalysis, projectId);
+        
+        if (contextResult.success) {
+          // Log success event with details about created files
+          const fileList = contextResult.contexts.map(c => c.filename).join(', ');
+          eventDb.createEvent({
+            id: uuidv4(),
+            project_id: projectId,
+            title: 'AI Context Files Generated',
+            description: `${contextResult.contexts.length} context files created: ${fileList}`,
+            type: 'success'
+          });
+        } else {
+          throw new Error(contextResult.error || 'Failed to generate context files');
+        }
+        break;
+
+      case 'code':
+        const codeTasksResponse = await generateCodeTasks(projectName, projectId, projectAnalysis);
+        try {
+          // Try to parse JSON response, handling ```json wrapper
+          const codeTasks = parseAIJsonResponse(codeTasksResponse);
+
+          // Save code optimization tasks to backlog database with 'pending' status
+          for (const task of codeTasks) {
+            backlogDb.createBacklogItem({
+              id: uuidv4(),
+              project_id: projectId,
+              agent: 'mastermind',
+              title: task.title,
+              description: task.reason,
+              status: 'pending',
+              type: 'proposal',
+              impacted_files: []
+            });
+          }
+
+          // Log success event
+          eventDb.createEvent({
+            id: uuidv4(),
+            project_id: projectId,
+            title: 'AI Code Optimization Tasks Generated',
+            description: `${codeTasks.length} code optimization tasks generated and saved to backlog`,
+            type: 'success'
+          });
+        } catch (parseError) {
+          throw new Error('Failed to parse code tasks from AI response');
         }
         break;
 

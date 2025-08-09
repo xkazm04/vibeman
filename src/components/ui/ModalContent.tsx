@@ -13,13 +13,13 @@ interface ModalContentProps {
   isEditing?: boolean;
   previewMode?: 'edit' | 'preview';
   markdownContent?: string;
-  
+
   // Content states
   loadingMessage?: string;
   generatingTitle?: string;
   noContentTitle?: string;
   noContentDescription?: string;
-  
+
   // Generation buttons
   showGenerateButton?: boolean;
   showBackgroundButton?: boolean;
@@ -27,20 +27,20 @@ interface ModalContentProps {
   generateButtonText?: string;
   backgroundButtonText?: string;
   manualButtonText?: string;
-  
+
   // Callbacks
   onGenerateWithLLM?: () => void;
   onBackgroundGeneration?: () => void;
   onCreateManually?: () => void;
   onCancelGeneration?: () => void;
   onMarkdownContentChange?: (content: string) => void;
-  
+
   // Conditions for button states
   canGenerate?: boolean;
   canBackgroundGenerate?: boolean;
   generateDisabledReason?: string;
   backgroundDisabledReason?: string;
-  
+
   // Additional info
   additionalInfo?: React.ReactNode;
 }
@@ -55,33 +55,33 @@ export default function ModalContent({
   isEditing = false,
   previewMode = 'preview',
   markdownContent = '',
-  
+
   loadingMessage = 'Loading...',
   generatingTitle = 'Generating Content',
   noContentTitle = 'No Content Available',
   noContentDescription = 'Create content to get started.',
-  
+
   showGenerateButton = false,
   showBackgroundButton = false,
   showManualButton = false,
   generateButtonText = 'Generate with AI',
   backgroundButtonText = 'Generate in Background',
   manualButtonText = 'Create Manually',
-  
+
   onGenerateWithLLM,
   onBackgroundGeneration,
   onCreateManually,
   onCancelGeneration,
   onMarkdownContentChange,
-  
+
   canGenerate = true,
   canBackgroundGenerate = true,
   generateDisabledReason = '',
   backgroundDisabledReason = '',
-  
+
   additionalInfo
 }: ModalContentProps) {
-  
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
