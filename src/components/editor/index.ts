@@ -1,5 +1,6 @@
 // Editor Components
 export { default as MonacoEditor } from './MonacoEditor';
+export { default as MonacoDiffEditor } from './MonacoDiffEditor';
 export { default as MultiFileEditor } from './MultiFileEditor';
 export { default as FileTab } from './FileTab';
 
