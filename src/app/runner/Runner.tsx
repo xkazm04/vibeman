@@ -1,24 +1,21 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import RunnerSwitch from '@/app/runner/components/RunnerSwitch';
-import RunnerAdd from './components/RunnerAdd';
 import { StandalonePreviewLever } from './components/StandalonePreviewLever';
-import EmergencyKillModal  from './components/EmergencyKillModal';
+import EmergencyKillModal from './components/EmergencyKillModal';
 import { Project } from '@/types';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import RunnerRightPanel from './components/RunnerRightPanel';
 import { RefreshCcw, Skull } from 'lucide-react';
-import RunnerSettings from './components/RunnerSettings';
 
 export default function Runner() {
   const {
     fetchStatuses,
     forceRefresh
   } = useServerProjectStore();
-  
+
   const {
     projects,
     updateProject,
@@ -47,7 +44,7 @@ export default function Runner() {
         console.error('Runner: Failed to initialize projects:', error);
       }
     };
-    
+
     initProjects();
   }, [initializeProjects]);
 
@@ -123,13 +120,13 @@ export default function Runner() {
                     disabled={disabled}
                   />
                 ))}
-                
+
                 {/* Standalone Preview Lever with spacing */}
                 <div className="ml-6 border-l border-gray-700 pl-6">
                   <StandalonePreviewLever />
                 </div>
               </div>
-              
+
               {/* Emergency actions */}
               <div className="flex absolute left-2 top-0 items-center space-x-2 mt-2">
                 <button
@@ -152,48 +149,12 @@ export default function Runner() {
             {/* Right: Controls */}
             <RunnerRightPanel
               disabled={disabled}
-              showSettings={showSettings}
-              setShowSettings={setShowSettings}
-              showAddProject={showAddProject}
-              setShowAddProject={setShowAddProject}
             />
           </div>
 
         </div>
 
-        {/* Add Project Form */}
-        <AnimatePresence>
-          {showAddProject && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="border-t border-gray-800 bg-gray-900/50"
-            >
-              <div className="px-6 py-4">
-                <RunnerAdd
-                  showAddProject={showAddProject}
-                  setShowAddProject={setShowAddProject}
-                  newProject={newProject}
-                  setNewProject={setNewProject}
-                  addProject={addProject}
-                  projects={projects}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
-
-      {/* Settings Modal */}
-      <RunnerSettings
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        projects={projects}
-        onUpdateProject={handleUpdateProject}
-        onDeleteProject={handleDeleteProject}
-      />
 
       {/* Emergency Kill Modal */}
       <EmergencyKillModal

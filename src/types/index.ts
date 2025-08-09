@@ -97,7 +97,7 @@ export interface Goal {
   order: number;
   title: string;
   description?: string;
-  status: 'open' | 'in_progress' | 'done';
+  status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
   // Database fields (optional for compatibility)
   created_at?: string;
   updated_at?: string;
@@ -126,7 +126,7 @@ export interface DatabaseGoal {
   order_index: number;
   title: string;
   description: string | null;
-  status: 'open' | 'in_progress' | 'done';
+  status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
   created_at: string;
   updated_at: string;
 }

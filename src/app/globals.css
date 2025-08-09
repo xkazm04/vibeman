@@ -124,3 +124,8 @@ html, body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Smooth scrolling */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}

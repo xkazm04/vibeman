@@ -17,20 +17,20 @@ let db: Database.Database | null = null;
 function getDatabase(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH);
-    
+
     // Enable WAL mode for better concurrent access
     db.pragma('journal_mode = WAL');
-    
+
     // Initialize tables
     initializeTables();
   }
-  
+
   return db;
 }
 
 function initializeTables() {
   if (!db) return;
-  
+
   // Create goals table
   db.exec(`
     CREATE TABLE IF NOT EXISTS goals (
@@ -39,12 +39,12 @@ function initializeTables() {
       order_index INTEGER NOT NULL,
       title TEXT NOT NULL,
       description TEXT,
-      status TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'done')),
+      status TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'done', 'rejected', 'undecided')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
-  
+
   // Create backlog_items table
   db.exec(`
     CREATE TABLE IF NOT EXISTS backlog_items (
@@ -64,7 +64,7 @@ function initializeTables() {
       FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
     );
   `);
-  
+
   // Create context_groups table
   db.exec(`
     CREATE TABLE IF NOT EXISTS context_groups (
@@ -77,7 +77,7 @@ function initializeTables() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
-  
+
   // Create contexts table
   db.exec(`
     CREATE TABLE IF NOT EXISTS contexts (
@@ -94,7 +94,7 @@ function initializeTables() {
       FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE CASCADE
     );
   `);
-  
+
   // Create events table
   db.exec(`
     CREATE TABLE IF NOT EXISTS events (
@@ -157,6 +157,80 @@ function runMigrations() {
       db.exec(`ALTER TABLE contexts ADD COLUMN context_file_path TEXT`);
     }
 
+    // Check if goals table needs status constraint update
+    try {
+      // Try to insert a test record with 'undecided' status to check if constraint allows it
+      const testId = 'migration-test-' + Date.now();
+      const testStmt = db.prepare(`
+        INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      try {
+        testStmt.run(testId, 'test-project', 1, 'Test Goal', 'Test Description', 'undecided', new Date().toISOString(), new Date().toISOString());
+        
+        // If successful, clean up the test record
+        const deleteStmt = db.prepare('DELETE FROM goals WHERE id = ?');
+        deleteStmt.run(testId);
+        
+        console.log('Goals table already supports new status values');
+      } catch (constraintError) {
+        console.log('Goals table needs status constraint migration, recreating table...');
+        
+        // Backup existing goals
+        const existingGoals = db.prepare('SELECT * FROM goals').all();
+        
+        // Drop and recreate the goals table with updated constraint
+        db.exec('DROP TABLE IF EXISTS goals_backup');
+        db.exec(`
+          CREATE TABLE goals_backup AS SELECT * FROM goals
+        `);
+        
+        db.exec('DROP TABLE goals');
+        
+        db.exec(`
+          CREATE TABLE goals (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            order_index INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            status TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'done', 'rejected', 'undecided')),
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          )
+        `);
+        
+        // Restore data
+        if (existingGoals.length > 0) {
+          const insertStmt = db.prepare(`
+            INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          
+          for (const goal of existingGoals) {
+            insertStmt.run(
+              goal.id,
+              goal.project_id,
+              goal.order_index,
+              goal.title,
+              goal.description,
+              goal.status,
+              goal.created_at,
+              goal.updated_at
+            );
+          }
+        }
+        
+        // Clean up backup table
+        db.exec('DROP TABLE goals_backup');
+        
+        console.log('Goals table migration completed successfully');
+      }
+    } catch (migrationError) {
+      console.error('Error during goals table migration:', migrationError);
+    }
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -172,7 +246,7 @@ export interface DbGoal {
   order_index: number;
   title: string;
   description: string | null;
-  status: 'open' | 'in_progress' | 'done';
+  status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
   created_at: string;
   updated_at: string;
 }
@@ -195,17 +269,17 @@ export const goalDb = {
     project_id: string;
     title: string;
     description?: string;
-    status: 'open' | 'in_progress' | 'done';
+    status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     order_index: number;
   }): DbGoal => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     const stmt = db.prepare(`
       INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       goal.id,
       goal.project_id,
@@ -216,7 +290,7 @@ export const goalDb = {
       now,
       now
     );
-    
+
     // Return the created goal
     const selectStmt = db.prepare('SELECT * FROM goals WHERE id = ?');
     return selectStmt.get(goal.id) as DbGoal;
@@ -226,16 +300,16 @@ export const goalDb = {
   updateGoal: (id: string, updates: {
     title?: string;
     description?: string;
-    status?: 'open' | 'in_progress' | 'done';
+    status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     order_index?: number;
   }): DbGoal | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     // Build dynamic update query
     const updateFields: string[] = [];
     const values: any[] = [];
-    
+
     if (updates.title !== undefined) {
       updateFields.push('title = ?');
       values.push(updates.title);
@@ -252,29 +326,29 @@ export const goalDb = {
       updateFields.push('order_index = ?');
       values.push(updates.order_index);
     }
-    
+
     if (updateFields.length === 0) {
       // No updates to make
       const selectStmt = db.prepare('SELECT * FROM goals WHERE id = ?');
       return selectStmt.get(id) as DbGoal | null;
     }
-    
+
     updateFields.push('updated_at = ?');
     values.push(now);
     values.push(id);
-    
+
     const stmt = db.prepare(`
       UPDATE goals 
       SET ${updateFields.join(', ')} 
       WHERE id = ?
     `);
-    
+
     const result = stmt.run(...values);
-    
+
     if (result.changes === 0) {
       return null; // Goal not found
     }
-    
+
     // Return the updated goal
     const selectStmt = db.prepare('SELECT * FROM goals WHERE id = ?');
     return selectStmt.get(id) as DbGoal;
@@ -352,7 +426,7 @@ export const backlogDb = {
   }): DbBacklogItem => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     const stmt = db.prepare(`
       INSERT INTO backlog_items (
         id, project_id, goal_id, agent, title, description, 
@@ -360,7 +434,7 @@ export const backlogDb = {
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       item.id,
       item.project_id,
@@ -374,7 +448,7 @@ export const backlogDb = {
       now,
       now
     );
-    
+
     // Return the created item
     const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
     return selectStmt.get(item.id) as DbBacklogItem;
@@ -390,15 +464,15 @@ export const backlogDb = {
   }): DbBacklogItem | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     // Build dynamic update query
     const updateFields: string[] = [];
     const values: any[] = [];
-    
+
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
       values.push(updates.status);
-      
+
       // Set accepted_at or rejected_at based on status
       if (updates.status === 'accepted') {
         updateFields.push('accepted_at = ?');
@@ -424,29 +498,29 @@ export const backlogDb = {
       updateFields.push('impacted_files = ?');
       values.push(updates.impacted_files ? JSON.stringify(updates.impacted_files) : null);
     }
-    
+
     if (updateFields.length === 0) {
       // No updates to make
       const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
       return selectStmt.get(id) as DbBacklogItem | null;
     }
-    
+
     updateFields.push('updated_at = ?');
     values.push(now);
     values.push(id);
-    
+
     const stmt = db.prepare(`
       UPDATE backlog_items 
       SET ${updateFields.join(', ')} 
       WHERE id = ?
     `);
-    
+
     const result = stmt.run(...values);
-    
+
     if (result.changes === 0) {
       return null; // Item not found
     }
-    
+
     // Return the updated item
     const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
     return selectStmt.get(id) as DbBacklogItem;
@@ -502,12 +576,12 @@ export const contextGroupDb = {
   }): DbContextGroup => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     const stmt = db.prepare(`
       INSERT INTO context_groups (id, project_id, name, color, position, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       group.id,
       group.project_id,
@@ -517,7 +591,7 @@ export const contextGroupDb = {
       now,
       now
     );
-    
+
     // Return the created group
     const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
     return selectStmt.get(group.id) as DbContextGroup;
@@ -531,11 +605,11 @@ export const contextGroupDb = {
   }): DbContextGroup | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     // Build dynamic update query
     const updateFields: string[] = [];
     const values: any[] = [];
-    
+
     if (updates.name !== undefined) {
       updateFields.push('name = ?');
       values.push(updates.name);
@@ -548,29 +622,29 @@ export const contextGroupDb = {
       updateFields.push('position = ?');
       values.push(updates.position);
     }
-    
+
     if (updateFields.length === 0) {
       // No updates to make
       const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
       return selectStmt.get(id) as DbContextGroup | null;
     }
-    
+
     updateFields.push('updated_at = ?');
     values.push(now);
     values.push(id);
-    
+
     const stmt = db.prepare(`
       UPDATE context_groups 
       SET ${updateFields.join(', ')} 
       WHERE id = ?
     `);
-    
+
     const result = stmt.run(...values);
-    
+
     if (result.changes === 0) {
       return null; // Group not found
     }
-    
+
     // Return the updated group
     const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
     return selectStmt.get(id) as DbContextGroup;
@@ -667,12 +741,12 @@ export const contextDb = {
   }): DbContext => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     const stmt = db.prepare(`
       INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       context.id,
       context.project_id,
@@ -685,7 +759,7 @@ export const contextDb = {
       now,
       now
     );
-    
+
     // Return the created context
     const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
     return selectStmt.get(context.id) as DbContext;
@@ -702,11 +776,11 @@ export const contextDb = {
   }): DbContext | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     // Build dynamic update query
     const updateFields: string[] = [];
     const values: any[] = [];
-    
+
     if (updates.name !== undefined) {
       updateFields.push('name = ?');
       values.push(updates.name);
@@ -731,29 +805,29 @@ export const contextDb = {
       updateFields.push('context_file_path = ?');
       values.push(updates.context_file_path);
     }
-    
+
     if (updateFields.length === 0) {
       // No updates to make
       const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
       return selectStmt.get(id) as DbContext | null;
     }
-    
+
     updateFields.push('updated_at = ?');
     values.push(now);
     values.push(id);
-    
+
     const stmt = db.prepare(`
       UPDATE contexts 
       SET ${updateFields.join(', ')} 
       WHERE id = ?
     `);
-    
+
     const result = stmt.run(...values);
-    
+
     if (result.changes === 0) {
       return null; // Context not found
     }
-    
+
     // Return the updated context
     const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
     return selectStmt.get(id) as DbContext;
@@ -830,12 +904,12 @@ export const eventDb = {
   }): DbEvent => {
     const db = getDatabase();
     const now = new Date().toISOString();
-    
+
     const stmt = db.prepare(`
       INSERT INTO events (id, project_id, title, description, type, agent, message, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       event.id,
       event.project_id,
@@ -846,7 +920,7 @@ export const eventDb = {
       event.message || null,
       now
     );
-    
+
     // Return the created event
     const selectStmt = db.prepare('SELECT * FROM events WHERE id = ?');
     return selectStmt.get(event.id) as DbEvent;
@@ -889,6 +963,8 @@ export const eventDb = {
     }
   }
 };
+
+// Project operations have been moved to project_database.ts
 
 // Cleanup on process exit
 process.on('exit', () => {

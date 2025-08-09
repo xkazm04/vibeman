@@ -34,8 +34,8 @@ class ProcessManager {
   private async detectExistingProcesses(): Promise<void> {
     try {
       // Import dynamically to avoid circular dependency
-      const { projectService } = await import('./projectService');
-      const projects = await projectService.getAllProjects();
+      const { projectServiceDb } = await import('./projectServiceDb');
+      const projects = await projectServiceDb.getAllProjects();
       console.log('Checking for existing processes for projects:', projects.map((p: any) => `${p.name}:${p.port}`));
       
       for (const project of projects) {

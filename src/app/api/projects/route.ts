@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { projectService } from '@/lib/projectService';
+import { projectServiceDb } from '@/lib/projectServiceDb';
 
 // GET /api/projects - Get all projects
 export async function GET() {
   try {
-    const projects = await projectService.getAllProjects();
+    const projects = await projectServiceDb.getAllProjects();
     return NextResponse.json({ projects });
   } catch (error) {
     console.error('Projects API GET error:', error);
@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const project = await request.json();
-    
+
     // Validate required fields
     if (!project.id || !project.name || !project.path || !project.port) {
       return NextResponse.json(
@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    await projectService.addProject(project);
-    
+
+    await projectServiceDb.addProject(project);
+
     return NextResponse.json({
       success: true,
       message: 'Project added successfully'
@@ -47,16 +47,16 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { projectId, updates } = await request.json();
-    
+
     if (!projectId) {
       return NextResponse.json(
         { error: 'Missing projectId' },
         { status: 400 }
       );
     }
-    
-    await projectService.updateProject(projectId, updates);
-    
+
+    await projectServiceDb.updateProject(projectId, updates);
+
     return NextResponse.json({
       success: true,
       message: 'Project updated successfully'
@@ -74,16 +74,16 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { projectId } = await request.json();
-    
+
     if (!projectId) {
       return NextResponse.json(
         { error: 'Missing projectId' },
         { status: 400 }
       );
     }
-    
-    await projectService.removeProject(projectId);
-    
+
+    await projectServiceDb.removeProject(projectId);
+
     return NextResponse.json({
       success: true,
       message: 'Project removed successfully'

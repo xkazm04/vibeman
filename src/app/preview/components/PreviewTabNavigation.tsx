@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { TestTubeDiagonal } from 'lucide-react';
 import { Project } from '@/types';
-import { PreviewTab } from './PreviewTab';
 
 interface PreviewTabNavigationProps {
   projects: Project[];
@@ -23,18 +22,6 @@ export const PreviewTabNavigation: React.FC<PreviewTabNavigationProps> = ({
     <div className="bg-gray-900/50 border-b border-gray-800 px-4 flex-shrink-0">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
-          <div className="flex space-x-1 overflow-hidden">
-            {projects.map((project, index) => (
-              <PreviewTab
-                key={project.id || `project-${index}`}
-                project={project}
-                isActive={!prototypeMode && selectedTab === project.id}
-                onTabClick={onTabClick}
-                disabled={prototypeMode}
-              />
-            ))}
-          </div>
-          
           {/* Enhanced Prototype Mode Button */}
           <motion.button
             onClick={onTogglePrototypeMode}

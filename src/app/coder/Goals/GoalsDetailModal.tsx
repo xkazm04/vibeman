@@ -62,6 +62,30 @@ export default function GoalsDetailModal({
       case 'open':
         return {
           text: 'Open',
+          color: 'text-blue-400',
+          bgColor: 'bg-blue-500/20',
+          borderColor: 'border-blue-500/30',
+          icon: Circle
+        };
+      case 'undecided':
+        return {
+          text: 'Undecided',
+          color: 'text-purple-400',
+          bgColor: 'bg-purple-500/20',
+          borderColor: 'border-purple-500/30',
+          icon: Circle
+        };
+      case 'rejected':
+        return {
+          text: 'Rejected',
+          color: 'text-red-400',
+          bgColor: 'bg-red-500/20',
+          borderColor: 'border-red-500/30',
+          icon: Circle
+        };
+      default:
+        return {
+          text: 'Unknown',
           color: 'text-gray-400',
           bgColor: 'bg-gray-500/20',
           borderColor: 'border-gray-500/30',
@@ -172,6 +196,8 @@ export default function GoalsDetailModal({
                 <option value="open">Open</option>
                 <option value="in_progress">In Progress</option>
                 <option value="done">Done</option>
+                <option value="undecided">Undecided</option>
+                <option value="rejected">Rejected</option>
               </select>
             ) : (
               <div className="flex items-center space-x-2 px-4 py-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
@@ -181,6 +207,33 @@ export default function GoalsDetailModal({
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Metadata Section */}
+          <div>
+            <h3 className="text-lg font-medium text-white mb-3 tracking-wide">Metadata</h3>
+            <div className="space-y-3 px-4 py-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-400">Order:</span>
+                <span className="text-sm text-slate-200">#{editedGoal.order}</span>
+              </div>
+              {editedGoal.created_at && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-400">Created:</span>
+                  <span className="text-sm text-slate-200">
+                    {new Date(editedGoal.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+              {editedGoal.updated_at && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-400">Updated:</span>
+                  <span className="text-sm text-slate-200">
+                    {new Date(editedGoal.updated_at).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Error Message */}

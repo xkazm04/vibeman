@@ -2,14 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import GoalsTimeline from './GoalsTimeline';
-import GoalsActions from './GoalsActions';
+import ProjectsLayout from '../../projects/ProjectsLayout';
 import GoalsAddModal from './GoalsAddModal';
-import GoalsDetailModal from './GoalsDetailModal';
+import GoalsDetailModal from './GoalsDetailModal_Glass';
 import { Goal } from '../../../types';
 import { useGoals } from '../../../hooks/useGoals';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useAnalysisStore } from '../../../stores/analysisStore';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
+import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
 import { useStore } from '../../../stores/nodeStore';
 import AnalysisClient from '../../../lib/analysisClient';
 import GoalsTitle from './GoalsTitle';
@@ -20,10 +21,10 @@ export default function GoalsLayout() {
   const { startAnalysis, isActive } = useAnalysisStore();
   const { getProject } = useProjectConfigStore();
   const { getSelectedFilePaths } = useStore();
-  
+  const { showAddGoal, setShowAddGoal, setSelectedGoal: setToolbarSelectedGoal } = useProjectsToolbarStore();
+
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Set initial selected goal when goals are loaded
@@ -34,6 +35,13 @@ export default function GoalsLayout() {
       setSelectedGoal(inProgressGoal || firstGoal);
     }
   }, [goals, selectedGoal]);
+
+  // Sync selected goal with toolbar store
+  useEffect(() => {
+    if (selectedGoal) {
+      setToolbarSelectedGoal(selectedGoal);
+    }
+  }, [selectedGoal, setToolbarSelectedGoal]);
 
   // Update selected goal when goals array changes (after updates)
   useEffect(() => {
@@ -66,28 +74,27 @@ export default function GoalsLayout() {
     }
   };
 
-  const handleAddGoal = () => {
-    setIsAddModalOpen(true);
-  };
+  // This function is no longer needed as the button is in ProjectsLayout
+  // The modal state is managed by the toolbar store
 
   const handleAnalyzeGoal = async () => {
     if (!selectedGoal || !activeProject) return;
-    
+
     const project = getProject(activeProject.id);
     if (!project?.git?.repository) {
       console.error('No repository URL found for project');
       return;
     }
-    
+
     // Get selected file paths from the current project
     const impactedFiles = getSelectedFilePaths(fileStructure, activeProject.id);
-    
+
     // Start analysis state with project ID
     startAnalysis(selectedGoal.id, activeProject.id);
-    
+
     // Trigger n8n webhook
     try {
-      console.log('impactedFiles', impactedFiles);  
+      console.log('impactedFiles', impactedFiles);
       const response = await AnalysisClient.triggerAnalysis({
         repository: project.git.repository,
         goal: selectedGoal.title,
@@ -97,7 +104,7 @@ export default function GoalsLayout() {
         projectId: activeProject.id,
         impactedFiles: impactedFiles.length > 0 ? impactedFiles : undefined
       });
-      
+
       if (!response.success) {
         console.error('Analysis failed:', response.error);
       } else {
@@ -113,17 +120,17 @@ export default function GoalsLayout() {
 
   const handleAddNewGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
     if (!activeProject) return;
-    
+
     const maxOrder = Math.max(...goals.map(g => g.order), 0);
-    const goalWithOrder = { 
-      ...newGoal, 
+    const goalWithOrder = {
+      ...newGoal,
       projectId: activeProject.id,
-      order: maxOrder + 1 
+      order: maxOrder + 1
     };
-    
+
     const createdGoal = await createGoal(goalWithOrder);
     if (createdGoal) {
-      setIsAddModalOpen(false);
+      setShowAddGoal(false);
     }
   };
 
@@ -149,42 +156,31 @@ export default function GoalsLayout() {
 
   return (
     <>
+      {/* Unified Projects Toolbar */}
+      <ProjectsLayout
+        selectedGoal={selectedGoal}
+        onAnalyzeGoal={handleAnalyzeGoal}
+        onRefreshGoals={fetchGoals}
+      />
+      {selectedGoal && <GoalsTitle
+        selectedGoal={selectedGoal}
+        isTransitioning={isTransitioning}
+        handleGoalDetailClick={handleGoalDetailClick}
+      />}
+      {/* Goals-specific content below the toolbar */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`w-full py-1 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 ${
-          isActive ? 'shadow-lg shadow-purple-500/20' : ''
-        }`}
+        className="w-full py-2 bg-gradient-to-r from-gray-800/50 via-gray-700/50 to-gray-800/50 backdrop-blur-xl border-b border-gray-600/30"
       >
-        <div className="h-full w-full flex items-center justify-between px-6">
-          {/* Timeline on the left */}
-          <div className="flex-shrink-0">
-            <GoalsTimeline 
-              goals={goals}
-              selectedGoal={selectedGoal}
-              onGoalSelect={handleTimelineGoalSelect}
-            />
-          </div>
-
-          {/* Goal title in the center */}
-          {selectedGoal && <GoalsTitle
-            selectedGoal={selectedGoal}
-            isTransitioning={isTransitioning}
-            handleGoalDetailClick={handleGoalDetailClick}
-          />}
-
-          {/* Actions on the right */}
-          <div className="flex-shrink-0">
-            <GoalsActions
-              selectedGoal={selectedGoal}
-              onAddGoal={handleAddGoal}
-              onAnalyzeGoal={handleAnalyzeGoal}
-              onRefresh={fetchGoals}
-            />
-          </div>
-        </div>
+        <GoalsTimeline
+          goals={goals}
+          selectedGoal={selectedGoal}
+          onGoalSelect={handleTimelineGoalSelect}
+        />
       </motion.div>
+
 
       {/* Goal Detail Modal */}
       <GoalsDetailModal
@@ -197,8 +193,8 @@ export default function GoalsLayout() {
 
       {/* Add Goal Modal */}
       <GoalsAddModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        isOpen={showAddGoal}
+        onClose={() => setShowAddGoal(false)}
         onSubmit={handleAddNewGoal}
       />
     </>

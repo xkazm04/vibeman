@@ -13,7 +13,7 @@ interface DbGoal {
   order_index: number;
   title: string;
   description: string | null;
-  status: 'open' | 'in_progress' | 'done';
+  status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
   created_at: string;
   updated_at: string;
 }
@@ -54,7 +54,7 @@ export const goalApi = {
     projectId: string;
     title: string;
     description?: string;
-    status?: 'open' | 'in_progress' | 'done';
+    status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     orderIndex?: number;
   }): Promise<Goal> => {
     const response = await fetch('/api/goals', {
@@ -84,7 +84,7 @@ export const goalApi = {
     id: string;
     title?: string;
     description?: string;
-    status?: 'open' | 'in_progress' | 'done';
+    status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     orderIndex?: number;
   }): Promise<Goal> => {
     const response = await fetch('/api/goals', {

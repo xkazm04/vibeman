@@ -13,7 +13,7 @@ interface GoalsTimelineProps {
 
 export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: GoalsTimelineProps) {
   const [slideOffset, setSlideOffset] = useState(0);
-  const MAX_VISIBLE_GOALS = 5;
+  const MAX_VISIBLE_GOALS = 10;
   const GOAL_WIDTH = 80; // Width of each goal including spacing (64px spacing + 16px dot)
   const TIMELINE_WIDTH = MAX_VISIBLE_GOALS * GOAL_WIDTH; // Fixed width for visible area
   
