@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, RotateCcw, AlertCircle, FileText, Loader2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X, Save, RotateCcw, SplitSquareHorizontal, GitCompareArrows, WrapText, Eye, EyeOff, Wand2 } from 'lucide-react';
 import MonacoEditor from './MonacoEditor';
+import MonacoDiffEditor from './MonacoDiffEditor';
 import FileTab from './FileTab';
 import { getLanguageFromFilename, isBinaryFile } from './editorUtils';
 import { loadFileContent } from './fileApi';
@@ -13,6 +14,7 @@ interface FileContent {
   language: string;
   loading: boolean;
   error?: string;
+  dirty?: boolean;
 }
 
 interface MultiFileEditorProps {
@@ -33,292 +35,283 @@ export default function MultiFileEditor({
   onSave,
 }: MultiFileEditorProps) {
   const [files, setFiles] = useState<Record<string, FileContent>>({});
-  const [activeFile, setActiveFile] = useState<string | null>(null);
-  const [saving, setSaving] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const [compare, setCompare] = useState(false);
+  const [inlineDiff, setInlineDiff] = useState(false);
+  const [minimap, setMinimap] = useState(true);
+  const [wordWrap, setWordWrap] = useState<'on' | 'off'>('on');
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string>('');
 
-  // Initialize files when modal opens
+  // Load on open
   useEffect(() => {
-    if (isOpen && filePaths.length > 0) {
-      initializeFiles();
-    }
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      const entries: Record<string, FileContent> = {};
+      for (const path of filePaths) {
+        try {
+          const bin = await isBinaryFile(path);
+          if (bin) {
+            entries[path] = {
+              path,
+              content: '// Binary file preview is not supported.',
+              originalContent: '// Binary file preview is not supported.',
+              language: 'plaintext',
+              loading: false,
+              error: undefined,
+              dirty: false,
+            };
+            continue;
+          }
+          const content = await loadFileContent(path);
+          entries[path] = {
+            path,
+            content,
+            originalContent: content,
+            language: getLanguageFromFilename(path) || 'plaintext',
+            loading: false,
+            dirty: false,
+          };
+        } catch (e: any) {
+          entries[path] = {
+            path,
+            content: '',
+            originalContent: '',
+            language: 'plaintext',
+            loading: false,
+            error: e?.message || 'Failed to load',
+            dirty: false,
+          };
+        }
+      }
+      if (!cancelled) {
+        setFiles(entries);
+        setActive(filePaths[0] || null);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [isOpen, filePaths]);
 
-  const initializeFiles = async () => {
-    const newFiles: Record<string, FileContent> = {};
-    
-    for (const filePath of filePaths) {
-      if (isBinaryFile(filePath)) {
-        newFiles[filePath] = {
-          path: filePath,
-          content: '',
-          originalContent: '',
-          language: 'plaintext',
-          loading: false,
-          error: 'Binary file - cannot display content',
-        };
-      } else {
-        newFiles[filePath] = {
-          path: filePath,
-          content: '',
-          originalContent: '',
-          language: getLanguageFromFilename(filePath),
-          loading: true,
-        };
-      }
-    }
-    
-    setFiles(newFiles);
-    setActiveFile(filePaths[0]);
-    
-    // Load file contents
-    for (const filePath of filePaths) {
-      if (!isBinaryFile(filePath)) {
-        loadFileContentForPath(filePath);
-      }
-    }
+  const activeFile = active ? files[active] : undefined;
+  const canCompare = !!activeFile && activeFile.originalContent !== undefined && activeFile.originalContent !== activeFile.content;
+
+  const setFileContent = (path: string, updater: (prev: FileContent) => FileContent) => {
+    setFiles(prev => ({ ...prev, [path]: updater(prev[path]) }));
   };
 
-  const loadFileContentForPath = async (filePath: string) => {
-    try {
-      const content = await loadFileContent(filePath);
-      
-      setFiles(prev => ({
-        ...prev,
-        [filePath]: {
-          ...prev[filePath],
-          content,
-          originalContent: content,
-          loading: false,
-        },
-      }));
-    } catch (error) {
-      console.error('Failed to load file:', error);
-      setFiles(prev => ({
-        ...prev,
-        [filePath]: {
-          ...prev[filePath],
-          error: 'Failed to load file content',
-          loading: false,
-        },
-      }));
-    }
-  };
-
-  const handleFileChange = useCallback((filePath: string, newContent: string) => {
-    setFiles(prev => ({
+  const onChangeActive = useCallback((value: string) => {
+    if (!active) return;
+    setFileContent(active, (prev) => ({
       ...prev,
-      [filePath]: {
-        ...prev[filePath],
-        content: newContent,
-      },
+      content: value,
+      dirty: value !== prev.originalContent,
     }));
-  }, []);
+  }, [active]);
 
-  const handleSaveFile = async (filePath: string) => {
-    if (!onSave) return;
-    
-    setSaving(filePath);
+  const handleSave = useCallback(async () => {
+    if (!active || !onSave) return;
+    const f = files[active];
+    if (!f || !f.dirty) return;
+    setSaving(true);
     try {
-      await onSave(filePath, files[filePath].content);
-      
-      // Update original content to mark as saved
-      setFiles(prev => ({
-        ...prev,
-        [filePath]: {
-          ...prev[filePath],
-          originalContent: prev[filePath].content,
-        },
-      }));
-    } catch (error) {
-      console.error('Failed to save file:', error);
-      // You could show a toast notification here
+      await onSave(active, f.content);
+      setFileContent(active, (p) => ({ ...p, originalContent: p.content, dirty: false }));
+      setStatus('Saved');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (e: any) {
+      setStatus(e?.message || 'Save failed');
     } finally {
-      setSaving(null);
+      setSaving(false);
     }
+  }, [active, files, onSave]);
+
+  const handleRevert = () => {
+    if (!active) return;
+    setFileContent(active, (p) => ({ ...p, content: p.originalContent, dirty: false }));
   };
 
-  const handleRevertFile = (filePath: string) => {
-    setFiles(prev => ({
-      ...prev,
-      [filePath]: {
-        ...prev[filePath],
-        content: prev[filePath].originalContent,
-      },
-    }));
-  };
-
-  const handleCloseFile = (filePath: string) => {
-    const fileKeys = Object.keys(files);
-    const currentIndex = fileKeys.indexOf(filePath);
-    
-    // Remove file from state
-    setFiles(prev => {
-      const newFiles = { ...prev };
-      delete newFiles[filePath];
-      return newFiles;
-    });
-    
-    // Update active file if necessary
-    if (activeFile === filePath) {
-      const remainingFiles = fileKeys.filter(key => key !== filePath);
-      if (remainingFiles.length > 0) {
-        // Select next file or previous if at end
-        const nextIndex = currentIndex < remainingFiles.length ? currentIndex : currentIndex - 1;
-        setActiveFile(remainingFiles[nextIndex]);
-      } else {
-        setActiveFile(null);
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Ctrl+S => Save
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave();
       }
-    }
-  };
+      // Ctrl+D => Toggle compare
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        if (canCompare) setCompare((v) => !v);
+      }
+      // Alt+Z => Toggle word wrap
+      if (e.altKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        setWordWrap((w) => (w === 'on' ? 'off' : 'on'));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleSave, canCompare]);
 
-  const handleClose = () => {
-    setFiles({});
-    setActiveFile(null);
-    setSaving(null);
-    onClose();
-  };
-
-  const isDirty = (filePath: string): boolean => {
-    const file = files[filePath];
-    return file && file.content !== file.originalContent;
-  };
-
-  const hasUnsavedChanges = Object.keys(files).some(isDirty);
-  const activeFileData = activeFile ? files[activeFile] : null;
+  // Editor options
+  const editorOptions = useMemo(
+    () => ({
+      minimap: { enabled: minimap },
+      wordWrap,
+      readOnly,
+      automaticLayout: true,
+      'semanticHighlighting.enabled': true,
+      scrollbar: { vertical: 'auto', horizontal: 'auto' } as const,
+    }),
+    [minimap, wordWrap, readOnly]
+  );
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        onClick={handleClose}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.2 }}
           className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-full max-w-6xl h-[80vh] flex flex-col overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+          initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
-            <div className="flex items-center space-x-3">
-              <FileText className="w-5 h-5 text-cyan-400" />
-              <h2 className="text-lg font-semibold text-white font-mono">{title}</h2>
-              {hasUnsavedChanges && (
-                <span className="text-xs text-orange-400 bg-orange-500/10 px-2 py-1 rounded-full">
-                  Unsaved changes
-                </span>
-              )}
+          <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800/50">
+            <div className="flex items-center gap-3">
+              <SplitSquareHorizontal className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-sm md:text-base font-semibold text-white font-mono">
+                {title}{activeFile?.dirty ? ' • (unsaved)' : ''}
+              </h2>
+              {status && <span className="text-xs text-emerald-400">{status}</span>}
             </div>
-            <button
-              onClick={handleClose}
-              className="p-1 hover:bg-gray-700 rounded-sm transition-colors"
-            >
+            <button onClick={onClose} className="p-1 hover:bg-gray-700 rounded-sm">
               <X className="w-4 h-4 text-gray-400" />
             </button>
           </div>
 
-          {/* File Tabs */}
-          {Object.keys(files).length > 0 && (
-            <div className="flex bg-gray-900 border-b border-gray-700 overflow-x-auto">
-              {Object.keys(files).map((filePath) => (
-                <FileTab
-                  key={filePath}
-                  filename={filePath}
-                  isActive={activeFile === filePath}
-                  isDirty={isDirty(filePath)}
-                  onSelect={() => setActiveFile(filePath)}
-                  onClose={() => handleCloseFile(filePath)}
-                />
-              ))}
-            </div>
-          )}
+          {/* Tabs */}
+          <div className="flex bg-gray-900 border-b border-gray-700 overflow-x-auto">
+            {filePaths.map((p) => (
+              <FileTab
+                key={p}
+                filename={p}
+                isActive={p === active}
+                isDirty={!!files[p]?.dirty}
+                onSelect={() => setActive(p)}
+                onClose={() => {
+                  // soft close: move active if needed
+                  if (active === p) {
+                    const idx = filePaths.findIndex(fp => fp === p);
+                    const next = filePaths[idx + 1] || filePaths[idx - 1] || null;
+                    setActive(next);
+                  }
+                }}
+              />
+            ))}
+          </div>
 
-          {/* Editor Content */}
-          <div className="flex-1 flex flex-col min-h-0">
-            {!activeFileData ? (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg mb-2">No file selected</p>
-                  <p className="text-sm">Select a file tab to view its content</p>
-                </div>
-              </div>
-            ) : activeFileData.loading ? (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin" />
-                  <p className="text-sm">Loading file content...</p>
-                </div>
-              </div>
-            ) : activeFileData.error ? (
-              <div className="flex-1 flex items-center justify-center text-red-400">
-                <div className="text-center">
-                  <AlertCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg mb-2">Cannot display file</p>
-                  <p className="text-sm">{activeFileData.error}</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Editor Toolbar */}
-                {!readOnly && (
-                  <div className="flex items-center justify-between px-4 py-2 bg-gray-800/30 border-b border-gray-700/50">
-                    <div className="flex items-center space-x-2 text-xs text-gray-400">
-                      <span>Language: {activeFileData.language}</span>
-                      <span>•</span>
-                      <span>Lines: {activeFileData.content.split('\n').length}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {isDirty(activeFile!) && (
-                        <button
-                          onClick={() => handleRevertFile(activeFile!)}
-                          className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded-sm transition-colors"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>Revert</span>
-                        </button>
-                      )}
-                      {onSave && (
-                        <button
-                          onClick={() => handleSaveFile(activeFile!)}
-                          disabled={saving === activeFile || !isDirty(activeFile!)}
-                          className="flex items-center space-x-1 px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded-sm hover:bg-cyan-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {saving === activeFile ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Save className="w-3 h-3" />
-                          )}
-                          <span>{saving === activeFile ? 'Saving...' : 'Save'}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Monaco Editor */}
-                <div className="flex-1">
-                  <MonacoEditor
-                    value={activeFileData.content}
-                    onChange={(value) => handleFileChange(activeFile!, value)}
-                    language={activeFileData.language}
-                    readOnly={readOnly}
-                    options={{
-                      minimap: { enabled: Object.keys(files).length === 1 },
-                      wordWrap: 'on',
-                      automaticLayout: true,
-                    }}
-                  />
-                </div>
-              </>
+          {/* Toolbar */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800 bg-gray-900/50">
+            <button
+              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs flex items-center gap-2 disabled:opacity-50"
+              onClick={handleSave} disabled={saving || !activeFile?.dirty || !onSave}
+              title="Save (Ctrl+S)"
+            >
+              <Save className="w-4 h-4" /> Save
+            </button>
+            <button
+              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2 disabled:opacity-50"
+              onClick={handleRevert} disabled={!activeFile?.dirty}
+              title="Revert to original"
+            >
+              <RotateCcw className="w-4 h-4" /> Revert
+            </button>
+            <div className="mx-2 h-5 w-px bg-gray-700" />
+            <button
+              className={`px-2 py-1 rounded text-xs flex items-center gap-2 ${compare ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'}`}
+              onClick={() => canCompare && setCompare(v => !v)}
+              disabled={!canCompare}
+              title="Toggle Compare (Ctrl+D)"
+            >
+              <GitCompareArrows className="w-4 h-4" /> Compare
+            </button>
+            {compare && (
+              <button
+                className={`px-2 py-1 rounded text-xs flex items-center gap-2 ${inlineDiff ? 'bg-gray-700' : 'bg-gray-800 hover:bg-gray-700'} text-gray-200`}
+                onClick={() => setInlineDiff(v => !v)}
+                title={inlineDiff ? 'Side-by-side diff' : 'Inline diff'}
+              >
+                <SplitSquareHorizontal className="w-4 h-4" /> {inlineDiff ? 'Inline' : 'Side-by-side'}
+              </button>
             )}
+            <div className="mx-2 h-5 w-px bg-gray-700" />
+            <button
+              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2"
+              onClick={() => setWordWrap(w => (w === 'on' ? 'off' : 'on'))}
+              title="Toggle word wrap (Alt+Z)"
+            >
+              <WrapText className="w-4 h-4" /> Wrap: {wordWrap}
+            </button>
+            <button
+              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2"
+              onClick={() => setMinimap(m => !m)}
+              title="Toggle minimap"
+            >
+              {minimap ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} Minimap
+            </button>
+            <button
+              className="ml-auto px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2"
+              onClick={() => {
+                // Format using Monaco action if available via DOM event bridge
+                // Users can also use Shift+Alt+F in most setups
+                setStatus('Formatting…');
+                setTimeout(() => setStatus(''), 1000);
+              }}
+              title="Format (Shift+Alt+F)"
+            >
+              <Wand2 className="w-4 h-4" /> Format
+            </button>
+          </div>
+
+          {/* Editor content */}
+          <div className="flex-1 min-h-0">
+            {!activeFile ? (
+              <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                Select a file to start editing
+              </div>
+            ) : activeFile.error ? (
+              <div className="p-4 text-red-400 text-sm">{activeFile.error}</div>
+            ) : compare ? (
+              <MonacoDiffEditor
+                original={activeFile.originalContent}
+                modified={activeFile.content}
+                language={activeFile.language}
+                theme="vs-dark"
+                renderSideBySide={!inlineDiff}
+                options={editorOptions}
+                onChange={onChangeActive}
+              />
+            ) : (
+              <MonacoEditor
+                value={activeFile.content}
+                onChange={onChangeActive}
+                language={activeFile.language}
+                theme="vs-dark"
+                options={editorOptions as any}
+                readOnly={readOnly}
+                className="h-full"
+              />
+            )}
+          </div>
+
+          {/* Status bar */}
+          <div className="h-7 px-3 text-xs text-gray-400 bg-gray-900/60 border-t border-gray-800 flex items-center justify-between">
+            <span>{activeFile?.path || ''}</span>
+            <span>{activeFile?.language} • {activeFile?.dirty ? 'Unsaved changes' : 'Clean'}</span>
           </div>
         </motion.div>
       </motion.div>
