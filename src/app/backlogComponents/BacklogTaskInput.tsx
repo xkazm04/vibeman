@@ -83,18 +83,18 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
   const getStatusInfo = () => {
     if (mode === 'context') {
       if (selectedContexts.length === 0) {
-        return { text: 'Select context files', color: 'text-yellow-400' };
+        return { text: 'Select contexts', color: 'text-yellow-400' };
       }
       return { 
-        text: `${selectedContexts.length} context${selectedContexts.length === 1 ? '' : 's'} selected`, 
+        text: `${selectedContexts.length} context${selectedContexts.length === 1 ? '' : 's'}`, 
         color: 'text-green-400' 
       };
     } else {
       if (selectedFilePaths.length === 0) {
-        return { text: 'Select files from tree', color: 'text-yellow-400' };
+        return { text: 'Select files', color: 'text-yellow-400' };
       }
       return { 
-        text: `${selectedFilePaths.length} file${selectedFilePaths.length === 1 ? '' : 's'} selected`, 
+        text: `${selectedFilePaths.length} file${selectedFilePaths.length === 1 ? '' : 's'}`, 
         color: 'text-green-400' 
       };
     }

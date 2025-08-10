@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { TestTubeDiagonal } from 'lucide-react';
 import { Project } from '@/types';
+import BacklogTaskInput from '../../backlogComponents/BacklogTaskInput';
 
 interface PreviewTabNavigationProps {
   projects: Project[];
@@ -19,9 +20,9 @@ export const PreviewTabNavigation: React.FC<PreviewTabNavigationProps> = ({
   onTogglePrototypeMode
 }) => {
   return (
-    <div className="bg-gray-900/50 border-b border-gray-800 px-4 flex-shrink-0">
+    <div className="bg-gray-900/50 border-b border-gray-800 flex-shrink-0">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-4 py-2">
           {/* Enhanced Prototype Mode Button */}
           <motion.button
             onClick={onTogglePrototypeMode}
@@ -113,6 +114,14 @@ export const PreviewTabNavigation: React.FC<PreviewTabNavigationProps> = ({
               className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-600/10 to-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             />
           </motion.button>
+
+          {/* Backlog Task Input - Center */}
+          <div className="flex-1 max-w-2xl mx-8">
+            <BacklogTaskInput />
+          </div>
+
+          {/* Spacer for balance */}
+          <div className="w-16"></div>
         </div>
       </div>
     </div>

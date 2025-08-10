@@ -13,7 +13,8 @@ interface ContextCardProps {
 }
 
 export default function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
-  const { removeContext } = useContextStore();
+  const { removeContext, selectedContextIds } = useContextStore();
+  const isSelectedForBacklog = selectedContextIds.has(context.id);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -72,7 +73,11 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleContextMenu}
-        className="group relative bg-gray-800/60 border border-gray-600/40 rounded-md p-2 cursor-move hover:bg-gray-800/80 transition-all min-w-[120px] max-w-[160px] h-fit"
+        className={`group relative rounded-md p-2 cursor-move transition-all min-w-[120px] max-w-[160px] h-fit ${
+          isSelectedForBacklog
+            ? 'bg-green-500/20 border-2 border-green-400/60 hover:bg-green-500/30'
+            : 'bg-gray-800/60 border border-gray-600/40 hover:bg-gray-800/80'
+        }`}
       >
       {/* Remove Button */}
       <button
@@ -102,11 +107,14 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         </div>
       </div>
 
-      {/* File Count Badge */}
-      <div className="flex items-center justify-center mt-1">
+      {/* File Count Badge and Selection Indicator */}
+      <div className="flex items-center justify-between mt-1">
         <span className="text-xs text-gray-500 bg-gray-700/30 px-1.5 py-0.5 rounded-full">
           {context.filePaths.length}
         </span>
+        {isSelectedForBacklog && (
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Selected for backlog generation" />
+        )}
       </div>
       </motion.div>
 
