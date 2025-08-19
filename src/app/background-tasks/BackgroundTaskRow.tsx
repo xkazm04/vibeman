@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FileText, CheckSquare, Target, Search, Code2, Clock, CheckCircle, XCircle, AlertTriangle, RotateCcw, X } from 'lucide-react';
+import { FileText, CheckSquare, Target, Search, Code2, Clock, CheckCircle, XCircle, RotateCcw, X } from 'lucide-react';
 import { BackgroundTask } from '../../types/backgroundTasks';
 
 interface BackgroundTaskRowProps {
@@ -8,9 +8,11 @@ interface BackgroundTaskRowProps {
   index: number;
   onCancel: (taskId: string) => void;
   onRetry: (taskId: string) => void;
+  onDelete: (taskId: string) => void;
+  onContextMenu: (event: React.MouseEvent, task: BackgroundTask) => void;
 }
 
-export default function BackgroundTaskRow({ task, index, onCancel, onRetry }: BackgroundTaskRowProps) {
+export default function BackgroundTaskRow({ task, index, onCancel, onRetry, onDelete, onContextMenu }: BackgroundTaskRowProps) {
   const getTaskIcon = (taskType: BackgroundTask['task_type']) => {
     switch (taskType) {
       case 'docs': return FileText;
@@ -71,8 +73,12 @@ export default function BackgroundTaskRow({ task, index, onCancel, onRetry }: Ba
   const statusColor = getStatusColor(task.status);
   const statusBgColor = getStatusBgColor(task.status);
 
-  const canCancel = task.status === 'pending';
-  const canRetry = task.status === 'error' && task.retry_count < task.max_retries;
+  const handleContextMenu = (event: React.MouseEvent) => {
+    console.log('Right-click detected on task row:', task.id); // Debug log
+    event.preventDefault();
+    event.stopPropagation();
+    onContextMenu(event, task);
+  };
 
   return (
     <motion.tr
@@ -80,76 +86,62 @@ export default function BackgroundTaskRow({ task, index, onCancel, onRetry }: Ba
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ delay: index * 0.02 }}
-      className="border-b border-gray-700/20 hover:bg-gray-800/20 transition-colors"
+      className="border-b border-gray-700/20 hover:bg-gray-800/20 transition-colors cursor-context-menu h-12 select-none"
+      onContextMenu={handleContextMenu}
+      onMouseDown={(e) => {
+        if (e.button === 2) { // Right mouse button
+          console.log('Right mouse button detected on mousedown');
+        }
+      }}
+      style={{ height: '48px' }}
     >
-      <td className="px-3 py-2">
-        <div className="flex items-center space-x-2">
-          <TaskIcon className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-          <span className="text-white text-sm font-medium truncate">
-            {getTaskTypeLabel(task.task_type)}
-          </span>
+      <td className="px-3 py-1 align-middle">
+        <div className="flex items-center justify-center h-8" title={getTaskTypeLabel(task.task_type)}>
+          <TaskIcon className="w-4 h-4 text-purple-400 flex-shrink-0" />
         </div>
       </td>
-      <td className="px-3 py-2">
-        <div className="text-gray-300 text-sm">
-          <div className="font-medium truncate">{task.project_name}</div>
-          <div className="text-xs text-gray-400 truncate">{task.project_path}</div>
+      <td className="px-3 py-1 align-middle">
+        <div className="text-gray-300 text-sm min-h-[32px] flex flex-col justify-center">
+          <div className="font-medium truncate leading-tight">{task.project_name}</div>
+          <div className="text-xs text-gray-400 truncate leading-tight">{task.project_path}</div>
         </div>
       </td>
-      <td className="px-3 py-2">
-        <div className="flex items-center space-x-2">
-          <StatusIcon className={`w-3.5 h-3.5 ${statusColor} flex-shrink-0 ${task.status === 'processing' ? 'animate-spin' : ''}`} />
-          <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${statusBgColor} ${statusColor} capitalize`}>
-            {task.status}
-          </span>
-          {task.status === 'error' && (
-            <span className="text-xs text-gray-400">({task.retry_count}/{task.max_retries})</span>
+      <td className="px-3 py-1 align-middle">
+        <div className="min-h-[32px] flex flex-col justify-center">
+          <div className="flex items-center space-x-2">
+            <StatusIcon className={`w-3.5 h-3.5 ${statusColor} flex-shrink-0 ${task.status === 'processing' ? 'animate-spin' : ''}`} />
+            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${statusBgColor} ${statusColor} capitalize`}>
+              {task.status}
+            </span>
+            {task.status === 'error' && (
+              <span className="text-xs text-gray-400">({task.retry_count}/{task.max_retries})</span>
+            )}
+          </div>
+          {task.error_message && (
+            <div className="text-xs text-red-400 truncate leading-tight" title={task.error_message}>
+              {task.error_message}
+            </div>
           )}
         </div>
-        {task.error_message && (
-          <div className="text-xs text-red-400 mt-1 truncate" title={task.error_message}>
-            {task.error_message}
-          </div>
-        )}
       </td>
-      <td className="px-3 py-2">
-        <div className="text-gray-400 text-xs font-mono">
-          <div>
-            {new Date(task.created_at).toLocaleTimeString([], { 
-              hour: '2-digit', 
+      <td className="px-3 py-1 align-middle">
+        <div className="text-gray-400 text-xs font-mono min-h-[32px] flex flex-col justify-center">
+          <div className="leading-tight">
+            {new Date(task.created_at).toLocaleTimeString([], {
+              hour: '2-digit',
               minute: '2-digit',
               second: '2-digit'
             })}
           </div>
           {task.priority > 0 && (
-            <div className="text-yellow-400 text-xs mt-1">
+            <div className="text-yellow-400 text-xs leading-tight">
               Priority: {task.priority}
             </div>
           )}
         </div>
       </td>
-      <td className="px-3 py-2">
-        <div className="flex items-center space-x-1">
-          {canRetry && (
-            <button
-              onClick={() => onRetry(task.id)}
-              className="p-1 hover:bg-blue-500/20 rounded text-blue-400 hover:text-blue-300 transition-colors"
-              title="Retry task"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
-          )}
-          {canCancel && (
-            <button
-              onClick={() => onCancel(task.id)}
-              className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 transition-colors"
-              title="Cancel task"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-      </td>
+
+
     </motion.tr>
   );
 };

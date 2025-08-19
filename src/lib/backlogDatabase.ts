@@ -248,6 +248,13 @@ export const backlogDb = {
     return stmt.all(projectId, type) as DbBacklogItem[];
   },
 
+  // Get backlog item by ID
+  getBacklogItemById: (id: string): DbBacklogItem | null => {
+    const db = getDatabase();
+    const stmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
+    return stmt.get(id) as DbBacklogItem | null;
+  },
+
   // Close database connection (for cleanup)
   close: () => {
     if (db) {

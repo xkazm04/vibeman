@@ -85,14 +85,32 @@ export default function MonacoDiffEditor({
     editorRef.current = editor;
     ensureVibemanTheme(monacoApi, theme);
 
-    if (onChange) {
-      const modifiedModel = editor.getModifiedEditor().getModel();
-      if (modifiedModel) {
-        const disp = modifiedModel.onDidChangeContent(() => {
-          onChange(editor.getModifiedEditor().getValue());
-        });
-        disposersRef.current.push(disp);
-      }
+    // Disable error markers for both editors
+    const originalModel = editor.getOriginalEditor().getModel();
+    const modifiedModel = editor.getModifiedEditor().getModel();
+    
+    if (originalModel) {
+      monacoApi.editor.setModelMarkers(originalModel, 'typescript', []);
+      monacoApi.editor.setModelMarkers(originalModel, 'javascript', []);
+    }
+    
+    if (modifiedModel) {
+      monacoApi.editor.setModelMarkers(modifiedModel, 'typescript', []);
+      monacoApi.editor.setModelMarkers(modifiedModel, 'javascript', []);
+      
+      // Listen for marker changes and clear them
+      const disposable = monacoApi.editor.onDidChangeMarkers(() => {
+        monacoApi.editor.setModelMarkers(modifiedModel, 'typescript', []);
+        monacoApi.editor.setModelMarkers(modifiedModel, 'javascript', []);
+      });
+      disposersRef.current.push(disposable);
+    }
+
+    if (onChange && modifiedModel) {
+      const disp = modifiedModel.onDidChangeContent(() => {
+        onChange(editor.getModifiedEditor().getValue());
+      });
+      disposersRef.current.push(disp);
     }
 
     // Smooth UX
@@ -118,13 +136,24 @@ export default function MonacoDiffEditor({
     automaticLayout: true,
     minimap: { enabled: true },
     renderMarginRevertIcon: true,
+    // Disable error highlighting and diagnostics
+    glyphMargin: false,
+    renderValidationDecorations: 'off',
     ...options,
   };
 
+  // Ensure minimum height for visibility
+  const editorHeight = height === '100%' ? '100%' : height;
+  const containerStyle = {
+    height: editorHeight,
+    width,
+    minHeight: '400px' // Ensure minimum visible height
+  };
+
   return (
-    <div className={`monaco-diff-editor-container ${className}`} style={{ height, width }}>
+    <div className={`monaco-diff-editor-container ${className}`} style={containerStyle}>
       <DiffEditor
-        height={height}
+        height={editorHeight}
         width={width}
         language={language}
         theme={theme === 'vs-dark' ? 'vibeman-dark' : theme}

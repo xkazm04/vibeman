@@ -48,6 +48,11 @@ async function processNextTask(): Promise<boolean> {
         apiEndpoint = '/api/kiro/ai-project-review';
         requestBody.mode = 'code';
         break;
+      case 'coding_task':
+        apiEndpoint = '/api/backlog/process-coding-task';
+        requestBody.taskId = JSON.parse(task.task_data || '{}').taskId;
+        requestBody.projectPath = task.project_path; // Add project path for file operations
+        break;
       default:
         throw new Error(`Unknown task type: ${task.task_type}`);
     }
@@ -83,7 +88,7 @@ async function processNextTask(): Promise<boolean> {
     return true; // Task was processed
   } catch (error) {
     console.error('Error processing background task:', error);
-    
+
     // Update task status to error if we have the task ID
     const pendingTasks = backgroundTaskDb.getPendingTasks(1);
     if (pendingTasks.length > 0) {
@@ -118,7 +123,7 @@ function startQueue() {
   queueInterval = setInterval(async () => {
     try {
       const hasMoreTasks = await processNextTask();
-      
+
       // Stop queue if no more pending tasks
       const counts = backgroundTaskDb.getTaskCounts();
       if (counts.pending === 0 && counts.processing === 0) {

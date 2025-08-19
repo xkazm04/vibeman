@@ -67,6 +67,9 @@ export default function MonacoEditor({
     cursorSmoothCaretAnimation: 'on',
     smoothScrolling: true,
     readOnly,
+    // Disable error highlighting and diagnostics
+    glyphMargin: false,
+    renderValidationDecorations: 'off',
     ...options,
   };
 
@@ -76,6 +79,20 @@ export default function MonacoEditor({
 
     // Configure Monaco themes and languages
     configureMonaco(monacoInstance);
+
+    // Disable error markers and diagnostics
+    const model = editor.getModel();
+    if (model) {
+      // Disable all diagnostics for this model
+      monacoInstance.editor.setModelMarkers(model, 'typescript', []);
+      monacoInstance.editor.setModelMarkers(model, 'javascript', []);
+      
+      // Listen for marker changes and clear them
+      const disposable = monacoInstance.editor.onDidChangeMarkers(() => {
+        monacoInstance.editor.setModelMarkers(model, 'typescript', []);
+        monacoInstance.editor.setModelMarkers(model, 'javascript', []);
+      });
+    }
 
     // Focus the editor
     editor.focus();
@@ -136,10 +153,18 @@ export default function MonacoEditor({
     };
   }, []);
 
+  // Ensure minimum height for visibility
+  const editorHeight = height === '100%' ? '100%' : height;
+  const containerStyle = {
+    height: editorHeight,
+    width,
+    minHeight: '400px' // Ensure minimum visible height
+  };
+
   return (
-    <div className={`monaco-editor-container ${className}`} style={{ height, width }}>
+    <div className={`monaco-editor-container ${className}`} style={containerStyle}>
       <Editor
-        height={height}
+        height={editorHeight}
         width={width}
         language={language}
         value={value}

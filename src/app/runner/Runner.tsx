@@ -62,7 +62,7 @@ export default function Runner() {
     };
 
     fetchWithCheck();
-    intervalId = setInterval(fetchWithCheck, 5000);
+    intervalId = setInterval(fetchWithCheck, 50000);
 
     return () => {
       isMounted = false;
@@ -72,21 +72,6 @@ export default function Runner() {
     };
   }, [fetchStatuses]);
 
-  const handleUpdateProject = useCallback(async (projectId: string, updates: Partial<Project>) => {
-    try {
-      await updateProject(projectId, updates);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update project');
-    }
-  }, [updateProject]);
-
-  const handleDeleteProject = useCallback(async (projectId: string) => {
-    try {
-      await removeProject(projectId);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to delete project');
-    }
-  }, [removeProject]);
 
   const handleEmergencyRefresh = async () => {
     try {

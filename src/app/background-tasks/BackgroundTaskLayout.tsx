@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
 import { GlowCard } from '@/components/GlowCard';
@@ -25,9 +25,37 @@ export default function BackgroundTaskLayout({
     isQueueActive,
     cancelTask,
     retryTask,
+    deleteTask,
     clearCompleted,
     fetchTasks
-  } = useBackgroundTasks({ autoRefresh: true, refreshInterval: 3000 });
+  } = useBackgroundTasks({ autoRefresh: false, refreshInterval: 5000 });
+
+  // Auto-refresh interval ref
+  const autoRefreshInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-refresh effect when queue is active
+  useEffect(() => {
+    if (isQueueActive) {
+      // Start auto-refresh
+      autoRefreshInterval.current = setInterval(() => {
+        fetchTasks();
+      }, 5000);
+    } else {
+      // Stop auto-refresh
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+        autoRefreshInterval.current = null;
+      }
+    }
+
+    // Cleanup on unmount or dependency change
+    return () => {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+        autoRefreshInterval.current = null;
+      }
+    };
+  }, [isQueueActive, fetchTasks]);
 
   // Start queue processing via API
   const startQueue = useCallback(async () => {
@@ -72,6 +100,23 @@ export default function BackgroundTaskLayout({
       console.error('Failed to stop queue:', error);
     }
   }, [onQueueStateChange, fetchTasks]);
+
+  // Auto-stop queue when no more tasks to process
+  useEffect(() => {
+    if (isQueueActive && taskCounts.pending === 0 && taskCounts.processing === 0) {
+      const stopQueueAutomatically = async () => {
+        try {
+          await stopQueue();
+        } catch (error) {
+          console.error('Failed to auto-stop queue:', error);
+        }
+      };
+      
+      // Add a small delay to avoid immediate stopping
+      const timeout = setTimeout(stopQueueAutomatically, 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isQueueActive, taskCounts.pending, taskCounts.processing, stopQueue]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -152,6 +197,7 @@ export default function BackgroundTaskLayout({
             onStopQueue={stopQueue}
             onCancelTask={cancelTask}
             onRetryTask={retryTask}
+            onDeleteTask={deleteTask}
             onClearCompleted={clearCompleted}
           />
         )}

@@ -1,17 +1,30 @@
 'use client';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, Maximize2, Minimize2, ChevronUp, ChevronDown, Info, AlertTriangle, XCircle, CheckCircle, Clock, RotateCcw, RefreshCw } from 'lucide-react';
+import { Play, Pause, Maximize2, Minimize2, ChevronUp, ChevronDown, Info, AlertTriangle, XCircle, CheckCircle, Clock, RotateCcw, RefreshCw, X, Trash2 } from 'lucide-react';
 import { GlowCard } from '@/components/GlowCard';
 import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import { useBackgroundTasks } from '../../hooks/useBackgroundTasks';
 import EventTable from '../events/EventTable';
 import BackgroundTaskTable from '../background-tasks/BackgroundTaskTable';
+import ContextMenu from '@/components/ContextMenu';
+import { BackgroundTask } from '../../types/backgroundTasks';
 
 export default function CombinedBottomLayout() {
   const [viewState, setViewState] = useState<'normal' | 'maximized' | 'minimized'>('minimized');
   const [eventFilter, setEventFilter] = useState('all');
   const [taskFilter, setTaskFilter] = useState('all');
+  
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    task: BackgroundTask | null;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    task: null
+  });
 
   // Events hook - no auto polling, manual refresh only
   const {
@@ -25,7 +38,7 @@ export default function CombinedBottomLayout() {
     refreshInterval: 5000
   });
 
-  // Background tasks hook - no auto polling, manual refresh only
+  // Background tasks hook - no auto refresh, we'll handle it manually
   const {
     tasks: allTasks,
     taskCounts,
@@ -34,12 +47,41 @@ export default function CombinedBottomLayout() {
     isQueueActive,
     cancelTask,
     retryTask,
+    deleteTask,
     clearCompleted,
     fetchTasks
   } = useBackgroundTasks({
     autoRefresh: false,
-    refreshInterval: 3000
+    refreshInterval: 5000
   });
+
+  // Auto-refresh interval ref
+  const autoRefreshInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-refresh effect when queue is active
+  useEffect(() => {
+    if (isQueueActive) {
+      // Start auto-refresh
+      autoRefreshInterval.current = setInterval(() => {
+        fetchTasks();
+        refetchEvents();
+      }, 5000);
+    } else {
+      // Stop auto-refresh
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+        autoRefreshInterval.current = null;
+      }
+    }
+
+    // Cleanup on unmount or dependency change
+    return () => {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+        autoRefreshInterval.current = null;
+      }
+    };
+  }, [isQueueActive, fetchTasks, refetchEvents]);
 
   // Manual refresh function
   const handleRefresh = useCallback(async () => {
@@ -87,6 +129,70 @@ export default function CombinedBottomLayout() {
       console.error('Failed to stop queue:', error);
     }
   }, [fetchTasks]);
+
+  // Auto-stop queue when no more tasks to process
+  useEffect(() => {
+    if (isQueueActive && taskCounts.pending === 0 && taskCounts.processing === 0) {
+      const stopQueueAutomatically = async () => {
+        try {
+          await stopQueue();
+        } catch (error) {
+          console.error('Failed to auto-stop queue:', error);
+        }
+      };
+
+      // Add a small delay to avoid immediate stopping
+      const timeout = setTimeout(stopQueueAutomatically, 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isQueueActive, taskCounts.pending, taskCounts.processing, stopQueue]);
+
+  // Context menu handlers
+  const handleContextMenu = (event: React.MouseEvent, task: BackgroundTask) => {
+    console.log('Context menu triggered for task:', task.id); // Debug log
+    console.log('Mouse position:', { x: event.clientX, y: event.clientY }); // Debug log
+    setContextMenu({
+      isOpen: true,
+      position: { x: event.clientX, y: event.clientY },
+      task
+    });
+    console.log('Context menu state updated'); // Debug log
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      task: null
+    });
+  };
+
+  const getContextMenuItems = (task: BackgroundTask) => {
+    const canCancel = task.status === 'pending' || task.status === 'processing';
+    const canRetry = task.status === 'error' || task.status === 'cancelled';
+
+    return [
+      {
+        label: 'Retry Task',
+        icon: RotateCcw,
+        onClick: () => retryTask(task.id),
+        disabled: !canRetry
+      },
+      {
+        label: 'Cancel Task',
+        icon: X,
+        onClick: () => cancelTask(task.id),
+        disabled: !canCancel,
+        destructive: true
+      },
+      {
+        label: 'Delete Task',
+        icon: Trash2,
+        onClick: () => deleteTask(task.id),
+        destructive: true
+      }
+    ];
+  };
 
   // Event filtering
   const limitedEvents = eventLog.slice(0, 50);
@@ -157,20 +263,21 @@ export default function CombinedBottomLayout() {
         <div className="absolute top-2 right-2 flex gap-1 z-10">
           {viewState !== 'minimized' && (
             <>
-              {/* Manual Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all ${
-                  isLoading
+              {/* Manual Refresh Button - only show when queue is not active */}
+              {!isQueueActive && (
+                <button
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all ${isLoading
                     ? 'bg-gray-500/20 border-gray-500/50 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-500/20 border-blue-500/50 text-blue-400 hover:bg-blue-500/30'
-                }`}
-                title="Refresh events and tasks"
-              >
-                <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
+                    }`}
+                  title="Refresh events and tasks"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              )}
 
               {/* Queue Control */}
               {isQueueActive ? (
@@ -244,7 +351,10 @@ export default function CombinedBottomLayout() {
                     {isQueueActive ? (
                       <div className="flex items-center gap-2 text-blue-400">
                         <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                        <span className="text-sm">Queue Active</span>
+                        <span className="text-sm">Auto Refresh (5s)</span>
+                        {taskCounts.pending === 0 && taskCounts.processing === 0 && (
+                          <span className="text-xs text-yellow-400 ml-2">Auto-stopping...</span>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-gray-400">
@@ -343,12 +453,27 @@ export default function CombinedBottomLayout() {
                   isLoading={tasksLoading}
                   onCancel={cancelTask}
                   onRetry={retryTask}
+                  onDelete={deleteTask}
+                  onContextMenu={handleContextMenu}
                 />
               </div>
             </div>
           </>
         )}
       </GlowCard>
+      
+      {/* Context Menu - rendered at the top level outside all containers */}
+      {contextMenu.isOpen && contextMenu.task && (
+        <>
+          {console.log('Rendering context menu for task:', contextMenu.task.id)}
+          <ContextMenu
+            isOpen={contextMenu.isOpen}
+            position={contextMenu.position}
+            items={getContextMenuItems(contextMenu.task)}
+            onClose={closeContextMenu}
+          />
+        </>
+      )}
     </motion.div>
   );
 }

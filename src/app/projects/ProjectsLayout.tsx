@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Target,
@@ -12,6 +12,8 @@ import { useProjectConfigStore } from '../../stores/projectConfigStore';
 import AIProjectReviewModal from './AIProjectReviewModal';
 import ProjectAdd from './ProjectSetting/ProjectAdd';
 import ProjectManagement from './ProjectSetting/ProjectManagement';
+import ReviewerPanel from '../reviewer/ReviewerPanel';
+import CodeReviewModal from '../reviewer/CodeReviewModal';
 
 interface ProjectsLayoutProps {
   // Goals Management - these will be passed from GoalsLayout
@@ -35,6 +37,15 @@ export default function ProjectsLayout({
     setShowAddGoal,
     setShowAIReview
   } = useProjectsToolbarStore();
+
+  // Code Review Modal state - managed at layout level for proper z-index
+  const [showCodeReviewModal, setShowCodeReviewModal] = useState(false);
+
+  // Handle code review completion
+  const handleCodeReviewComplete = () => {
+    setShowCodeReviewModal(false);
+    // The ReviewerPanel will auto-refresh its count via useEffect
+  };
 
 
   // Goals Management Handlers
@@ -66,6 +77,8 @@ export default function ProjectsLayout({
           {/* Left Section: Project Management */}
           <ProjectManagement />
 
+          {/* Middle Section: Reviewer Panel */}
+          <ReviewerPanel onOpenReview={() => setShowCodeReviewModal(true)} />
 
           {/* Right Section: Goals & AI Actions */}
           <div className="flex items-center space-x-4">
@@ -119,6 +132,16 @@ export default function ProjectsLayout({
         onClose={() => setShowAddProject(false)}
         onProjectAdded={handleProjectAdded}
       />
+
+      {/* Code Review Modal - Rendered at layout level for proper z-index */}
+      {showCodeReviewModal && (
+        <CodeReviewModal
+          isOpen={showCodeReviewModal}
+          onClose={() => setShowCodeReviewModal(false)}
+          onComplete={handleCodeReviewComplete}
+          projectId={activeProject?.id || ''}
+        />
+      )}
     </>
   );
 }

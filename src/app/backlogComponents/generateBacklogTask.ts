@@ -1,6 +1,6 @@
+import { backlogDb } from '@/lib/backlogDatabase';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { backlogDb } from '../../../lib/backlogDatabase';
 import { v4 as uuidv4 } from 'uuid';
 
 const OLLAMA_BASE_URL = 'http://localhost:11434';
@@ -139,63 +139,86 @@ export async function generateBacklogTask(params: GenerateBacklogTaskParams): Pr
       ).join('\n')}\n\n` : 
       '## Existing Tasks\n\nNo existing tasks.\n\n';
 
-    const prompt = `You are an expert software developer and project manager. Your task is to analyze the provided code and create a detailed backlog item based on the user's request.
+    const prompt = `You are a senior software architect and technical lead with deep expertise in modern web development, system design, and project management. Your role is to analyze codebases with precision and create comprehensive, actionable backlog items that reflect industry best practices.
 
-## User Request
-"${taskRequest}"
+## Analysis Context
 
-## Project Information
-**Project Name**: ${projectName}
-**Mode**: ${mode === 'context' ? 'Context-based analysis' : 'Individual file analysis'}
+**User Request**: "${taskRequest}"
+**Project**: ${projectName}
+**Analysis Mode**: ${mode === 'context' ? 'Context-based analysis' : 'Individual file analysis'}
 
 ${existingTasksSection}
 
 ${contextSection}
 ${filesSection}
 
-## Instructions
+## Your Task
 
-Based on the user request and the provided code/context, create a detailed backlog item that includes:
+Analyze the provided codebase and user request with the same depth and precision as a senior developer conducting a code review. Create a backlog item that demonstrates:
 
-1. **Title**: A clear, concise title (2-6 words)
-2. **Description**: A comprehensive description of what needs to be done
-3. **Implementation Steps**: Detailed, actionable steps for implementation
-4. **Type**: Either "feature" or "optimization"
-5. **Impacted Files**: List of files that will be modified or created
+1. **Deep Technical Understanding**: Show you understand the existing architecture, patterns, and dependencies
+2. **Strategic Thinking**: Consider how this change fits into the broader system design
+3. **Implementation Expertise**: Provide steps that reflect real-world development practices
+4. **Quality Focus**: Ensure the task promotes maintainable, scalable, and robust code
 
-**CRITICAL REQUIREMENTS:**
-- DO NOT duplicate any existing tasks listed above
-- Provide specific, actionable implementation steps
-- Consider the existing code structure and patterns
-- Ensure the task is feasible and well-scoped
-- Focus on the user's specific request
+## Analysis Framework
 
-Return your response in this exact JSON format:
+**Code Architecture Analysis:**
+- Identify existing patterns, conventions, and architectural decisions
+- Understand component relationships and data flow
+- Recognize potential integration points and dependencies
+- Assess impact on system performance and maintainability
+
+**Implementation Strategy:**
+- Break down complex requirements into logical, sequential steps
+- Consider error handling, edge cases, and user experience
+- Plan for testing, validation, and potential rollback scenarios
+- Identify opportunities for code reuse and optimization
+
+**Quality Assurance:**
+- Ensure type safety and proper error boundaries
+- Consider accessibility, performance, and security implications
+- Plan for proper documentation and code comments
+- Think about future extensibility and maintenance
+
+## Output Requirements
+
+Generate a backlog item that a senior developer would create - detailed, technically sound, and immediately actionable. The task should be scoped appropriately (not too broad, not too narrow) and include all necessary technical considerations.
+
+**CRITICAL CONSTRAINTS:**
+- DO NOT duplicate existing tasks listed above
+- Provide implementation steps that reflect real development workflow
+- Consider the existing codebase patterns and maintain consistency
+- Ensure the task is technically feasible with the current architecture
+- Focus precisely on the user's request without scope creep
+
+**Response Format** (JSON only, no additional text):
 
 \`\`\`json
 {
-  "title": "Clear task title",
-  "description": "Detailed description of the task and its purpose",
+  "title": "Concise, technical title (2-6 words)",
+  "description": "Comprehensive description that explains the technical requirements, business value, and implementation approach. Include specific details about how this integrates with existing systems.",
   "steps": [
-    "Step 1: Specific action to take",
-    "Step 2: Another specific action",
-    "Step 3: Additional steps as needed"
+    "Step 1: Specific technical action with implementation details",
+    "Step 2: Next logical step in the development workflow",
+    "Step 3: Additional steps covering testing, validation, and integration",
+    "Step N: Final steps including documentation and cleanup"
   ],
   "type": "feature",
   "impactedFiles": [
     {
-      "filepath": "path/to/file.tsx",
+      "filepath": "path/to/existing/file.tsx",
       "type": "update"
     },
     {
-      "filepath": "path/to/new/file.tsx", 
+      "filepath": "path/to/new/component.tsx", 
       "type": "create"
     }
   ]
 }
 \`\`\`
 
-Ensure the JSON is valid and parseable. Focus on creating a task that directly addresses the user's request while being implementable with the provided code context.`;
+Analyze the codebase with the same rigor and attention to detail that you would apply to any complex software system. Create a task that demonstrates deep technical understanding and provides clear, actionable guidance for implementation.`;
 
     console.log('Calling Ollama API for backlog task generation...');
     const response = await callOllamaAPI(prompt);

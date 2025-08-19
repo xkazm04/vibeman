@@ -1,8 +1,6 @@
 'use client';
-import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Clock, CheckCircle, XCircle, AlertTriangle, X, Play, Pause, RotateCcw, Trash2 } from 'lucide-react';
-import { GlowCard } from '@/components/GlowCard';
+import React, { useState, useMemo } from 'react';
+import { Clock, CheckCircle, XCircle, X, Play, Pause, RotateCcw, Trash2 } from 'lucide-react';
 import BackgroundTaskTable from './BackgroundTaskTable';
 import { BackgroundTask } from '../../types/backgroundTasks';
 
@@ -17,6 +15,7 @@ interface BackgroundTaskManagerProps {
   onStopQueue: () => void;
   onCancelTask: (taskId: string) => void;
   onRetryTask: (taskId: string) => void;
+  onDeleteTask: (taskId: string) => void;
   onClearCompleted: () => void;
 }
 
@@ -33,6 +32,7 @@ export default function BackgroundTaskManager({
   onStopQueue,
   onCancelTask,
   onRetryTask,
+  onDeleteTask,
   onClearCompleted
 }: BackgroundTaskManagerProps) {
   const [filter, setFilter] = useState('all');
@@ -66,7 +66,6 @@ export default function BackgroundTaskManager({
   };
 
   const hasPendingTasks = taskCounts.pending > 0;
-  const hasProcessingTasks = taskCounts.processing > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -80,6 +79,9 @@ export default function BackgroundTaskManager({
                 <div className="flex items-center gap-2 text-blue-400">
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                   <span className="text-sm">Queue Active</span>
+                  {taskCounts.pending === 0 && taskCounts.processing === 0 && (
+                    <span className="text-xs text-yellow-400 ml-2">Auto-stopping...</span>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-gray-400">
@@ -177,6 +179,7 @@ export default function BackgroundTaskManager({
         isLoading={isLoading}
         onCancel={onCancelTask}
         onRetry={onRetryTask}
+        onDelete={onDeleteTask}
       />
     </div>
   );

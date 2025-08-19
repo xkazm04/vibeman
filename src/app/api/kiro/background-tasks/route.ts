@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
       projectPath, 
       taskType, 
       priority = 0,
-      maxRetries = 3 
+      maxRetries = 3,
+      taskData
     } = body;
 
     // Validate required fields
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate task type
-    const validTaskTypes = ['docs', 'tasks', 'goals', 'context', 'code'];
+    const validTaskTypes = ['docs', 'tasks', 'goals', 'context', 'code', 'coding_task'];
     if (!validTaskTypes.includes(taskType)) {
       return NextResponse.json({
         success: false,
@@ -92,9 +93,10 @@ export async function POST(request: NextRequest) {
       project_id: projectId,
       project_name: projectName,
       project_path: projectPath,
-      task_type: taskType as 'docs' | 'tasks' | 'goals' | 'context' | 'code',
+      task_type: taskType as 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'coding_task',
       priority,
-      max_retries: maxRetries
+      max_retries: maxRetries,
+      task_data: taskData ? JSON.stringify(taskData) : undefined
     });
 
     return NextResponse.json({

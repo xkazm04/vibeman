@@ -31,26 +31,45 @@ function getBackgroundTaskDatabase(): Database.Database {
 function initializeBackgroundTaskTables() {
   if (!db) return;
   
-  // Create background_tasks table
+  // Check if we need to recreate the table with updated schema
+  try {
+    // Check if the table exists and has the correct constraint
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='background_tasks'").get() as any;
+    
+    if (tableInfo && !tableInfo.sql.includes('coding_task')) {
+      console.log('Recreating background_tasks table with updated schema...');
+      
+      // Drop the existing table (since you're okay with starting from zero)
+      db.exec('DROP TABLE IF EXISTS background_tasks');
+      console.log('Dropped existing background_tasks table');
+    }
+  } catch (error) {
+    console.warn('Error checking table schema:', error);
+  }
+  
+  // Create background_tasks table with correct schema
   db.exec(`
     CREATE TABLE IF NOT EXISTS background_tasks (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
       project_name TEXT NOT NULL,
       project_path TEXT NOT NULL,
-      task_type TEXT NOT NULL CHECK (task_type IN ('docs', 'tasks', 'goals', 'context', 'code')),
+      task_type TEXT NOT NULL CHECK (task_type IN ('docs', 'tasks', 'goals', 'context', 'code', 'coding_task')),
       status TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'error', 'cancelled')) DEFAULT 'pending',
       priority INTEGER NOT NULL DEFAULT 0,
       retry_count INTEGER NOT NULL DEFAULT 0,
       max_retries INTEGER NOT NULL DEFAULT 3,
       error_message TEXT,
       result_data TEXT, -- JSON string of task results
+      task_data TEXT, -- JSON string of task-specific data
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       started_at TEXT,
       completed_at TEXT
     );
   `);
+  
+  console.log('Background tasks table initialized with coding_task support');
 
   // Create task_queue_settings table for queue configuration
   db.exec(`
@@ -86,13 +105,14 @@ export interface DbBackgroundTask {
   project_id: string;
   project_name: string;
   project_path: string;
-  task_type: 'docs' | 'tasks' | 'goals' | 'context' | 'code';
+  task_type: 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'coding_task';
   status: 'pending' | 'processing' | 'completed' | 'error' | 'cancelled';
   priority: number;
   retry_count: number;
   max_retries: number;
   error_message: string | null;
   result_data: string | null; // JSON string
+  task_data: string | null; // JSON string of task-specific data
   created_at: string;
   updated_at: string;
   started_at: string | null;
@@ -162,9 +182,10 @@ export const backgroundTaskDb = {
     project_id: string;
     project_name: string;
     project_path: string;
-    task_type: 'docs' | 'tasks' | 'goals' | 'context' | 'code';
+    task_type: 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'coding_task';
     priority?: number;
     max_retries?: number;
+    task_data?: string;
   }): DbBackgroundTask => {
     const db = getBackgroundTaskDatabase();
     const now = new Date().toISOString();
@@ -172,9 +193,9 @@ export const backgroundTaskDb = {
     const stmt = db.prepare(`
       INSERT INTO background_tasks (
         id, project_id, project_name, project_path, task_type, 
-        priority, max_retries, created_at, updated_at
+        priority, max_retries, task_data, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
@@ -185,6 +206,7 @@ export const backgroundTaskDb = {
       task.task_type,
       task.priority || 0,
       task.max_retries || 3,
+      task.task_data || null,
       now,
       now
     );

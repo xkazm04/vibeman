@@ -11,9 +11,12 @@ import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 interface ProposalItemProps {
   proposal: BacklogProposal;
   isNew?: boolean;
+  onAccept?: (taskId: string) => void;
+  onReject?: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
 }
 
-export default function BacklogItem({ proposal, isNew = false }: ProposalItemProps) {
+export default function BacklogItem({ proposal, isNew = false, onAccept, onReject, onDelete }: ProposalItemProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isInProgress, setIsInProgress] = useState(proposal.status === 'in_progress');
@@ -128,8 +131,9 @@ export default function BacklogItem({ proposal, isNew = false }: ProposalItemPro
         proposal={proposal}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onAccept={() => {}}
-        onReject={() => {}}
+        onAccept={onAccept || (() => {})}
+        onReject={onReject || (() => {})}
+        onDelete={onDelete || (() => {})}
       />
     </>
   );

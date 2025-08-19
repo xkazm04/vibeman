@@ -243,6 +243,8 @@ export function useBackgroundTasks(options: UseBackgroundTasksOptions = {}) {
     }
   }, [refreshInterval_]);
 
+
+
   // Initial fetch and setup auto-refresh
   useEffect(() => {
     fetchTasks();

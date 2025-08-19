@@ -5,7 +5,6 @@ import { useBacklog } from '../../../hooks/useBacklog';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useAnalysisStore } from '../../../stores/analysisStore';
 import BacklogItem from './BacklogItem';
-import BacklogFormAdd from './BacklogFormAdd';
 import { GlowCard } from '@/components/GlowCard';
 
 export default function Backlog() {
@@ -18,15 +17,17 @@ export default function Backlog() {
     error,
     newItemIds,
     createBacklogItem,
-    fetchBacklogItems
+    fetchBacklogItems,
+    updateBacklogItem,
+    deleteBacklogItem
   } = useBacklog(activeProject?.id || null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
-  // Combine and sort all items, limit to 20
+  // Combine and sort all items, exclude rejected, limit to 20
   const allItems = useMemo(() => {
     const combined = [
-      ...backlogProposals,
-      ...customBacklogItems.map(item => ({
+      ...backlogProposals.filter(item => item.status !== 'rejected'),
+      ...customBacklogItems.filter(item => item.status !== 'rejected').map(item => ({
         ...item,
         agent: 'developer' as const, // Default custom items to developer for now
         timestamp: item.timestamp
@@ -45,6 +46,42 @@ export default function Backlog() {
       ...itemData,
       type: 'custom'
     });
+  };
+
+  const handleAcceptTask = async (taskId: string) => {
+    try {
+      // Update task status to accepted
+      await updateBacklogItem(taskId, { status: 'accepted' });
+      
+      // Start coding task in background
+      const response = await fetch('/api/backlog/start-coding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to start coding task');
+      }
+    } catch (error) {
+      console.error('Error accepting task:', error);
+    }
+  };
+
+  const handleRejectTask = async (taskId: string) => {
+    try {
+      await updateBacklogItem(taskId, { status: 'rejected' });
+    } catch (error) {
+      console.error('Error rejecting task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteBacklogItem(taskId);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
   };
 
   if (loading) {
@@ -105,6 +142,9 @@ export default function Backlog() {
                   <BacklogItem
                     proposal={item}
                     isNew={newItemIds.has(item.id)}
+                    onAccept={handleAcceptTask}
+                    onReject={handleRejectTask}
+                    onDelete={handleDeleteTask}
                   />
                 </div>
               ))}
