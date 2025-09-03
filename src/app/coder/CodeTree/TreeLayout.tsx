@@ -7,10 +7,10 @@ import { GlowCard } from '@/components/GlowCard';
 import TreeHeader from './TreeHeader';
 import TreeView from './TreeView';
 import TreeFooter from './TreeFooter';
-import TreeSearch from './TreeSearch';
+import TreeSuggestion from './TreeSuggestion';
 
 export default function TreeLayout() {
-  const { selectedNodes, highlightedNodes, toggleNode, clearHighlights, getSelectedFilePaths } = useStore();
+  const { selectedNodes, highlightedNodes, toggleNode, clearHighlights } = useStore();
   const { 
     activeProject, 
     fileStructure, 
@@ -22,8 +22,7 @@ export default function TreeLayout() {
     loadProjectFileStructure
   } = useActiveProjectStore();
   const { getAllProjects, initializeProjects } = useProjectConfigStore();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'files' | 'folders'>('all');
+
   const [showProjectSelector, setShowProjectSelector] = useState(false);
 
   // Initialize projects and then active project
@@ -71,31 +70,7 @@ export default function TreeLayout() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showProjectSelector]);
 
-  const filteredStructure = useMemo(() => {
-    if (!fileStructure) return null;
-    if (!searchTerm && filterType === 'all') return fileStructure;
-    
-    const filterNode = (node: TreeNodeType): TreeNodeType | null => {
-      const matchesSearch = !searchTerm || 
-        node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        node.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesFilter = filterType === 'all' || 
-        (filterType === 'files' && node.type === 'file') ||
-        (filterType === 'folders' && node.type === 'folder');
-      
-      if (node.children) {
-        const filteredChildren = node.children.map(filterNode).filter((child): child is TreeNodeType => child !== null);
-        if ((matchesSearch && matchesFilter) || filteredChildren.length > 0) {
-          return { ...node, children: filteredChildren };
-        }
-      }
-      
-      return (matchesSearch && matchesFilter) ? node : null;
-    };
-
-    return filterNode(fileStructure);
-  }, [fileStructure, searchTerm, filterType]);
+  // No longer need filtered structure since suggestions don't affect tree display
 
   const totalNodes = useMemo(() => {
     if (!fileStructure) return 0;
@@ -109,13 +84,9 @@ export default function TreeLayout() {
     return countNodes(fileStructure) - 1; // Exclude root
   }, [fileStructure]);
 
-  const clearSearch = () => {
-    setSearchTerm('');
-    setFilterType('all');
-  };
-
-  const handleFilterTypeChange = (newFilterType: string) => {
-    setFilterType(newFilterType as 'all' | 'files' | 'folders');
+  const handleClearSearch = () => {
+    // Clear any highlights or search-related state if needed
+    clearHighlights();
   };
 
   const handleProjectSelectorToggle = () => {
@@ -148,28 +119,26 @@ export default function TreeLayout() {
         onRefresh={refreshFileStructure}
       />
 
-      {/* Search and Filter Bar */}
+      {/* Suggestion Search */}
       {activeProject && fileStructure && !isLoading && (
         <div className="mb-6">
-          <TreeSearch
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            filterType={filterType}
-            setFilterType={handleFilterTypeChange}
-            clearSearch={clearSearch}
+          <TreeSuggestion
+            fileStructure={fileStructure}
+            onNodeSelect={toggleNode}
+            onClearSearch={handleClearSearch}
           />
         </div>
       )}
 
       <TreeView
         activeProject={activeProject}
-        filteredStructure={filteredStructure}
+        filteredStructure={fileStructure}
         isLoading={isLoading}
         error={error}
         onToggleNode={toggleNode}
         onRefresh={refreshFileStructure}
         onClearError={clearError}
-        onClearSearch={clearSearch}
+        onClearSearch={handleClearSearch}
       />
 
       <TreeFooter

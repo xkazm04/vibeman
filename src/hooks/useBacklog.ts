@@ -32,11 +32,21 @@ const parseImpactedFilesFromDb = (impactedFilesJson: string | null): ImpactedFil
 
 // Convert database backlog item to app types
 const convertDbBacklogItemToAppType = (dbItem: DbBacklogItem): BacklogProposal | CustomBacklogItem => {
+  // Parse steps from JSON string
+  let steps: string[] | undefined;
+  try {
+    steps = dbItem.steps ? JSON.parse(dbItem.steps) : undefined;
+  } catch (error) {
+    console.warn('Failed to parse steps JSON:', error);
+    steps = undefined;
+  }
+
   const baseItem = {
     id: dbItem.id,
     title: dbItem.title,
     description: dbItem.description,
     timestamp: new Date(dbItem.created_at),
+    steps: steps, // Include parsed steps
     impactedFiles: parseImpactedFilesFromDb(dbItem.impacted_files)
   };
 

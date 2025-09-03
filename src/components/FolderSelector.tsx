@@ -198,7 +198,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
 
   return (
     <div className={`${className}`}>
-      <div className="space-y-1 max-h-64 overflow-y-auto">
+      <div className="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
         {folderTree.map(node => renderFolderNode(node))}
       </div>
       

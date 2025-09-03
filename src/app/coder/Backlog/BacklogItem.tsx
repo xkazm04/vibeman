@@ -44,17 +44,43 @@ export default function BacklogItem({ proposal, isNew = false, onAccept, onRejec
     setIsModalOpen(false);
   };
 
-  const handleStartCoding = () => {
+  const handleStartCoding = async () => {
     setIsInProgress(true);
-    moveToInProgress(proposal.id);
+    try {
+      await moveToInProgress(proposal.id);
+      if (onAccept) {
+        onAccept(proposal.id);
+      }
+    } catch (error) {
+      console.error('Failed to start coding:', error);
+      setIsInProgress(false);
+    }
   };
 
   const handleReject = async () => {
     setIsRejected(true);
-    // Wait for animation to complete before calling API
-    setTimeout(async () => {
-      await rejectProposal(proposal.id);
-    }, 300);
+    try {
+      // Wait for animation to complete before calling API
+      setTimeout(async () => {
+        await rejectProposal(proposal.id);
+        if (onReject) {
+          onReject(proposal.id);
+        }
+      }, 300);
+    } catch (error) {
+      console.error('Failed to reject proposal:', error);
+      setIsRejected(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (onDelete) {
+      try {
+        await onDelete(proposal.id);
+      } catch (error) {
+        console.error('Failed to delete proposal:', error);
+      }
+    }
   };
 
   return (
@@ -131,9 +157,9 @@ export default function BacklogItem({ proposal, isNew = false, onAccept, onRejec
         proposal={proposal}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onAccept={onAccept || (() => {})}
-        onReject={onReject || (() => {})}
-        onDelete={onDelete || (() => {})}
+        onAccept={handleStartCoding}
+        onReject={handleReject}
+        onDelete={handleDelete}
       />
     </>
   );

@@ -42,11 +42,10 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={`fixed inset-0 z-50 ${
-            backdropBlur 
-              ? 'bg-gradient-to-br from-black/70 via-black/60 to-slate-900/50 backdrop-blur-md' 
-              : 'bg-black/60'
-          }`}
+          className={`fixed inset-0 z-50 ${backdropBlur
+            ? 'bg-gradient-to-br from-black/70 via-black/60 to-slate-900/50 backdrop-blur-md'
+            : 'bg-black/60'
+            }`}
           onClick={onClose}
         />
       )}
@@ -57,9 +56,9 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{ 
-          type: "spring", 
-          damping: 25, 
+        transition={{
+          type: "spring",
+          damping: 25,
           stiffness: 300,
           mass: 0.8
         }}
@@ -70,14 +69,14 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
           <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-slate-800/95 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl border border-slate-700/40">
             {/* Animated Border Gradient */}
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-slate-600/20 via-slate-500/10 to-slate-600/20 opacity-50" />
-            
+
             {/* Inner Content Container */}
             <div className="relative z-10">
               {/* Enhanced Header with Gradient Background */}
               <div className="relative p-6 border-b border-slate-700/30 bg-gradient-to-r from-slate-800/40 via-slate-800/30 to-slate-700/40">
                 {/* Header Background Pattern */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-700/5 to-transparent" />
-                
+
                 <div className="relative flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {Icon && (
@@ -96,7 +95,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Enhanced Close Button */}
                   <button
                     onClick={onClose}

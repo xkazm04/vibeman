@@ -58,6 +58,7 @@ export interface BacklogProposal {
   description: string;
   timestamp: Date;
   status?: 'pending' | 'accepted' | 'rejected' | 'in_progress';
+  steps?: string[]; // Array of implementation steps
   impactedFiles?: ImpactedFile[]; // Array of file objects with filepath and type
 }
 
@@ -67,6 +68,7 @@ export interface CustomBacklogItem {
   description: string;
   timestamp: Date;
   type: 'custom';
+  steps?: string[]; // Array of implementation steps
   impactedFiles?: ImpactedFile[]; // Array of file objects with filepath and type
 }
 

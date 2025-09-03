@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, RefreshCw, AlertCircle, FolderTree } from 'lucide-react';
+import { RefreshCw, AlertCircle, FolderTree } from 'lucide-react';
 import { TreeNode as TreeNodeType, Project } from '../../../types';
 import TreeNode from './TreeNode';
 
@@ -70,21 +70,7 @@ export default function TreeView({
             node={filteredStructure}
             onToggle={onToggleNode}
           />
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-800/50 rounded-full flex items-center justify-center">
-              <Search className="w-8 h-8 opacity-50" />
-            </div>
-            <p className="text-sm mb-2">No results found</p>
-            <p className="text-xs text-gray-600 mb-4">Try adjusting your search or filter</p>
-            <button
-              onClick={onClearSearch}
-              className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors px-4 py-2 bg-cyan-500/10 rounded-lg hover:bg-cyan-500/20"
-            >
-              Clear search
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

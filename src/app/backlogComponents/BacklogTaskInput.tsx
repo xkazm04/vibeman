@@ -4,6 +4,9 @@ import { Send, Check, X, FileText, FolderTree, Loader2 } from 'lucide-react';
 import { useContextStore } from '../../stores/contextStore';
 import { useStore } from '../../stores/nodeStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
+import { useRealtimeStore, REALTIME_INDICATORS } from '../../stores/realtimeStore';
+import { UniversalModal } from '../../components/UniversalModal';
+import TreeLayout from '../coder/CodeTree/TreeLayout';
 
 interface BacklogTaskInputProps {
   onTaskGenerated?: (taskId: string) => void;
@@ -14,22 +17,24 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResult, setLastResult] = useState<'success' | 'error' | null>(null);
   const [mode, setMode] = useState<'context' | 'individual'>('individual');
-  
+  const [showFileSelector, setShowFileSelector] = useState(false);
+
   const { contexts, selectedContextIds } = useContextStore();
-  const { selectedNodes, getSelectedFilePaths } = useStore();
+  const { getSelectedFilePaths } = useStore();
   const { activeProject, fileStructure } = useActiveProjectStore();
+  const { setIndicator } = useRealtimeStore();
 
   // Get selected contexts
   const selectedContexts = contexts.filter(ctx => selectedContextIds.has(ctx.id));
-  
+
   // Get selected file paths
   const selectedFilePaths = getSelectedFilePaths(fileStructure, activeProject?.id || null);
 
   // Check if we can send the request
-  const canSend = taskRequest.trim().length > 0 && 
-    !isProcessing && 
-    ((mode === 'context' && selectedContexts.length > 0) || 
-     (mode === 'individual' && selectedFilePaths.length > 0));
+  const canSend = taskRequest.trim().length > 0 &&
+    !isProcessing &&
+    ((mode === 'context' && selectedContexts.length > 0) ||
+      (mode === 'individual' && selectedFilePaths.length > 0));
 
   const handleSubmit = async () => {
     if (!canSend || !activeProject) return;
@@ -57,6 +62,10 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
       if (result.success) {
         setLastResult('success');
         setTaskRequest(''); // Clear input on success
+
+        // Activate real-time polling for backlog tasks
+        setIndicator(REALTIME_INDICATORS.BACKLOG_TASKS, true, 10000);
+
         onTaskGenerated?.(result.taskId);
       } else {
         setLastResult('error');
@@ -67,13 +76,13 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
       console.error('Error generating task:', error);
     } finally {
       setIsProcessing(false);
-      
+
       // Clear result after 3 seconds
       setTimeout(() => setLastResult(null), 3000);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -83,20 +92,28 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
   const getStatusInfo = () => {
     if (mode === 'context') {
       if (selectedContexts.length === 0) {
-        return { text: 'Select contexts', color: 'text-yellow-400' };
+        return { text: 'Select contexts', color: 'text-yellow-400', clickable: false };
       }
-      return { 
-        text: `${selectedContexts.length} context${selectedContexts.length === 1 ? '' : 's'}`, 
-        color: 'text-green-400' 
+      return {
+        text: `${selectedContexts.length} context${selectedContexts.length === 1 ? '' : 's'}`,
+        color: 'text-green-400',
+        clickable: false
       };
     } else {
       if (selectedFilePaths.length === 0) {
-        return { text: 'Select files', color: 'text-yellow-400' };
+        return { text: 'Select files', color: 'text-yellow-400', clickable: true };
       }
-      return { 
-        text: `${selectedFilePaths.length} file${selectedFilePaths.length === 1 ? '' : 's'}`, 
-        color: 'text-green-400' 
+      return {
+        text: `${selectedFilePaths.length} file${selectedFilePaths.length === 1 ? '' : 's'}`,
+        color: 'text-green-400',
+        clickable: true
       };
+    }
+  };
+
+  const handleStatusClick = () => {
+    if (mode === 'individual') {
+      setShowFileSelector(true);
     }
   };
 
@@ -108,22 +125,20 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
       <div className="flex items-center bg-gray-700/30 rounded-lg p-1">
         <button
           onClick={() => setMode('individual')}
-          className={`p-2 rounded-md transition-all duration-200 ${
-            mode === 'individual'
-              ? 'bg-blue-500/20 text-blue-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
+          className={`p-2 rounded-md transition-all duration-200 ${mode === 'individual'
+            ? 'bg-blue-500/20 text-blue-400'
+            : 'text-gray-400 hover:text-gray-300'
+            }`}
           title="Individual files mode"
         >
           <FileText className="w-4 h-4" />
         </button>
         <button
           onClick={() => setMode('context')}
-          className={`p-2 rounded-md transition-all duration-200 ${
-            mode === 'context'
-              ? 'bg-purple-500/20 text-purple-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
+          className={`p-2 rounded-md transition-all duration-200 ${mode === 'context'
+            ? 'bg-purple-500/20 text-purple-400'
+            : 'text-gray-400 hover:text-gray-300'
+            }`}
           title="Context files mode"
         >
           <FolderTree className="w-4 h-4" />
@@ -136,14 +151,19 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
           type="text"
           value={taskRequest}
           onChange={(e) => setTaskRequest(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           placeholder={`Enter task request (${mode === 'context' ? 'using selected contexts' : 'using selected files'})...`}
           className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500/50 focus:bg-gray-700/70 transition-all duration-200"
           disabled={isProcessing}
         />
-        
+
         {/* Status indicator */}
-        <div className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-xs ${statusInfo.color}`}>
+        <div 
+          className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-xs ${statusInfo.color} ${
+            statusInfo.clickable ? 'cursor-pointer hover:underline' : ''
+          }`}
+          onClick={statusInfo.clickable ? handleStatusClick : undefined}
+        >
           {statusInfo.text}
         </div>
       </div>
@@ -187,15 +207,29 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
       <button
         onClick={handleSubmit}
         disabled={!canSend}
-        className={`p-2 rounded-lg transition-all duration-200 ${
-          canSend
-            ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 hover:text-blue-300'
-            : 'bg-gray-700/30 text-gray-500 cursor-not-allowed'
-        }`}
+        className={`p-2 rounded-lg transition-all duration-200 ${canSend
+          ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 hover:text-blue-300'
+          : 'bg-gray-700/30 text-gray-500 cursor-not-allowed'
+          }`}
         title="Generate backlog task"
       >
         <Send className="w-5 h-5" />
       </button>
+
+      {/* File Selector Modal */}
+      <UniversalModal
+        isOpen={showFileSelector}
+        onClose={() => setShowFileSelector(false)}
+        title="Select Files"
+        subtitle="Choose files for your backlog task"
+        icon={FileText}
+        iconBgColor="from-blue-800/60 to-blue-900/60"
+        iconColor="text-blue-300"
+        maxWidth="max-w-6xl"
+        maxHeight="max-h-[80vh]"
+      >
+        <TreeLayout />
+      </UniversalModal>
     </div>
   );
 }

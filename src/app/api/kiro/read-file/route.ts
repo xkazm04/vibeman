@@ -13,12 +13,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Security check - ensure the file path is within the project directory
+    // Handle both absolute and relative paths
+    let fullPath: string;
     const projectRoot = process.cwd();
-    const fullPath = join(projectRoot, filePath);
     
-    // Prevent directory traversal attacks
-    if (!fullPath.startsWith(projectRoot)) {
+    // Check if it's an absolute path (Windows: C:\ or Unix: /)
+    const isAbsolutePath = filePath.match(/^[A-Za-z]:\\/) || filePath.startsWith('/');
+    
+    if (isAbsolutePath) {
+      fullPath = filePath;
+    } else {
+      fullPath = join(projectRoot, filePath);
+    }
+    
+    // Security check - prevent directory traversal
+    if (filePath.includes('..') || filePath.includes('~')) {
       return NextResponse.json(
         { success: false, error: 'Invalid file path' },
         { status: 403 }

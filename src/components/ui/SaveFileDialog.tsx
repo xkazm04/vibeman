@@ -29,7 +29,11 @@ export default function SaveFileDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSave = async () => {
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     if (!selectedFolder) {
       setError('Please select a folder');
       return;
@@ -53,6 +57,15 @@ export default function SaveFileDialog({
       setError(error instanceof Error ? error.message : 'Failed to save file');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (selectedFolder && fileName.trim() && !saving) {
+        handleSave();
+      }
     }
   };
 
@@ -120,7 +133,7 @@ export default function SaveFileDialog({
             )}
 
             {/* File Name Input */}
-            <div className="p-4 border-b border-gray-700">
+            <form onSubmit={handleSave} className="p-4 border-b border-gray-700">
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 File Name
               </label>
@@ -130,6 +143,7 @@ export default function SaveFileDialog({
                   type="text"
                   value={fileName}
                   onChange={(e) => setFileName(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   disabled={saving}
                   className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:opacity-50"
                   placeholder="Enter file name..."
@@ -138,7 +152,7 @@ export default function SaveFileDialog({
               <p className="text-xs text-gray-500 mt-1">
                 File will be saved as: <span className="font-mono text-cyan-400">{fileName.endsWith(fileExtension) ? fileName : `${fileName}${fileExtension}`}</span>
               </p>
-            </div>
+            </form>
 
             {/* Folder Selection */}
             <div className="flex-1 overflow-hidden flex flex-col">
@@ -152,7 +166,7 @@ export default function SaveFileDialog({
                 <FolderSelector
                   onSelect={setSelectedFolder}
                   selectedPath={selectedFolder}
-                  className="h-full"
+                  className="h-full custom-scrollbar"
                 />
               </div>
             </div>

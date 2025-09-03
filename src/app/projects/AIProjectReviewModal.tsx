@@ -449,6 +449,7 @@ export default function AIProjectReviewModal({
             previewMode={previewMode}
             onPreviewModeChange={setPreviewMode}
             onContentChange={setDocsContent}
+            activeProject={activeProject}
           />
         );
 

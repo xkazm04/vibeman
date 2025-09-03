@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Copy, Edit, Trash2, FolderOpen, MousePointer, FileText, CheckSquare, Square } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
@@ -24,6 +25,12 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFileEditor, setShowFileEditor] = useState(false);
   const [showContextFileModal, setShowContextFileModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   const handleAction = async (action: string) => {
     switch (action) {
@@ -92,13 +99,17 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
     });
   };
 
-  return (
+  // Don't render on server side
+  if (!mounted) return null;
+
+  const menuContent = (
     <AnimatePresence>
       {isVisible && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Subtle overlay without blur */}
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 bg-black/5"
+            style={{ zIndex: 999998 }}
             onClick={onClose}
           />
 
@@ -107,76 +118,91 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -10 }}
-            transition={{ duration: 0.15 }}
-            className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[140px]"
+            transition={{ duration: 0.2 }}
+            className="fixed bg-gray-900/95 border border-gray-600/70 rounded-2xl shadow-2xl py-3 min-w-[200px] backdrop-blur-md"
             style={{
-              left: position.x,
-              top: position.y
+              left: `${position.x}px`,
+              top: `${position.y}px`,
+              zIndex: 999999, // Ensure it's above everything
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05)'
             }}
           >
-            <button
-              onClick={() => handleAction('open')}
-              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/50 flex items-center space-x-2 transition-colors"
-            >
-              <FolderOpen className="w-3 h-3" />
-              <span>Open Files</span>
-            </button>
+            {/* Background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 rounded-2xl" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent rounded-2xl" />
+            
+            <div className="relative">
+              <motion.button
+                onClick={() => handleAction('open')}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
+                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+              >
+                <FolderOpen className="w-4 h-4" />
+                <span className="font-mono font-medium">Open Files</span>
+              </motion.button>
 
-            <button
-              onClick={() => handleAction('copy')}
-              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/50 flex items-center space-x-2 transition-colors"
-            >
-              <Copy className="w-3 h-3" />
-              <span>Copy Context</span>
-            </button>
+              <motion.button
+                onClick={() => handleAction('copy')}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
+                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+              >
+                <Copy className="w-4 h-4" />
+                <span className="font-mono font-medium">Copy Context</span>
+              </motion.button>
 
-            <button
-              onClick={() => handleAction('select')}
-              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/50 flex items-center space-x-2 transition-colors"
-            >
-              <MousePointer className="w-3 h-3" />
-              <span>Select Files</span>
-            </button>
+              <motion.button
+                onClick={() => handleAction('select')}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
+                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+              >
+                <MousePointer className="w-4 h-4" />
+                <span className="font-mono font-medium">Select Files</span>
+              </motion.button>
 
-            <button
-              onClick={() => handleAction('toggleForBacklog')}
-              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/50 flex items-center space-x-2 transition-colors"
-            >
-              {selectedContextIds.has(context.id) ? (
-                <CheckSquare className="w-3 h-3 text-green-400" />
-              ) : (
-                <Square className="w-3 h-3" />
-              )}
-              <span>
-                {selectedContextIds.has(context.id) ? 'Unselect for Backlog' : 'Select for Backlog'}
-              </span>
-            </button>
+              <motion.button
+                onClick={() => handleAction('toggleForBacklog')}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
+                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+              >
+                {selectedContextIds.has(context.id) ? (
+                  <CheckSquare className="w-4 h-4 text-green-400" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+                <span className="font-mono font-medium">
+                  {selectedContextIds.has(context.id) ? 'Unselect for Backlog' : 'Select for Backlog'}
+                </span>
+              </motion.button>
 
-            <button
-              onClick={() => handleAction('contextFile')}
-              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/50 flex items-center space-x-2 transition-colors"
-            >
-              <FileText className="w-3 h-3" />
-              <span>Context File</span>
-            </button>
+              <motion.button
+                onClick={() => handleAction('contextFile')}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
+                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+              >
+                <FileText className="w-4 h-4" />
+                <span className="font-mono font-medium">Context File</span>
+              </motion.button>
 
-            <button
-              onClick={() => handleAction('edit')}
-              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/50 flex items-center space-x-2 transition-colors"
-            >
-              <Edit className="w-3 h-3" />
-              <span>Edit</span>
-            </button>
+              <motion.button
+                onClick={() => handleAction('edit')}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
+                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+              >
+                <Edit className="w-4 h-4" />
+                <span className="font-mono font-medium">Edit</span>
+              </motion.button>
 
-            <div className="border-t border-gray-600/30 my-1" />
+              <div className="border-t border-gray-600/40 my-2 mx-2" />
 
-            <button
-              onClick={() => handleAction('delete')}
-              className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center space-x-2 transition-colors"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>Delete</span>
-            </button>
+              <motion.button
+                onClick={() => handleAction('delete')}
+                className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/20 hover:text-red-300 flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
+                whileHover={{ x: 4, backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="font-mono font-medium">Delete</span>
+              </motion.button>
+            </div>
           </motion.div>
 
           {/* Edit Modal */}
@@ -208,4 +234,9 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
       )}
     </AnimatePresence>
   );
+
+  // Use portal to render at document root level
+  return typeof document !== 'undefined' 
+    ? createPortal(menuContent, document.body)
+    : null;
 }
