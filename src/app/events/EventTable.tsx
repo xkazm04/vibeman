@@ -3,7 +3,19 @@ import EventRow from './EventRow';
 import { AnimatePresence } from 'framer-motion';
 import { EventLogEntry } from '@/types';
 
-const EventTable = ({viewState, filter, filteredEvents, isLoading}: {viewState: 'normal' | 'maximized' | 'minimized', filter: string, filteredEvents: EventLogEntry[], isLoading?: boolean}) => {
+const EventTable = ({
+  viewState, 
+  filter, 
+  filteredEvents, 
+  isLoading, 
+  onEventClick
+}: {
+  viewState: 'normal' | 'maximized' | 'minimized';
+  filter: string;
+  filteredEvents: EventLogEntry[];
+  isLoading?: boolean;
+  onEventClick?: (event: EventLogEntry) => void;
+}) => {
   const getTableHeight = () => {
     switch (viewState) {
       case 'maximized': return 'max-h-[65vh]';
@@ -30,7 +42,8 @@ const EventTable = ({viewState, filter, filteredEvents, isLoading}: {viewState: 
                 <EventRow 
                   key={event.id} 
                   event={event} 
-                  index={index} 
+                  index={index}
+                  onClick={onEventClick}
                 />
               ))}
             </AnimatePresence>

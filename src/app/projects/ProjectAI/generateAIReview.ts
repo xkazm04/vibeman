@@ -1,36 +1,9 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-
-const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
-
-async function callOllamaAPI(prompt: string): Promise<string> {
-  try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        prompt,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Ollama API error (${response.status}): ${errorText}`);
-    }
-
-    const result = await response.json();
-    return result.response;
-  } catch (error) {
-    console.error('Failed to call Ollama API:', error);
-    throw new Error(`AI generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
+import { ollamaClient } from '../../../lib/ollama';
 
 // Generate AI documentation review
-export async function generateAIReview(projectName: string, analysis: any): Promise<string> {
+export async function generateAIReview(projectName: string, analysis: any, projectId?: string): Promise<string> {
   // Read the project prompt template
   let promptTemplate = '';
   try {
@@ -160,5 +133,16 @@ ${buildAnalysisSection()}
 
 Please analyze this project data and provide your comprehensive review following the structure outlined above. Focus on actionable insights and be specific in your recommendations.`;
 
-  return await callOllamaAPI(prompt);
+  const result = await ollamaClient.generate({
+    prompt,
+    projectId,
+    taskType: 'ai_review',
+    taskDescription: `Generate AI review for ${projectName}`
+  });
+
+  if (!result.success || !result.response) {
+    throw new Error(result.error || 'Failed to generate AI review');
+  }
+
+  return result.response;
 }

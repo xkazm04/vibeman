@@ -2,10 +2,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { EventLogEntry } from '@/types';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useAnalysisStore } from '@/stores/analysisStore';
+import useAnalysisStore from '@/stores/analysisStore';
 
 // Database event from local SQLite
-interface DbEvent {
+export interface DbEvent {
   id: string;
   project_id: string;
   title: string;
@@ -25,7 +25,9 @@ const transformDbEvent = (dbEvent: DbEvent): EventLogEntry => {
     type: dbEvent.type,
     timestamp: new Date(dbEvent.created_at),
     agent: dbEvent.agent || undefined,
-    message: dbEvent.message || undefined
+    message: dbEvent.message || undefined,
+    // Include raw message for modal display
+    rawMessage: dbEvent.message || undefined
   };
 };
 
@@ -57,13 +59,20 @@ export function useRealtimeEvents(options?: {
     ? eventKeys.bySession(sessionId)
     : eventKeys.byProject(projectId);
 
-  // Fetch initial events
+  // Fetch initial events from SQLite database
   const fetchEvents = async (): Promise<EventLogEntry[]> => {
     try {
       const params = new URLSearchParams({
         projectId,
         limit: limit.toString()
       });
+
+      if (sessionId) {
+        params.append('sessionId', sessionId);
+      }
+      if (flowId) {
+        params.append('flowId', flowId);
+      }
 
       const response = await fetch(`/api/kiro/events?${params}`);
       

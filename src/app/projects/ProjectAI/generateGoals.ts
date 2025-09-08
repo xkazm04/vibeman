@@ -1,34 +1,7 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { goalDb } from '../../../lib/database';
-
-const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
-
-async function callOllamaAPI(prompt: string): Promise<string> {
-  try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        prompt,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Ollama API error (${response.status}): ${errorText}`);
-    }
-
-    const result = await response.json();
-    return result.response;
-  } catch (error) {
-    console.error('Failed to call Ollama API:', error);
-    throw new Error(`AI generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
+import { ollamaClient } from '../../../lib/ollama';
 
 // Helper function to read AI docs if available
 async function readAIDocs(projectPath: string): Promise<string | null> {
@@ -222,5 +195,16 @@ Please analyze this project data and generate exactly 3 NEW strategic directions
 
 ${aiDocsContent ? 'IMPORTANT: Pay special attention to the AI-generated documentation above, which provides comprehensive insights into the application\'s current state, improvement opportunities, and technical assessment. Use these insights to create strategic goals that address the most impactful opportunities identified in the analysis.' : ''}`;
 
-  return await callOllamaAPI(prompt);
+  const result = await ollamaClient.generate({
+    prompt,
+    projectId,
+    taskType: 'strategic_goals',
+    taskDescription: `Generate strategic goals for ${projectName}`
+  });
+
+  if (!result.success || !result.response) {
+    throw new Error(result.error || 'Failed to generate goals');
+  }
+
+  return result.response;
 }

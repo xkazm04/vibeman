@@ -3,9 +3,9 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pause, Maximize2, Minimize2, ChevronUp, ChevronDown, Info, AlertTriangle, XCircle, CheckCircle, Clock, RotateCcw, RefreshCw, X, Trash2 } from 'lucide-react';
 import { GlowCard } from '@/components/GlowCard';
-import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
+import { useEvents } from '@/hooks/useEvents';
 import { useBackgroundTasks } from '../../hooks/useBackgroundTasks';
-import EventTable from '../events/EventTable';
+import EventsPanel from './EventsPanel';
 import BackgroundTaskTable from '../background-tasks/BackgroundTaskTable';
 import ContextMenu from '@/components/ContextMenu';
 import { BackgroundTask } from '../../types/backgroundTasks';
@@ -14,7 +14,7 @@ export default function CombinedBottomLayout() {
   const [viewState, setViewState] = useState<'normal' | 'maximized' | 'minimized'>('minimized');
   const [eventFilter, setEventFilter] = useState('all');
   const [taskFilter, setTaskFilter] = useState('all');
-  
+
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
@@ -31,11 +31,10 @@ export default function CombinedBottomLayout() {
     events: eventLog,
     isLoading: eventsLoading,
     error: eventsError,
-    refetch: refetchEvents
-  } = useRealtimeEvents({
+    refresh: refetchEvents
+  } = useEvents({
     limit: 50,
-    autoRefresh: false,
-    refreshInterval: 5000
+    autoRefresh: false
   });
 
   // Background tasks hook - no auto refresh, we'll handle it manually
@@ -194,27 +193,9 @@ export default function CombinedBottomLayout() {
     ];
   };
 
-  // Event filtering
-  const limitedEvents = eventLog.slice(0, 50);
-  const filteredEvents = eventFilter === 'all' ? limitedEvents : limitedEvents.filter(event => event.type === eventFilter);
-
-  const eventCounts = limitedEvents.reduce((acc, event) => {
-    acc[event.type] = (acc[event.type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
   // Filter out cancelled tasks and apply user filter
   const tasks = allTasks.filter(task => task.status !== 'cancelled');
   const filteredTasks = taskFilter === 'all' ? tasks : tasks.filter(task => task.status === taskFilter);
-
-  // Filter options
-  const eventFilterOptions = [
-    { value: 'all', label: 'All', icon: null, count: limitedEvents.length },
-    { value: 'info', label: 'Info', icon: Info, count: eventCounts.info || 0 },
-    { value: 'warning', label: 'Warning', icon: AlertTriangle, count: eventCounts.warning || 0 },
-    { value: 'error', label: 'Error', icon: XCircle, count: eventCounts.error || 0 },
-    { value: 'success', label: 'Success', icon: CheckCircle, count: eventCounts.success || 0 },
-  ];
 
   const taskFilterOptions = [
     { value: 'all', label: 'All', icon: null, count: tasks.length },
@@ -245,7 +226,7 @@ export default function CombinedBottomLayout() {
     }
   };
 
-  const totalItems = limitedEvents.length + tasks.length;
+  const totalItems = eventLog.length + tasks.length;
   const hasErrors = eventsError || tasksError;
   const isLoading = eventsLoading || tasksLoading;
 
@@ -382,35 +363,12 @@ export default function CombinedBottomLayout() {
             {/* Content Area */}
             <div className="flex-1 overflow-hidden grid grid-cols-2 gap-4">
               {/* Events Panel */}
-              <div className="flex flex-col">
-                <div className="flex-shrink-0 mb-3">
-                  <h4 className="text-md font-medium text-white mb-2">Events ({limitedEvents.length})</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {eventFilterOptions.map(({ value, label, icon: Icon, count }) => (
-                      <button
-                        key={value}
-                        onClick={() => setEventFilter(value)}
-                        className={`flex items-center space-x-1 px-2 py-1 rounded-full border text-xs font-medium transition-all ${eventFilter === value
-                          ? getFilterColor(value)
-                          : 'border-gray-700/50 bg-gray-800/30 text-gray-400 hover:border-gray-600/50 hover:bg-gray-700/30'
-                          }`}
-                      >
-                        {Icon && <Icon className="w-3 h-3" />}
-                        <span>{label}</span>
-                        <span className="bg-gray-900/50 px-1 py-0.5 rounded-full text-xs">
-                          {count}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <EventTable
-                  viewState={viewState}
-                  filter={eventFilter}
-                  filteredEvents={filteredEvents}
-                  isLoading={eventsLoading}
-                />
-              </div>
+              <EventsPanel
+                viewState={viewState}
+                eventFilter={eventFilter}
+                setEventFilter={setEventFilter}
+                isLoading={eventsLoading}
+              />
 
               {/* Background Tasks Panel */}
               <div className="flex flex-col">
@@ -461,7 +419,7 @@ export default function CombinedBottomLayout() {
           </>
         )}
       </GlowCard>
-      
+
       {/* Context Menu - rendered at the top level outside all containers */}
       {contextMenu.isOpen && contextMenu.task && (
         <>

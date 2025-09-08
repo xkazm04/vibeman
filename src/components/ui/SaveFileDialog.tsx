@@ -52,6 +52,7 @@ export default function SaveFileDialog({
 
     try {
       await onSave(selectedFolder, finalFileName);
+      // Close dialog after successful save
       handleClose();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to save file');

@@ -1,10 +1,8 @@
 import { backlogDb } from '@/lib/backlogDatabase';
+import { ollamaClient } from '@/lib/ollama';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-
-const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
 
 interface Context {
   id: string;
@@ -24,30 +22,7 @@ interface GenerateBacklogTaskParams {
   selectedFilePaths: string[];
 }
 
-async function callOllamaAPI(prompt: string): Promise<string> {
-  try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        prompt,
-        stream: false
-      })
-    });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Ollama API error (${response.status}): ${errorText}`);
-    }
-
-    const result = await response.json();
-    return result.response;
-  } catch (error) {
-    console.error('Failed to call Ollama API:', error);
-    throw new Error(`AI generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
 
 // Read file content safely
 async function readFileContent(filePath: string): Promise<string> {
@@ -221,23 +196,30 @@ Generate a backlog item that a senior developer would create - detailed, technic
 Analyze the codebase with the same rigor and attention to detail that you would apply to any complex software system. Create a task that demonstrates deep technical understanding and provides clear, actionable guidance for implementation.`;
 
     console.log('Calling Ollama API for backlog task generation...');
-    const response = await callOllamaAPI(prompt);
+    const ollamaResponse = await ollamaClient.generate({
+      prompt,
+      projectId,
+      taskType: 'backlog_task_generation',
+      taskDescription: `Generate backlog task: ${taskRequest}`
+    });
+
+    if (!ollamaResponse.success || !ollamaResponse.response) {
+      throw new Error(ollamaResponse.error || 'Failed to generate task');
+    }
+
+    const response = ollamaResponse.response;
     console.log(`Received response from Ollama (${response.length} characters)`);
 
-    // Parse the JSON response
-    let taskData;
-    try {
-      // Extract JSON from response (handle potential markdown wrapping)
-      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || response.match(/```\s*([\s\S]*?)\s*```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : response;
-      
-      taskData = JSON.parse(jsonString.trim());
-      console.log('Successfully parsed task data:', taskData);
-    } catch (parseError) {
-      console.error('Failed to parse LLM response as JSON:', parseError);
+    // Parse the JSON response using the universal helper
+    const parseResult = ollamaClient.parseJsonResponse(response);
+    if (!parseResult.success || !parseResult.data) {
+      console.error('Failed to parse LLM response as JSON:', parseResult.error);
       console.log('Raw response:', response);
-      throw new Error('Failed to parse LLM response as valid JSON');
+      throw new Error(parseResult.error || 'Failed to parse LLM response as valid JSON');
     }
+
+    const taskData = parseResult.data;
+    console.log('Successfully parsed task data:', taskData);
 
     // Validate required fields
     if (!taskData.title || !taskData.description || !taskData.steps || !taskData.type) {

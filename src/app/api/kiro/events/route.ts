@@ -1,46 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eventDb } from '@/lib/database';
+import { eventDb } from '@/lib/eventDatabase';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
+    const projectId = searchParams.get('projectId') || 'default';
     const limit = parseInt(searchParams.get('limit') || '50');
-    const type = searchParams.get('type');
-    
-    if (!projectId) {
-      return NextResponse.json(
-        { success: false, error: 'Project ID is required' },
-        { status: 400 }
-      );
-    }
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const type = searchParams.get('type') || undefined;
 
-    try {
-      let events;
-      if (type && type !== 'all') {
-        events = eventDb.getEventsByType(projectId, type, limit);
-      } else {
-        events = eventDb.getEventsByProject(projectId, limit);
-      }
-      
-      return NextResponse.json({
-        success: true,
-        events
-      });
-    } catch (dbError) {
-      console.error(`Failed to get events for project ${projectId}:`, dbError);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Failed to get events: ${dbError instanceof Error ? dbError.message : 'Unknown error'}` 
-        },
-        { status: 500 }
-      );
-    }
+    // Get events from SQLite database
+    const events = eventDb.getEventsByProject(projectId, {
+      limit,
+      offset,
+      type
+    });
+
+    return NextResponse.json({
+      success: true,
+      events,
+      count: events.length
+    });
   } catch (error) {
-    console.error('Events API error:', error);
+    console.error('Failed to fetch events:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
@@ -48,60 +35,40 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { 
-      projectId, 
-      title, 
-      description, 
-      type, 
-      agent, 
-      message 
-    } = await request.json();
-    
-    if (!projectId || !title || !description || !type) {
-      return NextResponse.json(
-        { success: false, error: 'Project ID, title, description, and type are required' },
-        { status: 400 }
-      );
-    }
+    const body = await request.json();
+    const { project_id, title, description, type, agent, message } = body;
 
-    // Validate type
-    const validTypes = ['info', 'warning', 'error', 'success', 'proposal_accepted', 'proposal_rejected'];
-    if (!validTypes.includes(type)) {
+    if (!project_id || !title || !description || !type) {
       return NextResponse.json(
-        { success: false, error: 'Invalid event type' },
-        { status: 400 }
-      );
-    }
-
-    try {
-      const event = eventDb.createEvent({
-        id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        project_id: projectId,
-        title,
-        description,
-        type,
-        agent,
-        message
-      });
-      
-      return NextResponse.json({
-        success: true,
-        event
-      });
-    } catch (dbError) {
-      console.error(`Failed to create event:`, dbError);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Failed to create event: ${dbError instanceof Error ? dbError.message : 'Unknown error'}` 
+        {
+          success: false,
+          error: 'Missing required fields: project_id, title, description, type'
         },
-        { status: 500 }
+        { status: 400 }
       );
     }
+
+    // Create event in SQLite database
+    const event = eventDb.createEvent({
+      project_id,
+      title,
+      description,
+      type,
+      agent,
+      message
+    });
+
+    return NextResponse.json({
+      success: true,
+      event
+    });
   } catch (error) {
-    console.error('Create event API error:', error);
+    console.error('Failed to create event:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

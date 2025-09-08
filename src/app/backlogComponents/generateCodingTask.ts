@@ -1,9 +1,7 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { backlogDb } from '../../lib/backlogDatabase';
-
-const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
+import { ollamaClient } from '../../lib/ollama';
 
 interface BacklogTask {
   id: string;
@@ -21,30 +19,7 @@ interface GeneratedCode {
   originalContent?: string;
 }
 
-async function callOllamaAPI(prompt: string): Promise<string> {
-  try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        prompt,
-        stream: false
-      })
-    });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Ollama API error (${response.status}): ${errorText}`);
-    }
-
-    const result = await response.json();
-    return result.response;
-  } catch (error) {
-    console.error('Failed to call Ollama API:', error);
-    throw new Error(`AI generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
 
 // Read file content safely
 async function readFileContent(projectPath: string, filePath: string): Promise<string> {
@@ -353,7 +328,18 @@ ${filesToUpdate.map(f => `\`\`\`code-file:${f.filepath}|update\`\`\`
 Implement this feature with the same rigor and expertise you would apply to any critical production system. Focus on creating robust, scalable, and maintainable code that other senior developers would approve in a code review.`;
 
     console.log('Calling Ollama API for code generation...');
-    const response = await callOllamaAPI(prompt);
+    const result = await ollamaClient.generate({
+      prompt,
+      projectId: parsedTask.project_id,
+      taskType: 'code_generation',
+      taskDescription: `Generate code for task: ${parsedTask.title}`
+    });
+
+    if (!result.success || !result.response) {
+      throw new Error(result.error || 'Failed to generate code');
+    }
+
+    const response = result.response;
     console.log(`Received response from Ollama (${response.length} characters)`);
 
     if (!response || response.trim().length === 0) {

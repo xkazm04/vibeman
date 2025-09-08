@@ -9,6 +9,7 @@ import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import RunnerRightPanel from './components/RunnerRightPanel';
 import { RefreshCcw, Skull } from 'lucide-react';
+import VoicebotPillar from '@/app/voicebot/VoicebotPillar';
 
 export default function Runner() {
   const {
@@ -147,6 +148,9 @@ export default function Runner() {
         onClose={() => setShowEmergencyKill(false)}
         onRefresh={handleEmergencyRefresh}
       />
+
+      {/* Voicebot Pillar */}
+      <VoicebotPillar disabled={disabled} />
     </>
   );
 } 

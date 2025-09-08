@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
+import { ollamaClient } from '@/lib/ollama';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model = DEFAULT_MODEL } = await request.json();
-    
+    const { prompt, model, projectId } = await request.json();
+
     if (!prompt) {
       return NextResponse.json(
         { success: false, error: 'Prompt is required' },
@@ -14,30 +12,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call Ollama API
-    const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false
-      })
+    // Use the universal Ollama client
+    const result = await ollamaClient.generate({
+      prompt,
+      model,
+      projectId,
+      taskType: 'context_generation',
+      taskDescription: 'Generate context documentation'
     });
 
-    if (!ollamaResponse.ok) {
-      const errorText = await ollamaResponse.text().catch(() => 'Unknown error');
+    if (!result.success) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: `Ollama API error (${ollamaResponse.status}): ${errorText}` 
+        {
+          success: false,
+          error: result.error || 'Failed to generate context'
         },
-        { status: ollamaResponse.status }
+        { status: result.errorCode || 500 }
       );
     }
 
-    const result = await ollamaResponse.json();
-    
     return NextResponse.json({
       success: true,
       response: result.response,
@@ -53,22 +46,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Context generation API error:', error);
-    
-    // Check if it's a connection error to Ollama
-    if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Unable to connect to Ollama. Please ensure Ollama is running on localhost:11434' 
-        },
-        { status: 503 }
-      );
-    }
-    
+
     return NextResponse.json(
-      { 
-        success: false, 
-        error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      {
+        success: false,
+        error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`
       },
       { status: 500 }
     );

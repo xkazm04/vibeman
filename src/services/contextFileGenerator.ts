@@ -1,18 +1,5 @@
 import { Context } from '../stores/contextStore';
-
-interface OllamaResponse {
-  model: string;
-  created_at: string;
-  response: string;
-  done: boolean;
-  context: number[];
-  total_duration: number;
-  load_duration: number;
-  prompt_eval_count: number;
-  prompt_eval_duration: number;
-  eval_count: number;
-  eval_duration: number;
-}
+import { ollamaClient, OllamaResponse } from '../lib/ollama';
 
 interface GenerateContextFileOptions {
   context: Context;
@@ -21,8 +8,6 @@ interface GenerateContextFileOptions {
 }
 
 export class ContextFileGenerator {
-  private static readonly OLLAMA_BASE_URL = 'http://localhost:11434';
-  private static readonly MODEL = 'gpt-oss:20b';
 
   /**
    * Generate a context file using LLM based on the provided context and file contents
@@ -34,7 +19,7 @@ export class ContextFileGenerator {
   }: GenerateContextFileOptions): Promise<string> {
     try {
       onProgress?.('Loading template and prompt files...');
-      
+
       // Load template and prompt files
       const [template, prompt] = await Promise.all([
         this.loadTemplate(),
@@ -42,24 +27,37 @@ export class ContextFileGenerator {
       ]);
 
       onProgress?.('Reading source files...');
-      
+
       // Read all files in the context
       const fileContents = await this.readContextFiles(context.filePaths, signal);
-      
+
       onProgress?.('Composing instruction for LLM...');
-      
+
       // Compose the final prompt
       const finalPrompt = this.composeFinalPrompt(template, prompt, context, fileContents);
-      
+
       onProgress?.('Generating context file with LLM...');
-      
-      // Call Ollama API
-      const response = await this.callOllamaAPI(finalPrompt, signal);
-      
+
+      // Call Ollama API using universal client
+      const result = await ollamaClient.generate({
+        prompt: finalPrompt,
+        projectId: 'context-generation', // Default project for context generation
+        taskType: 'context_file_generation',
+        taskDescription: `Generate context file for: ${context.name}`
+      }, {
+        onProgress: (progress, message) => {
+          onProgress?.(message || `Generating... ${progress}%`);
+        }
+      });
+
+      if (!result.success || !result.response) {
+        throw new Error(result.error || 'Failed to generate context file');
+      }
+
       onProgress?.('Context file generated successfully!');
-      
-      return response.response;
-      
+
+      return result.response;
+
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Context file generation was cancelled');
@@ -89,14 +87,14 @@ export class ContextFileGenerator {
    */
   private static async readContextFiles(filePaths: string[], signal?: AbortSignal): Promise<Record<string, string>> {
     const fileContents: Record<string, string> = {};
-    
+
     // For now, we'll create a service that can be called from the frontend
     // In a real implementation, this would integrate with the file system
     for (const filePath of filePaths) {
       if (signal?.aborted) {
         throw new Error('Operation cancelled');
       }
-      
+
       try {
         const content = await this.readFileContent(filePath);
         fileContents[filePath] = content;
@@ -105,7 +103,7 @@ export class ContextFileGenerator {
         fileContents[filePath] = `// Failed to read file: ${filePath}\n// Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
       }
     }
-    
+
     return fileContents;
   }
 
@@ -118,7 +116,7 @@ export class ContextFileGenerator {
       const response = await fetch('/api/kiro/read-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           filePath: filePath
         })
       });
@@ -128,7 +126,7 @@ export class ContextFileGenerator {
       }
 
       const result = await response.json();
-      
+
       // Handle different response formats
       if (result.success && result.content) {
         return result.content;
@@ -141,12 +139,12 @@ export class ContextFileGenerator {
       }
     } catch (error) {
       console.warn(`Failed to read file ${filePath}, generating placeholder:`, error);
-      
+
       // Generate a realistic placeholder that indicates the file couldn't be read
       // but still provides useful information for the LLM
       const fileName = filePath.split('/').pop() || 'unknown';
       const fileExtension = fileName.split('.').pop() || '';
-      
+
       return `// File: ${filePath}
 // Note: Unable to read actual file content - using placeholder
 // This file would normally contain the implementation for analysis
@@ -185,7 +183,7 @@ ${this.generatePlaceholderByExtension(filePath, fileName, fileExtension)}
   private static generateTypeScriptPlaceholder(filePath: string, fileName: string): string {
     const componentName = fileName.replace(/\.(tsx?|jsx?)$/, '');
     const isComponent = fileName.endsWith('.tsx') || fileName.endsWith('.jsx');
-    
+
     if (isComponent) {
       return `// File: ${filePath}
 import React from 'react';
@@ -307,46 +305,7 @@ Please analyze the provided source files and fill out the template above with ac
 Return only the filled template as markdown, without any additional commentary or explanation.`;
   }
 
-  /**
-   * Call the Ollama API to generate the context file
-   */
-  private static async callOllamaAPI(prompt: string, signal?: AbortSignal): Promise<OllamaResponse> {
-    const response = await fetch('/api/kiro/generate-context', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        model: this.MODEL
-      }),
-      signal
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `API error (${response.status})`);
-    }
-
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Generation failed');
-    }
-
-    // Convert to expected format
-    return {
-      model: result.model,
-      created_at: result.created_at,
-      response: result.response,
-      done: result.done,
-      context: [], // Not provided by our API
-      total_duration: result.total_duration,
-      load_duration: result.load_duration,
-      prompt_eval_count: result.prompt_eval_count,
-      prompt_eval_duration: result.prompt_eval_duration,
-      eval_count: result.eval_count,
-      eval_duration: result.eval_duration
-    };
-  }
+  // Note: callOllamaAPI method removed - now using universal ollamaClient
 
   /**
    * Embedded template as fallback

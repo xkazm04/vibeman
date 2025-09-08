@@ -2,35 +2,8 @@ import { readFile, writeFile, mkdir, readdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { contextDb } from '../../../lib/database';
+import { ollamaClient } from '../../../lib/ollama';
 import { v4 as uuidv4 } from 'uuid';
-
-const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
-
-async function callOllamaAPI(prompt: string): Promise<string> {
-  try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        prompt,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Ollama API error (${response.status}): ${errorText}`);
-    }
-
-    const result = await response.json();
-    return result.response;
-  } catch (error) {
-    console.error('Failed to call Ollama API:', error);
-    throw new Error(`AI generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
 
 // Helper function to read template files
 async function readTemplate(templateName: string): Promise<string> {
@@ -118,7 +91,7 @@ function parseContextResponse(response: string): Array<{
   console.log('Parsing AI response for context files...');
   console.log('Response preview:', response.substring(0, 500));
 
-  // Look for context file markers in the response - improved pattern
+  // Pattern 1: Look for context file markers in the response
   const contextPattern = /```context-file:\s*([^\n`]+)\s*```\s*\n([\s\S]*?)(?=```context-file:|```\s*$|$)/g;
   let match;
 
@@ -146,9 +119,38 @@ function parseContextResponse(response: string): Array<{
     }
   }
 
-  // Fallback: if no markers found, try to extract from markdown sections
+  // Pattern 2: Look for numbered sections with filenames (like the actual response format)
   if (contexts.length === 0) {
-    console.log('No context-file markers found, trying fallback parsing...');
+    console.log('No context-file markers found, trying numbered section parsing...');
+    
+    // Match patterns like: ## 1. **survey-types.md** – *Data‑Types Context*
+    const numberedPattern = /##\s*\d+\.\s*\*\*([^*]+\.md)\*\*[^\n]*\n([\s\S]*?)(?=##\s*\d+\.\s*\*\*[^*]+\.md\*\*|$)/g;
+    let numberedMatch;
+
+    while ((numberedMatch = numberedPattern.exec(response)) !== null) {
+      const filename = numberedMatch[1].trim();
+      let content = numberedMatch[2].trim();
+
+      if (filename && content) {
+        // Create a proper context file format
+        const title = filename.replace('.md', '').replace(/[-_]/g, ' ');
+        const fullContent = `# Feature Context: ${title}\n\n${content}`;
+        
+        const metadata = extractMetadataFromContent(fullContent, filename);
+
+        contexts.push({
+          filename,
+          content: fullContent,
+          metadata
+        });
+        console.log(`Parsed numbered section: ${filename} (${fullContent.length} characters)`);
+      }
+    }
+  }
+
+  // Pattern 3: Fallback - try to extract from markdown sections with "Feature Context:"
+  if (contexts.length === 0) {
+    console.log('No numbered sections found, trying feature context parsing...');
     const sectionPattern = /# Feature Context: ([^\n]+)\n([\s\S]*?)(?=# Feature Context:|$)/g;
     let sectionMatch;
 
@@ -169,6 +171,42 @@ function parseContextResponse(response: string): Array<{
         console.log(`Parsed fallback context file: ${filename} (${fullContent.length} characters)`);
       }
     }
+  }
+
+  // Pattern 4: Last resort - split by major headings and create contexts
+  if (contexts.length === 0) {
+    console.log('No structured patterns found, trying generic section splitting...');
+    
+    // Split by ## headings and try to extract meaningful sections
+    const sections = response.split(/(?=##\s+)/);
+    
+    sections.forEach((section, index) => {
+      const trimmedSection = section.trim();
+      if (trimmedSection.length > 200) { // Only consider substantial sections
+        
+        // Try to extract a filename from the section
+        const headingMatch = trimmedSection.match(/##\s*(.+?)(?:\n|$)/);
+        if (headingMatch) {
+          let sectionTitle = headingMatch[1].trim();
+          
+          // Clean up the title and create filename
+          sectionTitle = sectionTitle.replace(/\*\*([^*]+)\*\*/, '$1'); // Remove markdown bold
+          sectionTitle = sectionTitle.replace(/[–—-].*$/, '').trim(); // Remove description after dash
+          
+          const filename = `${sectionTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}_context.md`;
+          const fullContent = `# Feature Context: ${sectionTitle}\n\n${trimmedSection}`;
+          
+          const metadata = extractMetadataFromContent(fullContent, filename);
+
+          contexts.push({
+            filename,
+            content: fullContent,
+            metadata
+          });
+          console.log(`Parsed generic section: ${filename} (${fullContent.length} characters)`);
+        }
+      }
+    });
   }
 
   console.log(`Total context files parsed: ${contexts.length}`);
@@ -367,7 +405,18 @@ ${buildAnalysisSection()}
 Please analyze this project and determine what context files need to be created or updated. Focus on logical groupings of functionality that would help developers understand the codebase structure. Pay special attention to extracting accurate file paths for the Location Map sections.`;
 
     console.log('Calling Ollama API for context generation...');
-    const response = await callOllamaAPI(prompt);
+    const result = await ollamaClient.generate({
+      prompt,
+      projectId,
+      taskType: 'context_generation',
+      taskDescription: `Generate context files for ${projectName}`
+    });
+
+    if (!result.success || !result.response) {
+      throw new Error(result.error || 'Failed to generate contexts');
+    }
+
+    const response = result.response;
     console.log(`Received response from Ollama (${response.length} characters)`);
 
     const contexts = parseContextResponse(response);

@@ -80,6 +80,7 @@ export interface EventLogEntry {
   timestamp: Date;
   agent?: string;
   message?: string;
+  rawMessage?: string; // For modal display of full event data
 }
 
 export interface AppState {

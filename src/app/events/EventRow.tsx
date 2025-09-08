@@ -6,9 +6,10 @@ import { EventLogEntry } from '@/types';
 interface EventRowProps {
   event: EventLogEntry;
   index: number;
+  onClick?: (event: EventLogEntry) => void;
 }
 
-export default function EventRow({ event, index }: EventRowProps) {
+export default function EventRow({ event, index, onClick }: EventRowProps) {
   const getIcon = (type: EventLogEntry['type']) => {
     switch (type) {
       case 'info': return Info;
@@ -49,7 +50,10 @@ export default function EventRow({ event, index }: EventRowProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ delay: index * 0.02 }}
-      className="border-b border-gray-700/20 hover:bg-gray-800/20 transition-colors"
+      className={`border-b border-gray-700/20 hover:bg-gray-800/20 transition-colors ${
+        onClick ? 'cursor-pointer' : ''
+      }`}
+      onClick={() => onClick?.(event)}
     >
       <td className="px-3 py-2">
         <div className="flex items-center space-x-2">
