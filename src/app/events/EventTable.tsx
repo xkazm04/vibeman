@@ -8,13 +8,15 @@ const EventTable = ({
   filter, 
   filteredEvents, 
   isLoading, 
-  onEventClick
+  onEventClick,
+  onDeleteEvent
 }: {
   viewState: 'normal' | 'maximized' | 'minimized';
   filter: string;
   filteredEvents: EventLogEntry[];
   isLoading?: boolean;
   onEventClick?: (event: EventLogEntry) => void;
+  onDeleteEvent?: (eventId: string, eventTitle: string) => void;
 }) => {
   const getTableHeight = () => {
     switch (viewState) {
@@ -34,6 +36,7 @@ const EventTable = ({
               <th className="px-3 py-2 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Description</th>
               <th className="px-3 py-2 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Type</th>
               <th className="px-3 py-2 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Time</th>
+              <th className="px-3 py-2 text-center text-gray-300 font-medium text-xs uppercase tracking-wider w-16">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -44,6 +47,7 @@ const EventTable = ({
                   event={event} 
                   index={index}
                   onClick={onEventClick}
+                  onDelete={onDeleteEvent}
                 />
               ))}
             </AnimatePresence>

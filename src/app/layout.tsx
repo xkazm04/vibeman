@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BackgroundPattern from "../components/BackgroundPattern";
 import QueryProvider from "../components/QueryProvider";
+import { ModalProvider } from "../contexts/ModalContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,9 @@ export default function RootLayout({
       >
         <BackgroundPattern />
         <QueryProvider>
-          {children}
+          <ModalProvider>
+            {children}
+          </ModalProvider>
         </QueryProvider>
       </body>
     </html>

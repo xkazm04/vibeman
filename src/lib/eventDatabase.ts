@@ -210,6 +210,14 @@ export const eventDb = {
     return result.changes;
   },
 
+  // Delete a single event by ID
+  deleteEvent: (id: string): boolean => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM events WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  },
+
   // Get recent events across all projects (for dashboard)
   getRecentEvents: (limit: number = 20): DbEvent[] => {
     const db = getDatabase();

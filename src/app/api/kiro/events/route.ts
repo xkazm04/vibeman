@@ -73,3 +73,47 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const eventId = searchParams.get('id');
+
+    if (!eventId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing event ID'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Delete event from SQLite database
+    const deleted = eventDb.deleteEvent(eventId);
+
+    if (!deleted) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Event not found'
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Event deleted successfully'
+    });
+  } catch (error) {
+    console.error('Failed to delete event:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}

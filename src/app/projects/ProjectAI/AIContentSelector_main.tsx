@@ -2,16 +2,35 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Zap, Play, Pause, FileCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { codebaseScanCards, ideaGenerationCards, AIContentCard } from './aiContentConfig';
+import LLMSelector from './LLMSelector';
+import { SupportedProvider, DefaultProviderStorage } from '../../../lib/llm';
 
 interface AIContentSelectorProps {
   onSelectMode: (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask?: boolean) => void;
   activeProject: any;
+  selectedProvider?: SupportedProvider;
+  onProviderChange?: (provider: SupportedProvider) => void;
 }
 
-export default function AIContentSelector({ onSelectMode, activeProject }: AIContentSelectorProps) {
+export default function AIContentSelector({ onSelectMode, activeProject, selectedProvider: externalProvider, onProviderChange }: AIContentSelectorProps) {
   const [backgroundTask, setBackgroundTask] = React.useState(false);
   const [aiDocsExist, setAiDocsExist] = React.useState(false);
   const [checkingDocs, setCheckingDocs] = React.useState(true);
+  const [selectedProvider, setSelectedProvider] = React.useState<SupportedProvider>(() => 
+    externalProvider || DefaultProviderStorage.getDefaultProvider()
+  );
+
+  // Update internal state when external provider changes
+  React.useEffect(() => {
+    if (externalProvider && externalProvider !== selectedProvider) {
+      setSelectedProvider(externalProvider);
+    }
+  }, [externalProvider, selectedProvider]);
+
+  const handleProviderSelect = (provider: SupportedProvider) => {
+    setSelectedProvider(provider);
+    onProviderChange?.(provider);
+  };
 
   // Check if AI docs exist
   React.useEffect(() => {
@@ -96,7 +115,7 @@ export default function AIContentSelector({ onSelectMode, activeProject }: AICon
           {/* Action Indicator */}
           <div className={`mt-4 flex items-center space-x-2 text-xs text-gray-500 ${disabled ? '' : 'group-hover:text-gray-400'} transition-colors`}>
             <Zap className="w-3 h-3" />
-            <span>Powered by Ollama AI</span>
+            <span>Powered by {selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'anthropic' ? 'Claude' : selectedProvider === 'gemini' ? 'Gemini' : selectedProvider === 'internal' ? 'Internal API' : 'Ollama'} AI</span>
           </div>
         </div>
 
@@ -155,8 +174,20 @@ export default function AIContentSelector({ onSelectMode, activeProject }: AICon
           )}
         </div>
 
-        {/* Enhanced Background Task Toggle */}
+        {/* LLM Provider Selection */}
         <div className="mt-6 p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
+          <div className="mb-3">
+            <span className="text-sm font-medium text-white">AI Provider</span>
+            <p className="text-xs text-gray-400 mt-1">Choose your preferred AI model</p>
+          </div>
+          <LLMSelector 
+            selectedProvider={selectedProvider}
+            onProviderSelect={handleProviderSelect}
+          />
+        </div>
+
+        {/* Enhanced Background Task Toggle */}
+        <div className="mt-4 p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
           <motion.label
             className="flex items-center cursor-pointer"
             whileHover={{ scale: 1.02 }}

@@ -1,10 +1,10 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { backlogDb } from '../../../lib/database';
-import { ollamaClient } from '../../../lib/ollama';
+import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 
 // Generate code optimization tasks
-export async function generateCodeTasks(projectName: string, projectId: string, analysis: any): Promise<string> {
+export async function generateCodeTasks(projectName: string, projectId: string, analysis: any, provider?: string): Promise<string> {
   // Get existing tasks to prevent duplicates
   const existingTasks = backlogDb.getBacklogItemsByProject(projectId);
   
@@ -133,11 +133,13 @@ Pay special attention to:
 4. Performance optimization opportunities
 5. Code structure improvements that enhance readability`;
 
-  const result = await ollamaClient.generate({
-    prompt,
+  const result = await generateWithLLM(prompt, {
+    provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'code_optimization_tasks',
-    taskDescription: `Generate code optimization tasks for ${projectName}`
+    taskDescription: `Generate code optimization tasks for ${projectName}`,
+    maxTokens: 2000,
+    temperature: 0.7
   });
 
   if (!result.success || !result.response) {

@@ -1,9 +1,9 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { ollamaClient } from '../../../lib/ollama';
+import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 
 // Generate AI documentation review
-export async function generateAIReview(projectName: string, analysis: any, projectId?: string): Promise<string> {
+export async function generateAIReview(projectName: string, analysis: any, projectId?: string, provider?: string): Promise<string> {
   // Read the project prompt template
   let promptTemplate = '';
   try {
@@ -133,11 +133,13 @@ ${buildAnalysisSection()}
 
 Please analyze this project data and provide your comprehensive review following the structure outlined above. Focus on actionable insights and be specific in your recommendations.`;
 
-  const result = await ollamaClient.generate({
-    prompt,
+  const result = await generateWithLLM(prompt, {
+    provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'ai_review',
-    taskDescription: `Generate AI review for ${projectName}`
+    taskDescription: `Generate AI review for ${projectName}`,
+    maxTokens: 4000,
+    temperature: 0.7
   });
 
   if (!result.success || !result.response) {

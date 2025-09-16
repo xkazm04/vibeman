@@ -9,7 +9,7 @@ import { generateCodeTasks } from '@/app/projects/ProjectAI/generateCodeTasks';
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectId, projectPath, projectName, mode = 'docs' } = await request.json();
+    const { projectId, projectPath, projectName, mode = 'docs', provider } = await request.json();
     
     if (!projectId || !projectPath || !projectName) {
       return NextResponse.json(
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       // Generate content based on mode
       switch (mode) {
         case 'docs':
-          const aiReview = await generateAIReview(projectName, projectAnalysis);
+          const aiReview = await generateAIReview(projectName, projectAnalysis, projectId, provider);
           result = {
             success: true,
             analysis: aiReview,
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
           break;
           
         case 'tasks':
-          const tasksResponse = await generateTasks(projectName, projectId, projectAnalysis);
+          const tasksResponse = await generateTasks(projectName, projectId, projectAnalysis, provider);
           try {
             // Try to parse JSON response, handling ```json wrapper
             const tasks = parseAIJsonResponse(tasksResponse);
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
           break;
           
         case 'goals':
-          const goalsResponse = await generateGoals(projectName, projectId, projectAnalysis, projectPath);
+          const goalsResponse = await generateGoals(projectName, projectId, projectAnalysis, projectPath, provider);
           try {
             // Try to parse JSON response, handling ```json wrapper
             const goals = parseAIJsonResponse(goalsResponse);
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
           break;
           
         case 'context':
-          const contextResult = await generateContexts(projectName, projectPath, projectAnalysis, projectId);
+          const contextResult = await generateContexts(projectName, projectPath, projectAnalysis, projectId, provider);
           result = {
             success: contextResult.success,
             contexts: contextResult.contexts,
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
           break;
           
         case 'code':
-          const codeTasksResponse = await generateCodeTasks(projectName, projectId, projectAnalysis);
+          const codeTasksResponse = await generateCodeTasks(projectName, projectId, projectAnalysis, provider);
           try {
             // Try to parse JSON response, handling ```json wrapper
             const codeTasks = parseAIJsonResponse(codeTasksResponse);

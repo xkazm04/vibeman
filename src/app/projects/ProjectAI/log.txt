@@ -1,0 +1,14 @@
+getAllStatuses: returning 1 statuses
+Status API returning: 1 processes
+ GET /api/server/status 200 in 111ms
+ GET /api/reviewer/pending-count?projectId=484fc978-dac7-4681-9059-a452830d4090 200 in 61ms
+Received response from Ollama (8827 characters)
+Parsing AI response for context files...
+Response preview: **Context: EmployeeEngagementDashboard**
+
+**Summary**
+An interactive dashboard that presents a full view of an employee engagement survey. Users can upload a survey file, then navigate through four tabs—Executive Summary, Statistics, Leadership Performance, and Qualitative Insights—to explore high‑level metrics, detailed leader analysis, and individual employee voice. Each tab updates in real time as new data is uploaded, offering color‑coded visual cues and expandable sections for deeper dive
+No JSON contexts found, trying multi-line JSON parsing...
+No JSON contexts found, trying numbered section parsing...
+No numbered sections found, trying feature context parsing...
+Total context files parsed: 0

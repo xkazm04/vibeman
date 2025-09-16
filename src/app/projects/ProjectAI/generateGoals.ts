@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { goalDb } from '../../../lib/database';
-import { ollamaClient } from '../../../lib/ollama';
+import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 
 // Helper function to read AI docs if available
 async function readAIDocs(projectPath: string): Promise<string | null> {
@@ -16,7 +16,7 @@ async function readAIDocs(projectPath: string): Promise<string | null> {
 }
 
 // Generate strategic goals
-export async function generateGoals(projectName: string, projectId: string, analysis: any, projectPath?: string): Promise<string> {
+export async function generateGoals(projectName: string, projectId: string, analysis: any, projectPath?: string, provider?: string): Promise<string> {
   // Get existing goals to prevent duplicates
   const existingGoals = goalDb.getGoalsByProject(projectId);
   
@@ -195,11 +195,13 @@ Please analyze this project data and generate exactly 3 NEW strategic directions
 
 ${aiDocsContent ? 'IMPORTANT: Pay special attention to the AI-generated documentation above, which provides comprehensive insights into the application\'s current state, improvement opportunities, and technical assessment. Use these insights to create strategic goals that address the most impactful opportunities identified in the analysis.' : ''}`;
 
-  const result = await ollamaClient.generate({
-    prompt,
+  const result = await generateWithLLM(prompt, {
+    provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'strategic_goals',
-    taskDescription: `Generate strategic goals for ${projectName}`
+    taskDescription: `Generate strategic goals for ${projectName}`,
+    maxTokens: 2000,
+    temperature: 0.8
   });
 
   if (!result.success || !result.response) {

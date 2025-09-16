@@ -165,29 +165,38 @@ export default function ContextResultDisplay({
     setSaving(true);
 
     try {
-      const savePromises = selectedContexts.map(async (context) => {
-        const updatedContent = updateContentWithFiles(context.content, context.files);
+      // Prepare contexts for batch saving
+      const contextsToSave = selectedContexts.map(context => ({
+        filename: context.filename,
+        content: updateContentWithFiles(context.content, context.files),
+        title: context.title,
+        filePaths: context.files.map(f => f.path),
+        description: extractDescriptionFromContent(context.content)
+      }));
 
-        const response = await fetch('/api/kiro/save-context-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filePath: `${activeProject?.path}/context/${context.filename}`,
-            content: updatedContent,
-            contextName: context.title
-          })
-        });
-
-        const result = await response.json();
-        if (!result.success) {
-          throw new Error(`Failed to save ${context.filename}: ${result.error}`);
-        }
-
-        return result;
+      const response = await fetch('/api/kiro/save-contexts-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contexts: contextsToSave,
+          projectPath: activeProject?.path,
+          projectId: activeProject?.id || 'default-project'
+        })
       });
 
-      await Promise.all(savePromises);
-      console.log(`Successfully saved ${selectedContexts.length} context files`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save contexts');
+      }
+
+      console.log(`Successfully saved ${result.successCount} context files`);
+      
+      if (result.failureCount > 0) {
+        console.warn(`${result.failureCount} contexts failed to save:`, result.results.filter(r => !r.success));
+        alert(`Saved ${result.successCount} contexts successfully, but ${result.failureCount} failed. Check console for details.`);
+      }
+      
       onBack();
     } catch (error) {
       console.error('Failed to save contexts:', error);
@@ -195,6 +204,12 @@ export default function ContextResultDisplay({
     } finally {
       setSaving(false);
     }
+  };
+
+  // Helper function to extract description from content
+  const extractDescriptionFromContent = (content: string): string | undefined => {
+    const descriptionMatch = content.match(/##\s*(?:Core Functionality|Overview|Description)\s*\n(.*?)(?=\n##|\n#|$)/s);
+    return descriptionMatch ? descriptionMatch[1].trim().split('\n')[0] : undefined;
   };
 
   const selectedCount = contextItems.filter(item => item.selected).length;

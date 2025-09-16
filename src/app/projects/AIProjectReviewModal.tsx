@@ -7,7 +7,8 @@ import AIContentSelector from './ProjectAI/AIContentSelector_main';
 import AIDocsDisplay from './ProjectAI/AIDocsDisplay';
 import TaskResultDisplay from './ProjectAI/TaskResultDisplay';
 import GoalResultDisplay from './ProjectAI/GoalResultDisplay';
-import ContextResultDisplay from './ProjectAI/ContextResultDisplay';
+import { ContextResultDisplay } from './ProjectAI/Context';
+import { SupportedProvider, DefaultProviderStorage } from '../../lib/llm';
 
 interface AIProjectReviewModalProps {
   isOpen: boolean;
@@ -92,6 +93,9 @@ export default function AIProjectReviewModal({
   // UI State
   const [currentView, setCurrentView] = useState<'selector' | 'docs' | 'tasks' | 'goals' | 'context' | 'code'>('selector');
   const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('preview');
+  const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>(() => 
+    DefaultProviderStorage.getDefaultProvider()
+  );
 
   // Content State
   const [docsContent, setDocsContent] = useState('');
@@ -210,7 +214,8 @@ export default function AIProjectReviewModal({
           projectId: activeProject.id,
           projectPath: activeProject.path,
           projectName: activeProject.name,
-          mode: 'docs'
+          mode: 'docs',
+          provider: selectedProvider
         }),
       });
 
@@ -242,7 +247,8 @@ export default function AIProjectReviewModal({
           projectId: activeProject.id,
           projectPath: activeProject.path,
           projectName: activeProject.name,
-          mode: 'tasks'
+          mode: 'tasks',
+          provider: selectedProvider
         }),
       });
 
@@ -284,7 +290,8 @@ export default function AIProjectReviewModal({
           projectId: activeProject.id,
           projectPath: activeProject.path,
           projectName: activeProject.name,
-          mode: 'goals'
+          mode: 'goals',
+          provider: selectedProvider
         }),
       });
 
@@ -326,7 +333,8 @@ export default function AIProjectReviewModal({
           projectId: activeProject.id,
           projectPath: activeProject.path,
           projectName: activeProject.name,
-          mode: 'context'
+          mode: 'context',
+          provider: selectedProvider
         }),
       });
 
@@ -362,7 +370,8 @@ export default function AIProjectReviewModal({
           projectId: activeProject.id,
           projectPath: activeProject.path,
           projectName: activeProject.name,
-          mode: 'code'
+          mode: 'code',
+          provider: selectedProvider
         }),
       });
 
@@ -436,6 +445,8 @@ export default function AIProjectReviewModal({
           <AIContentSelector
             onSelectMode={handleSelectMode}
             activeProject={activeProject}
+            selectedProvider={selectedProvider}
+            onProviderChange={setSelectedProvider}
           />
         );
 

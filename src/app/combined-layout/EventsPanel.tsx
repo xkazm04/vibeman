@@ -4,6 +4,8 @@ import { Info, AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
 import { useEvents, ClientEvent } from '@/hooks/useEvents';
 import { UniversalModal } from '@/components/UniversalModal';
 import EventTable from '../events/EventTable';
+import MarkdownViewer from '@/components/markdown/MarkdownViewer';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 
 interface EventsPanelProps {
   viewState: 'normal' | 'maximized' | 'minimized';
@@ -20,11 +22,12 @@ export default function EventsPanel({
 }: EventsPanelProps) {
   const [selectedEvent, setSelectedEvent] = useState<ClientEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { showConfirmModal } = useGlobalModal();
 
   const {
     events: eventLog,
     eventCounts: rawEventCounts,
-    refresh
+    refresh: refreshEvents
   } = useEvents({
     limit: 50,
     type: eventFilter,
@@ -110,6 +113,33 @@ export default function EventsPanel({
     }
   };
 
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/kiro/events?id=${eventId}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete event');
+      }
+
+      // Refresh events list
+      refreshEvents();
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+    }
+  };
+
+  const confirmDeleteEvent = (eventId: string, eventTitle: string) => {
+    showConfirmModal(
+      'Delete Event',
+      `Are you sure you want to delete the event "${eventTitle}"? This action cannot be undone.`,
+      () => handleDeleteEvent(eventId)
+    );
+  };
+
   return (
     <>
       <div className="flex flex-col">
@@ -141,6 +171,7 @@ export default function EventsPanel({
           filteredEvents={filteredEvents}
           isLoading={isLoading}
           onEventClick={handleEventClick}
+          onDeleteEvent={confirmDeleteEvent}
         />
       </div>
 
@@ -203,21 +234,121 @@ export default function EventsPanel({
                   if (!parsedMessage) return null;
 
                   if (parsedMessage.isJson) {
-                    return (
-                      <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/30 overflow-auto">
-                        <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
-                          {JSON.stringify(parsedMessage.data, null, 2)}
-                        </pre>
-                      </div>
-                    );
+                    // Check if it's an Ollama event with structured data
+                    const data = parsedMessage.data;
+                    if (data && typeof data === 'object' && data.taskType) {
+                      return (
+                        <div className="space-y-4">
+                          <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/30">
+                            <h4 className="text-md font-semibold text-white mb-3">Ollama Generation Details</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                              {data.taskType && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Task Type:</span>
+                                  <span className="text-white">{data.taskType}</span>
+                                </div>
+                              )}
+                              {data.duration && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Duration:</span>
+                                  <span className="text-white">{data.duration}ms</span>
+                                </div>
+                              )}
+                              {data.model && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Model:</span>
+                                  <span className="text-white">{data.model}</span>
+                                </div>
+                              )}
+                              {data.promptTokens && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Prompt Tokens:</span>
+                                  <span className="text-white">{data.promptTokens}</span>
+                                </div>
+                              )}
+                              {data.responseTokens && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Response Tokens:</span>
+                                  <span className="text-white">{data.responseTokens}</span>
+                                </div>
+                              )}
+                              {data.responseLength && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Response Length:</span>
+                                  <span className="text-white">{data.responseLength} chars</span>
+                                </div>
+                              )}
+                              {data.totalDuration && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Total Duration:</span>
+                                  <span className="text-white">{Math.round(data.totalDuration / 1000000)}ms</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Check if there's an actual Ollama response to display */}
+                          {data.response && (
+                            <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/30">
+                              <h4 className="text-md font-semibold text-white mb-3">AI Response</h4>
+                              <div className="max-h-96 overflow-y-auto">
+                                <MarkdownViewer 
+                                  content={data.response} 
+                                  theme="dark"
+                                  className="text-sm"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/30 overflow-auto">
+                            <h4 className="text-md font-semibold text-white mb-2">Raw Data</h4>
+                            <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+                              {JSON.stringify(data, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/30 overflow-auto">
+                          <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+                            {JSON.stringify(parsedMessage.data, null, 2)}
+                          </pre>
+                        </div>
+                      );
+                    }
                   } else {
-                    return (
-                      <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/30 overflow-auto">
-                        <p className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
-                          {parsedMessage.data}
-                        </p>
-                      </div>
-                    );
+                    // Check if the message looks like markdown
+                    const isMarkdown = parsedMessage.data.includes('#') || 
+                                     parsedMessage.data.includes('```') || 
+                                     parsedMessage.data.includes('*') ||
+                                     parsedMessage.data.includes('[') ||
+                                     parsedMessage.data.includes('|');
+
+                    if (isMarkdown) {
+                      return (
+                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/30">
+                          <h4 className="text-md font-semibold text-white mb-3">Message Content</h4>
+                          <div className="max-h-96 overflow-y-auto">
+                            <MarkdownViewer 
+                              content={parsedMessage.data} 
+                              theme="dark"
+                              className="text-sm"
+                            />
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/30 overflow-auto">
+                          <h4 className="text-md font-semibold text-white mb-3">Message Content</h4>
+                          <p className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+                            {parsedMessage.data}
+                          </p>
+                        </div>
+                      );
+                    }
                   }
                 })()}
               </div>

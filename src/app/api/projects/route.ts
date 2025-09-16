@@ -28,7 +28,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await projectServiceDb.addProject(project);
+    // Validate project type
+    if (project.type && !['nextjs', 'fastapi', 'other'].includes(project.type)) {
+      return NextResponse.json(
+        { error: 'Invalid project type. Must be nextjs, fastapi, or other' },
+        { status: 400 }
+      );
+    }
+
+    // Convert form data to Project type
+    const projectData = {
+      id: project.id,
+      name: project.name,
+      path: project.path,
+      port: project.port,
+      description: project.description,
+      type: project.type || 'other',
+      relatedProjectId: project.relatedProjectId,
+      runScript: project.run_script,
+      allowMultipleInstances: project.allowMultipleInstances || false,
+      basePort: project.basePort || project.port,
+      instanceOf: project.instanceOf,
+      git: project.git_repository ? {
+        repository: project.git_repository,
+        branch: project.git_branch || 'main',
+        autoSync: false
+      } : undefined
+    };
+
+    await projectServiceDb.addProject(projectData);
 
     return NextResponse.json({
       success: true,
@@ -55,7 +83,25 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    await projectServiceDb.updateProject(projectId, updates);
+    // Validate project type if provided
+    if (updates.type && !['nextjs', 'fastapi', 'other'].includes(updates.type)) {
+      return NextResponse.json(
+        { error: 'Invalid project type. Must be nextjs, fastapi, or other' },
+        { status: 400 }
+      );
+    }
+
+    // Convert form data format to Project type format if needed
+    const projectUpdates = {
+      ...updates,
+      git: updates.git_repository ? {
+        repository: updates.git_repository,
+        branch: updates.git_branch || 'main',
+        autoSync: false
+      } : updates.git
+    };
+
+    await projectServiceDb.updateProject(projectId, projectUpdates);
 
     return NextResponse.json({
       success: true,

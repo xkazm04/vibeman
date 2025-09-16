@@ -73,17 +73,43 @@ export async function POST(request: NextRequest) {
 
     // Check if similar task already exists and is pending/processing
     const existingTasks = backgroundTaskDb.getTasksByProject(projectId);
-    const duplicateTask = existingTasks.find(task => 
-      task.task_type === taskType && 
-      (task.status === 'pending' || task.status === 'processing')
-    );
+    
+    // For coding tasks, check if the same taskId is already being processed
+    if (taskType === 'coding_task' && taskData?.taskId) {
+      const duplicateTask = existingTasks.find(task => {
+        if (task.task_type !== 'coding_task' || (task.status !== 'pending' && task.status !== 'processing')) {
+          return false;
+        }
+        
+        try {
+          const existingTaskData = task.task_data ? JSON.parse(task.task_data) : {};
+          return existingTaskData.taskId === taskData.taskId;
+        } catch {
+          return false;
+        }
+      });
 
-    if (duplicateTask) {
-      return NextResponse.json({
-        success: false,
-        error: `A ${taskType} task for this project is already pending or processing`,
-        existingTaskId: duplicateTask.id
-      }, { status: 409 });
+      if (duplicateTask) {
+        return NextResponse.json({
+          success: false,
+          error: `This coding task is already pending or processing`,
+          existingTaskId: duplicateTask.id
+        }, { status: 409 });
+      }
+    } else {
+      // For other task types, check by task type only
+      const duplicateTask = existingTasks.find(task => 
+        task.task_type === taskType && 
+        (task.status === 'pending' || task.status === 'processing')
+      );
+
+      if (duplicateTask) {
+        return NextResponse.json({
+          success: false,
+          error: `A ${taskType} task for this project is already pending or processing`,
+          existingTaskId: duplicateTask.id
+        }, { status: 409 });
+      }
     }
 
     // Create new background task

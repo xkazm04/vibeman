@@ -3,17 +3,20 @@ import { ContextFile } from './types';
 // Extract files from context content
 export const extractFilesFromContent = (content: string): ContextFile[] => {
   const files: ContextFile[] = [];
+  const validExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.vue', '.py', '.java', '.cs', '.php', '.rb', '.go', '.rs', '.cpp', '.c', '.h', '.css', '.scss', '.sass', '.less', '.html', '.md', '.json', '.yaml', '.yml', '.xml', '.sql']);
   
   // Look for Location Map section
   const locationMapMatch = content.match(/##\s*(?:Architecture\s*)?(?:###\s*)?Location Map\s*\n(.*?)(?=\n##|\n#|$)/s);
 
   if (locationMapMatch) {
     const locationContent = locationMapMatch[1];
-    const pathMatches = locationContent.matchAll(/([a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+)/g);
+    // Enhanced regex to catch files in tree structures and tables
+    const pathMatches = locationContent.matchAll(/(?:├──\s*|└──\s*|│\s*└──\s*|│\s*├──\s*|\|\s*`|`|[-*]\s+|^|\s)([a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+)/gm);
 
     for (const match of pathMatches) {
       const path = match[1];
-      if (path && !files.some(f => f.path === path)) {
+      const extension = path.substring(path.lastIndexOf('.'));
+      if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
         files.push({
           path,
           type: path.split('.').pop() || 'file'
@@ -22,11 +25,12 @@ export const extractFilesFromContent = (content: string): ContextFile[] => {
     }
   }
 
-  // Also look for file references in bullet points
-  const bulletMatches = content.matchAll(/[-*]\s+([a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+)/g);
-  for (const match of bulletMatches) {
+  // Look for file references in tables (Key Files by Layer section)
+  const tableMatches = content.matchAll(/\|\s*`([^`]+\.[a-zA-Z0-9]+)`/g);
+  for (const match of tableMatches) {
     const path = match[1];
-    if (path && !files.some(f => f.path === path)) {
+    const extension = path.substring(path.lastIndexOf('.'));
+    if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
       files.push({
         path,
         type: path.split('.').pop() || 'file'
@@ -34,7 +38,37 @@ export const extractFilesFromContent = (content: string): ContextFile[] => {
     }
   }
 
-  return files;
+  // Look for file references in bullet points and code blocks
+  const bulletMatches = content.matchAll(/(?:[-*]\s+`([^`]+\.[a-zA-Z0-9]+)`|[-*]\s+([a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+))/g);
+  for (const match of bulletMatches) {
+    const path = match[1] || match[2];
+    const extension = path.substring(path.lastIndexOf('.'));
+    if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
+      files.push({
+        path,
+        type: path.split('.').pop() || 'file'
+      });
+    }
+  }
+
+  // Look for files in code blocks (project structure)
+  const codeBlockMatches = content.matchAll(/```[\w]*\n([^`]+)```/g);
+  for (const match of codeBlockMatches) {
+    const codeContent = match[1];
+    const pathMatches = codeContent.matchAll(/(?:├──\s*|└──\s*|│\s*└──\s*|│\s*├──\s*|^|\s)([a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+)/gm);
+    for (const pathMatch of pathMatches) {
+      const path = pathMatch[1];
+      const extension = path.substring(path.lastIndexOf('.'));
+      if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
+        files.push({
+          path,
+          type: path.split('.').pop() || 'file'
+        });
+      }
+    }
+  }
+
+  return files.slice(0, 20); // Limit to 20 files to prevent UI overload
 };
 
 // Extract title from content

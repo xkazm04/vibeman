@@ -31,13 +31,16 @@ function getProjectDatabase(): Database.Database {
 function initializeProjectTables() {
   if (!db) return;
   
-  // Create projects table with simplified schema
+  // Create projects table with enhanced schema
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       path TEXT NOT NULL UNIQUE,
       port INTEGER NOT NULL UNIQUE,
+      description TEXT,
+      type TEXT DEFAULT 'other',
+      related_project_id TEXT,
       git_repository TEXT,
       git_branch TEXT DEFAULT 'main',
       run_script TEXT DEFAULT 'npm run dev',
@@ -45,7 +48,8 @@ function initializeProjectTables() {
       base_port INTEGER,
       instance_of TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (related_project_id) REFERENCES projects(id)
     );
   `);
 
@@ -63,6 +67,9 @@ export interface DbProject {
   name: string;
   path: string;
   port: number;
+  description: string | null;
+  type: string;
+  related_project_id: string | null;
   git_repository: string | null;
   git_branch: string;
   run_script: string;
@@ -111,6 +118,9 @@ export const projectDb = {
     name: string;
     path: string;
     port: number;
+    description?: string;
+    type?: string;
+    related_project_id?: string;
     git_repository?: string;
     git_branch?: string;
     run_script?: string;
@@ -123,10 +133,10 @@ export const projectDb = {
     
     const stmt = db.prepare(`
       INSERT INTO projects (
-        id, name, path, port, git_repository, git_branch, run_script,
+        id, name, path, port, description, type, related_project_id, git_repository, git_branch, run_script,
         allow_multiple_instances, base_port, instance_of, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
@@ -134,6 +144,9 @@ export const projectDb = {
       project.name,
       project.path,
       project.port,
+      project.description || null,
+      project.type || 'other',
+      project.related_project_id || null,
       project.git_repository || null,
       project.git_branch || 'main',
       project.run_script || 'npm run dev',
@@ -154,6 +167,9 @@ export const projectDb = {
     name?: string;
     path?: string;
     port?: number;
+    description?: string;
+    type?: string;
+    related_project_id?: string;
     git_repository?: string;
     git_branch?: string;
     run_script?: string;
@@ -178,6 +194,18 @@ export const projectDb = {
     if (updates.port !== undefined) {
       updateFields.push('port = ?');
       values.push(updates.port);
+    }
+    if (updates.description !== undefined) {
+      updateFields.push('description = ?');
+      values.push(updates.description);
+    }
+    if (updates.type !== undefined) {
+      updateFields.push('type = ?');
+      values.push(updates.type);
+    }
+    if (updates.related_project_id !== undefined) {
+      updateFields.push('related_project_id = ?');
+      values.push(updates.related_project_id);
     }
     if (updates.git_repository !== undefined) {
       updateFields.push('git_repository = ?');

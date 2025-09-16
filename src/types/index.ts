@@ -4,6 +4,8 @@ export interface Project {
   path: string;
   port: number;
   description?: string;
+  type?: 'nextjs' | 'fastapi' | 'other';
+  relatedProjectId?: string; // For FastAPI projects connected to NextJS
   allowMultipleInstances?: boolean;
   basePort?: number;
   instanceOf?: string;
@@ -12,6 +14,7 @@ export interface Project {
     branch: string; // e.g., "main", "develop"
     autoSync?: boolean; // Auto-pull on start
   };
+  runScript?: string;
 }
 
 export interface ProcessInfo {

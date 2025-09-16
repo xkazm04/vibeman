@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, X, Check, ArrowLeft, AlertCircle, Edit2, Save } from 'lucide-react';
+import { CheckSquare, X, Check, ArrowLeft, AlertCircle } from 'lucide-react';
 
 interface Task {
   title: string;
@@ -20,14 +20,14 @@ interface TaskResultDisplayProps {
   activeProject?: any;
 }
 
-export default function TaskResultDisplay({ 
-  tasks, 
-  loading, 
-  error, 
-  onBack, 
-  onAcceptTask, 
+export default function TaskResultDisplay({
+  tasks,
+  loading,
+  error,
+  onBack,
+  onAcceptTask,
   onRejectTask,
-  activeProject 
+  activeProject
 }: TaskResultDisplayProps) {
   const [editedTasks, setEditedTasks] = useState<Task[]>(tasks);
   const [taskStatuses, setTaskStatuses] = useState<Record<number, 'accepted' | 'rejected' | 'undecided'>>(
@@ -41,20 +41,20 @@ export default function TaskResultDisplay({
   }, [tasks]);
 
   const handleEditTask = (index: number, field: 'title' | 'reason', value: string) => {
-    setEditedTasks(prev => prev.map((task, i) => 
+    setEditedTasks(prev => prev.map((task, i) =>
       i === index ? { ...task, [field]: value } : task
     ));
   };
 
   const handleEditStep = (taskIndex: number, stepIndex: number, value: string) => {
-    setEditedTasks(prev => prev.map((task, i) => 
-      i === taskIndex 
-        ? { 
-            ...task, 
-            description: task.description.map((step, j) => 
-              j === stepIndex ? value : step
-            )
-          }
+    setEditedTasks(prev => prev.map((task, i) =>
+      i === taskIndex
+        ? {
+          ...task,
+          description: task.description.map((step, j) =>
+            j === stepIndex ? value : step
+          )
+        }
         : task
     ));
   };
@@ -62,7 +62,7 @@ export default function TaskResultDisplay({
   const handleSaveTask = async (index: number) => {
     if (!activeProject) return;
 
-    const task = editedTasks[index];
+    const taskData = editedTasks[index];
     const status = taskStatuses[index];
 
     try {
@@ -72,11 +72,11 @@ export default function TaskResultDisplay({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: activeProject.id,
-          title: task.title,
-          description: task.reason,
-          steps: task.description,
+          title: taskData.title,
+          description: taskData.reason,
+          steps: taskData.description,
           status: status === 'accepted' ? 'accepted' : status,
-          type: task.type.toLowerCase(), // Convert 'Feature' to 'feature', 'Optimization' to 'optimization'
+          type: taskData.type.toLowerCase(), // Convert 'Feature' to 'feature', 'Optimization' to 'optimization'
         }),
       });
 
@@ -164,12 +164,12 @@ export default function TaskResultDisplay({
       </div>
 
       {/* Tasks Grid */}
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[80vh]">
         {editedTasks.map((task, index) => {
           const currentTask = editedTasks[index];
           const status = taskStatuses[index];
 
-          
+
           return (
             <motion.div
               key={index}
@@ -195,11 +195,10 @@ export default function TaskResultDisplay({
                         {currentTask.title}
                       </h3>
                     )}
-                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                      currentTask.type === 'Feature' 
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                        : 'bg-green-500/20 text-green-400 border border-green-500/30'
-                    }`}>
+                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${currentTask.type === 'Feature'
+                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                      : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      }`}>
                       {currentTask.type}
                     </span>
                   </div>
@@ -279,11 +278,10 @@ export default function TaskResultDisplay({
                       key="status"
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium ${
-                        status === 'accepted' 
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                      }`}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium ${status === 'accepted'
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        }`}
                     >
                       {status === 'accepted' ? (
                         <>

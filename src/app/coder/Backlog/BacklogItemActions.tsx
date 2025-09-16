@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Zap } from 'lucide-react';
 import { BacklogProposal } from '../../../types';
-import { CopilotTask } from '@/types/copilot';
 import { useStore } from '../../../stores/nodeStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
-import { useBacklog } from '../../../hooks/useBacklog';
 import { formatImpactedFilesForDisplay } from '@/lib/impactedFilesUtils';
 
 interface BacklogItemActionsProps {
@@ -15,61 +13,56 @@ interface BacklogItemActionsProps {
   onReject: () => void;
 }
 
-export default function BacklogItemActions({ 
-  proposal, 
-  isInProgress, 
-  onStartCoding, 
-  onReject 
+export default function BacklogItemActions({
+  proposal,
+  isInProgress,
+  onStartCoding,
+  onReject
 }: BacklogItemActionsProps) {
   const { highlightNodes, clearHighlights, highlightedNodes } = useStore();
   const { activeProject } = useActiveProjectStore();
 
   const handleStartCoding = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (!activeProject) {
       console.error('No active project available');
       return;
     }
 
     onStartCoding();
-    
+
     try {
-      // Extract repo info from active project
-      const repoUrl = activeProject.git?.repository || '';
-      const repoOwner = repoUrl.includes('github.com') 
-        ? repoUrl.split('/').slice(-2, -1)[0] 
-        : 'unknown';
-
-      const copilotTask: CopilotTask = {
-        title: proposal.title,
-        description: proposal.description,
-        type: 'feature', // Default type, could be mapped from proposal
-        priority: 'medium', // Default priority, could be mapped from proposal
-        technicalDetails: proposal.description,
-        repo_owner: repoOwner,
-        repo_url: repoUrl,
-      };
-
-      const response = await fetch('/api/copilot/create-task', {
+      // Create a background task for coding instead of using the non-existent copilot endpoint
+      const response = await fetch('/api/kiro/background-tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(copilotTask),
+        body: JSON.stringify({
+          projectId: activeProject.id,
+          projectName: activeProject.name,
+          projectPath: activeProject.path,
+          taskType: 'coding_task',
+          priority: 1,
+          taskData: {
+            taskId: proposal.id,
+            title: proposal.title,
+            description: proposal.description,
+            impactedFiles: proposal.impactedFiles
+          }
+        }),
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
-        console.log('Copilot task created successfully:', result);
-        // Keep local in-progress state - don't change it
-        // The backend will update the status, and we'll sync on next fetch
+        console.log('Coding task queued successfully:', result);
       } else {
-        console.error('Failed to create copilot task:', result.error);
+        console.error('Failed to queue coding task:', result.error);
       }
     } catch (error) {
-      console.error('Error creating copilot task:', error);
+      console.error('Error queuing coding task:', error);
     }
   };
 
@@ -83,12 +76,12 @@ export default function BacklogItemActions({
     if (proposal.impactedFiles && proposal.impactedFiles.length > 0) {
       // Extract filepaths from the new structure
       const filePaths = proposal.impactedFiles.map(file => file.filepath);
-      
+
       // Check if any of the proposal's files are currently highlighted
-      const isCurrentlyHighlighted = filePaths.some(filepath => 
+      const isCurrentlyHighlighted = filePaths.some(filepath =>
         highlightedNodes.has(filepath)
       );
-      
+
       if (isCurrentlyHighlighted) {
         clearHighlights();
       } else {
@@ -97,7 +90,7 @@ export default function BacklogItemActions({
     }
   };
 
-  const isHighlighted = proposal.impactedFiles && 
+  const isHighlighted = proposal.impactedFiles &&
     proposal.impactedFiles.some(file => highlightedNodes.has(file.filepath));
 
   return (
@@ -111,7 +104,7 @@ export default function BacklogItemActions({
               whileTap={{ scale: 0.9 }}
               onClick={handleReject}
               className="flex-1 bg-red-700/20 hover:bg-red-500/60 transition-colors rounded-tl-lg z-40 cursor-pointer"
-              title="Reject" 
+              title="Reject"
             />
           </div>
 
@@ -134,11 +127,10 @@ export default function BacklogItemActions({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleHighlightFiles}
-            className={`flex min-w-[300px] cursor-pointer items-center space-x-2 px-3 py-1 rounded-t-lg text-xs font-medium transition-all duration-200 z-40 ${
-              isHighlighted
-                ? 'bg-orange-500/30 text-orange-300 border-t border-orange-400/50'
-                : 'bg-gray-700/50 text-gray-400 hover:bg-orange-500/20 hover:text-orange-300 border-t border-gray-600/50'
-            }`}
+            className={`flex min-w-[300px] cursor-pointer items-center space-x-2 px-3 py-1 rounded-t-lg text-xs font-medium transition-all duration-200 z-40 ${isHighlighted
+              ? 'bg-orange-500/30 text-orange-300 border-t border-orange-400/50'
+              : 'bg-gray-700/50 text-gray-400 hover:bg-orange-500/20 hover:text-orange-300 border-t border-gray-600/50'
+              }`}
             title={isHighlighted ? "Clear highlights" : "Highlight impacted files"}
           >
             <Zap className={`w-3 h-3 ${isHighlighted ? 'text-orange-400' : 'text-gray-400'}`} />

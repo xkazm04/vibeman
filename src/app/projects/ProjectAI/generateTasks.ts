@@ -1,10 +1,10 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { backlogDb } from '../../../lib/database';
-import { ollamaClient } from '../../../lib/ollama';
+import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 
 // Generate implementation tasks
-export async function generateTasks(projectName: string, projectId: string, analysis: any): Promise<string> {
+export async function generateTasks(projectName: string, projectId: string, analysis: any, provider?: string): Promise<string> {
   // Get existing tasks to prevent duplicates
   const existingTasks = backlogDb.getBacklogItemsByProject(projectId);
   
@@ -131,11 +131,13 @@ ${buildExistingTasksSection()}
 
 Please analyze this project data and generate exactly 5 NEW implementation tasks that DO NOT duplicate any existing tasks listed above. Focus on actionable, high-value improvements that complement the existing work.`;
 
-  const result = await ollamaClient.generate({
-    prompt,
+  const result = await generateWithLLM(prompt, {
+    provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'implementation_tasks',
-    taskDescription: `Generate implementation tasks for ${projectName}`
+    taskDescription: `Generate implementation tasks for ${projectName}`,
+    maxTokens: 2000,
+    temperature: 0.8
   });
 
   if (!result.success || !result.response) {

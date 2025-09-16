@@ -1,7 +1,7 @@
 import Runner from './runner/Runner';
 import PreviewLayout from './preview/PreviewLayout';
 import CoderLayout from './coder/CoderLayout';
-import CombinedBottomLayout from './combined-layout/CombinedBottomLayoutMain';
+import MonitorLayout from './combined-layout/MonitorLayout';
 
 export default function Home() {
   return (
@@ -9,7 +9,7 @@ export default function Home() {
       <Runner />
       <PreviewLayout />
       <CoderLayout />
-      <CombinedBottomLayout />
+      <MonitorLayout />
     </main>
   );
 }

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LucideIcon } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface UniversalModalProps {
   isOpen: boolean;
@@ -31,6 +32,54 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
   showBackdrop = true,
   backdropBlur = true
 }) => {
+  // Lock body scroll when modal is open
+  useBodyScrollLock(isOpen);
+
+  // Handle escape key to close modal and focus management
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    // Focus trap - keep focus within modal
+    const handleTabKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+
+      const modal = document.querySelector('[data-modal="true"]');
+      if (!modal) return;
+
+      const focusableElements = modal.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0] as HTMLElement;
+      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+      if (event.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement?.focus();
+          event.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement?.focus();
+          event.preventDefault();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleTabKey);
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleTabKey);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -42,7 +91,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={`fixed inset-0 z-50 ${backdropBlur
+          className={`fixed inset-0 z-[9999] ${backdropBlur
             ? 'bg-gradient-to-br from-black/70 via-black/60 to-slate-900/50 backdrop-blur-md'
             : 'bg-black/60'
             }`}
@@ -62,9 +111,13 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
           stiffness: 300,
           mass: 0.8
         }}
-        className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12"
+        className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-12"
       >
-        <div className={`relative w-full ${maxWidth} ${maxHeight} overflow-hidden`}>
+        <div 
+          className={`relative w-full ${maxWidth} ${maxHeight} overflow-hidden`}
+          onClick={(e) => e.stopPropagation()}
+          data-modal="true"
+        >
           {/* Enhanced Modal Background with Gradient and Border Effects */}
           <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-slate-800/95 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl border border-slate-700/40">
             {/* Animated Border Gradient */}
@@ -107,7 +160,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
               </div>
 
               {/* Content Area with Enhanced Styling */}
-              <div className="p-6 max-h-[70vh] overflow-y-auto bg-gradient-to-b from-slate-900/20 to-slate-800/10">
+              <div className="p-6 max-h-[70vh] overflow-y-auto bg-gradient-to-b from-slate-900/20 to-slate-800/10 custom-scrollbar">
                 {children}
               </div>
             </div>

@@ -2,66 +2,97 @@ import { useState, useEffect, useCallback } from 'react';
 import { BacklogProposal, CustomBacklogItem, ImpactedFile } from '@/types';
 import { useAnalysisStore } from '@/stores/analysisStore';
 
-// Database backlog item structure (from SQLite)
-interface DbBacklogItem {
+// API response item structure (converted by the API route)
+interface ApiBacklogItem {
   id: string;
   project_id: string;
   goal_id: string | null;
-  agent: 'developer' | 'mastermind' | 'tester' | 'artist' | 'custom';
+  agent?: string;
   title: string;
   description: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
+  steps?: string[] | string | null; // Can be array, string, or null
+  status: 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'undecided';
   type: 'proposal' | 'custom';
-  impacted_files: string | null; // JSON string
+  impacted_files?: any[]; // Parsed by API
+  impactedFiles?: any[]; // Alternative field name
   created_at: string;
   updated_at: string;
   accepted_at: string | null;
   rejected_at: string | null;
 }
 
-// Parse impacted files from JSON string
-const parseImpactedFilesFromDb = (impactedFilesJson: string | null): ImpactedFile[] => {
-  if (!impactedFilesJson) return [];
-  try {
-    return JSON.parse(impactedFilesJson);
-  } catch (error) {
-    console.error('Error parsing impacted files:', error);
+// Parse impacted files from various formats
+const parseImpactedFilesFromDb = (impactedFilesData: any): ImpactedFile[] => {
+  if (!impactedFilesData) return [];
+  
+  // Handle case where it's already an array
+  if (Array.isArray(impactedFilesData)) {
+    return impactedFilesData;
+  }
+  
+  // Handle case where it's a JSON string
+  if (typeof impactedFilesData === 'string') {
+    try {
+      const parsed = JSON.parse(impactedFilesData);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Error parsing impacted files JSON:', error);
+      return [];
+    }
+  }
+  
+  // Handle case where it's an object (shouldn't happen but just in case)
+  if (typeof impactedFilesData === 'object') {
     return [];
   }
+  
+  return [];
 };
 
-// Convert database backlog item to app types
-const convertDbBacklogItemToAppType = (dbItem: DbBacklogItem): BacklogProposal | CustomBacklogItem => {
-  // Parse steps from JSON string
+// Convert API response item to app types
+const convertDbBacklogItemToAppType = (apiItem: ApiBacklogItem): BacklogProposal | CustomBacklogItem => {
+  // Parse steps safely - they might already be parsed by the API
   let steps: string[] | undefined;
-  try {
-    steps = dbItem.steps ? JSON.parse(dbItem.steps) : undefined;
-  } catch (error) {
-    console.warn('Failed to parse steps JSON:', error);
-    steps = undefined;
+  if (apiItem.steps) {
+    if (Array.isArray(apiItem.steps)) {
+      steps = apiItem.steps;
+    } else if (typeof apiItem.steps === 'string') {
+      try {
+        const parsed = JSON.parse(apiItem.steps);
+        steps = Array.isArray(parsed) ? parsed : undefined;
+      } catch (error) {
+        console.warn('Failed to parse steps JSON:', error);
+        steps = [apiItem.steps]; // Treat as single step
+      }
+    }
   }
 
   const baseItem = {
-    id: dbItem.id,
-    title: dbItem.title,
-    description: dbItem.description,
-    timestamp: new Date(dbItem.created_at),
-    steps: steps, // Include parsed steps
-    impactedFiles: parseImpactedFilesFromDb(dbItem.impacted_files)
+    id: apiItem.id,
+    title: apiItem.title,
+    description: apiItem.description,
+    timestamp: new Date(apiItem.created_at),
+    steps: steps,
+    // Handle both impacted_files (from API) and impactedFiles (from frontend)
+    impactedFiles: parseImpactedFilesFromDb(apiItem.impacted_files || apiItem.impactedFiles)
   };
 
-  if (dbItem.type === 'custom') {
+  // Handle custom items
+  if (apiItem.type === 'custom') {
     return {
       ...baseItem,
       type: 'custom'
     } as CustomBacklogItem;
-  } else {
-    return {
-      ...baseItem,
-      agent: dbItem.agent as 'developer' | 'mastermind' | 'tester' | 'artist',
-      status: dbItem.status as 'pending' | 'accepted' | 'rejected' | 'in_progress'
-    } as BacklogProposal;
   }
+
+  // Map agent from API response or derive from type
+  const agent = apiItem.agent || (apiItem.type === 'optimization' ? 'mastermind' : 'developer');
+  
+  return {
+    ...baseItem,
+    agent: agent as 'developer' | 'mastermind' | 'tester' | 'artist',
+    status: apiItem.status === 'undecided' ? 'pending' : apiItem.status as 'pending' | 'accepted' | 'rejected' | 'in_progress'
+  } as BacklogProposal;
 };
 
 export const useBacklog = (projectId: string | null) => {
@@ -128,12 +159,12 @@ export const useBacklog = (projectId: string | null) => {
       const requestBody = {
         projectId,
         goalId,
-        agent: isCustomItem ? 'custom' : (itemData as BacklogProposal).agent,
         title: itemData.title,
         description: itemData.description,
-        type: isCustomItem ? 'custom' : 'proposal',
+        type: isCustomItem ? 'optimization' : 'feature', // Map to database schema
         impactedFiles: itemData.impactedFiles || [],
-        status: isCustomItem ? 'pending' : (itemData as BacklogProposal).status || 'pending'
+        status: isCustomItem ? 'pending' : (itemData as BacklogProposal).status || 'pending',
+        steps: itemData.steps || []
       };
 
       const response = await fetch('/api/backlog', {

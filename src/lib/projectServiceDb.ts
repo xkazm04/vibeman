@@ -9,10 +9,13 @@ function dbProjectToProject(dbProject: DbProject): Project {
     name: dbProject.name,
     path: dbProject.path,
     port: dbProject.port,
-    description: '', // No longer stored in DB
+    description: dbProject.description || undefined,
+    type: (dbProject.type as 'nextjs' | 'fastapi' | 'other') || 'other',
+    relatedProjectId: dbProject.related_project_id || undefined,
     allowMultipleInstances: dbProject.allow_multiple_instances === 1,
     basePort: dbProject.base_port || dbProject.port,
     instanceOf: dbProject.instance_of || undefined,
+    runScript: dbProject.run_script,
     git: dbProject.git_repository ? {
       repository: dbProject.git_repository,
       branch: dbProject.git_branch,
@@ -89,9 +92,12 @@ class ProjectServiceDb {
         name: project.name,
         path: project.path,
         port: project.port,
+        description: project.description,
+        type: project.type,
+        related_project_id: project.relatedProjectId,
         git_repository: project.git?.repository,
         git_branch: project.git?.branch,
-        run_script: 'npm run dev', // Default run script
+        run_script: project.runScript || 'npm run dev',
         allow_multiple_instances: project.allowMultipleInstances,
         base_port: project.basePort,
         instance_of: project.instanceOf
@@ -127,6 +133,10 @@ class ProjectServiceDb {
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.path !== undefined) updateData.path = updates.path;
       if (updates.port !== undefined) updateData.port = updates.port;
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.type !== undefined) updateData.type = updates.type;
+      if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId;
+      if (updates.runScript !== undefined) updateData.run_script = updates.runScript;
       if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances;
       if (updates.basePort !== undefined) updateData.base_port = updates.basePort;
       if (updates.git !== undefined) {

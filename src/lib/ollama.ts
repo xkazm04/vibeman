@@ -61,7 +61,7 @@ export class OllamaClient {
   ): Promise<OllamaResponse> {
     const taskId = this.generateTaskId();
     const startTime = Date.now();
-    
+
     try {
       // Log start event
       if (request.projectId) {
@@ -102,7 +102,7 @@ export class OllamaClient {
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         const errorMessage = `Ollama API error (${response.status}): ${errorText}`;
-        
+
         // Log error event
         if (request.projectId) {
           await this.logEvent(request.projectId, {
@@ -115,7 +115,7 @@ export class OllamaClient {
         }
 
         progress?.onError?.(errorMessage);
-        
+
         return {
           success: false,
           error: errorMessage,
@@ -126,7 +126,7 @@ export class OllamaClient {
       progress?.onProgress?.(80, 'Parsing response...');
 
       const result = await response.json();
-      
+
       progress?.onProgress?.(100, 'Complete');
 
       const duration = Date.now() - startTime;
@@ -169,7 +169,7 @@ export class OllamaClient {
     } catch (error) {
       const duration = Date.now() - startTime;
       let errorMessage = 'Unknown error occurred';
-      
+
       if (error instanceof Error) {
         if (error.name === 'TimeoutError') {
           errorMessage = 'AI generation timed out after 5 minutes';
@@ -225,7 +225,7 @@ export class OllamaClient {
       if (!response.ok) {
         throw new Error(`Failed to fetch models: ${response.status}`);
       }
-      
+
       const data = await response.json();
       return data.models?.map((model: any) => model.name) || [];
     } catch (error) {
@@ -240,17 +240,17 @@ export class OllamaClient {
   parseJsonResponse<T = any>(response: string): { success: boolean; data?: T; error?: string } {
     try {
       // Try to extract JSON from markdown code blocks first
-      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || 
-                       response.match(/```\s*([\s\S]*?)\s*```/);
-      
+      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) ||
+        response.match(/```\s*([\s\S]*?)\s*```/);
+
       const jsonString = jsonMatch ? jsonMatch[1] : response;
       const data = JSON.parse(jsonString.trim());
-      
+
       return { success: true, data };
     } catch (error) {
-      return { 
-        success: false, 
-        error: `Failed to parse JSON response: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      return {
+        success: false,
+        error: `Failed to parse JSON response: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
