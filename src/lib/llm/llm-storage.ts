@@ -40,7 +40,39 @@ export class APIKeyStorage {
     if (typeof window === 'undefined') return null;
 
     const keys = this.getAllAPIKeys();
-    return keys[provider] || null;
+    
+    // Check if we have the key in the new format
+    if (keys[provider]) {
+      return keys[provider];
+    }
+    
+    // Fallback: Check for legacy format (direct storage under provider key)
+    try {
+      const legacyKey = localStorage.getItem(provider);
+      if (legacyKey) {
+        const legacyData = JSON.parse(legacyKey);
+        if (legacyData.apiKey) {
+          // Migrate to new format
+          const config: APIKeyConfig = {
+            provider,
+            apiKey: legacyData.apiKey,
+            baseUrl: legacyData.baseUrl,
+            organization: legacyData.organization
+          };
+          this.setAPIKey(provider, legacyData.apiKey, {
+            baseUrl: legacyData.baseUrl,
+            organization: legacyData.organization
+          });
+          // Remove legacy key
+          localStorage.removeItem(provider);
+          return config;
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to migrate legacy API key for ${provider}:`, error);
+    }
+    
+    return null;
   }
 
   /**
@@ -73,8 +105,23 @@ export class APIKeyStorage {
    * Check if API key exists for provider
    */
   static hasAPIKey(provider: SupportedProvider): boolean {
+    if (typeof window === 'undefined') return false;
+    
     const config = this.getAPIKey(provider);
-    return !!(config?.apiKey);
+    if (config?.apiKey) return true;
+    
+    // Also check legacy format
+    try {
+      const legacyKey = localStorage.getItem(provider);
+      if (legacyKey) {
+        const legacyData = JSON.parse(legacyKey);
+        return !!(legacyData.apiKey);
+      }
+    } catch (error) {
+      // Ignore parsing errors
+    }
+    
+    return false;
   }
 
   /**

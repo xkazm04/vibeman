@@ -226,6 +226,7 @@ interface ContextStore extends ContextState {
     name?: string;
     description?: string;
     filePaths?: string[];
+    groupId?: string;
   }) => Promise<void>;
   moveContext: (contextId: string, newGroupId: string) => Promise<void>;
   
@@ -321,7 +322,32 @@ export const useContextStore = (() => {
         setState(prev => ({ ...prev, loading: true, error: null }));
         
         try {
-          const newContext = await contextAPI.createContext(contextData);
+          // Use the new generate-context API endpoint
+          const response = await fetch('/api/kiro/generate-context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contextName: contextData.name,
+              description: contextData.description,
+              filePaths: contextData.filePaths,
+              groupId: contextData.groupId,
+              projectId: contextData.projectId,
+              generateFile: false // Don't generate file by default
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create context');
+          }
+
+          const result = await response.json();
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to create context');
+          }
+
+          const newContext = result.context;
           
           setState(prev => ({
             ...prev,

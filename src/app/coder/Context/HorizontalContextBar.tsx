@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, FolderTree, Plus, ChevronDown, ChevronUp, Grid3X3 } from 'lucide-react';
+import { Save, Plus, ChevronUp, Grid3X3 } from 'lucide-react';
 import { useContextStore } from '../../../stores/contextStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
-import ContextSaveModal from './ContextMenu/ContextSaveModal';
+import { useGlobalModal } from '../../../hooks/useGlobalModal';
+import EnhancedContextEditModal from './ContextMenu/EnhancedContextEditModal';
 import ContextSection from './ContextGroups/ContextSection';
 import GroupManagementModal from './ContextGroups/GroupManagementModal';
 
@@ -15,7 +16,7 @@ interface HorizontalContextBarProps {
 export default function HorizontalContextBar({ selectedFilesCount, selectedFilePaths }: HorizontalContextBarProps) {
   const { contexts, groups, loading, loadProjectData } = useContextStore();
   const { activeProject } = useActiveProjectStore();
-  const [showSaveModal, setShowSaveModal] = useState(false);
+  const { showFullScreenModal } = useGlobalModal();
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const lastProjectIdRef = useRef<string | null>(null);
@@ -64,7 +65,26 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
           <div className="flex items-center space-x-6">
             {/* Smart Save Button - Enhanced with better visuals */}
             <motion.button
-              onClick={selectedFilesCount > 0 && groups.length > 0 ? () => setShowSaveModal(true) : () => setShowGroupModal(true)}
+              onClick={() => {
+                if (selectedFilesCount > 0 && groups.length > 0) {
+                  showFullScreenModal(
+                    'Create New Context',
+                    <EnhancedContextEditModal
+                      availableGroups={groups}
+                      selectedFilePaths={selectedFilePaths}
+                    />,
+                    {
+                      icon: Save,
+                      iconBgColor: "from-cyan-500/20 to-blue-500/20",
+                      iconColor: "text-cyan-400",
+                      maxWidth: "max-w-7xl",
+                      maxHeight: "max-h-[90vh]"
+                    }
+                  );
+                } else {
+                  setShowGroupModal(true);
+                }
+              }}
               className={`relative p-4 rounded-2xl transition-all duration-300 ${selectedFilesCount > 0 && groups.length > 0
                 ? 'bg-gradient-to-r from-cyan-500/30 to-blue-500/30 text-cyan-300 shadow-lg shadow-cyan-500/20 hover:from-cyan-500/40 hover:to-blue-500/40 hover:shadow-cyan-500/30 border border-cyan-500/30'
                 : 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-400 hover:from-purple-500/30 hover:to-blue-500/30 border border-purple-500/30'
@@ -92,24 +112,54 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
             </motion.button>
 
             <div className="flex items-center space-x-4">
-              <div>
-                <h3 className="text-2xl font-bold text-white font-mono mb-1">Context Dashboard</h3>
-                <div className="flex items-center space-x-4 text-sm text-gray-400 font-mono">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>{allGroups.length} groups</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <span>{contexts.length} contexts</span>
-                  </div>
-                  {ungroupedContexts.length > 0 && (
+              <div className="flex items-center space-x-4">
+                <div>
+                  <h3 className="text-2xl font-bold text-white font-mono mb-1">Context Dashboard</h3>
+                  <div className="flex items-center space-x-4 text-sm text-gray-400 font-mono">
                     <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                      <span className="text-yellow-400">{ungroupedContexts.length} ungrouped</span>
+                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                      <span>{allGroups.length} groups</span>
                     </div>
-                  )}
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                      <span>{contexts.length} contexts</span>
+                    </div>
+                    {ungroupedContexts.length > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                        <span className="text-yellow-400">{ungroupedContexts.length} ungrouped</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Add Context Button */}
+                {groups.length > 0 && (
+                  <motion.button
+                    onClick={() => {
+                      showFullScreenModal(
+                        'Create New Context',
+                        <EnhancedContextEditModal
+                          availableGroups={groups}
+                          selectedFilePaths={[]}
+                        />,
+                        {
+                          icon: Plus,
+                          iconBgColor: "from-green-500/20 to-emerald-500/20",
+                          iconColor: "text-green-400",
+                          maxWidth: "max-w-7xl",
+                          maxHeight: "max-h-[90vh]"
+                        }
+                      );
+                    }}
+                    className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30"
+                    title="Create new context"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </motion.button>
+                )}
               </div>
               
               {loading && (
@@ -275,13 +325,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
         </AnimatePresence>
       </motion.div>
 
-      <ContextSaveModal
-        isOpen={showSaveModal}
-        onClose={() => setShowSaveModal(false)}
-        selectedFilePaths={selectedFilePaths}
-        projectId={activeProject.id}
-        availableGroups={groups}
-      />
+
 
       <GroupManagementModal
         isOpen={showGroupModal}

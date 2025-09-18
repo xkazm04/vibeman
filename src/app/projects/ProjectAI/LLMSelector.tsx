@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Key, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import {
-  APIKeyStorage,
   DefaultProviderStorage,
-  SupportedProvider,
-  llmManager
+  SupportedProvider
 } from '../../../lib/llm';
 
 interface LLMSelectorProps {
@@ -18,7 +16,6 @@ interface ProviderInfo {
   name: string;
   icon: string;
   description: string;
-  requiresApiKey: boolean;
   borderColor: string;
   hoverBorderColor: string;
   iconFilter?: string;
@@ -30,7 +27,6 @@ const providers: ProviderInfo[] = [
     name: 'Ollama',
     icon: '/llm_icons/ollama.svg',
     description: 'Local AI models',
-    requiresApiKey: false,
     borderColor: 'border-gray-600/50',
     hoverBorderColor: 'hover:border-gray-400',
     iconFilter: 'filter brightness-0 invert'
@@ -40,7 +36,6 @@ const providers: ProviderInfo[] = [
     name: 'OpenAI',
     icon: '/llm_icons/openai.svg',
     description: 'ChatGPT models',
-    requiresApiKey: true,
     borderColor: 'border-green-600/50',
     hoverBorderColor: 'hover:border-green-400',
     iconFilter: 'filter brightness-0 invert'
@@ -50,7 +45,6 @@ const providers: ProviderInfo[] = [
     name: 'Claude',
     icon: '/llm_icons/claude.svg',
     description: 'Anthropic models',
-    requiresApiKey: true,
     borderColor: 'border-orange-600/50',
     hoverBorderColor: 'hover:border-orange-400'
   },
@@ -59,177 +53,75 @@ const providers: ProviderInfo[] = [
     name: 'Gemini',
     icon: '/llm_icons/gemini.svg',
     description: 'Google AI models',
-    requiresApiKey: true,
     borderColor: 'border-blue-600/50',
     hoverBorderColor: 'hover:border-blue-400'
   }
 ];
 
-interface APIKeyModalProps {
-  provider: ProviderInfo;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (apiKey: string) => void;
-}
 
-function APIKeyModal({ provider, isOpen, onClose, onSave }: APIKeyModalProps) {
-  const [apiKey, setApiKey] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSave = async () => {
-    if (!apiKey.trim()) return;
-
-    setIsLoading(true);
-    try {
-      // Save the API key
-      APIKeyStorage.setAPIKey(provider.id, apiKey.trim());
-      onSave(apiKey.trim());
-      setApiKey('');
-      onClose();
-    } catch (error) {
-      console.error('Failed to save API key:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 relative">
-                  <img
-                    src={provider.icon}
-                    alt={provider.name}
-                    className="w-full h-full object-contain filter brightness-0 invert"
-                  />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{provider.name} API Key</h3>
-                  <p className="text-sm text-gray-400">Required to use {provider.name}</p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
-            </div>
-
-            {/* Input */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                API Key
-              </label>
-              <div className="relative">
-                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSave()}
-                  placeholder={`Enter your ${provider.name} API key`}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  autoFocus
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Your API key is stored locally and never sent to our servers
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div className="flex space-x-3">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!apiKey.trim() || isLoading}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <span>Save</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
 
 export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMSelectorProps) {
-  const [apiKeyModal, setApiKeyModal] = useState<{ provider: ProviderInfo; isOpen: boolean }>({
-    provider: providers[0],
-    isOpen: false
-  });
   const [providerStatus, setProviderStatus] = useState<Record<SupportedProvider, {
-    hasApiKey: boolean;
+    configured: boolean;
     isAvailable: boolean;
     isChecking: boolean;
   }>>({} as any);
 
-  // Initialize provider status
+  // Initialize provider status by checking server-side availability
   useEffect(() => {
     const initializeStatus = async () => {
       const status: Record<SupportedProvider, any> = {} as any;
-
+      
       for (const provider of providers) {
         status[provider.id] = {
-          hasApiKey: provider.requiresApiKey ? APIKeyStorage.hasAPIKey(provider.id) : true,
+          configured: false,
           isAvailable: false,
           isChecking: true
         };
       }
-
+      
       setProviderStatus(status);
 
-      // Check availability for each provider
-      for (const provider of providers) {
-        try {
-          const isAvailable = await llmManager.checkProviderAvailability(provider.id);
-          setProviderStatus(prev => ({
-            ...prev,
-            [provider.id]: {
-              ...prev[provider.id],
-              isAvailable,
+      try {
+        // Check server-side provider availability
+        const response = await fetch('/api/kiro/llm-providers');
+        const result = await response.json();
+        
+        if (result.success) {
+          const updatedStatus: Record<SupportedProvider, any> = {} as any;
+          
+          for (const provider of providers) {
+            const serverStatus = result.providers[provider.id];
+            updatedStatus[provider.id] = {
+              configured: serverStatus?.configured || false,
+              isAvailable: serverStatus?.available || false,
               isChecking: false
-            }
-          }));
-        } catch (error) {
+            };
+          }
+          
+          setProviderStatus(updatedStatus);
+        } else {
+          // Fallback: mark all as unavailable
+          for (const provider of providers) {
+            setProviderStatus(prev => ({
+              ...prev,
+              [provider.id]: {
+                configured: false,
+                isAvailable: false,
+                isChecking: false
+              }
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check provider availability:', error);
+        // Fallback: mark all as unavailable except Ollama
+        for (const provider of providers) {
           setProviderStatus(prev => ({
             ...prev,
             [provider.id]: {
-              ...prev[provider.id],
-              isAvailable: false,
+              configured: provider.id === 'ollama',
+              isAvailable: provider.id === 'ollama',
               isChecking: false
             }
           }));
@@ -243,14 +135,8 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
   const handleProviderClick = async (provider: ProviderInfo) => {
     const status = providerStatus[provider.id];
 
-    // If provider requires API key and doesn't have one, show modal
-    if (provider.requiresApiKey && !status?.hasApiKey) {
-      setApiKeyModal({ provider, isOpen: true });
-      return;
-    }
-
-    // If provider is not available, don't proceed
-    if (!status?.isAvailable) {
+    // If provider is not configured or available, don't proceed
+    if (!status?.configured || !status?.isAvailable) {
       return;
     }
 
@@ -259,50 +145,7 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
     onProviderSelect(provider.id);
   };
 
-  const handleApiKeySave = async (apiKey: string) => {
-    const provider = apiKeyModal.provider;
 
-    // Update status to show we have the API key
-    setProviderStatus(prev => ({
-      ...prev,
-      [provider.id]: {
-        ...prev[provider.id],
-        hasApiKey: true,
-        isChecking: true
-      }
-    }));
-
-    // Refresh the LLM manager to pick up the new API key
-    llmManager.refreshProviders();
-
-    // Check availability with the new API key
-    try {
-      const isAvailable = await llmManager.checkProviderAvailability(provider.id);
-      setProviderStatus(prev => ({
-        ...prev,
-        [provider.id]: {
-          ...prev[provider.id],
-          isAvailable,
-          isChecking: false
-        }
-      }));
-
-      // If available, select this provider
-      if (isAvailable) {
-        DefaultProviderStorage.setDefaultProvider(provider.id);
-        onProviderSelect(provider.id);
-      }
-    } catch (error) {
-      setProviderStatus(prev => ({
-        ...prev,
-        [provider.id]: {
-          ...prev[provider.id],
-          isAvailable: false,
-          isChecking: false
-        }
-      }));
-    }
-  };
 
   const getProviderStatusIcon = (provider: ProviderInfo) => {
     const status = providerStatus[provider.id];
@@ -311,8 +154,8 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
       return <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />;
     }
 
-    if (provider.requiresApiKey && !status?.hasApiKey) {
-      return <Key className="w-4 h-4 text-yellow-400" />;
+    if (!status?.configured) {
+      return <AlertCircle className="w-4 h-4 text-yellow-400" />;
     }
 
     if (!status?.isAvailable) {
@@ -322,11 +165,29 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
     return <CheckCircle2 className="w-4 h-4 text-green-400" />;
   };
 
+  const getProviderStatusText = (provider: ProviderInfo) => {
+    const status = providerStatus[provider.id];
+
+    if (status?.isChecking) {
+      return 'Checking...';
+    }
+
+    if (!status?.configured) {
+      return 'Not configured';
+    }
+
+    if (!status?.isAvailable) {
+      return 'Unavailable';
+    }
+
+    return 'Ready';
+  };
+
 
 
   const isProviderSelectable = (provider: ProviderInfo) => {
     const status = providerStatus[provider.id];
-    return !status?.isChecking && (status?.isAvailable || (provider.requiresApiKey && !status?.hasApiKey));
+    return !status?.isChecking && status?.configured && status?.isAvailable;
   };
 
   return (
@@ -379,9 +240,12 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
                   {provider.name}
                 </h3>
 
-                {/* Status Icon */}
-                <div className="flex items-center justify-center">
+                {/* Status Icon and Text */}
+                <div className="flex flex-col items-center space-y-1">
                   {getProviderStatusIcon(provider)}
+                  <span className="text-xs text-gray-400">
+                    {getProviderStatusText(provider)}
+                  </span>
                 </div>
               </div>
 
@@ -398,13 +262,17 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
         })}
       </div>
 
-      {/* API Key Modal */}
-      <APIKeyModal
-        provider={apiKeyModal.provider}
-        isOpen={apiKeyModal.isOpen}
-        onClose={() => setApiKeyModal(prev => ({ ...prev, isOpen: false }))}
-        onSave={handleApiKeySave}
-      />
+      {/* Info message for unconfigured providers */}
+      <div className="mt-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700/30">
+        <p className="text-xs text-gray-400 text-center">
+          Providers are configured via environment variables on the server.
+          {Object.values(providerStatus).some(status => !status.configured && !status.isChecking) && (
+            <span className="block mt-1 text-yellow-400">
+              Some providers are not configured. Contact your administrator to enable them.
+            </span>
+          )}
+        </p>
+      </div>
     </>
   );
 }

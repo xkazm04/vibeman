@@ -1,7 +1,10 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { goalDb } from '../../../lib/database';
-import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
+import { generateWithLLM, DefaultProviderStorage, AnthropicClient, OpenAIClient, GeminiClient, OllamaClient } from '../../../lib/llm';
+import { LLMRequest, LLMResponse, SupportedProvider } from '../../../lib/llm/types';
+
+
 
 // Helper function to read AI docs if available
 async function readAIDocs(projectPath: string): Promise<string | null> {

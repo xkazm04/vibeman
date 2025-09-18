@@ -4,7 +4,7 @@ import { BaseLLMClient } from '../base-client';
 import { LLMRequest, LLMResponse, LLMProgress } from '../types';
 
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1';
-const DEFAULT_MODEL = 'claude-3-haiku-20240307';
+const DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
 
 interface AnthropicRequest {
   model: string;
@@ -86,7 +86,7 @@ export class AnthropicClient extends BaseLLMClient {
       // Prepare request body
       const requestBody: AnthropicRequest = {
         model: request.model || this.defaultModel || DEFAULT_MODEL,
-        max_tokens: request.maxTokens || 4096,
+        max_tokens: request.maxTokens || 40096,
         messages: [
           {
             role: 'user',
@@ -110,9 +110,7 @@ export class AnthropicClient extends BaseLLMClient {
         `${this.baseUrl}/messages`,
         {
           method: 'POST',
-          headers: this.createHeaders({
-            'anthropic-version': '2023-06-01'
-          }),
+          headers: this.createAnthropicHeaders(),
           body: JSON.stringify(requestBody)
         }
       );
@@ -203,31 +201,44 @@ export class AnthropicClient extends BaseLLMClient {
     }
   }
 
+  /**
+   * Create Anthropic-specific headers with x-api-key instead of Authorization Bearer
+   */
+  private createAnthropicHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'Vibeman-LLM-Client/1.0',
+      'anthropic-version': '2023-06-01'
+    };
+
+    if (this.apiKey) {
+      headers['x-api-key'] = this.apiKey;
+    }
+
+    return headers;
+  }
+
   async checkAvailability(): Promise<boolean> {
     try {
-      if (!this.apiKey) return false;
+      if (!this.apiKey) {
+        return false;
+      }
 
-      // Anthropic doesn't have a simple health check endpoint
-      // We'll make a minimal request to test connectivity
-      const response = await this.makeRequest(
+      // Test with a minimal request to check if the API key is valid
+      const testResponse = await this.makeRequest(
         `${this.baseUrl}/messages`,
         {
           method: 'POST',
-          headers: this.createHeaders({
-            'anthropic-version': '2023-06-01'
-          }),
+          headers: this.createAnthropicHeaders(),
           body: JSON.stringify({
             model: this.defaultModel || DEFAULT_MODEL,
-            max_tokens: 1,
-            messages: [{ role: 'user', content: 'test' }]
+            max_tokens: 10,
+            messages: [{ role: 'user', content: 'Hi' }]
           })
-        },
-        5000 // 5 second timeout for health check
+        }
       );
 
-      // Even if the request fails due to rate limits or other issues,
-      // if we get a response, the API is available
-      return response.status !== 0;
+      return testResponse.ok;
     } catch (error) {
       console.warn('Anthropic availability check failed:', error);
       return false;
@@ -238,12 +249,11 @@ export class AnthropicClient extends BaseLLMClient {
     // Anthropic doesn't provide a models endpoint
     // Return the known available models
     return [
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-haiku-20241022',
       'claude-3-opus-20240229',
       'claude-3-sonnet-20240229',
-      'claude-3-haiku-20240307',
-      'claude-2.1',
-      'claude-2.0',
-      'claude-instant-1.2'
+      'claude-3-haiku-20240307'
     ];
   }
 }

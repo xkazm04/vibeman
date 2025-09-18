@@ -12,6 +12,8 @@ interface TreeViewProps {
   onRefresh: () => void;
   onClearError: () => void;
   onClearSearch: () => void;
+  showCheckboxes?: boolean;
+  selectedPaths?: string[];
 }
 
 export default function TreeView({
@@ -22,7 +24,9 @@ export default function TreeView({
   onToggleNode,
   onRefresh,
   onClearError,
-  onClearSearch
+  onClearSearch,
+  showCheckboxes = false,
+  selectedPaths = []
 }: TreeViewProps) {
   return (
     <div className="flex-1 overflow-auto custom-scrollbar">
@@ -69,6 +73,8 @@ export default function TreeView({
           <TreeNode
             node={filteredStructure}
             onToggle={onToggleNode}
+            showCheckboxes={showCheckboxes}
+            selectedPaths={selectedPaths}
           />
         ) : null}
       </div>

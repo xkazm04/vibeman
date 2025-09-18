@@ -55,7 +55,7 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({ children }) => {
   return (
     <ModalContext.Provider value={{ showModal, hideModal, isModalOpen }}>
       {children}
-      
+
       {/* Global Modal Renderer */}
       {modalConfig && (
         <UniversalModal

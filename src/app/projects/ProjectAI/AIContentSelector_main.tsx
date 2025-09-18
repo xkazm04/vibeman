@@ -1,9 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Brain, Zap, Play, Pause, FileCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Brain, Zap, Play, Pause, FileCheck, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react';
 import { codebaseScanCards, ideaGenerationCards, AIContentCard } from './aiContentConfig';
 import LLMSelector from './LLMSelector';
 import { SupportedProvider, DefaultProviderStorage } from '../../../lib/llm';
+import { useGlobalModal } from '../../../hooks/useGlobalModal';
+import { MarkdownViewer } from '../../../components/markdown';
 
 interface AIContentSelectorProps {
   onSelectMode: (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask?: boolean) => void;
@@ -16,9 +18,10 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
   const [backgroundTask, setBackgroundTask] = React.useState(false);
   const [aiDocsExist, setAiDocsExist] = React.useState(false);
   const [checkingDocs, setCheckingDocs] = React.useState(true);
-  const [selectedProvider, setSelectedProvider] = React.useState<SupportedProvider>(() => 
+  const [selectedProvider, setSelectedProvider] = React.useState<SupportedProvider>(() =>
     externalProvider || DefaultProviderStorage.getDefaultProvider()
   );
+  const { showFullScreenModal } = useGlobalModal();
 
   // Update internal state when external provider changes
   React.useEffect(() => {
@@ -30,6 +33,46 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
   const handleProviderSelect = (provider: SupportedProvider) => {
     setSelectedProvider(provider);
     onProviderChange?.(provider);
+  };
+
+  const handleShowAIDocs = async () => {
+    if (!activeProject?.path || !aiDocsExist) return;
+
+    try {
+      const response = await fetch('/api/kiro/read-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filePath: `${activeProject.path}/context/high.md`
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.content || '';
+
+        showFullScreenModal(
+          'AI Documentation',
+          <div className="h-full overflow-y-auto">
+            <MarkdownViewer
+              content={content}
+              className="bg-gray-900/30 backdrop-blur-sm rounded-lg p-6"
+            />
+          </div>,
+          {
+            subtitle: `${activeProject.name} - context/high.md`,
+            icon: BookOpen,
+            iconBgColor: 'bg-blue-500/20',
+            iconColor: 'text-blue-400',
+            maxWidth: 'max-w-7xl',
+            maxHeight: 'max-h-[95vh]',
+            backdropBlur: true
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Failed to load AI docs:', error);
+    }
   };
 
   // Check if AI docs exist
@@ -137,21 +180,39 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
         {/* Status Indicators */}
         <div className="space-y-4 flex-1">
           {/* AI Docs Status */}
-          <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
+          <motion.div
+            className={`p-4 bg-gray-800/30 rounded-lg border border-gray-700/30 transition-all duration-200 ${aiDocsExist && !checkingDocs
+                ? 'cursor-pointer hover:bg-gray-800/50 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10'
+                : ''
+              }`}
+            onClick={aiDocsExist && !checkingDocs ? handleShowAIDocs : undefined}
+            whileHover={aiDocsExist && !checkingDocs ? { scale: 1.02, y: -1 } : {}}
+            whileTap={aiDocsExist && !checkingDocs ? { scale: 0.98 } : {}}
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-white">AI Documentation</span>
-              {checkingDocs ? (
-                <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-400 rounded-full animate-spin" />
-              ) : aiDocsExist ? (
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-red-400" />
-              )}
+              <div className="flex items-center space-x-2">
+                {checkingDocs ? (
+                  <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-400 rounded-full animate-spin" />
+                ) : aiDocsExist ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                    <BookOpen className="w-4 h-4 text-blue-400 opacity-70" />
+                  </>
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                )}
+              </div>
             </div>
             <p className="text-xs text-gray-400">
-              {checkingDocs ? 'Checking...' : aiDocsExist ? 'Available at context/high.md' : 'Not found - Generate AI Docs first'}
+              {checkingDocs
+                ? 'Checking...'
+                : aiDocsExist
+                  ? 'Available at context/high.md - Click to view'
+                  : 'Not found - Generate AI Docs first'
+              }
             </p>
-          </div>
+          </motion.div>
 
           {/* Ollama Status */}
           <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
@@ -180,7 +241,7 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
             <span className="text-sm font-medium text-white">AI Provider</span>
             <p className="text-xs text-gray-400 mt-1">Choose your preferred AI model</p>
           </div>
-          <LLMSelector 
+          <LLMSelector
             selectedProvider={selectedProvider}
             onProviderSelect={handleProviderSelect}
           />

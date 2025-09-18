@@ -1,6 +1,9 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
+import { generateWithLLM, DefaultProviderStorage, AnthropicClient, OpenAIClient, GeminiClient, OllamaClient } from '../../../lib/llm';
+import { LLMRequest, LLMResponse, SupportedProvider } from '../../../lib/llm/types';
+
+
 
 // Generate AI documentation review
 export async function generateAIReview(projectName: string, analysis: any, projectId?: string, provider?: string): Promise<string> {

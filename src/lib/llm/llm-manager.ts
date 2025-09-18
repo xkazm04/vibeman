@@ -22,38 +22,77 @@ export class LLMManager {
   private initializeProviders(): void {
     if (this.initialized) return;
 
-    // Initialize OpenAI client
-    const openaiConfig = APIKeyStorage.getAPIKey('openai');
-    this.providers.set('openai', new OpenAIClient({
-      apiKey: openaiConfig?.apiKey,
-      baseUrl: openaiConfig?.baseUrl
-    }));
+    // Server-side: Use environment variables
+    if (typeof window === 'undefined') {
+      // Initialize OpenAI client
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      if (openaiApiKey) {
+        this.providers.set('openai', new OpenAIClient({
+          apiKey: openaiApiKey,
+          baseUrl: process.env.OPENAI_BASE_URL
+        }));
+      }
 
-    // Initialize Anthropic client
-    const anthropicConfig = APIKeyStorage.getAPIKey('anthropic');
-    this.providers.set('anthropic', new AnthropicClient({
-      apiKey: anthropicConfig?.apiKey,
-      baseUrl: anthropicConfig?.baseUrl
-    }));
+      // Initialize Anthropic client
+      const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+      if (anthropicApiKey) {
+        this.providers.set('anthropic', new AnthropicClient({
+          apiKey: anthropicApiKey,
+          baseUrl: process.env.ANTHROPIC_BASE_URL
+        }));
+      }
 
-    // Initialize Gemini client
-    const geminiConfig = APIKeyStorage.getAPIKey('gemini');
-    this.providers.set('gemini', new GeminiClient({
-      apiKey: geminiConfig?.apiKey,
-      baseUrl: geminiConfig?.baseUrl
-    }));
+      // Initialize Gemini client
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (geminiApiKey) {
+        this.providers.set('gemini', new GeminiClient({
+          apiKey: geminiApiKey,
+          baseUrl: process.env.GEMINI_BASE_URL
+        }));
+      }
 
-    // Initialize Ollama client
-    const ollamaConfig = ProviderConfigStorage.getProviderConfig('ollama');
-    this.providers.set('ollama', new OllamaClient({
-      baseUrl: ollamaConfig?.baseUrl
-    }));
+      // Initialize Ollama client (always available)
+      this.providers.set('ollama', new OllamaClient({
+        baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+      }));
 
-    // Initialize Internal client
-    const internalConfig = ProviderConfigStorage.getProviderConfig('internal');
-    this.providers.set('internal', new InternalClient({
-      baseUrl: internalConfig?.baseUrl
-    }));
+      // Initialize Internal client
+      const internalBaseUrl = process.env.INTERNAL_API_BASE_URL;
+      if (internalBaseUrl) {
+        this.providers.set('internal', new InternalClient({
+          baseUrl: internalBaseUrl
+        }));
+      }
+    } else {
+      // Client-side: Use localStorage (for backward compatibility)
+      const openaiConfig = APIKeyStorage.getAPIKey('openai');
+      this.providers.set('openai', new OpenAIClient({
+        apiKey: openaiConfig?.apiKey,
+        baseUrl: openaiConfig?.baseUrl
+      }));
+
+      const anthropicConfig = APIKeyStorage.getAPIKey('anthropic');
+      this.providers.set('anthropic', new AnthropicClient({
+        apiKey: anthropicConfig?.apiKey,
+        baseUrl: anthropicConfig?.baseUrl
+      }));
+
+      const geminiConfig = APIKeyStorage.getAPIKey('gemini');
+      this.providers.set('gemini', new GeminiClient({
+        apiKey: geminiConfig?.apiKey,
+        baseUrl: geminiConfig?.baseUrl
+      }));
+
+      const ollamaConfig = ProviderConfigStorage.getProviderConfig('ollama');
+      this.providers.set('ollama', new OllamaClient({
+        baseUrl: ollamaConfig?.baseUrl || 'http://localhost:11434'
+      }));
+
+      const internalConfig = ProviderConfigStorage.getProviderConfig('internal');
+      this.providers.set('internal', new InternalClient({
+        baseUrl: internalConfig?.baseUrl
+      }));
+    }
 
     this.initialized = true;
   }

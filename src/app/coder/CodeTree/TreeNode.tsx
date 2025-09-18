@@ -1,20 +1,28 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, File, ChevronRight, FolderOpen, Zap } from 'lucide-react';
+import { Folder, File, ChevronRight, FolderOpen, Check } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '../../../types';
 import { useStore } from '../../../stores/nodeStore';
-import { getFileTypeColor } from '@/helpers/typeStyles';
+import { getFileTypeColor } from '../../../helpers/typeStyles';
 
 interface TreeNodeProps {
   node: TreeNodeType;
   level?: number;
   onToggle: (nodeId: string) => void;
+  showCheckboxes?: boolean;
+  selectedPaths?: string[];
 }
 
-export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
+export default function TreeNode({ 
+  node, 
+  level = 0, 
+  onToggle, 
+  showCheckboxes = false, 
+  selectedPaths = [] 
+}: TreeNodeProps) {
   const { selectedNodes, highlightedNodes } = useStore();
   const [isExpanded, setIsExpanded] = useState(level < 2);
-  const isSelected = selectedNodes.has(node.id);
+  const isSelected = showCheckboxes ? selectedPaths.includes(node.path) : selectedNodes.has(node.id);
   const isHighlighted = highlightedNodes.has(node.id);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -30,7 +38,11 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
   const handleNodeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     // Only toggle selection, not expansion
-    onToggle(node.id);
+    if (showCheckboxes) {
+      onToggle(node.path);
+    } else {
+      onToggle(node.id);
+    }
   };
 
   const handleChevronClick = (e: React.MouseEvent) => {
@@ -79,6 +91,19 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
           <div className="w-4 h-4 mr-1" />
         )}
 
+        {/* Checkbox for file selection mode */}
+        {showCheckboxes && (
+          <div className="flex items-center mr-2">
+            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+              isSelected 
+                ? 'bg-cyan-500 border-cyan-500' 
+                : 'border-gray-500 hover:border-gray-400'
+            }`}>
+              {isSelected && <Check className="w-3 h-3 text-white" />}
+            </div>
+          </div>
+        )}
+
         {/* Icon */}
         <Icon 
           className={`w-4 h-4 mr-2 flex-shrink-0 transition-colors duration-200 ${
@@ -122,8 +147,8 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
           </div>
         </div>
 
-        {/* Selection indicator */}
-        {isSelected && (
+        {/* Selection indicator (only for non-checkbox mode) */}
+        {isSelected && !showCheckboxes && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -149,6 +174,8 @@ export default function TreeNode({ node, level = 0, onToggle }: TreeNodeProps) {
                 node={child}
                 level={level + 1}
                 onToggle={onToggle}
+                showCheckboxes={showCheckboxes}
+                selectedPaths={selectedPaths}
               />
             ))}
           </motion.div>

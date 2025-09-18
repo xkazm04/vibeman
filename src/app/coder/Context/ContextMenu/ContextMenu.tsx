@@ -6,7 +6,8 @@ import { Context, ContextGroup, useContextStore } from '../../../../stores/conte
 import { useStore } from '../../../../stores/nodeStore';
 import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
 import { MultiFileEditor } from '../../../../components/editor';
-import ContextEditModal from './ContextEditModal';
+import { useGlobalModal } from '../../../../hooks/useGlobalModal';
+import EnhancedContextEditModal from './EnhancedContextEditModal';
 import ContextFileModal from '../ContextFile/ContextFileModal';
 
 interface ContextMenuProps {
@@ -22,7 +23,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
   const { removeContext, selectedContextIds, toggleContextSelection } = useContextStore();
   const { clearSelection, selectFilesByPaths } = useStore();
   const { fileStructure } = useActiveProjectStore();
-  const [showEditModal, setShowEditModal] = useState(false);
+  const { showFullScreenModal } = useGlobalModal();
   const [showFileEditor, setShowFileEditor] = useState(false);
   const [showContextFileModal, setShowContextFileModal] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -47,8 +48,25 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
         navigator.clipboard.writeText(JSON.stringify(context, null, 2));
         break;
       case 'edit':
-        setShowEditModal(true);
-        return; // Don't close menu yet, let edit modal handle it
+        showFullScreenModal(
+          `Edit Context: ${context.name}`,
+          <EnhancedContextEditModal
+            context={context}
+            availableGroups={availableGroups}
+            selectedFilePaths={selectedFilePaths}
+            onSave={() => {
+              // Context will be updated via the store
+            }}
+          />,
+          {
+            icon: Edit,
+            iconBgColor: "from-cyan-500/20 to-blue-500/20",
+            iconColor: "text-cyan-400",
+            maxWidth: "max-w-7xl",
+            maxHeight: "max-h-[90vh]"
+          }
+        );
+        break;
       case 'delete':
         try {
           await removeContext(context.id);
@@ -66,10 +84,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
     onClose();
   };
 
-  const handleEditModalClose = () => {
-    setShowEditModal(false);
-    onClose();
-  };
+
 
   const handleFileEditorClose = () => {
     setShowFileEditor(false);
@@ -205,14 +220,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
             </div>
           </motion.div>
 
-          {/* Edit Modal */}
-          <ContextEditModal
-            isOpen={showEditModal}
-            onClose={handleEditModalClose}
-            context={context}
-            availableGroups={availableGroups}
-            selectedFilePaths={selectedFilePaths}
-          />
+
 
           {/* File Editor Modal */}
           <MultiFileEditor

@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
       taskType, 
       priority = 0,
       maxRetries = 3,
-      taskData
+      taskData,
+      apiKeys
     } = body;
 
     // Validate required fields
@@ -114,6 +115,11 @@ export async function POST(request: NextRequest) {
 
     // Create new background task
     const taskId = uuidv4();
+    const taskDataWithApiKeys = {
+      ...taskData,
+      apiKeys
+    };
+    
     const newTask = backgroundTaskDb.createTask({
       id: taskId,
       project_id: projectId,
@@ -122,7 +128,7 @@ export async function POST(request: NextRequest) {
       task_type: taskType as 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'coding_task',
       priority,
       max_retries: maxRetries,
-      task_data: taskData ? JSON.stringify(taskData) : undefined
+      task_data: JSON.stringify(taskDataWithApiKeys)
     });
 
     return NextResponse.json({

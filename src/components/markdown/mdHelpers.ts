@@ -1,32 +1,14 @@
-import { motion, Variants } from 'framer-motion';
-import { ReactNode } from 'react';
-import { 
-  Code, 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  Quote, 
-  List, 
-  Hash,
-  Bold,
-  Italic,
-  Link as LinkIcon,
-  Image as ImageIcon,
-  AlertCircle,
-  Info,
-  CheckCircle,
-  AlertTriangle
-} from 'lucide-react';
+import { Variants } from 'framer-motion';
 
 // Animation variants for premium micro-interactions
 export const fadeInUp: Variants = {
-  initial: { 
-    opacity: 0, 
+  initial: {
+    opacity: 0,
     y: 20,
     filter: 'blur(4px)'
   },
-  animate: { 
-    opacity: 1, 
+  animate: {
+    opacity: 1,
     y: 0,
     filter: 'blur(0px)',
     transition: {
@@ -34,8 +16,8 @@ export const fadeInUp: Variants = {
       ease: [0.25, 0.46, 0.45, 0.94]
     }
   },
-  exit: { 
-    opacity: 0, 
+  exit: {
+    opacity: 0,
     y: -10,
     filter: 'blur(2px)',
     transition: { duration: 0.2 }
@@ -53,14 +35,14 @@ export const staggerContainer: Variants = {
 
 export const scaleOnHover: Variants = {
   initial: { scale: 1 },
-  hover: { 
+  hover: {
     scale: 1.02,
-    transition: { 
+    transition: {
       duration: 0.2,
       ease: 'easeOut'
     }
   },
-  tap: { 
+  tap: {
     scale: 0.98,
     transition: { duration: 0.1 }
   }
@@ -175,7 +157,7 @@ export interface MarkdownElement {
 export type CalloutType = 'info' | 'success' | 'warning' | 'error' | 'note';
 
 export interface CalloutConfig {
-  icon: ReactNode;
+  iconName: string;
   bgColor: string;
   borderColor: string;
   textColor: string;
@@ -185,7 +167,7 @@ export interface CalloutConfig {
 
 export const calloutConfigs: Record<CalloutType, CalloutConfig> = {
   info: {
-    icon: <Info className="w-4 h-4" />,
+    iconName: 'Info',
     bgColor: 'bg-blue-50/80 dark:bg-blue-950/30',
     borderColor: 'border-blue-200/60 dark:border-blue-800/40',
     textColor: 'text-blue-900 dark:text-blue-100',
@@ -193,7 +175,7 @@ export const calloutConfigs: Record<CalloutType, CalloutConfig> = {
     gradient: 'bg-gradient-to-r from-blue-500/10 to-cyan-500/10'
   },
   success: {
-    icon: <CheckCircle className="w-4 h-4" />,
+    iconName: 'CheckCircle',
     bgColor: 'bg-emerald-50/80 dark:bg-emerald-950/30',
     borderColor: 'border-emerald-200/60 dark:border-emerald-800/40',
     textColor: 'text-emerald-900 dark:text-emerald-100',
@@ -201,7 +183,7 @@ export const calloutConfigs: Record<CalloutType, CalloutConfig> = {
     gradient: 'bg-gradient-to-r from-emerald-500/10 to-green-500/10'
   },
   warning: {
-    icon: <AlertTriangle className="w-4 h-4" />,
+    iconName: 'AlertTriangle',
     bgColor: 'bg-amber-50/80 dark:bg-amber-950/30',
     borderColor: 'border-amber-200/60 dark:border-amber-800/40',
     textColor: 'text-amber-900 dark:text-amber-100',
@@ -209,7 +191,7 @@ export const calloutConfigs: Record<CalloutType, CalloutConfig> = {
     gradient: 'bg-gradient-to-r from-amber-500/10 to-orange-500/10'
   },
   error: {
-    icon: <AlertCircle className="w-4 h-4" />,
+    iconName: 'AlertCircle',
     bgColor: 'bg-red-50/80 dark:bg-red-950/30',
     borderColor: 'border-red-200/60 dark:border-red-800/40',
     textColor: 'text-red-900 dark:text-red-100',
@@ -217,7 +199,7 @@ export const calloutConfigs: Record<CalloutType, CalloutConfig> = {
     gradient: 'bg-gradient-to-r from-red-500/10 to-pink-500/10'
   },
   note: {
-    icon: <Quote className="w-4 h-4" />,
+    iconName: 'Quote',
     bgColor: 'bg-slate-50/80 dark:bg-slate-950/30',
     borderColor: 'border-slate-200/60 dark:border-slate-800/40',
     textColor: 'text-slate-900 dark:text-slate-100',
@@ -363,7 +345,7 @@ export const markdownStyles = {
     prose-td:border prose-td:border-slate-300 dark:prose-td:border-slate-600
     prose-td:px-4 prose-td:py-2
   `,
-  
+
   heading: {
     base: 'group relative scroll-mt-20 font-semibold tracking-tight',
     h1: 'text-3xl mb-8 mt-0 text-slate-900 dark:text-slate-100',

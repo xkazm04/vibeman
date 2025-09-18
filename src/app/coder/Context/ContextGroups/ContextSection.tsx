@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Zap, Code, Database, Layers, Grid, ChevronRight, ChevronDown, Activity, Cpu, Sparkles } from 'lucide-react';
+import { Plus, Zap, Code, Database, Layers, Grid, ChevronRight, ChevronDown, Activity, Cpu, Sparkles, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
+import { useGlobalModal } from '../../../../hooks/useGlobalModal';
+import EnhancedContextEditModal from '../ContextMenu/EnhancedContextEditModal';
 import ContextCard from '../ContextCard';
 
 interface ContextSectionProps {
@@ -26,6 +28,7 @@ export default function ContextSection({
   selectedFilePaths
 }: ContextSectionProps) {
   const { moveContext } = useContextStore();
+  const { showFullScreenModal } = useGlobalModal();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
@@ -276,13 +279,40 @@ export default function ContextSection({
                     />
                   </div>
 
-                  <div className="text-center space-y-2">
+                  <div className="text-center space-y-4">
                     <p className="text-lg font-semibold text-gray-300 font-mono">
                       Ready for Contexts
                     </p>
                     <p className="text-sm text-gray-500 max-w-64">
                       Drag and drop contexts here or create new ones to organize your workflow
                     </p>
+                    
+                    {selectedFilePaths.length > 0 && (
+                      <motion.button
+                        onClick={() => {
+                          showFullScreenModal(
+                            'Create New Context',
+                            <EnhancedContextEditModal
+                              availableGroups={availableGroups}
+                              selectedFilePaths={selectedFilePaths}
+                            />,
+                            {
+                              icon: Save,
+                              iconBgColor: "from-cyan-500/20 to-blue-500/20",
+                              iconColor: "text-cyan-400",
+                              maxWidth: "max-w-6xl",
+                              maxHeight: "max-h-[90vh]"
+                            }
+                          );
+                        }}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 rounded-xl hover:from-cyan-500/30 hover:to-blue-500/30 transition-all border border-cyan-500/30"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Save className="w-4 h-4" />
+                        <span className="text-sm font-medium">Create Context ({selectedFilePaths.length} files)</span>
+                      </motion.button>
+                    )}
                   </div>
                 </motion.div>
               ) : (

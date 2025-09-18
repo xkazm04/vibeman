@@ -77,7 +77,7 @@ async function processBackgroundGeneration({
     // Generate content based on mode
     switch (mode) {
       case 'docs':
-        const aiReview = await generateAIReview(projectName, projectAnalysis);
+        const aiReview = await generateAIReview(projectName, projectAnalysis, projectId);
 
         // Save to project root/context/high.md
         const contextDir = join(projectPath, 'context');

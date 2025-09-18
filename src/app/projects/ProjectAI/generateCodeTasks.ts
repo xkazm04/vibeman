@@ -1,7 +1,10 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { backlogDb } from '../../../lib/database';
-import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
+import { generateWithLLM, DefaultProviderStorage, AnthropicClient, OpenAIClient, GeminiClient, OllamaClient } from '../../../lib/llm';
+import { LLMRequest, LLMResponse, SupportedProvider } from '../../../lib/llm/types';
+
+
 
 // Generate code optimization tasks
 export async function generateCodeTasks(projectName: string, projectId: string, analysis: any, provider?: string): Promise<string> {

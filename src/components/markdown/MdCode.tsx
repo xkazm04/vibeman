@@ -1,87 +1,64 @@
-import { useState } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { CopyIcon, CheckIcon } from 'lucide-react'
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Copy, Check } from 'lucide-react';
 
 interface MdCodeProps {
-  content: string
-  language: string
-  index: number
+  content: string;
+  language: string;
+  index: number;
 }
 
-// Custom syntax highlighter theme that matches our design
-const customCodeTheme = {
-  ...oneDark,
-  'pre[class*="language-"]': {
-    ...oneDark['pre[class*="language-"]'],
-    background: 'transparent',
-    margin: 0,
-    padding: '1rem',
-    fontSize: '0.875rem',
-    lineHeight: '1.5'
-  },
-  'code[class*="language-"]': {
-    ...oneDark['code[class*="language-"]'],
-    background: 'transparent',
-    fontFamily: 'var(--font-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-  }
-}
+export default function MdCode({ content, language, index }: MdCodeProps) {
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-export function MdCode({ content, language, index }: MdCodeProps) {
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
-
-  const copyToClipboard = async (text: string, codeId: string) => {
+  const copyCode = async (code: string) => {
     try {
-      await navigator.clipboard.writeText(text)
-      setCopiedCode(codeId)
-      setTimeout(() => setCopiedCode(null), 2000)
-    } catch (err) {
-      console.error('Failed to copy text: ', err)
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy code:', error);
     }
-  }
-
-  const codeId = `code-${index}`
-  const isCopied = copiedCode === codeId
+  };
 
   return (
-    <div className="my-6 rounded-lg border border-border bg-card/50 overflow-hidden shadow-sm relative">
-      <div className="px-4 py-2 bg-muted/50 border-b border-border text-xs font-mono text-muted-foreground flex justify-between items-center">
-        <span>{language}</span>
-        <button
-          onClick={() => copyToClipboard(content, codeId)}
-          className="flex items-center gap-1.5 px-2 py-1 text-xs bg-background/80 border border-border rounded hover:bg-background transition-all duration-200 hover:shadow-sm"
-          title={isCopied ? "Copied!" : "Copy code"}
-        >
-          {isCopied ? (
-            <>
-              <CheckIcon size={14} className="text-green-600" />
-              <span className="text-green-600 font-medium">Copied!</span>
-            </>
-          ) : (
-            <>
-              <CopyIcon size={14} className="text-muted-foreground" />
-              <span className="text-muted-foreground">Copy</span>
-            </>
-          )}
-        </button>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="relative group my-6"
+    >
+      <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-lg">
+        {/* Code header */}
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-800/50 border-b border-gray-700">
+          <span className="text-xs text-gray-400 font-mono">
+            {language}
+          </span>
+          <button
+            onClick={() => copyCode(content)}
+            className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded transition-colors"
+          >
+            {copiedCode === content ? (
+              <>
+                <Check className="w-3 h-3" />
+                <span>Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Code content */}
+        <pre className="p-4 overflow-x-auto">
+          <code className="text-sm font-mono text-gray-300 leading-relaxed">
+            {content}
+          </code>
+        </pre>
       </div>
-      <SyntaxHighlighter
-        language={language}
-        style={customCodeTheme}
-        customStyle={{
-          margin: 0,
-          background: 'transparent',
-          fontSize: '0.875rem',
-          padding: '1rem'
-        }}
-        codeTagProps={{
-          style: {
-            fontFamily: 'var(--font-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-          }
-        }}
-      >
-        {content}
-      </SyntaxHighlighter>
-    </div>
-  )
+    </motion.div>
+  );
 } 

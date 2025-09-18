@@ -1,5 +1,11 @@
 Please conduct a thorough analysis of this repository and provide detailed insights on:
 
+## Execeutive summary
+- **Purpose**: [one sentence]
+- **Stack**: [key technologies]
+- **Maturity**: [POC/Demo/Production-ready]
+- **Critical Issues**: [if any]
+
 ## 1. Application Overview
 - Primary purpose and business domain
 - Target users and use cases
@@ -40,5 +46,13 @@ For each opportunity, specify:
 - Potential technical debt
 - Scalability considerations
 - Missing common features for this type of application
+
+## 📚 For LLM Context
+<!-- LLM_CONTEXT_START -->
+- Primary entities: [list]
+- Key operations: [list]
+- Integration points: [list]
+- Configuration requirements: [list]
+<!-- LLM_CONTEXT_END -->
 
 Please structure your response as a STYLED MARKDOWN file with clear headings and bullet points for readability.
