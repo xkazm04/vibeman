@@ -90,24 +90,14 @@ export default function ProjectSelectionModal({
               
               {/* Project Header */}
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2.5 rounded-lg ${
-                    isActive
-                      ? 'bg-cyan-500/20 border border-cyan-500/30'
-                      : `${typeConfig.bg} border ${typeConfig.border}`
-                  }`}>
-                    <TypeIcon className={`w-5 h-5 ${
-                      isActive ? 'text-cyan-400' : typeConfig.color
-                    }`} />
-                  </div>
-                  
+                <div className="flex items-center space-x-3">                  
                   <div className="flex-1 min-w-0">
-                    <h3 className={`font-bold text-lg truncate ${
+                    <h3 className={`font-bold text-3xl truncate ${
                       isActive ? 'text-cyan-300' : 'text-white'
                     }`}>
                       {project.name}
                     </h3>
-                    <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex items-center absolute right-5 top-5 space-x-2 mt-1">
                       <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${
                         isActive 
                           ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
@@ -116,7 +106,7 @@ export default function ProjectSelectionModal({
                         {getProjectTypeLabel(project.type)}
                       </span>
                       <span className={`text-sm font-mono ${
-                        isActive ? 'text-cyan-400' : 'text-gray-400'
+                        isActive ? 'text-cyan-400' : 'text-gray-300'
                       }`}>
                         :{project.port}
                       </span>
@@ -124,13 +114,6 @@ export default function ProjectSelectionModal({
                   </div>
                 </div>
               </div>
-
-              {/* Project Description */}
-              {project.description && (
-                <p className="text-sm text-gray-400 mb-3 line-clamp-2 leading-relaxed">
-                  {project.description}
-                </p>
-              )}
 
               {/* Related Project Connection */}
               {relatedProject && (

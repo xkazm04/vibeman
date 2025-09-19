@@ -88,7 +88,7 @@ export default function ProjectManagement() {
         whileTap={projects.length > 1 ? { scale: 0.995 } : {}}
         onClick={handleActiveProjectClick}
         className={`flex items-center space-x-5 flex-1 min-w-0 ${projects.length > 1
-          ? 'cursor-pointer hover:opacity-80 transition-all duration-300'
+          ? 'cursor-pointer hover:opacity-80 hover:bg-teal-300/1 transition-all duration-300 rounded-2xl'
           : ''
           }`}
       >
@@ -126,12 +126,6 @@ export default function ProjectManagement() {
                   :{activeProject.port}
                 </span>
 
-                {/* Description */}
-                {activeProject.description && (
-                  <span className="text-sm text-gray-400 italic truncate max-w-md">
-                    {activeProject.description}
-                  </span>
-                )}
 
                 {/* Git Branch */}
                 {activeProject.git && (
@@ -173,15 +167,6 @@ export default function ProjectManagement() {
                 )}
               </div>
             </div>
-
-            {/* Project Selector Hint */}
-            {projects.length > 1 && (
-              <div className="hidden md:flex items-center space-x-2 text-gray-500 text-sm">
-                <span>Click to switch</span>
-                <div className="w-1 h-1 bg-gray-500 rounded-full" />
-                <span>{projects.length} projects</span>
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex items-center space-x-5">
@@ -203,7 +188,7 @@ export default function ProjectManagement() {
         )}
       </motion.div>
 
-      {/* Enhanced Add Project Button */}
+      {/* Add Project Button */}
       <motion.button
         whileHover={{ scale: 1.05, y: -1 }}
         whileTap={{ scale: 0.95 }}

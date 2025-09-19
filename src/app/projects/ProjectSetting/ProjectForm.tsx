@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FolderOpen, AlertCircle, Loader2, Code, Server, Link } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
+import ProjectPortSelection from './ProjectPortSelection';
 
 interface Directory {
   name: string;
@@ -21,7 +22,6 @@ interface ProjectFormData {
   name: string;
   path: string;
   port: number;
-  description?: string;
   type: 'nextjs' | 'fastapi' | 'other';
   relatedProjectId?: string;
   git_repository?: string;
@@ -80,7 +80,6 @@ export default function ProjectForm({
   const [selectedPath, setSelectedPath] = useState(initialData?.path || '');
   const [projectName, setProjectName] = useState(initialData?.name || '');
   const [port, setPort] = useState(initialData?.port || 3000);
-  const [description, setDescription] = useState(initialData?.description || '');
   const [projectType, setProjectType] = useState<'nextjs' | 'fastapi' | 'other'>(initialData?.type || 'nextjs');
   const [relatedProjectId, setRelatedProjectId] = useState(initialData?.relatedProjectId || '');
   const [gitRepository, setGitRepository] = useState(initialData?.git_repository || '');
@@ -103,7 +102,6 @@ export default function ProjectForm({
       setSelectedPath(initialData.path || '');
       setProjectName(initialData.name || '');
       setPort(initialData.port || 3000);
-      setDescription(initialData.description || '');
       setProjectType(initialData.type || 'nextjs');
       setRelatedProjectId(initialData.relatedProjectId || '');
       setGitRepository(initialData.git_repository || '');
@@ -160,7 +158,6 @@ export default function ProjectForm({
       name: projectName.trim(),
       path: selectedPath,
       port: port,
-      description: description.trim() || undefined,
       type: projectType,
       relatedProjectId: projectType === 'fastapi' && relatedProjectId ? relatedProjectId : undefined,
       git_repository: gitRepository.trim() || undefined,
@@ -289,22 +286,24 @@ export default function ProjectForm({
         </div>
       </div>
 
-      {/* Project Name and Port - Compact Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Project Name *
-          </label>
-          <input
-            type="text"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            placeholder="e.g., My Next.js App"
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-            maxLength={50}
-            required
-          />
-        </div>
+      {/* Project Name */}
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Project Name *
+        </label>
+        <input
+          type="text"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+          placeholder="e.g., My Next.js App"
+          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+          maxLength={50}
+          required
+        />
+      </div>
+
+      {/* Port Selection */}
+      {projectType === 'other' ? (
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Port *
@@ -319,22 +318,13 @@ export default function ProjectForm({
             required
           />
         </div>
-      </div>
-
-      {/* Description */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Description (Optional)
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Brief description of your project..."
-          rows={2}
-          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all resize-none"
-          maxLength={200}
+      ) : (
+        <ProjectPortSelection
+          projectType={projectType}
+          selectedPort={port}
+          onPortSelect={setPort}
         />
-      </div>
+      )}
 
       {/* FastAPI Related Project */}
       {projectType === 'fastapi' && nextjsProjects.length > 0 && (

@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat, readFile } from 'fs/promises';
 import { join, extname } from 'path';
 
-import { motion } from 'framer-motion';
 import { generateAIReview, generateGoals, generateTasks } from '@/app/projects/ProjectAI/promptFunctions';
 import { generateContexts } from '@/app/projects/ProjectAI/generateContexts';
 import { generateCodeTasks } from '@/app/projects/ProjectAI/generateCodeTasks';
+import { motion } from 'framer-motion';
 
 export async function POST(request: NextRequest) {
   try {
     const { projectId, projectPath, projectName, mode = 'docs', provider } = await request.json();
-    
+
     if (!projectId || !projectPath || !projectName) {
       return NextResponse.json(
         { success: false, error: 'Project ID, path, and name are required' },
@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
     try {
       // Analyze the project structure
       const projectAnalysis = await analyzeProjectStructure(projectPath);
-      
+
       let result: any;
-      
+
       // Generate content based on mode
       switch (mode) {
         case 'docs':
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
             }
           };
           break;
-          
+
         case 'tasks':
           const tasksResponse = await generateTasks(projectName, projectId, projectAnalysis, provider);
           try {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
             };
           }
           break;
-          
+
         case 'goals':
           const goalsResponse = await generateGoals(projectName, projectId, projectAnalysis, projectPath, provider);
           try {
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
             };
           }
           break;
-          
+
         case 'context':
           const contextResult = await generateContexts(projectName, projectPath, projectAnalysis, projectId, provider);
           result = {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
             }
           };
           break;
-          
+
         case 'code':
           const codeTasksResponse = await generateCodeTasks(projectName, projectId, projectAnalysis, provider);
           try {
@@ -138,18 +138,18 @@ export async function POST(request: NextRequest) {
             };
           }
           break;
-          
+
         default:
           throw new Error(`Invalid mode: ${mode}`);
       }
-      
+
       return NextResponse.json(result);
     } catch (analysisError) {
       console.error(`Failed to analyze project ${projectName}:`, analysisError);
       return NextResponse.json(
-        { 
-          success: false, 
-          error: `Failed to analyze project: ${analysisError instanceof Error ? analysisError.message : 'Unknown error'}` 
+        {
+          success: false,
+          error: `Failed to analyze project: ${analysisError instanceof Error ? analysisError.message : 'Unknown error'}`
         },
         { status: 500 }
       );
@@ -201,23 +201,23 @@ async function analyzeProjectStructure(projectPath: string) {
   try {
     // Read project structure
     analysis.structure = await readDirectoryStructure(projectPath, 2); // Max depth 2
-    
+
     // Analyze key files
     for (const pattern of keyFilePatterns) {
       try {
         const filePath = join(projectPath, pattern);
         const stats = await stat(filePath);
-        
+
         if (stats.isFile()) {
           const content = await readFile(filePath, 'utf-8');
           const fileType = getFileCategory(pattern);
-          
+
           analysis.codebase[fileType].push({
             path: pattern,
             content: content.slice(0, 5000), // Limit content size
             type: extname(pattern) || 'config'
           });
-          
+
           analysis.stats.keyFiles.push(pattern);
         }
       } catch (error) {
@@ -230,7 +230,7 @@ async function analyzeProjectStructure(projectPath: string) {
       try {
         const dirPath = join(projectPath, dir);
         const dirStats = await stat(dirPath);
-        
+
         if (dirStats.isDirectory()) {
           const files = await findImportantFiles(dirPath, 3); // Max depth 3
           analysis.codebase.mainFiles.push(...files);
@@ -301,7 +301,7 @@ async function findImportantFiles(dirPath: string, maxDepth: number, currentDept
           try {
             const content = await readFile(entryPath, 'utf-8');
             const relativePath = entryPath.replace(dirPath, '').replace(/^[\/\\]/, '');
-            
+
             files.push({
               path: relativePath,
               content: content.slice(0, 3000), // Limit content size
@@ -332,19 +332,19 @@ function getFileCategory(filename: string): 'mainFiles' | 'configFiles' | 'docum
 
 function detectTechnologies(analysis: any): string[] {
   const technologies: string[] = [];
-  
+
   // Check package.json for dependencies
   const packageJson = analysis.codebase.configFiles.find((f: any) => f.path === 'package.json');
   if (packageJson) {
     try {
       const pkg = JSON.parse(packageJson.content);
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-      
+
       if (deps.react) technologies.push('React');
       if (deps.next) technologies.push('Next.js');
       if (deps.typescript) technologies.push('TypeScript');
       if (deps.tailwindcss) technologies.push('Tailwind CSS');
-      if (deps.framer-motion) technologies.push('Framer Motion');
+      if (deps.framer - motion) technologies.push('Framer Motion');
       if (deps.zustand) technologies.push('Zustand');
       if (deps['@tanstack/react-query']) technologies.push('React Query');
     } catch (error) {
@@ -398,11 +398,11 @@ function parseAIJsonResponse(response: string): any {
   // Check if response has ```json wrapper first
   if (response.includes('```json')) {
     console.log('Found ```json marker, extracting...');
-    
+
     // Find the start of JSON content after ```json
     const startIndex = response.indexOf('```json') + 7; // 7 = length of '```json'
     const endIndex = response.indexOf('```', startIndex);
-    
+
     if (endIndex !== -1) {
       const jsonContent = response.substring(startIndex, endIndex).trim();
       console.log('Extracted JSON content:', jsonContent.substring(0, 100) + '...');

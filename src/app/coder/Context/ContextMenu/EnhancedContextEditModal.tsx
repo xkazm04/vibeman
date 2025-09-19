@@ -1,24 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Save, 
-  AlertCircle, 
-  Zap, 
-  FileText, 
-  FolderTree, 
-  Plus, 
-  X, 
-  Check,
-  Search,
-  Filter
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Save,
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
-import { TreeNode as TreeNodeType } from '../../../../types';
-import { useStore } from '../../../../stores/nodeStore';
-import TreeView from '../../CodeTree/TreeView';
 import { GlowCard } from '../../../../components/GlowCard';
+import FileTreeSelector from './FileTreeSelector';
+import SelectedFilesList from './SelectedFilesList';
 
 interface EnhancedContextEditModalProps {
   context?: Context; // undefined for new context
@@ -28,112 +20,7 @@ interface EnhancedContextEditModalProps {
   onCancel?: () => void;
 }
 
-interface FileTreeSelectorProps {
-  fileStructure: TreeNodeType | null;
-  selectedPaths: string[];
-  onPathToggle: (path: string) => void;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-}
 
-const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
-  fileStructure,
-  selectedPaths,
-  onPathToggle,
-  searchQuery,
-  onSearchChange
-}) => {
-  const { toggleNode, selectedNodes, clearSelection } = useStore();
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-
-  // Filter tree based on search query
-  const filteredStructure = useMemo(() => {
-    if (!fileStructure || !searchQuery.trim()) return fileStructure;
-    
-    const filterNode = (node: TreeNodeType): TreeNodeType | null => {
-      const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           node.path.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const filteredChildren = node.children?.map(filterNode).filter(Boolean) as TreeNodeType[] || [];
-      
-      if (matchesSearch || filteredChildren.length > 0) {
-        return {
-          ...node,
-          children: filteredChildren
-        };
-      }
-      
-      return null;
-    };
-    
-    return filterNode(fileStructure);
-  }, [fileStructure, searchQuery]);
-
-  const handleNodeToggle = (nodePath: string) => {
-    onPathToggle(nodePath);
-    toggleNode(nodePath);
-  };
-
-  return (
-    <div className="h-full flex flex-col">
-      {/* Search Bar */}
-      <div className="p-4 border-b border-gray-700/30">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search files..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20"
-          />
-        </div>
-        
-        {selectedPaths.length > 0 && (
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-sm text-gray-400">
-              {selectedPaths.length} files selected
-            </span>
-            <button
-              onClick={() => {
-                selectedPaths.forEach(path => onPathToggle(path));
-                clearSelection();
-              }}
-              className="text-xs text-red-400 hover:text-red-300 transition-colors"
-            >
-              Clear all
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Tree View */}
-      <div className="flex-1 overflow-y-auto">
-        {filteredStructure ? (
-          <TreeView
-            activeProject={null}
-            filteredStructure={filteredStructure}
-            isLoading={false}
-            error={null}
-            onToggleNode={handleNodeToggle}
-            onRefresh={() => {}}
-            onClearError={() => {}}
-            onClearSearch={() => onSearchChange('')}
-            showCheckboxes={true}
-            selectedPaths={selectedPaths}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-32 text-gray-500">
-            <div className="text-center">
-              <FolderTree className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No files found</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> = ({
   context,
@@ -143,9 +30,9 @@ export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> =
   onCancel
 }) => {
   const { addContext, updateContext, loading } = useContextStore();
-  const { activeProject, fileStructure } = useActiveProjectStore();
+  const { activeProject, fileStructure, loadProjectFileStructure, isLoading: fileStructureLoading } = useActiveProjectStore();
   const { hideModal } = useGlobalModal();
-  
+
   // Form state
   const [contextName, setContextName] = useState(context?.name || '');
   const [description, setDescription] = useState(context?.description || '');
@@ -157,11 +44,18 @@ export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> =
   );
   const [error, setError] = useState('');
   const [backgroundProcessing, setBackgroundProcessing] = useState(false);
-  
+
   // File selection state
   const [searchQuery, setSearchQuery] = useState('');
 
   const isEditing = !!context;
+
+  // Load file structure if not available
+  useEffect(() => {
+    if (activeProject && !fileStructure) {
+      loadProjectFileStructure(activeProject.id);
+    }
+  }, [activeProject, fileStructure, loadProjectFileStructure]);
 
   // Reset form when context changes
   useEffect(() => {
@@ -195,12 +89,21 @@ export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> =
 
     try {
       if (isEditing && context) {
-        const updatedContext = await updateContext(context.id, {
+        await updateContext(context.id, {
           name: contextName.trim(),
           description: description.trim(),
           filePaths: contextFilePaths,
           groupId: selectedGroupId,
         });
+        // Create updated context object for callback
+        const updatedContext: Context = {
+          ...context,
+          name: contextName.trim(),
+          description: description.trim(),
+          filePaths: contextFilePaths,
+          groupId: selectedGroupId,
+          updatedAt: new Date(),
+        };
         onSave?.(updatedContext);
       } else {
         await addContext({
@@ -224,8 +127,8 @@ export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> =
   };
 
   const handleFilePathToggle = (path: string) => {
-    setContextFilePaths(prev => 
-      prev.includes(path) 
+    setContextFilePaths(prev =>
+      prev.includes(path)
         ? prev.filter(p => p !== path)
         : [...prev, path]
     );
@@ -297,7 +200,7 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
 
       // Context was created successfully
       hideModal();
-      
+
       // Show success message
       console.log('Context created with generated file:', result.contextFilePath);
     } catch (error) {
@@ -307,45 +210,61 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
     }
   };
 
+  // Show message if no active project
+  if (!activeProject) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-300 mb-2">No Active Project</h3>
+          <p className="text-gray-500">Please select a project to create contexts.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Context Details Section */}
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Context Name *
-          </label>
-          <input
-            type="text"
-            value={contextName}
-            onChange={(e) => {
-              setContextName(e.target.value);
-              setError('');
-            }}
-            placeholder="e.g., Authentication Components"
-            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-            maxLength={50}
-          />
-        </div>
+        {/* Context Name and Group in same row */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Context Name *
+            </label>
+            <input
+              type="text"
+              value={contextName}
+              onChange={(e) => {
+                setContextName(e.target.value);
+                setError('');
+              }}
+              placeholder="e.g., Authentication Components"
+              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+              maxLength={50}
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Group *
-          </label>
-          <select
-            value={selectedGroupId}
-            onChange={(e) => {
-              setSelectedGroupId(e.target.value);
-              setError('');
-            }}
-            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-          >
-            {availableGroups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Group *
+            </label>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => {
+                setSelectedGroupId(e.target.value);
+                setError('');
+              }}
+              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+            >
+              {availableGroups.map((group) => (
+                <option key={group.id} value={group.id} className="bg-gray-800 text-white">
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div>
@@ -368,7 +287,7 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
         <label className="block text-sm font-medium text-gray-300">
           Files ({contextFilePaths.length})
         </label>
-        
+
         <div className="grid grid-cols-2 gap-6 h-96">
           {/* Left Side - File Tree */}
           <div className="space-y-3">
@@ -377,68 +296,31 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
               <span className="text-xs text-gray-500">Select files to include</span>
             </div>
             <GlowCard className="p-0 h-full">
-              <FileTreeSelector
-                fileStructure={fileStructure}
-                selectedPaths={contextFilePaths}
-                onPathToggle={handleFilePathToggle}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-              />
+              {fileStructureLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-400">Loading project files...</p>
+                  </div>
+                </div>
+              ) : (
+                <FileTreeSelector
+                  fileStructure={fileStructure}
+                  selectedPaths={contextFilePaths}
+                  onPathToggle={handleFilePathToggle}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                />
+              )}
             </GlowCard>
           </div>
 
           {/* Right Side - Selected Files List */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-gray-400">Selected Files</h4>
-              {contextFilePaths.length > 0 && (
-                <button
-                  onClick={() => setContextFilePaths([])}
-                  className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-            
-            <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl h-full overflow-hidden">
-              {contextFilePaths.length > 0 ? (
-                <div className="h-full overflow-y-auto p-3 space-y-2">
-                  {contextFilePaths.map((filePath, index) => (
-                    <motion.div
-                      key={filePath}
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 10 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex items-center justify-between p-2 bg-gray-700/30 rounded-lg border border-gray-600/30 hover:bg-gray-700/50 transition-colors group"
-                    >
-                      <div className="flex items-center space-x-2 flex-1 min-w-0">
-                        <FileText className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                        <span className="text-sm text-gray-300 truncate font-mono">
-                          {filePath}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveFile(filePath)}
-                        className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                  <FolderTree className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="text-sm font-medium">No files selected</p>
-                  <p className="text-xs mt-1 text-center px-4">
-                    Select files from the project tree on the left
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+          <SelectedFilesList
+            selectedPaths={contextFilePaths}
+            onRemoveFile={handleRemoveFile}
+            onClearAll={() => setContextFilePaths([])}
+          />
         </div>
       </div>
 
@@ -465,7 +347,7 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
           <Zap className="w-4 h-4" />
           <span>{backgroundProcessing ? 'Processing...' : 'Generate in Background'}</span>
         </button>
-        
+
         <div className="flex items-center space-x-3">
           <button
             onClick={handleCancel}

@@ -22,7 +22,8 @@ export default function TreeNode({
 }: TreeNodeProps) {
   const { selectedNodes, highlightedNodes } = useStore();
   const [isExpanded, setIsExpanded] = useState(level < 2);
-  const isSelected = showCheckboxes ? selectedPaths.includes(node.path) : selectedNodes.has(node.id);
+  const nodePath = node.path || node.id;
+  const isSelected = showCheckboxes ? selectedPaths.includes(nodePath) : selectedNodes.has(node.id);
   const isHighlighted = highlightedNodes.has(node.id);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -39,7 +40,7 @@ export default function TreeNode({
     e.stopPropagation();
     // Only toggle selection, not expansion
     if (showCheckboxes) {
-      onToggle(node.path);
+      onToggle(nodePath);
     } else {
       onToggle(node.id);
     }

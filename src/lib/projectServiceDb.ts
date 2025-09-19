@@ -1,6 +1,5 @@
 import { Project } from '@/types';
 import { projectDb, DbProject } from './project_database';
-import { v4 as uuidv4 } from 'uuid';
 
 // Convert DbProject to Project type
 function dbProjectToProject(dbProject: DbProject): Project {
@@ -9,7 +8,6 @@ function dbProjectToProject(dbProject: DbProject): Project {
     name: dbProject.name,
     path: dbProject.path,
     port: dbProject.port,
-    description: dbProject.description || undefined,
     type: (dbProject.type as 'nextjs' | 'fastapi' | 'other') || 'other',
     relatedProjectId: dbProject.related_project_id || undefined,
     allowMultipleInstances: dbProject.allow_multiple_instances === 1,
@@ -21,22 +19,6 @@ function dbProjectToProject(dbProject: DbProject): Project {
       branch: dbProject.git_branch,
       autoSync: false // No longer stored in DB
     } : undefined
-  };
-}
-
-// Convert Project to DbProject format for database operations
-function projectToDbProject(project: Project): Omit<DbProject, 'created_at' | 'updated_at'> {
-  return {
-    id: project.id,
-    name: project.name,
-    path: project.path,
-    port: project.port,
-    git_repository: project.git?.repository || null,
-    git_branch: project.git?.branch || 'main',
-    run_script: 'npm run dev', // Default run script
-    allow_multiple_instances: project.allowMultipleInstances ? 1 : 0,
-    base_port: project.basePort || null,
-    instance_of: project.instanceOf || null
   };
 }
 
@@ -92,7 +74,6 @@ class ProjectServiceDb {
         name: project.name,
         path: project.path,
         port: project.port,
-        description: project.description,
         type: project.type,
         related_project_id: project.relatedProjectId,
         git_repository: project.git?.repository,
@@ -133,7 +114,6 @@ class ProjectServiceDb {
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.path !== undefined) updateData.path = updates.path;
       if (updates.port !== undefined) updateData.port = updates.port;
-      if (updates.description !== undefined) updateData.description = updates.description;
       if (updates.type !== undefined) updateData.type = updates.type;
       if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId;
       if (updates.runScript !== undefined) updateData.run_script = updates.runScript;

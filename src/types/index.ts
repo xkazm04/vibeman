@@ -47,6 +47,7 @@ export interface TreeNode {
   description: string;
   detailedDescription: string;
   children?: TreeNode[];
+  path?: string; // Optional path property for compatibility
 }
 
 export interface ImpactedFile {

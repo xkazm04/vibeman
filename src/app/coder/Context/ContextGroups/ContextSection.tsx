@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Zap, Code, Database, Layers, Grid, ChevronRight, ChevronDown, Activity, Cpu, Sparkles, Save } from 'lucide-react';
+import { Plus,  Code, Database, Layers, Grid, Activity, Cpu, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
-import EnhancedContextEditModal from '../ContextMenu/EnhancedContextEditModal';
-import ContextCard from '../ContextCard';
+import ContextCards from './ContextCards';
 
 interface ContextSectionProps {
   group?: ContextGroup;
@@ -29,6 +28,7 @@ export default function ContextSection({
 }: ContextSectionProps) {
   const { moveContext } = useContextStore();
   const { showFullScreenModal } = useGlobalModal();
+  
   const [isDragOver, setIsDragOver] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
@@ -73,15 +73,6 @@ export default function ContextSection({
   };
 
   const GroupIcon = getGroupIcon();
-
-  // Calculate grid layout based on context count
-  const getGridLayout = () => {
-    const count = contexts.length;
-    if (count <= 4) return 'grid-cols-2';
-    if (count <= 9) return 'grid-cols-3';
-    if (count <= 16) return 'grid-cols-4';
-    return 'grid-cols-5';
-  };
 
   // Empty slot - show create group button
   if (isEmpty) {
@@ -166,15 +157,9 @@ export default function ContextSection({
       <div className="relative p-6 border-b border-gray-700/20">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <motion.button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center space-x-3 group"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="relative">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-sm transition-all duration-300"
+              <div className="text-left absolute left-5 top-2 flex flex-row gap-3">
+              <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center backdrop-blur-sm transition-all duration-300"
                   style={{
                     backgroundColor: `${group?.color}20`,
                     border: `1px solid ${group?.color}30`
@@ -185,44 +170,21 @@ export default function ContextSection({
                     style={{ color: group?.color }}
                   />
                 </div>
-                <motion.div
-                  className="absolute -inset-1 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: `linear-gradient(45deg, ${group?.color}30, transparent, ${group?.color}30)`,
-                    filter: 'blur(8px)',
-                  }}
-                />
-              </div>
 
-              <div className="text-left">
                 <h3 className="text-xl font-bold text-white font-mono group-hover:text-gray-100 transition-colors">
                   {group?.name || 'Unnamed Group'}
                 </h3>
-                <p className="text-sm text-gray-400 font-mono">
-                  {contexts.length} context{contexts.length !== 1 ? 's' : ''}
-                </p>
               </div>
-            </motion.button>
-
-            <motion.div
-              animate={{ rotate: isExpanded ? 0 : -90 }}
-              transition={{ duration: 0.2 }}
-              className="ml-2"
-            >
-              <ChevronDown className="w-5 h-5 text-gray-400" />
-            </motion.div>
           </div>
 
           {/* Group Stats */}
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <div className="text-2xl font-bold font-mono" style={{ color: group?.color }}>
+          <div className="flex flex-row items-center absolute right-5 top-2 space-x-4">
+              <div className="text-xl font-bold font-mono" style={{ color: group?.color }}>
                 {contexts.length}
               </div>
               <div className="text-xs text-gray-500 uppercase tracking-wider">
-                Items
+                x
               </div>
-            </div>
 
             {contexts.length > 0 && (
               <div className="w-16 h-2 bg-gray-700/50 rounded-full overflow-hidden">
@@ -230,7 +192,7 @@ export default function ContextSection({
                   className="h-full rounded-full"
                   style={{ backgroundColor: group?.color }}
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min((contexts.length / 20) * 100, 100)}%` }}
+                  animate={{ width: `${Math.min((contexts.length / 10) * 100, 100)}%` }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 />
               </div>
@@ -242,106 +204,13 @@ export default function ContextSection({
       {/* Context Cards */}
       <AnimatePresence>
         {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="relative"
-            style={{ overflow: 'visible' }}
-          >
-            <div className="p-6">
-              {contexts.length === 0 ? (
-                <motion.div
-                  className="flex flex-col items-center justify-center py-16"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <div className="relative mb-6">
-                    <div
-                      className="w-20 h-20 rounded-2xl flex items-center justify-center backdrop-blur-sm"
-                      style={{ backgroundColor: `${group?.color}15` }}
-                    >
-                      <Plus
-                        className="w-10 h-10"
-                        style={{ color: `${group?.color}80` }}
-                      />
-                    </div>
-                    <motion.div
-                      className="absolute -inset-2 rounded-2xl opacity-50"
-                      style={{
-                        background: `linear-gradient(45deg, ${group?.color}20, transparent, ${group?.color}20)`,
-                        filter: 'blur(12px)',
-                      }}
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  </div>
-
-                  <div className="text-center space-y-4">
-                    <p className="text-lg font-semibold text-gray-300 font-mono">
-                      Ready for Contexts
-                    </p>
-                    <p className="text-sm text-gray-500 max-w-64">
-                      Drag and drop contexts here or create new ones to organize your workflow
-                    </p>
-                    
-                    {selectedFilePaths.length > 0 && (
-                      <motion.button
-                        onClick={() => {
-                          showFullScreenModal(
-                            'Create New Context',
-                            <EnhancedContextEditModal
-                              availableGroups={availableGroups}
-                              selectedFilePaths={selectedFilePaths}
-                            />,
-                            {
-                              icon: Save,
-                              iconBgColor: "from-cyan-500/20 to-blue-500/20",
-                              iconColor: "text-cyan-400",
-                              maxWidth: "max-w-6xl",
-                              maxHeight: "max-h-[90vh]"
-                            }
-                          );
-                        }}
-                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 rounded-xl hover:from-cyan-500/30 hover:to-blue-500/30 transition-all border border-cyan-500/30"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Save className="w-4 h-4" />
-                        <span className="text-sm font-medium">Create Context ({selectedFilePaths.length} files)</span>
-                      </motion.button>
-                    )}
-                  </div>
-                </motion.div>
-              ) : (
-                <div className={`grid gap-4 ${getGridLayout()}`}>
-                  {contexts.map((context, index) => (
-                    <motion.div
-                      key={context.id}
-                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{
-                        duration: 0.3,
-                        delay: index * 0.05,
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 30
-                      }}
-                    >
-                      <ContextCard
-                        context={context}
-                        groupColor={group?.color}
-                        availableGroups={availableGroups}
-                        selectedFilePaths={selectedFilePaths}
-                      />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
+          <ContextCards 
+            contexts={contexts}
+            group={group}
+            availableGroups={availableGroups}
+            selectedFilePaths={selectedFilePaths}
+            showFullScreenModal={showFullScreenModal}
+            />
         )}
       </AnimatePresence>
 

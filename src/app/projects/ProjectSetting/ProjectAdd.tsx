@@ -14,6 +14,7 @@ interface ProjectFormData {
   name: string;
   path: string;
   port: number;
+  type?: 'nextjs' | 'fastapi' | 'other';
   git_repository?: string;
   git_branch?: string;
   run_script?: string;
@@ -71,7 +72,7 @@ export default function ProjectAdd({ isOpen, onClose, onProjectAdded }: ProjectA
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.2 }}
-          className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+          className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

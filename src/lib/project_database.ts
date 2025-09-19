@@ -38,7 +38,6 @@ function initializeProjectTables() {
       name TEXT NOT NULL,
       path TEXT NOT NULL UNIQUE,
       port INTEGER NOT NULL UNIQUE,
-      description TEXT,
       type TEXT DEFAULT 'other',
       related_project_id TEXT,
       git_repository TEXT,
@@ -52,6 +51,55 @@ function initializeProjectTables() {
       FOREIGN KEY (related_project_id) REFERENCES projects(id)
     );
   `);
+
+  // Add missing columns if they don't exist (for existing databases)
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN type TEXT DEFAULT 'other';`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+  
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN related_project_id TEXT;`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+  
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN git_repository TEXT;`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+  
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN git_branch TEXT DEFAULT 'main';`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+  
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN run_script TEXT DEFAULT 'npm run dev';`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+  
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN allow_multiple_instances INTEGER DEFAULT 0;`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+  
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN base_port INTEGER;`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+  
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN instance_of TEXT;`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
 
   // Create indexes for better query performance
   db.exec(`
@@ -67,7 +115,6 @@ export interface DbProject {
   name: string;
   path: string;
   port: number;
-  description: string | null;
   type: string;
   related_project_id: string | null;
   git_repository: string | null;
@@ -118,7 +165,6 @@ export const projectDb = {
     name: string;
     path: string;
     port: number;
-    description?: string;
     type?: string;
     related_project_id?: string;
     git_repository?: string;
@@ -133,10 +179,10 @@ export const projectDb = {
     
     const stmt = db.prepare(`
       INSERT INTO projects (
-        id, name, path, port, description, type, related_project_id, git_repository, git_branch, run_script,
+        id, name, path, port, type, related_project_id, git_repository, git_branch, run_script,
         allow_multiple_instances, base_port, instance_of, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
@@ -144,7 +190,6 @@ export const projectDb = {
       project.name,
       project.path,
       project.port,
-      project.description || null,
       project.type || 'other',
       project.related_project_id || null,
       project.git_repository || null,
@@ -167,7 +212,6 @@ export const projectDb = {
     name?: string;
     path?: string;
     port?: number;
-    description?: string;
     type?: string;
     related_project_id?: string;
     git_repository?: string;
@@ -194,10 +238,6 @@ export const projectDb = {
     if (updates.port !== undefined) {
       updateFields.push('port = ?');
       values.push(updates.port);
-    }
-    if (updates.description !== undefined) {
-      updateFields.push('description = ?');
-      values.push(updates.description);
     }
     if (updates.type !== undefined) {
       updateFields.push('type = ?');
@@ -320,6 +360,13 @@ export const projectDb = {
     }
     
     return port;
+  },
+
+  // Get all used ports
+  getUsedPorts: (): number[] => {
+    const db = getProjectDatabase();
+    const stmt = db.prepare('SELECT port FROM projects ORDER BY port ASC');
+    return (stmt.all() as { port: number }[]).map(p => p.port);
   },
 
   // Close database connection (for cleanup)

@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
       name: project.name,
       path: project.path,
       port: project.port,
-      description: project.description,
       type: project.type || 'other',
       relatedProjectId: project.relatedProjectId,
       runScript: project.run_script,
