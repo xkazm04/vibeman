@@ -87,9 +87,9 @@ export default function RunnerSwitch({ project, index, disabled }: ProjectCardPr
               hasError={hasError}
               isStopping={isStopping}
             />
-            <div className="flex flex-col items-start space-x-2 text-xs text-gray-400">
+            <div className="flex flex-col items-start space-x-2 text-xs">
               <div className="flex flex-row items-center space-x-2">
-                <div>:{project.port}</div>
+                <div className='text-gray-100'>{project.name}</div>
                 {isRunning && (
                   <div>
                     <span>•</span>
@@ -98,7 +98,7 @@ export default function RunnerSwitch({ project, index, disabled }: ProjectCardPr
                 )}
               </div>
               <div className="flex-shrink-0 w-16 bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg border border-gray-700 overflow-hidden relative"> </div>
-              <div>{project.name}</div>
+              <div className='text-gray-400'>:{project.port}</div>
             </div>
           </div>
         </div>

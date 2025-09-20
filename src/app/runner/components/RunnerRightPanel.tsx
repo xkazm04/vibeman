@@ -1,91 +1,136 @@
-import LogoSvg from "@/components/LogoSvg";
-import { motion } from "framer-motion"
-import { useChargingLevel } from "@/hooks/useChargingLevel"
-import { useEffect } from "react"
-import { useServerProjectStore } from "@/stores/serverProjectStore"
-import { useProjectConfigStore } from "@/stores/projectConfigStore"
+import { useEffect, useState } from "react";
+import { Book, Code, Github, Tv, ChevronDown, ChevronUp } from "lucide-react";
 
-type Props = {
-    disabled: boolean;
+interface ProjectOverviewItem {
+    id: string;
+    name: string;
+    path: string;
+    port: number;
+    type: string;
+    git?: {
+        repository: string;
+        branch: string;
+    };
 }
 
-// NOTE: Project Settings and Add Project buttons have been moved to ProjectsLayout
-// This component now only handles the LogoSvg display with charging level visualization
+const RunnerRightPanel = () => {
+    const [projects, setProjects] = useState<ProjectOverviewItem[]>([]);
+    const [loading, setLoading] = useState(true);
 
-const RunnerRightPanel = ({ disabled }: Props) => {
-    const chargingLevel = useChargingLevel();
-    
-    // Direct store access for debugging
-    const processes = useServerProjectStore(state => state.processes);
-    const projects = useProjectConfigStore(state => state.projects);
-    
-    // Debug effect to track charging level changes
+    // Fetch projects from API
     useEffect(() => {
-        console.log('RunnerRightPanel: charging level updated to:', chargingLevel);
-        console.log('RunnerRightPanel: Raw store data:', {
-            processesCount: Object.keys(processes).length,
-            projectsCount: projects.length,
-            processStatuses: Object.entries(processes).map(([id, proc]) => ({
-                id,
-                status: proc.status
-            }))
-        });
-    }, [chargingLevel, processes, projects]);
-    
-    // Color interpolation based on charging level
-    const getInterpolatedColor = (startColor: string, endColor: string, progress: number) => {
-        const start = parseInt(startColor.slice(1), 16);
-        const end = parseInt(endColor.slice(1), 16);
-        
-        const startR = (start >> 16) & 255;
-        const startG = (start >> 8) & 255;
-        const startB = start & 255;
-        
-        const endR = (end >> 16) & 255;
-        const endG = (end >> 8) & 255;
-        const endB = end & 255;
-        
-        const r = Math.round(startR + (endR - startR) * progress);
-        const g = Math.round(startG + (endG - startG) * progress);
-        const b = Math.round(startB + (endB - startB) * progress);
-        
-        return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+        const fetchProjects = async () => {
+            try {
+                const response = await fetch('/api/projects');
+                if (response.ok) {
+                    const data = await response.json();
+                    setProjects(data.projects || []);
+                }
+            } catch (error) {
+                console.error('Failed to fetch projects:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProjects();
+    }, []);
+
+    const truncateName = (name: string, maxLength: number = 10) => {
+        return name.length > maxLength ? name.substring(0, maxLength) + '...' : name;
     };
-    
-    // Calculate colors based on charging level (0-100)
-    const progress = chargingLevel / 100;
-    const fillColor = getInterpolatedColor("#F5F5F5", "#FF3E3E", progress); // Light gray to red
-    const borderColor = getInterpolatedColor("#E5E5E5", "#6B1515", progress); // Light gray to dark red
-    
-    // Calculate shadow intensity based on charging level
-    const shadowIntensity = Math.round(chargingLevel / 100 * 20); // 0 to 20
-    const shadowColor = getInterpolatedColor("#000000", "#FF3E3E", progress * 0.7); // Black to red shadow
-    
+
     return (
-        <div className="flex items-center space-x-2">
-            <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ 
-                    opacity: 1, 
-                    y: 0,
-                    scale: chargingLevel > 0 ? 1.02 + (chargingLevel / 100) * 0.03 : 1,
-                    filter: `drop-shadow(0 0 ${shadowIntensity}px ${shadowColor}${Math.round(progress * 255).toString(16).padStart(2, '0')})`
-                }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ 
-                    duration: 2,
-                    scale: { duration: 0.5, ease: "easeInOut" },
-                    filter: { duration: 0.3, ease: "easeInOut" }
-                }}
-                style={{
-                    filter: `drop-shadow(0 0 ${shadowIntensity}px ${shadowColor}${Math.round(progress * 255).toString(16).padStart(2, '0')})`
-                }}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg min-w-[300px] max-w-[400px]">
+            {/* Header */}
+            <div
+                className="flex items-center justify-between h-10  cursor-pointer hover:bg-gray-800/30 transition-colors"
             >
-                <LogoSvg width={200} fillColor={fillColor} borderColor={borderColor} chargingLevel={chargingLevel} />
-            </motion.div>
-            
-            {/* Project management buttons moved to ProjectsLayout */}
-            {/* Use ProjectsLayout component for unified project management interface */}
+            </div>
+
+            {/* Project List */}
+                <div className="max-h-[400px] overflow-y-auto">
+                    {loading ? (
+                        <div className="p-4 text-center text-gray-400 text-sm">
+                            Loading projects...
+                        </div>
+                    ) : projects.length === 0 ? (
+                        <div className="p-4 text-center text-gray-400 text-sm">
+                            No projects found
+                        </div>
+                    ) : (
+                        <div className="space-y-1 p-2">
+                            {projects.map((project) => (
+                                <div
+                                    key={project.id}
+                                    className="flex items-center space-x-3 px-2 py-1.5 hover:bg-gray-800/40 rounded text-sm group transition-colors"
+                                >
+                                    {/* Project Name */}
+                                    <div className="flex-1 min-w-0">
+                                        <span className="text-gray-200 font-medium">
+                                            {truncateName(project.name)}
+                                        </span>
+                                        <span className="text-gray-400 ml-1 text-xs">
+                                            {project.type === 'nextjs' ? 'Next' : project.type === 'fastapi' ? 'API' : 'Git'}
+                                        </span>
+                                    </div>
+
+                                    {/* Action Icons */}
+                                    <div className="flex items-center space-x-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                                        {/* Book Icon */}
+                                        <button
+                                            className="p-1 hover:bg-gray-700 rounded transition-colors"
+                                            title="Documentation"
+                                        >
+                                            <Book className="w-3.5 h-3.5 text-gray-400 hover:text-blue-400" />
+                                        </button>
+
+                                        {/* Code Icon */}
+                                        <button
+                                            className="p-1 hover:bg-gray-700 rounded transition-colors"
+                                            title="Open in Editor"
+                                        >
+                                            <Code className="w-3.5 h-3.5 text-gray-400 hover:text-green-400" />
+                                        </button>
+
+                                        {/* GitHub Icon */}
+                                        <button
+                                            className="p-1 hover:bg-gray-700 rounded transition-colors"
+                                            title="View Repository"
+                                        >
+                                            <Github className="w-3.5 h-3.5 text-gray-400 hover:text-purple-400" />
+                                        </button>
+
+                                        {/* TV/Monitor Icon */}
+                                        <button
+                                            className="p-1 hover:bg-gray-700 rounded transition-colors"
+                                            title="Preview"
+                                        >
+                                            <Tv className="w-3.5 h-3.5 text-gray-400 hover:text-orange-400" />
+                                        </button>
+
+                                        {/* Status indicators */}
+                                        <div className="flex items-center space-x-1 ml-2">
+                                            {/* Git status indicator */}
+                                            {project.git && (
+                                                <div className="w-2 h-2 bg-yellow-500 rounded-full" title="Git changes" />
+                                            )}
+
+                                            {/* Running status indicator */}
+                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Running" />
+
+                                            {/* Dropdown arrow */}
+                                            <ChevronDown className="w-3 h-3 text-gray-500" />
+
+                                            {/* Refresh indicator */}
+                                            <div className="w-3 h-3 border border-gray-500 rounded-full" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
         </div>
     );
 }

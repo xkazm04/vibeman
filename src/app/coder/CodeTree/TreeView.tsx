@@ -61,7 +61,7 @@ export default function TreeView({
               </button>
             </div>
           </div>
-        ) : !activeProject ? (
+        ) : !activeProject && !filteredStructure ? (
           <div className="text-center py-12 text-gray-500">
             <div className="w-16 h-16 mx-auto mb-4 bg-gray-800/50 rounded-full flex items-center justify-center">
               <FolderTree className="w-8 h-8 opacity-50" />

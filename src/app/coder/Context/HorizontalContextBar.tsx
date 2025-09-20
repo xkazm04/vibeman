@@ -7,6 +7,7 @@ import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import EnhancedContextEditModal from './ContextMenu/EnhancedContextEditModal';
 import ContextSection from './ContextGroups/ContextSection';
 import GroupManagementModal from './ContextGroups/GroupManagementModal';
+import { GroupDetailView, useContextDetail } from './ContextDetail';
 
 interface HorizontalContextBarProps {
   selectedFilesCount: number;
@@ -17,6 +18,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
   const { contexts, groups, loading, loadProjectData } = useContextStore();
   const { activeProject } = useActiveProjectStore();
   const { showFullScreenModal } = useGlobalModal();
+  const { isDetailOpen, selectedGroupId, closeGroupDetail, openGroupDetail } = useContextDetail();
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const lastProjectIdRef = useRef<string | null>(null);
@@ -98,7 +100,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
               ) : (
                 <Grid3X3 className="w-6 h-6" />
               )}
-              
+
               {/* Glow effect */}
               <motion.div
                 className="absolute -inset-1 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -161,7 +163,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                   </motion.button>
                 )}
               </div>
-              
+
               {loading && (
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
@@ -218,7 +220,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
               className="relative overflow-hidden"
             >
               {allGroups.length === 0 ? (
-                <motion.div 
+                <motion.div
                   className="flex items-center justify-center py-20"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -250,14 +252,14 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
               ) : (
                 <div className="p-8">
                   {/* Flexible Grid Layout */}
-                  <div className="grid gap-6" style={{ 
-                    gridTemplateColumns: `repeat(auto-fit, minmax(${Math.max(400, Math.min(600, Math.floor((window.innerWidth - 200) / Math.max(allGroups.length + (groups.length < 20 ? 1 : 0), 2))))}px, 1fr))` 
+                  <div className="grid gap-6" style={{
+                    gridTemplateColumns: `repeat(auto-fit, minmax(${Math.max(400, Math.min(600, Math.floor((window.innerWidth - 200) / Math.max(allGroups.length + (groups.length < 20 ? 1 : 0), 2))))}px, 1fr))`
                   }}>
                     {/* Render all groups (including synthetic "To group") */}
                     {allGroups.map((group, index) => {
                       const isSyntheticGroup = group.id === 'synthetic-to-group';
-                      const groupContexts = isSyntheticGroup ? 
-                        ungroupedContexts : 
+                      const groupContexts = isSyntheticGroup ?
+                        ungroupedContexts :
                         contexts.filter(ctx => ctx.groupId === group.id);
 
                       return (
@@ -265,8 +267,8 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                           key={group.id}
                           initial={{ opacity: 0, scale: 0.9, y: 20 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
-                          transition={{ 
-                            duration: 0.3, 
+                          transition={{
+                            duration: 0.3,
                             delay: index * 0.1,
                             type: "spring",
                             stiffness: 300,
@@ -278,14 +280,14 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                             group={group}
                             contexts={groupContexts}
                             projectId={activeProject.id}
-                            className={`h-full ${
-                              isSyntheticGroup 
-                                ? 'opacity-80'
-                                : ''
-                            }`}
+                            className={`h-full ${isSyntheticGroup
+                              ? 'opacity-80'
+                              : ''
+                              }`}
                             isEmpty={false}
                             availableGroups={groups} // Pass only real groups for moving contexts
                             selectedFilePaths={selectedFilePaths}
+                            openGroupDetail={openGroupDetail}
                           />
                         </motion.div>
                       );
@@ -296,8 +298,8 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        transition={{ 
-                          duration: 0.3, 
+                        transition={{
+                          duration: 0.3,
                           delay: allGroups.length * 0.1,
                           type: "spring",
                           stiffness: 300,
@@ -314,6 +316,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                           onCreateGroup={() => setShowGroupModal(true)}
                           availableGroups={groups}
                           selectedFilePaths={selectedFilePaths}
+                          openGroupDetail={openGroupDetail}
                         />
                       </motion.div>
                     )}
@@ -333,6 +336,16 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
         projectId={activeProject.id}
         groups={groups}
       />
+
+      {/* Group Detail View */}
+      <AnimatePresence>
+        {isDetailOpen && selectedGroupId && (
+          <GroupDetailView
+            groupId={selectedGroupId}
+            onClose={closeGroupDetail}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

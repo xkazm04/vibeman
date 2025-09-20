@@ -11,6 +11,7 @@ import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { GlowCard } from '../../../../components/GlowCard';
 import FileTreeSelector from './FileTreeSelector';
 import SelectedFilesList from './SelectedFilesList';
+import { normalizePath } from '../../../../utils/pathUtils';
 
 interface EnhancedContextEditModalProps {
   context?: Context; // undefined for new context
@@ -52,10 +53,17 @@ export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> =
 
   // Load file structure if not available
   useEffect(() => {
-    if (activeProject && !fileStructure) {
+    if (activeProject && !fileStructure && !fileStructureLoading) {
       loadProjectFileStructure(activeProject.id);
     }
-  }, [activeProject, fileStructure, loadProjectFileStructure]);
+  }, [activeProject, fileStructure, fileStructureLoading, loadProjectFileStructure]);
+
+  // Force reload file structure when modal opens
+  useEffect(() => {
+    if (activeProject) {
+      loadProjectFileStructure(activeProject.id);
+    }
+  }, []); // Only run once when modal opens
 
   // Reset form when context changes
   useEffect(() => {
@@ -63,10 +71,11 @@ export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> =
       setContextName(context.name);
       setDescription(context.description || '');
       setSelectedGroupId(context.groupId || availableGroups[0]?.id || '');
-      setContextFilePaths([...context.filePaths]);
+      // Normalize existing context file paths
+      setContextFilePaths(context.filePaths.map(normalizePath));
     } else {
-      // New context - use selected files
-      setContextFilePaths([...selectedFilePaths]);
+      // New context - use selected files (normalized)
+      setContextFilePaths(selectedFilePaths.map(normalizePath));
     }
     setError('');
   }, [context, selectedFilePaths, availableGroups]);
@@ -127,15 +136,26 @@ export const EnhancedContextEditModal: React.FC<EnhancedContextEditModalProps> =
   };
 
   const handleFilePathToggle = (path: string) => {
-    setContextFilePaths(prev =>
-      prev.includes(path)
-        ? prev.filter(p => p !== path)
-        : [...prev, path]
-    );
+    // Normalize the path to ensure consistency
+    const normalizedPath = normalizePath(path);
+    
+    setContextFilePaths(prev => {
+      // Check if path already exists (normalized comparison)
+      const existingIndex = prev.findIndex(p => normalizePath(p) === normalizedPath);
+      
+      if (existingIndex >= 0) {
+        // Remove existing path
+        return prev.filter((_, index) => index !== existingIndex);
+      } else {
+        // Add new path (normalized)
+        return [...prev, normalizedPath];
+      }
+    });
   };
 
   const handleRemoveFile = (pathToRemove: string) => {
-    setContextFilePaths(prev => prev.filter(path => path !== pathToRemove));
+    const normalizedPathToRemove = normalizePath(pathToRemove);
+    setContextFilePaths(prev => prev.filter(path => normalizePath(path) !== normalizedPathToRemove));
   };
 
   const handleBackgroundGeneration = async () => {
@@ -200,9 +220,6 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
 
       // Context was created successfully
       hideModal();
-
-      // Show success message
-      console.log('Context created with generated file:', result.contextFilePath);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to generate context');
     } finally {
@@ -293,7 +310,18 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium text-gray-400">Project Files</h4>
-              <span className="text-xs text-gray-500">Select files to include</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500">Select files to include</span>
+                {activeProject && (
+                  <button
+                    onClick={() => loadProjectFileStructure(activeProject.id)}
+                    disabled={fileStructureLoading}
+                    className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+                  >
+                    {fileStructureLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                )}
+              </div>
             </div>
             <GlowCard className="p-0 h-full">
               {fileStructureLoading ? (
@@ -301,6 +329,24 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
                   <div className="text-center">
                     <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                     <p className="text-sm text-gray-400">Loading project files...</p>
+                    {activeProject && (
+                      <p className="text-xs text-gray-500 mt-1">Project: {activeProject.name}</p>
+                    )}
+                  </div>
+                </div>
+              ) : !fileStructure ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <AlertCircle className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400 mb-2">No project files loaded</p>
+                    {activeProject && (
+                      <button
+                        onClick={() => loadProjectFileStructure(activeProject.id)}
+                        className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                      >
+                        Load Project Files
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (

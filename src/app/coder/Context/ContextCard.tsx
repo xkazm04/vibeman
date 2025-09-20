@@ -10,6 +10,7 @@ interface ContextCardProps {
   groupColor?: string;
   availableGroups: ContextGroup[];
   selectedFilePaths: string[];
+
 }
 
 export default function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
@@ -97,6 +98,8 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
     setShowContextMenu(false);
   };
 
+
+
   return (
     <>
       <motion.div
@@ -106,10 +109,11 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         whileHover={{ scale: 1.02, y: -2 }}
         whileDrag={{ scale: 1.05, rotate: 2 }}
         draggable
-        onDragStart={handleDragStart}
+        onDragStart={handleDragStart as any}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleContextMenu}
+
         className={`group relative rounded-2xl p-4 cursor-move transition-all duration-300 min-w-[280px] h-fit backdrop-blur-sm ${isSelectedForBacklog
             ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-2 border-green-400/60 hover:from-green-500/30 hover:to-emerald-500/30 shadow-lg shadow-green-500/20'
             : 'bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-600/40 hover:from-gray-800/80 hover:to-gray-900/80 hover:border-gray-500/60'
@@ -158,7 +162,7 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         )}
 
         {/* Main Content - Single Row Layout */}
-        <div className="relative flex items-center justify-between space-x-4">
+        <div className="relative flex items-center justify-between space-x-4 card-main-content">
           {/* Left Section - Icon and Name */}
           <div className="flex items-center space-x-3 flex-1 min-w-0">
               <h5 className="text-base font-bold text-white font-mono mb-1" title={context.name}>

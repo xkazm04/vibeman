@@ -9,6 +9,7 @@ type Props = {
     availableGroups: any[];
     selectedFilePaths: string[];
     showFullScreenModal: (title: string, content: React.ReactNode, options?: any) => void;
+
 }
 
 const ContextCards = ({ contexts, group, availableGroups, selectedFilePaths, showFullScreenModal }: Props) => {

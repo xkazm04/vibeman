@@ -1,14 +1,15 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Brain, Zap, Play, Pause, FileCheck, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react';
-import { codebaseScanCards, ideaGenerationCards, AIContentCard } from './aiContentConfig';
-import LLMSelector from './LLMSelector';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen } from 'lucide-react';
+import AILeftPanel from './AILeftPanel';
+import AIScanSelection from './AIScanSelection';
+import FileScannerModal from './FileScanner/FileScannerModal';
 import { SupportedProvider, DefaultProviderStorage } from '../../../lib/llm';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import { MarkdownViewer } from '../../../components/markdown';
 
 interface AIContentSelectorProps {
-  onSelectMode: (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask?: boolean) => void;
+  onSelectMode: (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'file-scanner', backgroundTask?: boolean) => void;
   activeProject: any;
   selectedProvider?: SupportedProvider;
   onProviderChange?: (provider: SupportedProvider) => void;
@@ -18,6 +19,7 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
   const [backgroundTask, setBackgroundTask] = React.useState(false);
   const [aiDocsExist, setAiDocsExist] = React.useState(false);
   const [checkingDocs, setCheckingDocs] = React.useState(true);
+  const [showFileScanner, setShowFileScanner] = React.useState(false);
   const [selectedProvider, setSelectedProvider] = React.useState<SupportedProvider>(() =>
     externalProvider || DefaultProviderStorage.getDefaultProvider()
   );
@@ -103,250 +105,90 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
     checkAIDocs();
   }, [activeProject?.path]);
 
-  const renderCard = (card: AIContentCard, index: number, disabled: boolean = false) => {
-    const Icon = card.icon;
-    return (
-      <motion.button
-        key={card.id}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: index * 0.1 }}
-        whileHover={disabled ? {} : { scale: 1.02, y: -2 }}
-        whileTap={disabled ? {} : { scale: 0.98 }}
-        onClick={() => !disabled && onSelectMode(card.id as 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask)}
-        disabled={disabled}
-        className={`group relative p-6 bg-gradient-to-br ${card.gradient} ${disabled ? '' : card.hoverGradient} border ${card.borderColor} rounded-xl transition-all duration-300 text-left overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-          }`}
-      >
-        {/* Disabled Overlay */}
-        {disabled && (
-          <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm rounded-xl flex items-center justify-center z-20">
-            <div className="text-center">
-              <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-              <p className="text-sm text-red-400 font-medium">AI Docs Required</p>
-            </div>
-          </div>
-        )}
-
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 20% 50%, currentColor 1px, transparent 1px)`,
-            backgroundSize: '20px 20px'
-          }}></div>
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10">
-          {/* Icon */}
-          <div className="mb-4">
-            <div className={`inline-flex p-3 bg-gray-800/50 rounded-lg border border-gray-700/30 ${disabled ? '' : 'group-hover:border-gray-600/50'} transition-colors`}>
-              <Icon className={`w-6 h-6 ${card.iconColor}`} />
-            </div>
-          </div>
-
-          {/* Title */}
-          <h3 className={`text-lg font-semibold text-white mb-2 font-mono ${disabled ? '' : 'group-hover:text-gray-100'} transition-colors`}>
-            {card.title}
-          </h3>
-
-          {/* Description */}
-          <p className={`text-sm text-gray-400 leading-relaxed ${disabled ? '' : 'group-hover:text-gray-300'} transition-colors`}>
-            {card.description}
-          </p>
-
-          {/* Action Indicator */}
-          <div className={`mt-4 flex items-center space-x-2 text-xs text-gray-500 ${disabled ? '' : 'group-hover:text-gray-400'} transition-colors`}>
-            <Zap className="w-3 h-3" />
-            <span>Powered by {selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'anthropic' ? 'Claude' : selectedProvider === 'gemini' ? 'Gemini' : selectedProvider === 'internal' ? 'Internal API' : 'Ollama'} AI</span>
-          </div>
-        </div>
-
-        {/* Hover Effect */}
-        {!disabled && (
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            initial={false}
-          />
-        )}
-      </motion.button>
-    );
+  const handleSelectMode = (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'file-scanner', backgroundTask?: boolean) => {
+    if (mode === 'file-scanner') {
+      setShowFileScanner(true);
+    } else {
+      onSelectMode(mode, backgroundTask);
+    }
   };
 
+
+
   return (
-    <div className="flex h-full">
-      {/* Left Panel - Status Indicators */}
-      <div className="w-64 bg-gray-900/50 border-r border-gray-700/30 p-6 flex flex-col">
-        {/* Status Indicators */}
-        <div className="space-y-4 flex-1">
-          {/* AI Docs Status */}
+    <motion.div
+      className="flex h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 relative overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Floating Orbs */}
+        {[...Array(3)].map((_, i) => (
           <motion.div
-            className={`p-4 bg-gray-800/30 rounded-lg border border-gray-700/30 transition-all duration-200 ${aiDocsExist && !checkingDocs
-                ? 'cursor-pointer hover:bg-gray-800/50 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10'
-                : ''
-              }`}
-            onClick={aiDocsExist && !checkingDocs ? handleShowAIDocs : undefined}
-            whileHover={aiDocsExist && !checkingDocs ? { scale: 1.02, y: -1 } : {}}
-            whileTap={aiDocsExist && !checkingDocs ? { scale: 0.98 } : {}}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-white">AI Documentation</span>
-              <div className="flex items-center space-x-2">
-                {checkingDocs ? (
-                  <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-400 rounded-full animate-spin" />
-                ) : aiDocsExist ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-green-400" />
-                    <BookOpen className="w-4 h-4 text-blue-400 opacity-70" />
-                  </>
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-red-400" />
-                )}
-              </div>
-            </div>
-            <p className="text-xs text-gray-400">
-              {checkingDocs
-                ? 'Checking...'
-                : aiDocsExist
-                  ? 'Available at context/high.md - Click to view'
-                  : 'Not found - Generate AI Docs first'
-              }
-            </p>
-          </motion.div>
-
-          {/* Ollama Status */}
-          <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-white">Ollama Service</span>
-              <CheckCircle2 className="w-4 h-4 text-green-400" />
-            </div>
-            <p className="text-xs text-gray-400">Running on localhost:11434</p>
-          </div>
-
-          {/* Project Info */}
-          {activeProject && (
-            <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-white">Active Project</span>
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              </div>
-              <p className="text-xs text-gray-400 font-mono">{activeProject.name}</p>
-            </div>
-          )}
-        </div>
-
-        {/* LLM Provider Selection */}
-        <div className="mt-6 p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-          <div className="mb-3">
-            <span className="text-sm font-medium text-white">AI Provider</span>
-            <p className="text-xs text-gray-400 mt-1">Choose your preferred AI model</p>
-          </div>
-          <LLMSelector
-            selectedProvider={selectedProvider}
-            onProviderSelect={handleProviderSelect}
+            key={i}
+            className="absolute rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 blur-xl"
+            style={{
+              width: `${200 + i * 100}px`,
+              height: `${200 + i * 100}px`,
+              left: `${20 + i * 30}%`,
+              top: `${10 + i * 20}%`,
+            }}
+            animate={{
+              x: [0, 50, 0],
+              y: [0, -30, 0],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{
+              duration: 8 + i * 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 2
+            }}
           />
-        </div>
+        ))}
 
-        {/* Enhanced Background Task Toggle */}
-        <div className="mt-4 p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-          <motion.label
-            className="flex items-center cursor-pointer"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={backgroundTask}
-                onChange={(e) => setBackgroundTask(e.target.checked)}
-                className="sr-only"
-              />
-              <motion.div
-                className={`w-12 h-6 rounded-full border-2 transition-colors duration-200 ${backgroundTask
-                  ? 'bg-purple-500/20 border-purple-500/50'
-                  : 'bg-gray-700/50 border-gray-600/50'
-                  }`}
-                animate={{
-                  backgroundColor: backgroundTask ? 'rgba(168, 85, 247, 0.2)' : 'rgba(55, 65, 81, 0.5)'
-                }}
-              >
-                <motion.div
-                  className={`w-4 h-4 rounded-full shadow-lg flex items-center justify-center ${backgroundTask ? 'bg-purple-500' : 'bg-gray-500'
-                    }`}
-                  animate={{
-                    x: backgroundTask ? 24 : 2,
-                    backgroundColor: backgroundTask ? '#a855f7' : '#6b7280'
-                  }}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  style={{ y: 2 }}
-                >
-                  {backgroundTask ? (
-                    <Play className="w-2 h-2 text-white" />
-                  ) : (
-                    <Pause className="w-2 h-2 text-white" />
-                  )}
-                </motion.div>
-              </motion.div>
-            </div>
-            <div className="ml-3">
-              <span className="text-sm font-medium text-white">Background Mode</span>
-              <p className="text-xs text-gray-400">Auto-save results</p>
-            </div>
-          </motion.label>
-        </div>
+        {/* Grid Pattern */}
+        <div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
+          }}
+        />
       </div>
 
-      {/* Right Panel - Content */}
-      <div className="flex-1 p-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2 font-mono">
-            AI Project Assistant
-          </h2>
-          <p className="text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Choose how you'd like AI to help analyze and improve your project.
-            Each option provides different insights and actionable recommendations.
-          </p>
-        </div>
+      <AILeftPanel
+        aiDocsExist={aiDocsExist}
+        checkingDocs={checkingDocs}
+        activeProject={activeProject}
+        selectedProvider={selectedProvider}
+        backgroundTask={backgroundTask}
+        onProviderSelect={handleProviderSelect}
+        onBackgroundTaskChange={setBackgroundTask}
+        onShowAIDocs={handleShowAIDocs}
+      />
 
-        {/* Codebase Scan Section */}
-        <div className="mb-8">
-          <div className="flex items-center mb-4">
-            <FileCheck className="w-5 h-5 text-blue-400 mr-2" />
-            <h3 className="text-lg font-semibold text-white">Codebase Scan</h3>
-          </div>
-          <p className="text-sm text-gray-400 mb-4">
-            Analyze your project structure, code quality, and generate comprehensive documentation.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {codebaseScanCards.map((card, index) => renderCard(card, index))}
-          </div>
-        </div>
+      <AIScanSelection
+        aiDocsExist={aiDocsExist}
+        selectedProvider={selectedProvider}
+        backgroundTask={backgroundTask}
+        onSelectMode={handleSelectMode}
+      />
 
-        {/* Idea Generation Section */}
-        <div>
-          <div className="flex items-center mb-4">
-            <Brain className="w-5 h-5 text-purple-400 mr-2" />
-            <h3 className="text-lg font-semibold text-white">Idea Generation</h3>
-            {!aiDocsExist && (
-              <div className="ml-2 px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400">
-                Requires AI Docs
-              </div>
-            )}
-          </div>
-          <p className="text-sm text-gray-400 mb-4">
-            Generate strategic goals and implementation tasks based on your project analysis.
-            {!aiDocsExist && (
-              <span className="text-red-400 ml-1">
-                Generate AI Docs first to unlock these features.
-              </span>
-            )}
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {ideaGenerationCards.map((card, index) => renderCard(card, index, !aiDocsExist))}
-          </div>
-        </div>
-      </div>
-    </div>
+      {/* File Scanner Modal */}
+      <AnimatePresence>
+        {showFileScanner && (
+          <FileScannerModal
+            activeProject={activeProject}
+            onClose={() => setShowFileScanner(false)}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

@@ -3,6 +3,7 @@ import { Plus,  Code, Database, Layers, Grid, Activity, Cpu, Sparkles } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
+
 import ContextCards from './ContextCards';
 
 interface ContextSectionProps {
@@ -14,6 +15,7 @@ interface ContextSectionProps {
   onCreateGroup?: () => void;
   availableGroups: ContextGroup[];
   selectedFilePaths: string[];
+  openGroupDetail: (groupId: string) => void;
 }
 
 export default function ContextSection({
@@ -24,7 +26,8 @@ export default function ContextSection({
   isEmpty = false,
   onCreateGroup,
   availableGroups,
-  selectedFilePaths
+  selectedFilePaths,
+  openGroupDetail
 }: ContextSectionProps) {
   const { moveContext } = useContextStore();
   const { showFullScreenModal } = useGlobalModal();
@@ -157,7 +160,20 @@ export default function ContextSection({
       <div className="relative p-6 border-b border-gray-700/20">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-              <div className="text-left absolute left-5 top-2 flex flex-row gap-3">
+              <button
+                onClick={() => {
+                  if (group && group.id !== 'synthetic-to-group') {
+                    // Open detail view for the entire group (but not for synthetic group)
+                    openGroupDetail(group.id);
+                  }
+                }}
+                className={`text-left absolute left-5 top-2 flex flex-row gap-3 transition-opacity ${
+                  group && group.id !== 'synthetic-to-group' 
+                    ? 'hover:opacity-80 cursor-pointer' 
+                    : 'cursor-default'
+                }`}
+                disabled={!group || group.id === 'synthetic-to-group'}
+              >
               <div
                   className="w-8 h-8 rounded-xl flex items-center justify-center backdrop-blur-sm transition-all duration-300"
                   style={{
@@ -174,7 +190,7 @@ export default function ContextSection({
                 <h3 className="text-xl font-bold text-white font-mono group-hover:text-gray-100 transition-colors">
                   {group?.name || 'Unnamed Group'}
                 </h3>
-              </div>
+              </button>
           </div>
 
           {/* Group Stats */}
@@ -210,6 +226,7 @@ export default function ContextSection({
             availableGroups={availableGroups}
             selectedFilePaths={selectedFilePaths}
             showFullScreenModal={showFullScreenModal}
+
             />
         )}
       </AnimatePresence>

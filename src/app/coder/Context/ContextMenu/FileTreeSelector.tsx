@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Search, FolderTree } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '../../../../types';
 import { useStore } from '../../../../stores/nodeStore';
-import TreeView from '../../CodeTree/TreeView';
+import TreeView from '../../../coder/CodeTree/TreeView';
+import { normalizePath, pathsMatch } from '../../../../utils/pathUtils';
 
 interface FileTreeSelectorProps {
   fileStructure: TreeNodeType | null;
@@ -20,6 +21,8 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
   onSearchChange
 }) => {
   const { clearSelection } = useStore();
+
+
 
   // Filter tree based on search query
   const filteredStructure = useMemo(() => {
@@ -46,8 +49,15 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
   }, [fileStructure, searchQuery]);
 
   const handleNodeToggle = (nodePath: string) => {
-    onPathToggle(nodePath);
+    // Normalize the path to forward slashes for consistency
+    const normalizedPath = normalizePath(nodePath);
+    onPathToggle(normalizedPath);
   };
+
+  // Create normalized selected paths for comparison
+  const normalizedSelectedPaths = useMemo(() => {
+    return selectedPaths.map(normalizePath);
+  }, [selectedPaths]);
 
   return (
     <div className="h-full flex flex-col">
@@ -95,7 +105,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
             onClearError={() => {}}
             onClearSearch={() => onSearchChange('')}
             showCheckboxes={true}
-            selectedPaths={selectedPaths}
+            selectedPaths={normalizedSelectedPaths}
           />
         ) : (
           <div className="flex items-center justify-center h-32 text-gray-500">

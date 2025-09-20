@@ -261,18 +261,6 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
           );
         })}
       </div>
-
-      {/* Info message for unconfigured providers */}
-      <div className="mt-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700/30">
-        <p className="text-xs text-gray-400 text-center">
-          Providers are configured via environment variables on the server.
-          {Object.values(providerStatus).some(status => !status.configured && !status.isChecking) && (
-            <span className="block mt-1 text-yellow-400">
-              Some providers are not configured. Contact your administrator to enable them.
-            </span>
-          )}
-        </p>
-      </div>
     </>
   );
 }
