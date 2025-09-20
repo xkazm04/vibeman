@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { OllamaClient } from '../../../lib/llm/providers/ollama-client';
 import { createFileScannerPrompt } from '../../../prompts/file-scanner-prompt';
+import { createBuildErrorFixerPrompt, BuildErrorForFix, BuildErrorFixResult } from '../../../prompts/build-error-fixer-prompt';
 
 interface ScanResult {
   totalFiles: number;
@@ -67,7 +68,8 @@ async function getFilesRecursively(dir: string, extensions: string[] = []): Prom
           files.push(...subFiles);
         }
       } else if (entry.isFile()) {
-        if (extensions.length === 0 || extensions.some(ext => entry.name.endsWith(ext))) {
+        if (!shouldIgnoreFile(entry.name) && 
+            (extensions.length === 0 || extensions.some(ext => entry.name.endsWith(ext)))) {
           files.push(relativePath);
         }
       }
@@ -82,9 +84,58 @@ async function getFilesRecursively(dir: string, extensions: string[] = []): Prom
 function shouldIgnoreDirectory(dirName: string): boolean {
   const ignoredDirs = [
     'node_modules', 'dist', 'build', '.git', '.next', 
-    'coverage', '.vscode', '.idea', 'tmp', 'temp'
+    'coverage', '.vscode', '.idea', 'tmp', 'temp',
+    '.nuxt', '.output', 'out', 'public', 'static',
+    'assets', 'images', 'fonts', 'icons', 'docs'
   ];
   return ignoredDirs.includes(dirName) || dirName.startsWith('.');
+}
+
+function shouldIgnoreFile(fileName: string): boolean {
+  const configFiles = [
+    // Package managers
+    'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+    // TypeScript configs
+    'tsconfig.json', 'tsconfig.build.json', 'tsconfig.node.json',
+    // Next.js configs
+    'next.config.js', 'next.config.mjs', 'next.config.ts',
+    // Tailwind configs
+    'tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.mjs',
+    // PostCSS configs
+    'postcss.config.js', 'postcss.config.mjs', 'postcss.config.ts',
+    // Webpack configs
+    'webpack.config.js', 'webpack.config.ts',
+    // Vite configs
+    'vite.config.js', 'vite.config.ts', 'vite.config.mjs',
+    // ESLint configs
+    '.eslintrc.js', '.eslintrc.json', '.eslintrc.yaml', '.eslintrc.yml',
+    'eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts',
+    // Prettier configs
+    '.prettierrc', '.prettierrc.js', '.prettierrc.json', '.prettierrc.yaml',
+    'prettier.config.js', 'prettier.config.mjs', 'prettier.config.ts',
+    // Other configs
+    'babel.config.js', 'babel.config.json',
+    'jest.config.js', 'jest.config.ts', 'jest.config.mjs',
+    'vitest.config.js', 'vitest.config.ts', 'vitest.config.mjs',
+    'rollup.config.js', 'rollup.config.ts',
+    // Environment files
+    '.env', '.env.local', '.env.development', '.env.production',
+    '.env.staging', '.env.test',
+    // Git files
+    '.gitignore', '.gitattributes',
+    // Documentation
+    'README.md', 'CHANGELOG.md', 'LICENSE', 'LICENSE.md',
+    // Deployment
+    'Dockerfile', 'docker-compose.yml', 'docker-compose.yaml',
+    'vercel.json', 'netlify.toml'
+  ];
+  
+  return configFiles.includes(fileName) || 
+         fileName.startsWith('.') ||
+         fileName.endsWith('.md') ||
+         fileName.endsWith('.txt') ||
+         fileName.endsWith('.log') ||
+         fileName.endsWith('.lock');
 }
 
 async function scanProjectFiles(
@@ -219,6 +270,39 @@ async function getTestFiles(): Promise<TestFile[]> {
   return testFiles;
 }
 
+async function getProjectFiles(): Promise<TestFile[]> {
+  const projectFiles: TestFile[] = [];
+  const projectDir = process.cwd();
+  
+  try {
+    // Get all scannable files from the project
+    const allFiles = await getFilesRecursively(projectDir, SCANNABLE_EXTENSIONS);
+    
+    // Limit to a reasonable number for full scan (e.g., 1000 files max)
+    const limitedFiles = allFiles.slice(0, 1000);
+    
+    for (const filePath of limitedFiles) {
+      try {
+        const content = await fs.readFile(filePath, 'utf-8');
+        const language = path.extname(filePath).substring(1);
+        const relativePath = path.relative(projectDir, filePath);
+        
+        projectFiles.push({
+          path: relativePath,
+          content,
+          language
+        });
+      } catch (error) {
+        console.error(`Error reading file ${filePath}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Error reading project files:', error);
+  }
+  
+  return projectFiles;
+}
+
 async function scanFileWithLLM(filePath: string, fileContent: string, fileIndex?: number, totalFiles?: number): Promise<FileScanResult> {
   const logPrefix = fileIndex && totalFiles ? `${fileIndex}/${totalFiles}` : '';
   
@@ -290,29 +374,217 @@ async function scanFileWithLLM(filePath: string, fileContent: string, fileIndex?
   }
 }
 
+async function scanAndWriteFileWithLLM(filePath: string, fileContent: string, fileIndex?: number, totalFiles?: number): Promise<FileScanResult & { fileWritten: boolean }> {
+  const logPrefix = fileIndex && totalFiles ? `${fileIndex}/${totalFiles}` : '';
+  
+  try {
+    console.log(`${logPrefix} file starting to scan and write: ${filePath}`);
+    
+    // First, scan the file with LLM
+    const scanResult = await scanFileWithLLM(filePath, fileContent, fileIndex, totalFiles);
+    
+    // If there are changes, write the file back
+    if (scanResult.hasChanges && scanResult.updatedCode) {
+      try {
+        // Construct the full file path
+        const fullFilePath = path.join(process.cwd(), 'src/app/projects/ProjectAI/FileScanner/test', filePath);
+        
+        // Write the updated content back to the file
+        await fs.writeFile(fullFilePath, scanResult.updatedCode, 'utf-8');
+        
+        console.log(`${logPrefix} file written to disk: ${filePath}`);
+        
+        return {
+          ...scanResult,
+          fileWritten: true
+        };
+      } catch (writeError) {
+        console.error(`${logPrefix} file write error: ${filePath} -`, writeError);
+        
+        return {
+          ...scanResult,
+          fileWritten: false,
+          changesSummary: {
+            ...scanResult.changesSummary,
+            description: `${scanResult.changesSummary.description} (Warning: File could not be written to disk)`
+          }
+        };
+      }
+    } else {
+      console.log(`${logPrefix} file no changes, not writing: ${filePath}`);
+      
+      return {
+        ...scanResult,
+        fileWritten: false
+      };
+    }
+    
+  } catch (error) {
+    console.log(`${logPrefix} file scan and write error: ${filePath} - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    return {
+      hasChanges: false,
+      changesSummary: {
+        unusedItemsRemoved: 0,
+        documentationAdded: false,
+        description: `Error scanning and writing file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      },
+      updatedCode: fileContent,
+      fileWritten: false
+    };
+  }
+}
+
 async function generateTestScanLog(): Promise<{ message: string; logPath: string }> {
-  console.log('API: Generating test scan summary log...');
+  console.log('API: Generating comprehensive scan report...');
   
-  const logPath = path.join(process.cwd(), 'src/app/projects/ProjectAI/FileScanner/test/scan-summary.json');
+  // Create scans directory in project root
+  const scansDir = path.join(process.cwd(), 'scans');
+  try {
+    await fs.mkdir(scansDir, { recursive: true });
+  } catch (error) {
+    // Directory might already exist
+  }
   
-  const logData = {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const reportPath = path.join(scansDir, `scan-report-${timestamp}.json`);
+  
+  // Get test files for the report
+  const testFiles = await getTestFiles();
+  
+  const reportData = {
+    scanId: `scan-${timestamp}`,
     timestamp: new Date().toISOString(),
-    message: 'Test scan completed successfully',
-    note: 'Individual file processing logs are shown in the console during scan execution',
-    logPath: 'src/app/projects/ProjectAI/FileScanner/test/scan-summary.json'
+    scanType: 'test-scan',
+    summary: {
+      totalFiles: testFiles.length,
+      completedAt: new Date().toISOString(),
+      projectPath: 'src/app/projects/ProjectAI/FileScanner/test'
+    },
+    files: testFiles.map(file => ({
+      fileName: file.path,
+      language: file.language,
+      originalSize: file.content.length,
+      status: 'processed',
+      // These will be populated by the client when it calls this endpoint
+      hasChanges: false,
+      description: 'Scan completed - check individual file logs for details',
+      docsAdded: false,
+      codesCleaned: false
+    })),
+    metadata: {
+      generatedBy: 'File Scanner API',
+      version: '1.0.0',
+      note: 'This is a consolidated report of the scan results'
+    }
   };
 
   try {
-    await fs.writeFile(logPath, JSON.stringify(logData, null, 2), 'utf-8');
-    console.log('API: Test scan summary written to:', logPath);
+    await fs.writeFile(reportPath, JSON.stringify(reportData, null, 2), 'utf-8');
+    console.log('API: Comprehensive scan report written to:', reportPath);
   } catch (error) {
-    console.error('API: Error writing test scan summary:', error);
+    console.error('API: Error writing scan report:', error);
   }
   
   return {
-    message: 'Test scan summary generated',
-    logPath: 'src/app/projects/ProjectAI/FileScanner/test/scan-summary.json'
+    message: 'Comprehensive scan report generated',
+    logPath: reportPath
   };
+}
+
+async function fixBuildErrorsInFile(
+  filePath: string, 
+  buildErrors: BuildErrorForFix[], 
+  writeFiles: boolean = false
+): Promise<BuildErrorFixResult> {
+  const logPrefix = `[BUILD-FIX]`;
+  
+  try {
+    console.log(`${logPrefix} Fixing errors in: ${filePath}`);
+    
+    // Read the file content
+    const fullPath = path.resolve(filePath);
+    const fileContent = await fs.readFile(fullPath, 'utf-8');
+    
+    // Create the build error fixer prompt
+    const prompt = createBuildErrorFixerPrompt(filePath, fileContent, buildErrors);
+    
+    // Initialize Ollama client
+    const ollama = new OllamaClient();
+    
+    console.log(`${logPrefix} Sending to LLM for error fixing...`);
+    const response = await ollama.generateCompletion(prompt);
+    
+    if (!response) {
+      throw new Error('No response from LLM');
+    }
+    
+    console.log(`${logPrefix} LLM Response received, parsing...`);
+    
+    // Parse the JSON response
+    let result: BuildErrorFixResult;
+    try {
+      // Extract JSON from response if it's wrapped in markdown
+      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || response.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : response;
+      result = JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error(`${logPrefix} Failed to parse LLM response:`, parseError);
+      return {
+        hasChanges: false,
+        fixedErrors: [],
+        skippedErrors: buildErrors.map(error => ({
+          line: error.line || 0,
+          column: error.column || 0,
+          originalError: error.message,
+          reason: 'Failed to parse LLM response'
+        })),
+        updatedCode: fileContent
+      };
+    }
+    
+    // Validate the result structure
+    if (!result || typeof result !== 'object') {
+      throw new Error('Invalid response structure from LLM');
+    }
+    
+    // Ensure required fields exist
+    result.fixedErrors = result.fixedErrors || [];
+    result.skippedErrors = result.skippedErrors || [];
+    result.hasChanges = result.hasChanges || false;
+    result.updatedCode = result.updatedCode || fileContent;
+    
+    // Write the file if requested and there are changes
+    if (writeFiles && result.hasChanges && result.updatedCode !== fileContent) {
+      try {
+        await fs.writeFile(fullPath, result.updatedCode, 'utf-8');
+        console.log(`${logPrefix} File updated successfully: ${filePath}`);
+      } catch (writeError) {
+        console.error(`${logPrefix} Failed to write file:`, writeError);
+        // Don't fail the entire operation, just log the error
+      }
+    }
+    
+    console.log(`${logPrefix} Fixed ${result.fixedErrors.length} errors, skipped ${result.skippedErrors.length} errors`);
+    
+    return result;
+    
+  } catch (error) {
+    console.error(`${logPrefix} Error fixing file ${filePath}:`, error);
+    
+    // Return a safe fallback result
+    return {
+      hasChanges: false,
+      fixedErrors: [],
+      skippedErrors: buildErrors.map(error => ({
+        line: error.line || 0,
+        column: error.column || 0,
+        originalError: error.message,
+        reason: `Processing error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      })),
+      updatedCode: ''
+    };
+  }
 }
 
 async function writeTestScanLog(testFiles: TestFile[], results: FileScanResult[], llmResponses: any[]): Promise<void> {
@@ -378,10 +650,20 @@ export async function POST(request: NextRequest) {
         const testResults = await getTestFiles();
         return NextResponse.json(testResults);
 
+      case 'full-scan-files':
+        // Full scan with all project files
+        const fullScanResults = await getProjectFiles();
+        return NextResponse.json(fullScanResults);
+
       case 'test-scan-with-llm':
         // Generate log file from recent test scan results
         const logResults = await generateTestScanLog();
         return NextResponse.json(logResults);
+
+      case 'full-scan-with-llm':
+        // Generate log file from recent full scan results
+        const fullLogResults = await generateTestScanLog(); // Same function, different context
+        return NextResponse.json(fullLogResults);
 
       case 'scan-file':
         // Scan individual file with LLM
@@ -390,6 +672,23 @@ export async function POST(request: NextRequest) {
         }
         const scanResult = await scanFileWithLLM(filePath, fileContent, fileIndex, totalFiles);
         return NextResponse.json(scanResult);
+
+      case 'fix-build-errors':
+        // Fix build errors in a specific file
+        if (!filePath || !request.body) {
+          return NextResponse.json({ error: 'File path and build errors are required' }, { status: 400 });
+        }
+        const { buildErrors, writeFiles } = await request.json();
+        const fixResult = await fixBuildErrorsInFile(filePath, buildErrors, writeFiles);
+        return NextResponse.json(fixResult);
+
+      case 'scan-and-write-file':
+        // Scan individual file with LLM and write back if changed
+        if (!filePath || !fileContent) {
+          return NextResponse.json({ error: 'File path and content are required' }, { status: 400 });
+        }
+        const scanAndWriteResult = await scanAndWriteFileWithLLM(filePath, fileContent, fileIndex, totalFiles);
+        return NextResponse.json(scanAndWriteResult);
 
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

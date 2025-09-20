@@ -16,7 +16,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
   const [lastMessage, setLastMessage] = useState<string>('');
   const [audioLevel, setAudioLevel] = useState(0);
   const [silenceTimer, setSilenceTimer] = useState<NodeJS.Timeout | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -42,40 +42,40 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
   const startListening = async () => {
     try {
       setState('listening');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
-        } 
+        }
       });
-      
+
       // Setup audio analysis for visualization and silence detection
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
+
       // Resume audio context if suspended (required by some browsers)
       if (audioContextRef.current.state === 'suspended') {
         await audioContextRef.current.resume();
       }
-      
+
       analyserRef.current = audioContextRef.current.createAnalyser();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       source.connect(analyserRef.current);
-      
+
       analyserRef.current.fftSize = 512; // Increased for better sensitivity
       analyserRef.current.smoothingTimeConstant = 0.3; // Less smoothing for more responsive detection
       analyserRef.current.minDecibels = -90;
       analyserRef.current.maxDecibels = -10;
-      
+
       const bufferLength = analyserRef.current.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-      
+
       silenceStartRef.current = Date.now();
-      
+
       const updateAudioLevel = () => {
         if (analyserRef.current) {
           analyserRef.current.getByteFrequencyData(dataArray);
-          
+
           // Calculate RMS (Root Mean Square) for better audio level detection
           let sum = 0;
           for (let i = 0; i < bufferLength; i++) {
@@ -83,13 +83,13 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
           }
           const rms = Math.sqrt(sum / bufferLength);
           const normalizedLevel = rms / 255;
-          
+
           setAudioLevel(normalizedLevel);
-          
+
           // Silence detection with improved algorithm
           const SILENCE_THRESHOLD = 0.02; // Adjusted threshold
           const SILENCE_DURATION = 5000; // 5 seconds as requested
-          
+
           if (normalizedLevel > SILENCE_THRESHOLD) {
             silenceStartRef.current = Date.now();
           } else if (Date.now() - silenceStartRef.current > SILENCE_DURATION) {
@@ -97,9 +97,9 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
             stopListening();
             return;
           }
-          
+
           lastAudioLevelRef.current = normalizedLevel;
-          
+
           // Continue animation only if still listening
           if (state === 'listening') {
             animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
@@ -134,7 +134,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
       mediaRecorderRef.current.stop();
       setState('processing_stt');
       setAudioLevel(0);
-      
+
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -153,12 +153,12 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
       // Convert speech to text using ElevenLabs
       setState('processing_stt');
       const transcription = await speechToText(audioBlob);
-      
+
       if (transcription) {
         // Send to Ollama for processing
         setState('processing_ai');
         const response = await generateResponse(transcription);
-        
+
         if (response) {
           setLastMessage(response);
           // Convert response to speech and play
@@ -180,14 +180,14 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
       // ElevenLabs Speech-to-Text API call
       const formData = new FormData();
       formData.append('audio', audioBlob);
-      
+
       const response = await fetch('/api/voicebot/speech-to-text', {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error('Speech-to-text failed');
-      
+
       const data = await response.json();
       return data.text;
     } catch (error) {
@@ -232,12 +232,12 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
-      
+
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
         setState('idle'); // Reset to idle when audio finishes
       };
-      
+
       await audio.play();
     } catch (error) {
       console.error('Text-to-speech error:', error);
@@ -247,7 +247,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
 
   const toggleListening = () => {
     if (disabled) return;
-    
+
     if (state === 'idle') {
       startListening();
     } else if (state === 'listening') {
@@ -388,9 +388,8 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
           {/* Pulse effect for active states */}
           {(state === 'processing_ai' || state === 'playing') && (
             <motion.div
-              className={`absolute inset-0 rounded-full ${
-                state === 'processing_ai' ? 'bg-purple-400/20' : 'bg-cyan-400/20'
-              }`}
+              className={`absolute inset-0 rounded-full ${state === 'processing_ai' ? 'bg-purple-400/20' : 'bg-cyan-400/20'
+                }`}
               animate={{
                 scale: [1, 1.3, 1],
                 opacity: [0.5, 0, 0.5]

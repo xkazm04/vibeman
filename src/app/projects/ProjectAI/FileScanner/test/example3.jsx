@@ -1,24 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useCallback } from 'react';
 import { formatDate } from '../utils/dateUtils';
-import { validateEmail } from '../utils/validation';
-import { unusedUtility } from '../utils/unused';
 
-const UNUSED_THEME = {
-  primary: '#007bff',
-  secondary: '#6c757d'
-};
-
-const MAX_ITEMS = 10;
-
-function unusedComponent() {
-  return <div>This component is never used</div>;
-}
-
+/**
+ * TaskList component renders a list of tasks with filtering and sorting.
+ * It allows toggling completion status and limits displayed items to a maximum.
+ * Last updated: 2025-09-20
+ */
 export default function TaskList({ tasks, onTaskUpdate }) {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
-  const unusedState = useState(false);
 
   const filteredTasks = useCallback(() => {
     let filtered = tasks;
@@ -72,7 +62,7 @@ export default function TaskList({ tasks, onTaskUpdate }) {
       </div>
 
       <div className="tasks">
-        {filteredTasks().slice(0, MAX_ITEMS).map(task => (
+        {filteredTasks().slice(0, 10).map(task => (
           <div key={task.id} className="task-item">
             <input
               type="checkbox"

@@ -1,26 +1,18 @@
-import os
-import sys
-import json
 import requests
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from datetime import datetime
-import unused_module
 
-UNUSED_CONFIG = {
-    'debug': True,
-    'timeout': 30
-}
+"""
+This module provides helper functions and a UserManager class for interacting with an external API.
+It includes data fetching with retry logic and simple caching of user data.
+Last updated: 2025-09-20
+"""
 
 API_BASE_URL = "https://api.service.com"
 MAX_RETRIES = 3
 
-def unused_helper_function():
-    return "This function is never used"
-
 def fetch_data(endpoint: str, params: Optional[Dict] = None) -> Dict:
     url = f"{API_BASE_URL}/{endpoint}"
-    unused_var = "not used anywhere"
-    
     for attempt in range(MAX_RETRIES):
         try:
             response = requests.get(url, params=params, timeout=10)
@@ -46,7 +38,6 @@ def process_user_data(user_id: str) -> Dict:
 class UserManager:
     def __init__(self):
         self.cache = {}
-        self.unused_attribute = "never accessed"
     
     def get_user(self, user_id: str) -> Dict:
         if user_id in self.cache:
