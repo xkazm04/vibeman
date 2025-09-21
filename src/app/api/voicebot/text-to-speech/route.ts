@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_TTS_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
-const DEFAULT_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam voice
+const VOICE_ID = "IsEXLHzSvLH9UMB6SLHj";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { text, voice_id = DEFAULT_VOICE_ID } = await request.json();
+    const { text } = await request.json();
     
     if (!text) {
       return NextResponse.json(
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${ELEVENLABS_TTS_URL}/${voice_id}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -31,9 +30,9 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         text,
-        model_id: 'eleven_monolingual_v1',
+        model_id: "eleven_flash_v2_5",
         voice_settings: {
-          stability: 0.5,
+          stability: 0.8,
           similarity_boost: 0.5
         }
       }),

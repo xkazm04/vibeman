@@ -5,7 +5,6 @@ import { join, extname } from 'path';
 import { generateAIReview, generateGoals, generateTasks } from '@/app/projects/ProjectAI/promptFunctions';
 import { generateContexts } from '@/app/projects/ProjectAI/generateContexts';
 import { generateCodeTasks } from '@/app/projects/ProjectAI/generateCodeTasks';
-import { motion } from 'framer-motion';
 
 export async function POST(request: NextRequest) {
   try {
