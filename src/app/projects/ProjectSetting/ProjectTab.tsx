@@ -61,7 +61,7 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
             : 'bg-gray-900/50 border-transparent text-gray-500 hover:bg-gray-800 hover:text-gray-300'
         } ${
           disabled && !analysisActive
-            ? 'border-purple-500/30 bg-purple-900/20'
+            ? 'border-blue-500/30 bg-blue-900/20'
             : ''
         }`}
         title={
@@ -74,9 +74,9 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
       >
         <div className={`${compact ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full ${
           analysisActive 
-            ? 'bg-purple-500/50 animate-pulse' 
+            ? 'bg-blue-500/50 animate-pulse' 
             : disabled && !isActive
-              ? 'bg-purple-500/30'
+              ? 'bg-blue-500/30'
               : isActive 
                 ? 'bg-cyan-500 animate-pulse' 
                 : 'bg-gray-600'
@@ -93,7 +93,7 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-1 h-1 bg-purple-400 rounded-full"
+            className="w-1 h-1 bg-blue-400 rounded-full"
           />
         )}
       </motion.div>

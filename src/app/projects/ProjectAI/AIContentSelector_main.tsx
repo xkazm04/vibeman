@@ -41,7 +41,7 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
     if (!activeProject?.path || !aiDocsExist) return;
 
     try {
-      const response = await fetch('/api/kiro/read-file', {
+      const response = await fetch('/api/disk/read-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -86,7 +86,7 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
       }
 
       try {
-        const response = await fetch('/api/kiro/read-file', {
+        const response = await fetch('/api/disk/read-file', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -128,7 +128,7 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
         {[...Array(3)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 blur-xl"
+            className="absolute rounded-full bg-gradient-to-r from-blue-500/10 to-blue-500/10 blur-xl"
             style={{
               width: `${200 + i * 100}px`,
               height: `${200 + i * 100}px`,

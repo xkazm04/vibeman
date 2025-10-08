@@ -59,11 +59,11 @@ export default function AIScanSelection({
           }}
           transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
         >
-          <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent font-mono">
+          <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-blue-400 to-red-400 bg-clip-text text-transparent font-mono">
             AI Project Assistant
           </h2>
           <motion.div
-            className="w-24 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full mx-auto mb-4"
+            className="w-24 h-1 bg-gradient-to-r from-blue-500 via-blue-500 to-red-500 rounded-full mx-auto mb-4"
             animate={{ scaleX: [1, 1.2, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           />
@@ -154,18 +154,18 @@ export default function AIScanSelection({
           transition={{ duration: 0.2 }}
         >
           <motion.div
-            className="p-2 bg-purple-500/20 rounded-lg mr-3 border border-purple-500/30"
+            className="p-2 bg-blue-500/20 rounded-lg mr-3 border border-blue-500/30"
             whileHover={{ scale: 1.1, rotate: -5 }}
             transition={{ duration: 0.2 }}
           >
-            <Brain className="w-6 h-6 text-purple-400" />
+            <Brain className="w-6 h-6 text-blue-400" />
           </motion.div>
           <div>
-            <h3 className="text-xl font-bold text-white group-hover:text-purple-300 transition-colors">
+            <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
               Strategic Planning
             </h3>
             <motion.div
-              className="w-16 h-0.5 bg-gradient-to-r from-purple-500 to-transparent rounded-full mt-1"
+              className="w-16 h-0.5 bg-gradient-to-r from-blue-500 to-transparent rounded-full mt-1"
               animate={{ scaleX: [1, 1.5, 1] }}
               transition={{ duration: 3, repeat: Infinity, delay: 1 }}
             />
@@ -184,7 +184,7 @@ export default function AIScanSelection({
             animate={{ rotate: [0, -360] }}
             transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
           >
-            <Sparkles className="w-5 h-5 text-purple-400/60" />
+            <Sparkles className="w-5 h-5 text-blue-400/60" />
           </motion.div>
         </motion.div>
         

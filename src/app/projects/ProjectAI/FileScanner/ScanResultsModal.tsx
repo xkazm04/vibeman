@@ -98,7 +98,7 @@ export default function ScanResultsModal({ isOpen, onClose, results, scanStats }
       >
         {/* Header */}
         <div className="p-6 border-b border-gray-700/50 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 via-blue-500/10 to-purple-500/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 via-blue-500/10 to-blue-500/10" />
           
           <div className="relative z-10 flex items-center justify-between">
             <div>
@@ -108,7 +108,7 @@ export default function ScanResultsModal({ isOpen, onClose, results, scanStats }
               <div className="flex items-center space-x-6 text-sm">
                 <span className="text-blue-400">{scanStats.filesProcessed} files processed</span>
                 <span className="text-green-400">{scanStats.docsUpdated} docs added</span>
-                <span className="text-purple-400">{scanStats.codesCleaned} code cleaned</span>
+                <span className="text-blue-400">{scanStats.codesCleaned} code cleaned</span>
                 {scanStats.errors > 0 && (
                   <span className="text-red-400">{scanStats.errors} errors</span>
                 )}
@@ -176,7 +176,7 @@ export default function ScanResultsModal({ isOpen, onClose, results, scanStats }
                         </div>
                       )}
                       {result.codesCleaned && (
-                        <div className="flex items-center space-x-1 text-xs text-purple-400">
+                        <div className="flex items-center space-x-1 text-xs text-blue-400">
                           <Wrench className="w-3 h-3" />
                           <span>Code Cleaned</span>
                         </div>

@@ -30,8 +30,8 @@ export const PreviewTabNavigation: React.FC<PreviewTabNavigationProps> = ({
             whileTap={{ scale: 0.95 }}
             className={`relative group ml-4 p-3 rounded-lg border-2 transition-all duration-300 ${
               prototypeMode
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 border-purple-500 text-white'
-                : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-purple-500 hover:text-purple-400'
+                ? 'bg-gradient-to-r from-blue-600 to-red-600 border-blue-500 text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-400'
             }`}
             title={prototypeMode ? "Exit Prototype Mode" : "Enter Prototype Mode - View all running projects"}
           >
@@ -45,7 +45,7 @@ export const PreviewTabNavigation: React.FC<PreviewTabNavigationProps> = ({
             
             {/* Base Glow Effect */}
             <motion.div
-              className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-500/30 to-pink-500/30 blur-sm"
+              className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/30 to-red-500/30 blur-sm"
               animate={prototypeMode ? { 
                 opacity: [0.6, 1, 0.6],
                 scale: [1, 1.1, 1]
@@ -63,7 +63,7 @@ export const PreviewTabNavigation: React.FC<PreviewTabNavigationProps> = ({
             {/* Intense Glow for Active State */}
             {prototypeMode && (
               <motion.div
-                className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-400/40 to-pink-400/40 blur-md"
+                className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-400/40 to-red-400/40 blur-md"
                 animate={{ 
                   opacity: [0.3, 0.8, 0.3],
                   scale: [1, 1.2, 1]
@@ -111,7 +111,7 @@ export const PreviewTabNavigation: React.FC<PreviewTabNavigationProps> = ({
             
             {/* Hover Enhancement */}
             <motion.div
-              className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-600/10 to-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-600/10 to-red-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             />
           </motion.button>
 

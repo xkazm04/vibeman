@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import RunnerSwitch from '@/app/runner/components/RunnerSwitch';
 import { StandalonePreviewLever } from './components/StandalonePreviewLever';
 import EmergencyKillModal from './components/EmergencyKillModal';
+import CompactSystemLogs from './components/CompactSystemLogs';
 
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
@@ -17,7 +17,10 @@ import { useChargingLevel } from "@/hooks/useChargingLevel";
 export default function Runner() {
   const {
     fetchStatuses,
-    forceRefresh
+    forceRefresh,
+    startServer,
+    stopServer,
+    processes
   } = useServerProjectStore();
 
   const {
@@ -105,11 +108,49 @@ export default function Runner() {
     }
   };
 
+  const handleToggleServer = async (projectId: string) => {
+    const status = processes[projectId];
+    const isRunning = status?.status === 'running';
+    
+    try {
+      if (isRunning) {
+        await stopServer(projectId);
+      } else {
+        await startServer(projectId);
+      }
+    } catch (error) {
+      console.error('Failed to toggle server:', error);
+    }
+  };
+
   return (
     <>
-      <div className="w-full bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 border-b border-gray-800 shadow-lg">
+      <div className="w-full bg-gradient-to-r from-gray-950 via-indigo-950/30 to-purple-950/20 border-b border-gray-800/50 shadow-2xl backdrop-blur-xl">
+        {/* Neural Background Effects */}
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-indigo-500/5 to-purple-500/5" />
+        
+        {/* Animated Grid Pattern */}
+        <motion.div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)
+            `,
+            backgroundSize: '30px 30px'
+          }}
+          animate={{
+            backgroundPosition: ['0px 0px', '30px 30px'],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+
         {/* Logo Section */}
-        <div className="flex absolute top-0 right-[30%] items-center space-x-4 mb-4">
+        <div className="flex absolute top-0 right-[25%] items-center space-x-4 mb-4 z-10">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{
@@ -128,61 +169,63 @@ export default function Runner() {
               filter: `drop-shadow(0 0 ${shadowIntensity}px ${shadowColor}${Math.round(progress * 255).toString(16).padStart(2, '0')})`
             }}
           >
-            <LogoSvg width={200} fillColor={fillColor} borderColor={borderColor} chargingLevel={chargingLevel} />
+            <LogoSvg width={180} fillColor={fillColor} borderColor={borderColor} chargingLevel={chargingLevel} />
           </motion.div>
         </div>
-        {/* Main Header Bar */}
-        <div className="px-6 pr-[10%] py-3">
-          <div className="flex items-center justify-between pl-10">
-            {/* Left: Logo and Controls */}
-            <div className="p-3">
-              {disabled && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500 font-sans">Localhost only</span>
-                </div>
-              )}
-              <div className={`flex overflow-hidden items-center space-x-3 pb-2
-                ${disabled && 'opacity-50'}`}>
-                {projects.map((project, index) => (
-                  <RunnerSwitch
-                    key={project.id || `project-${index}`}
-                    project={project}
-                    index={index}
-                    disabled={disabled}
-                  />
-                ))}
 
-                {/* Standalone Preview Lever with spacing */}
-                <div className="ml-6 border-l border-gray-700 pl-6">
-                  <StandalonePreviewLever />
-                </div>
-              </div>
-
-              {/* Emergency actions */}
-              <div className="flex absolute left-2 top-0 items-center space-x-2 mt-2">
-                <button
-                  onClick={() => setShowEmergencyKill(true)}
-                  title="Emergency Kill"
-                  className="text-xs px-2 py-1 cursor-pointer text-orange-400 border border-orange-600/10 rounded hover:bg-orange-600/30 transition-colors"
-                >
-                  <Skull size={16} />
-                </button>
-                <button
-                  onClick={handleEmergencyRefresh}
-                  title="Force Refresh"
-                  className="text-xs px-2 py-1 cursor-pointer text-blue-400 border border-blue-600/10 rounded hover:bg-blue-600/30 transition-colors"
-                >
-                  <RefreshCcw size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Right: Controls */}
-            <RunnerRightPanel />
-          </div>
-
+        {/* Emergency Actions - Fixed Position */}
+        <div className="fixed top-4 left-4 z-50 flex items-center space-x-2">
+          <motion.button
+            onClick={() => setShowEmergencyKill(true)}
+            title="Emergency Neural Shutdown"
+            className="p-2 bg-gradient-to-r from-red-500/20 to-orange-500/20 text-red-400 rounded-xl hover:from-red-500/30 hover:to-orange-500/30 transition-all border border-red-500/30 backdrop-blur-sm"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Skull className="w-4 h-4" />
+          </motion.button>
+          
+          <motion.button
+            onClick={handleEmergencyRefresh}
+            title="Force Neural Refresh"
+            className="p-2 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 rounded-xl hover:from-blue-500/30 hover:to-cyan-500/30 transition-all border border-blue-500/30 backdrop-blur-sm"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <RefreshCcw className="w-4 h-4" />
+          </motion.button>
         </div>
 
+        {/* Main Header Bar */}
+        <div className="relative px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left: System Logs and Controls */}
+            <div className="flex items-center space-x-6 flex-1">
+              {/* Expanded System Logs */}
+              <div className="flex-1 max-w-2xl">
+                <CompactSystemLogs />
+              </div>
+
+              {/* Standalone Preview Lever */}
+              <div className="ml-4 pl-4 border-l border-gray-700/50">
+                <StandalonePreviewLever />
+              </div>
+
+              {disabled && (
+                <motion.div 
+                  className="flex items-center space-x-2 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-xl backdrop-blur-sm"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                >
+                  <span className="text-yellow-400 font-mono text-sm">LOCALHOST MODE</span>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Right: Neural Control Panel */}
+            <RunnerRightPanel />
+          </div>
+        </div>
       </div>
 
       {/* Emergency Kill Modal */}

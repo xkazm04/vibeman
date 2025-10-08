@@ -13,8 +13,8 @@ export default function ContextPanel() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <div className="p-2 bg-purple-500/10 rounded-lg">
-            <Layers className="w-5 h-5 text-purple-400" />
+          <div className="p-2 bg-blue-500/10 rounded-lg">
+            <Layers className="w-5 h-5 text-blue-400" />
           </div>
           <div className="flex flex-col">
             <h2 className="text-xl font-semibold text-white font-mono">Contexts</h2>
@@ -23,7 +23,7 @@ export default function ContextPanel() {
         </div>
         <div className="flex items-center space-x-3 text-sm text-gray-400">
           <div className="flex items-center space-x-1">
-            <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
             <span>{contexts.length}/10 saved</span>
           </div>
         </div>

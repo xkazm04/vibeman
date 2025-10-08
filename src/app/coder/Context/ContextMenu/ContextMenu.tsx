@@ -128,94 +128,187 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
             onClick={onClose}
           />
 
-          {/* Menu */}
+          {/* Neural Context Menu */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bg-gray-900/95 border border-gray-600/70 rounded-2xl shadow-2xl py-3 min-w-[200px] backdrop-blur-md"
+            transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed bg-gradient-to-br from-gray-900/95 via-slate-900/20 to-blue-900/30 border border-gray-700/50 rounded-2xl shadow-2xl py-4 min-w-[220px] backdrop-blur-xl"
             style={{
               left: `${position.x}px`,
               top: `${position.y}px`,
-              zIndex: 999999, // Ensure it's above everything
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+              zIndex: 999999,
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(99, 102, 241, 0.2)'
             }}
           >
-            {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 rounded-2xl" />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent rounded-2xl" />
+            {/* Neural Background Effects */}
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5 rounded-2xl" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-2xl" />
             
-            <div className="relative">
+            {/* Animated Grid Pattern */}
+            <motion.div
+              className="absolute inset-0 opacity-5 rounded-2xl"
+              style={{
+                backgroundImage: `
+                  linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)
+                `,
+                backgroundSize: '8px 8px'
+              }}
+              animate={{
+                backgroundPosition: ['0px 0px', '8px 8px'],
+              }}
+              transition={{
+                duration: 8,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+            />
+            
+            {/* Floating Particles */}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
+                style={{
+                  left: `${20 + i * 30}%`,
+                  top: `${20 + i * 20}%`,
+                }}
+                animate={{
+                  y: [0, -10, 0],
+                  opacity: [0, 1, 0],
+                  scale: [0, 1, 0],
+                }}
+                transition={{
+                  duration: 2 + Math.random() * 2,
+                  repeat: Infinity,
+                  delay: i * 0.5,
+                }}
+              />
+            ))}
+            
+            <div className="relative space-y-1">
               <motion.button
                 onClick={() => handleAction('open')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
-                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 hover:text-cyan-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-cyan-500/30 backdrop-blur-sm"
+                whileHover={{ x: 6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <FolderOpen className="w-4 h-4" />
-                <span className="font-mono font-medium">Open Files</span>
+                <motion.div
+                  whileHover={{ rotate: 15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <FolderOpen className="w-4 h-4 text-cyan-400" />
+                </motion.div>
+                <span className="font-mono font-medium">Open Neural Files</span>
               </motion.button>
 
               <motion.button
                 onClick={() => handleAction('copy')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
-                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-slate-500/10 hover:to-blue-500/10 hover:text-slate-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-slate-500/30 backdrop-blur-sm"
+                whileHover={{ x: 6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Copy className="w-4 h-4" />
-                <span className="font-mono font-medium">Copy Context</span>
+                <motion.div
+                  whileHover={{ rotate: 15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Copy className="w-4 h-4 text-slate-400" />
+                </motion.div>
+                <span className="font-mono font-medium">Clone Context</span>
               </motion.button>
 
               <motion.button
                 onClick={() => handleAction('select')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
-                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-pink-500/10 hover:text-blue-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-blue-500/30 backdrop-blur-sm"
+                whileHover={{ x: 6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <MousePointer className="w-4 h-4" />
-                <span className="font-mono font-medium">Select Files</span>
+                <motion.div
+                  whileHover={{ rotate: 15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <MousePointer className="w-4 h-4 text-blue-400" />
+                </motion.div>
+                <span className="font-mono font-medium">Select Nodes</span>
               </motion.button>
 
               <motion.button
                 onClick={() => handleAction('toggleForBacklog')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
-                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-green-500/10 hover:to-emerald-500/10 hover:text-green-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-green-500/30 backdrop-blur-sm"
+                whileHover={{ x: 6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                {selectedContextIds.has(context.id) ? (
-                  <CheckSquare className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Square className="w-4 h-4" />
-                )}
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {selectedContextIds.has(context.id) ? (
+                    <CheckSquare className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <Square className="w-4 h-4 text-green-400" />
+                  )}
+                </motion.div>
                 <span className="font-mono font-medium">
-                  {selectedContextIds.has(context.id) ? 'Unselect for Backlog' : 'Select for Backlog'}
+                  {selectedContextIds.has(context.id) ? 'Remove from Queue' : 'Add to Queue'}
                 </span>
               </motion.button>
 
               <motion.button
                 onClick={() => handleAction('contextFile')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
-                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-cyan-500/10 hover:text-blue-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-blue-500/30 backdrop-blur-sm"
+                whileHover={{ x: 6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <FileText className="w-4 h-4" />
-                <span className="font-mono font-medium">Context File</span>
+                <motion.div
+                  whileHover={{ rotate: 15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <FileText className="w-4 h-4 text-blue-400" />
+                </motion.div>
+                <span className="font-mono font-medium">Context Matrix</span>
               </motion.button>
 
               <motion.button
                 onClick={() => handleAction('edit')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700/60 hover:text-white flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
-                whileHover={{ x: 4, backgroundColor: 'rgba(55, 65, 81, 0.6)' }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-orange-500/10 hover:text-yellow-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-yellow-500/30 backdrop-blur-sm"
+                whileHover={{ x: 6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Edit className="w-4 h-4" />
-                <span className="font-mono font-medium">Edit</span>
+                <motion.div
+                  whileHover={{ rotate: 15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Edit className="w-4 h-4 text-yellow-400" />
+                </motion.div>
+                <span className="font-mono font-medium">Modify Node</span>
               </motion.button>
 
-              <div className="border-t border-gray-600/40 my-2 mx-2" />
+              {/* Neural Divider */}
+              <div className="relative my-3 mx-2">
+                <div className="border-t border-gray-600/40" />
+                <motion.div
+                  className="absolute inset-0 border-t border-red-500/30"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ delay: 0.5, duration: 0.3 }}
+                />
+              </div>
 
               <motion.button
                 onClick={() => handleAction('delete')}
-                className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/20 hover:text-red-300 flex items-center space-x-3 transition-all duration-200 rounded-xl mx-1"
-                whileHover={{ x: 4, backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
+                className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:to-red-600/20 hover:text-red-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-red-500/50 backdrop-blur-sm"
+                whileHover={{ x: 6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Trash2 className="w-4 h-4" />
-                <span className="font-mono font-medium">Delete</span>
+                <motion.div
+                  whileHover={{ rotate: 15, scale: 1.1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </motion.div>
+                <span className="font-mono font-medium">Terminate Node</span>
               </motion.button>
             </div>
           </motion.div>

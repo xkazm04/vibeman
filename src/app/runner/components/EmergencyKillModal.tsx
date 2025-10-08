@@ -106,12 +106,12 @@ export default function EmergencyKillModal({
       <div className="space-y-6">
         {/* Scan Section */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-xl" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-slate-600/5 rounded-xl" />
           <div className="relative p-4">
             <button
               onClick={scanForProcesses}
               disabled={scanning}
-              className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 disabled:from-blue-600/10 disabled:to-indigo-600/10 text-blue-400 rounded-xl transition-all duration-200 border border-blue-600/30 hover:border-blue-600/50 disabled:border-blue-600/20 font-medium"
+              className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600/20 to-slate-600/20 hover:from-blue-600/30 hover:to-slate-600/30 disabled:from-blue-600/10 disabled:to-slate-600/10 text-blue-400 rounded-xl transition-all duration-200 border border-blue-600/30 hover:border-blue-600/50 disabled:border-blue-600/20 font-medium"
             >
               <Terminal className="w-5 h-5" />
               {scanning ? 'Scanning...' : 'Scan for Processes'}
@@ -222,7 +222,7 @@ export default function EmergencyKillModal({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleRefreshAndClose}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-600/30 text-blue-400 rounded-xl transition-all duration-200 font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600/20 to-slate-600/20 hover:from-blue-600/30 hover:to-slate-600/30 border border-blue-600/30 text-blue-400 rounded-xl transition-all duration-200 font-medium"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh & Close

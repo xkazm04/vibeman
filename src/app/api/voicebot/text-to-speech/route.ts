@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const VOICE_ID = "IsEXLHzSvLH9UMB6SLHj";
+const VOICE_ID = "WAhoMTNdLdMoq1j3wf3I";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { text } = await request.json();
-    
+
     if (!text) {
       return NextResponse.json(
         { success: false, error: 'Text is required' },
@@ -41,16 +41,16 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       return NextResponse.json(
-        { 
-          success: false, 
-          error: `ElevenLabs TTS error (${response.status}): ${errorText}` 
+        {
+          success: false,
+          error: `ElevenLabs TTS error (${response.status}): ${errorText}`
         },
         { status: response.status }
       );
     }
 
     const audioBuffer = await response.arrayBuffer();
-    
+
     return new NextResponse(audioBuffer, {
       headers: {
         'Content-Type': 'audio/mpeg',
@@ -59,11 +59,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Text-to-speech API error:', error);
-    
+
     return NextResponse.json(
-      { 
-        success: false, 
-        error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      {
+        success: false,
+        error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`
       },
       { status: 500 }
     );

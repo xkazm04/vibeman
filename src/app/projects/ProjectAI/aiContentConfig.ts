@@ -53,10 +53,10 @@ export const codebaseScanCards: AIContentCard[] = [
       'Analyzes dependency usage and potential security issues'
     ],
     icon: Code2,
-    gradient: 'from-indigo-500/20 to-purple-500/20',
-    borderColor: 'border-indigo-500/30',
-    hoverGradient: 'hover:from-indigo-500/30 hover:to-purple-500/30',
-    iconColor: 'text-indigo-400'
+    gradient: 'from-slate-500/20 to-blue-500/20',
+    borderColor: 'border-slate-500/30',
+    hoverGradient: 'hover:from-slate-500/30 hover:to-blue-500/30',
+    iconColor: 'text-slate-400'
   },
   {
     id: 'file-scanner',
@@ -86,10 +86,10 @@ export const ideaGenerationCards: AIContentCard[] = [
       'Provides detailed implementation guidance'
     ],
     icon: CheckSquare,
-    gradient: 'from-purple-500/20 to-pink-500/20',
-    borderColor: 'border-purple-500/30',
-    hoverGradient: 'hover:from-purple-500/30 hover:to-pink-500/30',
-    iconColor: 'text-purple-400'
+    gradient: 'from-blue-500/20 to-red-500/20',
+    borderColor: 'border-blue-500/30',
+    hoverGradient: 'hover:from-blue-500/30 hover:to-red-500/30',
+    iconColor: 'text-blue-400'
   },
   {
     id: 'goals',

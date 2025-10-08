@@ -70,9 +70,9 @@ export default function GoalsDetailModal({
       case 'undecided':
         return {
           text: 'Undecided',
-          color: 'text-purple-400',
-          bgColor: 'bg-purple-500/20',
-          borderColor: 'border-purple-500/30',
+          color: 'text-blue-400',
+          bgColor: 'bg-blue-500/20',
+          borderColor: 'border-blue-500/30',
           icon: Circle
         };
       case 'rejected':
@@ -159,7 +159,7 @@ export default function GoalsDetailModal({
       title={isEditing ? "Edit Goal" : "Goal Details"}
       subtitle={isEditing ? "Modify goal information" : "View goal information"}
       icon={Target}
-      iconBgColor="from-blue-600/20 to-indigo-600/20"
+      iconBgColor="from-blue-600/20 to-slate-600/20"
       iconColor="text-blue-400"
       maxWidth="max-w-6xl"
     >

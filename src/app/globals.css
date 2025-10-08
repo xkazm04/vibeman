@@ -48,6 +48,26 @@ body {
   width: 6px;
 }
 
+/* Neural scrollbar for Annette interface */
+.neural-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.neural-scrollbar::-webkit-scrollbar-track {
+  background: rgba(17, 24, 39, 0.5);
+  border-radius: 4px;
+}
+
+.neural-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(0, 255, 255, 0.4), rgba(99, 102, 241, 0.4));
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.neural-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(0, 255, 255, 0.6), rgba(99, 102, 241, 0.6));
+}
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.2);
   border-radius: 4px;
@@ -128,4 +148,34 @@ html, body {
 /* Smooth scrolling */
 .smooth-scroll {
   scroll-behavior: smooth;
+}
+
+/* Global Tooltip - Ensure it's always on top */
+.global-tooltip-container {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+.global-tooltip-backdrop {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  pointer-events: auto !important;
+}
+
+.global-tooltip-content {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  pointer-events: auto !important;
 }

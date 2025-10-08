@@ -56,7 +56,7 @@ export const StandalonePreviewLever: React.FC = () => {
             <div
               className={`w-7 h-7 rounded-full border-2 transition-all duration-300 relative overflow-hidden ${
                 previewState === 'previewing'
-                  ? 'bg-gradient-to-br from-blue-400 to-purple-500 border-blue-300 shadow-lg shadow-blue-500/50'
+                  ? 'bg-gradient-to-br from-blue-400 to-blue-500 border-blue-300 shadow-lg shadow-blue-500/50'
                   : previewState === 'ready'
                   ? 'bg-gradient-to-br from-cyan-400 to-blue-500 border-cyan-300 shadow-lg shadow-cyan-500/40'
                   : previewState === 'server-off'
@@ -120,7 +120,7 @@ export const StandalonePreviewLever: React.FC = () => {
                 }}
                 className={`absolute inset-0 rounded-full opacity-60 ${
                   previewState === 'previewing'
-                    ? 'bg-gradient-to-tr from-blue-300/50 via-purple-300/50 to-blue-400/50'
+                    ? 'bg-gradient-to-tr from-blue-300/50 via-blue-300/50 to-blue-400/50'
                     : previewState === 'ready'
                     ? 'bg-gradient-to-tr from-cyan-300/50 via-blue-300/50 to-cyan-400/50'
                     : previewState === 'server-off'

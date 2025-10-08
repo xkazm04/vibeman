@@ -55,10 +55,10 @@ export const scanOptions: ScanOption[] = [
       'Perfect for testing before full project scan'
     ],
     icon: TestTube,
-    gradient: 'from-purple-500/20 to-pink-500/20',
-    borderColor: 'border-purple-500/30',
-    hoverGradient: 'hover:from-purple-500/30 hover:to-pink-500/30',
-    iconColor: 'text-purple-400'
+    gradient: 'from-blue-500/20 to-red-500/20',
+    borderColor: 'border-blue-500/30',
+    hoverGradient: 'hover:from-blue-500/30 hover:to-red-500/30',
+    iconColor: 'text-blue-400'
   }
 ];
 

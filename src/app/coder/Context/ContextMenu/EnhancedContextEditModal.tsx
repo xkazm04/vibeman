@@ -387,7 +387,7 @@ Focus on being comprehensive yet concise, highlighting the most important aspect
         <button
           onClick={handleBackgroundGeneration}
           disabled={backgroundProcessing || loading || contextFilePaths.length === 0}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-purple-500/20 text-purple-400 rounded-xl hover:bg-purple-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
           title="Generate context file in background using AI"
         >
           <Zap className="w-4 h-4" />

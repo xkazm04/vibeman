@@ -73,7 +73,7 @@ export default function EventLayout() {
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       >
         <GlowCard className={`p-4 h-full flex flex-col relative shadow-[0_-4px_20px_rgba(255,255,255,0.1)] border-t-white/20 ${viewState === 'minimized' ? 'items-center justify-center' : ''
-          } ${isActive ? 'shadow-lg shadow-purple-500/20' : ''}`}>
+          } ${isActive ? 'shadow-lg shadow-blue-500/20' : ''}`}>
           {/* Control Buttons - Top Right */}
           <div className="absolute top-2 right-2 flex gap-1 z-10">
             {viewState !== 'minimized' && (

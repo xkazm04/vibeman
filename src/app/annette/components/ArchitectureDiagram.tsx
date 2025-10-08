@@ -17,7 +17,7 @@ export default function ArchitectureDiagram() {
               <span>Hardcoded Message</span>
             </div>
             <ArrowRight className="w-4 h-4 text-gray-400" />
-            <div className="flex items-center space-x-2 bg-purple-900/30 px-3 py-2 rounded-lg">
+            <div className="flex items-center space-x-2 bg-blue-900/30 px-3 py-2 rounded-lg">
               <Cog className="w-4 h-4" />
               <span>LangGraph</span>
             </div>

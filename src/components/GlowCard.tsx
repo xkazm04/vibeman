@@ -4,7 +4,7 @@ interface GlowCardProps {
   children: React.ReactNode;
   className?: string;
   glow?: boolean;
-  glowColor?: 'cyan' | 'purple' | 'green' | 'pink';
+  glowColor?: 'cyan' | 'blue' | 'green' | 'red';
 }
 
 export const GlowCard: React.FC<GlowCardProps> = ({ 
@@ -15,9 +15,9 @@ export const GlowCard: React.FC<GlowCardProps> = ({
 }) => {
   const glowColors = {
     cyan: 'shadow-cyan-500/50',
-    purple: 'shadow-purple-500/50',
+    blue: 'shadow-blue-500/50',
     green: 'shadow-green-500/50',
-    pink: 'shadow-pink-500/50'
+    red: 'shadow-red-500/50'
   };
 
   return (

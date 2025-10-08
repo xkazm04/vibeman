@@ -278,9 +278,9 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
       case 'processing_ai':
         return {
           icon: MessageSquare,
-          color: 'text-purple-400 border-purple-600/50 bg-purple-600/10',
-          hoverColor: 'hover:bg-purple-600/20',
-          pulseColor: 'shadow-purple-500/30',
+          color: 'text-blue-400 border-blue-600/50 bg-blue-600/10',
+          hoverColor: 'hover:bg-blue-600/20',
+          pulseColor: 'shadow-blue-500/30',
           description: 'Thinking...'
         };
       case 'processing_tts':
@@ -388,7 +388,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
           {/* Pulse effect for active states */}
           {(state === 'processing_ai' || state === 'playing') && (
             <motion.div
-              className={`absolute inset-0 rounded-full ${state === 'processing_ai' ? 'bg-purple-400/20' : 'bg-cyan-400/20'
+              className={`absolute inset-0 rounded-full ${state === 'processing_ai' ? 'bg-blue-400/20' : 'bg-cyan-400/20'
                 }`}
               animate={{
                 scale: [1, 1.3, 1],

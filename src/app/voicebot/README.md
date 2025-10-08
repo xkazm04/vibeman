@@ -66,7 +66,7 @@ Converts text to speech using ElevenLabs Text-to-Speech API:
 2. **Listen**: Speak your question (green Mic icon with audio-reactive pulsing)
 3. **Auto-Stop**: System detects 3 seconds of silence and begins processing
 4. **Process Speech**: Converting speech to text (blue spinning Loader2 icon)
-5. **AI Thinking**: Generating response (purple pulsing MessageSquare icon)
+5. **AI Thinking**: Generating response (blue pulsing MessageSquare icon)
 6. **Generate Speech**: Converting response to audio (orange spinning Loader2 icon)
 7. **Playing**: Audio response plays (cyan pulsing Volume2 icon)
 8. **Complete**: Returns to idle state, ready for next conversation
@@ -76,7 +76,7 @@ Converts text to speech using ElevenLabs Text-to-Speech API:
 - **Idle**: Gray MicOff icon - "Click to start voice chat"
 - **Listening**: Green Mic icon with audio-reactive scaling - "Listening..."
 - **Processing STT**: Blue spinning Loader2 - "Converting speech..."
-- **Processing AI**: Purple pulsing MessageSquare - "Thinking..."
+- **Processing AI**: blue pulsing MessageSquare - "Thinking..."
 - **Processing TTS**: Orange spinning Loader2 - "Generating speech..."
 - **Playing**: Cyan pulsing Volume2 - "Speaking..."
 - **Error**: Red MicOff icon - "Error - Click to retry" (auto-resets after 3s)

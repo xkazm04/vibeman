@@ -100,7 +100,7 @@ export default function BacklogItem({ proposal, isNew = false, onAccept, onRejec
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
         className={`relative rounded-lg border transition-all duration-200 overflow-hidden ${theme.bg} ${theme.hoverBg} hover:shadow-lg ${
-          isNew ? 'ring-2 ring-purple-500/50 shadow-lg shadow-purple-500/25' : ''
+          isNew ? 'ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/25' : ''
         }`}
       >
         {/* Background Icon */}

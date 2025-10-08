@@ -69,7 +69,7 @@ export default function ProjectsLayout({
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`w-full py-4 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 ${isActive ? 'shadow-lg shadow-purple-500/20' : ''
+        className={`w-full py-4 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 ${isActive ? 'shadow-lg shadow-blue-500/20' : ''
           }`}
       >
         <div className="h-full w-full flex items-center justify-between px-6 gap-8">
@@ -96,7 +96,7 @@ export default function ProjectsLayout({
                   whileHover={{ scale: 1.05, y: -1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleAddGoal}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 rounded-md text-purple-400 transition-all duration-300 group text-sm"
+                  className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-red-500/20 hover:from-blue-500/30 hover:to-red-500/30 border border-blue-500/30 rounded-md text-blue-400 transition-all duration-300 group text-sm"
                   title="Add new goal"
                 >
                   <Target className="w-3 h-3 group-hover:rotate-90 transition-transform duration-300" />

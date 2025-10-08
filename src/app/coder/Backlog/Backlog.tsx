@@ -172,7 +172,7 @@ export default function Backlog() {
   return (
     <>
       <GlowCard className={`p-6 h-full flex flex-col max-h-[60vh] ${
-        isActive ? 'shadow-lg shadow-purple-500/20' : ''
+        isActive ? 'shadow-lg shadow-blue-500/20' : ''
       }`}>        
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

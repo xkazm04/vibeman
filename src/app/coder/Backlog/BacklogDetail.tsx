@@ -138,7 +138,7 @@ export default function BacklogDetail({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5" />
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-blue-500/5 to-cyan-500/5" />
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent" />
 
             {/* Header */}
@@ -149,8 +149,8 @@ export default function BacklogDetail({
                   <div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-sm"
                     style={{
-                      backgroundColor: `${theme.bg.includes('purple') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}20`,
-                      border: `1px solid ${theme.bg.includes('purple') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}30`
+                      backgroundColor: `${theme.bg.includes('blue') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}20`,
+                      border: `1px solid ${theme.bg.includes('blue') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}30`
                     }}
                   >
                     <AgentIcon className="w-8 h-8 text-white" />
@@ -158,7 +158,7 @@ export default function BacklogDetail({
                   <motion.div
                     className="absolute -inset-2 rounded-2xl opacity-50"
                     style={{
-                      background: `linear-gradient(45deg, ${theme.bg.includes('purple') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}30, transparent, ${theme.bg.includes('purple') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}30)`,
+                      background: `linear-gradient(45deg, ${theme.bg.includes('blue') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}30, transparent, ${theme.bg.includes('blue') ? '#8B5CF6' : theme.bg.includes('blue') ? '#3B82F6' : theme.bg.includes('green') ? '#10B981' : '#F59E0B'}30)`,
                       filter: 'blur(12px)',
                     }}
                     animate={{ scale: [1, 1.1, 1] }}
@@ -226,7 +226,7 @@ export default function BacklogDetail({
                 {/* Middle Column - Implementation Steps (35%) */}
                 <div className="col-span-4 flex flex-col">
                   <div className="flex items-center space-x-3 mb-6">
-                    <Layers className="w-5 h-5 text-purple-400" />
+                    <Layers className="w-5 h-5 text-blue-400" />
                     <h2 className="text-xl font-bold text-white font-mono">Implementation</h2>
                   </div>
                   <div className="flex-1 overflow-y-auto pr-4">
@@ -241,7 +241,7 @@ export default function BacklogDetail({
                             transition={{ delay: index * 0.1 }}
                           >
                             <div className="flex items-start space-x-4">
-                              <div className="w-8 h-8 bg-gradient-to-br from-purple-500/20 to-blue-500/20 text-purple-400 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 border border-purple-500/30">
+                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500/20 to-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 border border-blue-500/30">
                                 {index + 1}
                               </div>
                               <p className="text-sm text-gray-200 leading-relaxed font-mono">{step}</p>

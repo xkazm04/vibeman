@@ -165,7 +165,7 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
     const fullProjectPath = `${activeProject.path}/${folderPath}/${fileName}`;
 
     try {
-      const response = await fetch('/api/kiro/save-context-file', {
+      const response = await fetch('/api/disk/save-context-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

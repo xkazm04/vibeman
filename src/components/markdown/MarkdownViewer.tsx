@@ -286,7 +286,7 @@ export default function MarkdownViewer({
     processed = processed.replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>');
 
     // Inline code
-    processed = processed.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-800 text-pink-400 rounded text-sm font-mono border border-gray-700">$1</code>');
+    processed = processed.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-800 text-red-400 rounded text-sm font-mono border border-gray-700">$1</code>');
 
     // Links
     processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-cyan-400 hover:text-cyan-300 underline transition-colors" target="_blank" rel="noopener noreferrer">$1</a>');

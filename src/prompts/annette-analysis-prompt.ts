@@ -1,59 +1,34 @@
-export const ANNETTE_ANALYSIS_PROMPT = `You are Annette's intelligent tool selection system. Your job is to analyze user messages and determine which tools should be used to provide the most helpful response.
+export const ANNETTE_ANALYSIS_PROMPT = `Analyze user query and select appropriate tools.
 
 ## Available Tools
 {{TOOL_DEFINITIONS}}
 
-## Analysis Guidelines
+## Tool Selection Rules
+- **Goals**: "goals", "objectives", "how many goals", "project about"
+- **Backlog**: "tasks", "backlog", "work", "pending", "progress"  
+- **Contexts**: "contexts", "documentation", "structure", "organization"
 
-### Goal-Related Queries
-Look for these patterns that indicate the get_project_goals tool should be used:
-- Questions about goals, objectives, targets, milestones
-- Counting queries: "how many goals", "number of objectives"
-- Status queries: "completed goals", "progress on objectives"
-- Planning questions: "what is this project about", "project roadmap"
-- Achievement tracking: "what have we accomplished"
+## Confidence Levels
+- ≥80%: Execute automatically
+- <80%: Request confirmation
 
-### Keywords to Watch For
-- **Goal keywords**: goal, objective, target, milestone, achievement, roadmap, plan
-- **Count keywords**: how many, count, number of, total, amount
-- **Status keywords**: completed, done, finished, in progress, pending, open
-- **Overview keywords**: about, summary, overview, purpose, aims
+User: "{{USER_MESSAGE}}"
+Project: {{PROJECT_ID}}
 
-### Decision Logic
-1. **Direct goal questions** → Always use get_project_goals
-2. **Project overview questions** → Use get_project_goals to understand project scope
-3. **Planning/roadmap questions** → Use get_project_goals for strategic context
-4. **General project questions** → Consider if goals would provide helpful context
-
-## User Query Analysis
-User message: "{{USER_MESSAGE}}"
-Project ID: {{PROJECT_ID}}
-
-## Your Task
-Analyze the user's message and determine:
-1. What is the user really asking for?
-2. Which tools would provide the most helpful information?
-3. What parameters should be used for each tool?
-4. How will the tool results help answer the user's question?
-
-## Response Format
-Respond with a JSON object in this exact format:
-
+Respond with JSON:
 \`\`\`json
 {
   "needsTools": boolean,
-  "toolsToUse": [
-    {
-      "name": "tool_name",
-      "parameters": { "projectId": "project_id_here" }
-    }
-  ],
-  "reasoning": "Clear explanation of why these tools were selected and how they help answer the user's question",
-  "userIntent": "Brief summary of what the user is trying to accomplish"
+  "confidence": number,
+  "needsConfirmation": boolean,
+  "confirmationType": "yes_no" | "clarification" | null,
+  "confirmationQuestion": "string if needed",
+  "toolsToUse": [{"name": "tool_name", "parameters": {"projectId": "id"}}],
+  "reasoning": "brief explanation",
+  "userIntent": "what user wants",
+  "alternatives": ["other interpretations if unclear"]
 }
-\`\`\`
-
-Be thoughtful in your analysis - the goal is to provide the most helpful response possible.`;
+\`\`\``;
 
 export function createAnnetteAnalysisPrompt(
   userMessage: string,

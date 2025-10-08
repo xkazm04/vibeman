@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Clock, Sparkles } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
-import ContextTooltip from './ContextTooltip';
+import { useTooltipStore } from '../../../stores/tooltipStore';
 import ContextMenu from './ContextMenu/ContextMenu';
 
 interface ContextCardProps {
@@ -15,9 +15,8 @@ interface ContextCardProps {
 
 export default function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
   const { removeContext, selectedContextIds } = useContextStore();
+  const { toggleTooltip } = useTooltipStore();
   const isSelectedForBacklog = selectedContextIds.has(context.id);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
@@ -25,7 +24,6 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', context.id);
     e.dataTransfer.effectAllowed = 'move';
-    setShowTooltip(false);
   };
 
   const handleRemove = async (e: React.MouseEvent) => {
@@ -37,18 +35,16 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
     }
   };
 
-  const handleMouseEnter = (e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltipPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top
-    });
-    setShowTooltip(true);
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleTooltip(context, groupColor || '#8B5CF6');
+  };
+
+  const handleMouseEnter = () => {
     setIsHovered(true);
   };
 
   const handleMouseLeave = () => {
-    setShowTooltip(false);
     setIsHovered(false);
   };
 
@@ -66,7 +62,6 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setShowTooltip(false);
 
     // Calculate optimal position to avoid screen edges
     const menuWidth = 200;
@@ -110,6 +105,7 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         whileDrag={{ scale: 1.05, rotate: 2 }}
         draggable
         onDragStart={handleDragStart as any}
+        onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleContextMenu}
@@ -194,12 +190,6 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
           transition={{ duration: 0.3 }}
         />
       </motion.div>
-
-      <ContextTooltip
-        context={context}
-        isVisible={showTooltip}
-        position={tooltipPosition}
-      />
 
       <ContextMenu
         context={context}

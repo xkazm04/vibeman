@@ -54,16 +54,36 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="mb-6 bg-gradient-to-br from-gray-900/80 via-gray-800/80 to-gray-900/80 border border-gray-700/40 rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl"
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="relative mb-6 bg-gradient-to-br from-gray-900/95 via-slate-900/20 to-blue-900/30 border border-gray-700/40 rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl"
       >
-        {/* Background Effects */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5 rounded-3xl" />
+        {/* Neural Background Effects */}
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5 rounded-3xl" />
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-3xl" />
-        {/* Header Bar */}
-        <div className="relative flex items-center justify-between px-8 py-6 bg-gray-800/20 border-b border-gray-700/30">
+        
+        {/* Animated Grid Pattern */}
+        <motion.div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)
+            `,
+            backgroundSize: '20px 20px'
+          }}
+          animate={{
+            backgroundPosition: ['0px 0px', '20px 20px'],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+        {/* Neural Header Bar */}
+        <div className="relative flex items-center justify-between px-8 py-6 bg-gradient-to-r from-gray-800/30 via-slate-900/20 to-gray-800/30 border-b border-gray-700/30 backdrop-blur-sm">
           <div className="flex items-center space-x-6">
             {/* Smart Save Button - Enhanced with better visuals */}
             <motion.button
@@ -87,9 +107,9 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                   setShowGroupModal(true);
                 }
               }}
-              className={`relative p-4 rounded-2xl transition-all duration-300 ${selectedFilesCount > 0 && groups.length > 0
+              className={`relative group p-4 rounded-2xl transition-all duration-300 backdrop-blur-sm ${selectedFilesCount > 0 && groups.length > 0
                 ? 'bg-gradient-to-r from-cyan-500/30 to-blue-500/30 text-cyan-300 shadow-lg shadow-cyan-500/20 hover:from-cyan-500/40 hover:to-blue-500/40 hover:shadow-cyan-500/30 border border-cyan-500/30'
-                : 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-400 hover:from-purple-500/30 hover:to-blue-500/30 border border-purple-500/30'
+                : 'bg-gradient-to-r from-blue-500/20 to-blue-500/20 text-blue-400 hover:from-blue-500/30 hover:to-blue-500/30 border border-blue-500/30'
                 }`}
               title={selectedFilesCount > 0 && groups.length > 0 ? `Save ${selectedFilesCount} selected files` : 'Manage groups'}
               whileHover={{ scale: 1.05 }}
@@ -101,7 +121,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                 <Grid3X3 className="w-6 h-6" />
               )}
 
-              {/* Glow effect */}
+              {/* Neural Glow Effect */}
               <motion.div
                 className="absolute -inset-1 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                 style={{
@@ -111,28 +131,77 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                   filter: 'blur(8px)',
                 }}
               />
+              
+              {/* Floating Particles Effect */}
+              {Array.from({ length: 3 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
+                  style={{
+                    left: `${20 + i * 20}%`,
+                    top: `${30 + i * 15}%`,
+                  }}
+                  animate={{
+                    y: [0, -10, 0],
+                    opacity: [0, 1, 0],
+                    scale: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 2 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: i * 0.5,
+                  }}
+                />
+              ))}
             </motion.button>
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-4">
                 <div>
-                  <h3 className="text-2xl font-bold text-white font-mono mb-1">Context Dashboard</h3>
-                  <div className="flex items-center space-x-4 text-sm text-gray-400 font-mono">
+                  <motion.h3 
+                    className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-slate-400 to-blue-400 bg-clip-text text-transparent font-mono mb-1"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2, duration: 0.6 }}
+                  >
+                    CONTEXT NEURAL NETWORK
+                  </motion.h3>
+                  <motion.div 
+                    className="flex items-center space-x-4 text-sm text-gray-400 font-mono"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.6 }}
+                  >
                     <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                      <span>{allGroups.length} groups</span>
+                      <motion.div 
+                        className="w-2 h-2 bg-blue-400 rounded-full"
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
+                      <span>{allGroups.length} neural clusters</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <span>{contexts.length} contexts</span>
+                      <motion.div 
+                        className="w-2 h-2 bg-cyan-400 rounded-full"
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                      />
+                      <span>{contexts.length} context nodes</span>
                     </div>
                     {ungroupedContexts.length > 0 && (
                       <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                        <span className="text-yellow-400">{ungroupedContexts.length} ungrouped</span>
+                        <motion.div 
+                          className="w-2 h-2 bg-yellow-400 rounded-full"
+                          animate={{ 
+                            scale: [1, 1.5, 1],
+                            opacity: [0.6, 1, 0.6] 
+                          }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        />
+                        <span className="text-yellow-400">{ungroupedContexts.length} unlinked</span>
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 </div>
 
                 {/* Add Context Button */}
@@ -166,8 +235,8 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
 
               {loading && (
                 <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm text-purple-400 font-mono">Syncing...</span>
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm text-blue-400 font-mono">Syncing...</span>
                 </div>
               )}
             </div>
@@ -228,11 +297,11 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                 >
                   <div className="text-center">
                     <div className="relative mb-6">
-                      <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-3xl flex items-center justify-center backdrop-blur-sm">
-                        <Plus className="w-10 h-10 text-purple-400" />
+                      <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500/20 to-blue-500/20 rounded-3xl flex items-center justify-center backdrop-blur-sm">
+                        <Plus className="w-10 h-10 text-blue-400" />
                       </div>
                       <motion.div
-                        className="absolute -inset-2 bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-3xl blur-xl opacity-50"
+                        className="absolute -inset-2 bg-gradient-to-r from-blue-500/30 to-blue-500/30 rounded-3xl blur-xl opacity-50"
                         animate={{ scale: [1, 1.1, 1] }}
                         transition={{ duration: 2, repeat: Infinity }}
                       />
@@ -241,7 +310,7 @@ export default function HorizontalContextBar({ selectedFilesCount, selectedFileP
                     <p className="text-gray-500 mb-6">Create your first group to start organizing your workflow</p>
                     <motion.button
                       onClick={() => setShowGroupModal(true)}
-                      className="px-6 py-3 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-400 rounded-xl hover:from-purple-500/30 hover:to-blue-500/30 transition-all font-mono border border-purple-500/30"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500/20 to-blue-500/20 text-blue-400 rounded-xl hover:from-blue-500/30 hover:to-blue-500/30 transition-all font-mono border border-blue-500/30"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >

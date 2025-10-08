@@ -7,9 +7,9 @@ const baseAgentThemes = {
       icon: 'text-cyan-400/20'
     },
     mastermind: {
-      bg: 'bg-purple-500/10 border-purple-500/20',
-      hoverBg: 'hover:bg-purple-500/15',
-      icon: 'text-purple-400/20'
+      bg: 'bg-blue-500/10 border-blue-500/20',
+      hoverBg: 'hover:bg-blue-500/15',
+      icon: 'text-blue-400/20'
     },
     tester: {
       bg: 'bg-green-500/10 border-green-500/20',
@@ -17,9 +17,9 @@ const baseAgentThemes = {
       icon: 'text-green-400/20'
     },
     artist: {
-      bg: 'bg-pink-500/10 border-pink-500/20',
-      hoverBg: 'hover:bg-pink-500/15',
-      icon: 'text-pink-400/20'
+      bg: 'bg-red-500/10 border-red-500/20',
+      hoverBg: 'hover:bg-red-500/15',
+      icon: 'text-red-400/20'
     }
   };
 
@@ -53,7 +53,7 @@ export const getFileTypeColor = (fileName: string) => {
         return 'text-yellow-400';
       case 'css':
       case 'scss':
-        return 'text-pink-400';
+        return 'text-red-400';
       case 'json':
         return 'text-green-400';
       case 'md':

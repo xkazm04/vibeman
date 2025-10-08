@@ -133,7 +133,7 @@ export default function FileScannerStatus({
               <div className="text-xs text-gray-400">Docs Added</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-purple-400">{scanStats.codesCleaned}</div>
+              <div className="text-lg font-bold text-blue-400">{scanStats.codesCleaned}</div>
               <div className="text-xs text-gray-400">Code Cleaned</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
@@ -159,7 +159,7 @@ export default function FileScannerStatus({
               <div className="text-xs text-gray-400">TypeScript</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-purple-400">{buildStats.eslintErrors}</div>
+              <div className="text-lg font-bold text-blue-400">{buildStats.eslintErrors}</div>
               <div className="text-xs text-gray-400">ESLint</div>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function FileScannerStatus({
               <div className="text-xs text-gray-400">Errors Skipped</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-purple-400">{fixStats.filesWithChanges}</div>
+              <div className="text-lg font-bold text-blue-400">{fixStats.filesWithChanges}</div>
               <div className="text-xs text-gray-400">Files Changed</div>
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function FileScannerStatus({
                 <div className="text-sm text-gray-400">Docs Added</div>
               </div>
               <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-purple-400 mb-1">{scanStats.codesCleaned}</div>
+                <div className="text-3xl font-bold text-blue-400 mb-1">{scanStats.codesCleaned}</div>
                 <div className="text-sm text-gray-400">Code Cleaned</div>
               </div>
               <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
@@ -247,7 +247,7 @@ export default function FileScannerStatus({
                 <div className="text-sm text-gray-400">TypeScript</div>
               </div>
               <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-purple-400 mb-1">{buildStats.eslintErrors}</div>
+                <div className="text-3xl font-bold text-blue-400 mb-1">{buildStats.eslintErrors}</div>
                 <div className="text-sm text-gray-400">ESLint</div>
               </div>
             </div>
@@ -288,7 +288,7 @@ export default function FileScannerStatus({
                 <div className="text-sm text-gray-400">Errors Skipped</div>
               </div>
               <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-purple-400 mb-1">{fixStats.filesWithChanges}</div>
+                <div className="text-3xl font-bold text-blue-400 mb-1">{fixStats.filesWithChanges}</div>
                 <div className="text-sm text-gray-400">Files Changed</div>
               </div>
             </div>

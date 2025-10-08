@@ -90,7 +90,7 @@ export default function BuildErrorResults({
 
     switch (error.type) {
       case 'typescript': return <Code className="w-5 h-5 text-blue-400" />;
-      case 'eslint': return <Wrench className="w-5 h-5 text-purple-400" />;
+      case 'eslint': return <Wrench className="w-5 h-5 text-blue-400" />;
       case 'webpack': return <Zap className="w-5 h-5 text-orange-400" />;
       case 'nextjs': return <FileText className="w-5 h-5 text-green-400" />;
       default: return <HelpCircle className="w-5 h-5 text-gray-400" />;
@@ -100,7 +100,7 @@ export default function BuildErrorResults({
   const getErrorTypeColor = (type: string) => {
     const colors = {
       'typescript': 'text-blue-400 bg-blue-500/20',
-      'eslint': 'text-purple-400 bg-purple-500/20',
+      'eslint': 'text-blue-400 bg-blue-500/20',
       'webpack': 'text-orange-400 bg-orange-500/20',
       'nextjs': 'text-green-400 bg-green-500/20',
       'unknown': 'text-gray-400 bg-gray-500/20'
@@ -180,7 +180,7 @@ export default function BuildErrorResults({
                 </span>
               )}
               {stats.eslintErrors > 0 && (
-                <span className="flex items-center space-x-1 text-purple-400">
+                <span className="flex items-center space-x-1 text-blue-400">
                   <Wrench className="w-4 h-4" />
                   <span>{stats.eslintErrors} ESLint</span>
                 </span>

@@ -38,7 +38,7 @@ export default function InteractiveContent({
       {/* Trigger Word */}
       <span
         onClick={handleTriggerClick}
-        className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-md cursor-pointer hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-200 text-purple-300 hover:text-purple-200 text-sm font-medium"
+        className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-blue-500/20 to-red-500/20 border border-blue-500/30 rounded-md cursor-pointer hover:from-blue-500/30 hover:to-red-500/30 transition-all duration-200 text-blue-300 hover:text-blue-200 text-sm font-medium"
       >
         {trigger}
         <Maximize2 className="w-3 h-3 ml-1 opacity-70" />

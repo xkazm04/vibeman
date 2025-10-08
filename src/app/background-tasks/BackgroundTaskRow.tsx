@@ -97,7 +97,7 @@ export default function BackgroundTaskRow({ task, index, onCancel, onRetry, onDe
     >
       <td className="px-3 py-1 align-middle">
         <div className="flex items-center justify-center h-8" title={getTaskTypeLabel(task.task_type)}>
-          <TaskIcon className="w-4 h-4 text-purple-400 flex-shrink-0" />
+          <TaskIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
         </div>
       </td>
       <td className="px-3 py-1 align-middle">

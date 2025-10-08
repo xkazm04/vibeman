@@ -77,7 +77,7 @@ export default function GoalsDetailActions({
               whileTap={{ scale: 0.98 }}
               onClick={onSave}
               disabled={isSaving || !editedGoal.title.trim()}
-              className="px-6 py-2 bg-gradient-to-r from-blue-600/50 to-indigo-600/50 hover:from-blue-500/60 hover:to-indigo-500/60 border border-blue-500/30 rounded-lg text-white font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="px-6 py-2 bg-gradient-to-r from-blue-600/50 to-slate-600/50 hover:from-blue-500/60 hover:to-slate-500/60 border border-blue-500/30 rounded-lg text-white font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isSaving ? (
                 <>

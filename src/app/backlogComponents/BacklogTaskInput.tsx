@@ -136,7 +136,7 @@ export default function BacklogTaskInput({ onTaskGenerated }: BacklogTaskInputPr
         <button
           onClick={() => setMode('context')}
           className={`p-2 rounded-md transition-all duration-200 ${mode === 'context'
-            ? 'bg-purple-500/20 text-purple-400'
+            ? 'bg-blue-500/20 text-blue-400'
             : 'text-gray-400 hover:text-gray-300'
             }`}
           title="Context files mode"

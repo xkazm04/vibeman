@@ -102,43 +102,135 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 50 }}
           transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 30 }}
-          className="relative bg-gray-900/95 border border-gray-700/50 rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden backdrop-blur-xl"
+          className="relative bg-gradient-to-br from-gray-900/95 via-slate-900/20 to-blue-900/30 border border-gray-700/50 rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden backdrop-blur-xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Background Effects */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5" />
+          {/* Neural Background Effects */}
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5" />
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent" />
           
-          {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-500/20 via-transparent to-blue-500/20 animate-pulse" />
-          </div>
-          {/* Header */}
-          <div className="relative flex items-center justify-between p-8 border-b border-gray-700/30">
+          {/* Animated Neural Grid Pattern */}
+          <motion.div
+            className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage: `
+                linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)
+              `,
+              backgroundSize: '20px 20px'
+            }}
+            animate={{
+              backgroundPosition: ['0px 0px', '20px 20px'],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+          
+          {/* Floating Neural Particles */}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                y: [0, -50, 0],
+                x: [0, Math.random() * 30 - 15, 0],
+                opacity: [0, 1, 0],
+                scale: [0, 1, 0],
+              }}
+              transition={{
+                duration: 3 + Math.random() * 3,
+                repeat: Infinity,
+                delay: Math.random() * 2,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+          {/* Neural Header */}
+          <div className="relative flex items-center justify-between p-8 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/30 via-slate-900/20 to-gray-800/30 backdrop-blur-sm">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Grid3X3 className="w-8 h-8 text-purple-400" />
-                </div>
                 <motion.div
-                  className="absolute -inset-2 bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-2xl blur-xl opacity-50"
+                  className="w-16 h-16 bg-gradient-to-br from-cyan-500/20 via-slate-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-cyan-500/30"
+                  animate={{
+                    rotate: [0, 360],
+                  }}
+                  transition={{
+                    rotate: { duration: 30, repeat: Infinity, ease: "linear" },
+                  }}
+                >
+                  <Grid3X3 className="w-8 h-8 text-cyan-400" />
+                </motion.div>
+                <motion.div
+                  className="absolute -inset-2 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 rounded-2xl blur-xl opacity-50"
                   animate={{ scale: [1, 1.1, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 />
+                
+                {/* Orbiting Elements */}
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute inset-0 flex items-center justify-center"
+                    animate={{
+                      rotate: [0, 360],
+                    }}
+                    transition={{
+                      duration: 8 + i * 2,
+                      repeat: Infinity,
+                      ease: "linear",
+                      delay: i * 1,
+                    }}
+                  >
+                    <motion.div
+                      className={`w-2 h-2 rounded-full ${
+                        i === 0 ? 'bg-cyan-400' : 'bg-blue-400'
+                      }`}
+                      style={{
+                        transform: `translateX(${30 + i * 6}px)`,
+                      }}
+                      animate={{
+                        scale: [1, 1.5, 1],
+                        opacity: [0.6, 1, 0.6],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        delay: i * 0.4,
+                      }}
+                    />
+                  </motion.div>
+                ))}
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-white font-mono mb-1">
-                  Context Groups Dashboard
-                </h2>
-                <p className="text-gray-400 font-mono">
-                  Organize your workflow with intelligent context collections
-                </p>
+                <motion.h2 
+                  className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-slate-400 to-blue-400 bg-clip-text text-transparent font-mono mb-1"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2, duration: 0.6 }}
+                >
+                  NEURAL CONTEXT CLUSTERS
+                </motion.h2>
+                <motion.p 
+                  className="text-cyan-300/80 font-mono"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.6 }}
+                >
+                  Advanced workflow orchestration with quantum context management
+                </motion.p>
               </div>
             </div>
             
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <div className="text-2xl font-bold text-purple-400 font-mono">
+                <div className="text-2xl font-bold text-blue-400 font-mono">
                   {groups.length}/20
                 </div>
                 <div className="text-xs text-gray-500 uppercase tracking-wider">
@@ -164,11 +256,11 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 rounded-2xl" />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-blue-500/5 rounded-2xl" />
               
               <div className="relative space-y-6">
                 <div className="flex items-center space-x-3">
-                  <Sparkles className="w-6 h-6 text-purple-400" />
+                  <Sparkles className="w-6 h-6 text-blue-400" />
                   <h3 className="text-xl font-bold text-white font-mono">Create New Group</h3>
                 </div>
                 
@@ -184,7 +276,7 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
                         setError('');
                       }}
                       placeholder="e.g., Frontend Components"
-                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all backdrop-blur-sm font-mono"
+                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm font-mono"
                       maxLength={30}
                     />
                   </div>
@@ -229,12 +321,12 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
                           key={name}
                           onClick={() => setSelectedIcon(name)}
                           className={`relative w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center ${
-                            selectedIcon === name ? 'border-purple-400 bg-purple-500/20' : 'border-gray-600 hover:border-gray-400 bg-gray-700/30'
+                            selectedIcon === name ? 'border-blue-400 bg-blue-500/20' : 'border-gray-600 hover:border-gray-400 bg-gray-700/30'
                           }`}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          <Icon className={`w-5 h-5 ${selectedIcon === name ? 'text-purple-400' : 'text-gray-400'}`} />
+                          <Icon className={`w-5 h-5 ${selectedIcon === name ? 'text-blue-400' : 'text-gray-400'}`} />
                         </motion.button>
                       ))}
                     </div>
@@ -253,7 +345,7 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
                   <motion.button
                     onClick={handleCreateGroup}
                     disabled={loading || groups.length >= 20}
-                    className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-white rounded-xl hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-mono border border-purple-500/30"
+                    className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-blue-500/20 text-white rounded-xl hover:from-blue-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-mono border border-blue-500/30"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -362,7 +454,7 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
                                     setEditingGroup(null);
                                   }
                                 }}
-                                className="bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 font-mono"
+                                className="bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono"
                                 autoFocus
                               />
                             ) : (

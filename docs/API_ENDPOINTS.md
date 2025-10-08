@@ -60,243 +60,220 @@ This document summarizes API endpoints implemented in the Vibeman codebase (Next
   - Use: Clear events for a project
   - Tool suitability: Caution (destructive)
 
-- /api/kiro/folder-structure
+### /api/kiro/folder-structure
   - File: src/app/api/kiro/folder-structure/route.ts
   - Methods: GET
   - Use: Analyze or return project folder structure
-  - Tool suitability: Yes (read-only)
+  - Tool suitability: **Yes (read-only)**
 
-- /api/kiro/generate-context
+### /api/kiro/generate-context
   - File: src/app/api/kiro/generate-context/route.ts
   - Methods: POST
   - Use: Create context bundles for files
-  - Tool suitability: Caution (writes context artifacts)
+  - Tool suitability: **Yes (writes context artifacts)**
 
-- /api/kiro/generate-context-background
+### /api/kiro/generate-context-background
   - File: src/app/api/kiro/generate-context-background/route.ts
   - Methods: POST
   - Use: Background generation of contexts
-  - Tool suitability: Caution (enqueues work/writes)
+  - Tool suitability: **Yes (enqueues work/writes)**
 
-- /api/kiro/read-file
-  - File: src/app/api/kiro/read-file/route.ts
-  - Methods: POST
-  - Use: Read a file from disk
-  - Tool suitability: Yes (read-only)
-
-- /api/kiro/save-file
-  - File: src/app/api/kiro/save-file/route.ts
-  - Methods: POST
-  - Use: Write/update a file on disk
-  - Tool suitability: Caution (file write)
-
-- /api/kiro/save-context-file
-  - File: src/app/api/kiro/save-context-file/route.ts
-  - Methods: POST
-  - Use: Write a generated context file
-  - Tool suitability: Caution (file write)
-
-- /api/kiro/save-contexts-batch
-  - File: src/app/api/kiro/save-contexts-batch/route.ts
-  - Methods: POST
-  - Use: Batch write multiple context files/records
-  - Tool suitability: Caution (bulk writes)
-
-- /api/kiro/background-tasks
+### /api/kiro/background-tasks
   - File: src/app/api/kiro/background-tasks/route.ts
   - Methods: GET, POST, PUT, DELETE
   - Use: Manage background tasks (list/create/update/delete)
-  - Tool suitability: Yes for GET; Caution for POST/PUT/DELETE (queue control)
+  - Tool suitability: **Yes for GET; Caution for POST/PUT/DELETE (queue control)**
 
-- /api/kiro/background-tasks/queue
+### /api/kiro/background-tasks/queue
   - File: src/app/api/kiro/background-tasks/queue/route.ts
   - Methods: GET, POST
   - Use: Control queue processing (start/stop/config)
-  - Tool suitability: Caution (affects system-wide processing)
+  - Tool suitability: **Yes Caution (affects system-wide processing)**
 
-- /api/kiro/start-queue
+### - /api/kiro/start-queue
   - File: src/app/api/kiro/start-queue/route.ts
   - Methods: POST
   - Use: Convenience endpoint to start the background queue
-  - Tool suitability: Yes (bounded, intended entrypoint)
+  - Tool suitability: **Yes (bounded, intended entrypoint)**
 
-- /api/kiro/migrate-database
+### - /api/kiro/migrate-database
   - File: src/app/api/kiro/migrate-database/route.ts
   - Methods: POST
   - Use: Initialize/upgrade background task DB schema
   - Tool suitability: Caution (schema changes)
 
-- /api/kiro/test-background-task
-  - File: src/app/api/kiro/test-background-task/route.ts
+## Disk services
+### /api/disk/read-file
+  - File: src/app/api/disk/read-file/route.ts
   - Methods: POST
-  - Use: Insert/test background task flows
-  - Tool suitability: No (test-only)
+  - Use: Read a file from disk
+  - Tool suitability: **Yes (read-only)**
 
-- /api/kiro/test-migration
-  - File: src/app/api/kiro/test-migration/route.ts
-  - Methods: GET, POST
-  - Use: Exercise DB migration paths
-  - Tool suitability: No (test-only)
-
-- /api/kiro/test-ollama
-  - File: src/app/api/kiro/test-ollama/route.ts
+### /api/disk/save-file
+  - File: src/app/api/kiro/save-file/route.ts
   - Methods: POST
-  - Use: Validate local Ollama connectivity
-  - Tool suitability: Yes (diagnostics)
+  - Use: Write/update a file on disk
+  - Tool suitability: **Yes Caution (file write)**
 
-Projects and server lifecycle
+### /api/disk/save-context-file
+  - File: src/app/api/kiro/save-context-file/route.ts
+  - Methods: POST
+  - Use: Write a generated context file
+  - Tool suitability: **Yes Caution (file write)**
 
-- /api/projects
+### /api/disk/save-contexts-batch
+  - File: src/app/api/kiro/save-contexts-batch/route.ts
+  - Methods: POST
+  - Use: Batch write multiple context files/records
+  - Tool suitability: **Yes Caution (bulk writes)**
+
+## Projects and server lifecycle
+
+### - /api/projects
   - File: src/app/api/projects/route.ts
   - Methods: GET, POST, PUT, DELETE
   - Use: Project registry operations (list/manage)
-  - Tool suitability: Yes for reads; Caution for writes
+  - Tool suitability: **Yes for reads; Caution for writes**
 
-- /api/projects/directories
+### - /api/projects/directories
   - File: src/app/api/projects/directories/route.ts
   - Methods: GET
   - Use: Enumerate or validate project directories
   - Tool suitability: Yes (read-only)
 
-- /api/projects/ports
+### - /api/projects/ports
   - File: src/app/api/projects/ports/route.ts
   - Methods: GET
   - Use: List used ports from projects DB
   - Tool suitability: Yes (read-only)
 
-- /api/projects/monitor (legacy-style handler)
-  - File: src/app/api/projects/monitor.ts
-  - Methods: GET
-  - Use: Git and FS status snapshot for given projects
-  - Tool suitability: Yes (read-only; legacy route style)
-
-- /api/server/start
+### - /api/server/start
   - File: src/app/api/server/start/route.ts
   - Methods: POST
   - Use: Start a registered project’s dev server via processManager
   - Tool suitability: Caution (spawns processes)
 
-- /api/server/stop
+### - /api/server/stop
   - File: src/app/api/server/stop/route.ts
   - Methods: POST
   - Use: Stop a running project server
   - Tool suitability: Caution (kills processes)
 
-- /api/server/status
+### - /api/server/status
   - File: src/app/api/server/status/route.ts
   - Methods: GET
   - Use: Get statuses for all tracked processes
   - Tool suitability: Yes (read-only)
 
-- /api/server/logs/[id]
+### - /api/server/logs/[id]
   - File: src/app/api/server/logs/[id]/route.ts
   - Methods: GET
   - Use: Fetch recent logs for a tracked process
   - Tool suitability: Yes (read-only)
 
-- /api/server/debug
+### - /api/server/debug
   - File: src/app/api/server/debug/route.ts
   - Methods: GET
   - Use: Debug/diagnostic index for server tools
   - Tool suitability: Yes (read-only)
 
-- /api/server/debug/scan-ports
+### - /api/server/debug/scan-ports
   - File: src/app/api/server/debug/scan-ports/route.ts
   - Methods: POST
   - Use: Scan for in-use ports
   - Tool suitability: Yes (read-only)
 
-- /api/server/debug/port/[port]
+### - /api/server/debug/port/[port]
   - File: src/app/api/server/debug/port/[port]/route.ts
   - Methods: GET
   - Use: Inspect a specific port and possibly its PID
   - Tool suitability: Yes (read-only)
 
-- /api/server/debug/kill-process
+### - /api/server/debug/kill-process
   - File: src/app/api/server/debug/kill-process/route.ts
   - Methods: POST
   - Use: Attempt to kill a process by PID
   - Tool suitability: Caution (destructive)
 
-- /api/server/git/clone
+### - /api/server/git/clone
   - File: src/app/api/server/git/clone/route.ts
   - Methods: POST
   - Use: Clone a repository into a target path
   - Tool suitability: Caution (filesystem/network side effects)
 
-- /api/server/git/pull
+### - /api/server/git/pull
   - File: src/app/api/server/git/pull/route.ts
   - Methods: POST
   - Use: Pull latest changes for a repo
   - Tool suitability: Caution (modifies working copy)
 
-- /api/server/git/status
+### - /api/server/git/status
   - File: src/app/api/server/git/status/route.ts
   - Methods: POST
   - Use: Check repo status (branch, changes) via server
   - Tool suitability: Yes (read-only against repo)
 
-Backlog, requirements, reviewer, tasks
+## Backlog, requirements, reviewer, tasks
 
-- /api/backlog
+### - /api/backlog
   - File: src/app/api/backlog/route.ts
   - Methods: GET, POST, PUT, DELETE
   - Use: Backlog index/dispatch (see subroutes for actions)
-  - Tool suitability: Yes for reads; Caution for writes
+  - Tool suitability: **Yes for reads; Caution for writes**
 
-- /api/backlog/generate-task
+### - /api/backlog/generate-task
   - File: src/app/api/backlog/generate-task/route.ts
   - Methods: POST
   - Use: Generate a backlog task (AI-assisted)
-  - Tool suitability: Caution (creates records)
+  - Tool suitability: **Caution (creates records)**
 
-- /api/backlog/process-coding-task
+### - /api/backlog/process-coding-task
   - File: src/app/api/backlog/process-coding-task/route.ts
   - Methods: POST
   - Use: Process a coding task (long-running, AI)
-  - Tool suitability: Caution (enqueues/executes work)
+  - Tool suitability: **Yes Caution (enqueues/executes work)**
 
-- /api/backlog/start-coding
+### - /api/backlog/start-coding
   - File: src/app/api/backlog/start-coding/route.ts
   - Methods: POST
   - Use: Kick off a coding session/task
-  - Tool suitability: Caution (starts work)
+  - Tool suitability: **Yes Caution (starts work)**
 
-- /api/backlog/update-task
+### - /api/backlog/update-task
   - File: src/app/api/backlog/update-task/route.ts
   - Methods: PUT, DELETE
   - Use: Update backlog task fields/status
-  - Tool suitability: Caution (writes data)
+  - Tool suitability: **Yes Caution (writes data)**
 
-- /api/backlog/test
+### - /api/backlog/test
   - File: src/app/api/backlog/test/route.ts
   - Methods: POST
   - Use: Test utilities for backlog flows
   - Tool suitability: No (test-only)
 
-- /api/backlog/debug
+### - /api/backlog/debug
   - File: src/app/api/backlog/debug/route.ts
   - Methods: GET
   - Use: Debug utilities for backlog
   - Tool suitability: No (debug-only)
 
-- /api/requirements/create
+### - /api/requirements/create
   - File: src/app/api/requirements/create/route.ts
   - Methods: POST
   - Use: Create requirement specs/records
-  - Tool suitability: Caution (writes data)
+  - Tool suitability: **Yes Caution (writes data)**
 
-- /api/requirements/status
+### - /api/requirements/status
   - File: src/app/api/requirements/status/route.ts
   - Methods: GET
   - Use: Check/return requirement processing status
-  - Tool suitability: Yes (read-only)
+  - Tool suitability: **Yes (read-only)**
 
-- /api/reviewer/pending-files
+### - /api/reviewer/pending-files
   - File: src/app/api/reviewer/pending-files/route.ts
   - Methods: GET
   - Use: List files awaiting review
-  - Tool suitability: Yes (read-only)
+  - Tool suitability: **Yes (read-only)**
 
 - /api/reviewer/pending-count
   - File: src/app/api/reviewer/pending-count/route.ts
@@ -310,65 +287,65 @@ Backlog, requirements, reviewer, tasks
   - Use: List pending review sessions
   - Tool suitability: Yes (read-only)
 
-- /api/reviewer/accept-file
+### - /api/reviewer/accept-file
   - File: src/app/api/reviewer/accept-file/route.ts
   - Methods: POST
   - Use: Accept a reviewed file
   - Tool suitability: Caution (state change)
 
-- /api/reviewer/reject-file
+### - /api/reviewer/reject-file
   - File: src/app/api/reviewer/reject-file/route.ts
   - Methods: POST
   - Use: Reject a reviewed file
   - Tool suitability: Caution (state change)
 
-- /api/reviewer/decline-session
+### - /api/reviewer/decline-session
   - File: src/app/api/reviewer/decline-session/route.ts
   - Methods: POST
   - Use: Decline a review session
   - Tool suitability: Caution (state change)
 
-- /api/tasks/add
+### - /api/tasks/add
   - File: src/app/api/tasks/add/route.ts
   - Methods: POST
   - Use: Add a unit of work/task
-  - Tool suitability: Caution (creates records)
+  - Tool suitability: **Caution (creates records)**
 
-Contexts, goals, structure
+## Contexts, goals, structure
 
-- /api/contexts
+### - /api/contexts
   - File: src/app/api/contexts/route.ts
   - Methods: GET, POST, PUT, DELETE
   - Use: Manage contexts (list/create/update)
-  - Tool suitability: Yes for reads; Caution for writes
+  - Tool suitability: **Yes for reads; Caution for writes**
 
-- /api/context-groups
+### - /api/context-groups
   - File: src/app/api/context-groups/route.ts
   - Methods: GET, POST, PUT, DELETE
   - Use: Manage context groups/categories
-  - Tool suitability: Yes for reads; Caution for writes
+  - Tool suitability: **Yes for reads; Caution for writes**
 
-- /api/goals
+### - /api/goals
   - File: src/app/api/goals/route.ts
   - Methods: GET, POST, PUT, DELETE
   - Use: Manage development goals
-  - Tool suitability: Yes for reads; Caution for writes
+  - Tool suitability: **Yes for reads; Caution for writes**
 
-- /api/project/structure
+### - /api/project/structure
   - File: src/app/api/project/structure/route.ts
   - Methods: POST
   - Use: Return inferred project structure
   - Tool suitability: Yes (read-only)
 
-File scanning and fixing
+## File scanning and fixing
 
-- /api/file-scanner
+### - /api/file-scanner
   - File: src/app/api/file-scanner/route.ts
   - Methods: GET, POST
   - Use: List/scan code files, coordinate LLM-based scan/rewrite
   - Tool suitability: Caution (may write files depending on action)
 
-- /api/file-fixer
+### - /api/file-fixer
   - File: src/app/api/file-fixer/route.ts
   - Methods: GET, POST
   - Use: Attempt to fix build errors via LLM

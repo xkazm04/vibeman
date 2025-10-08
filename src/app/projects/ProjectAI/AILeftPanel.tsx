@@ -39,10 +39,10 @@ export default function AILeftPanel({
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <h3 className="text-lg font-bold text-white mb-2 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+        <h3 className="text-lg font-bold text-white mb-2 bg-gradient-to-r from-blue-400 to-blue-400 bg-clip-text text-transparent">
           System Status
         </h3>
-        <div className="w-12 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+        <div className="w-12 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500 rounded-full"></div>
       </motion.div>
 
       {/* Status Indicators */}
@@ -170,7 +170,7 @@ export default function AILeftPanel({
         transition={{ duration: 0.4, delay: 0.6 }}
       >
         <div className="mb-4">
-          <span className="text-sm font-semibold text-white bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <span className="text-sm font-semibold text-white bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent">
             AI Provider
           </span>
           <p className="text-xs text-gray-400 mt-1">Choose your preferred AI model</p>
@@ -203,7 +203,7 @@ export default function AILeftPanel({
             <motion.div
               className={`w-14 h-7 rounded-full border-2 transition-colors duration-300 ${
                 backgroundTask
-                  ? 'bg-purple-500/30 border-purple-500/60 shadow-lg shadow-purple-500/20'
+                  ? 'bg-blue-500/30 border-blue-500/60 shadow-lg shadow-blue-500/20'
                   : 'bg-gray-700/50 border-gray-600/50'
               }`}
               animate={{
@@ -212,7 +212,7 @@ export default function AILeftPanel({
             >
               <motion.div
                 className={`w-5 h-5 rounded-full shadow-lg flex items-center justify-center ${
-                  backgroundTask ? 'bg-purple-500' : 'bg-gray-500'
+                  backgroundTask ? 'bg-blue-500' : 'bg-gray-500'
                 }`}
                 animate={{
                   x: backgroundTask ? 28 : 2,

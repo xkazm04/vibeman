@@ -197,15 +197,15 @@ export default function GoalResultDisplay({
                       <div className={`p-2 rounded-lg ${
                         currentGoal.type === 'Business' 
                           ? 'bg-blue-500/20 border border-blue-500/30'
-                          : 'bg-purple-500/20 border border-purple-500/30'
+                          : 'bg-blue-500/20 border border-blue-500/30'
                       }`}>
                         {currentGoal.type === 'Business' ? (
                           <TrendingUp className={`w-4 h-4 ${
-                            currentGoal.type === 'Business' ? 'text-blue-400' : 'text-purple-400'
+                            currentGoal.type === 'Business' ? 'text-blue-400' : 'text-blue-400'
                           }`} />
                         ) : (
                           <Zap className={`w-4 h-4 ${
-                            currentGoal.type === 'Business' ? 'text-blue-400' : 'text-purple-400'
+                            currentGoal.type === 'Business' ? 'text-blue-400' : 'text-blue-400'
                           }`} />
                         )}
                       </div>
@@ -226,7 +226,7 @@ export default function GoalResultDisplay({
                         <span className={`inline-block px-2 py-1 text-xs rounded-full font-medium mt-1 ${
                           currentGoal.type === 'Business' 
                             ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                            : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                            : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                         }`}>
                           {currentGoal.type}
                         </span>
@@ -264,7 +264,7 @@ export default function GoalResultDisplay({
                       <div key={milestoneIndex} className="flex items-start space-x-3">
                         <div className="flex-shrink-0 mt-1.5">
                           <div className={`w-2 h-2 rounded-full ${
-                            currentGoal.type === 'Business' ? 'bg-blue-400' : 'bg-purple-400'
+                            currentGoal.type === 'Business' ? 'bg-blue-400' : 'bg-blue-400'
                           }`}></div>
                         </div>
                         <div className="flex-1">

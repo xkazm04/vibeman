@@ -104,16 +104,16 @@ export const getFileTypeInfo = (type: string): { icon: React.ReactNode; color: s
     'jsx': { component: 'Code', color: 'text-blue-400' },
     'ts': { component: 'Code', color: 'text-yellow-400' },
     'js': { component: 'Code', color: 'text-yellow-400' },
-    'css': { component: 'Settings', color: 'text-pink-400' },
-    'scss': { component: 'Settings', color: 'text-pink-400' },
+    'css': { component: 'Settings', color: 'text-red-400' },
+    'scss': { component: 'Settings', color: 'text-red-400' },
     'html': { component: 'Code', color: 'text-orange-400' },
     'json': { component: 'Database', color: 'text-green-400' },
-    'md': { component: 'FileText', color: 'text-purple-400' },
+    'md': { component: 'FileText', color: 'text-blue-400' },
     'py': { component: 'Code', color: 'text-green-500' },
-    'png': { component: 'Image', color: 'text-indigo-400' },
-    'jpg': { component: 'Image', color: 'text-indigo-400' },
-    'jpeg': { component: 'Image', color: 'text-indigo-400' },
-    'svg': { component: 'Image', color: 'text-indigo-400' },
+    'png': { component: 'Image', color: 'text-slate-400' },
+    'jpg': { component: 'Image', color: 'text-slate-400' },
+    'jpeg': { component: 'Image', color: 'text-slate-400' },
+    'svg': { component: 'Image', color: 'text-slate-400' },
   };
 
   const info = iconMap[type.toLowerCase()] || { component: 'FileText', color: 'text-gray-400' };

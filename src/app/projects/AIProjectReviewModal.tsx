@@ -525,7 +525,7 @@ export default function AIProjectReviewModal({
         <ModalHeader
           title="AI Project Assistant"
           subtitle="Choose how you'd like AI to help analyze and improve your project"
-          icon={<Brain className="w-5 h-5 text-purple-400" />}
+          icon={<Brain className="w-5 h-5 text-blue-400" />}
           onClose={handleClose}
         />
       ) : (

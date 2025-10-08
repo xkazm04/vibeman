@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FolderOpen, Code, Server, Link, GitBranch, ExternalLink } from 'lucide-react';
 import { Project } from '@/types';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 
 interface ProjectSelectionModalProps {
   projects: Project[];

@@ -86,7 +86,7 @@ export default function TreeHeader({
               <span>{totalNodes} items</span>
             </div>
             <div className="flex items-center space-x-1">
-              <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+              <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
               <span>{selectedNodesCount} selected</span>
             </div>
             {highlightedNodesCount > 0 && (

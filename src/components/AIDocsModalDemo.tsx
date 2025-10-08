@@ -116,7 +116,7 @@ export default function AIDocsModalDemo() {
         
         <button
           onClick={handleShowDemo}
-          className="w-full p-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+          className="w-full p-4 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
         >
           <BookOpen className="w-5 h-5" />
           <span>Open AI Documentation</span>

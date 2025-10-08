@@ -49,7 +49,7 @@ export default function AIContentCard({
       onClick={() => !disabled && onSelectMode(card.id as 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'file-scanner', backgroundTask)}
       disabled={disabled}
       className={`group relative p-6 bg-gradient-to-br ${card.gradient} ${disabled ? '' : card.hoverGradient} border ${card.borderColor} rounded-2xl transition-all duration-500 text-left overflow-hidden ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-2xl hover:shadow-purple-500/10'
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-2xl hover:shadow-blue-500/10'
       } backdrop-blur-sm`}
       style={{
         transformStyle: 'preserve-3d',

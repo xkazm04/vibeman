@@ -228,8 +228,8 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                 {/* Created Date */}
                 <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-2xl p-6 border border-gray-700/40">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-purple-500/20">
-                      <Calendar className="w-6 h-6 text-purple-400" />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/20">
+                      <Calendar className="w-6 h-6 text-blue-400" />
                     </div>
                     <div>
                       <p className="text-lg font-bold text-white font-mono">

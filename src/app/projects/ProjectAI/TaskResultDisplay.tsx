@@ -104,7 +104,7 @@ export default function TaskResultDisplay({
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
           <div className="relative mb-6">
-            <CheckSquare className="w-16 h-16 mx-auto text-purple-400 animate-pulse" />
+            <CheckSquare className="w-16 h-16 mx-auto text-blue-400 animate-pulse" />
           </div>
           <h3 className="text-xl font-semibold text-white mb-3">
             Generating Implementation Tasks
@@ -113,7 +113,7 @@ export default function TaskResultDisplay({
             AI is analyzing your project to identify the most valuable implementation tasks...
           </p>
           <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
-            <div className="bg-purple-400 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+            <div className="bg-blue-400 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
           </div>
         </div>
       </div>
@@ -224,7 +224,7 @@ export default function TaskResultDisplay({
                 <ul className="space-y-2">
                   {currentTask.description.map((step, stepIndex) => (
                     <li key={stepIndex} className="flex items-start space-x-2">
-                      <div className="w-1.5 h-1.5 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
+                      <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
                       {status === 'undecided' ? (
                         <textarea
                           value={step}

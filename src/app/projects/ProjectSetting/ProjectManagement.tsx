@@ -149,9 +149,9 @@ export default function ProjectManagement() {
 
                 {/* Connected Projects */}
                 {connectedProjects.length > 0 && !relatedProject && (
-                  <div className="flex items-center space-x-1.5 bg-purple-500/15 px-3 py-1 rounded-lg border border-purple-500/25">
-                    <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
-                    <span className="text-xs text-purple-400/90 font-medium">
+                  <div className="flex items-center space-x-1.5 bg-blue-500/15 px-3 py-1 rounded-lg border border-blue-500/25">
+                    <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-xs text-blue-400/90 font-medium">
                       {connectedProjects.length} connected
                     </span>
                   </div>

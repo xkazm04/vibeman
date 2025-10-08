@@ -68,11 +68,11 @@ export default function GoalsDetailModalGlass({
       },
       'undecided': { 
         text: 'Under Review', 
-        gradient: 'from-purple-400/20 to-violet-500/20',
-        border: 'border-purple-400/30',
-        textColor: 'text-purple-300',
+        gradient: 'from-blue-400/20 to-violet-500/20',
+        border: 'border-blue-400/30',
+        textColor: 'text-blue-300',
         icon: Circle,
-        glow: 'shadow-purple-500/20'
+        glow: 'shadow-blue-500/20'
       },
       'rejected': { 
         text: 'Archived', 
@@ -141,10 +141,10 @@ export default function GoalsDetailModalGlass({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-6">
                 <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center justify-center shadow-lg shadow-blue-500/10">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center justify-center shadow-lg shadow-blue-500/10">
                     <Target className="w-8 h-8 text-blue-300" />
                   </div>
-                  <div className="absolute -inset-1 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-2xl blur opacity-50"></div>
+                  <div className="absolute -inset-1 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-2xl blur opacity-50"></div>
                 </div>
                 <div>
                   <h1 className="text-3xl font-light text-white/90 tracking-wide">
@@ -202,7 +202,7 @@ export default function GoalsDetailModalGlass({
                 {/* Metadata */}
                 <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-lg">
                   <h3 className="text-lg font-medium text-white/90 mb-4 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                     <span>Information</span>
                   </h3>
                   <div className="space-y-4">
@@ -314,7 +314,7 @@ export default function GoalsDetailModalGlass({
                     <button
                       onClick={handleSave}
                       disabled={isSaving}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-600/20 hover:from-blue-500/30 hover:to-purple-600/30 backdrop-blur-xl border border-blue-400/30 rounded-xl text-blue-300 font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center space-x-2 shadow-lg shadow-blue-500/10"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 backdrop-blur-xl border border-blue-400/30 rounded-xl text-blue-300 font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center space-x-2 shadow-lg shadow-blue-500/10"
                     >
                       <Save className="w-4 h-4" />
                       <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>

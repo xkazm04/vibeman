@@ -75,12 +75,63 @@ export const useGlobalModal = () => {
     }, content);
   };
 
+  // Unified dynamic modal helpers
+  // 1) Show a standard markdown-based modal using the dynamic ModalContent
+  const showMarkdownModal = (
+    title: string,
+    markdown: string,
+    options?: Partial<ModalOptions> & { previewMode?: 'edit' | 'preview' }
+  ) => {
+    const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as any;
+    const content = (
+      <DynamicModalShell
+        header={{ enabled: false } as any}
+        content={{ enabled: true, previewMode: options?.previewMode || 'preview', markdownContent: markdown, hasContent: true } as any}
+        footer={{ enabled: false } as any}
+      />
+    );
+
+    showModal({
+      title,
+      maxWidth: "max-w-4xl",
+      maxHeight: "max-h-[85vh]",
+      ...options
+    }, content);
+  };
+
+  // 2) Generic shell hook: caller provides props for Header/Content/Footer
+  const showShellModal = (
+    config: ModalOptions,
+    shell: {
+      header?: any;
+      content?: any;
+      footer?: any;
+      customContent?: React.ReactNode;
+      isTopMost?: boolean;
+    }
+  ) => {
+    const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as any;
+    const content = (
+      <DynamicModalShell
+        header={shell.header ? { enabled: true, ...shell.header } : { enabled: false }}
+        content={shell.content ? { enabled: true, ...shell.content } : { enabled: false }}
+        footer={shell.footer ? { enabled: true, ...shell.footer } : { enabled: false }}
+        customContent={shell.customContent}
+        isTopMost={shell.isTopMost ?? true}
+      />
+    );
+
+    showModal(config, content);
+  };
+
   return {
     showModal,
     hideModal,
     isModalOpen,
     showConfirmModal,
     showInfoModal,
-    showFullScreenModal
+    showFullScreenModal,
+    showMarkdownModal,
+    showShellModal,
   };
 };

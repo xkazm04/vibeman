@@ -81,7 +81,7 @@ export default function AIDocsDisplay({
     if (!content.trim()) return;
 
     try {
-      const response = await fetch('/api/kiro/save-file', {
+      const response = await fetch('/api/disk/save-file', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

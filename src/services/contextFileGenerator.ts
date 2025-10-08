@@ -113,7 +113,7 @@ export class ContextFileGenerator {
   private static async readFileContent(filePath: string): Promise<string> {
     try {
       // Use Kiro's file reading API
-      const response = await fetch('/api/kiro/read-file', {
+      const response = await fetch('/api/disk/read-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

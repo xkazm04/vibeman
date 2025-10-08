@@ -4,7 +4,6 @@ import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Edit3, Trash2 } fr
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import ContextCard from '../ContextCard';
-import ContextTooltip from '../ContextTooltip';
 
 interface ContextDetailViewProps {
   contextId: string;
@@ -16,8 +15,6 @@ export default function ContextDetailView({ contextId, onClose }: ContextDetailV
   const { showConfirmModal } = useGlobalModal();
   const [selectedContext, setSelectedContext] = useState<Context | null>(null);
   const [contextGroup, setContextGroup] = useState<ContextGroup | null>(null);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   // Find the context and its group
   useEffect(() => {
@@ -236,7 +233,7 @@ export default function ContextDetailView({ contextId, onClose }: ContextDetailV
                 {/* Timestamps */}
                 <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-2xl p-6 border border-gray-700/40">
                   <h3 className="text-xl font-bold text-white font-mono mb-6 flex items-center space-x-3">
-                    <Calendar className="w-6 h-6 text-purple-400" />
+                    <Calendar className="w-6 h-6 text-blue-400" />
                     <span>Timeline</span>
                   </h3>
                   

@@ -2,7 +2,6 @@
 export { default as HorizontalContextBar } from './HorizontalContextBar';
 export { default as ContextSection } from './ContextGroups/ContextSection';
 export { default as ContextCard } from './ContextCard';
-export { default as ContextTooltip } from './ContextTooltip';
 export { default as ContextMenu } from './ContextMenu/ContextMenu';
 export { default as ContextSaveModal } from './ContextMenu/ContextSaveModal';
 export { default as ContextEditModal } from './ContextMenu/ContextEditModal';

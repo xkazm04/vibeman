@@ -114,7 +114,7 @@ export default function ContextModalContent({
             <button
               onClick={onGenerateWithLLM}
               disabled={context.filePaths.length === 0}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors font-mono disabled:opacity-50 disabled:cursor-not-allowed"
               title={context.filePaths.length === 0 ? 'No files in context to analyze' : 'Generate documentation using AI'}
             >
               <Loader2 className="w-4 h-4" />

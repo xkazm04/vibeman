@@ -107,7 +107,7 @@ export const markdownTheme = {
   },
   gradients: {
     primary: 'bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-600',
-    accent: 'bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600',
+    accent: 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600',
     success: 'bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600',
     warning: 'bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600',
     error: 'bg-gradient-to-br from-red-400 via-red-500 to-red-600',
@@ -118,7 +118,7 @@ export const markdownTheme = {
     medium: 'shadow-xl shadow-black/10',
     strong: 'shadow-2xl shadow-black/20',
     glow: 'shadow-2xl shadow-cyan-500/20',
-    glowPurple: 'shadow-2xl shadow-purple-500/20'
+    glowblue: 'shadow-2xl shadow-blue-500/20'
   }
 } as const;
 
@@ -196,7 +196,7 @@ export const calloutConfigs: Record<CalloutType, CalloutConfig> = {
     borderColor: 'border-red-200/60 dark:border-red-800/40',
     textColor: 'text-red-900 dark:text-red-100',
     iconColor: 'text-red-600 dark:text-red-400',
-    gradient: 'bg-gradient-to-r from-red-500/10 to-pink-500/10'
+    gradient: 'bg-gradient-to-r from-red-500/10 to-red-500/10'
   },
   note: {
     iconName: 'Quote',
@@ -325,7 +325,7 @@ export const markdownStyles = {
     hover:prose-a:text-cyan-700 dark:hover:prose-a:text-cyan-300
     prose-strong:text-slate-900 dark:prose-strong:text-slate-100
     prose-strong:font-semibold
-    prose-code:text-pink-600 dark:prose-code:text-pink-400
+    prose-code:text-red-600 dark:prose-code:text-red-400
     prose-code:bg-slate-100 dark:prose-code:bg-slate-800
     prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md
     prose-code:text-sm prose-code:font-medium
@@ -364,7 +364,7 @@ export const markdownStyles = {
   `,
 
   inlineCode: `
-    text-pink-600 dark:text-pink-400
+    text-red-600 dark:text-red-400
     bg-slate-100 dark:bg-slate-800
     px-1.5 py-0.5 rounded-md
     text-sm font-medium
