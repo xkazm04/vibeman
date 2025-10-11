@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Eye, RefreshCw } from 'lucide-react';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
+import { fetchPendingCount, formatPendingCount } from './lib';
 
 interface ReviewerPanelProps {
   onOpenReview?: () => void;
@@ -13,16 +14,13 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
   const [loading, setLoading] = useState(false);
 
   // Fetch pending review count
-  const fetchPendingCount = async () => {
+  const fetchCount = async () => {
     if (!activeProject?.id) return;
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/reviewer/pending-count?projectId=${activeProject.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPendingCount(data.count || 0);
-      }
+      const count = await fetchPendingCount(activeProject.id);
+      setPendingCount(count);
     } catch (error) {
       console.error('Failed to fetch pending count:', error);
     } finally {
@@ -32,9 +30,10 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
 
   // Auto-refresh pending count
   useEffect(() => {
-    fetchPendingCount();
-    const interval = setInterval(fetchPendingCount, 10000); // Refresh every 10 seconds
+    fetchCount();
+    const interval = setInterval(fetchCount, 10000); // Refresh every 10 seconds
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProject?.id]);
 
   const handleReviewClick = () => {
@@ -44,11 +43,7 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
   };
 
   const handleRefresh = () => {
-    fetchPendingCount();
-  };
-
-  const handleRefreshAfterReview = () => {
-    fetchPendingCount(); // Refresh count after review
+    fetchCount();
   };
 
   return (
@@ -80,7 +75,7 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
                 animate={{ scale: 1 }}
                 className="w-5 h-5 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold"
               >
-                {pendingCount > 99 ? '99+' : pendingCount}
+                {formatPendingCount(pendingCount)}
               </motion.div>
             )}
           </motion.button>

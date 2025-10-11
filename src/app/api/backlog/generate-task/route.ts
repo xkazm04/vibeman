@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateBacklogTask } from '../../../backlogComponents/generateBacklogTask';
+import { generateBacklogTask } from '../../../coder/Backlog/lib/generateBacklogTask';
 
 export async function POST(request: NextRequest) {
   try {

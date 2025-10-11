@@ -5,6 +5,7 @@ import { BacklogProposal } from '../../../types';
 import { useStore } from '../../../stores/nodeStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { formatImpactedFilesForDisplay } from '@/lib/impactedFilesUtils';
+import { queueCodingBackgroundTask } from './lib/taskOperations';
 
 interface BacklogItemActionsProps {
   proposal: BacklogProposal;
@@ -33,28 +34,15 @@ export default function BacklogItemActions({
     onStartCoding();
 
     try {
-      // Create a background task for coding instead of using the non-existent copilot endpoint
-      const response = await fetch('/api/kiro/background-tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectName: activeProject.name,
-          projectPath: activeProject.path,
-          taskType: 'coding_task',
-          priority: 1,
-          taskData: {
-            taskId: proposal.id,
-            title: proposal.title,
-            description: proposal.description,
-            impactedFiles: proposal.impactedFiles
-          }
-        }),
+      const result = await queueCodingBackgroundTask({
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        taskId: proposal.id,
+        title: proposal.title,
+        description: proposal.description,
+        impactedFiles: proposal.impactedFiles
       });
-
-      const result = await response.json();
 
       if (result.success) {
         console.log('Coding task queued successfully:', result);

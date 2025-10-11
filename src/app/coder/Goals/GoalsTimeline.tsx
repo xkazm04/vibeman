@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Goal } from '../../../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStatusIcon, getStatusStyle } from '@/helpers/timelineStyles';
+import { TIMELINE_CONSTANTS, calculateOptimalTimelineOffset, sortGoalsByOrder } from './lib';
 
 interface GoalsTimelineProps {
   goals: Goal[];
@@ -13,34 +14,16 @@ interface GoalsTimelineProps {
 
 export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: GoalsTimelineProps) {
   const [slideOffset, setSlideOffset] = useState(0);
-  const MAX_VISIBLE_GOALS = 10;
-  const GOAL_WIDTH = 80; // Width of each goal including spacing (64px spacing + 16px dot)
+  const { MAX_VISIBLE_GOALS, GOAL_WIDTH, SCROLL_DURATION } = TIMELINE_CONSTANTS;
   const TIMELINE_WIDTH = MAX_VISIBLE_GOALS * GOAL_WIDTH; // Fixed width for visible area
   
-  const sortedGoals = [...goals].sort((a, b) => a.order - b.order);
-  
-  // Calculate the optimal slide offset to show the in-progress goal
-  const calculateOptimalOffset = () => {
-    const inProgressGoal = sortedGoals.find(goal => goal.status === 'in_progress');
-    if (!inProgressGoal || sortedGoals.length <= MAX_VISIBLE_GOALS) return 0;
-    
-    const inProgressIndex = sortedGoals.findIndex(goal => goal.id === inProgressGoal.id);
-    
-    // If in-progress goal is within the first 5, show from beginning
-    if (inProgressIndex < MAX_VISIBLE_GOALS) return 0;
-    
-    // Calculate offset to put in-progress goal at the leftmost position
-    const maxOffset = Math.max(0, (sortedGoals.length - MAX_VISIBLE_GOALS) * GOAL_WIDTH);
-    const desiredOffset = (inProgressIndex - 0) * GOAL_WIDTH;
-    
-    return Math.min(desiredOffset, maxOffset);
-  };
+  const sortedGoals = sortGoalsByOrder(goals);
   
   // Set the optimal offset when goals change
   useEffect(() => {
-    const optimalOffset = calculateOptimalOffset();
+    const optimalOffset = calculateOptimalTimelineOffset(sortedGoals, MAX_VISIBLE_GOALS, GOAL_WIDTH);
     setSlideOffset(optimalOffset);
-  }, [goals]);
+  }, [goals, sortedGoals, MAX_VISIBLE_GOALS, GOAL_WIDTH]);
   
   const maxOffset = Math.max(0, (sortedGoals.length - MAX_VISIBLE_GOALS) * GOAL_WIDTH);
   const canGoBack = slideOffset > 0;
@@ -105,26 +88,28 @@ export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: Goa
         <motion.div
           className="flex py-2 items-center relative"
           animate={{ x: -slideOffset }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
+          transition={{ duration: SCROLL_DURATION, ease: "easeInOut" }}
           style={{ width: `${sortedGoals.length * GOAL_WIDTH}px` }}
         >
           {sortedGoals.map((goal, index) => {
+            const isSelected = selectedGoal?.id === goal.id;
+            
             return (
               <motion.div
                 key={goal.id}
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: index * TIMELINE_CONSTANTS.ANIMATION_DELAY_PER_ITEM }}
                 className="relative flex items-center justify-center"
                 style={{ width: `${GOAL_WIDTH}px` }}
                 onClick={() => onGoalSelect(goal)}
               >
                 {/* Goal Point */}
-                <div className={getStatusStyle(goal.status, selectedGoal?.id === goal.id)}>
+                <div className={getStatusStyle(goal.status, isSelected)}>
                   {getStatusIcon(goal.status)}
                   
-                  {/* Enhanced glow effects */}
-                  {selectedGoal?.id === goal.id && (
+                  {/* Enhanced glow effects for selected goal */}
+                  {isSelected && (
                     <>
                       {/* Pulsing outer glow */}
                       <motion.div
@@ -174,7 +159,7 @@ export default function GoalsTimeline({ goals, selectedGoal, onGoalSelect }: Goa
                   )}
                   
                   {/* Standard glow effect for in progress goal */}
-                  {goal.status === 'in_progress' && selectedGoal?.id !== goal.id && (
+                  {goal.status === 'in_progress' && !isSelected && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ 

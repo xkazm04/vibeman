@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, AlertCircle, FolderTree } from 'lucide-react';
+import { X, Save, AlertCircle } from 'lucide-react';
 import { useContextStore, ContextGroup } from '../../../../stores/contextStore';
 
 interface ContextSaveModalProps {

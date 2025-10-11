@@ -1,23 +1,20 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Edit3, XIcon, X, Check } from 'lucide-react';
-
-interface ReviewFile {
-  id: string;
-  session_id: string;
-  filepath: string;
-  action: 'create' | 'update';
-  generated_content: string;
-  original_content?: string | null;
-  isEditing?: boolean;
-  editedContent?: string;
-}
-
-interface ReviewSession {
-  sessionId: string;
-  taskTitle?: string;
-  files: ReviewFile[];
-}
+import {
+  ReviewFile,
+  ReviewSession,
+  acceptFile,
+  rejectFile,
+  declineSession,
+  calculateTotalFiles,
+  calculateGlobalFileIndex,
+  isFirstFile,
+  isLastFile,
+  removeFileFromSessions,
+  getContentToApply,
+  calculateProgress
+} from './lib';
 
 interface CodeReviewNavProps {
   sessions: ReviewSession[];
@@ -56,44 +53,24 @@ export default function CodeReviewNav({
 
     setProcessing(true);
     try {
-      const contentToApply = currentFile.isEditing ? currentFile.editedContent : currentFile.generated_content;
+      const contentToApply = getContentToApply(currentFile);
 
-      const response = await fetch('/api/reviewer/accept-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileId: currentFile.id,
-          content: contentToApply
-        })
+      await acceptFile({
+        fileId: currentFile.id,
+        content: contentToApply
       });
 
-      if (response.ok) {
-        // Remove accepted file from current session
-        const updatedSessions = [...sessions];
-        updatedSessions[currentSessionIndex].files = updatedSessions[currentSessionIndex].files.filter((_, index) => index !== currentFileIndex);
+      // Remove accepted file from current session
+      const result = removeFileFromSessions(sessions, currentSessionIndex, currentFileIndex);
 
-        // If session is empty, remove it
-        if (updatedSessions[currentSessionIndex].files.length === 0) {
-          updatedSessions.splice(currentSessionIndex, 1);
-          if (updatedSessions.length === 0) {
-            onComplete();
-            return;
-          }
-          if (currentSessionIndex >= updatedSessions.length) {
-            setCurrentSessionIndex(updatedSessions.length - 1);
-          }
-          setCurrentFileIndex(0);
-        } else {
-          // Adjust file index within session
-          if (currentFileIndex >= updatedSessions[currentSessionIndex].files.length) {
-            setCurrentFileIndex(updatedSessions[currentSessionIndex].files.length - 1);
-          }
-        }
-
-        onSessionsUpdate(updatedSessions);
-      } else {
-        onError('Failed to accept file');
+      if (result.allSessionsEmpty) {
+        onComplete();
+        return;
       }
+
+      setCurrentSessionIndex(result.newSessionIndex);
+      setCurrentFileIndex(result.newFileIndex);
+      onSessionsUpdate(result.updatedSessions);
     } catch (err) {
       onError('Error accepting file');
       console.error('Failed to accept file:', err);
@@ -108,41 +85,19 @@ export default function CodeReviewNav({
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/reviewer/reject-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileId: currentFile.id
-        })
-      });
+      await rejectFile({ fileId: currentFile.id });
 
-      if (response.ok) {
-        // Remove rejected file from current session
-        const updatedSessions = [...sessions];
-        updatedSessions[currentSessionIndex].files = updatedSessions[currentSessionIndex].files.filter((_, index) => index !== currentFileIndex);
+      // Remove rejected file from current session
+      const result = removeFileFromSessions(sessions, currentSessionIndex, currentFileIndex);
 
-        // If session is empty, remove it
-        if (updatedSessions[currentSessionIndex].files.length === 0) {
-          updatedSessions.splice(currentSessionIndex, 1);
-          if (updatedSessions.length === 0) {
-            onComplete();
-            return;
-          }
-          if (currentSessionIndex >= updatedSessions.length) {
-            setCurrentSessionIndex(updatedSessions.length - 1);
-          }
-          setCurrentFileIndex(0);
-        } else {
-          // Adjust file index within session
-          if (currentFileIndex >= updatedSessions[currentSessionIndex].files.length) {
-            setCurrentFileIndex(updatedSessions[currentSessionIndex].files.length - 1);
-          }
-        }
-
-        onSessionsUpdate(updatedSessions);
-      } else {
-        onError('Failed to reject file');
+      if (result.allSessionsEmpty) {
+        onComplete();
+        return;
       }
+
+      setCurrentSessionIndex(result.newSessionIndex);
+      setCurrentFileIndex(result.newFileIndex);
+      onSessionsUpdate(result.updatedSessions);
     } catch (err) {
       onError('Error rejecting file');
       console.error('Failed to reject file:', err);
@@ -157,19 +112,8 @@ export default function CodeReviewNav({
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/reviewer/decline-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: currentFile.session_id
-        })
-      });
-
-      if (response.ok) {
-        onComplete();
-      } else {
-        onError('Failed to decline session');
-      }
+      await declineSession({ sessionId: currentFile.session_id });
+      onComplete();
     } catch (err) {
       onError('Error declining session');
       console.error('Failed to decline session:', err);
@@ -179,11 +123,11 @@ export default function CodeReviewNav({
   };
   const currentSession = sessions[currentSessionIndex];
   const totalSessions = sessions.length;
-  const totalFiles = sessions.reduce((sum, session) => sum + session.files.length, 0);
-  const currentFileGlobalIndex = sessions.slice(0, currentSessionIndex).reduce((sum, session) => sum + session.files.length, 0) + currentFileIndex;
+  const totalFiles = calculateTotalFiles(sessions);
+  const currentFileGlobalIndex = calculateGlobalFileIndex(sessions, currentSessionIndex, currentFileIndex);
 
-  const isFirstFile = currentSessionIndex === 0 && currentFileIndex === 0;
-  const isLastFile = currentSessionIndex === sessions.length - 1 && currentFileIndex === (currentSession?.files.length || 1) - 1;
+  const isFirst = isFirstFile(currentSessionIndex, currentFileIndex);
+  const isLast = isLastFile(sessions, currentSessionIndex, currentFileIndex);
 
   return (
     <div className="flex items-center justify-between p-4 border-b border-gray-700/30 bg-slate-800/20">
@@ -193,7 +137,7 @@ export default function CodeReviewNav({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onPrevious}
-          disabled={isFirstFile}
+          disabled={isFirst}
           className="p-2 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/30 rounded-lg text-gray-400 hover:text-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -212,7 +156,7 @@ export default function CodeReviewNav({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onNext}
-          disabled={isLastFile}
+          disabled={isLast}
           className="p-2 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/30 rounded-lg text-gray-400 hover:text-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronRight className="w-4 h-4" />
@@ -270,7 +214,7 @@ export default function CodeReviewNav({
         <motion.div
           className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
           initial={{ width: 0 }}
-          animate={{ width: `${((currentFileGlobalIndex + 1) / totalFiles) * 100}%` }}
+          animate={{ width: `${calculateProgress(currentFileGlobalIndex, totalFiles)}%` }}
           transition={{ duration: 0.5 }}
         />
       </div>

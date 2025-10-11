@@ -1,12 +1,12 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Target, CheckCircle, Clock, Circle } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { Goal } from '../../../types';
 import { UniversalModal } from '../../../components/UniversalModal';
 import { useGoals } from '../../../hooks/useGoals';
 import GoalsDetailDescription from './GoalsDetailDescription';
 import GoalsDetailActions from './GoalsDetailActions';
+import { getStatusInfo } from './lib';
 
 interface GoalsDetailModalProps {
   goal: Goal | null;
@@ -40,59 +40,6 @@ export default function GoalsDetailModal({
   }, [isOpen, goal]);
 
   if (!goal || !editedGoal) return null;
-
-  const getStatusInfo = (status: Goal['status']) => {
-    switch (status) {
-      case 'done':
-        return {
-          text: 'Completed',
-          color: 'text-green-400',
-          bgColor: 'bg-green-500/20',
-          borderColor: 'border-green-500/30',
-          icon: CheckCircle
-        };
-      case 'in_progress':
-        return {
-          text: 'In Progress',
-          color: 'text-yellow-400',
-          bgColor: 'bg-yellow-500/20',
-          borderColor: 'border-yellow-500/30',
-          icon: Clock
-        };
-      case 'open':
-        return {
-          text: 'Open',
-          color: 'text-blue-400',
-          bgColor: 'bg-blue-500/20',
-          borderColor: 'border-blue-500/30',
-          icon: Circle
-        };
-      case 'undecided':
-        return {
-          text: 'Undecided',
-          color: 'text-blue-400',
-          bgColor: 'bg-blue-500/20',
-          borderColor: 'border-blue-500/30',
-          icon: Circle
-        };
-      case 'rejected':
-        return {
-          text: 'Rejected',
-          color: 'text-red-400',
-          bgColor: 'bg-red-500/20',
-          borderColor: 'border-red-500/30',
-          icon: Circle
-        };
-      default:
-        return {
-          text: 'Unknown',
-          color: 'text-gray-400',
-          bgColor: 'bg-gray-500/20',
-          borderColor: 'border-gray-500/30',
-          icon: Circle
-        };
-    }
-  };
 
   const statusInfo = getStatusInfo(editedGoal.status);
   const StatusIcon = statusInfo.icon;

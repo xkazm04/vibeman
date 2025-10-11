@@ -1,5 +1,6 @@
 'use client';
 
+import { Project } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, MicOff, Activity } from 'lucide-react';
 
@@ -10,7 +11,7 @@ interface AnnetteChatInputProps {
   onKeyPress: (e: React.KeyboardEvent) => void;
   isListening: boolean;
   onToggleListening: () => void;
-  selectedProject?: any;
+  selectedProject?: Project;
   isProcessing?: boolean;
   inputRef: React.RefObject<HTMLInputElement>;
 }

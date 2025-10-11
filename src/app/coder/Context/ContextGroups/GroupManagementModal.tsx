@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Edit2, Trash2, Palette, Grid3X3, Sparkles, Zap, Activity, Database, Layers, Grid, Code, Cpu, Settings } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Grid3X3, Sparkles, Zap, Activity, Database, Layers, Grid, Code, Cpu, Settings } from 'lucide-react';
 import { ContextGroup, useContextStore, CONTEXT_GROUP_COLORS } from '../../../../stores/contextStore';
 
 interface GroupManagementModalProps {

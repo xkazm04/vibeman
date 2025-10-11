@@ -1,10 +1,12 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Target, Plus } from 'lucide-react';
 import GoalsTimeline from './GoalsTimeline';
 import ProjectsLayout from '../../projects/ProjectsLayout';
-import GoalsAddModal from './GoalsAddModal';
-import GoalsDetailModal from './GoalsDetailModal_Glass';
+import GoalsAddModalContent from './GoalsAddModalContent';
+import GoalsDetailModalContent from './GoalsDetailModalContent';
+import GoalsTitle from './GoalsTitle';
 import { Goal } from '../../../types';
 import { useGoals } from '../../../hooks/useGoals';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
@@ -12,25 +14,26 @@ import { useAnalysisStore } from '../../../stores/analysisStore';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
 import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
 import { useStore } from '../../../stores/nodeStore';
+import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import AnalysisClient from '../../../lib/analysisClient';
-import GoalsTitle from './GoalsTitle';
+import { findInProgressGoal, getNextOrder } from './lib';
 
 export default function GoalsLayout() {
   const { activeProject, fileStructure } = useActiveProjectStore();
   const { goals, loading, error, createGoal, updateGoal, fetchGoals } = useGoals(activeProject?.id || null);
-  const { startAnalysis, isActive } = useAnalysisStore();
+  const { startAnalysis } = useAnalysisStore();
   const { getProject } = useProjectConfigStore();
   const { getSelectedFilePaths } = useStore();
   const { showAddGoal, setShowAddGoal, setSelectedGoal: setToolbarSelectedGoal } = useProjectsToolbarStore();
+  const { showShellModal, hideModal } = useGlobalModal();
 
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Set initial selected goal when goals are loaded
   useEffect(() => {
     if (goals.length > 0 && !selectedGoal) {
-      const inProgressGoal = goals.find(goal => goal.status === 'in_progress');
+      const inProgressGoal = findInProgressGoal(goals);
       const firstGoal = goals[0];
       setSelectedGoal(inProgressGoal || firstGoal);
     }
@@ -69,13 +72,31 @@ export default function GoalsLayout() {
   };
 
   const handleGoalDetailClick = () => {
-    if (selectedGoal) {
-      setIsDetailModalOpen(true);
-    }
-  };
+    if (!selectedGoal) return;
 
-  // This function is no longer needed as the button is in ProjectsLayout
-  // The modal state is managed by the toolbar store
+    showShellModal(
+      {
+        title: 'Goal Details',
+        subtitle: 'Review and manage your objective',
+        icon: Target,
+        iconBgColor: 'from-blue-600/20 to-slate-600/20',
+        iconColor: 'text-blue-400',
+        maxWidth: 'max-w-6xl',
+        maxHeight: 'max-h-[90vh]'
+      },
+      {
+        customContent: (
+          <GoalsDetailModalContent
+            goal={selectedGoal}
+            projectId={activeProject?.id || null}
+            onSave={updateGoal}
+            onClose={hideModal}
+          />
+        ),
+        isTopMost: true
+      }
+    );
+  };
 
   const handleAnalyzeGoal = async () => {
     if (!selectedGoal || !activeProject) return;
@@ -121,18 +142,48 @@ export default function GoalsLayout() {
   const handleAddNewGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
     if (!activeProject) return;
 
-    const maxOrder = Math.max(...goals.map(g => g.order), 0);
     const goalWithOrder = {
       ...newGoal,
       projectId: activeProject.id,
-      order: maxOrder + 1
+      order: getNextOrder(goals)
     };
 
     const createdGoal = await createGoal(goalWithOrder);
     if (createdGoal) {
       setShowAddGoal(false);
+      hideModal();
     }
   };
+
+  // Show add goal modal when showAddGoal changes
+  useEffect(() => {
+    if (showAddGoal) {
+      showShellModal(
+        {
+          title: 'Add New Goal',
+          subtitle: 'Create a new project goal',
+          icon: Plus,
+          iconBgColor: 'from-slate-700/20 to-slate-800/20',
+          iconColor: 'text-slate-300',
+          maxWidth: 'max-w-lg',
+          maxHeight: 'max-h-[85vh]'
+        },
+        {
+          customContent: (
+            <GoalsAddModalContent
+              onSubmit={handleAddNewGoal}
+              onClose={() => {
+                setShowAddGoal(false);
+                hideModal();
+              }}
+            />
+          ),
+          isTopMost: true
+        }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAddGoal]);
 
   if (loading) {
     return (
@@ -162,12 +213,15 @@ export default function GoalsLayout() {
         onAnalyzeGoal={handleAnalyzeGoal}
         onRefreshGoals={fetchGoals}
       />
-      {selectedGoal && <GoalsTitle
-        selectedGoal={selectedGoal}
-        isTransitioning={isTransitioning}
-        handleGoalDetailClick={handleGoalDetailClick}
-      />}
-      {/* Goals-specific content below the toolbar */}
+      {selectedGoal && (
+        <GoalsTitle
+          selectedGoal={selectedGoal}
+          isTransitioning={isTransitioning}
+          handleGoalDetailClick={handleGoalDetailClick}
+        />
+      )}
+      
+      {/* Goals Timeline */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -180,23 +234,6 @@ export default function GoalsLayout() {
           onGoalSelect={handleTimelineGoalSelect}
         />
       </motion.div>
-
-
-      {/* Goal Detail Modal */}
-      <GoalsDetailModal
-        goal={selectedGoal}
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        onSave={updateGoal}
-        projectId={activeProject?.id || null}
-      />
-
-      {/* Add Goal Modal */}
-      <GoalsAddModal
-        isOpen={showAddGoal}
-        onClose={() => setShowAddGoal(false)}
-        onSubmit={handleAddNewGoal}
-      />
     </>
   );
 } 

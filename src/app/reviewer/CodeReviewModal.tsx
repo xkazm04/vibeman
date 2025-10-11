@@ -1,27 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit3 } from 'lucide-react';
-import { DbGeneratedFile } from '../../lib/codeGenerationDatabase';
 import CodeReviewNav from './CodeReviewNav';
 import CodeReviewEditor from './CodeReviewEditor';
-import { UniversalModal } from '@/components/UniversalModal';
+import {
+  ReviewSession,
+  fetchPendingSessions,
+  calculateTotalFiles,
+  calculateGlobalFileIndex,
+  toggleFileEditing,
+  updateFileContent,
+  getFileActionLabel
+} from './lib';
 
 interface CodeReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
   projectId: string;
-}
-
-interface ReviewFile extends DbGeneratedFile {
-  isEditing?: boolean;
-  editedContent?: string;
-}
-
-interface ReviewSession {
-  sessionId: string;
-  taskTitle?: string;
-  files: ReviewFile[];
 }
 
 export default function CodeReviewModal({ isOpen, onClose, onComplete, projectId }: CodeReviewModalProps) {
@@ -38,15 +34,10 @@ export default function CodeReviewModal({ isOpen, onClose, onComplete, projectId
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/reviewer/pending-sessions?projectId=${projectId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSessions(data.sessions || []);
-        setCurrentSessionIndex(0);
-        setCurrentFileIndex(0);
-      } else {
-        setError('Failed to fetch pending files');
-      }
+      const data = await fetchPendingSessions(projectId);
+      setSessions(data.sessions || []);
+      setCurrentSessionIndex(0);
+      setCurrentFileIndex(0);
     } catch (err) {
       setError('Error loading files');
       console.error('Failed to fetch pending files:', err);
@@ -56,15 +47,14 @@ export default function CodeReviewModal({ isOpen, onClose, onComplete, projectId
   };
 
   useEffect(() => {
-    if (isOpen) {
-      fetchPendingFiles();
-    }
+    fetchPendingFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, projectId]);
 
   const currentSession = sessions[currentSessionIndex];
   const currentFile = currentSession?.files[currentFileIndex];
-  const totalFiles = sessions.reduce((sum, session) => sum + session.files.length, 0);
-  const currentFileGlobalIndex = sessions.slice(0, currentSessionIndex).reduce((sum, session) => sum + session.files.length, 0) + currentFileIndex;
+  const totalFiles = calculateTotalFiles(sessions);
+  const currentFileGlobalIndex = calculateGlobalFileIndex(sessions, currentSessionIndex, currentFileIndex);
 
   // Handle sessions update from child components
   const handleSessionsUpdate = (updatedSessions: ReviewSession[]) => {
@@ -82,12 +72,7 @@ export default function CodeReviewModal({ isOpen, onClose, onComplete, projectId
   const handleToggleEdit = () => {
     if (!currentFile) return;
 
-    const updatedSessions = [...sessions];
-    updatedSessions[currentSessionIndex].files[currentFileIndex] = {
-      ...currentFile,
-      isEditing: !currentFile.isEditing,
-      editedContent: currentFile.isEditing ? undefined : currentFile.generated_content
-    };
+    const updatedSessions = toggleFileEditing(sessions, currentSessionIndex, currentFileIndex);
     setSessions(updatedSessions);
   };
 
@@ -95,11 +80,7 @@ export default function CodeReviewModal({ isOpen, onClose, onComplete, projectId
   const handleContentChange = (content: string) => {
     if (!currentFile) return;
 
-    const updatedSessions = [...sessions];
-    updatedSessions[currentSessionIndex].files[currentFileIndex] = {
-      ...currentFile,
-      editedContent: content
-    };
+    const updatedSessions = updateFileContent(sessions, currentSessionIndex, currentFileIndex, content);
     setSessions(updatedSessions);
   };
 
@@ -161,7 +142,7 @@ export default function CodeReviewModal({ isOpen, onClose, onComplete, projectId
                   Code Review - {currentFile?.filepath || 'Loading...'}
                 </h2>
                 <p className="text-sm text-slate-400">
-                  {currentSession?.taskTitle || 'Task'} • File {currentFileGlobalIndex + 1} of {totalFiles} • {currentFile?.action === 'create' ? 'New File' : 'Update File'}
+                  {currentSession?.taskTitle || 'Task'} • File {currentFileGlobalIndex + 1} of {totalFiles} • {getFileActionLabel(currentFile?.action || 'create')}
                 </p>
               </div>
             </div>

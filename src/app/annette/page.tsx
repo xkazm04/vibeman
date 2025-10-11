@@ -10,26 +10,18 @@ import AnnetteBackground from './components/AnnetteBackground';
 import AnnetteHeader from './components/AnnetteHeader';
 import AnnetteViewToggle from './components/AnnetteViewToggle';
 import AnnetteSystemLogs from './components/AnnetteSystemLogs';
+import { ConfirmationState, LogEntry } from './lib/typesAnnette';
+import { 
+  sendToLangGraph, 
+  processLangGraphResponse, 
+  createConfirmationState, 
+  resetConfirmationState 
+} from './lib/langgraphHelpers';
+import { generateTextToSpeech, playAudio } from './lib/ttsGen';
+import { createProjectContext, getHardcodedActiveProject } from './lib/projectHelpers';
+import { createLogEntry, createLLMResponseLog } from './lib/logHelpers';
 
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  type: 'user' | 'system' | 'tool' | 'llm';
-  message: string;
-  data?: any;
-  audioUrl?: string;
-  audioError?: string;
-  audioLoading?: boolean;
-}
 
-interface ConfirmationState {
-  isWaiting: boolean;
-  question: string;
-  type: 'yes_no' | 'clarification';
-  toolsToUse: any[];
-  originalMessage: string;
-  projectContext: any;
-}
 
 type VoicebotState = 'idle' | 'listening' | 'processing' | 'error' | 'awaiting_confirmation';
 
@@ -48,14 +40,14 @@ export default function AnnettePage() {
   });
 
   const addLog = (type: LogEntry['type'], message: string, data?: any) => {
-    const newLog: LogEntry = {
-      id: Date.now().toString(),
-      timestamp: new Date().toLocaleTimeString(),
-      type,
-      message,
-      data
-    };
+    const newLog = createLogEntry(type, message, data);
     setLogs(prev => [...prev, newLog]);
+  };
+
+  const updateLog = (logId: string, updates: Partial<LogEntry>) => {
+    setLogs(prev => prev.map(log => 
+      log.id === logId ? { ...log, ...updates } : log
+    ));
   };
 
   const handleVoiceInput = async () => {
@@ -68,80 +60,31 @@ export default function AnnettePage() {
       const hardcodedMessage = "How many goals are in this project?";
       addLog('user', `Simulated user input: "${hardcodedMessage}"`);
 
-      const activeProjectStore = {
-        "state": {
-          "activeProject": {
-            "id": "6546a5e3-78a0-4140-9b0f-5be5a9161189",
-            "name": "investigator",
-            "path": "C:\\Users\\kazda\\kiro\\investigator",
-            "port": 3002,
-            "type": "other",
-            "allowMultipleInstances": false,
-            "basePort": 3002,
-            "runScript": "npm run dev"
-          }
-        },
-        "version": 1
-      };
-
+      const activeProjectStore = getHardcodedActiveProject();
       addLog('system', 'Sending request to LangGraph orchestrator...');
 
-      const response = await fetch('/api/annette/langgraph', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: hardcodedMessage,
-          projectId: activeProjectStore.state.activeProject.id,
-          projectContext: activeProjectStore
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = await sendToLangGraph(
+        hardcodedMessage,
+        activeProjectStore.state.activeProject.id,
+        activeProjectStore
+      );
 
       if (result.needsConfirmation) {
         setState('awaiting_confirmation');
-        setConfirmation({
-          isWaiting: true,
-          question: result.confirmationQuestion,
-          type: result.confirmationType,
-          toolsToUse: result.toolsToUse,
-          originalMessage: hardcodedMessage,
-          projectContext: activeProjectStore
-        });
-
+        setConfirmation(createConfirmationState(result, hardcodedMessage, activeProjectStore));
         addLog('system', `Confidence: ${result.confidence}%`);
         addLog('system', `Awaiting confirmation: ${result.confirmationQuestion}`);
         return;
       }
 
       const llmResponse = result.response;
+      processLangGraphResponse(result, addLog);
 
-      if (result.userIntent) addLog('system', `User Intent: ${result.userIntent}`);
-      if (result.confidence) addLog('system', `Confidence: ${result.confidence}%`);
-      if (result.analysis) addLog('system', `Analysis: ${result.analysis}`);
-
-      const llmLogId = `llm_${Date.now()}`;
-      const newLog: LogEntry = {
-        id: llmLogId,
-        timestamp: new Date().toLocaleTimeString(),
-        type: 'llm',
-        message: `LLM Response: ${llmResponse}`,
-        audioLoading: true
-      };
-      setLogs(prev => [...prev, newLog]);
-
-      if (result.toolsUsed && result.toolsUsed.length > 0) {
-        result.toolsUsed.forEach((tool: any) => {
-          addLog('tool', `Tool used: ${tool.name}`, tool);
-        });
-      }
+      const llmLog = createLLMResponseLog(llmResponse);
+      setLogs(prev => [...prev, llmLog]);
 
       addLog('system', 'Generating speech audio...');
-      generateTextToSpeech(llmResponse, llmLogId);
+      await generateTextToSpeech(llmResponse, llmLog.id, updateLog, addLog);
 
       setState('idle');
       addLog('system', 'Voice processing pipeline completed');
@@ -154,50 +97,7 @@ export default function AnnettePage() {
     }
   };
 
-  const generateTextToSpeech = async (text: string, logId: string) => {
-    try {
-      const response = await fetch('/api/voicebot/text-to-speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
 
-      if (response.ok) {
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-
-        setLogs(prev => prev.map(log =>
-          log.id === logId ? { ...log, audioUrl, audioLoading: false } : log
-        ));
-
-        const audio = new Audio(audioUrl);
-        audio.play().catch(console.error);
-
-        addLog('system', 'Speech audio generated and playing');
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown TTS error' }));
-
-        setLogs(prev => prev.map(log =>
-          log.id === logId ? { ...log, audioError: errorData.error, audioLoading: false } : log
-        ));
-
-        addLog('system', `TTS Error: ${errorData.error}`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown TTS error';
-
-      setLogs(prev => prev.map(log =>
-        log.id === logId ? { ...log, audioError: errorMessage, audioLoading: false } : log
-      ));
-
-      addLog('system', `TTS Error: ${errorMessage}`);
-    }
-  };
-
-  const playAudio = (audioUrl: string) => {
-    const audio = new Audio(audioUrl);
-    audio.play().catch(console.error);
-  };
 
   const handleChatMessage = async (message: string) => {
     if (!selectedProject) {
@@ -207,38 +107,12 @@ export default function AnnettePage() {
     setState('processing');
 
     try {
-      const response = await fetch('/api/annette/langgraph', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          projectId: selectedProject.id,
-          projectContext: {
-            state: { activeProject: selectedProject },
-            version: 1
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const projectContext = createProjectContext(selectedProject);
+      const result = await sendToLangGraph(message, selectedProject.id, projectContext);
 
       if (result.needsConfirmation) {
         setState('awaiting_confirmation');
-        setConfirmation({
-          isWaiting: true,
-          question: result.confirmationQuestion,
-          type: result.confirmationType,
-          toolsToUse: result.toolsUsed,
-          originalMessage: message,
-          projectContext: {
-            state: { activeProject: selectedProject },
-            version: 1
-          }
-        });
+        setConfirmation(createConfirmationState(result, message, projectContext));
 
         return {
           response: `I need confirmation: ${result.confirmationQuestion}`,
@@ -270,28 +144,14 @@ export default function AnnettePage() {
 
     if (!confirmed) {
       setState('idle');
-      setConfirmation({
-        isWaiting: false,
-        question: '',
-        type: 'yes_no',
-        toolsToUse: [],
-        originalMessage: '',
-        projectContext: null
-      });
+      setConfirmation(resetConfirmationState());
       addLog('system', 'Operation cancelled by user');
       return;
     }
 
     // Continue with confirmation logic...
     setState('idle');
-    setConfirmation({
-      isWaiting: false,
-      question: '',
-      type: 'yes_no',
-      toolsToUse: [],
-      originalMessage: '',
-      projectContext: null
-    });
+    setConfirmation(resetConfirmationState());
   };
 
   const clearLogs = () => {

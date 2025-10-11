@@ -1,8 +1,9 @@
 'use client';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Target, AlertCircle } from 'lucide-react';
+import { X, Plus, AlertCircle } from 'lucide-react';
 import { Goal } from '../../../types';
+import { getStatusInfo } from './lib';
 
 interface GoalsAddModalProps {
   isOpen: boolean;
@@ -37,31 +38,6 @@ export default function GoalsAddModal({ isOpen, onClose, onSubmit }: GoalsAddMod
     onClose();
   };
 
-  const getStatusInfo = (status: Goal['status']) => {
-    switch (status) {
-      case 'done':
-        return {
-          text: 'Completed',
-          color: 'text-green-400',
-          bgColor: 'bg-green-500/20',
-          borderColor: 'border-green-500/30'
-        };
-      case 'in_progress':
-        return {
-          text: 'In Progress',
-          color: 'text-yellow-400',
-          bgColor: 'bg-yellow-500/20',
-          borderColor: 'border-yellow-500/30'
-        };
-      case 'open':
-        return {
-          text: 'Open',
-          color: 'text-gray-400',
-          bgColor: 'bg-gray-500/20',
-          borderColor: 'border-gray-500/30'
-        };
-    }
-  };
 
   return (
     <AnimatePresence>

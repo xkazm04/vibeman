@@ -1,5 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { TreeNode as TreeNodeType } from '../../../types';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../../../stores/nodeStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
@@ -8,6 +7,9 @@ import TreeHeader from './TreeHeader';
 import TreeView from './TreeView';
 import TreeFooter from './TreeFooter';
 import TreeSuggestion from './TreeSuggestion';
+import { initializeProjectsSequence } from './lib/projectApi';
+import { countTreeNodes } from './lib/treeUtils';
+import { useClickOutside } from './lib/hooks';
 
 export default function TreeLayout() {
   const { selectedNodes, highlightedNodes, toggleNode, clearHighlights } = useStore();
@@ -27,62 +29,17 @@ export default function TreeLayout() {
 
   // Initialize projects and then active project
   useEffect(() => {
-    const initializeSequence = async () => {
-      await initializeProjects();
-      
-      // Test: Force call the structure API with a known project
-      const projects = getAllProjects();
-      console.log('Available projects:', projects);
-      
-      if (projects.length > 0) {
-        console.log('Forcing structure API call for project:', projects[0]);
-        try {
-          const response = await fetch('/api/project/structure', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ projectPath: projects[0].path }),
-          });
-          console.log('Structure API response:', response.status);
-          const data = await response.json();
-          console.log('Structure data:', data);
-        } catch (error) {
-          console.error('Structure API error:', error);
-        }
-      }
-      
-      initializeWithFirstProject();
-    };
-    
-    initializeSequence();
+    initializeProjectsSequence(initializeProjects, getAllProjects, initializeWithFirstProject);
   }, [initializeProjects, initializeWithFirstProject, getAllProjects]);
 
   // Close project selector when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showProjectSelector && !(event.target as Element).closest('.project-selector')) {
-        setShowProjectSelector(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showProjectSelector]);
+  useClickOutside(
+    showProjectSelector,
+    '.project-selector',
+    () => setShowProjectSelector(false)
+  );
 
-  // No longer need filtered structure since suggestions don't affect tree display
-
-  const totalNodes = useMemo(() => {
-    if (!fileStructure) return 0;
-    const countNodes = (node: TreeNodeType): number => {
-      let count = 1;
-      if (node.children) {
-        count += node.children.reduce((sum, child) => sum + countNodes(child), 0);
-      }
-      return count;
-    };
-    return countNodes(fileStructure) - 1; // Exclude root
-  }, [fileStructure]);
+  const totalNodes = countTreeNodes(fileStructure);
 
   const handleClearSearch = () => {
     // Clear any highlights or search-related state if needed

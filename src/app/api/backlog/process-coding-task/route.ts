@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateCodingTask } from '../../../backlogComponents/generateCodingTask';
+import { generateCodingTask } from '../../../coder/Backlog/lib/generateCodingTask';
 import { codeGenerationDb } from '../../../../lib/codeGenerationDatabase';
 import { backlogDb } from '../../../../lib/backlogDatabase';
 import { v4 as uuidv4 } from 'uuid';

@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Target, CheckCircle, Clock, Circle, X, Edit3, Save, Trash2, Calendar, Hash } from 'lucide-react';
+import { Target, X, Edit3, Save, Trash2, Calendar, Hash } from 'lucide-react';
 import { Goal } from '../../../types';
 import { useGoals } from '../../../hooks/useGoals';
+import { getStatusConfig } from './lib';
 
 interface GoalsDetailModalProps {
   goal: Goal | null;
@@ -39,52 +40,6 @@ export default function GoalsDetailModalGlass({
   }, [isOpen, goal]);
 
   if (!isOpen || !goal || !editedGoal) return null;
-
-  const getStatusConfig = (status: Goal['status']) => {
-    const configs = {
-      'done': { 
-        text: 'Completed', 
-        gradient: 'from-emerald-400/20 to-green-500/20',
-        border: 'border-emerald-400/30',
-        textColor: 'text-emerald-300',
-        icon: CheckCircle,
-        glow: 'shadow-emerald-500/20'
-      },
-      'in_progress': { 
-        text: 'In Progress', 
-        gradient: 'from-amber-400/20 to-yellow-500/20',
-        border: 'border-amber-400/30',
-        textColor: 'text-amber-300',
-        icon: Clock,
-        glow: 'shadow-amber-500/20'
-      },
-      'open': { 
-        text: 'Open', 
-        gradient: 'from-blue-400/20 to-cyan-500/20',
-        border: 'border-blue-400/30',
-        textColor: 'text-blue-300',
-        icon: Circle,
-        glow: 'shadow-blue-500/20'
-      },
-      'undecided': { 
-        text: 'Under Review', 
-        gradient: 'from-blue-400/20 to-violet-500/20',
-        border: 'border-blue-400/30',
-        textColor: 'text-blue-300',
-        icon: Circle,
-        glow: 'shadow-blue-500/20'
-      },
-      'rejected': { 
-        text: 'Archived', 
-        gradient: 'from-red-400/20 to-rose-500/20',
-        border: 'border-red-400/30',
-        textColor: 'text-red-300',
-        icon: Circle,
-        glow: 'shadow-red-500/20'
-      }
-    };
-    return configs[status] || configs.open;
-  };
 
   const statusConfig = getStatusConfig(editedGoal.status);
   const StatusIcon = statusConfig.icon;

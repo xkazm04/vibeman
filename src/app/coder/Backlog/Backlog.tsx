@@ -7,6 +7,7 @@ import { useAnalysisStore } from '../../../stores/analysisStore';
 import { useRealtimeStore, REALTIME_INDICATORS } from '../../../stores/realtimeStore';
 import BacklogItem from './BacklogItem';
 import { GlowCard } from '@/components/GlowCard';
+import { startCodingTask } from './lib/taskOperations';
 
 export default function Backlog() {
   const { activeProject } = useActiveProjectStore();
@@ -104,16 +105,8 @@ export default function Backlog() {
       // Update on server
       await updateItemOnServer(taskId, { status: 'accepted' });
       
-      // Start coding task in background
-      const codingResponse = await fetch('/api/backlog/start-coding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId })
-      });
-
-      if (!codingResponse.ok) {
-        console.error('Failed to start coding task');
-      }
+      // Start coding task in background using utility
+      await startCodingTask(taskId);
     } catch (error) {
       // Revert optimistic update on error
       refetch();

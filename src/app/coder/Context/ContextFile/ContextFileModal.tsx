@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context } from '../../../../stores/contextStore';
-import { ContextFileGenerator } from '../../../../services/contextFileGenerator';
 import SaveContextFileDialog from '../../../../components/SaveContextFileDialog';
 import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
 import { generatePlaceholderContent } from './ContextPlaceholder';
 import ContextModalHeader from './ContextModalHeader';
 import ContextModalContent from './ContextModalContent';
+import ContextFileFooter from './ContextFileFooter';
+import { 
+  loadContextFile as loadContextFileApi, 
+  generateContextFile as generateContextFileApi,
+  generateContextBackground as generateContextBackgroundApi,
+  saveContextFile as saveContextFileApi
+} from '../lib';
 
 interface ContextFileModalProps {
   isOpen: boolean;
@@ -38,17 +44,8 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
   const loadContextFile = async () => {
     setLoading(true);
     try {
-      // Mock API call to load context file content
-      // In real implementation, this would load from the file system
-      const response = await fetch(`/api/context-files/${context.id}`);
-
-      if (response.ok) {
-        const content = await response.text();
-        setMarkdownContent(content);
-      } else {
-        // Generate placeholder content for demo
-        setMarkdownContent(generatePlaceholderContent(context));
-      }
+      const content = await loadContextFileApi(context.id);
+      setMarkdownContent(content);
     } catch (error) {
       console.error('Failed to load context file:', error);
       setMarkdownContent(generatePlaceholderContent(context));
@@ -64,11 +61,6 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
   };
 
   const handleGenerateWithLLM = async () => {
-    if (context.filePaths.length === 0) {
-      setGenerationError('No files in context to analyze');
-      return;
-    }
-
     setGenerating(true);
     setGenerationError(null);
     setGenerationStatus('Initializing...');
@@ -77,7 +69,7 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
     abortControllerRef.current = new AbortController();
 
     try {
-      const generatedContent = await ContextFileGenerator.generateContextFile({
+      const generatedContent = await generateContextFileApi({
         context,
         onProgress: (status) => setGenerationStatus(status),
         signal: abortControllerRef.current.signal
@@ -107,11 +99,6 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
   };
 
   const handleBackgroundGeneration = async () => {
-    if (context.filePaths.length === 0) {
-      setGenerationError('No files in context to analyze');
-      return;
-    }
-
     if (!activeProject) {
       setGenerationError('No active project selected');
       return;
@@ -121,23 +108,13 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
     setGenerationError(null);
 
     try {
-      const response = await fetch('/api/kiro/generate-context-background', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contextId: context.id,
-          contextName: context.name,
-          filePaths: context.filePaths,
-          projectPath: activeProject.path,
-          projectId: activeProject.id
-        }),
+      await generateContextBackgroundApi({
+        contextId: context.id,
+        contextName: context.name,
+        filePaths: context.filePaths,
+        projectPath: activeProject.path,
+        projectId: activeProject.id
       });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to start background generation');
-      }
 
       // Show success message and close modal
       setGenerationError(null);
@@ -161,29 +138,11 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
       throw new Error('No active project selected');
     }
 
-    // The folderPath is relative to the project root, so we need to construct the full path
-    const fullProjectPath = `${activeProject.path}/${folderPath}/${fileName}`;
-
     try {
-      const response = await fetch('/api/disk/save-context-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filePath: fullProjectPath,
-          content: markdownContent,
-          contextName: context.name
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to save context file');
-      }
-
+      await saveContextFileApi(folderPath, fileName, markdownContent, activeProject.path);
+      
       // Update context to mark as having a context file
-      // This would typically update the database
-      console.log('Context file saved successfully to:', fullProjectPath);
+      console.log('Context file saved successfully');
       setIsEditing(false);
       setPreviewMode('preview');
       setShowSaveDialog(false);
@@ -266,22 +225,10 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
 
           {/* Footer */}
           {(context.hasContextFile || isEditing) && (
-            <div className="px-4 py-3 border-t border-gray-700 bg-gray-800/30">
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <div className="flex items-center space-x-4">
-                  <span>Language: Markdown</span>
-                  <span>•</span>
-                  <span>Lines: {markdownContent.split('\n').length}</span>
-                  <span>•</span>
-                  <span>Characters: {markdownContent.length}</span>
-                </div>
-                {previewMode === 'edit' && (
-                  <div className="text-gray-500">
-                    Press Ctrl+S to save
-                  </div>
-                )}
-              </div>
-            </div>
+            <ContextFileFooter
+              markdownContent={markdownContent}
+              previewMode={previewMode}
+            />
           )}
         </motion.div>
       </motion.div>

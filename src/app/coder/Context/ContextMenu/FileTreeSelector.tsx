@@ -3,7 +3,7 @@ import { Search, FolderTree } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '../../../../types';
 import { useStore } from '../../../../stores/nodeStore';
 import TreeView from '../../../coder/CodeTree/TreeView';
-import { normalizePath, pathsMatch } from '../../../../utils/pathUtils';
+import { normalizePath } from '../../../../utils/pathUtils';
 
 interface FileTreeSelectorProps {
   fileStructure: TreeNodeType | null;

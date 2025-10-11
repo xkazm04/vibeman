@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { TestTubeDiagonal } from 'lucide-react';
 import { Project } from '@/types';
-import BacklogTaskInput from '../../backlogComponents/BacklogTaskInput';
+import BacklogTaskInput from '../../coder/Backlog/BacklogTaskInput';
 
 interface PreviewTabNavigationProps {
   projects: Project[];

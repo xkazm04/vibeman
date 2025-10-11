@@ -1,10 +1,11 @@
 'use client';
 
+import { Project } from '@/types';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
 interface AnnetteChatHeaderProps {
-  selectedProject?: any;
+  selectedProject?: Project;
   isProcessing?: boolean;
   isListening?: boolean;
   audioLevels: number[];

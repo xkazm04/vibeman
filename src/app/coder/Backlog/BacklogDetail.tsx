@@ -5,6 +5,7 @@ import { Calendar, User, FileText, X, Trash2, Check, Play, Clock, Code, Layers, 
 import { BacklogProposal } from '../../../types';
 import { BacklogDescription } from './BacklogDescription';
 import { agentIcons, agentThemes } from '@/helpers/typeStyles';
+import { formatRelativeDate, getFilenameFromPath } from './lib/backlogUtils';
 
 interface CoderBacklogDetailProps {
   proposal: BacklogProposal | null;
@@ -103,15 +104,7 @@ export default function BacklogDetail({
     }
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
 
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-    return date.toLocaleDateString();
-  };
 
   const modalContent = (
     <AnimatePresence>
@@ -178,7 +171,7 @@ export default function BacklogDetail({
                     </div>
                     <div className="flex items-center space-x-2">
                       <Clock className="w-4 h-4" />
-                      <span>{formatDate(proposal.timestamp)}</span>
+                      <span>{formatRelativeDate(proposal.timestamp)}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div
@@ -280,7 +273,7 @@ export default function BacklogDetail({
                             <div className="flex items-center justify-between">
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-gray-200 font-mono truncate mb-1" title={file.filepath}>
-                                  {file.filepath.split('/').pop()}
+                                  {getFilenameFromPath(file.filepath)}
                                 </p>
                                 <p className="text-xs text-gray-500 capitalize">{file.type}</p>
                               </div>

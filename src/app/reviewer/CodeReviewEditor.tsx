@@ -1,48 +1,11 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MonacoDiffEditor, MonacoEditor } from '@/components/editor';
-
-interface ReviewFile {
-  id: string;
-  filepath: string;
-  action: 'create' | 'update';
-  generated_content: string;
-  original_content?: string | null;
-  isEditing?: boolean;
-  editedContent?: string;
-}
+import { ReviewFile, getLanguageFromFilepath } from './lib';
 
 interface CodeReviewEditorProps {
   currentFile: ReviewFile | undefined;
   onContentChange: (content: string) => void;
-}
-
-// Helper function to determine language from file path
-function getLanguageFromFilepath(filepath: string): string {
-  const extension = filepath.split('.').pop()?.toLowerCase();
-
-  const languageMap: { [key: string]: string } = {
-    'ts': 'typescript',
-    'tsx': 'typescript',
-    'js': 'javascript',
-    'jsx': 'javascript',
-    'py': 'python',
-    'java': 'java',
-    'cpp': 'cpp',
-    'c': 'c',
-    'h': 'c',
-    'css': 'css',
-    'scss': 'scss',
-    'html': 'html',
-    'md': 'markdown',
-    'json': 'json',
-    'yaml': 'yaml',
-    'yml': 'yaml',
-    'xml': 'xml',
-    'sql': 'sql'
-  };
-
-  return languageMap[extension || ''] || 'plaintext';
 }
 
 export default function CodeReviewEditor({ currentFile, onContentChange }: CodeReviewEditorProps) {

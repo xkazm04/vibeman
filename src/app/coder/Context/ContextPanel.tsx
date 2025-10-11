@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Layers, Info } from 'lucide-react';
 import { GlowCard } from '@/components/GlowCard';
 import { useContextStore } from '../../../stores/contextStore';

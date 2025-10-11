@@ -4,7 +4,7 @@ import { Folder, File, ChevronRight, FolderOpen, Check } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '../../../types';
 import { useStore } from '../../../stores/nodeStore';
 import { getFileTypeColor } from '../../../helpers/typeStyles';
-import { normalizePath, pathsMatch } from '../../../utils/pathUtils';
+import { pathsMatch } from '../../../utils/pathUtils';
 
 interface TreeNodeProps {
   node: TreeNodeType;
