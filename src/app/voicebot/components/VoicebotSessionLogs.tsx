@@ -1,15 +1,8 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Bot, Activity, Trash2 } from 'lucide-react';
-
-interface SessionLog {
-  id: string;
-  timestamp: string;
-  type: 'user' | 'assistant' | 'system';
-  message: string;
-  audioUrl?: string;
-}
+import { User, Bot, Activity, Trash2, Clock } from 'lucide-react';
+import { SessionLog } from '../lib/voicebotTypes';
 
 type SessionState = 'idle' | 'connecting' | 'active' | 'processing' | 'error';
 
@@ -229,17 +222,50 @@ export default function VoicebotSessionLogs({
                         {log.message}
                       </p>
 
-                      {/* Audio Playback Indicator */}
-                      {log.audioUrl && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="mt-3 flex items-center space-x-2 text-xs text-green-400/80"
-                        >
-                          <Activity className="w-3 h-3" />
-                          <span className="font-mono">Audio response played</span>
-                        </motion.div>
-                      )}
+                      {/* Timing and Audio Indicators */}
+                      <div className="mt-3 flex items-center justify-between">
+                        <div>
+                          {/* Audio Playback Indicator */}
+                          {log.audioUrl && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              className="flex items-center space-x-2 text-xs text-green-400/80"
+                            >
+                              <Activity className="w-3 h-3" />
+                              <span className="font-mono">Audio response played</span>
+                            </motion.div>
+                          )}
+                        </div>
+
+                        {/* Response Timing (bottom-right for assistant messages) */}
+                        {log.type === 'assistant' && log.timing && (
+                          <motion.div
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center space-x-3 text-xs text-slate-400 font-mono"
+                          >
+                            <Clock className="w-3 h-3" />
+                            <div className="flex items-center space-x-2">
+                              {log.timing.llmMs !== undefined && (
+                                <span className="px-2 py-0.5 bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-400">
+                                  LLM: {(log.timing.llmMs / 1000).toFixed(2)}s
+                                </span>
+                              )}
+                              {log.timing.ttsMs !== undefined && (
+                                <span className="px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded text-green-400">
+                                  TTS: {(log.timing.ttsMs / 1000).toFixed(2)}s
+                                </span>
+                              )}
+                              {log.timing.totalMs !== undefined && (
+                                <span className="px-2 py-0.5 bg-slate-500/20 border border-slate-500/30 rounded text-slate-300">
+                                  Total: {(log.timing.totalMs / 1000).toFixed(2)}s
+                                </span>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </motion.div>

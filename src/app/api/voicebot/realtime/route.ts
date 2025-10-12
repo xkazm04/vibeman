@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const startTotal = Date.now();
+
     // Step 1: Convert audio to text using Whisper API
+    const startStt = Date.now();
     const audioBuffer = Buffer.from(audioData, 'base64');
     const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
     
@@ -49,8 +52,10 @@ export async function POST(request: NextRequest) {
 
     const transcription = await whisperResponse.json();
     const userText = transcription.text;
+    const sttMs = Date.now() - startStt;
 
     // Step 2: Get AI response using GPT-4
+    const startLlm = Date.now();
     const messages = [
       {
         role: 'system',
@@ -87,8 +92,10 @@ export async function POST(request: NextRequest) {
 
     const chatData = await chatResponse.json();
     const assistantText = chatData.choices[0]?.message?.content || 'I apologize, but I encountered an issue.';
+    const llmMs = Date.now() - startLlm;
 
     // Step 3: Convert AI response to speech using TTS API
+    const startTts = Date.now();
     const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
@@ -115,12 +122,20 @@ export async function POST(request: NextRequest) {
       const base64Audio = Buffer.from(audioBuffer).toString('base64');
       audioUrl = `data:audio/mp3;base64,${base64Audio}`;
     }
+    const ttsMs = Date.now() - startTts;
+    const totalMs = Date.now() - startTotal;
 
     return NextResponse.json({
       success: true,
       userText,
       assistantText,
       audioUrl,
+      timing: {
+        sttMs,
+        llmMs,
+        ttsMs,
+        totalMs
+      },
       conversationHistory: [
         ...conversationHistory,
         { role: 'user', content: userText },

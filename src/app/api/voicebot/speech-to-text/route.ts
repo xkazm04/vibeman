@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const audioFile = formData.get('audio') as File;
+    const audioFile = formData.get('file') as File;
 
     if (!audioFile) {
       return NextResponse.json(
@@ -24,8 +24,9 @@ export async function POST(request: NextRequest) {
 
     // Create FormData for ElevenLabs API
     const elevenLabsFormData = new FormData();
-    elevenLabsFormData.append('audio', audioFile);
+    elevenLabsFormData.append('file', audioFile);
     elevenLabsFormData.append('model_id', 'scribe_v1');
+    elevenLabsFormData.append('language', 'en'); // English only
 
     const response = await fetch(ELEVENLABS_STT_URL, {
       method: 'POST',

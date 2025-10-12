@@ -1,0 +1,5 @@
+What is artificial intelligence?
+How does machine learning work?
+Can you explain neural networks?
+Tell me about natural language processing
+Explain the difference between AI and machine learning
