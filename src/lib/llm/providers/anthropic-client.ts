@@ -4,7 +4,7 @@ import { BaseLLMClient } from '../base-client';
 import { LLMRequest, LLMResponse, LLMProgress } from '../types';
 
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1';
-const DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 interface AnthropicRequest {
   model: string;

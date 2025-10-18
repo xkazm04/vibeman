@@ -7,7 +7,7 @@ import CompactSystemLogs from './components/CompactSystemLogs';
 
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import RunnerRightPanel from './components/RunnerRightPanel';
+
 import { RefreshCcw, Skull } from 'lucide-react';
 import VoicebotPillar from '@/app/voicebot/VoicebotPillar';
 import LogoSvg from "@/components/LogoSvg";
@@ -111,7 +111,7 @@ export default function Runner() {
   const handleToggleServer = async (projectId: string) => {
     const status = processes[projectId];
     const isRunning = status?.status === 'running';
-    
+
     try {
       if (isRunning) {
         await stopServer(projectId);
@@ -128,7 +128,7 @@ export default function Runner() {
       <div className="w-full bg-gradient-to-r from-gray-950 via-indigo-950/30 to-purple-950/20 border-b border-gray-800/50 shadow-2xl backdrop-blur-xl">
         {/* Neural Background Effects */}
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-indigo-500/5 to-purple-500/5" />
-        
+
         {/* Animated Grid Pattern */}
         <motion.div
           className="absolute inset-0 opacity-5"
@@ -184,7 +184,7 @@ export default function Runner() {
           >
             <Skull className="w-4 h-4" />
           </motion.button>
-          
+
           <motion.button
             onClick={handleEmergencyRefresh}
             title="Force Neural Refresh"
@@ -212,7 +212,7 @@ export default function Runner() {
               </div>
 
               {disabled && (
-                <motion.div 
+                <motion.div
                   className="flex items-center space-x-2 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-xl backdrop-blur-sm"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -222,8 +222,7 @@ export default function Runner() {
               )}
             </div>
 
-            {/* Right: Neural Control Panel */}
-            <RunnerRightPanel />
+
           </div>
         </div>
       </div>

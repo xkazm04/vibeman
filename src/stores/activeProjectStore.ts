@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { Project, TreeNode } from '@/types';
+import { Context } from '@/lib/queries/contextQueries';
 import { useProjectConfigStore } from './projectConfigStore';
 
 interface ActiveProjectStore {
   // State
   activeProject: Project | null;
+  activeContext: Context | null;
   fileStructure: TreeNode | null;
   isLoading: boolean;
   error: string | null;
@@ -13,6 +15,7 @@ interface ActiveProjectStore {
   
   // Actions
   setActiveProject: (project: Project) => void;
+  setActiveContext: (context: Context | null) => void;
   setFileStructure: (structure: TreeNode | null) => void;
   loadProjectFileStructure: (projectId: string) => Promise<void>;
   refreshFileStructure: () => Promise<void>;
@@ -28,6 +31,7 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
       (set, get) => ({
         // Initial state
         activeProject: null,
+        activeContext: null,
         fileStructure: null,
         isLoading: false,
         error: null,
@@ -35,7 +39,12 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
         
         // Set active project
         setActiveProject: (project) => {
-          set({ activeProject: project, fileStructure: null, error: null });
+          set({ activeProject: project, activeContext: null, fileStructure: null, error: null });
+        },
+        
+        // Set active context
+        setActiveContext: (context) => {
+          set({ activeContext: context });
         },
         
         // Set file structure
@@ -126,9 +135,10 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
       {
         name: 'active-project-store',
         version: 1,
-        // Only persist the active project ID, not the file structure
+        // Only persist the active project ID and context ID, not the file structure
         partialize: (state) => ({
           activeProject: state.activeProject,
+          activeContext: state.activeContext,
         }),
         onRehydrateStorage: () => (state) => {
           if (state?.activeProject) {

@@ -13,20 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle both absolute and relative paths
-    let fullPath: string;
-    const projectRoot = process.cwd();
-    
-    // Check if it's an absolute path (Windows: C:\ or Unix: /)
-    const isAbsolutePath = filePath.match(/^[A-Za-z]:\\/) || filePath.startsWith('/');
-    
-    if (isAbsolutePath) {
-      fullPath = filePath;
-    } else {
-      fullPath = join(projectRoot, filePath);
-    }
-    
-    // Security check - prevent directory traversal
+    // Security check - prevent directory traversal (do this first)
     if (filePath.includes('..') || filePath.includes('~')) {
       return NextResponse.json(
         { success: false, error: 'Invalid file path' },
@@ -34,20 +21,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle both absolute and relative paths
+    let fullPath: string;
+    const projectRoot = process.cwd();
+    
+    // Check if it's an absolute path (Windows: C:\ or D:\ or Unix: /)
+    const isAbsolutePath = /^[A-Za-z]:[\\\/]/.test(filePath) || filePath.startsWith('/');
+    
+    if (isAbsolutePath) {
+      // Use the absolute path directly, don't join with projectRoot
+      fullPath = filePath;
+    } else {
+      // Only join relative paths with project root
+      fullPath = join(projectRoot, filePath);
+    }
+
     try {
       const content = await readFile(fullPath, 'utf-8');
       return NextResponse.json({
         success: true,
         content,
-        filePath
+        filePath: fullPath
       });
     } catch (fileError) {
-      console.error(`Failed to read file ${filePath}:`, fileError);
+      console.error(`Failed to read file ${fullPath}:`, fileError);
       return NextResponse.json(
         { 
           success: false, 
           error: `Failed to read file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
-          filePath
+          filePath: fullPath
         },
         { status: 404 }
       );

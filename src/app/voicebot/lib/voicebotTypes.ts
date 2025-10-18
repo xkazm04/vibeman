@@ -17,6 +17,11 @@ export interface SessionLog {
     ttsMs?: number;    // TTS generation time in milliseconds
     totalMs?: number;  // Total processing time
   };
+  toolsUsed?: Array<{
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  }>;
 }
 
 /**

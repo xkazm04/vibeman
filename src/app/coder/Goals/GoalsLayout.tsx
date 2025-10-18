@@ -1,10 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Plus } from 'lucide-react';
+import { Target } from 'lucide-react';
 import GoalsTimeline from './GoalsTimeline';
 import ProjectsLayout from '../../projects/ProjectsLayout';
-import GoalsAddModalContent from './GoalsAddModalContent';
+import GoalsAddModal from './GoalsAddModal';
 import GoalsDetailModalContent from './GoalsDetailModalContent';
 import GoalsTitle from './GoalsTitle';
 import { Goal } from '../../../types';
@@ -20,7 +20,7 @@ import { findInProgressGoal, getNextOrder } from './lib';
 
 export default function GoalsLayout() {
   const { activeProject, fileStructure } = useActiveProjectStore();
-  const { goals, loading, error, createGoal, updateGoal, fetchGoals } = useGoals(activeProject?.id || null);
+  const { goals, createGoal, updateGoal, fetchGoals } = useGoals(activeProject?.id || null);
   const { startAnalysis } = useAnalysisStore();
   const { getProject } = useProjectConfigStore();
   const { getSelectedFilePaths } = useStore();
@@ -151,59 +151,8 @@ export default function GoalsLayout() {
     const createdGoal = await createGoal(goalWithOrder);
     if (createdGoal) {
       setShowAddGoal(false);
-      hideModal();
     }
   };
-
-  // Show add goal modal when showAddGoal changes
-  useEffect(() => {
-    if (showAddGoal) {
-      showShellModal(
-        {
-          title: 'Add New Goal',
-          subtitle: 'Create a new project goal',
-          icon: Plus,
-          iconBgColor: 'from-slate-700/20 to-slate-800/20',
-          iconColor: 'text-slate-300',
-          maxWidth: 'max-w-lg',
-          maxHeight: 'max-h-[85vh]'
-        },
-        {
-          customContent: (
-            <GoalsAddModalContent
-              onSubmit={handleAddNewGoal}
-              onClose={() => {
-                setShowAddGoal(false);
-                hideModal();
-              }}
-            />
-          ),
-          isTopMost: true
-        }
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAddGoal]);
-
-  if (loading) {
-    return (
-      <div className="w-full h-16 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 mb-6">
-        <div className="h-full w-full flex items-center justify-center">
-          <div className="text-gray-400">Loading goals...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full h-16 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 mb-6">
-        <div className="h-full w-full flex items-center justify-center">
-          <div className="text-red-400">Error: {error}</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -234,6 +183,13 @@ export default function GoalsLayout() {
           onGoalSelect={handleTimelineGoalSelect}
         />
       </motion.div>
+
+      {/* Add Goal Modal */}
+      <GoalsAddModal
+        isOpen={showAddGoal}
+        onClose={() => setShowAddGoal(false)}
+        onSubmit={handleAddNewGoal}
+      />
     </>
   );
 } 

@@ -29,8 +29,8 @@ export default function TreeView({
   selectedPaths = []
 }: TreeViewProps) {
   return (
-    <div className="flex-1 overflow-auto custom-scrollbar">
-      <div className="min-h-0 pr-2">
+    <div className="flex-1 overflow-y-scroll max-h-[60vh] overflow-x-hidden custom-scrollbar min-h-0">
+      <div className="pr-2">
         {isLoading ? (
           <div className="text-center py-12 text-gray-500">
             <div className="w-16 h-16 mx-auto mb-4 bg-gray-800/50 rounded-full flex items-center justify-center">

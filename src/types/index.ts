@@ -101,6 +101,7 @@ export interface AppState {
 export interface Goal {
   id: string;
   projectId: string;
+  contextId?: string; // Optional context association
   order: number;
   title: string;
   description?: string;
@@ -114,6 +115,7 @@ export interface AppStore extends AppState {
   setActiveTab: (tabId: string) => void;
   toggleAgent: (agentId: string) => void;
   toggleNode: (nodeId: string) => void;
+  toggleNodeWithFolder: (nodeId: string, fileStructure: TreeNode | null) => void; // New: enhanced toggle with folder support
   highlightNodes: (nodeIds: string[]) => void; // New: highlight specific nodes
   clearHighlights: () => void; // New: clear all highlights
   clearSelection: () => void; // New: clear all selected nodes

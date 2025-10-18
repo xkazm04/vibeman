@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, title, description, status = 'open', orderIndex } = body;
+    const { projectId, contextId, title, description, status = 'open', orderIndex } = body;
 
     if (!projectId || !title) {
       return NextResponse.json({ error: 'Project ID and title are required' }, { status: 400 });
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     const goal = goalDb.createGoal({
       id: randomUUID(),
       project_id: projectId,
+      context_id: contextId,
       title,
       description,
       status,
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, title, description, status, orderIndex } = body;
+    const { id, title, description, status, orderIndex, contextId } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Goal ID is required' }, { status: 400 });
@@ -67,11 +68,13 @@ export async function PUT(request: NextRequest) {
       description?: string;
       status?: 'open' | 'in_progress' | 'done';
       order_index?: number;
+      context_id?: string | null;
     } = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;
     if (orderIndex !== undefined) updateData.order_index = orderIndex;
+    if (contextId !== undefined) updateData.context_id = contextId;
 
     const goal = goalDb.updateGoal(id, updateData);
 

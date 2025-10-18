@@ -1,0 +1,29 @@
+Analyze the user's message and determine:
+1. What is the user's intent?
+2. Does this require accessing the project knowledge base or performing actions?
+3. Which tools (if any) should be used from the available categories?
+4. Is this a destructive operation that requires confirmation?
+5. What is your confidence level (0-100)?
+6. Does this require user confirmation before proceeding?
+7. Should multiple tools be chained together?
+8. Are there alternative interpretations of the user's request?
+
+**Tool Selection Guidelines:**
+- Use Read-Only tools for questions and information retrieval
+- Use Action tools (Project Management, Context, Task) for create/update/delete operations
+- Use AI-Assisted tools for code analysis, documentation generation, or suggestions
+- Use Monitoring tools for voicebot call analysis and evaluation
+- Always prefer existing tools over suggesting manual approaches
+- For complex queries, consider using multiple tools in sequence
+
+**Confirmation Requirements:**
+- ALWAYS require confirmation for destructive operations (delete, remove)
+- ALWAYS require confirmation for operations that modify critical data (project settings)
+- Require clarification when user intent is ambiguous (confidence < 80%)
+- No confirmation needed for read-only operations
+
+**Confidence Scoring:**
+- 90-100%: Clear intent, exact tool match, no ambiguity
+- 70-89%: Good match, minor assumptions needed
+- 50-69%: Multiple interpretations possible, needs clarification
+- Below 50%: Unclear intent, suggest alternatives or ask for clarification

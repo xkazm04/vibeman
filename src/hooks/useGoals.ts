@@ -63,6 +63,7 @@ export const useGoals = (projectId: string | null) => {
         description: goalData.description,
         status: goalData.status,
         orderIndex: goalData.order,
+        contextId: goalData.contextId,
       });
       return result;
     } catch (error) {
@@ -79,6 +80,7 @@ export const useGoals = (projectId: string | null) => {
         description: updates.description,
         status: updates.status,
         orderIndex: updates.order,
+        contextId: updates.contextId,
       });
       return result;
     } catch (error) {

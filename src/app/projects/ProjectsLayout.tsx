@@ -33,9 +33,11 @@ export default function ProjectsLayout({
   const {
     showAddProject,
     showAIReview,
+    showClaudeCode,
     setShowAddProject,
     setShowAddGoal,
-    setShowAIReview
+    setShowAIReview,
+    setShowClaudeCode
   } = useProjectsToolbarStore();
 
   // Code Review Modal state - managed at layout level for proper z-index
@@ -56,6 +58,11 @@ export default function ProjectsLayout({
   // AI Features Handlers
   const handleAIProjectReview = () => {
     setShowAIReview(true);
+  };
+
+  // Claude Code Handler
+  const handleClaudeCode = () => {
+    setShowClaudeCode(true);
   };
 
   // Handle project added - refresh the project list

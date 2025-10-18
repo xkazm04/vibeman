@@ -42,6 +42,20 @@ export const agentIcons = new Proxy(baseAgentIcons, {
   }
 });
 
+// Supported file extensions for selection and display
+export const SUPPORTED_FILE_EXTENSIONS = [
+  'tsx', 'ts', 'jsx', 'js',
+  'css', 'scss', 'sass', 'less',
+  'json', 'md', 'mdx',
+  'html', 'htm',
+  'py', 'java', 'go', 'rs', 'c', 'cpp', 'h', 'hpp'
+];
+
+export const isSupportedFile = (fileName: string): boolean => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return ext ? SUPPORTED_FILE_EXTENSIONS.includes(ext) : false;
+};
+
 export const getFileTypeColor = (fileName: string) => {
     const ext = fileName.split('.').pop()?.toLowerCase();
     switch (ext) {
@@ -53,11 +67,30 @@ export const getFileTypeColor = (fileName: string) => {
         return 'text-yellow-400';
       case 'css':
       case 'scss':
+      case 'sass':
+      case 'less':
         return 'text-red-400';
       case 'json':
         return 'text-green-400';
       case 'md':
-        return 'text-gray-400';
+      case 'mdx':
+        return 'text-purple-400';
+      case 'html':
+      case 'htm':
+        return 'text-orange-400';
+      case 'py':
+        return 'text-blue-300';
+      case 'java':
+        return 'text-red-300';
+      case 'go':
+        return 'text-cyan-300';
+      case 'rs':
+        return 'text-orange-300';
+      case 'c':
+      case 'cpp':
+      case 'h':
+      case 'hpp':
+        return 'text-indigo-400';
       default:
         return 'text-gray-300';
     }

@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
-import { Search, FolderTree } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, FolderTree, Sparkles, Loader2 } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '../../../../types';
 import { useStore } from '../../../../stores/nodeStore';
 import TreeView from '../../../coder/CodeTree/TreeView';
 import { normalizePath } from '../../../../utils/pathUtils';
+import { DependencyAnalysisResponse } from '../../../api/file-dependencies/route';
 
 interface FileTreeSelectorProps {
   fileStructure: TreeNodeType | null;
@@ -11,6 +12,7 @@ interface FileTreeSelectorProps {
   onPathToggle: (path: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  projectPath?: string;
 }
 
 export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
@@ -18,9 +20,11 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
   selectedPaths,
   onPathToggle,
   searchQuery,
-  onSearchChange
+  onSearchChange,
+  projectPath
 }) => {
   const { clearSelection } = useStore();
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
 
 
@@ -49,15 +53,123 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
   }, [fileStructure, searchQuery]);
 
   const handleNodeToggle = (nodePath: string) => {
-    // Normalize the path to forward slashes for consistency
-    const normalizedPath = normalizePath(nodePath);
-    onPathToggle(normalizedPath);
+    if (!fileStructure) return;
+
+    // Find the node in the tree
+    const findNode = (node: TreeNodeType, targetPath: string): TreeNodeType | null => {
+      const currentPath = node.path || node.id;
+      if (normalizePath(currentPath) === normalizePath(targetPath)) {
+        return node;
+      }
+
+      if (node.children) {
+        for (const child of node.children) {
+          const found = findNode(child, targetPath);
+          if (found) return found;
+        }
+      }
+
+      return null;
+    };
+
+    const node = findNode(fileStructure, nodePath);
+
+    if (!node) {
+      // Fallback: if node not found, just toggle the path
+      onPathToggle(normalizePath(nodePath));
+      return;
+    }
+
+    if (node.type === 'folder') {
+      // For folders, collect all child file paths
+      const childFilePaths: string[] = [];
+
+      const collectChildFiles = (n: TreeNodeType) => {
+        if (n.type === 'file') {
+          const filePath = n.path || n.id;
+          childFilePaths.push(normalizePath(filePath));
+        }
+
+        if (n.children) {
+          n.children.forEach(collectChildFiles);
+        }
+      };
+
+      if (node.children) {
+        node.children.forEach(collectChildFiles);
+      }
+
+      // Check if all child files are already selected
+      const allSelected = childFilePaths.every(path =>
+        selectedPaths.some(sp => normalizePath(sp) === path)
+      );
+
+      // Toggle all child files
+      childFilePaths.forEach(path => {
+        const isCurrentlySelected = selectedPaths.some(sp => normalizePath(sp) === path);
+
+        // If deselecting all, remove each file
+        // If selecting all, add each file
+        if (allSelected && isCurrentlySelected) {
+          onPathToggle(path); // Remove
+        } else if (!allSelected && !isCurrentlySelected) {
+          onPathToggle(path); // Add
+        }
+      });
+    } else {
+      // For files, just toggle normally
+      onPathToggle(normalizePath(nodePath));
+    }
   };
 
   // Create normalized selected paths for comparison
   const normalizedSelectedPaths = useMemo(() => {
     return selectedPaths.map(normalizePath);
   }, [selectedPaths]);
+
+  // Smart selection: analyze file dependencies and select related files
+  const handleSmartSelection = async () => {
+    if (selectedPaths.length !== 1 || !projectPath) {
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      const selectedFile = selectedPaths[0];
+      const absolutePath = projectPath + '/' + normalizePath(selectedFile);
+
+      const response = await fetch('/api/file-dependencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filePath: absolutePath,
+          projectPath: projectPath,
+          maxDepth: 3,
+          includeNodeModules: false,
+        }),
+      });
+
+      const data: DependencyAnalysisResponse = await response.json();
+
+      if (data.success && data.dependencies) {
+        // Add all dependencies to selection
+        data.dependencies.forEach((dep) => {
+          const relPath = normalizePath(dep.relativePath);
+          // Only toggle if not already selected
+          if (!selectedPaths.some(sp => normalizePath(sp) === relPath)) {
+            onPathToggle(relPath);
+          }
+        });
+      } else {
+        console.error('Failed to analyze dependencies:', data.error);
+      }
+    } catch (error) {
+      console.error('Error analyzing dependencies:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -89,6 +201,30 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
               Clear all
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Project Files Header with Smart Selection */}
+      <div className="px-4 py-3 border-b border-gray-700/30 flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-300">Project Files</span>
+        {selectedPaths.length === 1 && projectPath && (
+          <button
+            onClick={handleSmartSelection}
+            disabled={isAnalyzing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded-lg hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium border border-purple-500/30"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Analyzing...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3 h-3" />
+                <span>Smart Select</span>
+              </>
+            )}
+          </button>
         )}
       </div>
 

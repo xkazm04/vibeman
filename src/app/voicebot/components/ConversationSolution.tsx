@@ -23,6 +23,7 @@ import {
   ConversationMessage,
   generateEvaluationPrompt
 } from '../lib';
+import { generateCallId, generateMessageId, isMonitoringEnabled } from '@/app/monitor/lib';
 
 
 
@@ -51,6 +52,8 @@ export default function ConversationSolution() {
   const [evaluation, setEvaluation] = useState<string | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isMultiModel, setIsMultiModel] = useState(false);
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [monitoring, setMonitoring] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
@@ -58,6 +61,7 @@ export default function ConversationSolution() {
   const responsesRef = useRef<string[]>([]);
   const multiModelResponsesRef = useRef<Record<string, string[]>>({});
   const timingsRef = useRef<Array<{ llmMs?: number; ttsMs?: number; totalMs?: number }>>([]);
+  const callStartTimeRef = useRef<string | null>(null);
 
   // Load test questions on mount
   useEffect(() => {
@@ -325,6 +329,45 @@ export default function ConversationSolution() {
         totalMs: result.timing.totalMs
       });
 
+      // Track messages if monitoring is enabled
+      if (currentCallId) {
+        const timestamp = new Date().toISOString();
+        
+        // Track user message (question)
+        fetch('/api/monitor/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageId: generateMessageId(),
+            callId: currentCallId,
+            role: 'user',
+            content: sentence,
+            timestamp,
+            metadata: { questionIndex: currentSentenceIndex }
+          })
+        }).catch(error => console.error('Failed to track user message:', error));
+        
+        // Track assistant message (response)
+        fetch('/api/monitor/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageId: generateMessageId(),
+            callId: currentCallId,
+            role: 'assistant',
+            content: result.assistantText,
+            timestamp: new Date().toISOString(),
+            latencyMs: result.timing.totalMs,
+            metadata: {
+              llmMs: result.timing.llmMs,
+              ttsMs: result.timing.ttsMs,
+              provider,
+              model
+            }
+          })
+        }).catch(error => console.error('Failed to track assistant message:', error));
+      }
+
       addLog('assistant', result.assistantText, result.audioUrl, {
         llmMs: result.timing.llmMs,
         ttsMs: result.timing.ttsMs,
@@ -356,7 +399,7 @@ export default function ConversationSolution() {
       setIsPlaying(false);
       isPlayingRef.current = false;
     }
-  }, [currentSentenceIndex, logs, provider, model, addLog, runEvaluation, testQuestions]);
+  }, [currentSentenceIndex, logs, provider, model, addLog, runEvaluation, testQuestions, currentCallId]);
 
   const startConversation = useCallback(() => {
     setCurrentSentenceIndex(0);
@@ -370,6 +413,35 @@ export default function ConversationSolution() {
     timingsRef.current = [];
     multiModelResponsesRef.current = {};
     
+    // Create monitoring call if enabled
+    if (monitoring && isMonitoringEnabled()) {
+      const callId = generateCallId();
+      const startTime = new Date().toISOString();
+      
+      callStartTimeRef.current = startTime;
+      setCurrentCallId(callId);
+      
+      fetch('/api/monitor/calls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callId,
+          userId: 'conversation-test-user',
+          startTime,
+          status: 'active',
+          intent: 'conversation-test',
+          promptVersionId: isMultiModel ? 'multi-model' : `${provider}:${model}`,
+          metadata: {
+            provider,
+            model,
+            type: 'conversation-test',
+            isMultiModel,
+            questionCount: testQuestions.length
+          }
+        })
+      }).catch(error => console.error('Failed to create monitoring call:', error));
+    }
+    
     if (isMultiModel) {
       addLog('system', 'Starting MULTI-MODEL conversation test (Ollama, OpenAI, Anthropic, Gemini)');
       playNextSentenceMultiModel();
@@ -377,7 +449,7 @@ export default function ConversationSolution() {
       addLog('system', `Starting conversation test with ${provider} (${model})`);
       playNextSentence();
     }
-  }, [provider, model, isMultiModel, addLog, playNextSentence, playNextSentenceMultiModel]);
+  }, [provider, model, isMultiModel, addLog, playNextSentence, playNextSentenceMultiModel, monitoring, testQuestions.length]);
 
   const stopConversation = useCallback(() => {
     setIsPlaying(false);
@@ -389,8 +461,35 @@ export default function ConversationSolution() {
       audioRef.current = null;
     }
     
+    // Update monitoring call if enabled
+    if (currentCallId && callStartTimeRef.current) {
+      const endTime = new Date().toISOString();
+      const startMs = new Date(callStartTimeRef.current).getTime();
+      const endMs = new Date(endTime).getTime();
+      const duration = endMs - startMs;
+      
+      fetch('/api/monitor/calls', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callId: currentCallId,
+          endTime,
+          duration,
+          status: 'completed',
+          outcome: 'test-completed',
+          metadata: {
+            totalQuestions: questionsRef.current.length,
+            totalResponses: responsesRef.current.length
+          }
+        })
+      }).catch(error => console.error('Failed to update monitoring call:', error));
+      
+      setCurrentCallId(null);
+      callStartTimeRef.current = null;
+    }
+    
     addLog('system', 'Conversation test stopped');
-  }, [addLog]);
+  }, [addLog, currentCallId]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
@@ -442,6 +541,7 @@ export default function ConversationSolution() {
             onStart={startConversation}
             onStop={stopConversation}
             onClear={clearLogs}
+            onMonitoringChange={setMonitoring}
           />
         </div>
 

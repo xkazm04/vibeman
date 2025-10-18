@@ -36,12 +36,14 @@ function initializeTables() {
     CREATE TABLE IF NOT EXISTS goals (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
+      context_id TEXT,
       order_index INTEGER NOT NULL,
       title TEXT NOT NULL,
       description TEXT,
       status TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'done', 'rejected', 'undecided')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
     );
   `);
 
@@ -89,6 +91,7 @@ function initializeTables() {
       file_paths TEXT NOT NULL, -- JSON string of file paths array
       has_context_file INTEGER DEFAULT 0, -- Boolean flag for context file existence
       context_file_path TEXT, -- Path to the context file
+      preview TEXT, -- Optional preview image path (relative to public folder)
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE SET NULL
@@ -145,6 +148,7 @@ function runMigrations() {
 
     const hasContextFileColumn = tableInfo.some(col => col.name === 'has_context_file');
     const hasContextFilePathColumn = tableInfo.some(col => col.name === 'context_file_path');
+    const hasPreviewColumn = tableInfo.some(col => col.name === 'preview');
 
     // Add missing columns if they don't exist
     if (!hasContextFileColumn) {
@@ -155,6 +159,11 @@ function runMigrations() {
     if (!hasContextFilePathColumn) {
       console.log('Adding context_file_path column to contexts table');
       db.exec(`ALTER TABLE contexts ADD COLUMN context_file_path TEXT`);
+    }
+
+    if (!hasPreviewColumn) {
+      console.log('Adding preview column to contexts table');
+      db.exec(`ALTER TABLE contexts ADD COLUMN preview TEXT`);
     }
 
     // Check if group_id constraint needs to be updated to allow NULL
@@ -235,15 +244,85 @@ function runMigrations() {
 
     // Check if goals table needs status constraint update
     try {
+      // First, check if context_id column exists
+      const goalsTableInfo = db.prepare("PRAGMA table_info(goals)").all() as Array<{
+        cid: number;
+        name: string;
+        type: string;
+        notnull: number;
+        dflt_value: any;
+        pk: number;
+      }>;
+
+      const hasContextIdColumn = goalsTableInfo.some(col => col.name === 'context_id');
+
+      // If context_id doesn't exist, we need to recreate the table
+      if (!hasContextIdColumn) {
+        console.log('Goals table needs context_id column, recreating table...');
+
+        // Backup existing goals
+        const existingGoals = db.prepare('SELECT * FROM goals').all();
+
+        // Drop and recreate the goals table with context_id
+        db.exec('DROP TABLE IF EXISTS goals_backup');
+        db.exec(`CREATE TABLE goals_backup AS SELECT * FROM goals`);
+
+        db.exec('DROP TABLE goals');
+
+        db.exec(`
+          CREATE TABLE goals (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            context_id TEXT,
+            order_index INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            status TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'done', 'rejected', 'undecided')),
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
+          )
+        `);
+
+        // Restore data (without context_id since it didn't exist before)
+        if (existingGoals.length > 0) {
+          const insertStmt = db.prepare(`
+            INSERT INTO goals (id, project_id, context_id, order_index, title, description, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          for (const goal of existingGoals) {
+            insertStmt.run(
+              goal.id,
+              goal.project_id,
+              null, // context_id defaults to null for existing goals
+              goal.order_index,
+              goal.title,
+              goal.description,
+              goal.status,
+              goal.created_at,
+              goal.updated_at
+            );
+          }
+        }
+
+        // Clean up backup table
+        db.exec('DROP TABLE goals_backup');
+
+        console.log('Goals table migration with context_id completed successfully');
+      } else {
+        console.log('Goals table already has context_id column');
+      }
+
       // Try to insert a test record with 'undecided' status to check if constraint allows it
       const testId = 'migration-test-' + Date.now();
       const testStmt = db.prepare(`
-        INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO goals (id, project_id, context_id, order_index, title, description, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       try {
-        testStmt.run(testId, 'test-project', 1, 'Test Goal', 'Test Description', 'undecided', new Date().toISOString(), new Date().toISOString());
+        testStmt.run(testId, 'test-project', null, 1, 'Test Goal', 'Test Description', 'undecided', new Date().toISOString(), new Date().toISOString());
 
         // If successful, clean up the test record
         const deleteStmt = db.prepare('DELETE FROM goals WHERE id = ?');
@@ -268,26 +347,29 @@ function runMigrations() {
           CREATE TABLE goals (
             id TEXT PRIMARY KEY,
             project_id TEXT NOT NULL,
+            context_id TEXT,
             order_index INTEGER NOT NULL,
             title TEXT NOT NULL,
             description TEXT,
             status TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'done', 'rejected', 'undecided')),
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
           )
         `);
 
         // Restore data
         if (existingGoals.length > 0) {
           const insertStmt = db.prepare(`
-            INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO goals (id, project_id, context_id, order_index, title, description, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           `);
 
           for (const goal of existingGoals) {
             insertStmt.run(
               goal.id,
               goal.project_id,
+              goal.context_id || null,
               goal.order_index,
               goal.title,
               goal.description,
@@ -319,6 +401,7 @@ function runMigrations() {
 export interface DbGoal {
   id: string;
   project_id: string;
+  context_id: string | null;
   order_index: number;
   title: string;
   description: string | null;
@@ -343,6 +426,7 @@ export const goalDb = {
   createGoal: (goal: {
     id: string;
     project_id: string;
+    context_id?: string;
     title: string;
     description?: string;
     status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
@@ -352,13 +436,14 @@ export const goalDb = {
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO goals (id, project_id, order_index, title, description, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO goals (id, project_id, context_id, order_index, title, description, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
       goal.id,
       goal.project_id,
+      goal.context_id || null,
       goal.order_index,
       goal.title,
       goal.description || null,
@@ -378,6 +463,7 @@ export const goalDb = {
     description?: string;
     status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     order_index?: number;
+    context_id?: string | null;
   }): DbGoal | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -777,6 +863,7 @@ export interface DbContext {
   file_paths: string; // JSON string of file paths array
   has_context_file: number; // SQLite boolean (0/1)
   context_file_path: string | null;
+  preview: string | null; // Optional preview image path (relative to public folder)
   created_at: string;
   updated_at: string;
 }
@@ -877,6 +964,7 @@ export const contextDb = {
     group_id?: string;
     has_context_file?: boolean;
     context_file_path?: string;
+    preview?: string | null;
   }): DbContext | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -909,6 +997,10 @@ export const contextDb = {
       updateFields.push('context_file_path = ?');
       values.push(updates.context_file_path);
     }
+    if (updates.preview !== undefined) {
+      updateFields.push('preview = ?');
+      values.push(updates.preview);
+    }
 
     if (updateFields.length === 0) {
       // No updates to make
@@ -921,8 +1013,8 @@ export const contextDb = {
     values.push(id);
 
     const stmt = db.prepare(`
-      UPDATE contexts 
-      SET ${updateFields.join(', ')} 
+      UPDATE contexts
+      SET ${updateFields.join(', ')}
       WHERE id = ?
     `);
 

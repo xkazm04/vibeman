@@ -37,6 +37,8 @@ export interface Context {
   // Context file configuration
   hasContextFile?: boolean;
   contextFilePath?: string;
+  // Preview image configuration
+  preview?: string | null;
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
@@ -244,6 +246,7 @@ interface ContextStore extends ContextState {
   
   // Context selection for backlog generation
   toggleContextSelection: (contextId: string) => void;
+  setSelectedContext: (contextId: string) => void;
   clearContextSelection: () => void;
   selectAllContexts: () => void;
   
@@ -564,6 +567,13 @@ export const useContextStore = (() => {
           }
           return { ...prev, selectedContextIds: newSelectedContextIds };
         });
+      },
+      
+      setSelectedContext: (contextId: string) => {
+        setState(prev => ({
+          ...prev,
+          selectedContextIds: new Set([contextId])
+        }));
       },
       
       clearContextSelection: () => {

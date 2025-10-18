@@ -1,5 +1,2 @@
-What is artificial intelligence?
-How does machine learning work?
-Can you explain neural networks?
-Tell me about natural language processing
-Explain the difference between AI and machine learning
+Please list all project names in this app.
+Please summarize what do you know about project GOAT.

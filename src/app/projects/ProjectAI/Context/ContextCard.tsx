@@ -100,7 +100,7 @@ export default function ContextCard({
       whileHover={{ scale: 1.02, y: -2 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
-      {/* Neural Background Effects */}
+      {/*  Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5 rounded-2xl" />
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-2xl" />
       
@@ -123,7 +123,7 @@ export default function ContextCard({
           ease: "linear"
         }}
       />
-      {/* Neural Context Header */}
+      {/*  Context Header */}
       <div className="relative p-5 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/30 via-transparent to-gray-800/30 backdrop-blur-sm">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -232,7 +232,7 @@ export default function ContextCard({
             </motion.button>
             <motion.button
               className="p-2 text-gray-400 hover:text-slate-400 hover:bg-slate-500/10 rounded-lg transition-all duration-300 backdrop-blur-sm border border-transparent hover:border-slate-500/30"
-              title="Neural file matrix"
+              title=" file matrix"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -241,7 +241,7 @@ export default function ContextCard({
           </div>
         </div>
 
-        {/* Neural Context Stats */}
+        {/*  Context Stats */}
         <motion.div 
           className="flex items-center justify-between text-sm text-gray-400 font-mono"
           initial={{ opacity: 0, y: 10 }}
@@ -255,7 +255,7 @@ export default function ContextCard({
             >
               <FileText className="w-4 h-4 text-cyan-400" />
             </motion.div>
-            <span className="text-cyan-400">{context.files.length} neural links</span>
+            <span className="text-cyan-400">{context.files.length}  links</span>
           </span>
           <motion.span 
             className="text-slate-400"
@@ -267,7 +267,7 @@ export default function ContextCard({
         </motion.div>
       </div>
 
-      {/* Neural File Matrix */}
+      {/*  File Matrix */}
       <div className="h-80 overflow-hidden flex flex-col relative">
         {/* Floating Particles */}
         {Array.from({ length: 3 }).map((_, i) => (
@@ -359,7 +359,7 @@ export default function ContextCard({
               >
                 <Folder className="w-12 h-12 mb-3 opacity-50 text-cyan-400" />
               </motion.div>
-              <p className="text-center font-mono text-cyan-400/70">Neural matrix empty</p>
+              <p className="text-center font-mono text-cyan-400/70"> matrix empty</p>
               <p className="text-sm text-center mt-1 font-mono">Awaiting context analysis initialization</p>
             </motion.div>
           )}

@@ -34,7 +34,12 @@ export function createLog(
     llmMs?: number;
     ttsMs?: number;
     totalMs?: number;
-  }
+  },
+  toolsUsed?: Array<{
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  }>
 ): SessionLog {
   return {
     id: `${Date.now()}-${Math.random()}`,
@@ -42,7 +47,8 @@ export function createLog(
     type,
     message,
     audioUrl,
-    timing
+    timing,
+    toolsUsed
   };
 }
 

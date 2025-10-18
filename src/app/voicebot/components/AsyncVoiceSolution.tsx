@@ -29,6 +29,7 @@ import {
   processVoiceMessage,
   DEFAULT_PROCESSING_CONFIG
 } from '../lib';
+import { generateCallId, generateMessageId, isMonitoringEnabled } from '@/app/monitor/lib';
 
 const LLM_PROVIDERS: Array<{ value: LLMProvider; label: string; description: string }> = [
   { value: 'ollama', label: 'Ollama', description: 'Local GPT-OSS 20B' },
@@ -45,12 +46,14 @@ export default function AsyncVoiceSolution() {
   const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
   const [provider, setProvider] = useState<LLMProvider>('ollama');
   const [model, setModel] = useState<string>(DEFAULT_LLM_MODELS.ollama);
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const callStartTimeRef = useRef<string | null>(null);
 
   const addLog = useCallback((type: 'user' | 'assistant' | 'system', message: string, audioUrl?: string, timing?: { llmMs?: number; ttsMs?: number; totalMs?: number }) => {
     const newLog = createLog(type, message, audioUrl, timing);
@@ -85,6 +88,30 @@ export default function AsyncVoiceSolution() {
     try {
       setSessionState('active');
       addLog('system', 'Voice session started - Speak when ready');
+      
+      // Create monitoring call if enabled
+      if (isMonitoringEnabled()) {
+        const callId = generateCallId();
+        const startTime = new Date().toISOString();
+        
+        callStartTimeRef.current = startTime;
+        setCurrentCallId(callId);
+        
+        await fetch('/api/monitor/calls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callId,
+            userId: 'async-voice-user',
+            startTime,
+            status: 'active',
+            intent: 'async-voice-test',
+            promptVersionId: `${provider}:${model}`,
+            metadata: { provider, model, type: 'async-voice' }
+          })
+        });
+      }
+      
       await startListening();
     } catch (error) {
       console.error('Failed to start session:', error);
@@ -96,9 +123,33 @@ export default function AsyncVoiceSolution() {
 
   const endSession = useCallback(() => {
     stopListening();
+    
+    // Update monitoring call if enabled and call exists
+    if (currentCallId && callStartTimeRef.current) {
+      const endTime = new Date().toISOString();
+      const startMs = new Date(callStartTimeRef.current).getTime();
+      const endMs = new Date(endTime).getTime();
+      const duration = endMs - startMs;
+      
+      fetch('/api/monitor/calls', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callId: currentCallId,
+          endTime,
+          duration,
+          status: 'completed',
+          outcome: 'user-ended'
+        })
+      }).catch(error => console.error('Failed to update monitoring call:', error));
+      
+      setCurrentCallId(null);
+      callStartTimeRef.current = null;
+    }
+    
     setSessionState('idle');
     addLog('system', 'Voice session ended');
-  }, [addLog, stopListening]);
+  }, [addLog, stopListening, currentCallId]);
 
   const startListening = useCallback(async () => {
     try {
@@ -173,6 +224,45 @@ export default function AsyncVoiceSolution() {
       // Use the async pipeline: STT → LLM → TTS with selected provider/model
       const result = await processVoiceMessage(audioBlob, conversationHistory, provider, model);
 
+      // Track messages if monitoring is enabled
+      if (currentCallId) {
+        const timestamp = new Date().toISOString();
+        
+        // Track user message
+        await fetch('/api/monitor/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageId: generateMessageId(),
+            callId: currentCallId,
+            role: 'user',
+            content: result.userText,
+            timestamp,
+            metadata: { source: 'stt' }
+          })
+        });
+        
+        // Track assistant message
+        await fetch('/api/monitor/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageId: generateMessageId(),
+            callId: currentCallId,
+            role: 'assistant',
+            content: result.assistantText,
+            timestamp: new Date().toISOString(),
+            latencyMs: result.timing.totalMs,
+            metadata: {
+              llmMs: result.timing.llmMs,
+              ttsMs: result.timing.ttsMs,
+              provider,
+              model
+            }
+          })
+        });
+      }
+
       // Add to logs with timing information
       addLog('user', result.userText);
       addLog('assistant', result.assistantText, result.audioUrl, {
@@ -201,7 +291,7 @@ export default function AsyncVoiceSolution() {
       addLog('system', 'Error: ' + (error instanceof Error ? error.message : 'Failed to process audio'));
       setSessionState('error');
     }
-  }, [addLog, conversationHistory, provider, model]);
+  }, [addLog, conversationHistory, provider, model, currentCallId]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);

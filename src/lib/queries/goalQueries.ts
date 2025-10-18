@@ -10,6 +10,7 @@ export const goalKeys = {
 interface DbGoal {
   id: string;
   project_id: string;
+  context_id: string | null;
   order_index: number;
   title: string;
   description: string | null;
@@ -22,6 +23,7 @@ interface DbGoal {
 const convertDbGoalToGoal = (dbGoal: DbGoal): Goal => ({
   id: dbGoal.id,
   projectId: dbGoal.project_id,
+  contextId: dbGoal.context_id || undefined,
   order: dbGoal.order_index,
   title: dbGoal.title,
   description: dbGoal.description || undefined,
@@ -56,6 +58,7 @@ export const goalApi = {
     description?: string;
     status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     orderIndex?: number;
+    contextId?: string;
   }): Promise<Goal> => {
     const response = await fetch('/api/goals', {
       method: 'POST',
@@ -67,7 +70,8 @@ export const goalApi = {
         title: params.title,
         description: params.description,
         status: params.status || 'open',
-        orderIndex: params.orderIndex
+        orderIndex: params.orderIndex,
+        contextId: params.contextId
       }),
     });
 
@@ -86,6 +90,7 @@ export const goalApi = {
     description?: string;
     status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     orderIndex?: number;
+    contextId?: string;
   }): Promise<Goal> => {
     const response = await fetch('/api/goals', {
       method: 'PUT',
@@ -97,7 +102,8 @@ export const goalApi = {
         title: params.title,
         description: params.description,
         status: params.status,
-        orderIndex: params.orderIndex
+        orderIndex: params.orderIndex,
+        contextId: params.contextId
       }),
     });
 

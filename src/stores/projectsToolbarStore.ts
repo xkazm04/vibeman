@@ -8,11 +8,12 @@ interface ProjectsToolbarState {
   showDeleteProject: boolean;
   showAddGoal: boolean;
   showAIReview: boolean;
-  
+  showClaudeCode: boolean;
+
   // Selected items
   selectedGoal: any | null;
   selectedProject: any | null;
-  
+
   // Actions
   setShowSettings: (show: boolean) => void;
   setShowAddProject: (show: boolean) => void;
@@ -20,9 +21,10 @@ interface ProjectsToolbarState {
   setShowDeleteProject: (show: boolean) => void;
   setShowAddGoal: (show: boolean) => void;
   setShowAIReview: (show: boolean) => void;
+  setShowClaudeCode: (show: boolean) => void;
   setSelectedGoal: (goal: any | null) => void;
   setSelectedProject: (project: any | null) => void;
-  
+
   // Reset all modals
   closeAllModals: () => void;
 }
@@ -35,9 +37,10 @@ export const useProjectsToolbarStore = create<ProjectsToolbarState>((set) => ({
   showDeleteProject: false,
   showAddGoal: false,
   showAIReview: false,
+  showClaudeCode: false,
   selectedGoal: null,
   selectedProject: null,
-  
+
   // Actions
   setShowSettings: (show) => set({ showSettings: show }),
   setShowAddProject: (show) => set({ showAddProject: show }),
@@ -45,9 +48,10 @@ export const useProjectsToolbarStore = create<ProjectsToolbarState>((set) => ({
   setShowDeleteProject: (show) => set({ showDeleteProject: show }),
   setShowAddGoal: (show) => set({ showAddGoal: show }),
   setShowAIReview: (show) => set({ showAIReview: show }),
+  setShowClaudeCode: (show) => set({ showClaudeCode: show }),
   setSelectedGoal: (goal) => set({ selectedGoal: goal }),
   setSelectedProject: (project) => set({ selectedProject: project }),
-  
+
   // Reset all modals
   closeAllModals: () => set({
     showSettings: false,
@@ -56,5 +60,6 @@ export const useProjectsToolbarStore = create<ProjectsToolbarState>((set) => ({
     showDeleteProject: false,
     showAddGoal: false,
     showAIReview: false,
+    showClaudeCode: false,
   }),
 }));

@@ -4,10 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Copy, Edit, Trash2, FolderOpen, MousePointer, FileText, CheckSquare, Square } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useStore } from '../../../../stores/nodeStore';
-import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
 import { MultiFileEditor } from '../../../../components/editor';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
-import EnhancedContextEditModal from './EnhancedContextEditModal';
+import ContextEditModal from '../ContextGen/ContextEditModal';
 import ContextFileModal from '../ContextFile/ContextFileModal';
 
 interface ContextMenuProps {
@@ -20,9 +19,8 @@ interface ContextMenuProps {
 }
 
 export default function ContextMenu({ context, isVisible, position, onClose, availableGroups, selectedFilePaths }: ContextMenuProps) {
-  const { removeContext, selectedContextIds, toggleContextSelection } = useContextStore();
-  const { clearSelection, selectFilesByPaths } = useStore();
-  const { fileStructure } = useActiveProjectStore();
+  const { removeContext, selectedContextIds, toggleContextSelection, setSelectedContext } = useContextStore();
+  const { clearSelection } = useStore();
   const { showFullScreenModal } = useGlobalModal();
   const [showFileEditor, setShowFileEditor] = useState(false);
   const [showContextFileModal, setShowContextFileModal] = useState(false);
@@ -36,9 +34,9 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
   const handleAction = async (action: string) => {
     switch (action) {
       case 'select':
-        // Clear current selection and select context files
+        // Clear current file selection and set this context as the only selected context
         clearSelection();
-        selectFilesByPaths(context.filePaths, fileStructure);
+        setSelectedContext(context.id);
         break;
       case 'toggleForBacklog':
         // Toggle context selection for backlog generation
@@ -50,7 +48,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
       case 'edit':
         showFullScreenModal(
           `Edit Context: ${context.name}`,
-          <EnhancedContextEditModal
+          <ContextEditModal
             context={context}
             availableGroups={availableGroups}
             selectedFilePaths={selectedFilePaths}
@@ -62,8 +60,8 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
             icon: Edit,
             iconBgColor: "from-cyan-500/20 to-blue-500/20",
             iconColor: "text-cyan-400",
-            maxWidth: "max-w-7xl",
-            maxHeight: "max-h-[90vh]"
+            maxWidth: "max-w-[95vw]",
+            maxHeight: "max-h-[95vh]"
           }
         );
         break;
@@ -231,7 +229,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
                 >
                   <MousePointer className="w-4 h-4 text-blue-400" />
                 </motion.div>
-                <span className="font-mono font-medium">Select Nodes</span>
+                <span className="font-mono font-medium">Select</span>
               </motion.button>
 
               <motion.button

@@ -41,6 +41,8 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
         onClose();
       }
     };
@@ -71,11 +73,12 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
+    // Add escape listener with high priority
+    document.addEventListener('keydown', handleEscape, { capture: true });
     document.addEventListener('keydown', handleTabKey);
     
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleEscape, { capture: true });
       document.removeEventListener('keydown', handleTabKey);
     };
   }, [isOpen, onClose]);

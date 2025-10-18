@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import ContextMenu from '../ContextMenu/ContextMenu';
 import { useTooltipStore } from '../../../../stores/tooltipStore';
@@ -12,7 +12,7 @@ interface ContextJailCardProps {
   selectedFilePaths: string[];
 }
 
-const ContextJailCard: React.FC<ContextJailCardProps> = ({
+const ContextJailCard = React.memo(({
   context,
   group,
   index,
@@ -31,7 +31,8 @@ const ContextJailCard: React.FC<ContextJailCardProps> = ({
   const { toggleTooltip } = useTooltipStore();
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const handleRightClick = (e: React.MouseEvent) => {
+  // Memoized handlers for performance
+  const handleRightClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -39,32 +40,42 @@ const ContextJailCard: React.FC<ContextJailCardProps> = ({
       isVisible: true,
       position: { x: e.clientX, y: e.clientY }
     });
-  };
+  }, []);
 
-  const handleCloseContextMenu = () => {
+  const handleCloseContextMenu = useCallback(() => {
     setContextMenu(prev => ({ ...prev, isVisible: false }));
-  };
+  }, []);
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     toggleTooltip(context, group?.color || '#06b6d4');
-  };
+  }, [context, group?.color, toggleTooltip]);
+
+  // Memoized animation variants for better performance
+  const animationVariants = useMemo(() => ({
+    initial: { opacity: 0, scale: 0.9 },
+    animate: { opacity: 1, scale: 1 },
+    hover: { scale: 1.02 }
+  }), []);
+
+  const transitionConfig = useMemo(() => ({
+    duration: 0.3,
+    delay: index * 0.1,
+    type: "spring" as const,
+    stiffness: 300,
+    damping: 30
+  }), [index]);
 
   return (
     <>
       <motion.div
         ref={cardRef}
         className="relative group cursor-pointer"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{
-          duration: 0.3,
-          delay: index * 0.1,
-          type: "spring",
-          stiffness: 300,
-          damping: 30
-        }}
-        whileHover={{ scale: 1.02 }}
+        variants={animationVariants}
+        initial="initial"
+        animate="animate"
+        whileHover="hover"
+        transition={transitionConfig}
         onClick={handleClick}
         onContextMenu={handleRightClick}
       >
@@ -162,6 +173,8 @@ const ContextJailCard: React.FC<ContextJailCardProps> = ({
 
     </>
   );
-};
+});
+
+ContextJailCard.displayName = 'ContextJailCard';
 
 export default ContextJailCard;

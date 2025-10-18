@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { AppState, AppStore, EventLogEntry, CustomBacklogItem, BacklogProposal, TreeNode } from '../types';
+import { isSupportedFile } from '../helpers/typeStyles';
 
 // Mock data for backlog proposals with status and impacted files
 const mockBacklogProposals: BacklogProposal[] = [
@@ -94,26 +95,72 @@ export const useStore = (() => {
     return () => listeners.delete(listener);
   };
   
+  // Helper function to get all child file nodes from a folder
+  const getAllChildFiles = (node: TreeNode, fileStructure: TreeNode | null): string[] => {
+    if (!fileStructure) return [];
+
+    const childFiles: string[] = [];
+
+    const traverseNode = (currentNode: TreeNode) => {
+      // Only include files with supported extensions
+      if (currentNode.type === 'file' && isSupportedFile(currentNode.name)) {
+        childFiles.push(currentNode.id);
+      }
+
+      // Recursively check children
+      if (currentNode.children) {
+        currentNode.children.forEach(traverseNode);
+      }
+    };
+
+    // Start traversing from the given node
+    if (node.children) {
+      node.children.forEach(traverseNode);
+    }
+
+    return childFiles;
+  };
+
+  // Helper function to find node by ID in tree structure
+  const findNodeById = (nodeId: string, fileStructure: TreeNode | null): TreeNode | null => {
+    if (!fileStructure) return null;
+
+    const traverse = (node: TreeNode): TreeNode | null => {
+      if (node.id === nodeId) return node;
+
+      if (node.children) {
+        for (const child of node.children) {
+          const found = traverse(child);
+          if (found) return found;
+        }
+      }
+
+      return null;
+    };
+
+    return traverse(fileStructure);
+  };
+
   // Helper function to get selected file paths from tree structure
   const getSelectedFilePaths = (fileStructure: TreeNode | null, activeProjectId: string | null): string[] => {
     if (!fileStructure || !activeProjectId) return [];
-    
+
     const selectedPaths: string[] = [];
-    
+
     const traverseTree = (node: TreeNode) => {
-      // Only include files (not folders) and only if they're selected
-      if (node.type === 'file' && state.selectedNodes.has(node.id)) {
+      // Only include files (not folders) with supported extensions that are selected
+      if (node.type === 'file' && state.selectedNodes.has(node.id) && isSupportedFile(node.name)) {
         // Normalize path separators: convert backslashes to forward slashes for backend compatibility
         const normalizedPath = node.id.replace(/\\/g, '/');
         selectedPaths.push(normalizedPath);
       }
-      
+
       // Recursively check children
       if (node.children) {
         node.children.forEach(traverseTree);
       }
     };
-    
+
     traverseTree(fileStructure);
     return selectedPaths;
   };
@@ -149,6 +196,69 @@ export const useStore = (() => {
         }
         return { ...prev, selectedNodes: newSelectedNodes };
       }),
+      toggleNodeWithFolder: (nodeId: string, fileStructure: TreeNode | null) => {
+        if (!fileStructure) {
+          // Fallback to regular toggle if no file structure
+          setState(prev => {
+            const newSelectedNodes = new Set(prev.selectedNodes);
+            if (newSelectedNodes.has(nodeId)) {
+              newSelectedNodes.delete(nodeId);
+            } else {
+              newSelectedNodes.add(nodeId);
+            }
+            return { ...prev, selectedNodes: newSelectedNodes };
+          });
+          return;
+        }
+
+        // Find the node in the tree
+        const node = findNodeById(nodeId, fileStructure);
+
+        if (!node) {
+          // Node not found, fallback to regular toggle
+          setState(prev => {
+            const newSelectedNodes = new Set(prev.selectedNodes);
+            if (newSelectedNodes.has(nodeId)) {
+              newSelectedNodes.delete(nodeId);
+            } else {
+              newSelectedNodes.add(nodeId);
+            }
+            return { ...prev, selectedNodes: newSelectedNodes };
+          });
+          return;
+        }
+
+        setState(prev => {
+          const newSelectedNodes = new Set(prev.selectedNodes);
+
+          if (node.type === 'folder') {
+            // For folders, select/deselect all child files with supported extensions
+            const childFiles = getAllChildFiles(node, fileStructure);
+
+            // Check if all child files are already selected
+            const allSelected = childFiles.every(fileId => newSelectedNodes.has(fileId));
+
+            if (allSelected) {
+              // Deselect all child files
+              childFiles.forEach(fileId => newSelectedNodes.delete(fileId));
+            } else {
+              // Select all child files
+              childFiles.forEach(fileId => newSelectedNodes.add(fileId));
+            }
+          } else {
+            // For files, toggle normally only if it's a supported file type
+            if (isSupportedFile(node.name)) {
+              if (newSelectedNodes.has(nodeId)) {
+                newSelectedNodes.delete(nodeId);
+              } else {
+                newSelectedNodes.add(nodeId);
+              }
+            }
+          }
+
+          return { ...prev, selectedNodes: newSelectedNodes };
+        });
+      },
       highlightNodes: (nodeIds: string[]) => setState(prev => ({
         ...prev,
         highlightedNodes: new Set(nodeIds)

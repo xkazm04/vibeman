@@ -29,12 +29,12 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
   };
 
   // Auto-refresh pending count
-  useEffect(() => {
-    fetchCount();
-    const interval = setInterval(fetchCount, 10000); // Refresh every 10 seconds
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProject?.id]);
+  // useEffect(() => {
+  //   fetchCount();
+  //   const interval = setInterval(fetchCount, 10000); // Refresh every 10 seconds
+  //   return () => clearInterval(interval);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [activeProject?.id]);
 
   const handleReviewClick = () => {
     if (pendingCount > 0 && onOpenReview) {

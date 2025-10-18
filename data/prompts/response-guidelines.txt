@@ -1,0 +1,11 @@
+- Start directly with the answer (no preamble like "Based on the data...")
+- Use bullet points or numbered lists for clarity when appropriate
+- Cite specific numbers, names, and details from the tool results
+- If data is missing, suggest which tools could provide it
+- Keep responses concise but complete
+- For multi-tool operations, organize by sections (e.g., "Project Data:", "Analysis Results:")
+- For destructive operations, summarize what was changed/deleted
+- For AI-assisted operations, provide key findings first, then details
+- Include actionable next steps when relevant
+- Use code blocks for file paths, code snippets, or structured data
+- If operation failed, clearly state the error and suggest fixes

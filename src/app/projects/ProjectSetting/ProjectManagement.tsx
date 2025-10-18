@@ -1,12 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Code, Server, FolderOpen, Grid3X3, GitBranch, Link, ExternalLink } from 'lucide-react';
+import { Plus, Code, Server, FolderOpen, GitBranch, Link, ExternalLink } from 'lucide-react';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
-import ProjectSelectionModal from './ProjectSelectionModal';
 import { Project } from '@/types';
+import ProjectSelectionModal from './ProjectSelectionModal';
 
 const getProjectTypeIcon = (type?: string) => {
   switch (type) {
@@ -20,57 +20,100 @@ const getProjectTypeIcon = (type?: string) => {
 };
 
 export default function ProjectManagement() {
-  const { projects } = useProjectConfigStore();
+  const { projects, getAllProjects, syncWithServer, initializeProjects, loading } = useProjectConfigStore();
   const { activeProject, setActiveProject } = useActiveProjectStore();
   const { setShowAddProject } = useProjectsToolbarStore();
-  const { showModal, hideModal } = useGlobalModal();
+  const { showFullScreenModal, hideModal } = useGlobalModal();
+  const [localProjects, setLocalProjects] = React.useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = React.useState(false);
 
-  const handleAddProject = () => {
+  // Fetch projects directly from API
+  const fetchProjectsDirectly = React.useCallback(async () => {
+    setIsLoadingProjects(true);
+    try {
+      const response = await fetch('/api/projects');
+      if (response.ok) {
+        const data = await response.json();
+        const fetchedProjects = data.projects || [];
+        setLocalProjects(fetchedProjects);
+
+        // Also update the store to keep it in sync
+        await syncWithServer();
+
+        // Auto-select first project if no active project is set
+        if (fetchedProjects.length > 0 && !activeProject) {
+          setActiveProject(fetchedProjects[0]);
+        }
+
+        return fetchedProjects;
+      } else {
+        console.error('Failed to fetch projects: HTTP', response.status);
+      }
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+    return [];
+  }, [activeProject, setActiveProject, syncWithServer]);
+
+  // Initialize projects on component mount
+  React.useEffect(() => {
+    fetchProjectsDirectly();
+    // Also try to sync the store
+    initializeProjects();
+  }, [fetchProjectsDirectly, initializeProjects]);
+
+  // Use local projects if available, fallback to store projects
+  const displayProjects = localProjects.length > 0 ? localProjects : projects;
+
+  const handleAddProject = async () => {
+    // Refresh projects before showing add dialog
+    await fetchProjectsDirectly();
     setShowAddProject(true);
   };
 
-  const handleProjectSelect = (project: Project) => {
-    setActiveProject(project);
-    hideModal();
-  };
+  const handleProjectTitleClick = async () => {
+    // Ensure we have the latest projects before showing the modal
+    const currentProjects = await fetchProjectsDirectly();
 
-  const handleActiveProjectClick = () => {
-    if (projects.length > 1) {
-      showProjectSelectorModal();
+    // Always show the modal if there are projects (even if just 1, for consistency)
+    if (currentProjects.length > 0) {
+      showFullScreenModal(
+        'Select Project',
+        <ProjectSelectionModal
+          projects={currentProjects}
+          activeProject={activeProject}
+          onProjectSelect={(project) => {
+            setActiveProject(project);
+            hideModal();
+          }}
+          onAddProject={() => {
+            hideModal();
+            setShowAddProject(true);
+          }}
+        />,
+        {
+          subtitle: 'Choose a project to work with',
+          icon: FolderOpen,
+          iconBgColor: 'from-cyan-600/20 to-blue-600/20',
+          iconColor: 'text-cyan-400',
+          maxWidth: 'max-w-6xl',
+          maxHeight: 'max-h-[85vh]'
+        }
+      );
     }
   };
 
-  const showProjectSelectorModal = () => {
-    const modalContent = (
-      <ProjectSelectionModal
-        projects={projects}
-        activeProject={activeProject}
-        onProjectSelect={handleProjectSelect}
-        onAddProject={() => {
-          hideModal();
-          handleAddProject();
-        }}
-      />
-    );
-
-    showModal({
-      title: "Select Project",
-      subtitle: `Choose from ${projects.length} available projects`,
-      icon: Grid3X3,
-      iconBgColor: "from-cyan-500/20 to-blue-500/20",
-      iconColor: "text-cyan-400",
-      maxWidth: "max-w-7xl"
-    }, modalContent);
-  };
 
   // Get related project info
   const getRelatedProject = (projectId?: string) => {
     if (!projectId) return null;
-    return projects.find(p => p.id === projectId);
+    return displayProjects.find(p => p.id === projectId);
   };
 
   const getConnectedProjects = (project: Project) => {
-    return projects.filter(p =>
+    return displayProjects.filter(p =>
       p.relatedProjectId === project.id || project.relatedProjectId === p.id
     );
   };
@@ -82,13 +125,20 @@ export default function ProjectManagement() {
 
   return (
     <div className="relative flex items-center justify-between px-6 py-5 min-w-0 flex-1">
-      {/* Enhanced App-Style Project Display */}
+      {/* Debug info - remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute top-0 right-0 text-xs text-gray-500">
+          Store: {projects.length} | Local: {localProjects.length} | Loading: {isLoadingProjects ? 'Yes' : 'No'}
+        </div>
+      )}
+
+      {/* App-Style Project Display */}
       <motion.div
-        whileHover={projects.length > 1 ? { scale: 1.005 } : {}}
-        whileTap={projects.length > 1 ? { scale: 0.995 } : {}}
-        onClick={handleActiveProjectClick}
-        className={`flex items-center space-x-5 flex-1 min-w-0 ${projects.length > 1
-          ? 'cursor-pointer hover:opacity-80 hover:bg-teal-300/1 transition-all duration-300 rounded-2xl'
+        whileHover={displayProjects.length > 0 ? { scale: 1.005 } : {}}
+        whileTap={displayProjects.length > 0 ? { scale: 0.995 } : {}}
+        onClick={handleProjectTitleClick}
+        className={`flex items-center space-x-5 flex-1 min-w-0 ${displayProjects.length > 0
+          ? 'cursor-pointer hover:opacity-80 hover:bg-cyan-500/5 transition-all duration-300 rounded-2xl p-2 -m-2'
           : ''
           }`}
       >
@@ -117,6 +167,15 @@ export default function ProjectManagement() {
                 <span className="text-lg text-gray-400 font-light">
                   {typeConfig.label}
                 </span>
+                {displayProjects.length > 1 && (
+                  <motion.div
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="text-xs text-cyan-400/60 font-mono"
+                  >
+                    click to switch
+                  </motion.div>
+                )}
               </div>
 
               {/* Project Details Row */}
@@ -178,10 +237,10 @@ export default function ProjectManagement() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-500 tracking-tight">
-                No Project Selected
+                {isLoadingProjects ? 'Loading Projects...' : 'No Project Selected'}
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Add a project to get started
+                {isLoadingProjects ? 'Please wait while we load your projects' : 'Add a project to get started'}
               </p>
             </div>
           </div>

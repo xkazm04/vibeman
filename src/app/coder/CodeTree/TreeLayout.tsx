@@ -12,13 +12,13 @@ import { countTreeNodes } from './lib/treeUtils';
 import { useClickOutside } from './lib/hooks';
 
 export default function TreeLayout() {
-  const { selectedNodes, highlightedNodes, toggleNode, clearHighlights } = useStore();
-  const { 
-    activeProject, 
-    fileStructure, 
-    isLoading, 
-    error, 
-    refreshFileStructure, 
+  const { selectedNodes, highlightedNodes, toggleNode, clearHighlights, toggleNodeWithFolder } = useStore();
+  const {
+    activeProject,
+    fileStructure,
+    isLoading,
+    error,
+    refreshFileStructure,
     clearError,
     initializeWithFirstProject,
     loadProjectFileStructure
@@ -59,6 +59,11 @@ export default function TreeLayout() {
     selectedNodes.forEach(nodeId => toggleNode(nodeId));
   };
 
+  // Enhanced toggle handler that handles folder selection
+  const handleToggleNode = (nodeId: string) => {
+    toggleNodeWithFolder(nodeId, fileStructure);
+  };
+
 
   return (
     <GlowCard className="p-6 h-full min-w-[550px] max-h-[60vh] flex flex-col">
@@ -81,7 +86,7 @@ export default function TreeLayout() {
         <div className="mb-6">
           <TreeSuggestion
             fileStructure={fileStructure}
-            onNodeSelect={toggleNode}
+            onNodeSelect={handleToggleNode}
             onClearSearch={handleClearSearch}
           />
         </div>
@@ -92,7 +97,7 @@ export default function TreeLayout() {
         filteredStructure={fileStructure}
         isLoading={isLoading}
         error={error}
-        onToggleNode={toggleNode}
+        onToggleNode={handleToggleNode}
         onRefresh={refreshFileStructure}
         onClearError={clearError}
         onClearSearch={handleClearSearch}

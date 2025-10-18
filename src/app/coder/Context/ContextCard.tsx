@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Clock, Sparkles } from 'lucide-react';
+import { X  } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
 import { useTooltipStore } from '../../../stores/tooltipStore';
 import ContextMenu from './ContextMenu/ContextMenu';
@@ -120,17 +120,6 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
             : `linear-gradient(135deg, ${groupColor || '#8B5CF6'}10 0%, transparent 50%, ${groupColor || '#8B5CF6'}05 100%)`
         }}
       >
-        {/* Background Effects */}
-        <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div
-            className="absolute inset-0 rounded-2xl"
-            style={{
-              background: `linear-gradient(45deg, ${groupColor || '#8B5CF6'}20, transparent, ${groupColor || '#8B5CF6'}20)`,
-              filter: 'blur(1px)',
-            }}
-          />
-        </div>
-
         {/* Remove Button */}
         <motion.button
           onClick={handleRemove}

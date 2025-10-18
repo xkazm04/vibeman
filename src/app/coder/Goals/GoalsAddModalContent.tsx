@@ -1,8 +1,21 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, AlertCircle } from 'lucide-react';
 import { Goal } from '../../../types';
 import { getStatusConfig, validateGoalData } from './lib';
+import { useActiveProjectStore } from '../../../stores/activeProjectStore';
+
+// Context type (matching the API response)
+interface Context {
+  id: string;
+  projectId: string;
+  groupId: string | null;
+  name: string;
+  description?: string;
+  filePaths: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 interface GoalsAddModalContentProps {
   onSubmit: (goal: Omit<Goal, 'id' | 'order' | 'projectId'>) => void;
@@ -13,6 +26,40 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<Goal['status']>('open');
+  const [contextId, setContextId] = useState<string>('');
+  
+  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const [availableContexts, setAvailableContexts] = useState<Context[]>([]);
+  const [loadingContexts, setLoadingContexts] = useState(false);
+
+  // Fetch contexts when component mounts
+  useEffect(() => {
+    if (activeProject?.id) {
+      setLoadingContexts(true);
+      
+      // Fetch contexts via API
+      fetch(`/api/contexts?projectId=${encodeURIComponent(activeProject.id)}`)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch contexts');
+          }
+          return response.json();
+        })
+        .then((data) => {
+          if (data.success && data.data?.contexts) {
+            setAvailableContexts(data.data.contexts);
+          } else {
+            setAvailableContexts([]);
+          }
+          setLoadingContexts(false);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch contexts:', error);
+          setAvailableContexts([]);
+          setLoadingContexts(false);
+        });
+    }
+  }, [activeProject]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +67,8 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
     const goalData = {
       title: title.trim(),
       description: description.trim() || undefined,
-      status
+      status,
+      contextId: contextId || undefined
     };
 
     if (validateGoalData(goalData)) {
@@ -29,6 +77,7 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
       setTitle('');
       setDescription('');
       setStatus('open');
+      setContextId('');
       onClose();
     }
   };
@@ -70,6 +119,31 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
           rows={6}
           className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
         />
+      </div>
+
+      {/* Context Selection */}
+      <div>
+        <label className="block text-sm font-medium text-white/90 mb-3 tracking-wide">
+          Context <span className="text-slate-500">(Optional)</span>
+        </label>
+        <select
+          value={contextId}
+          onChange={(e) => setContextId(e.target.value)}
+          disabled={loadingContexts || availableContexts.length === 0}
+          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">
+            {loadingContexts ? 'Loading contexts...' : availableContexts.length === 0 ? 'No contexts available' : 'No context selected'}
+          </option>
+          {availableContexts.map((context) => (
+            <option key={context.id} value={context.id}>
+              {context.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-2 text-xs text-slate-500">
+          Associate this goal with a specific context for better organization
+        </p>
       </div>
 
       {/* Status Selection */}

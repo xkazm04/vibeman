@@ -5,6 +5,16 @@ import { TreeNode as TreeNodeType } from '../../../types';
 import { useStore } from '../../../stores/nodeStore';
 import { getFileTypeColor } from '../../../helpers/typeStyles';
 import { pathsMatch } from '../../../utils/pathUtils';
+import { useActiveProjectStore } from '../../../stores/activeProjectStore';
+import CodePreviewModal from './CodePreviewModal';
+
+// Browser-compatible path join
+const joinPath = (...parts: string[]): string => {
+  return parts
+    .join('/')
+    .replace(/\/+/g, '/') // Remove duplicate slashes
+    .replace(/\\/g, '/'); // Normalize backslashes to forward slashes
+};
 
 interface TreeNodeProps {
   node: TreeNodeType;
@@ -12,18 +22,60 @@ interface TreeNodeProps {
   onToggle: (nodeId: string) => void;
   showCheckboxes?: boolean;
   selectedPaths?: string[];
+  projectPath?: string;
 }
 
-export default function TreeNode({ 
-  node, 
-  level = 0, 
-  onToggle, 
-  showCheckboxes = false, 
-  selectedPaths = [] 
+export default function TreeNode({
+  node,
+  level = 0,
+  onToggle,
+  showCheckboxes = false,
+  selectedPaths = [],
+  projectPath
 }: TreeNodeProps) {
   const { selectedNodes, highlightedNodes } = useStore();
+  const { activeProject } = useActiveProjectStore();
   const [isExpanded, setIsExpanded] = useState(level < 2);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const nodePath = node.path || node.id;
+
+  // Construct absolute file path for code preview
+  const absoluteFilePath = (() => {
+    if (node.type !== 'file') return nodePath;
+
+    // First, strip the vibeman base path if it exists in the nodePath
+    const vibemanBasePath = 'C:\\Users\\kazda\\kiro\\vibeman';
+    const normalizedVibemanPath = vibemanBasePath.replace(/\\/g, '/');
+    
+    // Normalize the nodePath to use forward slashes for checking
+    let normalizedNodePath = nodePath.replace(/\\/g, '/');
+    
+    // Remove vibeman base path if it's at the start
+    if (normalizedNodePath.startsWith(normalizedVibemanPath + '/') || 
+        normalizedNodePath.startsWith(normalizedVibemanPath)) {
+      normalizedNodePath = normalizedNodePath.replace(normalizedVibemanPath + '/', '').replace(normalizedVibemanPath, '');
+    }
+    
+    // Convert back to original path separators
+    const cleanedNodePath = normalizedNodePath.replace(/\//g, '\\');
+    
+    // Check if the cleaned path is an absolute path
+    // Windows: C:\ or D:\ etc., Unix: starts with /
+    const isAbsolutePath = /^[A-Za-z]:[\\\/]/.test(cleanedNodePath) || cleanedNodePath.startsWith('/');
+    
+    if (isAbsolutePath) {
+      // If it's already absolute, return it as-is
+      return cleanedNodePath;
+    }
+
+    // Use provided projectPath prop, or fallback to activeProject path
+    const baseProjectPath = projectPath || activeProject?.path;
+
+    if (!baseProjectPath) return cleanedNodePath;
+
+    // node.id is a relative path, join it with the project path
+    return joinPath(baseProjectPath, cleanedNodePath);
+  })();
   
   // For checkbox mode, check if any selected path matches this node's path (normalized)
   const isSelected = showCheckboxes 
@@ -60,6 +112,15 @@ export default function TreeNode({
     }
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only show preview for files, not folders
+    if (node.type === 'file') {
+      setShowPreviewModal(true);
+    }
+  };
+
   const getNodeStyling = () => {
     if (isHighlighted && isSelected) {
       return 'bg-gradient-to-r from-orange-500/20 to-cyan-500/20 border-l-2 border-orange-400 shadow-lg shadow-orange-500/20';
@@ -81,6 +142,7 @@ export default function TreeNode({
           hover:bg-gray-700/30
         `}
         onClick={handleNodeClick}
+        onContextMenu={handleContextMenu}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
       >
         {/* Chevron for folders */}
@@ -183,11 +245,19 @@ export default function TreeNode({
                 onToggle={onToggle}
                 showCheckboxes={showCheckboxes}
                 selectedPaths={selectedPaths}
+                projectPath={projectPath}
               />
             ))}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Code Preview Modal */}
+      <CodePreviewModal
+        isOpen={showPreviewModal}
+        filePath={absoluteFilePath}
+        onClose={() => setShowPreviewModal(false)}
+      />
     </div>
   );
 }

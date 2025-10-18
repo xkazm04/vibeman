@@ -5,17 +5,74 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Layers, MessageSquare } from 'lucide-react';
-import WebSocketVoiceSolution from './components/WebSocketVoiceSolution';
+import { Layers, Zap, MessageSquare } from 'lucide-react';
 import AsyncVoiceSolution from './components/AsyncVoiceSolution';
+import WebSocketVoiceSolution from './components/WebSocketVoiceSolution';
 import ConversationSolution from './components/ConversationSolution';
+import PromptManager from './components/PromptManager';
+import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
+
+// Context type (matching the API response)
+interface Context {
+  id: string;
+  projectId: string;
+  groupId: string | null;
+  name: string;
+  description?: string;
+  filePaths: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 type VoiceSolution = 'async' | 'websocket' | 'conversation';
 
 export default function VoicebotPage() {
   const [activeSolution, setActiveSolution] = useState<VoiceSolution>('async');
+  
+  // Project and Context state
+  const projects = useProjectConfigStore((state) => state.getAllProjects());
+  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const activeContext = useActiveProjectStore((state) => state.activeContext);
+  const setActiveProject = useActiveProjectStore((state) => state.setActiveProject);
+  const setActiveContext = useActiveProjectStore((state) => state.setActiveContext);
+  
+  const [availableContexts, setAvailableContexts] = useState<Context[]>([]);
+  const [loadingContexts, setLoadingContexts] = useState(false);
+
+  // Fetch contexts when project changes
+  useEffect(() => {
+    if (activeProject?.id) {
+      setLoadingContexts(true);
+      
+      // Fetch contexts via API
+      fetch(`/api/contexts?projectId=${encodeURIComponent(activeProject.id)}`)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch contexts');
+          }
+          return response.json();
+        })
+        .then((data) => {
+          if (data.success && data.data?.contexts) {
+            setAvailableContexts(data.data.contexts);
+          } else {
+            setAvailableContexts([]);
+          }
+          setLoadingContexts(false);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch contexts:', error);
+          setAvailableContexts([]);
+          setLoadingContexts(false);
+        });
+    } else {
+      setAvailableContexts([]);
+      setActiveContext(null);
+    }
+  }, [activeProject, setActiveContext]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900/30 to-blue-900/20 text-white p-6">
@@ -32,6 +89,63 @@ export default function VoicebotPage() {
           <p className="text-cyan-300/60 font-mono">
             Experimental phone call-like voice interaction testing platform
           </p>
+        </motion.div>
+
+        {/* Project and Context Selectors */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-6 flex items-center space-x-4"
+        >
+          {/* Project Selector */}
+          <div className="flex-1">
+            <label className="block text-xs text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
+              Project Context
+            </label>
+            <select
+              value={activeProject?.id || ''}
+              onChange={(e) => {
+                const selectedProject = projects.find(p => p.id === e.target.value);
+                if (selectedProject) {
+                  setActiveProject(selectedProject);
+                }
+              }}
+              className="w-full px-4 py-3 bg-gray-900/50 border border-cyan-500/30 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-cyan-500/50 transition-colors"
+            >
+              <option value="">No Project Selected</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Context Selector */}
+          <div className="flex-1">
+            <label className="block text-xs text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
+              Context
+            </label>
+            <select
+              value={activeContext?.id || ''}
+              onChange={(e) => {
+                const selectedContext = availableContexts.find(c => c.id === e.target.value);
+                setActiveContext(selectedContext || null);
+              }}
+              disabled={!activeProject || loadingContexts}
+              className="w-full px-4 py-3 bg-gray-900/50 border border-cyan-500/30 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-cyan-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                {!activeProject ? 'Select a project first' : loadingContexts ? 'Loading contexts...' : 'No Context Selected'}
+              </option>
+              {availableContexts.map((context) => (
+                <option key={context.id} value={context.id}>
+                  {context.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </motion.div>
 
         {/* Solution Tab Switcher */}
@@ -337,6 +451,9 @@ export default function VoicebotPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* Prompt Management Section */}
+        <PromptManager />
       </div>
     </div>
   );

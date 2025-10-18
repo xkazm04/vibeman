@@ -4,7 +4,7 @@ import "./globals.css";
 import BackgroundPattern from "../components/BackgroundPattern";
 import QueryProvider from "../components/QueryProvider";
 import { ModalProvider } from "../contexts/ModalContext";
-import GlobalTooltip from "../components/GlobalTooltip";
+import ContextOverview from "./coder/Context/ContextOverview/ContextOverview";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +35,7 @@ export default function RootLayout({
         <QueryProvider>
           <ModalProvider>
             {children}
-            <GlobalTooltip />
+            <ContextOverview />
           </ModalProvider>
         </QueryProvider>
       </body>

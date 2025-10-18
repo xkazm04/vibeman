@@ -107,6 +107,80 @@ function initializeProjectTables() {
     CREATE INDEX IF NOT EXISTS idx_projects_port ON projects(port);
     CREATE INDEX IF NOT EXISTS idx_projects_instance_of ON projects(instance_of);
   `);
+
+  // Add default projects if database is empty
+  const countStmt = db.prepare('SELECT COUNT(*) as count FROM projects');
+  const result = countStmt.get() as { count: number };
+  
+  if (result.count === 0) {
+    console.log('Initializing database with default projects...');
+    
+    const insertStmt = db.prepare(`
+      INSERT INTO projects (
+        id, name, path, port, type, related_project_id, git_repository, git_branch, run_script,
+        allow_multiple_instances, base_port, instance_of, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const now = new Date().toISOString();
+    
+    // Add Vibeman project
+    insertStmt.run(
+      'vibeman-main',
+      'Vibeman',
+      '/workspace/vibeman',
+      3000,
+      'nextjs',
+      null,
+      'https://github.com/user/vibeman.git',
+      'main',
+      'npm run dev',
+      0,
+      null,
+      null,
+      now,
+      now
+    );
+    
+    // Add PikselPlay Char UI project
+    insertStmt.run(
+      'pikselplay-char-ui',
+      'PikselPlay Char UI',
+      '/workspace/pikselplay/char-ui',
+      3001,
+      'nextjs',
+      'pikselplay-char-service',
+      'https://github.com/user/pikselplay.git',
+      'main',
+      'npm run dev',
+      0,
+      null,
+      null,
+      now,
+      now
+    );
+    
+    // Add PikselPlay Char Service project
+    insertStmt.run(
+      'pikselplay-char-service',
+      'PikselPlay Char Service',
+      '/workspace/pikselplay/char-service',
+      8000,
+      'fastapi',
+      'pikselplay-char-ui',
+      'https://github.com/user/pikselplay.git',
+      'main',
+      'uvicorn main:app --reload --host 0.0.0.0 --port 8000',
+      0,
+      null,
+      null,
+      now,
+      now
+    );
+    
+    console.log('Default projects added successfully');
+  }
 }
 
 // Project database operations

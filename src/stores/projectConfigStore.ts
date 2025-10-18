@@ -33,12 +33,15 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
           const response = await fetch('/api/projects');
           if (response.ok) {
             const data = await response.json();
-            set({ projects: data.projects });
-            return data.projects;
+            set({ projects: data.projects || [] });
+            return data.projects || [];
+          } else {
+            console.error('Failed to sync with server: HTTP', response.status);
           }
         } catch (error) {
           console.error('Failed to sync with server:', error);
         }
+        set({ projects: [] });
         return [];
       },
 
@@ -152,7 +155,7 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
       // Get all projects
       getAllProjects: () => {
         const state = get();
-        return state.projects;
+        return state.projects || [];
       },
     })
   )

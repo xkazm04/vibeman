@@ -218,6 +218,28 @@ export default function VoicebotSessionLogs({
                         <span className="text-xs text-gray-500 font-mono">{log.timestamp}</span>
                       </div>
 
+                      {/* Tools Used (for assistant messages) - TOP ROW, CENTERED */}
+                      {log.type === 'assistant' && log.toolsUsed && log.toolsUsed.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mb-3 pb-2 border-b border-green-500/20"
+                        >
+                          <div className="flex flex-wrap gap-2 justify-center items-center">
+                            <span className="text-xs text-green-400/60 font-mono uppercase tracking-wider">Tools:</span>
+                            {log.toolsUsed.map((tool, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-1 text-xs bg-green-500/10 border border-green-500/30 rounded text-green-300 font-mono"
+                                title={tool.description || tool.name}
+                              >
+                                {tool.name}
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+
                       <p className="text-white leading-relaxed font-mono text-sm break-words">
                         {log.message}
                       </p>
