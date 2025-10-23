@@ -9,6 +9,8 @@ export interface Requirement {
   error?: string;
   startTime?: Date;
   sessionLimitReached?: boolean;
+  taskId?: string;
+  logFilePath?: string;
 }
 
 /**
@@ -28,13 +30,13 @@ export async function loadRequirements(projectPath: string): Promise<string[]> {
 }
 
 /**
- * Execute a requirement
+ * Execute a requirement (async mode - non-blocking)
  */
-export async function executeRequirement(
+export async function executeRequirementAsync(
   projectPath: string,
   requirementName: string,
   projectId?: string
-): Promise<{ success: boolean; output?: string; error?: string; sessionLimitReached?: boolean; contextUpdates?: any[] }> {
+): Promise<{ success: boolean; taskId: string }> {
   const response = await fetch('/api/claude-code', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -43,6 +45,81 @@ export async function executeRequirement(
       action: 'execute-requirement',
       requirementName,
       projectId,
+      async: true,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to queue execution');
+  }
+
+  return data;
+}
+
+/**
+ * Get execution task status
+ */
+export async function getTaskStatus(taskId: string): Promise<any> {
+  const response = await fetch('/api/claude-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectPath: '', // Not needed for task status
+      action: 'get-task-status',
+      taskId,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to get task status');
+  }
+
+  return data.task;
+}
+
+/**
+ * List all execution tasks for a project
+ */
+export async function listExecutionTasks(projectPath: string): Promise<any[]> {
+  const response = await fetch('/api/claude-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectPath,
+      action: 'list-tasks',
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to list tasks');
+  }
+
+  return data.tasks || [];
+}
+
+/**
+ * Execute a requirement (sync mode - blocking, legacy)
+ */
+export async function executeRequirement(
+  projectPath: string,
+  requirementName: string,
+  projectId?: string
+): Promise<{ success: boolean; output?: string; error?: string; sessionLimitReached?: boolean; contextUpdates?: any[]; logFilePath?: string }> {
+  const response = await fetch('/api/claude-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectPath,
+      action: 'execute-requirement',
+      requirementName,
+      projectId,
+      async: false,
     }),
   });
 
@@ -121,4 +198,46 @@ export async function readRequirement(
   }
 
   throw new Error('Failed to read requirement');
+}
+
+/**
+ * Generate a requirement for a single specific goal (async, non-blocking)
+ * This function starts the generation process in the background and returns immediately
+ */
+export async function generateRequirementForGoal(
+  projectPath: string,
+  projectId: string,
+  goalId: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const response = await fetch('/api/claude-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectPath,
+      action: 'generate-requirement-for-goal',
+      projectId,
+      goalId,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to generate requirement for goal');
+  }
+
+  return data;
+}
+
+/**
+ * Check if context scan requirement exists
+ */
+export async function hasContextScanRequirement(projectPath: string): Promise<boolean> {
+  try {
+    const requirements = await loadRequirements(projectPath);
+    return requirements.includes('scan-contexts');
+  } catch (err) {
+    console.error('Error checking for context scan requirement:', err);
+    return false;
+  }
 }

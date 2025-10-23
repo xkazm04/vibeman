@@ -11,7 +11,7 @@ import {
   updateClaudeSettings,
   executeRequirement,
 } from '@/app/Claude/lib/claudeCodeManager';
-import { generateRequirementsFromGoals } from '@/app/Claude/lib/generateRequirementsFromGoals';
+import { generateRequirementsFromGoals, generateRequirementForGoal } from '@/app/Claude/lib/generateRequirementsFromGoals';
 import {
   createProjectSnapshot,
   autoUpdateContexts,
@@ -116,7 +116,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { projectPath, action, projectName, requirementName, content, settings } = body;
 
-    if (!projectPath) {
+    // Actions that don't require projectPath
+    const noProjectPathActions = ['get-task-status'];
+
+    if (!projectPath && !noProjectPathActions.includes(action)) {
       return NextResponse.json(
         { error: 'Project path is required' },
         { status: 400 }
@@ -164,8 +167,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Execute requirement
-    if (action === 'execute-requirement') {
+    // Execute requirement (async mode - queued execution)
+    if (action === 'execute-requirement-async') {
       const { projectId } = body;
 
       if (!requirementName) {
@@ -175,6 +178,42 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
+      const taskId = executionQueue.addTask(projectPath, requirementName, projectId);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Requirement queued for execution',
+        taskId,
+        mode: 'async',
+      });
+    }
+
+    // Execute requirement (sync mode - blocking, legacy)
+    if (action === 'execute-requirement') {
+      const { projectId, async } = body;
+
+      if (!requirementName) {
+        return NextResponse.json(
+          { error: 'Requirement name is required' },
+          { status: 400 }
+        );
+      }
+
+      // If async mode requested, delegate to async handler
+      if (async === true) {
+        const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
+        const taskId = executionQueue.addTask(projectPath, requirementName, projectId);
+
+        return NextResponse.json({
+          success: true,
+          message: 'Requirement queued for execution',
+          taskId,
+          mode: 'async',
+        });
+      }
+
+      // Synchronous execution (blocking)
       // Create snapshot before execution for context auto-update
       const beforeSnapshot = projectId ? createProjectSnapshot(projectPath) : null;
 
@@ -184,6 +223,7 @@ export async function POST(request: NextRequest) {
           {
             error: result.error || 'Failed to execute requirement',
             sessionLimitReached: result.sessionLimitReached || false,
+            logFilePath: result.logFilePath,
           },
           { status: result.sessionLimitReached ? 429 : 500 }
         );
@@ -206,7 +246,52 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Requirement executed successfully',
         output: result.output,
+        logFilePath: result.logFilePath,
         contextUpdates: contextUpdateResults,
+        mode: 'sync',
+      });
+    }
+
+    // Get execution task status
+    if (action === 'get-task-status') {
+      const { taskId } = body;
+
+      if (!taskId) {
+        return NextResponse.json(
+          { error: 'Task ID is required' },
+          { status: 400 }
+        );
+      }
+
+      const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
+      const task = executionQueue.getTask(taskId);
+
+      if (!task) {
+        return NextResponse.json(
+          { error: 'Task not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ task });
+    }
+
+    // List all execution tasks for a project
+    if (action === 'list-tasks') {
+      const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
+      const tasks = executionQueue.getProjectTasks(projectPath);
+
+      return NextResponse.json({ tasks });
+    }
+
+    // Clear old completed tasks
+    if (action === 'clear-old-tasks') {
+      const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
+      executionQueue.clearOldTasks();
+
+      return NextResponse.json({
+        success: true,
+        message: 'Old tasks cleared',
       });
     }
 
@@ -255,6 +340,30 @@ export async function POST(request: NextRequest) {
         success: true,
         count: result.count,
         requirements: result.requirements,
+      });
+    }
+
+    // Generate requirement for a specific goal (async, non-blocking)
+    if (action === 'generate-requirement-for-goal') {
+      const { projectId, goalId } = body;
+      if (!projectId || !goalId) {
+        return NextResponse.json(
+          { error: 'Project ID and Goal ID are required' },
+          { status: 400 }
+        );
+      }
+
+      const result = await generateRequirementForGoal(projectId, projectPath, goalId);
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error || 'Failed to generate requirement for goal' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: result.message,
       });
     }
 

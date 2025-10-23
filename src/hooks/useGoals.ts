@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { Goal } from '../types';
 import { goalApi, goalKeys } from '../lib/queries/goalQueries';
 
@@ -112,6 +113,16 @@ export const useGoals = (projectId: string | null) => {
     }
   };
 
+  const fetchGoalById = useCallback(async (goalId: string): Promise<Goal | null> => {
+    try {
+      const goal = await goalApi.fetchGoalById(goalId);
+      return goal;
+    } catch (error) {
+      console.error('Error fetching goal by ID:', error);
+      return null;
+    }
+  }, []);
+
   // Convert query error to string
   const error = queryError ? 
     (queryError instanceof Error ? queryError.message : 'An error occurred') : 
@@ -122,6 +133,7 @@ export const useGoals = (projectId: string | null) => {
     loading,
     error,
     fetchGoals,
+    fetchGoalById,
     createGoal,
     updateGoal,
     deleteGoal,

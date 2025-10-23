@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const result = await anthropic.generate({
       prompt,
       model: 'claude-haiku-4-5-20251001', // Fast model for quick generation
-      maxTokens: 2000, // Increased to allow longer descriptions
+      maxTokens: 4000, // Increased to allow longer descriptions
       temperature: 0.7,
       taskType: 'context-description-generation',
       taskDescription: 'Generate context description from files',

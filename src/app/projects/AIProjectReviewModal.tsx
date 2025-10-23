@@ -1,87 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, AlertCircle } from 'lucide-react';
+import { Brain } from 'lucide-react';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
 import BaseModal from '../../components/ui/BaseModal';
 import ModalHeader from '../../components/ui/ModalHeader';
-import AIContentSelector from './ProjectAI/AIContentSelector_main';
-import AIDocsDisplay from './ProjectAI/AIDocsDisplay';
-import TaskResultDisplay from './ProjectAI/TaskResultDisplay';
-import GoalResultDisplay from './ProjectAI/GoalResultDisplay';
-import { ContextResultDisplay } from './ProjectAI/Context';
+import AIContentSelector from './ProjectAI/ScanModal/AIContentSelector_main';
 import { SupportedProvider, DefaultProviderStorage } from '../../lib/llm';
+import { AIReviewMode } from '@/lib/api/aiProjectReviewApi';
+import { AI_REVIEW_MODE_CONFIG } from './ProjectAI/ScanModal/aiReviewConfig';
+import * as AIReviewAPI from '@/lib/api/aiProjectReviewApi';
+
+// Type definitions for AI-generated content
+interface Task {
+  title: string;
+  description: string;
+  priority?: string;
+  status?: string;
+}
+
+interface Goal {
+  title: string;
+  description: string;
+  type?: string;
+}
+
+interface CodeTask {
+  file: string;
+  task: string;
+  priority?: string;
+}
 
 interface AIProjectReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-// Helper function to parse AI JSON responses that may include ```json wrapper
-function parseAIJsonResponse(response: string): any {
-  // Normalize special characters that might cause JSON parsing issues
-  const normalizeJson = (jsonStr: string): string => {
-    return jsonStr
-      // Replace various dash types with regular hyphen
-      .replace(/[‑–—−]/g, '-')
-      // Replace smart quotes with regular quotes
-      .replace(/[""]/g, '"')
-      .replace(/['']/g, "'")
-      // Replace other problematic Unicode characters
-      .replace(/[…]/g, '...')
-      // Remove any BOM or invisible characters
-      .replace(/^\uFEFF/, '')
-      // Remove any other invisible/control characters including narrow no-break space
-      .replace(/[\u200B-\u200D\uFEFF\u202F]/g, '')
-      .trim();
-  };
-
-  const tryParse = (jsonStr: string): any => {
-    try {
-      const normalized = normalizeJson(jsonStr);
-      console.log('Attempting to parse normalized JSON:', normalized.substring(0, 200) + '...');
-      return JSON.parse(normalized);
-    } catch (error) {
-      console.error('JSON parsing failed for:', jsonStr.substring(0, 200) + '...');
-      console.error('Parse error:', error);
-      throw error;
-    }
-  };
-
-  console.log('parseAIJsonResponse called with response length:', response.length);
-  console.log('Response starts with:', response.substring(0, 50));
-
-  // Check if response has ```json wrapper first
-  if (response.includes('```json')) {
-    console.log('Found ```json marker, extracting...');
-
-    // Find the start of JSON content after ```json
-    const startIndex = response.indexOf('```json') + 7; // 7 = length of '```json'
-    const endIndex = response.indexOf('```', startIndex);
-
-    if (endIndex !== -1) {
-      const jsonContent = response.substring(startIndex, endIndex).trim();
-      console.log('Extracted JSON content:', jsonContent.substring(0, 100) + '...');
-      console.log('JSON content length:', jsonContent.length);
-      return tryParse(jsonContent);
-    }
-  }
-
-  // If no wrapper, try to parse as-is
-  try {
-    return tryParse(response);
-  } catch (error) {
-    console.log('Direct parsing failed, trying to find JSON array...');
-
-    // Try to find JSON array in the response
-    const arrayMatch = response.match(/\[[\s\S]*?\]/);
-    if (arrayMatch) {
-      console.log('Found JSON array in response, extracting...');
-      return tryParse(arrayMatch[0]);
-    }
-
-    // Log the full response for debugging
-    console.error('Failed to parse AI response:', response);
-    throw new Error(`Failed to parse AI JSON response: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
 }
 
 export default function AIProjectReviewModal({
@@ -91,7 +41,7 @@ export default function AIProjectReviewModal({
   const { activeProject } = useActiveProjectStore();
 
   // UI State
-  const [currentView, setCurrentView] = useState<'selector' | 'docs' | 'tasks' | 'goals' | 'context' | 'code'>('selector');
+  const [currentView, setCurrentView] = useState<'selector' | AIReviewMode>('selector');
   const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('preview');
   const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>(() => 
     DefaultProviderStorage.getDefaultProvider()
@@ -99,10 +49,10 @@ export default function AIProjectReviewModal({
 
   // Content State
   const [docsContent, setDocsContent] = useState('');
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [goals, setGoals] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [contexts, setContexts] = useState<Array<{ filename: string; content: string }>>([]);
-  const [codeTasks, setCodeTasks] = useState<any[]>([]);
+  const [codeTasks, setCodeTasks] = useState<CodeTask[]>([]);
 
   // Loading States
   const [docsLoading, setDocsLoading] = useState(false);
@@ -136,266 +86,126 @@ export default function AIProjectReviewModal({
     }
   }, [isOpen]);
 
-  const handleSelectMode = async (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code', backgroundTask?: boolean) => {
+  const handleSelectMode = async (mode: AIReviewMode, backgroundTask?: boolean) => {
     if (!activeProject) {
       return;
     }
 
     if (backgroundTask) {
-      // Handle background task generation
       await handleBackgroundGeneration(mode);
       return;
     }
 
     setCurrentView(mode);
-
-    // Generate content based on mode
-    switch (mode) {
-      case 'docs':
-        await generateDocs();
-        break;
-      case 'tasks':
-        await generateTasks();
-        break;
-      case 'goals':
-        await generateGoals();
-        break;
-      case 'context':
-        await generateContexts();
-        break;
-      case 'code':
-        await generateCodeTasks();
-        break;
-    }
+    await generateContent(mode);
   };
 
-  const handleBackgroundGeneration = async (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code') => {
+  const handleBackgroundGeneration = async (mode: AIReviewMode) => {
     if (!activeProject) return;
 
     try {
-      const response = await fetch('/api/kiro/background-tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          projectName: activeProject.name,
-          taskType: mode,
-          priority: 1 // Higher priority for user-initiated tasks
-        }),
+      const result = await AIReviewAPI.queueBackgroundTask({
+        projectId: activeProject.id,
+        projectPath: activeProject.path,
+        projectName: activeProject.name,
+        taskType: mode,
+        priority: 1,
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        // Show success message and close modal
-        console.log(`Background ${mode} task queued:`, result.task);
-        handleClose();
-      } else {
-        throw new Error(result.error || `Failed to queue background ${mode} task`);
-      }
+      console.log(`Background ${mode} task queued:`, result.task);
+      handleClose();
     } catch (error) {
       console.error(`Failed to queue background ${mode} task:`, error);
-      // You might want to show an error toast here
     }
   };
 
-  const generateDocs = async () => {
-    if (!activeProject) return;
+  /**
+   * Unified content generation using configuration mapping
+   */
+  const generateContent = async (mode: AIReviewMode) => {
+    if (!activeProject || mode === 'file-scanner') return;
 
-    setDocsLoading(true);
-    setDocsError(null);
+    const setters = {
+      setDocsLoading,
+      setTasksLoading,
+      setGoalsLoading,
+      setContextsLoading,
+      setCodeLoading,
+      setDocsError,
+      setTasksError,
+      setGoalsError,
+      setContextsError,
+      setCodeError,
+      setDocsContent,
+      setTasks,
+      setGoals,
+      setContexts,
+      setCodeTasks,
+    };
 
-    try {
-      const response = await fetch('/api/kiro/ai-project-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          projectName: activeProject.name,
-          mode: 'docs',
-          provider: selectedProvider
-        }),
-      });
+    const config = AI_REVIEW_MODE_CONFIG[mode];
+    if (!config) return;
 
-      const result = await response.json();
+    const setLoading = setters[config.setLoadingKey];
+    const setError = setters[config.setErrorKey];
+    const setData = setters[config.setDataKey];
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate project documentation');
-      }
-
-      setDocsContent(result.analysis);
-    } catch (error) {
-      setDocsError(error instanceof Error ? error.message : 'Failed to generate documentation');
-    } finally {
-      setDocsLoading(false);
-    }
-  };
-
-  const generateTasks = async () => {
-    if (!activeProject) return;
-
-    setTasksLoading(true);
-    setTasksError(null);
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch('/api/kiro/ai-project-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          projectName: activeProject.name,
-          mode: 'tasks',
-          provider: selectedProvider
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate tasks');
+      let data;
+      
+      switch (mode) {
+        case 'docs':
+          data = await AIReviewAPI.generateDocs(
+            activeProject.id,
+            activeProject.path,
+            activeProject.name,
+            selectedProvider
+          );
+          break;
+        case 'tasks':
+          data = await AIReviewAPI.generateTasks(
+            activeProject.id,
+            activeProject.path,
+            activeProject.name,
+            selectedProvider
+          );
+          break;
+        case 'goals':
+          data = await AIReviewAPI.generateGoals(
+            activeProject.id,
+            activeProject.path,
+            activeProject.name,
+            selectedProvider
+          );
+          break;
+        case 'context':
+          data = await AIReviewAPI.generateContexts(
+            activeProject.id,
+            activeProject.path,
+            activeProject.name,
+            selectedProvider
+          );
+          break;
+        case 'code':
+          data = await AIReviewAPI.generateCodeTasks(
+            activeProject.id,
+            activeProject.path,
+            activeProject.name,
+            selectedProvider
+          );
+          break;
       }
 
-      if (result.tasks) {
-        setTasks(result.tasks);
-      } else if (result.rawResponse) {
-        // Try to extract JSON from raw response using robust parser
-        try {
-          const parsedTasks = parseAIJsonResponse(result.rawResponse);
-          setTasks(parsedTasks);
-        } catch (parseError) {
-          throw new Error('Failed to parse tasks from AI response');
-        }
-      }
-    } catch (error) {
-      setTasksError(error instanceof Error ? error.message : 'Failed to generate tasks');
-    } finally {
-      setTasksLoading(false);
-    }
-  };
-
-  const generateGoals = async () => {
-    if (!activeProject) return;
-
-    setGoalsLoading(true);
-    setGoalsError(null);
-
-    try {
-      const response = await fetch('/api/kiro/ai-project-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          projectName: activeProject.name,
-          mode: 'goals',
-          provider: selectedProvider
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate goals');
-      }
-
-      if (result.goals) {
-        setGoals(result.goals);
-      } else if (result.rawResponse) {
-        // Try to extract JSON from raw response using robust parser
-        try {
-          const parsedGoals = parseAIJsonResponse(result.rawResponse);
-          setGoals(parsedGoals);
-        } catch (parseError) {
-          throw new Error('Failed to parse goals from AI response');
-        }
+      if (data) {
+        setData(data as never);
       }
     } catch (error) {
-      setGoalsError(error instanceof Error ? error.message : 'Failed to generate goals');
+      setError(error instanceof Error ? error.message : `Failed to generate ${mode}`);
     } finally {
-      setGoalsLoading(false);
-    }
-  };
-
-  const generateContexts = async () => {
-    if (!activeProject) return;
-
-    setContextsLoading(true);
-    setContextsError(null);
-
-    try {
-      const response = await fetch('/api/kiro/ai-project-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          projectName: activeProject.name,
-          mode: 'context',
-          provider: selectedProvider
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate context files');
-      }
-
-      if (result.contexts) {
-        setContexts(result.contexts);
-      } else {
-        throw new Error('No context files were generated');
-      }
-    } catch (error) {
-      setContextsError(error instanceof Error ? error.message : 'Failed to generate context files');
-    } finally {
-      setContextsLoading(false);
-    }
-  };
-
-  const generateCodeTasks = async () => {
-    if (!activeProject) return;
-
-    setCodeLoading(true);
-    setCodeError(null);
-
-    try {
-      const response = await fetch('/api/kiro/ai-project-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          projectName: activeProject.name,
-          mode: 'code',
-          provider: selectedProvider
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate code optimization tasks');
-      }
-
-      if (result.tasks) {
-        setCodeTasks(result.tasks);
-      } else if (result.rawResponse) {
-        // Try to extract JSON from raw response using robust parser
-        try {
-          const parsedTasks = parseAIJsonResponse(result.rawResponse);
-          setCodeTasks(parsedTasks);
-        } catch (parseError) {
-          throw new Error('Failed to parse code tasks from AI response');
-        }
-      }
-    } catch (error) {
-      setCodeError(error instanceof Error ? error.message : 'Failed to generate code optimization tasks');
-    } finally {
-      setCodeLoading(false);
+      setLoading(false);
     }
   };
 
@@ -439,88 +249,59 @@ export default function AIProjectReviewModal({
   };
 
   const renderContent = () => {
-    switch (currentView) {
-      case 'selector':
-        return (
-          <AIContentSelector
-            onSelectMode={handleSelectMode}
-            activeProject={activeProject}
-            selectedProvider={selectedProvider}
-            onProviderChange={setSelectedProvider}
-          />
-        );
-
-      case 'docs':
-        return (
-          <AIDocsDisplay
-            content={docsContent}
-            loading={docsLoading}
-            error={docsError}
-            onBack={handleBack}
-            previewMode={previewMode}
-            onPreviewModeChange={setPreviewMode}
-            onContentChange={setDocsContent}
-            activeProject={activeProject}
-          />
-        );
-
-      case 'tasks':
-        return (
-          <TaskResultDisplay
-            tasks={tasks}
-            loading={tasksLoading}
-            error={tasksError}
-            onBack={handleBack}
-            onAcceptTask={handleAcceptTask}
-            onRejectTask={handleRejectTask}
-            activeProject={activeProject}
-          />
-        );
-
-      case 'goals':
-        return (
-          <GoalResultDisplay
-            goals={goals}
-            loading={goalsLoading}
-            error={goalsError}
-            onBack={handleBack}
-            onAcceptGoal={handleAcceptGoal}
-            onRejectGoal={handleRejectGoal}
-            activeProject={activeProject}
-          />
-        );
-
-      case 'context':
-        return (
-          <ContextResultDisplay
-            contexts={contexts}
-            loading={contextsLoading}
-            error={contextsError}
-            onBack={handleBack}
-            activeProject={activeProject}
-          />
-        );
-
-      case 'code':
-        return (
-          <TaskResultDisplay
-            tasks={codeTasks}
-            loading={codeLoading}
-            error={codeError}
-            onBack={handleBack}
-            onAcceptTask={handleAcceptTask}
-            onRejectTask={handleRejectTask}
-            activeProject={activeProject}
-          />
-        );
-
-      default:
-        return null;
+    if (currentView === 'selector') {
+      return (
+        <AIContentSelector
+          onSelectMode={handleSelectMode}
+          activeProject={activeProject}
+          selectedProvider={selectedProvider}
+          onProviderChange={setSelectedProvider}
+        />
+      );
     }
+
+    // Use configuration-based rendering
+    const config = AI_REVIEW_MODE_CONFIG[currentView as AIReviewMode];
+    if (!config) return null;
+
+    const stateMap = {
+      docsContent,
+      tasks,
+      goals,
+      contexts,
+      codeTasks,
+      docsLoading,
+      tasksLoading,
+      goalsLoading,
+      contextsLoading,
+      codeLoading,
+      docsError,
+      tasksError,
+      goalsError,
+      contextsError,
+      codeError,
+    };
+
+    return config.renderComponent({
+      data: stateMap[config.dataKey],
+      loading: stateMap[config.loadingKey],
+      error: stateMap[config.errorKey],
+      onBack: handleBack,
+      activeProject,
+      // Docs-specific props
+      previewMode,
+      onPreviewModeChange: setPreviewMode,
+      onContentChange: setDocsContent,
+      // Task/Goal-specific props
+      onAcceptTask: handleAcceptTask,
+      onRejectTask: handleRejectTask,
+      onAcceptGoal: handleAcceptGoal,
+      onRejectGoal: handleRejectGoal,
+    });
   };
 
   return (
-    <BaseModal isOpen={isOpen} onClose={handleClose} maxWidth="max-w-6xl" maxHeight="max-h-[95vh]">
+    <BaseModal isOpen={isOpen} onClose={handleClose} maxWidth="max-w-8xl" maxHeight="max-h-[90vh]">
       {currentView === 'selector' ? (
         <ModalHeader
           title="AI Project Assistant"

@@ -56,8 +56,6 @@ export default function GroupListSection({
             </div>
             <motion.div
               className="absolute -inset-2 bg-gradient-to-r from-gray-500/20 to-gray-600/20 rounded-3xl blur-xl opacity-50"
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
             />
           </div>
           <p className="text-lg font-semibold text-gray-300 font-mono mb-2">No groups created yet</p>

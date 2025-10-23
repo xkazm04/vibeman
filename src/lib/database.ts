@@ -112,6 +112,39 @@ function initializeTables() {
     );
   `);
 
+  // Create scans table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS scans (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      scan_type TEXT NOT NULL,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      summary TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Create ideas table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ideas (
+      id TEXT PRIMARY KEY,
+      scan_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      context_id TEXT,
+      category TEXT NOT NULL CHECK (category IN ('functionality', 'performance', 'maintenance', 'ui', 'code_quality', 'user_benefit')),
+      title TEXT NOT NULL,
+      description TEXT,
+      reasoning TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'implemented')),
+      user_feedback TEXT,
+      user_pattern INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
+    );
+  `);
+
   // Run migrations for existing databases
   runMigrations();
 
@@ -129,6 +162,13 @@ function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_events_project_id ON events(project_id);
     CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(project_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_events_type ON events(project_id, type);
+    CREATE INDEX IF NOT EXISTS idx_scans_project_id ON scans(project_id);
+    CREATE INDEX IF NOT EXISTS idx_scans_timestamp ON scans(project_id, timestamp);
+    CREATE INDEX IF NOT EXISTS idx_ideas_scan_id ON ideas(scan_id);
+    CREATE INDEX IF NOT EXISTS idx_ideas_project_id ON ideas(project_id);
+    CREATE INDEX IF NOT EXISTS idx_ideas_context_id ON ideas(context_id);
+    CREATE INDEX IF NOT EXISTS idx_ideas_status ON ideas(project_id, status);
+    CREATE INDEX IF NOT EXISTS idx_ideas_category ON ideas(category);
   `);
 }
 
@@ -420,6 +460,17 @@ export const goalDb = {
       ORDER BY order_index ASC
     `);
     return stmt.all(projectId) as DbGoal[];
+  },
+
+  // Get a single goal by ID
+  getGoalById: (goalId: string): DbGoal | null => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM goals 
+      WHERE id = ?
+    `);
+    const goal = stmt.get(goalId) as DbGoal | undefined;
+    return goal || null;
   },
 
   // Create a new goal
@@ -893,6 +944,17 @@ export const contextDb = {
     return stmt.all(groupId) as DbContext[];
   },
 
+  // Get a single context by ID
+  getContextById: (contextId: string): DbContext | null => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM contexts 
+      WHERE id = ?
+    `);
+    const context = stmt.get(contextId) as DbContext | undefined;
+    return context || null;
+  },
+
   // Create a new context
   createContext: (context: {
     id: string;
@@ -1160,6 +1222,287 @@ export const eventDb = {
   }
 };
 
+// Scan database operations
+export interface DbScan {
+  id: string;
+  project_id: string;
+  scan_type: string;
+  timestamp: string;
+  summary: string | null;
+  created_at: string;
+}
+
+export const scanDb = {
+  // Get all scans for a project
+  getScansByProject: (projectId: string): DbScan[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM scans
+      WHERE project_id = ?
+      ORDER BY timestamp DESC
+    `);
+    return stmt.all(projectId) as DbScan[];
+  },
+
+  // Get a single scan by ID
+  getScanById: (scanId: string): DbScan | null => {
+    const db = getDatabase();
+    const stmt = db.prepare('SELECT * FROM scans WHERE id = ?');
+    const scan = stmt.get(scanId) as DbScan | undefined;
+    return scan || null;
+  },
+
+  // Create a new scan
+  createScan: (scan: {
+    id: string;
+    project_id: string;
+    scan_type: string;
+    summary?: string;
+  }): DbScan => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT INTO scans (id, project_id, scan_type, timestamp, summary, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      scan.id,
+      scan.project_id,
+      scan.scan_type,
+      now,
+      scan.summary || null,
+      now
+    );
+
+    const selectStmt = db.prepare('SELECT * FROM scans WHERE id = ?');
+    return selectStmt.get(scan.id) as DbScan;
+  },
+
+  // Delete a scan (will cascade delete associated ideas)
+  deleteScan: (id: string): boolean => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM scans WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  },
+
+  close: () => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+  }
+};
+
+// Idea database operations
+export interface DbIdea {
+  id: string;
+  scan_id: string;
+  project_id: string;
+  context_id: string | null;
+  scan_type: string; // Type of scan that generated this idea
+  category: 'functionality' | 'performance' | 'maintenance' | 'ui' | 'code_quality' | 'user_benefit';
+  title: string;
+  description: string | null;
+  reasoning: string | null;
+  status: 'pending' | 'accepted' | 'rejected' | 'implemented';
+  user_feedback: string | null;
+  user_pattern: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const ideaDb = {
+  // Get all ideas across all projects
+  getAllIdeas: (): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      ORDER BY created_at DESC
+    `);
+    return stmt.all() as DbIdea[];
+  },
+
+  // Get ideas by project
+  getIdeasByProject: (projectId: string): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE project_id = ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(projectId) as DbIdea[];
+  },
+
+  // Get ideas by status
+  getIdeasByStatus: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE status = ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(status) as DbIdea[];
+  },
+
+  // Get ideas by context
+  getIdeasByContext: (contextId: string): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE context_id = ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(contextId) as DbIdea[];
+  },
+
+  // Get a single idea by ID
+  getIdeaById: (ideaId: string): DbIdea | null => {
+    const db = getDatabase();
+    const stmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
+    const idea = stmt.get(ideaId) as DbIdea | undefined;
+    return idea || null;
+  },
+
+  // Create a new idea
+  createIdea: (idea: {
+    id: string;
+    scan_id: string;
+    project_id: string;
+    context_id?: string | null;
+    category: 'functionality' | 'performance' | 'maintenance' | 'ui' | 'code_quality' | 'user_benefit';
+    title: string;
+    description?: string;
+    reasoning?: string;
+    status?: 'pending' | 'accepted' | 'rejected' | 'implemented';
+    user_feedback?: string;
+    user_pattern?: boolean;
+  }): DbIdea => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT INTO ideas (
+        id, scan_id, project_id, context_id, category, title, description,
+        reasoning, status, user_feedback, user_pattern, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      idea.id,
+      idea.scan_id,
+      idea.project_id,
+      idea.context_id || null,
+      idea.category,
+      idea.title,
+      idea.description || null,
+      idea.reasoning || null,
+      idea.status || 'pending',
+      idea.user_feedback || null,
+      idea.user_pattern ? 1 : 0,
+      now,
+      now
+    );
+
+    const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
+    return selectStmt.get(idea.id) as DbIdea;
+  },
+
+  // Update an idea
+  updateIdea: (id: string, updates: {
+    status?: 'pending' | 'accepted' | 'rejected' | 'implemented';
+    user_feedback?: string;
+    user_pattern?: boolean;
+    title?: string;
+    description?: string;
+    reasoning?: string;
+  }): DbIdea | null => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const updateFields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.status !== undefined) {
+      updateFields.push('status = ?');
+      values.push(updates.status);
+    }
+    if (updates.user_feedback !== undefined) {
+      updateFields.push('user_feedback = ?');
+      values.push(updates.user_feedback || null);
+    }
+    if (updates.user_pattern !== undefined) {
+      updateFields.push('user_pattern = ?');
+      values.push(updates.user_pattern ? 1 : 0);
+    }
+    if (updates.title !== undefined) {
+      updateFields.push('title = ?');
+      values.push(updates.title);
+    }
+    if (updates.description !== undefined) {
+      updateFields.push('description = ?');
+      values.push(updates.description || null);
+    }
+    if (updates.reasoning !== undefined) {
+      updateFields.push('reasoning = ?');
+      values.push(updates.reasoning || null);
+    }
+
+    if (updateFields.length === 0) {
+      const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
+      return selectStmt.get(id) as DbIdea | null;
+    }
+
+    updateFields.push('updated_at = ?');
+    values.push(now);
+    values.push(id);
+
+    const stmt = db.prepare(`
+      UPDATE ideas
+      SET ${updateFields.join(', ')}
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(...values);
+
+    if (result.changes === 0) {
+      return null;
+    }
+
+    const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
+    return selectStmt.get(id) as DbIdea;
+  },
+
+  // Delete an idea
+  deleteIdea: (id: string): boolean => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM ideas WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  },
+
+  // Get recent ideas (last N)
+  getRecentIdeas: (limit: number = 10): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      ORDER BY created_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(limit) as DbIdea[];
+  },
+
+  close: () => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+  }
+};
+
 // Project operations have been moved to project_database.ts
 
 // Cleanup on process exit
@@ -1169,6 +1512,8 @@ process.on('exit', () => {
   contextGroupDb.close();
   contextDb.close();
   eventDb.close();
+  scanDb.close();
+  ideaDb.close();
 });
 
 process.on('SIGINT', () => {
@@ -1177,6 +1522,8 @@ process.on('SIGINT', () => {
   contextGroupDb.close();
   contextDb.close();
   eventDb.close();
+  scanDb.close();
+  ideaDb.close();
   process.exit(0);
 });
 
@@ -1186,5 +1533,7 @@ process.on('SIGTERM', () => {
   contextGroupDb.close();
   contextDb.close();
   eventDb.close();
+  scanDb.close();
+  ideaDb.close();
   process.exit(0);
 });

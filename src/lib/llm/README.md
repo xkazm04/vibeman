@@ -41,7 +41,7 @@ const isAvailable = await llmManager.checkProviderAvailability('openai');
 - **Endpoint**: https://api.openai.com/v1
 
 ### Anthropic (Claude)
-- **Models**: Claude-3 Opus, Sonnet, Haiku, Claude-2.1, etc.
+- **Models**: Claude Sonnet, Haiku
 - **API Key Required**: Yes
 - **Endpoint**: https://api.anthropic.com/v1
 

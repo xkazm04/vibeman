@@ -89,18 +89,29 @@ function extractImports(fileContent: string, filePath: string): string[] {
  */
 async function resolveJSImportPath(
   importPath: string,
-  currentFilePath: string
+  currentFilePath: string,
+  projectPath: string
 ): Promise<string | null> {
-  // Skip node_modules and external packages
-  if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
+  let resolvedPath: string;
+  
+  // Handle TypeScript path aliases
+  if (importPath.startsWith('@/')) {
+    // @/app -> <project-root>/app
+    // @/components -> <project-root>/components
+    // etc.
+    const aliasPath = importPath.substring(2); // Remove '@/'
+    resolvedPath = path.join(projectPath, 'src', aliasPath);
+  } else if (importPath.startsWith('.') || importPath.startsWith('/')) {
+    // Handle relative imports
+    const currentDir = path.dirname(currentFilePath);
+    resolvedPath = path.resolve(currentDir, importPath);
+  } else {
+    // Skip node_modules and external packages
     return null;
   }
   
-  const currentDir = path.dirname(currentFilePath);
-  const resolvedPath = path.resolve(currentDir, importPath);
-  
   // Try different extensions
-  const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
+  const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py'];
   
   // Check if it's already a file with extension
   try {
@@ -241,7 +252,7 @@ async function resolveImportPath(
   if (ext === '.py') {
     return resolvePythonImportPath(importPath, currentFilePath, projectPath);
   } else {
-    return resolveJSImportPath(importPath, currentFilePath);
+    return resolveJSImportPath(importPath, currentFilePath, projectPath);
   }
 }
 

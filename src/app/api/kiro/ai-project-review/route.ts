@@ -188,7 +188,6 @@ async function analyzeProjectStructure(projectPath: string) {
     'tailwind.config.js',
     'tailwind.config.ts',
     'README.md',
-    'KIRO.md',
     '.env.example',
     'docker-compose.yml',
     'Dockerfile'

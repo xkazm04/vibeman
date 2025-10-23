@@ -51,6 +51,23 @@ export const goalApi = {
     return data.goals.map(convertDbGoalToGoal);
   },
 
+  // Fetch a single goal by ID
+  fetchGoalById: async (goalId: string): Promise<Goal> => {
+    const response = await fetch(`/api/goals?id=${encodeURIComponent(goalId)}&_t=${Date.now()}`, {
+      cache: 'no-cache',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch goal');
+    }
+
+    const data = await response.json();
+    return convertDbGoalToGoal(data.goal);
+  },
+
   // Create a new goal
   createGoal: async (params: {
     projectId: string;

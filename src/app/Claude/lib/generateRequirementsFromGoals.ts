@@ -89,7 +89,7 @@ export async function generateRequirementsFromGoals(
     const response = await anthropic.generate({
       prompt: userPrompt,
       systemPrompt,
-      maxTokens: 4000,
+      maxTokens: 8000,
       temperature: 0.7,
       projectId,
     });
@@ -203,4 +203,122 @@ function hasFileStructureMd(context: DbContext, projectPath: string): boolean {
   } catch (error) {
     return false;
   }
+}
+
+/**
+ * Generate a requirement for a specific goal (async, fires and forgets)
+ * Returns immediately after starting the background process
+ */
+export async function generateRequirementForGoal(
+  projectId: string,
+  projectPath: string,
+  goalId: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  // Fire and forget - start the process in the background
+  setImmediate(async () => {
+    try {
+      console.log(`[generateRequirementForGoal] Starting requirement generation for goal: ${goalId}`);
+
+      // 1. Get the specific goal
+      const goal = goalDb.getGoalById(goalId);
+      if (!goal) {
+        console.error(`[generateRequirementForGoal] Goal not found: ${goalId}`);
+        return;
+      }
+
+      if (goal.status === 'done' || goal.status === 'rejected') {
+        console.log(`[generateRequirementForGoal] Skipping goal with status: ${goal.status}`);
+        return;
+      }
+
+      // 2. Get context if the goal has one
+      const allContexts = contextDb.getContextsByProject(projectId);
+      const goalData: GoalWithContext = { goal };
+
+      if (goal.context_id) {
+        const context = allContexts.find((c) => c.id === goal.context_id);
+        if (context) {
+          goalData.context = context;
+          goalData.contextFiles = await loadContextFiles(context, projectPath);
+          goalData.hasFileStructureMd = hasFileStructureMd(context, projectPath);
+        }
+      } else {
+        // Load files from all contexts (limited)
+        console.log(`[generateRequirementForGoal] Goal has no specific context, loading project-wide context...`);
+        const filesFromAllContexts: Array<{ path: string; content: string }> = [];
+        for (const context of allContexts.slice(0, 3)) {
+          const files = await loadContextFiles(context, projectPath, 2);
+          filesFromAllContexts.push(...files);
+        }
+        goalData.contextFiles = filesFromAllContexts;
+      }
+
+      // 3. Load high-level documentation
+      const highLevelDocs = loadHighLevelDocs(projectPath);
+
+      // 4. Build prompts
+      const systemPrompt = buildSystemPrompt();
+      const userPrompt = buildUserPrompt([goalData], projectPath, highLevelDocs);
+
+      // 5. Call Anthropic LLM
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        console.error('[generateRequirementForGoal] ANTHROPIC_API_KEY not configured');
+        return;
+      }
+
+      const anthropic = new AnthropicClient({ apiKey });
+
+      const response = await anthropic.generate({
+        prompt: userPrompt,
+        systemPrompt,
+        maxTokens: 8000,
+        temperature: 0.7,
+        projectId,
+      });
+
+      if (!response.success || !response.response) {
+        console.error('[generateRequirementForGoal] LLM generation failed:', response.error);
+        return;
+      }
+
+      // 6. Parse LLM response
+      let parsedResponse: { requirements: GeneratedRequirement[] };
+      try {
+        let cleanedResponse = response.response.trim();
+        if (cleanedResponse.startsWith('```json')) {
+          cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
+        } else if (cleanedResponse.startsWith('```')) {
+          cleanedResponse = cleanedResponse.replace(/```\n?/g, '').replace(/```\n?$/g, '');
+        }
+
+        parsedResponse = JSON.parse(cleanedResponse);
+      } catch (parseError) {
+        console.error('[generateRequirementForGoal] Failed to parse LLM response:', response.response);
+        return;
+      }
+
+      // 7. Create requirement files (should typically be 1 requirement for 1 goal)
+      for (const req of parsedResponse.requirements) {
+        const content = buildRequirementContent(req);
+        const createResult = createRequirement(projectPath, req.name, content);
+
+        if (createResult.success) {
+          console.log(`[generateRequirementForGoal] Created requirement: ${req.name}`);
+        } else {
+          console.error(`[generateRequirementForGoal] Failed to create requirement ${req.name}:`, createResult.error);
+        }
+      }
+
+      console.log(`[generateRequirementForGoal] Completed for goal: ${goalId}`);
+    } catch (error) {
+      console.error('[generateRequirementForGoal] Error in background process:', error);
+    }
+  });
+
+  // Return immediately
+  return {
+    success: true,
+    message: 'Requirement generation started in background',
+  };
 }

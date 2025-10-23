@@ -1,8 +1,10 @@
 'use client';
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Trash2, Loader2, ListPlus } from 'lucide-react';
+import { Play, Trash2, Loader2, ListPlus, FileText } from 'lucide-react';
 import { Requirement } from './lib/requirementApi';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
+import ClaudeLogViewer from './ClaudeLogViewer';
 import {
   getStatusIcon,
   getStatusColor,
@@ -32,6 +34,7 @@ export default function ClaudeRequirement({
   onToggleExpand,
   onViewDetail,
 }: ClaudeRequirementProps) {
+  const { showShellModal } = useGlobalModal();
   const StatusIconComponent = getStatusIcon(requirement.status);
   const statusColor = getStatusColor(requirement.status);
   const iconColor = getStatusIconColor(requirement.status);
@@ -43,6 +46,29 @@ export default function ClaudeRequirement({
   const isRunning = requirement.status === 'running';
   const isQueued = requirement.status === 'queued';
   const isDisabled = isRunning || isQueued;
+
+  const handleViewLog = () => {
+    if (!requirement.logFilePath) return;
+
+    showShellModal(
+      {
+        title: 'Execution Log',
+        subtitle: `${requirement.name}`,
+        icon: FileText,
+        iconBgColor: 'from-blue-600/20 to-cyan-600/20',
+        iconColor: 'text-blue-400',
+        maxWidth: 'max-w-5xl',
+        maxHeight: 'max-h-[85vh]',
+      },
+      {
+        content: { enabled: true },
+        customContent: (
+          <ClaudeLogViewer logFilePath={requirement.logFilePath} requirementName={requirement.name} />
+        ),
+        isTopMost: true,
+      }
+    );
+  };
 
   return (
     <motion.div
@@ -108,6 +134,19 @@ export default function ClaudeRequirement({
           >
             <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-400" />
           </motion.button>
+
+          {/* View Log Button */}
+          {requirement.logFilePath && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleViewLog}
+              className="p-1.5 hover:bg-blue-500/20 rounded-md transition-colors"
+              title="View execution log"
+            >
+              <FileText className="w-4 h-4 text-blue-400" />
+            </motion.button>
+          )}
 
           {/* Expand/Collapse Button */}
           {(requirement.output || requirement.error) && (

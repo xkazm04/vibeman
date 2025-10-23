@@ -47,6 +47,11 @@ export default function AdvisorResponseView({ advisor, response }: AdvisorRespon
     return renderMarkdownFallback(data._markdown, advisor.color);
   }
 
+  // Check if this is a generic response format (issues/recommendations)
+  if (data.issues || data.recommendations) {
+    return renderGenericResponse(data, advisor);
+  }
+
   // Render based on advisor type
   switch (advisor.id) {
     case 'ux':
@@ -479,6 +484,99 @@ function renderMarkdownFallback(markdown: string, color: string) {
           <MarkdownViewer content={markdown} />
         </div>
       </div>
+    </motion.div>
+  );
+}
+
+function renderGenericResponse(data: any, advisor: AdvisorPersona) {
+  const color = advisor.color;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="space-y-6"
+    >
+      {/* Info banner */}
+      <div
+        className="p-3 rounded-lg border flex items-start space-x-2"
+        style={{
+          borderColor: `${color}40`,
+          backgroundColor: `${color}10`,
+        }}
+      >
+        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color }} />
+        <p className="text-xs text-gray-400 font-mono">
+          Response received in generic format. The AI provided issues/recommendations instead of the expected structure.
+        </p>
+      </div>
+
+      {/* Issues */}
+      {data.issues && data.issues.length > 0 && (
+        <div className="space-y-4">
+          <h6 className="text-sm font-semibold font-mono" style={{ color }}>
+            Issues Found
+          </h6>
+          {data.issues.map((issue: any, index: number) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="p-4 rounded-lg bg-gray-800/30 border border-gray-700/20 hover:border-gray-600/40 transition-colors"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <h6 className="text-sm font-semibold text-gray-200 flex-1">
+                  {issue.issue || issue.title || 'Issue'}
+                </h6>
+              </div>
+              {issue.suggestion && (
+                <p className="text-sm text-gray-400 mb-3">{issue.suggestion}</p>
+              )}
+              {issue.file && (
+                <div className="flex items-center space-x-2 mt-2">
+                  <FileCode className="w-3 h-3 text-gray-500" />
+                  <span className="text-xs text-gray-500 font-mono">{issue.file}</span>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {data.recommendations && data.recommendations.length > 0 && (
+        <div className="space-y-4">
+          <h6 className="text-sm font-semibold font-mono" style={{ color }}>
+            Recommendations
+          </h6>
+          {data.recommendations.map((rec: any, index: number) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: (data.issues?.length || 0) * 0.05 + index * 0.05 }}
+              className="p-4 rounded-lg bg-gray-800/30 border border-gray-700/20 hover:border-gray-600/40 transition-colors"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <h6 className="text-sm font-semibold text-gray-200 flex-1">
+                  {rec.recommendation || rec.title || 'Recommendation'}
+                </h6>
+              </div>
+              {rec.description && (
+                <p className="text-sm text-gray-400 mb-3">{rec.description}</p>
+              )}
+              {rec.file && (
+                <div className="flex items-center space-x-2 mt-2">
+                  <FileCode className="w-3 h-3 text-gray-500" />
+                  <span className="text-xs text-gray-500 font-mono">{rec.file}</span>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }

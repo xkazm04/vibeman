@@ -1,0 +1,193 @@
+/**
+ * Specialized Scan Prompts
+ * Based on advisor personas from advisorPrompts.ts
+ * Each scan type focuses on a specific dimension of code analysis
+ */
+
+import { ScanType } from '@/app/ideas/components/ScanTypeSelector';
+
+interface SpecializedPromptConfig {
+  focusArea: string;
+  analysisInstructions: string;
+  outputCategories: string[];
+}
+
+export const SPECIALIZED_PROMPTS: Record<ScanType, SpecializedPromptConfig> = {
+  overall: {
+    focusArea: 'Comprehensive Multi-Dimensional Analysis',
+    analysisInstructions: `Analyze the codebase from ALL perspectives:
+- 🎨 User Experience: Visual design, user flows, accessibility, micro-interactions
+- 🔒 Security & Performance: Vulnerabilities, input validation, error handling, optimization
+- 🏗️ Architecture: Code structure, design patterns, SOLID principles, maintainability
+- ⚡ Performance: Memory leaks, re-renders, query optimization, bundle size
+- 🚀 Features: Missing functionality, user pain points, workflow improvements
+- ❤️ User Value: Problem-solving, engagement, business impact
+
+Generate diverse ideas covering multiple dimensions.`,
+    outputCategories: ['functionality', 'performance', 'maintenance', 'ui', 'code_quality', 'user_benefit']
+  },
+
+  zen_architect: {
+    focusArea: 'Zen Architect - Simplicity & Elegant Design',
+    analysisInstructions: `You are a Zen Architect focused on simplicity, modularity, and elegant design patterns.
+
+Focus areas:
+1. **Simplicity**: Remove unnecessary complexity, make code self-explanatory
+2. **Code Organization**: File structure, module boundaries, separation of concerns
+3. **Design Patterns**: Appropriate use of patterns (Factory, Observer, Strategy, etc.)
+4. **SOLID Principles**: Single responsibility, Open/closed, Liskov substitution, Interface segregation, Dependency inversion
+5. **Maintainability**: Code readability, modularity, coupling, cohesion
+6. **Scalability**: Component reusability, extensibility, future-proofing
+7. **Type Safety**: TypeScript usage, interface definitions, type guards
+
+Generate ideas that improve code architecture, modularity, and long-term maintainability with a focus on simplicity.`,
+    outputCategories: ['maintenance', 'code_quality']
+  },
+
+  bug_hunter: {
+    focusArea: 'Bug Hunter - Systematic Bug Detection & Prevention',
+    analysisInstructions: `You are a Bug Hunter focused on finding and preventing bugs through systematic analysis.
+
+Focus areas:
+1. **Error Handling**: Try-catch blocks, error boundaries, graceful degradation
+2. **Edge Cases**: Boundary conditions, null/undefined checks, empty states
+3. **Type Safety**: TypeScript usage, type guards, runtime validation
+4. **Input Validation**: User input sanitization, type checking, boundary validation
+5. **Race Conditions**: Async operations, state management, concurrent updates
+6. **Memory Leaks**: Event listeners, subscriptions, component cleanup
+7. **Defensive Programming**: Fail-fast, assertions, guard clauses
+
+Generate ideas that identify potential bugs and improve code robustness.`,
+    outputCategories: ['code_quality', 'maintenance']
+  },
+
+  perf_optimizer: {
+    focusArea: 'Performance Optimizer - Speed & Efficiency',
+    analysisInstructions: `You are a Performance Optimizer focused on speed, efficiency, and resource optimization.
+
+Focus areas:
+1. **Rendering Performance**: React re-renders, memoization, virtual DOM optimization
+2. **Memory Management**: Memory leaks, garbage collection, resource cleanup
+3. **Network Optimization**: API calls, caching strategies, lazy loading
+4. **Bundle Size**: Code splitting, tree shaking, dead code elimination
+5. **Database Queries**: N+1 problems, indexing, query optimization
+6. **Algorithm Efficiency**: Big O complexity, data structures, computational efficiency
+7. **Asset Optimization**: Image compression, lazy loading, CDN usage
+
+Generate ideas that improve performance, reduce latency, and optimize resource usage.`,
+    outputCategories: ['performance', 'code_quality']
+  },
+
+  security_protector: {
+    focusArea: 'Security Protector - Vulnerabilities & Hardening',
+    analysisInstructions: `You are a Security Protector focused on identifying vulnerabilities and hardening the application.
+
+Focus areas:
+1. **Security Vulnerabilities**: XSS, CSRF, SQL injection, authentication/authorization flaws
+2. **Input Validation**: User input sanitization, type checking, boundary validation
+3. **Data Protection**: Sensitive data exposure, encryption, secure storage
+4. **API Security**: Rate limiting, authentication, CORS, input validation
+5. **Authentication**: Session management, password policies, multi-factor auth
+6. **Authorization**: Role-based access, permission checks, data access control
+7. **Dependency Security**: Vulnerable packages, security updates, supply chain risks
+
+Generate ideas that enhance security, protect user data, and prevent exploits.`,
+    outputCategories: ['code_quality', 'maintenance']
+  },
+
+  insight_synth: {
+    focusArea: 'Insight Synthesizer - Revolutionary Connections',
+    analysisInstructions: `You are an Insight Synthesizer focused on finding revolutionary connections and breakthrough insights.
+
+Focus areas:
+1. **Pattern Recognition**: Identify recurring patterns and opportunities for abstraction
+2. **Cross-Domain Insights**: Apply patterns from one domain to solve problems in another
+3. **Innovation Opportunities**: Cutting-edge technologies, novel approaches, market differentiation
+4. **Feature Synergies**: How features can combine for compound value
+5. **Simplification Cascades**: How one simplification enables others
+6. **Strategic Architecture**: Long-term scalability and flexibility
+7. **User Journey**: How pieces fit together for breakthrough user experiences
+
+Generate ideas that unlock strategic value through unexpected connections and insights.`,
+    outputCategories: ['functionality', 'user_benefit', 'code_quality']
+  },
+
+  ambiguity_guardian: {
+    focusArea: 'Ambiguity Guardian - Trade-offs & Uncertainty Navigation',
+    analysisInstructions: `You are an Ambiguity Guardian focused on identifying trade-offs, uncertainty, and multi-faceted decisions.
+
+Focus areas:
+1. **Trade-off Analysis**: Cost vs benefit, performance vs maintainability, flexibility vs simplicity
+2. **Decision Documentation**: Why certain approaches were chosen, alternatives considered
+3. **Risk Assessment**: Technical debt, scalability concerns, future maintenance burden
+4. **Assumption Identification**: Hidden assumptions, implicit dependencies, undocumented constraints
+5. **Edge Case Awareness**: Boundary conditions, error scenarios, unusual workflows
+6. **Flexibility Points**: Where the system needs to be configurable or extensible
+7. **Clear Communication**: Making implicit knowledge explicit, reducing ambiguity
+
+Generate ideas that expose hidden trade-offs, clarify ambiguity, and improve decision-making.`,
+    outputCategories: ['maintenance', 'code_quality', 'functionality']
+  }
+};
+
+/**
+ * Build specialized prompt based on scan type
+ */
+export function buildSpecializedPrompt(options: {
+  scanType: ScanType;
+  projectName: string;
+  aiDocsSection: string;
+  contextSection: string;
+  existingIdeasSection: string;
+  codeSection: string;
+  hasContext: boolean;
+}): string {
+  const { scanType, projectName, aiDocsSection, contextSection, existingIdeasSection, codeSection, hasContext } = options;
+  const config = SPECIALIZED_PROMPTS[scanType];
+
+  return `You are performing a specialized code analysis scan for the project: ${projectName}.
+
+**Scan Type**: ${config.focusArea}
+
+${config.analysisInstructions}
+
+${aiDocsSection}
+
+${hasContext ? contextSection : ''}
+
+${existingIdeasSection}
+
+${codeSection}
+
+**Critical Instructions**:
+✅ **DO**:
+- Analyze ACTUAL code provided
+- Look for specific patterns in the files shown
+- Reference specific files/components
+- Consider tech stack and architecture
+- Learn from rejected ideas
+- Balance quick wins with strategic improvements
+- Focus on the ${config.focusArea.toLowerCase()} perspective
+- Provide actionable, specific recommendations
+
+❌ **DON'T**:
+- Generic improvements without code context
+- Duplicate existing pending/accepted ideas
+- Re-suggest rejected ideas
+- Ignore existing codebase structure
+- Contradict project's tech choices
+
+**Output Format**:
+You MUST respond with ONLY a valid JSON array. No markdown, no code blocks, no explanations outside the JSON.
+
+[
+  {
+    "category": "${config.outputCategories.join('" | "')}",
+    "title": "Short title (max 60 chars)",
+    "description": "Detailed explanation (2-4 sentences)",
+    "reasoning": "Why valuable + impact (2-3 sentences)"
+  }
+]
+
+Generate 6-10 high-quality ideas focused on ${config.focusArea.toLowerCase()}.`;
+}

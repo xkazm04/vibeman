@@ -383,13 +383,87 @@ export function readClaudeSettings(projectPath: string): {
 }
 
 /**
+ * Create context scan requirement file with project-specific configuration
+ */
+export function createContextScanRequirement(
+  projectPath: string,
+  projectId: string,
+  projectName?: string
+): { success: boolean; error?: string; filePath?: string } {
+  try {
+    // Import the requirement generator (dynamic import to avoid circular deps)
+    const {
+      generateContextScanRequirement,
+      getContextScanRequirementFileName,
+    } = require('../../api/claude-code/initialize/contextScanRequirement');
+
+    const requirementContent = generateContextScanRequirement({
+      projectId,
+      projectName: projectName || path.basename(projectPath),
+      projectPath,
+    });
+
+    const fileName = getContextScanRequirementFileName();
+
+    // Create the requirement using existing createRequirement function
+    return createRequirement(projectPath, fileName.replace('.md', ''), requirementContent);
+  } catch (error) {
+    console.error('Error creating context scan requirement:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Get logs directory path for Claude Code execution logs
+ */
+export function getLogsDirectory(projectPath: string): string {
+  const claudePath = getClaudeFolderPath(projectPath);
+  return path.join(claudePath, 'logs');
+}
+
+/**
+ * Ensure logs directory exists
+ */
+function ensureLogsDirectory(projectPath: string): string {
+  const logsDir = getLogsDirectory(projectPath);
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+  return logsDir;
+}
+
+/**
+ * Get log file path for a specific requirement execution
+ */
+export function getLogFilePath(projectPath: string, requirementName: string): string {
+  const logsDir = ensureLogsDirectory(projectPath);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const sanitizedName = requirementName.replace(/[^a-z0-9-_]/gi, '-');
+  return path.join(logsDir, `${sanitizedName}_${timestamp}.log`);
+}
+
+/**
  * Execute a requirement using Claude Code CLI
- * Uses headless mode with streaming JSON output
+ * Uses headless mode with proper slash command syntax
+ * Logs all output to a file for observability
  */
 export async function executeRequirement(
   projectPath: string,
-  requirementName: string
-): Promise<{ success: boolean; output?: string; error?: string; sessionLimitReached?: boolean }> {
+  requirementName: string,
+  onProgress?: (data: string) => void
+): Promise<{
+  success: boolean;
+  output?: string;
+  error?: string;
+  sessionLimitReached?: boolean;
+  logFilePath?: string;
+}> {
+  const { spawn } = require('child_process');
+  const logFilePath = getLogFilePath(projectPath, requirementName);
+
   try {
     // First, verify the requirement exists
     const readResult = readRequirement(projectPath, requirementName);
@@ -400,65 +474,212 @@ export async function executeRequirement(
       };
     }
 
-    const requirementContent = readResult.content || '';
-    const { execSync } = require('child_process');
+    // Create log file stream
+    const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+    let streamClosed = false;
+
+    const logMessage = (msg: string) => {
+      const timestamp = new Date().toISOString();
+      const logLine = `[${timestamp}] ${msg}\n`;
+
+      // Only write if stream is still open
+      if (!streamClosed) {
+        try {
+          logStream.write(logLine);
+        } catch (err) {
+          console.error('Failed to write to log stream:', err);
+        }
+      }
+
+      if (onProgress) {
+        onProgress(msg);
+      }
+    };
+
+    const closeLogStream = () => {
+      if (!streamClosed) {
+        streamClosed = true;
+        logStream.end();
+      }
+    };
+
+    logMessage('=== Claude Code Execution Started ===');
+    logMessage(`Requirement: ${requirementName}`);
+    logMessage(`Project Path: ${projectPath}`);
+    logMessage(`Log File: ${logFilePath}`);
+    logMessage('');
 
     return new Promise((resolve) => {
       try {
-        // Try to execute with Claude Code CLI
-        // Using execSync with stdio:'pipe' to capture output
-        const result = execSync(
-          `claude -p "${requirementContent.replace(/"/g, '\\"')}" --output-format stream-json`,
-          {
-            encoding: 'utf-8',
-            stdio: 'pipe',
-            cwd: projectPath,
-            timeout: 300000, // 5 minute timeout
-          }
-        );
+        // Read the requirement content to pass as prompt
+        const requirementContent = readResult.content || '';
 
-        resolve({
-          success: true,
-          output: result || 'Requirement executed successfully',
+        // Build the full prompt with explicit instructions
+        const fullPrompt = `You are an expert software engineer. Execute the following requirement immediately. Do not ask questions, do not wait for confirmation. Read the requirement carefully and implement all changes to the codebase as specified.
+
+REQUIREMENT TO EXECUTE NOW:
+
+${requirementContent}
+
+IMPORTANT INSTRUCTIONS:
+- Analyze the requirement thoroughly
+- Identify all files that need to be modified or created
+- Implement all changes specified in the requirement
+- Follow the implementation steps precisely
+- Create/modify files as needed
+- Run any tests if specified
+- Ensure all changes are complete before finishing
+
+Begin implementation now.`;
+
+        // Write prompt to temporary file to avoid shell escaping issues
+        const tempPromptFile = path.join(getLogsDirectory(projectPath), `prompt_${Date.now()}.txt`);
+        fs.writeFileSync(tempPromptFile, fullPrompt, 'utf-8');
+
+        logMessage(`Executing command: cat prompt | claude -p - --output-format stream-json`);
+        logMessage(`Requirement length: ${requirementContent.length} characters`);
+        logMessage(`Full prompt length: ${fullPrompt.length} characters`);
+        logMessage(`Temp prompt file: ${tempPromptFile}`);
+        logMessage('');
+
+        // Use stdin piping instead of command line arguments to avoid escaping issues
+        const isWindows = process.platform === 'win32';
+        const command = isWindows ? 'claude.cmd' : 'claude';
+        const args = [
+          '-p',
+          '-', // Read from stdin
+          '--output-format',
+          'stream-json',
+          '--verbose', // Required for stream-json with --print
+          '--dangerously-skip-permissions',
+        ];
+
+        // Spawn the process (non-blocking)
+        const childProcess = spawn(command, args, {
+          cwd: projectPath,
+          stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr
+          shell: isWindows, // Required on Windows for .cmd files
         });
-      } catch (execError: any) {
-        // Check if it's a Claude Code CLI not found error
-        if (execError.code === 'ENOENT' || execError.message?.includes('not found')) {
-          // Fallback to simulation if Claude CLI not installed
-          console.warn('Claude CLI not found, using simulation mode');
 
-          setTimeout(() => {
+        // Write the prompt to stdin
+        childProcess.stdin.write(fullPrompt);
+        childProcess.stdin.end();
+
+        let stdout = '';
+        let stderr = '';
+
+        // Capture stdout
+        childProcess.stdout.on('data', (data: Buffer) => {
+          const text = data.toString();
+          stdout += text;
+          logMessage(`[STDOUT] ${text.trim()}`);
+        });
+
+        // Capture stderr
+        childProcess.stderr.on('data', (data: Buffer) => {
+          const text = data.toString();
+          stderr += text;
+          logMessage(`[STDERR] ${text.trim()}`);
+        });
+
+        // Handle process completion
+        childProcess.on('close', (code: number) => {
+          logMessage('');
+          logMessage(`Process exited with code: ${code}`);
+          logMessage('=== Claude Code Execution Finished ===');
+          closeLogStream();
+
+          if (code === 0) {
             resolve({
               success: true,
-              output: `[SIMULATION MODE - Claude CLI not installed]\n\nRequirement: /${requirementName}\n\nTask Description:\n${requirementContent.substring(0, 300)}${requirementContent.length > 300 ? '...' : ''}\n\n✓ Simulated execution completed\n\nTo enable real execution:\n1. Install Claude Code CLI: npm install -g @anthropic/claude-code\n2. Or use: claude auth login\n3. Restart the server\n\nThe requirement file is ready at:\n${projectPath}/.claude/commands/${requirementName}.md`,
-            });
-          }, 1500); // Shorter simulation time
-        } else {
-          // Check for session limit errors
-          const errorOutput = (execError.stderr || execError.message || '').toLowerCase();
-          const isSessionLimit =
-            errorOutput.includes('session limit') ||
-            errorOutput.includes('rate limit') ||
-            errorOutput.includes('usage limit') ||
-            errorOutput.includes('quota exceeded') ||
-            errorOutput.includes('too many requests') ||
-            errorOutput.includes('subscription plan');
-
-          if (isSessionLimit) {
-            // Session limit reached
-            resolve({
-              success: false,
-              error: `Session limit reached. Your Claude Code subscription plan has reached its usage limit.\n\nPlease:\n1. Wait for the limit to reset\n2. Or upgrade your subscription plan\n3. Check your usage at https://claude.ai/settings\n\nOriginal error:\n${execError.stderr || execError.message}`,
-              sessionLimitReached: true,
+              output: stdout || 'Requirement executed successfully',
+              logFilePath,
             });
           } else {
-            // Real execution error (not session limit)
+            // Check for session limit errors
+            const errorOutput = stderr.toLowerCase();
+            const isSessionLimit =
+              errorOutput.includes('session limit') ||
+              errorOutput.includes('rate limit') ||
+              errorOutput.includes('usage limit') ||
+              errorOutput.includes('quota exceeded') ||
+              errorOutput.includes('too many requests') ||
+              errorOutput.includes('subscription plan');
+
+            if (isSessionLimit) {
+              resolve({
+                success: false,
+                error: `Session limit reached. Check log file: ${logFilePath}`,
+                sessionLimitReached: true,
+                logFilePath,
+              });
+            } else {
+              resolve({
+                success: false,
+                error: `Execution failed (code ${code}). Check log file: ${logFilePath}\n\n${stderr}`,
+                logFilePath,
+              });
+            }
+          }
+        });
+
+        // Handle spawn errors (e.g., Claude CLI not found)
+        childProcess.on('error', (err: Error) => {
+          logMessage(`[ERROR] ${err.message}`);
+
+          // Check if it's a "command not found" error
+          if (err.message.includes('ENOENT') || err.message.includes('spawn claude')) {
+            logMessage('');
+            logMessage('WARNING: Claude CLI not found, using simulation mode');
+            logMessage('To enable real execution:');
+            logMessage('1. Install Claude Code CLI from https://docs.claude.com/claude-code');
+            logMessage('2. Run: claude auth login');
+            logMessage('3. Restart the server');
+            logMessage('');
+            logMessage('✓ Simulated execution completed');
+            closeLogStream();
+
+            resolve({
+              success: true,
+              output: `[SIMULATION MODE - Claude CLI not installed]\n\nRequirement: ${requirementName}\n\n✓ Simulated execution completed\n\nLog file: ${logFilePath}`,
+              logFilePath,
+            });
+          } else {
+            // Other spawn errors
+            logMessage(`[FATAL] Failed to spawn process`);
+            closeLogStream();
+
             resolve({
               success: false,
-              error: `Execution failed: ${execError.message}\n\nStderr: ${execError.stderr || 'None'}`,
+              error: `Failed to spawn process: ${err.message}`,
+              logFilePath,
             });
           }
-        }
+        });
+
+        // Set timeout
+        const timeoutHandle = setTimeout(() => {
+          if (!childProcess.killed) {
+            logMessage('[TIMEOUT] Execution exceeded 10 minutes, killing process...');
+            childProcess.kill();
+            closeLogStream();
+          }
+        }, 600000); // 10 minute timeout
+
+        // Clear timeout when process completes
+        childProcess.on('close', () => {
+          clearTimeout(timeoutHandle);
+        });
+
+      } catch (execError: any) {
+        logMessage(`[EXCEPTION] ${execError.message}`);
+        closeLogStream();
+
+        resolve({
+          success: false,
+          error: `Execution exception: ${execError.message}`,
+          logFilePath,
+        });
       }
     });
   } catch (error) {
@@ -466,6 +687,7 @@ export async function executeRequirement(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+      logFilePath,
     };
   }
 }

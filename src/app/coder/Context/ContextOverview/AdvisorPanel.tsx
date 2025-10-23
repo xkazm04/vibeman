@@ -135,12 +135,15 @@ export default function AdvisorPanel({
           provider: selectedProvider,
           systemPrompt: advisor.systemPrompt,
           temperature: advisorId === 'chum' ? 0.9 : 0.7,
-          maxTokens: 2000
+          maxTokens: 6000
         });
 
-        if (result.success && result.text) {
+        // Use 'response' field from LLMResponse
+        const responseText = result.response || result.text;
+
+        if (result.success && responseText) {
           try {
-            const parsedData = parseJsonResponse(result.text);
+            const parsedData = parseJsonResponse(responseText);
             setResponses(prev => new Map(prev).set(advisorId, {
               advisor: advisorId,
               data: parsedData,

@@ -85,6 +85,7 @@ export default function GoalsLayout() {
         maxHeight: 'max-h-[90vh]'
       },
       {
+        content: { enabled: true },
         customContent: (
           <GoalsDetailModalContent
             goal={selectedGoal}

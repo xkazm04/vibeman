@@ -4,7 +4,20 @@
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(where claude)",
+      "Bash(claude -p \"test prompt\" --output-format stream-json)",
+      "Bash(claude -p \"What is 2+2?\" --output-format json)",
+      "Read(//c/Users/kazda/kiro/pikselplay/.claude/commands/**)",
+      "Bash(claude -p \"Please read the file test.txt and tell me its contents\" --output-format json)",
+      "Bash(curl -X POST http://localhost:3000/api/ideas/seed)",
+      "Bash(npm run dev:vibeman)",
+      "Bash(npx next build --no-lint)",
+      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\ScanModal\\aiContentConfig.ts\")",
+      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\generateContexts.ts\")",
+      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\services\\contextFileGenerator.ts\")",
+      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\ScanModal\\AIScanSelection.tsx\")",
+      "Bash(test -d \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\ContextGenerator\")"
     ],
     "deny": [],
     "ask": []

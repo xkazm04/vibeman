@@ -2,14 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { goalDb } from '@/lib/database';
 import { randomUUID } from 'crypto';
 
-// GET /api/goals?projectId=xxx
+// GET /api/goals?projectId=xxx or /api/goals?id=xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
+    const goalId = searchParams.get('id');
 
+    // If goalId is provided, fetch single goal
+    if (goalId) {
+      const goal = goalDb.getGoalById(goalId);
+      
+      if (!goal) {
+        return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
+      }
+      
+      return NextResponse.json({ goal });
+    }
+
+    // Otherwise, fetch all goals for project
     if (!projectId) {
-      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Project ID or Goal ID is required' }, { status: 400 });
     }
 
     const goals = goalDb.getGoalsByProject(projectId);

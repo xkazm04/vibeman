@@ -125,8 +125,8 @@ export const AVAILABLE_LLM_MODELS: Record<LLMProvider, Array<{ value: string; la
     { value: 'gpt-5-nano-2025-08-07', label: 'GPT-5 Nano' }
   ],
   anthropic: [
-    { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku' },
-    { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' }
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku' },
+    { value: 'claude-sonnet-4-5', label: 'Claude Sonnet' }
   ],
   gemini: [
     { value: 'gemini-flash-latest', label: 'Gemini Flash (Latest)' },

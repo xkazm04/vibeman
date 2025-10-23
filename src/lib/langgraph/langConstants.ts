@@ -10,7 +10,7 @@ export const LANGGRAPH_CONFIG = {
   defaultModels: {
     ollama: 'gpt-oss:20b',
     openai: 'gpt-4o',
-    anthropic: 'claude-sonnet-4-20250514',
+    anthropic: 'claude-haiku-4-5-20251001',
     gemini: 'gemini-flash-latest'
   } as Record<LLMProvider, string>,
   

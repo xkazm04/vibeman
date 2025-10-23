@@ -59,7 +59,7 @@ export async function detectFileChanges(
         // Only track source code files
         const ext = path.extname(entry.name).toLowerCase();
         if (
-          ['.ts', '.tsx', '.js', '.jsx', '.css', '.scss', '.md', '.json'].includes(ext)
+          ['.ts', '.tsx', '.js', '.jsx', '.css', '.scss', '.md', '.json', '.py'].includes(ext)
         ) {
           const stats = fs.statSync(fullPath);
           currentFiles.set(relativePath, stats.mtimeMs);
@@ -144,7 +144,7 @@ export function createProjectSnapshot(projectPath: string): Map<string, number> 
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name).toLowerCase();
           if (
-            ['.ts', '.tsx', '.js', '.jsx', '.css', '.scss', '.md', '.json'].includes(ext)
+            ['.ts', '.tsx', '.js', '.jsx', '.css', '.scss', '.md', '.json', '.py'].includes(ext)
           ) {
             const stats = fs.statSync(fullPath);
             snapshot.set(relativePath, stats.mtimeMs);
@@ -285,7 +285,7 @@ export async function generateContextDescription(
     const response = await anthropic.generate({
       prompt: userPrompt,
       systemPrompt,
-      maxTokens: 200,
+      maxTokens: 2000,
       temperature: 0.5,
       projectId: 'context-gen',
     });
