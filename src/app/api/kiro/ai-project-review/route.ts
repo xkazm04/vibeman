@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat, readFile } from 'fs/promises';
 import { join, extname } from 'path';
 
-import { generateAIReview, generateGoals, generateTasks } from '@/app/projects/ProjectAI/promptFunctions';
-import { generateContexts } from '@/app/projects/ProjectAI/generateContexts';
-import { generateCodeTasks } from '@/app/projects/ProjectAI/generateCodeTasks';
+import { generateAIReview } from '@/app/projects/ProjectAI/promptFunctions';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,98 +44,6 @@ export async function POST(request: NextRequest) {
             }
           };
           break;
-
-        case 'tasks':
-          const tasksResponse = await generateTasks(projectName, projectId, projectAnalysis, provider);
-          try {
-            // Try to parse JSON response, handling ```json wrapper
-            const tasks = parseAIJsonResponse(tasksResponse);
-            result = {
-              success: true,
-              tasks: tasks,
-              projectInfo: {
-                name: projectName,
-                path: projectPath
-              }
-            };
-          } catch (parseError) {
-            // If JSON parsing fails, return raw response
-            result = {
-              success: true,
-              rawResponse: tasksResponse,
-              projectInfo: {
-                name: projectName,
-                path: projectPath
-              }
-            };
-          }
-          break;
-
-        case 'goals':
-          const goalsResponse = await generateGoals(projectName, projectId, projectAnalysis, projectPath, provider);
-          try {
-            // Try to parse JSON response, handling ```json wrapper
-            const goals = parseAIJsonResponse(goalsResponse);
-            result = {
-              success: true,
-              goals: goals,
-              projectInfo: {
-                name: projectName,
-                path: projectPath
-              }
-            };
-          } catch (parseError) {
-            // If JSON parsing fails, return raw response
-            result = {
-              success: true,
-              rawResponse: goalsResponse,
-              projectInfo: {
-                name: projectName,
-                path: projectPath
-              }
-            };
-          }
-          break;
-
-        case 'context':
-          const contextResult = await generateContexts(projectName, projectPath, projectAnalysis, projectId, provider);
-          result = {
-            success: contextResult.success,
-            contexts: contextResult.contexts,
-            error: contextResult.error,
-            projectInfo: {
-              name: projectName,
-              path: projectPath
-            }
-          };
-          break;
-
-        case 'code':
-          const codeTasksResponse = await generateCodeTasks(projectName, projectId, projectAnalysis, provider);
-          try {
-            // Try to parse JSON response, handling ```json wrapper
-            const codeTasks = parseAIJsonResponse(codeTasksResponse);
-            result = {
-              success: true,
-              tasks: codeTasks,
-              projectInfo: {
-                name: projectName,
-                path: projectPath
-              }
-            };
-          } catch (parseError) {
-            // If JSON parsing fails, return raw response
-            result = {
-              success: true,
-              rawResponse: codeTasksResponse,
-              projectInfo: {
-                name: projectName,
-                path: projectPath
-              }
-            };
-          }
-          break;
-
         default:
           throw new Error(`Invalid mode: ${mode}`);
       }

@@ -24,26 +24,6 @@ export function initializeTables() {
     );
   `);
 
-  // Create backlog_items table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS backlog_items (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL,
-      goal_id TEXT,
-      agent TEXT NOT NULL CHECK (agent IN ('developer', 'mastermind', 'tester', 'artist', 'custom')),
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'in_progress')),
-      type TEXT NOT NULL CHECK (type IN ('proposal', 'custom')),
-      impacted_files TEXT, -- JSON string of ImpactedFile[]
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      accepted_at TEXT,
-      rejected_at TEXT,
-      FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
-    );
-  `);
-
   // Create context_groups table
   db.exec(`
     CREATE TABLE IF NOT EXISTS context_groups (
@@ -132,9 +112,6 @@ export function initializeTables() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id);
     CREATE INDEX IF NOT EXISTS idx_goals_order_index ON goals(project_id, order_index);
-    CREATE INDEX IF NOT EXISTS idx_backlog_items_project_id ON backlog_items(project_id);
-    CREATE INDEX IF NOT EXISTS idx_backlog_items_goal_id ON backlog_items(goal_id);
-    CREATE INDEX IF NOT EXISTS idx_backlog_items_status ON backlog_items(project_id, status);
     CREATE INDEX IF NOT EXISTS idx_context_groups_project_id ON context_groups(project_id);
     CREATE INDEX IF NOT EXISTS idx_context_groups_position ON context_groups(project_id, position);
     CREATE INDEX IF NOT EXISTS idx_contexts_project_id ON contexts(project_id);

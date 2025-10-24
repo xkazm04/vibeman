@@ -116,6 +116,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { projectPath, action, projectName, requirementName, content, settings } = body;
 
+    // LOG INCOMING REQUEST
+    console.log('[API Backend] 📨 POST /api/claude-code received:', {
+      action,
+      requirementName,
+      timestamp: new Date().toISOString(),
+    });
+
     // Actions that don't require projectPath
     const noProjectPathActions = ['get-task-status'];
 
@@ -202,8 +209,16 @@ export async function POST(request: NextRequest) {
 
       // If async mode requested, delegate to async handler
       if (async === true) {
+        console.log('[API Backend] 🚀 CREATING NEW TASK:', {
+          requirementName,
+          projectId,
+          mode: 'async',
+        });
+
         const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
         const taskId = executionQueue.addTask(projectPath, requirementName, projectId);
+
+        console.log('[API Backend] ✅ Task queued successfully:', { taskId });
 
         return NextResponse.json({
           success: true,
@@ -267,6 +282,7 @@ export async function POST(request: NextRequest) {
       const task = executionQueue.getTask(taskId);
 
       if (!task) {
+        console.error('[API Backend] ❌ Task not found:', { taskId });
         return NextResponse.json(
           { error: 'Task not found' },
           { status: 404 }

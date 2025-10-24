@@ -417,6 +417,45 @@ export function createContextScanRequirement(
 }
 
 /**
+ * Create structure rules file based on project type
+ */
+export function createStructureRulesFile(
+  projectPath: string,
+  projectType: 'nextjs' | 'fastapi' | 'other'
+): { success: boolean; error?: string; filePath?: string } {
+  try {
+    if (projectType === 'other') {
+      // No structure rules for unknown project types
+      return { success: true };
+    }
+
+    // Import the structure rules generator
+    const { generateStructureRules } = require('../../api/claude-code/initialize/structureRulesTemplate');
+
+    const rulesContent = generateStructureRules(projectType);
+
+    const structure = getClaudeFolderStructure(projectPath);
+    const rulesFilePath = path.join(structure.commandsDir, 'structure-rules.md');
+
+    // Write the structure rules file
+    fs.writeFileSync(rulesFilePath, rulesContent, 'utf-8');
+
+    console.log('[ClaudeCodeManager] Structure rules file created:', rulesFilePath);
+
+    return {
+      success: true,
+      filePath: rulesFilePath,
+    };
+  } catch (error) {
+    console.error('Error creating structure rules file:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * Get logs directory path for Claude Code execution logs
  */
 export function getLogsDirectory(projectPath: string): string {

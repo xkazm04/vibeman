@@ -1,26 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Code, Server, FolderOpen, GitBranch, Link, ExternalLink } from 'lucide-react';
+import { Plus, FolderOpen } from 'lucide-react';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import { Project } from '@/types';
 import ProjectSelectionModal from './ProjectSelectionModal';
+import { getProjectTypeIcon, getRelatedProject, getConnectedProjects } from './lib/projectUtils';
+import { fetchProjectsDirectly as fetchProjectsApi } from './lib/projectApi';
+import ProjectActions from './components/ProjectActions';
 
-const getProjectTypeIcon = (type?: string) => {
-  switch (type) {
-    case 'nextjs':
-      return { icon: Code, color: 'text-blue-400', label: 'Next.js' };
-    case 'fastapi':
-      return { icon: Server, color: 'text-green-400', label: 'FastAPI' };
-    default:
-      return { icon: FolderOpen, color: 'text-gray-400', label: 'Project' };
-  }
-};
+
 
 export default function ProjectManagement() {
-  const { projects, getAllProjects, syncWithServer, initializeProjects, loading } = useProjectConfigStore();
+  const { projects, syncWithServer, initializeProjects } = useProjectConfigStore();
   const { activeProject, setActiveProject } = useActiveProjectStore();
   const { setShowAddProject } = useProjectsToolbarStore();
   const { showFullScreenModal, hideModal } = useGlobalModal();
@@ -28,27 +22,21 @@ export default function ProjectManagement() {
   const [isLoadingProjects, setIsLoadingProjects] = React.useState(false);
 
   // Fetch projects directly from API
-  const fetchProjectsDirectly = React.useCallback(async () => {
+  const fetchProjects = React.useCallback(async () => {
     setIsLoadingProjects(true);
     try {
-      const response = await fetch('/api/projects');
-      if (response.ok) {
-        const data = await response.json();
-        const fetchedProjects = data.projects || [];
-        setLocalProjects(fetchedProjects);
+      const fetchedProjects = await fetchProjectsApi();
+      setLocalProjects(fetchedProjects);
 
-        // Also update the store to keep it in sync
-        await syncWithServer();
+      // Also update the store to keep it in sync
+      await syncWithServer();
 
-        // Auto-select first project if no active project is set
-        if (fetchedProjects.length > 0 && !activeProject) {
-          setActiveProject(fetchedProjects[0]);
-        }
-
-        return fetchedProjects;
-      } else {
-        console.error('Failed to fetch projects: HTTP', response.status);
+      // Auto-select first project if no active project is set
+      if (fetchedProjects.length > 0 && !activeProject) {
+        setActiveProject(fetchedProjects[0]);
       }
+
+      return fetchedProjects;
     } catch (error) {
       console.error('Failed to fetch projects:', error);
     } finally {
@@ -59,23 +47,23 @@ export default function ProjectManagement() {
 
   // Initialize projects on component mount
   React.useEffect(() => {
-    fetchProjectsDirectly();
+    fetchProjects();
     // Also try to sync the store
     initializeProjects();
-  }, [fetchProjectsDirectly, initializeProjects]);
+  }, [fetchProjects, initializeProjects]);
 
   // Use local projects if available, fallback to store projects
   const displayProjects = localProjects.length > 0 ? localProjects : projects;
 
   const handleAddProject = async () => {
     // Refresh projects before showing add dialog
-    await fetchProjectsDirectly();
+    await fetchProjects();
     setShowAddProject(true);
   };
 
   const handleProjectTitleClick = async () => {
     // Ensure we have the latest projects before showing the modal
-    const currentProjects = await fetchProjectsDirectly();
+    const currentProjects = await fetchProjects();
 
     // Always show the modal if there are projects (even if just 1, for consistency)
     if (currentProjects.length > 0) {
@@ -106,20 +94,10 @@ export default function ProjectManagement() {
   };
 
 
-  // Get related project info
-  const getRelatedProject = (projectId?: string) => {
-    if (!projectId) return null;
-    return displayProjects.find(p => p.id === projectId);
-  };
+  // Get related project info using utility functions
+  const relatedProject = activeProject ? getRelatedProject(displayProjects, activeProject.relatedProjectId) : null;
+  const connectedProjects = activeProject ? getConnectedProjects(displayProjects, activeProject) : [];
 
-  const getConnectedProjects = (project: Project) => {
-    return displayProjects.filter(p =>
-      p.relatedProjectId === project.id || project.relatedProjectId === p.id
-    );
-  };
-
-  const relatedProject = activeProject ? getRelatedProject(activeProject.relatedProjectId) : null;
-  const connectedProjects = activeProject ? getConnectedProjects(activeProject) : [];
   const typeConfig = getProjectTypeIcon(activeProject?.type);
   const TypeIcon = typeConfig.icon;
 
@@ -158,74 +136,13 @@ export default function ProjectManagement() {
             </div>
 
             {/* Project Information */}
-            <div className="flex-1 min-w-0">
-              {/* Main Project Title */}
-              <div className="flex items-center space-x-3 mb-1">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-cyan-100 to-blue-200 bg-clip-text text-transparent tracking-tight leading-tight">
-                  {activeProject.name}
-                </h1>
-                <span className="text-lg text-gray-400 font-light">
-                  {typeConfig.label}
-                </span>
-                {displayProjects.length > 1 && (
-                  <motion.div
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="text-xs text-cyan-400/60 font-mono"
-                  >
-                    click to switch
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Project Details Row */}
-              <div className="flex items-center space-x-4 flex-wrap">
-                {/* Port Badge */}
-                <span className="text-sm font-mono text-cyan-400/90 bg-cyan-500/15 px-3 py-1 rounded-lg border border-cyan-500/25 shadow-sm">
-                  :{activeProject.port}
-                </span>
-
-
-                {/* Git Branch */}
-                {activeProject.git && (
-                  <div className="flex items-center space-x-1.5 bg-green-500/15 px-3 py-1 rounded-lg border border-green-500/25">
-                    <GitBranch className="w-3.5 h-3.5 text-green-400" />
-                    <span className="text-xs text-green-400/90 font-mono">
-                      {activeProject.git.branch}
-                    </span>
-                  </div>
-                )}
-
-                {/* Related Project Connection */}
-                {relatedProject && (
-                  <div className="flex items-center space-x-1.5 bg-blue-500/15 px-3 py-1 rounded-lg border border-blue-500/25">
-                    <Link className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-xs text-blue-400/90 font-medium">
-                      → {relatedProject.name}
-                    </span>
-                  </div>
-                )}
-
-                {/* Connected Projects */}
-                {connectedProjects.length > 0 && !relatedProject && (
-                  <div className="flex items-center space-x-1.5 bg-blue-500/15 px-3 py-1 rounded-lg border border-blue-500/25">
-                    <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-xs text-blue-400/90 font-medium">
-                      {connectedProjects.length} connected
-                    </span>
-                  </div>
-                )}
-
-                {/* Run Script Hint */}
-                {activeProject.runScript && (
-                  <div className="hidden lg:flex items-center space-x-1.5 bg-gray-500/15 px-3 py-1 rounded-lg border border-gray-500/25">
-                    <span className="text-xs text-gray-400 font-mono truncate max-w-32">
-                      {activeProject.runScript}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ProjectActions
+              activeProject={activeProject}
+              relatedProject={relatedProject}
+              connectedProjects={connectedProjects}
+              displayProjects={displayProjects}
+              onProjectTitleClick={handleProjectTitleClick}
+            />
           </div>
         ) : (
           <div className="flex items-center space-x-5">

@@ -9,8 +9,6 @@ import ContextModalContent from './ContextModalContent';
 import ContextFileFooter from './ContextFileFooter';
 import { 
   loadContextFile as loadContextFileApi, 
-  generateContextFile as generateContextFileApi,
-  generateContextBackground as generateContextBackgroundApi,
   saveContextFile as saveContextFileApi
 } from '../lib';
 
@@ -31,7 +29,6 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
   const [generationStatus, setGenerationStatus] = useState('');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [backgroundProcessing, setBackgroundProcessing] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Check if context file exists and load content
@@ -54,80 +51,7 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
     }
   };
 
-  const handleCreateContextFile = () => {
-    setMarkdownContent(generatePlaceholderContent(context));
-    setIsEditing(true);
-    setPreviewMode('edit');
-  };
 
-  const handleGenerateWithLLM = async () => {
-    setGenerating(true);
-    setGenerationError(null);
-    setGenerationStatus('Initializing...');
-
-    // Create abort controller for cancellation
-    abortControllerRef.current = new AbortController();
-
-    try {
-      const generatedContent = await generateContextFileApi({
-        context,
-        onProgress: (status) => setGenerationStatus(status),
-        signal: abortControllerRef.current.signal
-      });
-
-      setMarkdownContent(generatedContent);
-      setIsEditing(true);
-      setPreviewMode('preview');
-      setGenerationStatus('');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setGenerationError(errorMessage);
-      console.error('Context file generation failed:', error);
-    } finally {
-      setGenerating(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  const handleCancelGeneration = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setGenerating(false);
-      setGenerationStatus('');
-      setGenerationError('Generation cancelled by user');
-    }
-  };
-
-  const handleBackgroundGeneration = async () => {
-    if (!activeProject) {
-      setGenerationError('No active project selected');
-      return;
-    }
-
-    setBackgroundProcessing(true);
-    setGenerationError(null);
-
-    try {
-      await generateContextBackgroundApi({
-        contextId: context.id,
-        contextName: context.name,
-        filePaths: context.filePaths,
-        projectPath: activeProject.path,
-        projectId: activeProject.id
-      });
-
-      // Show success message and close modal
-      setGenerationError(null);
-      onClose();
-
-      // Optionally show a toast or notification that background processing started
-      console.log('Background context file generation started');
-    } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Failed to start background generation');
-    } finally {
-      setBackgroundProcessing(false);
-    }
-  };
 
   const handleSave = () => {
     setShowSaveDialog(true);
@@ -209,16 +133,11 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
               generating={generating}
               generationStatus={generationStatus}
               generationError={generationError}
-              backgroundProcessing={backgroundProcessing}
               hasContextFile={context.hasContextFile || false}
               isEditing={isEditing}
               previewMode={previewMode}
               markdownContent={markdownContent}
               activeProject={activeProject}
-              onGenerateWithLLM={handleGenerateWithLLM}
-              onBackgroundGeneration={handleBackgroundGeneration}
-              onCreateContextFile={handleCreateContextFile}
-              onCancelGeneration={handleCancelGeneration}
               onMarkdownContentChange={setMarkdownContent}
             />
           </div>

@@ -1,23 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run dev:*)",
-      "Bash(npx tsc:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run build:*)",
-      "Bash(where claude)",
-      "Bash(claude -p \"test prompt\" --output-format stream-json)",
-      "Bash(claude -p \"What is 2+2?\" --output-format json)",
-      "Read(//c/Users/kazda/kiro/pikselplay/.claude/commands/**)",
-      "Bash(claude -p \"Please read the file test.txt and tell me its contents\" --output-format json)",
-      "Bash(curl -X POST http://localhost:3000/api/ideas/seed)",
-      "Bash(npm run dev:vibeman)",
-      "Bash(npx next build --no-lint)",
-      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\ScanModal\\aiContentConfig.ts\")",
-      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\generateContexts.ts\")",
-      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\services\\contextFileGenerator.ts\")",
-      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\ScanModal\\AIScanSelection.tsx\")",
-      "Bash(test -d \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectAI\\ContextGenerator\")"
+      "Bash(test -d \"C:/Users/kazda/kiro/vibeman/.claude/commands\")",
+      "Bash(curl -X POST http://localhost:3000/api/structure-scan -H \"Content-Type: application/json\" -d \"{\"\"projectPath\"\":\"\"C:/Users/kazda/kiro/story\"\",\"\"projectType\"\":\"\"nextjs\"\",\"\"projectId\"\":\"\"dd11e61e-f267-4e52-95c5-421b1ed9567b\"\"}\")"
     ],
     "deny": [],
     "ask": []

@@ -1495,6 +1495,14 @@ export const ideaDb = {
     return stmt.all(limit) as DbIdea[];
   },
 
+  // Delete all ideas (for testing purposes)
+  deleteAllIdeas: (): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM ideas');
+    const result = stmt.run();
+    return result.changes;
+  },
+
   close: () => {
     if (db) {
       db.close();

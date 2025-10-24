@@ -4,6 +4,9 @@ import { Project, TreeNode } from '@/types';
 import { Context } from '@/lib/queries/contextQueries';
 import { useProjectConfigStore } from './projectConfigStore';
 
+// Local storage keys
+const ACTIVE_PROJECT_KEY = 'vibeman-active-project';
+
 interface ActiveProjectStore {
   // State
   activeProject: Project | null;
@@ -23,6 +26,7 @@ interface ActiveProjectStore {
   initializeWithFirstProject: () => void;
   setShowPreview: (show: boolean) => void;
   togglePreview: () => void;
+  loadFromLocalStorage: () => void;
 }
 
 export const useActiveProjectStore = create<ActiveProjectStore>()(
@@ -39,6 +43,10 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
         
         // Set active project
         setActiveProject: (project) => {
+          // Save to localStorage immediately
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(ACTIVE_PROJECT_KEY, JSON.stringify(project));
+          }
           set({ activeProject: project, activeContext: null, fileStructure: null, error: null });
         },
         
@@ -111,16 +119,52 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
           const { activeProject } = get();
           if (activeProject) return; // Already initialized
           
-          // Add a small delay to ensure projects are fully loaded
-          setTimeout(() => {
-            const projectConfigStore = useProjectConfigStore.getState();
-            const projects = projectConfigStore.getAllProjects();
-            
-            if (projects.length > 0) {
-              const firstProject = projects[0];
-              get().loadProjectFileStructure(firstProject.id);
+          // First try to load from localStorage
+          get().loadFromLocalStorage();
+          
+          // If still no active project, load first available project
+          const currentActiveProject = get().activeProject;
+          if (!currentActiveProject) {
+            // Add a small delay to ensure projects are fully loaded
+            setTimeout(() => {
+              const projectConfigStore = useProjectConfigStore.getState();
+              const projects = projectConfigStore.getAllProjects();
+              
+              if (projects.length > 0) {
+                const firstProject = projects[0];
+                get().setActiveProject(firstProject); // This will also save to localStorage
+                get().loadProjectFileStructure(firstProject.id);
+              }
+            }, 500);
+          }
+        },
+        
+        // Load active project from localStorage
+        loadFromLocalStorage: () => {
+          if (typeof window === 'undefined') return;
+          
+          try {
+            const storedProject = localStorage.getItem(ACTIVE_PROJECT_KEY);
+            if (storedProject) {
+              const project = JSON.parse(storedProject) as Project;
+              // Verify the project still exists in the project config
+              const projectConfigStore = useProjectConfigStore.getState();
+              const existingProject = projectConfigStore.getProject(project.id);
+              
+              if (existingProject) {
+                // Set without triggering localStorage save to avoid recursion
+                set({ activeProject: existingProject });
+                // Load file structure for the restored project
+                get().loadProjectFileStructure(existingProject.id);
+              } else {
+                // Project no longer exists, clear localStorage
+                localStorage.removeItem(ACTIVE_PROJECT_KEY);
+              }
             }
-          }, 500);
+          } catch (error) {
+            console.error('Failed to load active project from localStorage:', error);
+            localStorage.removeItem(ACTIVE_PROJECT_KEY);
+          }
         },
         
         // Preview control
@@ -141,15 +185,22 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
           activeContext: state.activeContext,
         }),
         onRehydrateStorage: () => (state) => {
-          if (state?.activeProject) {
-            // Reload file structure after rehydration
-            setTimeout(() => {
-              state.loadProjectFileStructure(state.activeProject!.id);
-            }, 100);
-          } else {
-            // Initialize with first project if no active project
+          // First try to load from localStorage
+          if (state) {
+            state.loadFromLocalStorage();
+          }
+          
+          // If no active project after localStorage check, initialize with first project
+          if (!state?.activeProject) {
             setTimeout(() => {
               state?.initializeWithFirstProject();
+            }, 100);
+          } else {
+            // Reload file structure for the existing active project
+            setTimeout(() => {
+              if (state?.activeProject) {
+                state.loadProjectFileStructure(state.activeProject.id);
+              }
             }, 100);
           }
         },

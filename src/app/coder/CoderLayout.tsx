@@ -1,11 +1,8 @@
 'use client';
-import { motion } from 'framer-motion';
-
 import GoalsLayout from './Goals/GoalsLayout';
 import HorizontalContextBar from './Context/HorizontalContextBar';
 import { useStore } from '../../stores/nodeStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
-import Backlog from '../features/Backlog/Backlog';
 import ClaudeSection from '../Claude/ClaudeSection';
 
 export default function CoderLayout() {
@@ -34,24 +31,6 @@ export default function CoderLayout() {
             selectedFilePaths={selectedFilePaths}
           />
         </div>
-
-        {/* Backlog Section - Adaptive Height */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="flex-1"
-          style={{ minHeight: 'calc(100vh - 400px)' }}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="w-full h-full"
-          >
-            <Backlog />
-          </motion.div>
-        </motion.div>
       </div>
     </div>
   );

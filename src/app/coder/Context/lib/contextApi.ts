@@ -4,7 +4,6 @@
  */
 
 import { Context } from '../../../../stores/contextStore';
-import { ContextFileGenerator } from '../../../../services/contextFileGenerator';
 
 export interface GenerateContextOptions {
   context: Context;
@@ -39,51 +38,6 @@ export async function loadContextFile(contextId: string): Promise<string> {
   return await response.text();
 }
 
-/**
- * Generate context file using LLM
- */
-export async function generateContextFile(options: GenerateContextOptions): Promise<string> {
-  const { context, onProgress, signal } = options;
-  
-  if (context.filePaths.length === 0) {
-    throw new Error('No files in context to analyze');
-  }
-  
-  return await ContextFileGenerator.generateContextFile({
-    context,
-    onProgress,
-    signal
-  });
-}
-
-/**
- * Start background context file generation
- */
-export async function generateContextBackground(options: BackgroundGenerationOptions): Promise<void> {
-  const { contextId, contextName, filePaths, projectPath, projectId } = options;
-  
-  if (filePaths.length === 0) {
-    throw new Error('No files in context to analyze');
-  }
-  
-  const response = await fetch('/api/kiro/generate-context-background', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contextId,
-      contextName,
-      filePaths,
-      projectPath,
-      projectId
-    }),
-  });
-
-  const result = await response.json();
-
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to start background generation');
-  }
-}
 
 /**
  * Save context file to disk

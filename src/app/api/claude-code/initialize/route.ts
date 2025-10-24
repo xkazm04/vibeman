@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   initializeClaudeFolder,
   createContextScanRequirement,
+  createStructureRulesFile,
 } from '@/app/Claude/lib/claudeCodeManager';
 
 /**
@@ -11,7 +12,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectPath, projectName, projectId } = body;
+    const { projectPath, projectName, projectId, projectType } = body;
 
     if (!projectPath) {
       return NextResponse.json(
@@ -48,6 +49,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If projectType is provided, create structure rules file
+    let structureRulesResult;
+    if (projectType && (projectType === 'nextjs' || projectType === 'fastapi')) {
+      structureRulesResult = createStructureRulesFile(
+        projectPath,
+        projectType
+      );
+
+      if (!structureRulesResult.success) {
+        console.warn(
+          'Failed to create structure rules file:',
+          structureRulesResult.error
+        );
+        // Don't fail the entire initialization if structure rules creation fails
+      }
+    }
+
     return NextResponse.json({
       message: 'Claude Code initialized successfully',
       structure: result.structure,
@@ -59,6 +77,15 @@ export async function POST(request: NextRequest) {
         : {
             created: false,
             error: requirementResult?.error,
+          },
+      structureRules: structureRulesResult?.success
+        ? {
+            created: true,
+            filePath: structureRulesResult.filePath,
+          }
+        : {
+            created: false,
+            error: structureRulesResult?.error,
           },
     });
   } catch (error) {

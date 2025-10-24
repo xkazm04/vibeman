@@ -2,6 +2,14 @@
  * Template for Claude Code context scan requirement file
  * This file generates a requirement that instructs Claude Code to scan a codebase
  * and create feature-based contexts stored in SQLite
+ *
+ * UPDATED APPROACH (Structure-Based):
+ * - Uses enforced Next.js structure (src/app/*-page, features/sub_*, etc.)
+ * - Creates contexts based on folder boundaries (10-20 files each)
+ * - Each page folder = 1 context
+ * - Each subfeature folder = 1 context
+ * - Prevents large, unwieldy contexts by respecting structural boundaries
+ * - Strict size enforcement: 10-20 files (5-25 acceptable with warning)
  */
 
 export interface ContextScanConfig {
@@ -20,7 +28,9 @@ export function generateContextScanRequirement(config: ContextScanConfig): strin
 
 ## Your Mission
 
-You are tasked with analyzing the codebase at **${projectPath}** and creating intelligent, feature-based contexts that will be stored in the SQLite database. This is not a one-time task - you will be called again to update contexts as the codebase evolves.
+You are tasked with analyzing the codebase at **${projectPath}** and creating intelligent, **structure-based** contexts that will be stored in the SQLite database. This is not a one-time task - you will be called again to update contexts as the codebase evolves.
+
+**NEW APPROACH**: Use the project's folder structure as natural context boundaries. Each \`*-page\` folder becomes a context, each \`sub_*\` subfeature becomes a context. This ensures contexts stay small (10-20 files) and focused.
 
 ## Project Information
 
@@ -66,16 +76,112 @@ If this file doesn't exist, that's okay - proceed to the next step. This file pr
 - Code organization patterns
 - Architectural patterns
 
-### Step 3: Intelligent Feature Discovery
+### Step 3: Map Project Structure (CRITICAL - DO THIS FIRST!)
 
-Use the following heuristics to identify feature boundaries:
+**Before creating ANY contexts**, create a complete structural map:
 
-#### 3.1 Route-Based Detection
-- Group files that serve the same route family
-- Example: \`/auth/*\`, \`/dashboard/*\`, \`/api/goals/*\`
-- Look for page.tsx, route.ts, layout.tsx patterns in Next.js
+#### 3.1 List All Structural Folders
 
-#### 3.2 Dependency Analysis
+Run these commands and document the output:
+
+\`\`\`bash
+# List all page folders
+find "${projectPath}/src/app" -maxdepth 1 -type d -name "*-page" 2>/dev/null
+
+# List all subfeatures
+find "${projectPath}/src/app/features" -maxdepth 1 -type d -name "sub_*" 2>/dev/null
+
+# List feature-level folders
+ls -d "${projectPath}/src/app/features"/*/ 2>/dev/null | grep -v "sub_"
+
+# List API resource folders
+ls -d "${projectPath}/src/app/api"/*/ 2>/dev/null
+
+# List lib subfolders
+ls -d "${projectPath}/src/lib"/*/ 2>/dev/null
+\`\`\`
+
+#### 3.2 Create Context Plan
+
+**Before creating contexts, plan them out:**
+
+For each structural folder found above, determine:
+1. **Folder name** (e.g., \`goals-page\`, \`sub_auth\`)
+2. **Estimated file count** (run \`find <folder> -type f | wc -l\`)
+3. **Context name** (user-friendly name)
+4. **Context scope** (what it includes)
+
+**Output a table like this:**
+
+| Structure Path | File Count | Context Name | Status |
+|----------------|------------|--------------|--------|
+| src/app/goals-page | 12 | Goals Management Page | Will create |
+| src/app/features/sub_auth | 8 | Authentication Module | Will create |
+| src/app/features/sub_monitoring | 25 | Monitoring Module | Too large - will split |
+
+**If any folder has >25 files**, plan to split it into smaller contexts based on sub-functionality.
+**If any folder has <5 files**, consider merging with related folder or creating as mini-context.
+
+### Step 4: Understand Project Structure Details
+
+**Review the structural organization identified in Step 3:**
+
+#### 4.1 Verify Next.js Structure
+Determine if the project follows the enforced Next.js structure:
+
+\`\`\`bash
+# Check if src/ folder exists
+ls -la "${projectPath}/src"
+
+# Check structure under src/app
+ls -la "${projectPath}/src/app"
+
+# Look for features and subfeatures
+ls -la "${projectPath}/src/app/features"
+\`\`\`
+
+**Key structure patterns to identify:**
+- **src/app/*-page/**: Page-level features (e.g., \`goals-page\`, \`coder-page\`)
+- **src/app/features/**: Shared feature components and logic
+- **src/app/features/sub_*/**: Subfeatures (nested one level deep)
+- **src/app/api/**: API routes organized by resource
+
+#### 4.2 Structure-Guided Context Boundaries
+
+**Use the project structure to define context boundaries:**
+
+1. **Page-Level Contexts** (\`src/app/*-page/\`):
+   - Each \`*-page\` folder = ONE context
+   - Include ALL files within that page folder
+   - Include related API routes (e.g., \`src/app/api/goals/\` for \`goals-page\`)
+   - Include dependencies from \`src/lib/\`, \`src/hooks/\`, etc.
+   - Target: 10-20 files per page context
+
+2. **Feature Contexts** (\`src/app/features/\`):
+   - Top-level feature folders = ONE context each
+   - Example: \`src/app/features/components/\` could be "Shared UI Components"
+   - Target: 8-15 files per feature context
+
+3. **Subfeature Contexts** (\`src/app/features/sub_*/\`):
+   - **EACH subfeature = SEPARATE context** (this prevents large contexts!)
+   - Example: \`src/app/features/sub_auth/\` = "Authentication Module"
+   - Example: \`src/app/features/sub_monitoring/\` = "Monitoring Module"
+   - Include only files within that subfeature folder
+   - Target: 5-12 files per subfeature context
+
+4. **API Contexts** (\`src/app/api/\`):
+   - Group by API resource (e.g., \`/api/goals\`, \`/api/contexts\`)
+   - One context per major API domain
+   - Target: 3-8 files per API context
+
+5. **Shared Library Contexts** (\`src/lib/\`, \`src/stores/\`):
+   - Group by functional domain
+   - Example: "Database Layer", "State Management", "Process Management"
+   - Target: 8-15 files per library context
+
+**IMPORTANT RULE**: Respect structure boundaries! Don't mix files from different \`sub_*\` folders or different \`*-page\` folders into the same context.
+
+#### 4.3 Dependency Analysis (Optional - Use Sparingly)
 Apply dependency analysis to group contexts from parent to children:
 
 **For each major entry point (pages, API routes):**
@@ -90,6 +196,12 @@ Apply dependency analysis to group contexts from parent to children:
        "maxDepth": 3
      }'
    \`\`\`
+
+   **IMPORTANT - Windows File Paths:**
+   - On Windows, use forward slashes (/) OR properly escape backslashes (\\\\)
+   - Example: \`"filePath": "C:/Users/project/src/file.ts"\` (preferred)
+   - Or: \`"filePath": "C:\\\\Users\\\\project\\\\src\\\\file.ts"\`
+   - If you encounter JSON parsing errors, ensure all backslashes are doubled
 3. Group the file and its dependencies together (parent → children pattern)
 4. Include files across all depths (UI → Services → Database)
 
@@ -101,24 +213,30 @@ Apply dependency analysis to group contexts from parent to children:
 
 All these files would form ONE context: "Goals Management System"
 
-#### 3.3 Naming Pattern Recognition
-- Find files with consistent prefixes/suffixes
-- Example: \`Goal*.tsx\`, \`*Service.ts\`, \`*Queries.ts\`
-- Group related files by naming patterns
+**NOTE**: Dependency analysis should only be used when structure-based boundaries are insufficient. Always prefer structural boundaries first!
 
-#### 3.4 Data Flow Mapping
+#### 4.4 Naming Pattern Recognition
+- Find files with consistent prefixes/suffixes within the same structural boundary
+- Example: Within \`goals-page/\`: \`GoalsList.tsx\`, \`GoalsDetailModal.tsx\`, \`GoalsFilters.tsx\`
+- Group related files by naming patterns BUT respect folder boundaries
+
+#### 4.5 Data Flow Mapping
 - Trace data flow: UI Component → API Endpoint → Database Query
 - Group files that operate on the same data entities
 - Example: All files working with "goals" data belong together
+- **BUT**: Keep page-specific UI separate from shared libraries
 
-#### 3.5 Business Domain Clustering
+#### 4.6 Business Domain Clustering
 - **Focus on user-facing capabilities, not technical layers**
 - Group by WHAT users can accomplish, not HOW it's implemented
 - Example: "Project Management" not "React Components and APIs"
+- **Use folder structure as domain indicators**
 
-### Step 4: Context Size Guidelines
+### Step 5: Context Size Guidelines (STRICT ENFORCEMENT)
 
-**Target**: ~10 files per context (can range from 5-15 files)
+**Target**: 10-20 files per context (strictly enforced)
+**Minimum**: 5 files (contexts with fewer files should be merged)
+**Maximum**: 25 files (contexts with more files MUST be split)
 
 **Ideal context structure (feature-based):**
 - 1-3 UI components (pages, layouts, components)
@@ -131,31 +249,70 @@ All these files would form ONE context: "Goals Management System"
 
 **Each file should appear in EXACTLY ONE context** - no duplicates across contexts.
 
-### Step 5: Create Feature-Based Contexts
+### Step 6: Create Structure-Based Contexts
 
-**Excellent context examples:**
+**Context examples organized by structure type:**
 
-**Business Features (User-Facing):**
-- "Goals Management System" - Create, track, and manage project goals
-- "Context Organization" - Group and manage code contexts with file associations
-- "Project Monitoring Dashboard" - Real-time event tracking and system health
-- "Backlog Task Management" - Organize and prioritize development tasks
-- "Claude Code Integration" - AI-powered requirement execution and automation
+**Page-Level Contexts** (from \`src/app/*-page/\`):
+- "Goals Management Page" (12 files)
+  - Files: \`src/app/goals-page/page.tsx\`, \`GoalsList.tsx\`, \`GoalDetailModal.tsx\`, related hooks, API routes
+  - Scope: Complete goals page with all UI components and backend
 
-**Technical Modules (Supporting):**
-- "Database Layer & Schema Management" - SQLite operations, migrations, query builders
-- "LangGraph AI Assistant" - Knowledge-base constrained Q&A system
-- "Process Manager" - Multi-project dev server orchestration
-- "State Management" - Zustand stores and persistence
-- "API Layer & Route Handlers" - Next.js API routes architecture
+- "Code Editor Page" (15 files)
+  - Files: \`src/app/coder-page/page.tsx\`, Monaco integration, file tree, context panel
+  - Scope: Code editing interface with file management
 
-**Avoid creating contexts for:**
-- Single utility files
-- Generic "Types" or "Utilities"
-- Config files only
-- Contexts with fewer than 5 files
+- "Projects Dashboard Page" (10 files)
+  - Files: \`src/app/projects-page/page.tsx\`, project cards, status monitoring
+  - Scope: Project overview and management interface
 
-### Step 6: Description Structure (CRITICAL)
+**Subfeature Contexts** (from \`src/app/features/sub_*/\`):
+- "Authentication Module" (8 files)
+  - Files: \`src/app/features/sub_auth/\` folder contents
+  - Scope: Login, session management, auth guards
+
+- "Monitoring Module" (10 files)
+  - Files: \`src/app/features/sub_monitoring/\` folder contents
+  - Scope: Real-time event tracking and health checks
+
+- "File Upload Module" (6 files)
+  - Files: \`src/app/features/sub_upload/\` folder contents
+  - Scope: File upload, validation, storage
+
+**Feature-Level Contexts** (from \`src/app/features/\`):
+- "Shared UI Components" (12 files)
+  - Files: \`src/app/features/components/\` folder
+  - Scope: Reusable buttons, modals, forms, etc.
+
+- "Feature Utilities" (7 files)
+  - Files: \`src/app/features/lib/\` folder
+  - Scope: Shared feature logic and helpers
+
+**API Contexts** (from \`src/app/api/\`):
+- "Goals API" (5 files)
+  - Files: \`src/app/api/goals/route.ts\` and related handlers
+  - Scope: CRUD operations for goals resource
+
+- "Contexts API" (6 files)
+  - Files: \`src/app/api/contexts/route.ts\` and related handlers
+  - Scope: Context management endpoints
+
+**Shared Library Contexts** (from \`src/lib/\`, \`src/stores/\`):
+- "Database Layer" (10 files)
+  - Files: \`src/lib/database.ts\`, migration files, query builders
+  - Scope: SQLite operations and schema management
+
+- "State Management" (8 files)
+  - Files: All Zustand stores from \`src/stores/\`
+  - Scope: Global state and persistence
+
+**CRITICAL RULES:**
+- **NEVER mix \`sub_*\` folders** - Each subfeature is its own context
+- **NEVER mix \`*-page\` folders** - Each page is its own context
+- **KEEP contexts between 10-20 files** - Split if larger, merge if smaller
+- **ONE feature = ONE context** - Use folder boundaries as context boundaries
+
+### Step 7: Description Structure (CRITICAL)
 
 **Each context description MUST follow this exact structure:**
 
@@ -206,7 +363,7 @@ Example: User action → API call → Database query → State update → UI ren
 
 **CONSISTENCY IS CRITICAL**: Every context you create (now and in future updates) MUST follow this exact structure. This enables automated parsing and ensures quality.
 
-### Step 7: Store Contexts in SQLite
+### Step 8: Store Contexts in SQLite
 
 **Use the Contexts API to store each context:**
 
@@ -241,9 +398,41 @@ curl -X POST http://localhost:3000/api/contexts \\
 - \`has_context_file\` - Deprecated, no longer used
 - \`preview\` - Leave empty
 
-### Step 8: Verification and Output
+### Step 9: Quality Check (MANDATORY)
 
-After creating all contexts:
+**Before finalizing, verify EVERY context meets these requirements:**
+
+For each context you created, check:
+
+1. **Size validation**:
+   - ✅ Has 10-20 files (ideal)
+   - ⚠️ Has 5-9 files (acceptable, but consider merging)
+   - ⚠️ Has 21-25 files (acceptable, but consider splitting)
+   - ❌ Has <5 files (MUST merge with related context)
+   - ❌ Has >25 files (MUST split into smaller contexts)
+
+2. **Structure compliance**:
+   - ✅ Respects folder boundaries (doesn't mix \`sub_*\` or \`*-page\` folders)
+   - ✅ Follows structure-based naming
+   - ✅ Groups related functionality
+
+3. **Description quality**:
+   - ✅ Follows the exact structure template
+   - ✅ Includes component breakdown table
+   - ✅ Documents data flow
+   - ✅ Lists dependencies
+
+**If any context fails validation:**
+- **Too small (<5 files)**: Merge with related context or expand scope
+- **Too large (>25 files)**: Split into 2-3 smaller contexts
+- **Mixed folders**: Separate into individual contexts per folder
+- **Poor description**: Rewrite following template
+
+**DO NOT proceed to Step 10 until ALL contexts pass validation!**
+
+### Step 10: Verification and Output
+
+After ALL contexts pass quality check:
 
 1. **Verify all contexts were created successfully:**
    \`\`\`bash

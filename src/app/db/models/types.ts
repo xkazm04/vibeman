@@ -16,23 +16,6 @@ export interface DbGoal {
   updated_at: string;
 }
 
-// Backlog item types
-export interface DbBacklogItem {
-  id: string;
-  project_id: string;
-  goal_id: string | null;
-  agent: 'developer' | 'mastermind' | 'tester' | 'artist' | 'custom';
-  title: string;
-  description: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
-  type: 'proposal' | 'custom';
-  impacted_files: string | null; // JSON string of ImpactedFile[]
-  created_at: string;
-  updated_at: string;
-  accepted_at: string | null;
-  rejected_at: string | null;
-}
-
 export interface ImpactedFile {
   path: string;
   changeType: 'create' | 'modify' | 'delete';

@@ -9,7 +9,6 @@ import ProjectList from './ProjectList';
 import AnnetteResponse from './AnnetteResponse';
 import ProjectManagerToggleButton from './ProjectManagerToggleButton';
 import { ProposalPanel } from '../../Proposals';
-import BacklogTaskInput from '../../Backlog/BacklogTaskInput';
 
 
 interface ProjectManagerPanelProps {
@@ -181,10 +180,6 @@ const ProjectManagerPanel = React.memo(({ onAnnetteInteraction, onFreezeStateCha
                     onServerToggle={handleServerToggle}
                     onAnnetteSpeak={handleAnnetteInteraction}
                   />
-                </div>
-                {/* Backlog Task Input - Center */}
-                <div className="flex-1 max-w-2xl mx-8">
-                  <BacklogTaskInput />
                 </div>
                 {/* Annette Response */}
                 <AnnetteResponse

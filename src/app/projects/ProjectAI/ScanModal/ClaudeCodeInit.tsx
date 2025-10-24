@@ -7,9 +7,10 @@ interface ClaudeCodeInitProps {
   projectPath: string;
   projectName: string;
   projectId?: string;
+  projectType?: 'nextjs' | 'fastapi' | 'other';
 }
 
-export default function ClaudeCodeInit({ projectPath, projectName, projectId }: ClaudeCodeInitProps) {
+export default function ClaudeCodeInit({ projectPath, projectName, projectId, projectType }: ClaudeCodeInitProps) {
   const [status, setStatus] = React.useState<{
     loading: boolean;
     exists: boolean;
@@ -44,7 +45,7 @@ export default function ClaudeCodeInit({ projectPath, projectName, projectId }: 
 
   const handleInitialize = async () => {
     setInitializing(true);
-    const result = await initializeClaudeCode(projectPath, projectName, projectId);
+    const result = await initializeClaudeCode(projectPath, projectName, projectId, projectType);
 
     if (result.success) {
       // Log context scan requirement creation status

@@ -168,6 +168,7 @@ export default function AILeftPanel({
             projectPath={activeProject.path}
             projectName={activeProject.name}
             projectId={activeProject.id}
+            projectType={activeProject.type}
           />
         )}
       </div>

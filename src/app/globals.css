@@ -129,6 +129,19 @@ html, body {
   animation: float 4s ease-in-out infinite;
 }
 
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
 /* Glass morphism effect */
 .glass {
   background: rgba(255, 255, 255, 0.05);

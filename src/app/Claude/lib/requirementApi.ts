@@ -37,6 +37,13 @@ export async function executeRequirementAsync(
   requirementName: string,
   projectId?: string
 ): Promise<{ success: boolean; taskId: string }> {
+  console.log('[API] 🚀 CREATING NEW TASK:', {
+    action: 'execute-requirement',
+    requirementName,
+    projectId,
+    async: true,
+  });
+
   const response = await fetch('/api/claude-code', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -52,9 +59,11 @@ export async function executeRequirementAsync(
   const data = await response.json();
 
   if (!response.ok) {
+    console.error('[API] ❌ Task creation failed:', data.error);
     throw new Error(data.error || 'Failed to queue execution');
   }
 
+  console.log('[API] ✅ Task created successfully:', { taskId: data.taskId });
   return data;
 }
 
@@ -75,9 +84,11 @@ export async function getTaskStatus(taskId: string): Promise<any> {
   const data = await response.json();
 
   if (!response.ok) {
+    console.error('[API] ❌ Status poll failed:', data.error);
     throw new Error(data.error || 'Failed to get task status');
   }
 
+  console.log('[API] 🔍 get-task-status:', { status: data.task?.status });
   return data.task;
 }
 

@@ -158,11 +158,7 @@ export default function GoalsLayout() {
   return (
     <>
       {/* Unified Projects Toolbar */}
-      <ProjectsLayout
-        selectedGoal={selectedGoal}
-        onAnalyzeGoal={handleAnalyzeGoal}
-        onRefreshGoals={fetchGoals}
-      />
+      <ProjectsLayout/>
       {selectedGoal && (
         <GoalsTitle
           selectedGoal={selectedGoal}

@@ -36,7 +36,6 @@ async function processNextTask(): Promise<boolean> {
 
     switch (task.task_type) {
       case 'docs':
-      case 'tasks':
       case 'goals':
         apiEndpoint = '/api/kiro/ai-project-review';
         requestBody.mode = task.task_type;
@@ -47,11 +46,6 @@ async function processNextTask(): Promise<boolean> {
       case 'code':
         apiEndpoint = '/api/kiro/ai-project-review';
         requestBody.mode = 'code';
-        break;
-      case 'coding_task':
-        apiEndpoint = '/api/backlog/process-coding-task';
-        requestBody.taskId = JSON.parse(task.task_data || '{}').taskId;
-        requestBody.projectPath = task.project_path; // Add project path for file operations
         break;
       default:
         throw new Error(`Unknown task type: ${task.task_type}`);

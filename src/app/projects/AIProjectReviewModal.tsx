@@ -165,14 +165,6 @@ export default function AIProjectReviewModal({
             selectedProvider
           );
           break;
-        case 'tasks':
-          data = await AIReviewAPI.generateTasks(
-            activeProject.id,
-            activeProject.path,
-            activeProject.name,
-            selectedProvider
-          );
-          break;
         case 'goals':
           data = await AIReviewAPI.generateGoals(
             activeProject.id,
@@ -183,14 +175,6 @@ export default function AIProjectReviewModal({
           break;
         case 'context':
           data = await AIReviewAPI.generateContexts(
-            activeProject.id,
-            activeProject.path,
-            activeProject.name,
-            selectedProvider
-          );
-          break;
-        case 'code':
-          data = await AIReviewAPI.generateCodeTasks(
             activeProject.id,
             activeProject.path,
             activeProject.name,

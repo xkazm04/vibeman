@@ -306,7 +306,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
                 >
                   <Trash2 className="w-4 h-4" />
                 </motion.div>
-                <span className="font-mono font-medium">Terminate Node</span>
+                <span className="font-mono font-medium">Delete Context</span>
               </motion.button>
             </div>
           </motion.div>

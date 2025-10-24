@@ -4,40 +4,30 @@ import { motion } from 'framer-motion';
 import {
   Target,
   Zap,
+  Trash2,
 } from 'lucide-react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../stores/projectsToolbarStore';
 import { useProjectConfigStore } from '../../stores/projectConfigStore';
+import { deleteProject } from './ProjectSetting/lib/projectApi';
 import AIProjectReviewModal from './AIProjectReviewModal';
 import ProjectAdd from './ProjectSetting/ProjectAdd';
 import ProjectManagement from './ProjectSetting/ProjectManagement';
 import ReviewerPanel from '../reviewer/ReviewerPanel';
 import CodeReviewModal from '../reviewer/CodeReviewModal';
 
-interface ProjectsLayoutProps {
-  // Goals Management - these will be passed from GoalsLayout
-  selectedGoal?: any;
-  onAnalyzeGoal?: () => void;
-  onRefreshGoals?: () => void;
-}
 
-export default function ProjectsLayout({
-  selectedGoal,
-  onAnalyzeGoal,
-  onRefreshGoals
-}: ProjectsLayoutProps) {
+export default function ProjectsLayout() {
   const { isActive } = useAnalysisStore();
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject, setActiveProject } = useActiveProjectStore();
   const { syncWithServer } = useProjectConfigStore();
   const {
     showAddProject,
     showAIReview,
-    showClaudeCode,
     setShowAddProject,
     setShowAddGoal,
     setShowAIReview,
-    setShowClaudeCode
   } = useProjectsToolbarStore();
 
   // Code Review Modal state - managed at layout level for proper z-index
@@ -60,14 +50,35 @@ export default function ProjectsLayout({
     setShowAIReview(true);
   };
 
-  // Claude Code Handler
-  const handleClaudeCode = () => {
-    setShowClaudeCode(true);
-  };
-
   // Handle project added - refresh the project list
   const handleProjectAdded = async () => {
     await syncWithServer();
+  };
+
+  // Handle project deletion
+  const handleDeleteProject = async () => {
+    if (!activeProject) return;
+    
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete project "${activeProject.name}"? This action cannot be undone.`
+    );
+    
+    if (confirmDelete) {
+      const success = await deleteProject(activeProject.id);
+      if (success) {
+        // Refresh the project list and let the store handle clearing active project
+        await syncWithServer();
+        // Check if there are other projects available
+        const { getAllProjects } = useProjectConfigStore.getState();
+        const remainingProjects = getAllProjects();
+        if (remainingProjects.length > 0) {
+          // Set the first available project as active
+          setActiveProject(remainingProjects[0]);
+        }
+      } else {
+        alert('Failed to delete project. Please try again.');
+      }
+    }
   };
 
   return (
@@ -90,7 +101,7 @@ export default function ProjectsLayout({
           {/* Right Section: Goals & AI Actions */}
           <div className="flex items-center space-x-4">
 
-            {/* AI Features Group */}
+            {/* Actions Group */}
             <div className="relative flex items-center space-x-3 px-4 py-3 bg-gray-800/30 rounded-lg border border-gray-700/40 min-w-0">
               {/* Section Label */}
               <div className="absolute -top-2 left-2 px-2 py-0.5 bg-gray-900 rounded text-xs font-bold text-amber-400 tracking-wider">
@@ -120,6 +131,18 @@ export default function ProjectsLayout({
                 >
                   <Zap className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
                   <span className="font-medium">Plan</span>
+                </motion.button>
+                
+                {/* Delete Project Button */}
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleDeleteProject}
+                  disabled={!activeProject}
+                  className="flex items-center justify-center px-2 py-1.5 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30 rounded-md text-red-400 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete current project"
+                >
+                  <Trash2 className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
                 </motion.button>
               </div>
             </div>

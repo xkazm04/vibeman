@@ -269,8 +269,29 @@ async function resolveImportPath(
  * }
  */
 export async function POST(request: NextRequest) {
+  let body;
+
   try {
-    const { filePath, projectPath, maxDepth = 3 } = await request.json();
+    // Parse request body with better error handling
+    const rawBody = await request.text();
+
+    try {
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error('JSON parse error in file-dependencies:', parseError);
+      console.error('Raw request body:', rawBody.substring(0, 200)); // Log first 200 chars
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid JSON in request body. Check that file paths are properly escaped.',
+          details: parseError instanceof Error ? parseError.message : 'JSON parse error'
+        },
+        { status: 400 }
+      );
+    }
+
+    const { filePath, projectPath, maxDepth = 3 } = body;
 
     if (!filePath || !projectPath) {
       return NextResponse.json(

@@ -117,12 +117,18 @@ export async function checkClaudeCodeStatus(projectPath: string): Promise<{
 export async function initializeClaudeCode(
   projectPath: string,
   projectName?: string,
-  projectId?: string
+  projectId?: string,
+  projectType?: 'nextjs' | 'fastapi' | 'other'
 ): Promise<{
   success: boolean;
   error?: string;
   message?: string;
   contextScanRequirement?: {
+    created: boolean;
+    filePath?: string;
+    error?: string;
+  };
+  structureRules?: {
     created: boolean;
     filePath?: string;
     error?: string;
@@ -135,7 +141,8 @@ export async function initializeClaudeCode(
       body: JSON.stringify({
         projectPath,
         projectName,
-        projectId
+        projectId,
+        projectType
       })
     });
 
@@ -144,7 +151,8 @@ export async function initializeClaudeCode(
       return {
         success: true,
         message: data.message || 'Claude Code initialized successfully',
-        contextScanRequirement: data.contextScanRequirement
+        contextScanRequirement: data.contextScanRequirement,
+        structureRules: data.structureRules
       };
     } else {
       const errorText = await response.text();

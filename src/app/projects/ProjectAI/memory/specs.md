@@ -9,7 +9,6 @@ Data sources:
 - High level docs about the project = {doc_project} -> reuse buildAIDocsSectio
 - Context docs optionally = {context_description} -> If context_id provided, add this part and retrieve context description from API/DB (src\app\api\contexts\detail\route.ts), per schema src\lib\database.ts
 - Accepted/Rejected ideas = {ideas} -> `ideas` db. If context_id provided, filter out only ideas related to the context. src\app\api\ideas\route.ts. Use it to prevent duplicities and reflect on rejected ideas
-- Code to analyze = {code_files_content} -> Codebase retrieval, similar to buildAnalysisSection in src\app\projects\ProjectAI\generateTasks.ts
 
 Instructions
 - Compose a prompt so the LLM can process high input of data from the sources, and be able to return JSON with format ready to save into `ideas` db

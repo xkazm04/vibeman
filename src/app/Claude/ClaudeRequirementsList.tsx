@@ -1,18 +1,20 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Loader2, Sparkles, FileText, Scan } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import ClaudeRequirement from './ClaudeRequirement';
 import ClaudeRequirementDetailModal from './ClaudeRequirementDetailModal';
+import ClaudeActionStructureScan from './components/ClaudeActionStructureScan';
+import ClaudeActionContextScan from './components/ClaudeActionContextScan';
+import ClaudeActionAutoGenerate from './components/ClaudeActionAutoGenerate';
+import ClaudeActionBatchCode from './components/ClaudeActionBatchCode';
 import {
   Requirement,
   loadRequirements as apiLoadRequirements,
   executeRequirementAsync,
   getTaskStatus,
   deleteRequirement as apiDeleteRequirement,
-  generateRequirements as apiGenerateRequirements,
   hasContextScanRequirement,
 } from './lib/requirementApi';
 
@@ -30,10 +32,7 @@ export default function ClaudeRequirementsList({
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedReq, setExpandedReq] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [hasContextScan, setHasContextScan] = useState(false);
-  const [isContextScanning, setIsContextScanning] = useState(false);
-  const [contextScanTaskId, setContextScanTaskId] = useState<string | null>(null);
   const executionQueueRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -54,8 +53,13 @@ export default function ClaudeRequirementsList({
     setIsLoading(true);
     try {
       const requirementNames = await apiLoadRequirements(projectPath);
-      // Filter out scan-contexts from the list
-      const filteredNames = requirementNames.filter((name) => name !== 'scan-contexts');
+      // Filter out system requirement files (scan-contexts, structure-rules only)
+      // Keep refactor-structure files as they are user-actionable
+      const filteredNames = requirementNames.filter(
+        (name) =>
+          name !== 'scan-contexts' &&
+          name !== 'structure-rules'
+      );
       const reqs = filteredNames.map((name) => ({
         name,
         status: 'idle' as const,
@@ -108,7 +112,7 @@ export default function ClaudeRequirementsList({
 
       // Poll for task status
       let pollCount = 0;
-      const maxPolls = 300; // 10 minutes max (300 * 2 seconds)
+      const maxPolls = 600; // 10 minutes max (300 * 2 seconds)
 
       const pollInterval = setInterval(async () => {
         pollCount++;
@@ -210,7 +214,6 @@ export default function ClaudeRequirementsList({
       return; // Cannot delete queued items
     }
 
-
     try {
       const success = await apiDeleteRequirement(projectPath, name);
       if (success) {
@@ -221,69 +224,30 @@ export default function ClaudeRequirementsList({
     }
   };
 
-  const handleGenerateRequirements = async () => {
-    if (!activeProject) return;
+  const handleBatchCode = (requirementNames: string[]) => {
+    console.log(`[BatchCode] 📋 Queueing ${requirementNames.length} requirements`);
 
-    setIsGenerating(true);
-    try {
-      await apiGenerateRequirements(projectPath, activeProject.id);
-      // Auto-refresh without alert
-      await loadRequirements();
-    } catch (err) {
-      console.error('Error generating requirements:', err instanceof Error ? err.message : 'Failed to generate requirements');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    // Queue all requirements
+    requirementNames.forEach((name) => {
+      if (!executionQueueRef.current.includes(name)) {
+        executionQueueRef.current.push(name);
+      }
+    });
 
-  const handleContextScan = async () => {
-    if (!activeProject || isContextScanning) return;
+    // Update all as queued
+    setRequirements((prev) =>
+      prev.map((r) =>
+        requirementNames.includes(r.name) && r.status !== 'running'
+          ? { ...r, status: 'queued' as const }
+          : r
+      )
+    );
 
-    setIsContextScanning(true);
-    try {
-      // Execute the scan-contexts requirement
-      const { taskId } = await executeRequirementAsync(projectPath, 'scan-contexts', activeProject.id);
-      setContextScanTaskId(taskId);
-
-      // Poll for task status
-      let pollCount = 0;
-      const maxPolls = 300; // 10 minutes max
-
-      const pollInterval = setInterval(async () => {
-        pollCount++;
-
-        if (pollCount >= maxPolls) {
-          console.error('Context scan timeout');
-          clearInterval(pollInterval);
-          setIsContextScanning(false);
-          setContextScanTaskId(null);
-          return;
-        }
-
-        try {
-          const task = await getTaskStatus(taskId);
-
-          // Stop polling if completed
-          if (task.status === 'completed' || task.status === 'failed' || task.status === 'session-limit') {
-            clearInterval(pollInterval);
-            setIsContextScanning(false);
-            setContextScanTaskId(null);
-
-            if (task.status === 'completed') {
-              console.log('Context scan completed successfully');
-              // Could show a success notification here
-            } else if (task.status === 'failed') {
-              console.error('Context scan failed:', task.error);
-            }
-          }
-        } catch (pollErr) {
-          console.error('Error polling context scan status:', pollErr);
-        }
-      }, 2000); // Poll every 2 seconds
-    } catch (err) {
-      console.error('Error starting context scan:', err instanceof Error ? err.message : 'Failed to start scan');
-      setIsContextScanning(false);
-      setContextScanTaskId(null);
+    // If nothing is running, start the first one
+    const runningReq = requirements.find((r) => r.status === 'running');
+    if (!runningReq && executionQueueRef.current.length > 0) {
+      const nextReqName = executionQueueRef.current[0];
+      executeRequirement(nextReqName);
     }
   };
 
@@ -326,71 +290,53 @@ export default function ClaudeRequirementsList({
   return (
     <div className="space-y-4">
       {/* Header with Generate Buttons */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-gray-400">
-            Requirements ({requirements.length})
-          </h3>
-          {queueCount > 0 && (
-            <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-xs text-amber-400">
-              {queueCount} in queue
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Context Scan Button - Only show if scan-contexts.md exists */}
-          {hasContextScan && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleContextScan}
-              disabled={isContextScanning || !activeProject}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                isContextScanning || !activeProject
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-lg'
-              }`}
-              title="Scan codebase and generate/update contexts"
-            >
-              {isContextScanning ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Scanning...</span>
-                </>
-              ) : (
-                <>
-                  <Scan className="w-3 h-3" />
-                  <span>Context Scan</span>
-                </>
-              )}
-            </motion.button>
-          )}
-
-          {/* Auto-Generate Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleGenerateRequirements}
-            disabled={isGenerating || !activeProject}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-              isGenerating || !activeProject
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg'
-            }`}
-            title="Generate requirements from goals and contexts"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Generating...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3 h-3" />
-                <span>Auto-Generate</span>
-              </>
+      <div className="relative">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-400">
+              Requirements ({requirements.length})
+            </h3>
+            {queueCount > 0 && (
+              <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-xs text-amber-400">
+                {queueCount} in queue
+              </span>
             )}
-          </motion.button>
+          </div>
+          <div className="flex items-center gap-2 relative">
+            {/* Batch Code Button - NEW */}
+            <ClaudeActionBatchCode
+              requirements={requirements}
+              disabled={!activeProject}
+              onBatchStart={handleBatchCode}
+            />
+
+            {/* Structure Scan Button - Always visible for nextjs/fastapi projects */}
+            {activeProject?.type && (
+              <ClaudeActionStructureScan
+                projectPath={projectPath}
+                projectType={activeProject.type}
+                projectId={activeProject.id}
+                disabled={!activeProject}
+                onScanComplete={loadRequirements}
+              />
+            )}
+
+            {/* Context Scan Button - Only show if scan-contexts.md exists */}
+            <ClaudeActionContextScan
+              projectPath={projectPath}
+              projectId={activeProject?.id || ''}
+              disabled={!activeProject}
+              visible={hasContextScan}
+            />
+
+            {/* Auto-Generate Button */}
+            <ClaudeActionAutoGenerate
+              projectPath={projectPath}
+              projectId={activeProject?.id || ''}
+              disabled={!activeProject}
+              onGenerateComplete={loadRequirements}
+            />
+          </div>
         </div>
       </div>
 

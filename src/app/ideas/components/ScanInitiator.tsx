@@ -1,33 +1,23 @@
+'use client';
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Scan, Loader2, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
+import { Scan, Loader2, CheckCircle, XCircle, ChevronDown, Layers } from 'lucide-react';
+import Image from 'next/image';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { SupportedProvider } from '@/lib/llm/types';
 import { ScanType } from './ScanTypeSelector';
 import { getScanTypeConfig } from '../lib/ScanTypeConfig';
-import Image from 'next/image';
+import { LLM_PROVIDERS } from '../lib/llmProviders';
+import { ScanState, QueueItem, ContextQueueItem } from '../lib/scanTypes';
+import { gatherCodebaseFiles, executeScan } from '../lib/scanApi';
+import ProgressBar from './ProgressBar';
 
 interface ScanInitiatorProps {
   onScanComplete: () => void;
   selectedScanTypes: ScanType[];
 }
-
-type ScanState = 'idle' | 'scanning' | 'success' | 'error';
-
-interface QueueItem {
-  scanType: ScanType;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  ideaCount?: number;
-  error?: string;
-}
-
-const LLM_PROVIDERS = [
-  { value: 'ollama' as SupportedProvider, icon: '/llm_icons/ollama.svg', name: 'Ollama' },
-  { value: 'anthropic' as SupportedProvider, icon: '/llm_icons/claude.svg', name: 'Claude' },
-  { value: 'gemini' as SupportedProvider, icon: '/llm_icons/gemini.svg', name: 'Gemini' },
-  { value: 'openai' as SupportedProvider, icon: '/llm_icons/openai.svg', name: 'OpenAI' }
-];
 
 export default function ScanInitiator({ onScanComplete, selectedScanTypes }: ScanInitiatorProps) {
   const [scanState, setScanState] = React.useState<ScanState>('idle');
@@ -39,23 +29,16 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
   // Queue management for multiple scans
   const [scanQueue, setScanQueue] = React.useState<QueueItem[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = React.useState(false);
+  
+  // Queue management for batch context scanning
+  const [contextQueue, setContextQueue] = React.useState<ContextQueueItem[]>([]);
+  const [isProcessingContextQueue, setIsProcessingContextQueue] = React.useState(false);
+  const [batchMode, setBatchMode] = React.useState(false);
 
   const { activeProject } = useActiveProjectStore();
-  const { selectedContextIds, contexts, setSelectedContext, clearContextSelection, loadProjectData } = useContextStore();
+  const { selectedContextIds, contexts, setSelectedContext, clearContextSelection } = useContextStore();
 
-  // Load contexts when active project changes
-  React.useEffect(() => {
-    if (activeProject?.id) {
-      loadProjectData(activeProject.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProject?.id]);
-
-  // Get selected context (first one if multiple selected)
-  const selectedContextId = selectedContextIds.size > 0
-    ? Array.from(selectedContextIds)[0]
-    : undefined;
-
+  const selectedContextId = selectedContextIds.length > 0 ? selectedContextIds[0] : null;
   const selectedContext = selectedContextId
     ? contexts.find(c => c.id === selectedContextId)
     : undefined;
@@ -75,35 +58,23 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
     setShowContextMenu(false);
   };
 
-  // Execute a single scan for a specific scan type
-  const executeScan = async (scanType: ScanType): Promise<number> => {
-    const codebaseFiles = await gatherCodebaseFiles(activeProject!.path, selectedContext?.filePaths);
+  // Execute a single scan for a specific scan type and context
+  const executeContextScan = async (scanType: ScanType, contextId?: string, contextFilePaths?: string[]): Promise<number> => {
+    const codebaseFiles = await gatherCodebaseFiles(activeProject!.path, contextFilePaths);
 
     if (codebaseFiles.length === 0) {
       throw new Error('No code files found to analyze');
     }
 
-    const response = await fetch('/api/ideas/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId: activeProject!.id,
-        projectName: activeProject!.name,
-        projectPath: activeProject!.path,
-        contextId: selectedContextId,
-        provider: selectedProvider,
-        scanType: scanType,
-        codebaseFiles
-      })
+    return executeScan({
+      projectId: activeProject!.id,
+      projectName: activeProject!.name,
+      projectPath: activeProject!.path,
+      contextId,
+      provider: selectedProvider,
+      scanType: scanType,
+      codebaseFiles
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate ideas');
-    }
-
-    const data = await response.json();
-    return data.count || 0;
   };
 
   const handleScan = async () => {
@@ -123,12 +94,52 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
 
     console.log('[ScanInitiator] Initializing queue with', queue.length, 'scans');
     setScanQueue(queue);
+    setContextQueue([]);
+    setBatchMode(false);
     setTotalIdeas(0);
     setScanState('scanning');
     setIsProcessingQueue(true);
   };
 
-  // Process queue automatically when it changes
+  const handleBatchScan = async () => {
+    if (!activeProject) {
+      setMessage('No active project selected');
+      setScanState('error');
+      setTimeout(() => setScanState('idle'), 3000);
+      return;
+    }
+
+    if (projectContexts.length === 0) {
+      setMessage('No contexts found for this project');
+      setScanState('error');
+      setTimeout(() => setScanState('idle'), 3000);
+      return;
+    }
+
+    // Initialize context queue with all contexts + full project
+    const queue: ContextQueueItem[] = [
+      {
+        contextId: null,
+        contextName: 'Full Project',
+        status: 'pending',
+        ideaCount: 0
+      },
+      ...projectContexts.map(context => ({
+        contextId: context.id,
+        contextName: context.name,
+        status: 'pending' as const,
+        ideaCount: 0
+      }))
+    ];
+
+    console.log('[ScanInitiator] Initializing batch context queue with', queue.length, 'contexts');
+    setContextQueue(queue);
+    setScanQueue([]);
+    setBatchMode(true);
+    setTotalIdeas(0);
+    setScanState('scanning');
+    setIsProcessingContextQueue(true);
+  };  // Process scan queue automatically when it changes
   React.useEffect(() => {
     if (!isProcessingQueue || scanQueue.length === 0) return;
 
@@ -177,7 +188,7 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
       try {
         // Execute the scan
         console.log('[ScanInitiator] Executing scan for:', currentScan.scanType);
-        const ideaCount = await executeScan(currentScan.scanType);
+        const ideaCount = await executeContextScan(currentScan.scanType, selectedContextId || undefined, selectedContext?.filePaths);
         console.log('[ScanInitiator] Scan completed:', currentScan.scanType, 'Ideas:', ideaCount);
         
         // Update with success
@@ -211,6 +222,99 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProcessingQueue, scanQueue]);
 
+  // Process context queue automatically when it changes
+  React.useEffect(() => {
+    if (!isProcessingContextQueue || contextQueue.length === 0) return;
+
+    // Find next pending context
+    const pendingIndex = contextQueue.findIndex(item => item.status === 'pending');
+    
+    // Check if we have a context already running
+    const hasRunningContext = contextQueue.some(item => item.status === 'running');
+    
+    if (pendingIndex === -1) {
+      // No more pending contexts
+      if (!hasRunningContext) {
+        // All contexts completed (no running, no pending)
+        const successCount = contextQueue.filter(item => item.status === 'completed').length;
+        const failedCount = contextQueue.filter(item => item.status === 'failed').length;
+        
+        setMessage(`Batch complete! ${successCount} contexts (${failedCount} failed). Total: ${totalIdeas} ideas!`);
+        setScanState(failedCount === contextQueue.length ? 'error' : 'success');
+        setIsProcessingContextQueue(false);
+        
+        // Reset after 5 seconds
+        setTimeout(() => {
+          setScanState('idle');
+          setMessage('');
+          setContextQueue([]);
+          setBatchMode(false);
+        }, 5000);
+      }
+      return;
+    }
+
+    // Don't start a new context if one is already running
+    if (hasRunningContext) return;
+
+    // Process the next pending context
+    const processNextContext = async () => {
+      // Update status to running
+      const updatedQueue = [...contextQueue];
+      updatedQueue[pendingIndex] = { ...updatedQueue[pendingIndex], status: 'running' };
+      setContextQueue(updatedQueue);
+
+      const currentContext = updatedQueue[pendingIndex];
+      console.log('[ScanInitiator] Starting context scan:', currentContext.contextName);
+      setMessage(`📂 Scanning: ${currentContext.contextName}...`);
+
+      try {
+        // Get context data
+        const contextData = currentContext.contextId 
+          ? contexts.find(c => c.id === currentContext.contextId)
+          : null;
+
+        // Execute scan for this context (using first selected scan type)
+        const scanType = selectedScanTypes[0] || 'overall';
+        console.log('[ScanInitiator] Executing scan for context:', currentContext.contextName, 'Scan type:', scanType);
+        const ideaCount = await executeContextScan(
+          scanType, 
+          currentContext.contextId || undefined,
+          contextData?.filePaths
+        );
+        console.log('[ScanInitiator] Context scan completed:', currentContext.contextName, 'Ideas:', ideaCount);
+        
+        // Update with success
+        const finalQueue = [...updatedQueue];
+        finalQueue[pendingIndex] = {
+          ...finalQueue[pendingIndex],
+          status: 'completed',
+          ideaCount
+        };
+        setContextQueue(finalQueue);
+        setTotalIdeas(prev => prev + ideaCount);
+        
+        // Refresh ideas list after each scan
+        onScanComplete();
+        
+      } catch (error) {
+        console.error('Context scan error:', error);
+        
+        // Update with error
+        const finalQueue = [...updatedQueue];
+        finalQueue[pendingIndex] = {
+          ...finalQueue[pendingIndex],
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Context scan failed'
+        };
+        setContextQueue(finalQueue);
+      }
+    };
+
+    processNextContext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProcessingContextQueue, contextQueue]);
+
   const getButtonColor = () => {
     switch (scanState) {
       case 'scanning':
@@ -238,11 +342,23 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
   };
 
   return (
-    <div className="w-full border-b border-gray-700/40 bg-gray-900/40">
-      <div className="max-w-7xl mx-auto px-6 py-3">
-        <div className="flex items-center justify-center space-x-6">
-          {/* LLM Provider Icons */}
-          <div className="flex items-center space-x-2">
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex items-center justify-between gap-4 bg-gray-800/40 backdrop-blur-sm rounded-xl p-4 border border-gray-700/40">
+        {/* Status message */}
+        {message && (
+          <motion.div
+            className="flex-1 text-sm text-gray-300"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {message}
+          </motion.div>
+        )}
+
+        <div className="flex items-center gap-3">
+          {/* Provider Selection */}
+          <div className="flex items-center gap-2">
             {LLM_PROVIDERS.map((provider) => (
               <motion.button
                 key={provider.value}
@@ -269,7 +385,7 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
           </div>
 
           {/* Context Selector */}
-          {activeProject && projectContexts.length > 0 && (
+          {activeProject && projectContexts.length > 0 && !batchMode && (
             <div className="relative">
               <motion.button
                 onClick={() => setShowContextMenu(!showContextMenu)}
@@ -326,7 +442,7 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
           >
             {getIcon()}
             <span className="text-white">
-              {scanState === 'scanning'
+              {scanState === 'scanning' && !batchMode
                 ? 'Scanning...'
                 : scanState === 'success'
                 ? `✓ Success!`
@@ -338,121 +454,44 @@ export default function ScanInitiator({ onScanComplete, selectedScanTypes }: Sca
             </span>
           </motion.button>
 
-          {/* Status message */}
-          <AnimatePresence>
-            {message && (
-              <motion.div
-                className={`text-xs font-medium ${
-                  scanState === 'success'
-                    ? 'text-green-400'
-                    : scanState === 'error'
-                    ? 'text-red-400'
-                    : 'text-blue-400'
-                }`}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-              >
-                {message}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Batch Ideas Button */}
+          {activeProject && projectContexts.length > 0 && (
+            <motion.button
+              onClick={handleBatchScan}
+              disabled={scanState === 'scanning' || !activeProject}
+              className={`flex items-center space-x-2 px-5 py-2 rounded-lg border transition-all duration-300 font-semibold text-sm ${
+                scanState === 'scanning' && batchMode
+                  ? 'bg-purple-500/30 border-purple-500/50'
+                  : 'bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/40 hover:border-purple-500/60'
+              } ${!activeProject ? 'opacity-50 cursor-not-allowed' : ''}`}
+              whileHover={scanState === 'idle' && activeProject ? { scale: 1.05 } : {}}
+              whileTap={scanState === 'idle' && activeProject ? { scale: 0.95 } : {}}
+              title="Generate ideas for all contexts in this project"
+            >
+              {scanState === 'scanning' && batchMode ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Layers className="w-4 h-4" />
+              )}
+              <span className="text-white">
+                {scanState === 'scanning' && batchMode
+                  ? 'Batch Scanning...'
+                  : `Batch Ideas (${projectContexts.length + 1})`}
+              </span>
+            </motion.button>
+          )}
         </div>
-
-        {/* Progress Bar */}
-        {scanQueue.length > 0 && (isProcessingQueue || scanState === 'scanning') && (
-          <motion.div
-            className="mt-3"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-gray-400">
-                Processing {scanQueue.filter(s => s.status === 'completed').length} / {scanQueue.length} scans
-              </span>
-              <span className="text-xs font-semibold text-blue-400">
-                {totalIdeas} ideas generated
-              </span>
-            </div>
-            
-            {/* Progress bar */}
-            <div className="w-full h-1.5 bg-gray-700/40 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-blue-500 to-cyan-500"
-                initial={{ width: 0 }}
-                animate={{ 
-                  width: `${(scanQueue.filter(s => s.status === 'completed' || s.status === 'failed').length / scanQueue.length) * 100}%` 
-                }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-            
-            {/* Individual scan status */}
-            <div className="flex flex-wrap gap-2 mt-2">
-              {scanQueue.map((item, index) => {
-                const config = getScanTypeConfig(item.scanType);
-                return (
-                  <motion.div
-                    key={`${item.scanType}-${index}`}
-                    className={`flex items-center space-x-1 px-2 py-0.5 rounded text-xs ${
-                      item.status === 'completed'
-                        ? 'bg-green-500/20 text-green-300'
-                        : item.status === 'failed'
-                        ? 'bg-red-500/20 text-red-300'
-                        : item.status === 'running'
-                        ? 'bg-blue-500/20 text-blue-300'
-                        : 'bg-gray-700/40 text-gray-400'
-                    }`}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <span>{config?.emoji}</span>
-                    <span>{config?.label}</span>
-                    {item.status === 'running' && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
-                    {item.status === 'completed' && (
-                      <span className="ml-1 font-semibold">+{item.ideaCount}</span>
-                    )}
-                    {item.status === 'failed' && <XCircle className="w-3 h-3 ml-1" />}
-                  </motion.div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
       </div>
+
+      {/* Progress Bar - Scan Queue */}
+      {scanQueue.length > 0 && isProcessingQueue && (
+        <ProgressBar items={scanQueue} totalIdeas={totalIdeas} type="scan" />
+      )}
+
+      {/* Progress Bar - Context Queue (Batch Mode) */}
+      {contextQueue.length > 0 && isProcessingContextQueue && (
+        <ProgressBar items={contextQueue} totalIdeas={totalIdeas} type="context" />
+      )}
     </div>
   );
-}
-
-async function gatherCodebaseFiles(
-  projectPath: string,
-  contextFilePaths?: string[]
-): Promise<Array<{ path: string; content: string; type: string }>> {
-  try {
-    const filesToAnalyze = contextFilePaths || [];
-
-    const response = await fetch('/api/project/files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectPath,
-        filePaths: filesToAnalyze.length > 0 ? filesToAnalyze : undefined,
-        limit: 20
-      })
-    });
-
-    if (!response.ok) {
-      console.error('Failed to fetch project files');
-      return [];
-    }
-
-    const data = await response.json();
-    return data.files || [];
-
-  } catch (error) {
-    console.error('Error gathering codebase files:', error);
-    return [];
-  }
 }

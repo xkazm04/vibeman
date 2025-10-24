@@ -1,9 +1,6 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { generateWithLLM, DefaultProviderStorage, AnthropicClient, OpenAIClient, GeminiClient, OllamaClient } from '../../../lib/llm';
-import { LLMRequest, LLMResponse, SupportedProvider } from '../../../lib/llm/types';
-
-
+import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 
 // Generate AI documentation review
 export async function generateAIReview(projectName: string, analysis: any, projectId?: string, provider?: string): Promise<string> {
@@ -35,51 +32,100 @@ export async function generateAIReview(projectName: string, analysis: any, proje
     }
   } catch (error) {
     console.warn('Could not read project-prompt.md template, using fallback. Error:', error);
-    promptTemplate = `Please conduct a thorough analysis of this repository and provide detailed insights on:
+    promptTemplate = `You are an expert software architect and technical reviewer. Analyze this repository and provide a comprehensive technical documentation following this EXACT structure:
 
-## 1. Application Overview
-- Primary purpose and business domain
-- Target users and use cases
-- Core value proposition
-- Architecture pattern (monolithic, microservices, etc.)
+# 📋 Application Overview
 
-## 2. Technical Stack Analysis
-- **Frontend**: Frameworks, UI libraries, state management, styling approach
-- **Backend**: Language, framework, API design pattern (REST/GraphQL/etc.)
-- **Database**: Type, ORM/query builders used
-- **Infrastructure**: Deployment setup, CI/CD configuration
-- **Third-party services**: External APIs, authentication providers, cloud services
-- **Development tools**: Build tools, testing frameworks, linting/formatting
+## Purpose & Domain
+- **Primary Function**: [What does this application do?]
+- **Business Domain**: [Industry/sector this serves]
+- **Target Users**: [Who uses this application?]
+- **Core Value**: [Main benefit/problem it solves]
 
-## 3. Feature Inventory by Domain
-Group features into logical business domains or modules, for each include:
-- Feature name and brief description
-- Technical implementation approach
-- Dependencies on other modules
-- Apparent complexity level
+## Architecture
+- **Pattern**: [Monolithic/Microservices/Serverless/etc.]
+- **Scale**: [Single user/Multi-tenant/Enterprise/etc.]
+- **Deployment**: [Client-side/Server-side/Full-stack/etc.]
 
-## 4. Code Quality Assessment
-- Design patterns observed
-- Code organization and structure
-- Testing coverage (unit, integration, e2e)
-- Documentation quality
-- Error handling approaches
-- Security considerations visible in code
+# 🛠️ Technical Stack
 
-## 5. Improvement Opportunities
-For each opportunity, specify:
-- **Issue**: What needs improvement
-- **Impact**: Why it matters (performance, maintainability, security, UX)
-- **Suggestion**: Specific recommendation
-- **Priority**: High/Medium/Low based on effort vs. benefit
+## Frontend Technologies
+- **Framework**: [React/Vue/Angular/Next.js/etc.]
+- **UI Library**: [Material-UI/Tailwind/Bootstrap/etc.]
+- **State Management**: [Redux/Zustand/Context/etc.]
+- **Styling**: [CSS-in-JS/SCSS/Tailwind/etc.]
 
-## 6. Notable Observations
-- Particularly well-implemented aspects
-- Potential technical debt
-- Scalability considerations
-- Missing common features for this type of application
+## Backend Technologies  
+- **Language**: [TypeScript/Python/Java/etc.]
+- **Framework**: [Express/FastAPI/Spring/etc.]
+- **API Pattern**: [REST/GraphQL/tRPC/etc.]
+- **Authentication**: [JWT/OAuth/Session/etc.]
 
-Please structure your response with clear headings and bullet points for readability.`;
+## Data Layer
+- **Database**: [PostgreSQL/MongoDB/SQLite/etc.]
+- **ORM/ODM**: [Prisma/Sequelize/Mongoose/etc.]
+- **Caching**: [Redis/Memcached/In-memory/etc.]
+
+## Infrastructure & DevOps
+- **Hosting**: [Vercel/AWS/Docker/etc.]
+- **CI/CD**: [GitHub Actions/Jenkins/etc.]
+- **Monitoring**: [Sentry/LogRocket/etc.]
+
+## Development Tools
+- **Build**: [Webpack/Vite/Turbo/etc.]
+- **Testing**: [Jest/Cypress/Playwright/etc.]
+- **Linting**: [ESLint/Prettier/etc.]
+
+# 🏗️ Features by Domain
+
+## [Domain Name 1] (e.g., User Management)
+- **[Feature Name]**: Brief description
+  - *Implementation*: Technical approach used
+  - *Dependencies*: What it relies on
+  - *Complexity*: Low/Medium/High
+
+## [Domain Name 2] (e.g., Content Management)  
+- **[Feature Name]**: Brief description
+  - *Implementation*: Technical approach used
+  - *Dependencies*: What it relies on
+  - *Complexity*: Low/Medium/High
+
+# 📊 Code Quality Assessment
+
+## Design Patterns
+- **Patterns Used**: [MVC/MVVM/Repository/etc.]
+- **Code Organization**: [Feature-based/Layer-based/etc.]
+- **Separation of Concerns**: [Well/Partially/Poorly separated]
+
+## Testing & Documentation
+- **Test Coverage**: [Comprehensive/Partial/Minimal/None]
+- **Test Types**: [Unit/Integration/E2E coverage]
+- **Documentation**: [Excellent/Good/Basic/Missing]
+
+## Code Health
+- **Error Handling**: [Comprehensive/Basic/Inconsistent]
+- **Security**: [Security measures observed]
+- **Performance**: [Optimization techniques used]
+
+# 🎯 Notable Observations
+
+## Strengths
+- [What is particularly well implemented?]
+- [What follows best practices?]
+- [What shows good architecture decisions?]
+
+## Areas for Improvement
+- [Technical debt identified]
+- [Missing best practices]
+- [Scalability concerns]
+
+## Recommendations
+- [Specific suggestions for improvement]
+- [Missing features for this app type]
+- [Performance optimization opportunities]
+
+---
+*Analysis complete. This structure ensures consistent, scannable technical documentation.*`;
   }
 
   // Build the analysis data section with safe fallbacks
@@ -126,7 +172,7 @@ Please structure your response with clear headings and bullet points for readabi
     return section;
   };
 
-  const prompt = `You are an expert software architect and code reviewer. ${promptTemplate}
+  const prompt = `${promptTemplate}
 
 ---
 
@@ -134,7 +180,7 @@ ${buildAnalysisSection()}
 
 ---
 
-Please analyze this project data and provide your comprehensive review following the structure outlined above. Focus on actionable insights and be specific in your recommendations.`;
+IMPORTANT: Follow the EXACT structure above with all headings and subheadings. Replace bracketed placeholders [like this] with actual information. Use bullet points and clear formatting. Be specific and actionable in your recommendations.`;
 
   const result = await generateWithLLM(prompt, {
     provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
