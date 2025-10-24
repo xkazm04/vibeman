@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Edit3, Loader2 } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Project } from '@/types';
+import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
 interface ProjectEditProps {
   isOpen: boolean;
@@ -16,6 +18,7 @@ interface ProjectFormData {
   name: string;
   path: string;
   port: number;
+  type: 'nextjs' | 'fastapi' | 'other';
   git_repository?: string;
   git_branch?: string;
   run_script?: string;
@@ -24,6 +27,34 @@ interface ProjectFormData {
 export default function ProjectEdit({ isOpen, onClose, onProjectUpdated, project }: ProjectEditProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { updateProject } = useProjectConfigStore();
+  const { activeProject, setActiveProject } = useActiveProjectStore();
+
+  // Handler for immediate type update with optimistic UI
+  const handleTypeChange = async (newType: 'nextjs' | 'fastapi' | 'other') => {
+    if (!project) return;
+
+    try {
+      // Optimistic update - update stores immediately
+      const updates = { type: newType };
+
+      // Update the project config store (this updates the projects list)
+      await updateProject(project.id, updates);
+
+      // If this is the active project, update it too
+      if (activeProject?.id === project.id) {
+        setActiveProject({ ...activeProject, ...updates });
+      }
+
+      // No need to call onProjectUpdated() - stores are already updated
+      console.log(`[ProjectEdit] Type updated to ${newType}`);
+
+    } catch (error) {
+      console.error('[ProjectEdit] Error updating project type:', error);
+      setError('Failed to update project type');
+      // Revert will happen automatically on next sync if needed
+    }
+  };
 
   const handleSubmit = async (data: ProjectFormData) => {
     if (!project) return;
@@ -32,29 +63,35 @@ export default function ProjectEdit({ isOpen, onClose, onProjectUpdated, project
     setError('');
 
     try {
-      const response = await fetch('/api/projects', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: project.id,
-          updates: {
-            name: data.name,
-            port: data.port,
-            git_repository: data.git_repository,
-            git_branch: data.git_branch,
-            run_script: data.run_script
-          }
-        }),
-      });
+      const updates = {
+        name: data.name,
+        type: data.type,
+        port: data.port,
+        git_repository: data.git_repository,
+        git_branch: data.git_branch,
+        run_script: data.run_script
+      };
 
-      const result = await response.json();
+      // Use store method for optimistic update
+      await updateProject(project.id, updates);
 
-      if (result.success) {
-        onProjectUpdated();
-        onClose();
-      } else {
-        setError(result.error || 'Failed to update project');
+      // If this is the active project, update it too
+      if (activeProject?.id === project.id) {
+        setActiveProject({
+          ...activeProject,
+          name: data.name,
+          type: data.type,
+          port: data.port,
+          runScript: data.run_script,
+          git: data.git_repository ? {
+            repository: data.git_repository,
+            branch: data.git_branch || 'main',
+            autoSync: activeProject.git?.autoSync || false
+          } : activeProject.git
+        });
       }
+
+      onClose();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to update project');
     } finally {
@@ -76,9 +113,10 @@ export default function ProjectEdit({ isOpen, onClose, onProjectUpdated, project
     name: project.name,
     path: project.path,
     port: project.port,
+    type: project.type || 'other',
     git_repository: project.git?.repository,
     git_branch: project.git?.branch || 'main',
-    run_script: 'npm run dev' // Default since we don't store this in the current Project type
+    run_script: project.runScript || 'npm run dev'
   };
 
   return (
@@ -118,6 +156,7 @@ export default function ProjectEdit({ isOpen, onClose, onProjectUpdated, project
             <ProjectForm
               initialData={initialData}
               onSubmit={handleSubmit}
+              onTypeChange={handleTypeChange}
               loading={loading}
               error={error}
               isEdit={true}

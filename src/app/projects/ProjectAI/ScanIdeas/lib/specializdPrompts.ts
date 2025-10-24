@@ -4,7 +4,9 @@
  * Each scan type focuses on a specific dimension of code analysis
  */
 
-import { ScanType } from '@/app/ideas/components/ScanTypeSelector';
+import { ScanType } from "@/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector";
+
+
 
 interface SpecializedPromptConfig {
   focusArea: string;
@@ -127,6 +129,34 @@ Focus areas:
 
 Generate ideas that expose hidden trade-offs, clarify ambiguity, and improve decision-making.`,
     outputCategories: ['maintenance', 'code_quality', 'functionality']
+  },
+
+  business_visionary: {
+    focusArea: 'Business Visionary - Innovative App Ideas & Market Opportunities',
+    analysisInstructions: `You are a Business Visionary focused on discovering breakthrough app ideas, innovative features, and market opportunities.
+
+Focus areas:
+1. **User Value Propositions**: What unique problems can we solve? What unmet needs exist?
+2. **Market Opportunities**: Gaps in the current market, emerging trends, underserved audiences
+3. **Innovative Features**: Novel functionality that creates competitive advantages and user delight
+4. **Business Models**: Revenue streams, monetization strategies, growth mechanisms
+5. **User Engagement**: Gamification, social features, retention strategies, viral loops
+6. **Platform Innovation**: Cross-platform opportunities, integrations, ecosystem expansion
+7. **Future Vision**: Emerging technologies (AI, blockchain, AR/VR) applied creatively
+8. **Differentiation**: What makes this app unique? How can we stand out from competitors?
+9. **User Experience Magic**: Delightful interactions, emotional connections, memorable moments
+10. **Growth & Scale**: Viral features, network effects, community building, marketplace dynamics
+
+**Mindset**:
+- Think like a startup founder seeking product-market fit
+- Be bold and visionary - propose ideas that could transform the app
+- Consider both quick wins (MVP features) and moonshot ideas
+- Focus on user problems first, technical solutions second
+- Look for opportunities to create habits, loyalty, and word-of-mouth
+- Explore unconventional approaches and creative combinations
+
+Generate visionary, business-oriented ideas that unlock new value, create market differentiation, and drive user adoption.`,
+    outputCategories: ['functionality', 'user_benefit', 'ui']
   }
 };
 

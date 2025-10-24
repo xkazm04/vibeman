@@ -54,11 +54,21 @@ export async function generateRequirementsFromGoals(
 
         // Load files from all contexts (limit to prevent token overflow)
         const filesFromAllContexts: Array<{ path: string; content: string }> = [];
-        for (const context of allContexts.slice(0, 3)) {
-          // Limit to first 3 contexts
-          const files = await loadContextFiles(context, projectPath, 2); // 2 files per context
-          filesFromAllContexts.push(...files);
+
+        if (allContexts.length > 0) {
+          for (const context of allContexts.slice(0, 3)) {
+            // Limit to first 3 contexts
+            try {
+              const files = await loadContextFiles(context, projectPath, 2); // 2 files per context
+              filesFromAllContexts.push(...files);
+            } catch (error) {
+              console.warn(`Failed to load files from context ${context.name}:`, error);
+            }
+          }
+        } else {
+          console.log(`No contexts available for project. Will generate requirements from goal description only.`);
         }
+
         goalData.contextFiles = filesFromAllContexts;
       }
 
@@ -86,6 +96,7 @@ export async function generateRequirementsFromGoals(
 
     const anthropic = new AnthropicClient({ apiKey });
 
+    console.log('[generateRequirementsFromGoals] Calling Anthropic API...');
     const response = await anthropic.generate({
       prompt: userPrompt,
       systemPrompt,
@@ -95,11 +106,14 @@ export async function generateRequirementsFromGoals(
     });
 
     if (!response.success || !response.response) {
+      console.error('[generateRequirementsFromGoals] LLM generation failed:', response.error);
       return {
         success: false,
         error: response.error || 'LLM generation failed',
       };
     }
+
+    console.log('[generateRequirementsFromGoals] LLM response received, parsing...');
 
     // 6. Parse LLM response
     let parsedResponse: { requirements: GeneratedRequirement[] };
@@ -113,11 +127,13 @@ export async function generateRequirementsFromGoals(
       }
 
       parsedResponse = JSON.parse(cleanedResponse);
+      console.log('[generateRequirementsFromGoals] Successfully parsed response, creating requirements...');
     } catch (parseError) {
-      console.error('Failed to parse LLM response:', response.response);
+      console.error('[generateRequirementsFromGoals] Failed to parse LLM response:', parseError);
+      console.error('[generateRequirementsFromGoals] Raw response:', response.response);
       return {
         success: false,
-        error: 'Failed to parse LLM response as JSON',
+        error: `Failed to parse LLM response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
       };
     }
 
@@ -135,16 +151,20 @@ export async function generateRequirementsFromGoals(
       }
     }
 
+    console.log(`[generateRequirementsFromGoals] Successfully created ${createdRequirements.length} requirements`);
     return {
       success: true,
       requirements: createdRequirements,
       count: createdRequirements.length,
     };
   } catch (error) {
-    console.error('Error generating requirements:', error);
+    console.error('[generateRequirementsFromGoals] Error generating requirements:', error);
+    if (error instanceof Error) {
+      console.error('[generateRequirementsFromGoals] Error stack:', error.stack);
+    }
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error occurred during requirement generation',
     };
   }
 }
@@ -246,10 +266,20 @@ export async function generateRequirementForGoal(
         // Load files from all contexts (limited)
         console.log(`[generateRequirementForGoal] Goal has no specific context, loading project-wide context...`);
         const filesFromAllContexts: Array<{ path: string; content: string }> = [];
-        for (const context of allContexts.slice(0, 3)) {
-          const files = await loadContextFiles(context, projectPath, 2);
-          filesFromAllContexts.push(...files);
+
+        if (allContexts.length > 0) {
+          for (const context of allContexts.slice(0, 3)) {
+            try {
+              const files = await loadContextFiles(context, projectPath, 2);
+              filesFromAllContexts.push(...files);
+            } catch (error) {
+              console.warn(`[generateRequirementForGoal] Failed to load files from context ${context.name}:`, error);
+            }
+          }
+        } else {
+          console.log(`[generateRequirementForGoal] No contexts available. Will generate from goal description only.`);
         }
+
         goalData.contextFiles = filesFromAllContexts;
       }
 

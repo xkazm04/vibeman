@@ -21,9 +21,22 @@ export default function AIDocsDisplay({
   const [content, setContent] = useState<string>('');
   const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('preview');
   const [showContent, setShowContent] = useState(false);
-  
+  const [isModalOpen, setIsModalOpen] = useState(true); // Track if modal should be shown
+
   const { generateDocs, isGenerating, error } = useGenerateAIDocs();
-  const { showInfoModal, showFullScreenModal, closeModal } = useGlobalModal();
+  const { showInfoModal, showFullScreenModal, hideModal, isModalOpen: globalModalOpen } = useGlobalModal();
+
+  // Detect when modal is closed externally (X button, ESC key, backdrop click)
+  useEffect(() => {
+    if (!globalModalOpen && isModalOpen) {
+      // Modal was closed externally, update our state
+      setIsModalOpen(false);
+      setShowContent(false);
+      if (onBack) {
+        onBack();
+      }
+    }
+  }, [globalModalOpen, isModalOpen, onBack]);
 
   const handleGenerate = useCallback(async () => {
     if (!activeProject) {
@@ -33,6 +46,7 @@ export default function AIDocsDisplay({
     try {
       const result = await generateDocs({
         projectName: activeProject.name,
+        projectPath: activeProject.path,
         analysis: analysis || {},
         projectId: activeProject.id,
         provider
@@ -47,12 +61,18 @@ export default function AIDocsDisplay({
     }
   }, [activeProject, analysis, provider, generateDocs]);
 
-  const handleBack = useCallback(() => {
+  const handleClose = useCallback(() => {
     setShowContent(false);
+    setIsModalOpen(false);
+    hideModal(); // Properly close the modal
+  }, [hideModal]);
+
+  const handleBack = useCallback(() => {
+    handleClose();
     if (onBack) {
       onBack();
     }
-  }, [onBack]);
+  }, [onBack, handleClose]);
 
   const handleContentChange = useCallback((newContent: string) => {
     setContent(newContent);
@@ -60,6 +80,8 @@ export default function AIDocsDisplay({
 
   // Show appropriate modal based on current state
   useEffect(() => {
+    if (!isModalOpen) return; // Don't show modal if it's been closed
+
     if (isGenerating) {
       showInfoModal("Generating Documentation", <LoadingAnimation />, {
         subtitle: `AI is analyzing ${activeProject?.name || 'your project'}...`,
@@ -155,7 +177,7 @@ export default function AIDocsDisplay({
         maxHeight: "max-h-[60vh]"
       });
     }
-  }, [isGenerating, error, showContent, content, previewMode, activeProject, showInfoModal, showFullScreenModal, handleGenerate, handleBack, onBack]);
+  }, [isModalOpen, isGenerating, error, showContent, content, previewMode, activeProject, showInfoModal, showFullScreenModal, handleGenerate, handleBack, onBack]);
 
   // Return null since we're using the global modal
   return null;

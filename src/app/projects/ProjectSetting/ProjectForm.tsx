@@ -32,6 +32,7 @@ interface ProjectFormData {
 interface ProjectFormProps {
   initialData?: ProjectFormData;
   onSubmit: (data: ProjectFormData) => Promise<void>;
+  onTypeChange?: (type: 'nextjs' | 'fastapi' | 'other') => Promise<void>;
   loading: boolean;
   error: string;
   isEdit?: boolean;
@@ -64,12 +65,13 @@ const PROJECT_TYPES = [
   }
 ];
 
-export default function ProjectForm({ 
-  initialData, 
-  onSubmit, 
-  loading, 
+export default function ProjectForm({
+  initialData,
+  onSubmit,
+  onTypeChange,
+  loading,
   error,
-  isEdit = false 
+  isEdit = false
 }: ProjectFormProps) {
   const { projects } = useProjectConfigStore();
   const [loadingDirectories, setLoadingDirectories] = useState(false);
@@ -273,7 +275,14 @@ export default function ProjectForm({
                   name="projectType"
                   value={type.value}
                   checked={projectType === type.value}
-                  onChange={(e) => setProjectType(e.target.value as 'nextjs' | 'fastapi' | 'other')}
+                  onChange={(e) => {
+                    const newType = e.target.value as 'nextjs' | 'fastapi' | 'other';
+                    setProjectType(newType);
+                    // Immediately update type in database when editing
+                    if (isEdit && onTypeChange) {
+                      onTypeChange(newType);
+                    }
+                  }}
                   className="sr-only"
                 />
                 <Icon className={`w-6 h-6 mb-2 ${projectType === type.value ? 'text-cyan-400' : type.color}`} />

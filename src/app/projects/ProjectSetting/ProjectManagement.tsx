@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, FolderOpen } from 'lucide-react';
+import { Plus, FolderOpen, Pencil } from 'lucide-react';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
@@ -16,54 +16,71 @@ import ProjectActions from './components/ProjectActions';
 export default function ProjectManagement() {
   const { projects, syncWithServer, initializeProjects } = useProjectConfigStore();
   const { activeProject, setActiveProject } = useActiveProjectStore();
-  const { setShowAddProject } = useProjectsToolbarStore();
+  const { setShowAddProject, showEditProject, setShowEditProject } = useProjectsToolbarStore();
   const { showFullScreenModal, hideModal } = useGlobalModal();
-  const [localProjects, setLocalProjects] = React.useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = React.useState(false);
+  const fetchInProgressRef = React.useRef(false);
 
-  // Fetch projects directly from API
+  // Fetch projects directly from API (debounced to prevent multiple calls)
   const fetchProjects = React.useCallback(async () => {
-    setIsLoadingProjects(true);
-    try {
-      const fetchedProjects = await fetchProjectsApi();
-      setLocalProjects(fetchedProjects);
+    // Prevent concurrent fetches
+    if (fetchInProgressRef.current) {
+      console.log('[ProjectManagement] Fetch already in progress, skipping');
+      return projects;
+    }
 
-      // Also update the store to keep it in sync
+    fetchInProgressRef.current = true;
+    setIsLoadingProjects(true);
+
+    try {
+      // Use store's sync method instead of direct API call
       await syncWithServer();
 
       // Auto-select first project if no active project is set
-      if (fetchedProjects.length > 0 && !activeProject) {
-        setActiveProject(fetchedProjects[0]);
+      const updatedProjects = useProjectConfigStore.getState().projects;
+      if (updatedProjects.length > 0 && !activeProject) {
+        setActiveProject(updatedProjects[0]);
       }
 
-      return fetchedProjects;
+      return updatedProjects;
     } catch (error) {
-      console.error('Failed to fetch projects:', error);
+      console.error('[ProjectManagement] Failed to fetch projects:', error);
     } finally {
       setIsLoadingProjects(false);
+      fetchInProgressRef.current = false;
     }
     return [];
-  }, [activeProject, setActiveProject, syncWithServer]);
+  }, [activeProject, setActiveProject, syncWithServer, projects]);
 
-  // Initialize projects on component mount
+  // Initialize projects on component mount (only once)
   React.useEffect(() => {
-    fetchProjects();
-    // Also try to sync the store
-    initializeProjects();
-  }, [fetchProjects, initializeProjects]);
+    const initialize = async () => {
+      // Only initialize if we don't have projects
+      if (projects.length === 0) {
+        await initializeProjects();
+      }
+    };
+    initialize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 
-  // Use local projects if available, fallback to store projects
-  const displayProjects = localProjects.length > 0 ? localProjects : projects;
+  // Use store projects directly (no need for local state)
+  const displayProjects = projects;
 
-  const handleAddProject = async () => {
-    // Refresh projects before showing add dialog
-    await fetchProjects();
+  const handleAddProject = () => {
+    // No need to refresh - store already has latest data
     setShowAddProject(true);
   };
 
-  const handleProjectTitleClick = async () => {
-    // Ensure we have the latest projects before showing the modal
-    const currentProjects = await fetchProjects();
+  const handleEditProject = () => {
+    if (activeProject) {
+      setShowEditProject(true);
+    }
+  };
+
+  const handleProjectTitleClick = () => {
+    // Use store projects directly (no need to fetch)
+    const currentProjects = displayProjects;
 
     // Always show the modal if there are projects (even if just 1, for consistency)
     if (currentProjects.length > 0) {
@@ -106,7 +123,7 @@ export default function ProjectManagement() {
       {/* Debug info - remove in production */}
       {process.env.NODE_ENV === 'development' && (
         <div className="absolute top-0 right-0 text-xs text-gray-500">
-          Store: {projects.length} | Local: {localProjects.length} | Loading: {isLoadingProjects ? 'Yes' : 'No'}
+          Projects: {projects.length} | Loading: {isLoadingProjects ? 'Yes' : 'No'}
         </div>
       )}
 
@@ -164,17 +181,36 @@ export default function ProjectManagement() {
         )}
       </motion.div>
 
-      {/* Add Project Button */}
-      <motion.button
-        whileHover={{ scale: 1.05, y: -1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={handleAddProject}
-        className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded-xl text-cyan-400 transition-all duration-300 group text-sm flex-shrink-0 shadow-lg shadow-cyan-500/10 backdrop-blur-sm"
-        title="Add new project"
-      >
-        <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-        <span className="font-medium">Add Project</span>
-      </motion.button>
+      {/* Action Buttons */}
+      <div className="flex items-center space-x-2 flex-shrink-0">
+        {/* Edit Active Project Button */}
+        <motion.button
+          whileHover={{ scale: 1.05, y: -1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleEditProject}
+          disabled={!activeProject}
+          className={`p-2.5 rounded-xl transition-all duration-300 ${
+            activeProject
+              ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/20 hover:from-blue-500/30 hover:to-indigo-500/30 border border-blue-500/30 text-blue-400 shadow-lg shadow-blue-500/10'
+              : 'bg-gray-800/40 border border-gray-700/30 text-gray-600 cursor-not-allowed'
+          } backdrop-blur-sm`}
+          title={activeProject ? 'Edit active project' : 'No project selected'}
+        >
+          <Pencil className="w-4 h-4" />
+        </motion.button>
+
+        {/* Add Project Button */}
+        <motion.button
+          whileHover={{ scale: 1.05, y: -1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleAddProject}
+          className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded-xl text-cyan-400 transition-all duration-300 group text-sm flex-shrink-0 shadow-lg shadow-cyan-500/10 backdrop-blur-sm"
+          title="Add new project"
+        >
+          <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
+          <span className="font-medium">Add Project</span>
+        </motion.button>
+      </div>
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { buildPerfOptimizerPrompt } from './perfOptimizerPrompt';
 import { buildSecurityProtectorPrompt } from './securityProtectorPrompt';
 import { buildInsightSynthPrompt } from './insightSynthPrompt';
 import { buildAmbiguityGuardianPrompt } from './ambiguityGuardianPrompt';
-import { ScanType } from '@/app/ideas/lib/ScanTypeConfig';
+import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
 
 export interface PromptOptions {
   projectName: string;

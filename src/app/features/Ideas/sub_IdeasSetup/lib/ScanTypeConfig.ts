@@ -3,14 +3,15 @@
  * Defines all available scan types and their visual properties
  */
 
-export type ScanType = 
+export type ScanType =
   | 'overall'
   | 'zen_architect'
   | 'bug_hunter'
   | 'perf_optimizer'
   | 'security_protector'
   | 'insight_synth'
-  | 'ambiguity_guardian';
+  | 'ambiguity_guardian'
+  | 'business_visionary';
 
 export interface ScanTypeOption {
   value: ScanType;
@@ -76,6 +77,14 @@ export const SCAN_TYPES: ScanTypeOption[] = [
     color: 'bg-gradient-to-r from-cyan-500/20 to-cyan-600/20 border-cyan-500/40 text-cyan-300',
     description: 'Uncertainty navigation & trade-offs',
     agentFile: 'ambiguity_guardian.md'
+  },
+  {
+    value: 'business_visionary',
+    label: 'Business Visionary',
+    emoji: '🚀',
+    color: 'bg-gradient-to-r from-orange-500/20 to-orange-600/20 border-orange-500/40 text-orange-300',
+    description: 'Innovative app ideas & market opportunities',
+    agentFile: 'business_visionary.md'
   }
 ];
 

@@ -109,24 +109,44 @@ export abstract class BaseLLMClient implements LLMProvider {
     let errorCode: number | undefined;
 
     if (error instanceof Error) {
-      if (error.name === 'TimeoutError') {
-        errorMessage = 'Request timed out';
+      if (error.name === 'TimeoutError' || error.name === 'AbortError' || error.message.includes('timed out')) {
+        errorMessage = 'Request timed out - the API took too long to respond';
         errorCode = 408;
-      } else if (error.message.includes('ECONNREFUSED')) {
-        errorMessage = `Unable to connect to ${this.name} service`;
+      } else if (error.message.includes('ECONNREFUSED') || error.message.includes('Connection refused')) {
+        errorMessage = `Unable to connect to ${this.name} service - connection refused`;
         errorCode = 503;
-      } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        errorMessage = 'Invalid API key or unauthorized access';
+      } else if (error.message.includes('ENOTFOUND') || error.message.includes('Network error')) {
+        errorMessage = `Network error: Unable to reach ${this.name} API. Check your internet connection`;
+        errorCode = 503;
+      } else if (error.message.includes('ETIMEDOUT') || error.message.includes('Connection timed out')) {
+        errorMessage = 'Connection timed out - check your network and firewall settings';
+        errorCode = 504;
+      } else if (error.message.includes('401') || error.message.includes('Unauthorized') || error.message.includes('Authentication failed')) {
+        errorMessage = 'Invalid API key or unauthorized access - check your .env file';
         errorCode = 401;
-      } else if (error.message.includes('429') || error.message.includes('rate limit')) {
-        errorMessage = 'Rate limit exceeded';
+      } else if (error.message.includes('429') || error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+        errorMessage = 'Rate limit exceeded - please wait before making more requests';
         errorCode = 429;
       } else if (error.message.includes('400') || error.message.includes('Bad Request')) {
         errorMessage = 'Invalid request parameters';
         errorCode = 400;
+      } else if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
+        errorMessage = 'API server error - this is a temporary issue with the service';
+        errorCode = 500;
+      } else if (error.message.includes('502') || error.message.includes('Bad Gateway')) {
+        errorMessage = 'Bad Gateway - the API server is temporarily unavailable';
+        errorCode = 502;
+      } else if (error.message.includes('503') || error.message.includes('Service Unavailable')) {
+        errorMessage = 'Service unavailable - the API is temporarily down';
+        errorCode = 503;
       } else {
         errorMessage = error.message;
       }
+
+      console.error(`[${this.name}] Error in ${taskType || 'unknown task'}:`, errorMessage);
+    } else {
+      console.error(`[${this.name}] Non-Error object thrown:`, error);
+      errorMessage = String(error);
     }
 
     return {
@@ -176,8 +196,8 @@ export abstract class BaseLLMClient implements LLMProvider {
    * Make HTTP request with timeout and error handling
    */
   protected async makeRequest(
-    url: string, 
-    options: RequestInit, 
+    url: string,
+    options: RequestInit,
     timeoutMs: number = 300000
   ): Promise<Response> {
     const controller = new AbortController();
@@ -193,6 +213,25 @@ export abstract class BaseLLMClient implements LLMProvider {
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
+
+      // Enhance error messages for common network issues
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error(`Request timed out after ${timeoutMs / 1000} seconds. The API took too long to respond.`);
+        } else if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
+          throw new Error(`Network error: Unable to reach ${url}. Check your internet connection and verify the API endpoint is accessible.`);
+        } else if (error.message.includes('ECONNREFUSED')) {
+          throw new Error(`Connection refused: The API server at ${url} is not accepting connections. It may be down or blocked by a firewall.`);
+        } else if (error.message.includes('ETIMEDOUT')) {
+          throw new Error(`Connection timed out while trying to reach ${url}. Check your network connection and firewall settings.`);
+        } else if (error.message.includes('ECONNRESET')) {
+          throw new Error(`Connection was reset by the API server. This is usually a temporary network issue.`);
+        } else if (error.message.includes('certificate') || error.message.includes('SSL') || error.message.includes('TLS')) {
+          throw new Error(`SSL/TLS certificate error: ${error.message}. This could be a security or proxy configuration issue.`);
+        }
+      }
+
+      // Re-throw the original error if we didn't enhance it
       throw error;
     }
   }

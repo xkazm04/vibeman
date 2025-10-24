@@ -73,13 +73,11 @@ export class AnthropicClient extends BaseLLMClient {
       }
 
       progress?.onStart?.(taskId);
-      progress?.onProgress?.(10, 'Connecting to Anthropic...');
+      progress?.onProgress?.(10, 'Preparing request...');
 
-      // Check availability
-      const isAvailable = await this.checkAvailability();
-      if (!isAvailable) {
-        throw new Error('Unable to connect to Anthropic API');
-      }
+      // Skip availability check - it causes more issues than it solves
+      // Just proceed with the actual request and handle errors there
+      // The availability check makes an extra API call and can fail for many reasons
 
       progress?.onProgress?.(20, 'Sending request to Claude...');
 
@@ -120,8 +118,8 @@ export class AnthropicClient extends BaseLLMClient {
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         let errorMessage = `Anthropic API error (${response.status}): ${errorText}`;
-        
-        // Parse Anthropic error format
+
+        // Parse Anthropic error format and provide helpful context
         try {
           const errorData = JSON.parse(errorText);
           if (errorData.error?.message) {
@@ -131,6 +129,18 @@ export class AnthropicClient extends BaseLLMClient {
           // Use the raw error text
         }
 
+        // Add context for common errors
+        if (response.status === 401) {
+          errorMessage = `Authentication failed: ${errorMessage}. Check your ANTHROPIC_API_KEY in .env file`;
+        } else if (response.status === 429) {
+          errorMessage = `Rate limit exceeded: ${errorMessage}. Please wait before making more requests`;
+        } else if (response.status === 500) {
+          errorMessage = `Anthropic service error: ${errorMessage}. This is a temporary issue with Anthropic's API`;
+        } else if (response.status === 529) {
+          errorMessage = `Anthropic service overloaded: ${errorMessage}. The API is temporarily unavailable`;
+        }
+
+        console.error(`[Anthropic] API Error: ${errorMessage}`);
         throw new Error(errorMessage);
       }
 
@@ -221,10 +231,12 @@ export class AnthropicClient extends BaseLLMClient {
   async checkAvailability(): Promise<boolean> {
     try {
       if (!this.apiKey) {
+        console.warn('[Anthropic] No API key configured');
         return false;
       }
 
-      // Test with a minimal request to check if the API key is valid
+      // Use a very short timeout for availability check (10 seconds)
+      // This is only called explicitly, not on every generate() call
       const testResponse = await this.makeRequest(
         `${this.baseUrl}/messages`,
         {
@@ -235,12 +247,19 @@ export class AnthropicClient extends BaseLLMClient {
             max_tokens: 10,
             messages: [{ role: 'user', content: 'Hi' }]
           })
-        }
+        },
+        10000 // 10 second timeout for availability check
       );
 
-      return testResponse.ok;
+      if (testResponse.ok) {
+        console.log('[Anthropic] Availability check passed');
+        return true;
+      } else {
+        console.warn('[Anthropic] Availability check failed:', testResponse.status, testResponse.statusText);
+        return false;
+      }
     } catch (error) {
-      console.warn('Anthropic availability check failed:', error);
+      console.warn('[Anthropic] Availability check error:', error instanceof Error ? error.message : error);
       return false;
     }
   }

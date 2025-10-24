@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(test -d \"C:/Users/kazda/kiro/vibeman/.claude/commands\")",
-      "Bash(curl -X POST http://localhost:3000/api/structure-scan -H \"Content-Type: application/json\" -d \"{\"\"projectPath\"\":\"\"C:/Users/kazda/kiro/story\"\",\"\"projectType\"\":\"\"nextjs\"\",\"\"projectId\"\":\"\"dd11e61e-f267-4e52-95c5-421b1ed9567b\"\"}\")"
+      "Bash(curl -X POST http://localhost:3000/api/structure-scan -H \"Content-Type: application/json\" -d \"{\"\"projectPath\"\":\"\"C:/Users/kazda/kiro/story\"\",\"\"projectType\"\":\"\"nextjs\"\",\"\"projectId\"\":\"\"dd11e61e-f267-4e52-95c5-421b1ed9567b\"\"}\")",
+      "Bash(npm run build)",
+      "Bash(npx tsc --noEmit --project tsconfig.json)",
+      "Bash(cat .env)",
+      "Bash(test -f \"C:\\Users\\kazda\\kiro\\vibeman\\src\\app\\projects\\ProjectSetting\\ProjectEdit.tsx\")",
+      "Bash(npx tsc --noEmit ProjectSetting/*.tsx)"
     ],
     "deny": [],
     "ask": []

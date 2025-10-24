@@ -233,8 +233,16 @@ Generate Claude Code requirements for the following project goals:
           // Ignore parse errors
         }
       }
+    } else if (contextFiles && contextFiles.length > 0) {
+      // Goal has no specific context but we loaded files from multiple contexts
+      prompt += `#### Project-Wide Context\n\n`;
+      prompt += `*This goal is not associated with a specific context. The following files from various contexts provide project-wide understanding:*\n\n`;
+      prompt += `**Relevant Code Files**:\n\n`;
+      contextFiles.forEach((file) => {
+        prompt += `**File**: \`${file.path}\`\n\`\`\`typescript\n${file.content}\n\`\`\`\n\n`;
+      });
     } else {
-      prompt += `*Note: This goal has no associated context. Generate requirements based on the goal description and general project knowledge.*\n\n`;
+      prompt += `*Note: This goal has no associated context and no context files are available. Generate requirements based on the goal description, high-level documentation, and general Next.js/React best practices.*\n\n`;
     }
 
     prompt += `---\n\n`;

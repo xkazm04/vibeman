@@ -13,6 +13,7 @@ import { useProjectConfigStore } from '../../stores/projectConfigStore';
 import { deleteProject } from './ProjectSetting/lib/projectApi';
 import AIProjectReviewModal from './AIProjectReviewModal';
 import ProjectAdd from './ProjectSetting/ProjectAdd';
+import ProjectEdit from './ProjectSetting/ProjectEdit';
 import ProjectManagement from './ProjectSetting/ProjectManagement';
 import ReviewerPanel from '../reviewer/ReviewerPanel';
 import CodeReviewModal from '../reviewer/CodeReviewModal';
@@ -24,8 +25,10 @@ export default function ProjectsLayout() {
   const { syncWithServer } = useProjectConfigStore();
   const {
     showAddProject,
+    showEditProject,
     showAIReview,
     setShowAddProject,
+    setShowEditProject,
     setShowAddGoal,
     setShowAIReview,
   } = useProjectsToolbarStore();
@@ -52,7 +55,14 @@ export default function ProjectsLayout() {
 
   // Handle project added - refresh the project list
   const handleProjectAdded = async () => {
+    // Only sync for additions, as they need to fetch the full project data
     await syncWithServer();
+  };
+
+  // Handle project updated - no need to refresh, optimistic updates handle it
+  const handleProjectUpdated = () => {
+    // Stores are already updated optimistically, no need to fetch
+    console.log('[ProjectsLayout] Project updated via optimistic update');
   };
 
   // Handle project deletion
@@ -161,6 +171,14 @@ export default function ProjectsLayout() {
         isOpen={showAddProject}
         onClose={() => setShowAddProject(false)}
         onProjectAdded={handleProjectAdded}
+      />
+
+      {/* Edit Project Modal */}
+      <ProjectEdit
+        isOpen={showEditProject}
+        onClose={() => setShowEditProject(false)}
+        onProjectUpdated={handleProjectUpdated}
+        project={activeProject}
       />
 
       {/* Code Review Modal - Rendered at layout level for proper z-index */}

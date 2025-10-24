@@ -83,7 +83,7 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
       </motion.div>
 
       {/* Ideas List */}
-      <div className="space-y-1.5 flex-1 overflow-y-auto">
+      <div className="space-y-1.5 flex-1 overflow-y-auto max-h-[50vh] overflow-x-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <motion.div

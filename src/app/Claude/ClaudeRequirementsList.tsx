@@ -34,6 +34,7 @@ export default function ClaudeRequirementsList({
   const [expandedReq, setExpandedReq] = useState<string | null>(null);
   const [hasContextScan, setHasContextScan] = useState(false);
   const executionQueueRef = useRef<string[]>([]);
+  const isExecutingRef = useRef<boolean>(false); // Prevent concurrent executions
 
   useEffect(() => {
     loadRequirements();
@@ -43,8 +44,14 @@ export default function ClaudeRequirementsList({
   // Auto-process queue
   useEffect(() => {
     const runningReq = requirements.find((r) => r.status === 'running');
-    if (!runningReq && executionQueueRef.current.length > 0) {
+
+    // Only process queue if:
+    // 1. Nothing is currently running in the UI
+    // 2. There are items in the queue
+    // 3. We're not already in the process of executing a requirement
+    if (!runningReq && executionQueueRef.current.length > 0 && !isExecutingRef.current) {
       const nextReqName = executionQueueRef.current[0];
+      console.log(`[Queue] Auto-processing next requirement: ${nextReqName}`);
       executeRequirement(nextReqName);
     }
   }, [requirements]);
@@ -83,6 +90,15 @@ export default function ClaudeRequirementsList({
   };
 
   const executeRequirement = async (name: string) => {
+    // Guard against concurrent executions
+    if (isExecutingRef.current) {
+      console.warn(`[Execute] Already executing a requirement, skipping: ${name}`);
+      return;
+    }
+
+    console.log(`[Execute] Starting execution: ${name}`);
+    isExecutingRef.current = true;
+
     // Update status to running
     setRequirements((prev) =>
       prev.map((r) =>
@@ -100,6 +116,7 @@ export default function ClaudeRequirementsList({
 
     // Remove from queue
     executionQueueRef.current = executionQueueRef.current.filter((n) => n !== name);
+    console.log(`[Execute] Queue now has ${executionQueueRef.current.length} items`);
 
     try {
       // Use async execution (non-blocking)
@@ -119,8 +136,10 @@ export default function ClaudeRequirementsList({
 
         // Timeout safeguard
         if (pollCount >= maxPolls) {
-          console.error('Task polling timeout - marking as failed');
+          console.error('[Execute] Task polling timeout - marking as failed');
           clearInterval(pollInterval);
+          isExecutingRef.current = false; // Allow next execution
+
           setRequirements((prev) =>
             prev.map((r) =>
               r.name === name
@@ -161,9 +180,12 @@ export default function ClaudeRequirementsList({
             task.status === 'session-limit'
           ) {
             clearInterval(pollInterval);
+            isExecutingRef.current = false; // Allow next execution
+            console.log(`[Execute] Finished: ${name}, status: ${task.status}`);
 
             // If session limit, cancel queue
             if (task.status === 'session-limit') {
+              console.log('[Execute] Session limit reached, clearing queue');
               setRequirements((prev) =>
                 prev.map((r) => (r.status === 'queued' ? { ...r, status: 'idle' as const } : r))
               );
@@ -177,6 +199,9 @@ export default function ClaudeRequirementsList({
       }, 2000); // Poll every 2 seconds
     } catch (err: any) {
       // Failed to queue task
+      console.error(`[Execute] Failed to queue: ${name}`, err);
+      isExecutingRef.current = false; // Allow next execution
+
       setRequirements((prev) =>
         prev.map((r) =>
           r.name === name
@@ -225,7 +250,7 @@ export default function ClaudeRequirementsList({
   };
 
   const handleBatchCode = (requirementNames: string[]) => {
-    console.log(`[BatchCode] 📋 Queueing ${requirementNames.length} requirements`);
+    console.log(`[BatchCode] 📋 Starting batch code for ${requirementNames.length} requirements`);
 
     // Queue all requirements
     requirementNames.forEach((name) => {
@@ -233,6 +258,8 @@ export default function ClaudeRequirementsList({
         executionQueueRef.current.push(name);
       }
     });
+
+    console.log(`[BatchCode] Queue now has ${executionQueueRef.current.length} items`);
 
     // Update all as queued
     setRequirements((prev) =>
@@ -243,12 +270,24 @@ export default function ClaudeRequirementsList({
       )
     );
 
-    // If nothing is running, start the first one
-    const runningReq = requirements.find((r) => r.status === 'running');
-    if (!runningReq && executionQueueRef.current.length > 0) {
-      const nextReqName = executionQueueRef.current[0];
-      executeRequirement(nextReqName);
-    }
+    // Use setTimeout to ensure state update completes before starting execution
+    // This prevents race conditions where we check for running tasks before state updates
+    setTimeout(() => {
+      const runningReq = requirements.find((r) => r.status === 'running');
+      const isAlreadyExecuting = isExecutingRef.current;
+
+      console.log(`[BatchCode] Checking conditions - Running: ${!!runningReq}, Already executing: ${isAlreadyExecuting}, Queue length: ${executionQueueRef.current.length}`);
+
+      if (!runningReq && !isAlreadyExecuting && executionQueueRef.current.length > 0) {
+        const nextReqName = executionQueueRef.current[0];
+        console.log(`[BatchCode] Starting first requirement: ${nextReqName}`);
+        executeRequirement(nextReqName);
+      } else if (runningReq) {
+        console.log(`[BatchCode] Already running: ${runningReq.name}, queue will auto-process`);
+      } else if (isAlreadyExecuting) {
+        console.log(`[BatchCode] Already executing a requirement, queue will auto-process`);
+      }
+    }, 100); // Small delay to allow state update
   };
 
   const handleViewDetail = (name: string) => {

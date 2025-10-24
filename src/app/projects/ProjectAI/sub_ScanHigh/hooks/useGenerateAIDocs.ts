@@ -2,7 +2,8 @@ import { useState, useCallback } from 'react';
 
 interface GenerateAIDocsParams {
   projectName: string;
-  analysis: any;
+  projectPath: string;
+  analysis?: any;
   projectId?: string;
   provider?: string;
 }

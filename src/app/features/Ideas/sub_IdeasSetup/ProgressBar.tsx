@@ -6,7 +6,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, XCircle } from 'lucide-react';
-import { getScanTypeConfig } from '../lib/ScanTypeConfig';
+import { getScanTypeConfig } from './lib/ScanTypeConfig';
 import { QueueItem, ContextQueueItem } from '../lib/scanTypes';
 
 interface ProgressBarProps {

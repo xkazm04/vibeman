@@ -161,11 +161,11 @@ export default function ScanHighModalContent({
             )}
           </div>
         ) : (
-          <div className="h-full">
+          <div className="h-full min-h-[70vh]">
             <textarea
               value={content}
               onChange={(e) => onContentChange?.(e.target.value)}
-              className="w-full h-full bg-slate-900/50 text-slate-300 font-mono text-sm resize-none border border-slate-700/30 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent backdrop-blur-sm custom-scrollbar"
+              className="w-full h-full min-h-[70vh] bg-slate-900/50 text-slate-300 font-mono text-sm resize-none border border-slate-700/30 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent backdrop-blur-sm custom-scrollbar"
               placeholder="AI-generated documentation will appear here..."
             />
           </div>
