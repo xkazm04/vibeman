@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { contextDb, DbContext } from '@/lib/database';
 import { contextQueries } from '@/lib/queries/contextQueries';
-import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
+import { llmManager } from '@/lib/llm/llm-manager';
+import { SupportedProvider } from '@/lib/llm/types';
 
 export interface FileChange {
   path: string;
@@ -241,7 +242,8 @@ export async function analyzeChanges(
 export async function generateContextDescription(
   contextName: string,
   filePaths: string[],
-  projectPath: string
+  projectPath: string,
+  provider: SupportedProvider = 'ollama'
 ): Promise<string> {
   try {
     // Load file contents (limit to 500 chars per file)
@@ -276,18 +278,14 @@ export async function generateContextDescription(
     }
     userPrompt += `Generate a concise description (1-2 sentences) of what this context represents.`;
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return `Context for ${contextName}`;
-    }
-
-    const anthropic = new AnthropicClient({ apiKey });
-    const response = await anthropic.generate({
+    const response = await llmManager.generate({
       prompt: userPrompt,
       systemPrompt,
+      provider,
       maxTokens: 2000,
       temperature: 0.5,
-      projectId: 'context-gen',
+      taskType: 'context-auto-update',
+      taskDescription: 'Generate context description for auto-update',
     });
 
     if (response.success && response.response) {
@@ -307,7 +305,8 @@ export async function generateContextDescription(
 export async function autoUpdateContexts(
   projectId: string,
   projectPath: string,
-  beforeSnapshot: Map<string, number>
+  beforeSnapshot: Map<string, number>,
+  provider: SupportedProvider = 'ollama'
 ): Promise<ContextUpdateResult[]> {
   const results: ContextUpdateResult[] = [];
 
@@ -339,7 +338,8 @@ export async function autoUpdateContexts(
         const description = await generateContextDescription(
           analysis.newFeatureName,
           analysis.newFeatureFiles,
-          projectPath
+          projectPath,
+          provider
         );
 
         // Create new context
@@ -412,7 +412,8 @@ export async function autoUpdateContexts(
             const newDescription = await generateContextDescription(
               context.name,
               updatedFilePaths,
-              projectPath
+              projectPath,
+              provider
             );
 
             // Update context

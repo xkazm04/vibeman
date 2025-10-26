@@ -17,6 +17,8 @@ export interface ContextGenerationRequest {
 export interface ContextDescriptionRequest {
   filePaths: string[];
   projectPath: string;
+  provider?: string;
+  model?: string;
 }
 
 /**

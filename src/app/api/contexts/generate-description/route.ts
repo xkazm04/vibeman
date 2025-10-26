@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
+import { llmManager } from '@/lib/llm/llm-manager';
+import { SupportedProvider } from '@/lib/llm/types';
 import { buildDescriptionGenerationPrompt } from '@/app/coder/Context/ContextGen/lib/contextGenPrompts';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { filePaths, projectPath } = body;
+    const { filePaths, projectPath, provider, model } = body;
 
     // Validate input
     if (!filePaths || !Array.isArray(filePaths) || filePaths.length === 0) {
@@ -61,14 +62,14 @@ export async function POST(request: NextRequest) {
     // Build prompt
     const prompt = buildDescriptionGenerationPrompt({ fileContents });
 
-    // Generate description using Anthropic
-    const anthropic = new AnthropicClient({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    // Generate description using LLM Manager
+    // Default to ollama if no provider specified
+    const selectedProvider: SupportedProvider = (provider as SupportedProvider) || 'ollama';
 
-    const result = await anthropic.generate({
+    const result = await llmManager.generate({
       prompt,
-      model: 'claude-haiku-4-5-20251001', // Fast model for quick generation
+      provider: selectedProvider,
+      model: model, // Use specified model or provider's default
       maxTokens: 4000, // Increased to allow longer descriptions
       temperature: 0.7,
       taskType: 'context-description-generation',

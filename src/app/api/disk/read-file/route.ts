@@ -44,14 +44,29 @@ export async function POST(request: NextRequest) {
         filePath: fullPath
       });
     } catch (fileError) {
+      // Use debug/info logging for file not found - it's a natural state
+      const errorCode = (fileError as NodeJS.ErrnoException).code;
+      if (errorCode === 'ENOENT') {
+        // File doesn't exist - this is expected in many cases, just return 404
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'File not found',
+            filePath: fullPath
+          },
+          { status: 404 }
+        );
+      }
+
+      // Other errors (permissions, etc.) are actual problems worth logging
       console.error(`Failed to read file ${fullPath}:`, fileError);
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: `Failed to read file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
           filePath: fullPath
         },
-        { status: 404 }
+        { status: 500 }
       );
     }
   } catch (error) {

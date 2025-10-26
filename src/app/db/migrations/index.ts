@@ -20,6 +20,12 @@ export function runMigrations() {
     // Migration 4: Add scan_type column to ideas table
     migrateIdeasScanType();
 
+    // Migration 5: Add effort and impact columns to ideas table
+    migrateIdeasEffortImpact();
+
+    // Migration 6: Add implemented_at column to ideas table
+    migrateIdeasImplementedAt();
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -346,5 +352,71 @@ function migrateIdeasScanType() {
     }
   } catch (error) {
     console.error('Error migrating ideas table scan_type:', error);
+  }
+}
+
+/**
+ * Add effort and impact columns to ideas table
+ */
+function migrateIdeasEffortImpact() {
+  const db = getDatabase();
+
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(ideas)").all() as Array<{
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: any;
+      pk: number;
+    }>;
+
+    const hasEffort = tableInfo.some(col => col.name === 'effort');
+    const hasImpact = tableInfo.some(col => col.name === 'impact');
+
+    if (!hasEffort) {
+      console.log('Adding effort column to ideas table');
+      db.exec(`ALTER TABLE ideas ADD COLUMN effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 3))`);
+    }
+
+    if (!hasImpact) {
+      console.log('Adding impact column to ideas table');
+      db.exec(`ALTER TABLE ideas ADD COLUMN impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 3))`);
+    }
+
+    if (hasEffort && hasImpact) {
+      console.log('Ideas table already has effort and impact columns');
+    }
+  } catch (error) {
+    console.error('Error migrating ideas table effort/impact:', error);
+  }
+}
+
+/**
+ * Add implemented_at column to ideas table
+ */
+function migrateIdeasImplementedAt() {
+  const db = getDatabase();
+
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(ideas)").all() as Array<{
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: any;
+      pk: number;
+    }>;
+
+    const hasImplementedAt = tableInfo.some(col => col.name === 'implemented_at');
+
+    if (!hasImplementedAt) {
+      console.log('Adding implemented_at column to ideas table');
+      db.exec(`ALTER TABLE ideas ADD COLUMN implemented_at TEXT`);
+    } else {
+      console.log('Ideas table already has implemented_at column');
+    }
+  } catch (error) {
+    console.error('Error migrating ideas table implemented_at:', error);
   }
 }

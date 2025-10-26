@@ -3,6 +3,8 @@
  * Centralized type system for all database entities
  */
 
+import type { IdeaCategory } from '@/types/ideaCategory';
+
 // Goal types
 export interface DbGoal {
   id: string;
@@ -79,13 +81,19 @@ export interface DbIdea {
   project_id: string;
   context_id: string | null;
   scan_type: string; // Type of scan that generated this idea
-  category: 'functionality' | 'performance' | 'maintenance' | 'ui' | 'code_quality' | 'user_benefit';
+  category: string; // Accepts any text, but IdeaCategory enum provides guidelines
   title: string;
   description: string | null;
   reasoning: string | null;
   status: 'pending' | 'accepted' | 'rejected' | 'implemented';
   user_feedback: string | null;
   user_pattern: number; // Boolean flag (0 or 1)
+  effort: number | null; // 1 = lowest effort, 3 = highest effort
+  impact: number | null; // 1 = lowest impact, 3 = highest impact
   created_at: string;
   updated_at: string;
+  implemented_at: string | null; // Date when idea was implemented
 }
+
+// Export standard category type for use in type annotations
+export type { IdeaCategory };

@@ -8,6 +8,7 @@ import { buildSpecializedPrompt } from './lib/specializdPrompts';
 import { buildCodeSection, buildContextSection, buildExistingIdeasSection } from './lib/sectionBuilders';
 import { ScanType } from '@/app/ideas/components/ScanTypeSelector';
 import { v4 as uuidv4 } from 'uuid';
+import type { IdeaCategory } from '@/types/ideaCategory';
 
 export interface IdeaGenerationOptions {
   projectId: string;
@@ -20,10 +21,12 @@ export interface IdeaGenerationOptions {
 }
 
 export interface GeneratedIdea {
-  category: 'functionality' | 'performance' | 'maintenance' | 'ui' | 'code_quality' | 'user_benefit';
+  category: string; // Accepts any string, IdeaCategory provides standard guideline values
   title: string;
   description: string;
   reasoning: string;
+  effort?: number; // 1 = lowest, 3 = highest
+  impact?: number; // 1 = lowest, 3 = highest
 }
 
 /**
@@ -177,7 +180,9 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
         title: idea.title,
         description: idea.description,
         reasoning: idea.reasoning,
-        status: 'pending'
+        status: 'pending',
+        effort: idea.effort || null,
+        impact: idea.impact || null
       });
     });
 

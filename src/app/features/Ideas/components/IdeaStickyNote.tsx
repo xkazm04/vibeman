@@ -2,13 +2,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { DbIdea } from '@/lib/database';
 import {
-  Zap,
-  Gauge,
-  Wrench,
-  Palette,
-  Code2,
-  Heart
-} from 'lucide-react';
+  getCategoryConfig,
+  statusConfig,
+  effortConfig,
+  impactConfig,
+  EffortIcon,
+  ImpactIcon
+} from '../lib/ideaConfig';
 
 interface IdeaStickyNoteProps {
   idea: DbIdea;
@@ -16,24 +16,8 @@ interface IdeaStickyNoteProps {
   onClick: () => void;
 }
 
-const categoryConfig = {
-  functionality: { emoji: '⚡', icon: Zap, color: 'blue' },
-  performance: { emoji: '📊', icon: Gauge, color: 'green' },
-  maintenance: { emoji: '🔧', icon: Wrench, color: 'amber' },
-  ui: { emoji: '🎨', icon: Palette, color: 'pink' },
-  code_quality: { emoji: '💻', icon: Code2, color: 'purple' },
-  user_benefit: { emoji: '❤️', icon: Heart, color: 'red' },
-};
-
-const statusConfig = {
-  pending: { bg: 'bg-gray-700/20', border: 'border-gray-600/40', shadow: 'shadow-gray-500/5' },
-  accepted: { bg: 'bg-green-500/10', border: 'border-green-500/30', shadow: 'shadow-green-500/10' },
-  rejected: { bg: 'bg-red-500/10', border: 'border-red-500/30', shadow: 'shadow-red-500/10' },
-  implemented: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', shadow: 'shadow-amber-500/10' },
-};
-
 export default function IdeaStickyNote({ idea, index, onClick }: IdeaStickyNoteProps) {
-  const config = categoryConfig[idea.category];
+  const config = getCategoryConfig(idea.category);
   const statusStyle = statusConfig[idea.status];
 
   const formatDate = (dateString: string) => {
@@ -77,6 +61,28 @@ export default function IdeaStickyNote({ idea, index, onClick }: IdeaStickyNoteP
       <h3 className="text-base font-semibold text-white mb-3 pr-8 leading-snug line-clamp-3 group-hover:text-blue-300 transition-colors">
         {idea.title}
       </h3>
+
+      {/* Effort and Impact indicators */}
+      {(idea.effort || idea.impact) && (
+        <div className="flex items-center gap-2 mb-2">
+          {idea.effort && (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-800/40 rounded-md border border-gray-700/40">
+              <EffortIcon className={`w-3 h-3 ${effortConfig[idea.effort]?.color || 'text-gray-400'}`} />
+              <span className={`text-[10px] font-semibold ${effortConfig[idea.effort]?.color || 'text-gray-400'}`}>
+                {effortConfig[idea.effort]?.label || 'N/A'}
+              </span>
+            </div>
+          )}
+          {idea.impact && (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-800/40 rounded-md border border-gray-700/40">
+              <ImpactIcon className={`w-3 h-3 ${impactConfig[idea.impact]?.color || 'text-gray-400'}`} />
+              <span className={`text-[10px] font-semibold ${impactConfig[idea.impact]?.color || 'text-gray-400'}`}>
+                {impactConfig[idea.impact]?.label || 'N/A'}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Scan Type label */}
       <div className="flex items-center justify-between mt-auto">

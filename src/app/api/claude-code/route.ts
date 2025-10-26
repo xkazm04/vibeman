@@ -289,6 +289,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Log detailed task status for debugging
+      console.log('[API Backend] 📊 Task status:', {
+        taskId,
+        status: task.status,
+        hasError: !!task.error,
+        error: task.error,
+        hasOutput: !!task.output,
+        progressLines: task.progress?.length || 0,
+      });
+
       return NextResponse.json({ task });
     }
 

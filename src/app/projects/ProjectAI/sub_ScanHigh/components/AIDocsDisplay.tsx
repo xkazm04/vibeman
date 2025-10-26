@@ -26,6 +26,11 @@ export default function AIDocsDisplay({
   const { generateDocs, isGenerating, error } = useGenerateAIDocs();
   const { showInfoModal, showFullScreenModal, hideModal, isModalOpen: globalModalOpen } = useGlobalModal();
 
+  // Debug: Track isGenerating changes
+  useEffect(() => {
+    console.log('[AIDocsDisplay] isGenerating changed to:', isGenerating);
+  }, [isGenerating]);
+
   // Detect when modal is closed externally (X button, ESC key, backdrop click)
   useEffect(() => {
     if (!globalModalOpen && isModalOpen) {
@@ -43,6 +48,8 @@ export default function AIDocsDisplay({
       return;
     }
 
+    console.log('[AIDocsDisplay] Starting generation...');
+
     try {
       const result = await generateDocs({
         projectName: activeProject.name,
@@ -52,12 +59,14 @@ export default function AIDocsDisplay({
         provider
       });
 
+      console.log('[AIDocsDisplay] Generation result:', result.success);
+
       if (result.success && result.review) {
         setContent(result.review);
         setShowContent(true);
       }
     } catch (err) {
-      console.error('Generation failed:', err);
+      console.error('[AIDocsDisplay] Generation failed:', err);
     }
   }, [activeProject, analysis, provider, generateDocs]);
 
@@ -80,9 +89,12 @@ export default function AIDocsDisplay({
 
   // Show appropriate modal based on current state
   useEffect(() => {
+    console.log('[AIDocsDisplay] useEffect - isModalOpen:', isModalOpen, 'isGenerating:', isGenerating, 'error:', error, 'showContent:', showContent);
+
     if (!isModalOpen) return; // Don't show modal if it's been closed
 
     if (isGenerating) {
+      console.log('[AIDocsDisplay] Showing loading modal...');
       showInfoModal("Generating Documentation", <LoadingAnimation />, {
         subtitle: `AI is analyzing ${activeProject?.name || 'your project'}...`,
         icon: FileText,
@@ -92,6 +104,7 @@ export default function AIDocsDisplay({
         maxHeight: "max-h-[50vh]"
       });
     } else if (error) {
+      console.log('[AIDocsDisplay] Showing error modal...');
       showInfoModal("Generation Failed", (
         <div className="text-center max-w-md">
           <p className="text-red-400 mb-6">{error}</p>
@@ -120,6 +133,7 @@ export default function AIDocsDisplay({
         maxHeight: "max-h-[50vh]"
       });
     } else if (showContent && content) {
+      console.log('[AIDocsDisplay] Showing content modal...');
       const modalContent = (
         <ScanHighModalContent
           content={content}
@@ -138,6 +152,7 @@ export default function AIDocsDisplay({
         iconColor: "text-slate-300"
       });
     } else if (!showContent && !isGenerating && !error) {
+      console.log('[AIDocsDisplay] Showing initial prompt modal...');
       // Show initial generation interface
       showInfoModal("AI Documentation Generator", (
         <div className="text-center max-w-md">

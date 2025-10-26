@@ -1,0 +1,46 @@
+/* UniversalSelect.module.css */
+.universalSelect option {
+  background: rgb(17 24 39) !important; /* gray-900 */
+  color: rgb(229 231 235) !important; /* gray-200 */
+  padding: 8px 16px !important;
+}
+
+.universalSelect option:hover {
+  background: rgba(88 28 135 / 0.4) !important; /* purple-900/40 */
+  color: white !important;
+}
+
+.universalSelect option:checked {
+  background: rgba(88 28 135 / 0.6) !important; /* purple-900/60 */
+  color: white !important;
+}
+
+.universalSelect option:disabled {
+  background: rgb(17 24 39) !important; /* gray-900 */
+  color: rgb(107 114 128) !important; /* gray-500 */
+  opacity: 0.5 !important;
+}
+
+/* For webkit browsers */
+.universalSelect {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.universalSelect::-webkit-scrollbar {
+  width: 8px;
+}
+
+.universalSelect::-webkit-scrollbar-track {
+  background: rgb(17 24 39); /* gray-900 */
+}
+
+.universalSelect::-webkit-scrollbar-thumb {
+  background: rgb(75 85 99); /* gray-600 */
+  border-radius: 4px;
+}
+
+.universalSelect::-webkit-scrollbar-thumb:hover {
+  background: rgb(107 114 128); /* gray-500 */
+}

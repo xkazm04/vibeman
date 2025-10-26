@@ -1,5 +1,5 @@
 import { getDatabase } from '../connection';
-import { DbIdea } from '../models/types';
+import { DbIdea, IdeaCategory } from '../models/types';
 
 /**
  * Idea Repository
@@ -69,6 +69,7 @@ export const ideaRepository = {
 
   /**
    * Create a new idea
+   * @param idea.category - Accepts any string, but IdeaCategory provides standard guideline values
    */
   createIdea: (idea: {
     id: string;
@@ -76,13 +77,15 @@ export const ideaRepository = {
     project_id: string;
     context_id?: string | null;
     scan_type: string;
-    category: 'functionality' | 'performance' | 'maintenance' | 'ui' | 'code_quality' | 'user_benefit';
+    category: string; // Accepts any string, IdeaCategory enum provides guidelines
     title: string;
     description?: string;
     reasoning?: string;
     status?: 'pending' | 'accepted' | 'rejected' | 'implemented';
     user_feedback?: string;
     user_pattern?: boolean;
+    effort?: number | null;
+    impact?: number | null;
   }): DbIdea => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -90,9 +93,9 @@ export const ideaRepository = {
     const stmt = db.prepare(`
       INSERT INTO ideas (
         id, scan_id, project_id, context_id, scan_type, category, title, description,
-        reasoning, status, user_feedback, user_pattern, created_at, updated_at
+        reasoning, status, user_feedback, user_pattern, effort, impact, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -108,6 +111,8 @@ export const ideaRepository = {
       idea.status || 'pending',
       idea.user_feedback || null,
       idea.user_pattern ? 1 : 0,
+      idea.effort || null,
+      idea.impact || null,
       now,
       now
     );
@@ -126,6 +131,8 @@ export const ideaRepository = {
     title?: string;
     description?: string;
     reasoning?: string;
+    effort?: number | null;
+    impact?: number | null;
   }): DbIdea | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -156,6 +163,14 @@ export const ideaRepository = {
     if (updates.reasoning !== undefined) {
       updateFields.push('reasoning = ?');
       values.push(updates.reasoning || null);
+    }
+    if (updates.effort !== undefined) {
+      updateFields.push('effort = ?');
+      values.push(updates.effort);
+    }
+    if (updates.impact !== undefined) {
+      updateFields.push('impact = ?');
+      values.push(updates.impact);
     }
 
     if (updateFields.length === 0) {

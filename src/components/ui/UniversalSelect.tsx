@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Loader2 } from 'lucide-react';
+import styles from './UniversalSelect.module.css';
 
 interface SelectOption {
   value: string;
@@ -72,17 +73,17 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
       default:
         return {
           container: 'relative group',
-          select: `w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg 
-                  text-white focus:outline-none focus:border-slate-500/50 focus:ring-2 focus:ring-slate-500/20 
+          select: `w-full px-4 py-3 bg-gray-800/60 border border-gray-700/40 rounded-lg 
+                  text-gray-300 focus:outline-none focus:border-purple-500/40 focus:ring-2 focus:ring-purple-500/20 
                   transition-all appearance-none cursor-pointer
-                  hover:bg-slate-800/70 hover:border-slate-600/50
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800/50`,
-          option: `bg-slate-900 text-white py-2 px-4 font-medium
-                  hover:bg-slate-800 hover:text-slate-50
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-400`,
-          icon: 'text-slate-400 group-hover:text-slate-300',
-          label: 'text-slate-300 text-sm font-medium tracking-wide',
-          helper: 'text-slate-400 text-xs'
+                  hover:bg-gray-700/60 hover:border-gray-600/50
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-800/60`,
+          option: `bg-gray-900 text-gray-200 py-2 px-4 font-medium
+                  hover:bg-purple-900/40 hover:text-white
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:text-gray-500`,
+          icon: 'text-gray-400 group-hover:text-gray-300',
+          label: 'text-gray-300 text-sm font-medium tracking-wide',
+          helper: 'text-gray-400 text-xs'
         };
     }
   };
@@ -106,7 +107,7 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled || isLoading}
-          className={variantClasses.select}
+          className={`${variantClasses.select} ${styles.universalSelect}`}
           required={required}
         >
           {placeholder && (

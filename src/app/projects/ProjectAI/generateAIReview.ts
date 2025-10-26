@@ -1,38 +1,10 @@
-import { readFile } from 'fs/promises';
-import { join } from 'path';
 import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 
 // Generate AI documentation review
 export async function generateAIReview(projectName: string, analysis: any, projectId?: string, provider?: string): Promise<string> {
-  // Read the project prompt template
-  let promptTemplate = '';
-  try {
-    // Try multiple possible paths
-    const possiblePaths = [
-      join(process.cwd(), 'vibeman', 'src', 'app', 'projects', 'templates', 'project-prompt.md'),
-      join(process.cwd(), 'src', 'app', 'projects', 'templates', 'project-prompt.md'),
-      join(__dirname, '..', '..', 'templates', 'project-prompt.md'),
-      join(__dirname, '..', '..', '..', 'templates', 'project-prompt.md')
-    ];
-    
-    for (const templatePath of possiblePaths) {
-      try {
-        console.log(`Attempting to read project-prompt template from: ${templatePath}`);
-        promptTemplate = await readFile(templatePath, 'utf-8');
-        console.log(`Successfully read project-prompt.md template (${promptTemplate.length} characters)`);
-        break;
-      } catch (pathError) {
-        console.log(`Path ${templatePath} failed:`, pathError.message);
-        continue;
-      }
-    }
-    
-    if (!promptTemplate) {
-      throw new Error('Could not find project-prompt.md in any of the expected locations');
-    }
-  } catch (error) {
-    console.warn('Could not read project-prompt.md template, using fallback. Error:', error);
-    promptTemplate = `You are an expert software architect and technical reviewer. Analyze this repository and provide a comprehensive technical documentation following this EXACT structure:
+  // Use the optimized fallback prompt as primary - it's comprehensive and works well
+  // Reading from external file has proven to be unreliable due to path variations across environments
+  const promptTemplate = `You are an expert software architect and technical reviewer. Analyze this repository and provide a comprehensive technical documentation following this EXACT structure:
 
 # 📋 Application Overview
 
@@ -126,7 +98,6 @@ export async function generateAIReview(projectName: string, analysis: any, proje
 
 ---
 *Analysis complete. This structure ensures consistent, scannable technical documentation.*`;
-  }
 
   // Build the analysis data section with safe fallbacks
   const buildAnalysisSection = () => {

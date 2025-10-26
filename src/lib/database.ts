@@ -131,13 +131,16 @@ function initializeTables() {
       scan_id TEXT NOT NULL,
       project_id TEXT NOT NULL,
       context_id TEXT,
-      category TEXT NOT NULL CHECK (category IN ('functionality', 'performance', 'maintenance', 'ui', 'code_quality', 'user_benefit')),
+      scan_type TEXT DEFAULT 'overall',
+      category TEXT NOT NULL,
       title TEXT NOT NULL,
       description TEXT,
       reasoning TEXT,
       status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'implemented')),
       user_feedback TEXT,
       user_pattern INTEGER DEFAULT 0,
+      effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 3)),
+      impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 3)),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
@@ -1303,7 +1306,7 @@ export interface DbIdea {
   project_id: string;
   context_id: string | null;
   scan_type: string; // Type of scan that generated this idea
-  category: 'functionality' | 'performance' | 'maintenance' | 'ui' | 'code_quality' | 'user_benefit';
+  category: string; // Accepts any text, but IdeaCategory enum provides guidelines
   title: string;
   description: string | null;
   reasoning: string | null;
@@ -1372,7 +1375,7 @@ export const ideaDb = {
     scan_id: string;
     project_id: string;
     context_id?: string | null;
-    category: 'functionality' | 'performance' | 'maintenance' | 'ui' | 'code_quality' | 'user_benefit';
+    category: string; // Accepts any string, IdeaCategory enum provides guidelines
     title: string;
     description?: string;
     reasoning?: string;

@@ -579,6 +579,7 @@ Begin implementation now.`;
         logMessage(`Requirement length: ${requirementContent.length} characters`);
         logMessage(`Full prompt length: ${fullPrompt.length} characters`);
         logMessage(`Temp prompt file: ${tempPromptFile}`);
+        logMessage(`Authentication mode: Web subscription (ANTHROPIC_API_KEY removed from environment)`);
         logMessage('');
 
         // Use stdin piping instead of command line arguments to avoid escaping issues
@@ -593,11 +594,16 @@ Begin implementation now.`;
           '--dangerously-skip-permissions',
         ];
 
+        // Prepare environment - remove ANTHROPIC_API_KEY to force web auth usage
+        const env = { ...process.env };
+        delete env.ANTHROPIC_API_KEY; // Remove API key to use web subscription auth
+
         // Spawn the process (non-blocking)
         const childProcess = spawn(command, args, {
           cwd: projectPath,
           stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr
           shell: isWindows, // Required on Windows for .cmd files
+          env, // Use modified environment without API key
         });
 
         // Write the prompt to stdin
@@ -703,7 +709,7 @@ Begin implementation now.`;
             childProcess.kill();
             closeLogStream();
           }
-        }, 600000); // 10 minute timeout
+        }, 6000000); // 100 minute timeout
 
         // Clear timeout when process completes
         childProcess.on('close', () => {

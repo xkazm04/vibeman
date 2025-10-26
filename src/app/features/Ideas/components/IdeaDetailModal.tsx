@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { DbIdea } from '@/app/db';
-import { X, Check, XCircle, Star, Trash2 } from 'lucide-react';
+import { X, Check, XCircle, Star, Trash2, Edit2, Save } from 'lucide-react';
 import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 
@@ -15,6 +15,8 @@ interface IdeaDetailModalProps {
 export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: IdeaDetailModalProps) {
   const [userFeedback, setUserFeedback] = React.useState(idea.user_feedback || '');
   const [userPattern, setUserPattern] = React.useState(idea.user_pattern === 1);
+  const [description, setDescription] = React.useState(idea.description || '');
+  const [isEditingDescription, setIsEditingDescription] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
@@ -78,6 +80,18 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
       user_feedback: userFeedback,
       user_pattern: userPattern
     });
+  };
+
+  const handleSaveDescription = async () => {
+    await updateIdea({
+      description: description
+    });
+    setIsEditingDescription(false);
+  };
+
+  const handleCancelDescription = () => {
+    setDescription(idea.description || '');
+    setIsEditingDescription(false);
   };
 
   const handleDelete = async () => {
@@ -201,16 +215,57 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Description */}
-          {idea.description && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wide">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
                 Description
               </h3>
-              <p className="text-white leading-relaxed">
-                {idea.description}
-              </p>
+              {!isEditingDescription ? (
+                <motion.button
+                  onClick={() => setIsEditingDescription(true)}
+                  className="p-1.5 hover:bg-gray-700/40 rounded transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Edit description"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                </motion.button>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <motion.button
+                    onClick={handleSaveDescription}
+                    disabled={saving}
+                    className="p-1.5 hover:bg-green-500/20 rounded transition-colors disabled:opacity-50"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    title="Save description"
+                  >
+                    <Save className="w-3.5 h-3.5 text-green-400" />
+                  </motion.button>
+                  <button
+                    onClick={handleCancelDescription}
+                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+            {!isEditingDescription ? (
+              <p className="text-white leading-relaxed">
+                {description || 'No description provided'}
+              </p>
+            ) : (
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter description..."
+                className="w-full bg-gray-800/60 border border-gray-700/40 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/40 resize-none"
+                rows={4}
+                autoFocus
+              />
+            )}
+          </div>
 
           {/* Reasoning */}
           {idea.reasoning && (

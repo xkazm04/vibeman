@@ -1,3 +1,7 @@
+// Idea Category Types
+export type { IdeaCategory } from './ideaCategory';
+export { IDEA_CATEGORIES, isStandardCategory, getStandardCategories } from './ideaCategory';
+
 export interface Project {
   id: string;
   name: string;

@@ -19,28 +19,29 @@ async function gatherCodebaseResources(projectPath: string) {
 
   const docFileNames = ['README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'LICENSE.md', 'CLAUDE.md'];
 
-  const excludedDirs = ['node_modules', '.git', 'dist', 'build', '.next', '__pycache__', 'venv', 'database'];
-  const codeExtensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.rs'];
+  const excludedDirs = ['node_modules', '.git', 'dist', 'build', '.next', '__pycache__', 'venv', 'database', 'coverage', '.vscode', '.idea'];
+  const codeExtensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.rs', '.c', '.cpp', '.cs'];
 
-  // Helper to read a file safely
-  async function readFileSafe(filePath: string): Promise<{ path: string; content: string; type: string } | null> {
+  // Helper to read a file safely with size tracking
+  async function readFileSafe(filePath: string): Promise<{ path: string; content: string; type: string; size: number } | null> {
     try {
       const content = await readFile(filePath, 'utf-8');
       const ext = extname(filePath).slice(1);
       const relativePath = relative(projectPath, filePath);
 
-      // Skip very large files (>200KB)
-      if (content.length > 200000) {
+      // Skip very large files (>300KB) but track size for prioritization
+      if (content.length > 300000) {
         return null;
       }
 
       return {
         path: relativePath.replace(/\\/g, '/'),
         content,
-        type: getFileType(ext)
+        type: getFileType(ext),
+        size: content.length
       };
     } catch (error) {
-      console.error(`Failed to read file: ${filePath}`, error);
+      // Silently skip files we can't read (permissions, binary files, etc.)
       return null;
     }
   }
@@ -71,40 +72,58 @@ async function gatherCodebaseResources(projectPath: string) {
     console.error('Error gathering documentation files:', error);
   }
 
-  // Gather main implementation files
-  async function walkDirectory(dir: string, depth: number = 0): Promise<void> {
-    if (depth > 4 || mainFiles.length >= 30) return; // Limit depth and file count
+  // Gather main implementation files with prioritization
+  // Priority: src/ app/ lib/ components/ pages/ api/ routes/ controllers/ models/ services/
+  const priorityDirs = ['src', 'app', 'lib', 'components', 'pages', 'api', 'routes', 'controllers', 'models', 'services', 'core', 'utils'];
+  const allFiles: Array<{ path: string; content: string; type: string; size: number; priority: number }> = [];
+
+  async function walkDirectory(dir: string, depth: number = 0, isPriority: boolean = false): Promise<void> {
+    if (depth > 6 || allFiles.length >= 100) return; // Increased limits for better coverage
 
     try {
       const entries = await readdir(dir, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (mainFiles.length >= 30) break;
+        if (allFiles.length >= 100) break;
 
         const fullPath = join(dir, entry.name);
 
         if (entry.isDirectory()) {
           if (!excludedDirs.includes(entry.name) && !entry.name.startsWith('.')) {
-            await walkDirectory(fullPath, depth + 1);
+            const isEntryPriority = priorityDirs.includes(entry.name.toLowerCase());
+            await walkDirectory(fullPath, depth + 1, isPriority || isEntryPriority);
           }
         } else if (entry.isFile()) {
           const ext = extname(entry.name);
           if (codeExtensions.includes(ext)) {
             const file = await readFileSafe(fullPath);
             if (file) {
-              mainFiles.push(file);
+              // Assign priority: higher priority for smaller files in priority directories
+              const sizePriority = file.size < 50000 ? 2 : file.size < 100000 ? 1 : 0;
+              const dirPriority = isPriority ? 3 : 0;
+              allFiles.push({
+                ...file,
+                priority: dirPriority + sizePriority
+              });
             }
           }
         }
       }
     } catch (error) {
-      console.error(`Failed to read directory: ${dir}`, error);
+      // Silently skip directories we can't read
     }
   }
 
   await walkDirectory(projectPath);
 
-  console.log(`[AI Docs] Gathered resources: ${configFiles.length} config, ${mainFiles.length} code, ${documentationFiles.length} docs`);
+  // Sort by priority (higher first) and take top 50-60 files
+  allFiles.sort((a, b) => b.priority - a.priority);
+  const topFiles = allFiles.slice(0, 60);
+
+  // Remove priority field before adding to mainFiles
+  mainFiles.push(...topFiles.map(({ priority, ...file }) => file));
+
+  console.log(`[AI Docs] Gathered resources: ${configFiles.length} config, ${mainFiles.length} code (from ${allFiles.length} total), ${documentationFiles.length} docs`);
 
   return { configFiles, mainFiles, documentationFiles };
 }
@@ -122,6 +141,9 @@ function getFileType(ext: string): string {
     'java': 'java',
     'go': 'go',
     'rs': 'rust',
+    'c': 'c',
+    'cpp': 'cpp',
+    'cs': 'csharp',
     'json': 'json',
     'md': 'markdown',
     'yml': 'yaml',

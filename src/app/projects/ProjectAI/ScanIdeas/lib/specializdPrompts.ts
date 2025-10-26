@@ -215,9 +215,15 @@ You MUST respond with ONLY a valid JSON array. No markdown, no code blocks, no e
     "category": "${config.outputCategories.join('" | "')}",
     "title": "Short title (max 60 chars)",
     "description": "Detailed explanation (2-4 sentences)",
-    "reasoning": "Why valuable + impact (2-3 sentences)"
+    "reasoning": "Why valuable + impact (2-3 sentences)",
+    "effort": 1-3,
+    "impact": 1-3
   }
 ]
+
+**Effort and Impact Ratings**:
+- **Effort** (1 = Low/Quick fix, 2 = Medium/1-2 days, 3 = High/Major change)
+- **Impact** (1 = Low/Nice to have, 2 = Medium/Noticeable, 3 = High/Game changer)
 
 Generate 6-10 high-quality ideas focused on ${config.focusArea.toLowerCase()}.`;
 }

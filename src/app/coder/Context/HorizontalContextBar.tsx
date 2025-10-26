@@ -59,7 +59,6 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount, selectedFilePaths
           iconBgColor: "from-cyan-500/20 to-blue-500/20",
           iconColor: "text-cyan-400",
           maxWidth: "max-w-[95vw]",
-          maxHeight: "max-h-[95vh]"
         }
       );
     } else {
@@ -79,7 +78,6 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount, selectedFilePaths
         iconBgColor: "from-green-500/20 to-emerald-500/20",
         iconColor: "text-green-400",
         maxWidth: "max-w-[95vw]",
-        maxHeight: "max-h-[95vh]"
       }
     );
   }, [showFullScreenModal, groups]);

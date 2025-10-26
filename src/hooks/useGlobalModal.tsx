@@ -61,7 +61,7 @@ export const useGlobalModal = () => {
     showModal({
       title,
       maxWidth: "max-w-2xl",
-      maxHeight: "max-h-[70vh]",
+      maxHeight: "max-h-[90vh]",
       ...options
     }, content);
   };
@@ -70,7 +70,7 @@ export const useGlobalModal = () => {
     showModal({
       title,
       maxWidth: "max-w-6xl",
-      maxHeight: "max-h-[90vh]",
+      maxHeight: "max-h-[100vh]",
       ...options
     }, content);
   };
@@ -94,7 +94,7 @@ export const useGlobalModal = () => {
     showModal({
       title,
       maxWidth: "max-w-4xl",
-      maxHeight: "max-h-[85vh]",
+      maxHeight: "max-h-[100vh]",
       ...options
     }, content);
   };

@@ -1,10 +1,8 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useGlobalModal } from '@/hooks/useGlobalModal';
-import ClaudeRequirement from './ClaudeRequirement';
-import ClaudeRequirementDetailModal from './ClaudeRequirementDetailModal';
+import ClaudeRequirement from './sub_ClaudeRequirement/ClaudeRequirement';
 import ClaudeActionStructureScan from './components/ClaudeActionStructureScan';
 import ClaudeActionContextScan from './components/ClaudeActionContextScan';
 import ClaudeActionAutoGenerate from './components/ClaudeActionAutoGenerate';
@@ -12,9 +10,6 @@ import ClaudeActionBatchCode from './components/ClaudeActionBatchCode';
 import {
   Requirement,
   loadRequirements as apiLoadRequirements,
-  executeRequirementAsync,
-  getTaskStatus,
-  deleteRequirement as apiDeleteRequirement,
   hasContextScanRequirement,
 } from './lib/requirementApi';
 
@@ -23,36 +18,34 @@ interface ClaudeRequirementsListProps {
   refreshTrigger: number;
 }
 
+const ITEMS_PER_PAGE = 20;
+
 export default function ClaudeRequirementsList({
   projectPath,
   refreshTrigger,
 }: ClaudeRequirementsListProps) {
   const { activeProject } = useActiveProjectStore();
-  const { showShellModal } = useGlobalModal();
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedReq, setExpandedReq] = useState<string | null>(null);
   const [hasContextScan, setHasContextScan] = useState(false);
+  const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
   const executionQueueRef = useRef<string[]>([]);
-  const isExecutingRef = useRef<boolean>(false); // Prevent concurrent executions
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadRequirements();
     checkContextScanExists();
+    setDisplayedCount(ITEMS_PER_PAGE); // Reset displayed count when project changes
   }, [projectPath, refreshTrigger]);
 
-  // Auto-process queue
+  // Auto-process queue - requirements state changes trigger queue processing in child components
+  // This effect just forces a re-render when queue should be processed
   useEffect(() => {
     const runningReq = requirements.find((r) => r.status === 'running');
-
-    // Only process queue if:
-    // 1. Nothing is currently running in the UI
-    // 2. There are items in the queue
-    // 3. We're not already in the process of executing a requirement
-    if (!runningReq && executionQueueRef.current.length > 0 && !isExecutingRef.current) {
-      const nextReqName = executionQueueRef.current[0];
-      console.log(`[Queue] Auto-processing next requirement: ${nextReqName}`);
-      executeRequirement(nextReqName);
+    if (!runningReq && executionQueueRef.current.length > 0) {
+      // Queue will be processed by ClaudeRequirementRun component
+      console.log(`[Queue] Ready to auto-process queue (${executionQueueRef.current.length} items)`);
     }
   }, [requirements]);
 
@@ -89,164 +82,31 @@ export default function ClaudeRequirementsList({
     }
   };
 
-  const executeRequirement = async (name: string) => {
-    // Guard against concurrent executions
-    if (isExecutingRef.current) {
-      console.warn(`[Execute] Already executing a requirement, skipping: ${name}`);
-      return;
-    }
-
-    console.log(`[Execute] Starting execution: ${name}`);
-    isExecutingRef.current = true;
-
-    // Update status to running
+  // Handler for status updates from child components
+  const handleStatusUpdate = (name: string, updates: Partial<Requirement>) => {
     setRequirements((prev) =>
-      prev.map((r) =>
-        r.name === name
-          ? {
-              ...r,
-              status: 'running' as const,
-              startTime: new Date(),
-              output: undefined,
-              error: undefined,
-            }
-          : r
-      )
+      prev.map((r) => (r.name === name ? { ...r, ...updates } : r))
     );
 
-    // Remove from queue
-    executionQueueRef.current = executionQueueRef.current.filter((n) => n !== name);
-    console.log(`[Execute] Queue now has ${executionQueueRef.current.length} items`);
-
-    try {
-      // Use async execution (non-blocking)
-      const { taskId } = await executeRequirementAsync(projectPath, name, activeProject?.id);
-
-      // Store task ID
+    // If session limit reached, clear queue
+    if (updates.status === 'session-limit') {
+      console.log('[Queue] Session limit reached, clearing queue');
       setRequirements((prev) =>
-        prev.map((r) => (r.name === name ? { ...r, taskId } : r))
+        prev.map((r) => (r.status === 'queued' ? { ...r, status: 'idle' as const } : r))
       );
-
-      // Poll for task status
-      let pollCount = 0;
-      const maxPolls = 600; // 10 minutes max (300 * 2 seconds)
-
-      const pollInterval = setInterval(async () => {
-        pollCount++;
-
-        // Timeout safeguard
-        if (pollCount >= maxPolls) {
-          console.error('[Execute] Task polling timeout - marking as failed');
-          clearInterval(pollInterval);
-          isExecutingRef.current = false; // Allow next execution
-
-          setRequirements((prev) =>
-            prev.map((r) =>
-              r.name === name
-                ? {
-                    ...r,
-                    status: 'failed' as const,
-                    error: 'Execution timeout - task did not complete within 10 minutes',
-                  }
-                : r
-            )
-          );
-          return;
-        }
-
-        try {
-          const task = await getTaskStatus(taskId);
-
-          setRequirements((prev) =>
-            prev.map((r) => {
-              if (r.name === name) {
-                return {
-                  ...r,
-                  status: task.status,
-                  output: task.output,
-                  error: task.error,
-                  logFilePath: task.logFilePath,
-                  sessionLimitReached: task.sessionLimitReached,
-                };
-              }
-              return r;
-            })
-          );
-
-          // Stop polling if completed
-          if (
-            task.status === 'completed' ||
-            task.status === 'failed' ||
-            task.status === 'session-limit'
-          ) {
-            clearInterval(pollInterval);
-            isExecutingRef.current = false; // Allow next execution
-            console.log(`[Execute] Finished: ${name}, status: ${task.status}`);
-
-            // If session limit, cancel queue
-            if (task.status === 'session-limit') {
-              console.log('[Execute] Session limit reached, clearing queue');
-              setRequirements((prev) =>
-                prev.map((r) => (r.status === 'queued' ? { ...r, status: 'idle' as const } : r))
-              );
-              executionQueueRef.current = [];
-            }
-          }
-        } catch (pollErr) {
-          console.error('Error polling task status:', pollErr);
-          // Don't stop polling on error, retry
-        }
-      }, 2000); // Poll every 2 seconds
-    } catch (err: any) {
-      // Failed to queue task
-      console.error(`[Execute] Failed to queue: ${name}`, err);
-      isExecutingRef.current = false; // Allow next execution
-
-      setRequirements((prev) =>
-        prev.map((r) =>
-          r.name === name
-            ? {
-                ...r,
-                status: 'failed' as const,
-                error: err instanceof Error ? err.message : 'Failed to queue execution',
-              }
-            : r
-        )
-      );
+      executionQueueRef.current = [];
     }
   };
 
-  const handleRun = (name: string) => {
-    const runningReq = requirements.find((r) => r.status === 'running');
-
-    if (runningReq) {
-      // Add to queue
-      if (!executionQueueRef.current.includes(name)) {
-        executionQueueRef.current.push(name);
-        setRequirements((prev) =>
-          prev.map((r) => (r.name === name ? { ...r, status: 'queued' as const } : r))
-        );
-      }
-    } else {
-      // Execute immediately
-      executeRequirement(name);
-    }
+  // Handler for successful deletion
+  const handleDeleteSuccess = (name: string) => {
+    setRequirements((prev) => prev.filter((r) => r.name !== name));
   };
 
-  const handleDelete = async (name: string) => {
-    const req = requirements.find((r) => r.name === name);
-    if (req?.status === 'queued') {
-      return; // Cannot delete queued items
-    }
-
-    try {
-      const success = await apiDeleteRequirement(projectPath, name);
-      if (success) {
-        setRequirements((prev) => prev.filter((r) => r.name !== name));
-      }
-    } catch (err) {
-      console.error('Error deleting requirement:', err);
-    }
+  // Handler to trigger queue processing
+  const handleQueueUpdate = () => {
+    // Force re-render to trigger queue processing
+    setRequirements((prev) => [...prev]);
   };
 
   const handleBatchCode = (requirementNames: string[]) => {
@@ -270,53 +130,31 @@ export default function ClaudeRequirementsList({
       )
     );
 
-    // Use setTimeout to ensure state update completes before starting execution
-    // This prevents race conditions where we check for running tasks before state updates
+    // Trigger queue processing via handleQueueUpdate
     setTimeout(() => {
-      const runningReq = requirements.find((r) => r.status === 'running');
-      const isAlreadyExecuting = isExecutingRef.current;
-
-      console.log(`[BatchCode] Checking conditions - Running: ${!!runningReq}, Already executing: ${isAlreadyExecuting}, Queue length: ${executionQueueRef.current.length}`);
-
-      if (!runningReq && !isAlreadyExecuting && executionQueueRef.current.length > 0) {
-        const nextReqName = executionQueueRef.current[0];
-        console.log(`[BatchCode] Starting first requirement: ${nextReqName}`);
-        executeRequirement(nextReqName);
-      } else if (runningReq) {
-        console.log(`[BatchCode] Already running: ${runningReq.name}, queue will auto-process`);
-      } else if (isAlreadyExecuting) {
-        console.log(`[BatchCode] Already executing a requirement, queue will auto-process`);
-      }
-    }, 100); // Small delay to allow state update
-  };
-
-  const handleViewDetail = (name: string) => {
-    showShellModal(
-      {
-        title: 'Requirement Details',
-        subtitle: 'View Claude Code requirement specification',
-        icon: FileText,
-        iconBgColor: 'from-purple-600/20 to-pink-600/20',
-        iconColor: 'text-purple-400',
-        maxWidth: 'max-w-4xl',
-        maxHeight: 'max-h-[85vh]',
-      },
-      {
-        content: { enabled: true },
-        customContent: (
-          <ClaudeRequirementDetailModal projectPath={projectPath} requirementName={name} />
-        ),
-        isTopMost: true,
-      }
-    );
+      handleQueueUpdate();
+    }, 100);
   };
 
   const handleToggleExpand = (name: string) => {
     setExpandedReq(expandedReq === name ? null : name);
   };
 
+  // Infinite scroll handler
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const scrolledToBottom =
+      container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+
+    if (scrolledToBottom && displayedCount < requirements.length) {
+      setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, requirements.length));
+    }
+  };
+
   const isAnyRunning = requirements.some((r) => r.status === 'running');
   const queueCount = executionQueueRef.current.length;
+  const displayedRequirements = requirements.slice(0, displayedCount);
+  const hasMore = displayedCount < requirements.length;
 
   if (isLoading) {
     return (
@@ -385,19 +223,31 @@ export default function ClaudeRequirementsList({
           No requirements yet. Add one above or use Auto-Generate.
         </div>
       ) : (
-        <div className="space-y-2">
-          {requirements.map((req) => (
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="space-y-2 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+        >
+          {displayedRequirements.map((req) => (
             <ClaudeRequirement
               key={req.name}
               requirement={req}
+              projectPath={projectPath}
+              projectId={activeProject?.id || ''}
               isAnyRunning={isAnyRunning}
               isExpanded={expandedReq === req.name}
-              onRun={handleRun}
-              onDelete={handleDelete}
+              executionQueueRef={executionQueueRef}
+              onStatusUpdate={handleStatusUpdate}
+              onDeleteSuccess={handleDeleteSuccess}
               onToggleExpand={handleToggleExpand}
-              onViewDetail={handleViewDetail}
+              onQueueUpdate={handleQueueUpdate}
             />
           ))}
+          {hasMore && (
+            <div className="text-center py-3 text-gray-500 text-xs">
+              Showing {displayedCount} of {requirements.length} requirements
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,11 +1,13 @@
 'use client';
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
 import { generateContextDescription } from './lib/contextGenApi';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
+import ProviderSelector from '@/components/llm/ProviderSelector';
+import { SupportedProvider } from '@/lib/llm/types';
 
 interface ContextGenFormProps {
   contextName: string;
@@ -34,13 +36,20 @@ export default function ContextGenForm({
 }: ContextGenFormProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>('ollama');
+  const [showProviderSelector, setShowProviderSelector] = useState(false);
 
-  const handleGenerateDescription = async () => {
+  const handleInitiateGeneration = () => {
     if (selectedFilePaths.length === 0) {
       onError('Please select at least one file to generate description');
       return;
     }
+    setShowProviderSelector(true);
+  };
 
+  const handleProviderSelect = async (provider: SupportedProvider) => {
+    setSelectedProvider(provider);
+    setShowProviderSelector(false);
     setIsGenerating(true);
     onError('');
 
@@ -48,6 +57,7 @@ export default function ContextGenForm({
       const result = await generateContextDescription({
         filePaths: selectedFilePaths,
         projectPath,
+        provider,
       });
 
       // Update description with generated markdown content
@@ -105,10 +115,30 @@ export default function ContextGenForm({
             Description (optional)
           </label>
           <div className="flex items-center gap-2">
+            {/* Provider Selector - shown when user initiates generation */}
+            <AnimatePresence>
+              {showProviderSelector && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, x: 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-2 px-2 py-1.5 bg-gray-800/60 border border-gray-600/40 rounded-lg"
+                >
+                  <span className="text-xs text-gray-400">Select provider:</span>
+                  <ProviderSelector
+                    selectedProvider={selectedProvider}
+                    onSelectProvider={handleProviderSelect}
+                    compact={true}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={handleGenerateDescription}
+              onClick={handleInitiateGeneration}
               disabled={isGenerating || selectedFilePaths.length === 0}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
                 isGenerating || selectedFilePaths.length === 0
