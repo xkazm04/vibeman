@@ -2,14 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateAIReview } from '@/app/projects/ProjectAI/generateAIReview';
 import { readFile, readdir } from 'fs/promises';
 import { join, extname, relative } from 'path';
+import { contextDb } from '@/app/db';
 
 /**
  * Gather codebase files organized by type for AI analysis
  */
-async function gatherCodebaseResources(projectPath: string) {
+async function gatherCodebaseResources(projectPath: string, projectId?: string) {
   const configFiles: Array<{ path: string; content: string; type: string }> = [];
   const mainFiles: Array<{ path: string; content: string; type: string }> = [];
   const documentationFiles: Array<{ path: string; content: string; type: string }> = [];
+
+  // Fetch contexts from database if projectId is provided
+  let contexts: Array<{ name: string; description: string; file_paths: string[] }> = [];
+  if (projectId) {
+    try {
+      const dbContexts = contextDb.getContextsByProject(projectId);
+      contexts = dbContexts.map(ctx => ({
+        name: ctx.name,
+        description: ctx.description || '',
+        file_paths: JSON.parse(ctx.file_paths)
+      }));
+      console.log(`[AI Docs] Found ${contexts.length} contexts for project`);
+    } catch (error) {
+      console.error('[AI Docs] Error fetching contexts:', error);
+    }
+  }
 
   const configFileNames = [
     'package.json', 'tsconfig.json', 'next.config.js', 'next.config.ts', 'next.config.mjs',
@@ -123,9 +140,9 @@ async function gatherCodebaseResources(projectPath: string) {
   // Remove priority field before adding to mainFiles
   mainFiles.push(...topFiles.map(({ priority, ...file }) => file));
 
-  console.log(`[AI Docs] Gathered resources: ${configFiles.length} config, ${mainFiles.length} code (from ${allFiles.length} total), ${documentationFiles.length} docs`);
+  console.log(`[AI Docs] Gathered resources: ${configFiles.length} config, ${mainFiles.length} code (from ${allFiles.length} total), ${documentationFiles.length} docs, ${contexts.length} contexts`);
 
-  return { configFiles, mainFiles, documentationFiles };
+  return { configFiles, mainFiles, documentationFiles, contexts };
 }
 
 /**
@@ -155,7 +172,7 @@ function getFileType(ext: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectName, projectPath, analysis, projectId, provider } = await request.json();
+    const { projectName, projectPath, analysis, projectId, provider, vision } = await request.json();
 
     if (!projectName) {
       return NextResponse.json(
@@ -173,9 +190,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`[AI Docs] Starting documentation generation for: ${projectName}`);
     console.log(`[AI Docs] Project path: ${projectPath}`);
+    if (projectId) {
+      console.log(`[AI Docs] Project ID: ${projectId}`);
+    }
 
-    // Gather codebase resources
-    const { configFiles, mainFiles, documentationFiles } = await gatherCodebaseResources(projectPath);
+    // Gather codebase resources (including contexts if projectId is provided)
+    const { configFiles, mainFiles, documentationFiles, contexts } = await gatherCodebaseResources(projectPath, projectId);
 
     // Build enriched analysis object with codebase resources
     const enrichedAnalysis = {
@@ -183,7 +203,8 @@ export async function POST(request: NextRequest) {
       codebase: {
         configFiles,
         mainFiles,
-        documentationFiles
+        documentationFiles,
+        contexts // Add contexts to codebase
       },
       stats: {
         ...(analysis?.stats || {}),
@@ -191,9 +212,12 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    console.log(`[AI Docs] Calling generateAIReview with ${configFiles.length + mainFiles.length + documentationFiles.length} files`);
+    console.log(`[AI Docs] Calling generateAIReview with ${configFiles.length + mainFiles.length + documentationFiles.length} files and ${contexts.length} contexts`);
+    if (vision) {
+      console.log(`[AI Docs] User vision provided: ${vision.substring(0, 100)}...`);
+    }
 
-    const aiReview = await generateAIReview(projectName, enrichedAnalysis, projectId, provider);
+    const aiReview = await generateAIReview(projectName, enrichedAnalysis, projectId, provider, vision);
 
     return NextResponse.json({
       success: true,

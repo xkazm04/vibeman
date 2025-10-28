@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat, readFile } from 'fs/promises';
 import { join, extname } from 'path';
-import { goalDb, eventDb } from '../../../../lib/database';
+import { eventDb } from '../../../../lib/database';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
-import { generateGoals, generateAIReview } from '@/app/projects/ProjectAI/promptFunctions';
-import { generateContexts } from '@/app/projects/ProjectAI/generateContexts';
+import { generateAIReview } from '@/app/projects/ProjectAI/promptFunctions';
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,78 +89,6 @@ async function processBackgroundGeneration({
           description: `Documentation saved to context/high.md`,
           type: 'success'
         });
-        break;
-
-      case 'goals':
-        const goalsResponse = await generateGoals(projectName, projectId, projectAnalysis, projectPath);
-        try {
-          // Try to parse JSON response, handling ```json wrapper
-          console.log('Starting goals parsing and database save...');
-          const goals = parseAIJsonResponse(goalsResponse);
-          console.log('Goals parsed successfully, got', goals.length, 'goals');
-
-          // Save goals to database with 'undecided' status
-          console.log('Getting max order index...');
-          const maxOrder = goalDb.getMaxOrderIndex(projectId);
-          console.log('Max order index:', maxOrder);
-          
-          for (let i = 0; i < goals.length; i++) {
-            const goal = goals[i];
-            console.log(`Saving goal ${i + 1}:`, goal.title);
-            
-            try {
-              goalDb.createGoal({
-                id: uuidv4(),
-                project_id: projectId,
-                title: goal.title,
-                description: JSON.stringify({
-                  type: goal.type,
-                  reason: goal.reason,
-                  milestones: goal.description
-                }),
-                status: 'undecided',
-                order_index: maxOrder + i + 1
-              });
-              console.log(`Goal ${i + 1} saved successfully`);
-            } catch (dbError) {
-              console.error(`Failed to save goal ${i + 1}:`, dbError);
-              throw dbError;
-            }
-          }
-
-          console.log('All goals saved, creating success event...');
-          // Log success event
-          eventDb.createEvent({
-            id: uuidv4(),
-            project_id: projectId,
-            title: 'AI Goals Generated',
-            description: `${goals.length} strategic goals generated and saved`,
-            type: 'success'
-          });
-          console.log('Success event created, goals generation complete!');
-        } catch (parseError) {
-          console.error('Error in goals processing:', parseError);
-          console.log('Full goals response:', goalsResponse);
-          throw new Error(`Failed to process goals: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-        }
-        break;
-
-      case 'context':
-        const contextResult = await generateContexts(projectName, projectPath, projectAnalysis, projectId);
-        
-        if (contextResult.success) {
-          // Log success event with details about created files
-          const fileList = contextResult.contexts.map(c => c.filename).join(', ');
-          eventDb.createEvent({
-            id: uuidv4(),
-            project_id: projectId,
-            title: 'AI Context Files Generated',
-            description: `${contextResult.contexts.length} context files created: ${fileList}`,
-            type: 'success'
-          });
-        } else {
-          throw new Error(contextResult.error || 'Failed to generate context files');
-        }
         break;
 
       default:
@@ -377,93 +304,4 @@ function detectTechnologies(analysis: any): string[] {
   }
 
   return [...new Set(technologies)]; // Remove duplicates
-}
-
-// Helper function to parse AI JSON responses that may include ```json wrapper
-function parseAIJsonResponse(response: string): any {
-  // Normalize special characters that might cause JSON parsing issues
-  const normalizeJson = (jsonStr: string): string => {
-    return jsonStr
-      // Replace various dash types with regular hyphen
-      .replace(/[‑–—−]/g, '-')
-      // Replace smart quotes with regular quotes
-      .replace(/[""]/g, '"')
-      .replace(/['']/g, "'")
-      // Replace other problematic Unicode characters
-      .replace(/[…]/g, '...')
-      // Remove any BOM or invisible characters
-      .replace(/^\uFEFF/, '')
-      // Remove any other invisible/control characters including narrow no-break space
-      .replace(/[\u200B-\u200D\uFEFF\u202F]/g, '')
-      .trim();
-  };
-
-  const tryParse = (jsonStr: string): any => {
-    try {
-      const normalized = normalizeJson(jsonStr);
-      console.log('Attempting to parse normalized JSON:', normalized.substring(0, 200) + '...');
-      
-      // Additional debugging - check for problematic characters
-      const problematicChars = normalized.match(/[^\x20-\x7E\n\r\t]/g);
-      if (problematicChars) {
-        console.log('Found problematic characters:', problematicChars.map(c => `${c} (U+${c.charCodeAt(0).toString(16).toUpperCase()})`));
-      }
-      
-      const result = JSON.parse(normalized);
-      console.log('JSON parsing successful! Parsed', Array.isArray(result) ? result.length : 'non-array', 'items');
-      return result;
-    } catch (error) {
-      console.error('JSON parsing failed for:', jsonStr.substring(0, 200) + '...');
-      console.error('Parse error:', error);
-      
-      // Show the exact character that's causing issues
-      if (error instanceof SyntaxError) {
-        const match = error.message.match(/position (\d+)/);
-        if (match) {
-          const pos = parseInt(match[1]);
-          const problemArea = normalized.substring(Math.max(0, pos - 20), pos + 20);
-          console.error('Problem area around position', pos, ':', problemArea);
-        }
-      }
-      
-      throw error;
-    }
-  };
-
-  console.log('parseAIJsonResponse called with response length:', response.length);
-  console.log('Response starts with:', response.substring(0, 50));
-
-  // Check if response has ```json wrapper first
-  if (response.includes('```json')) {
-    console.log('Found ```json marker, extracting...');
-    
-    // Find the start of JSON content after ```json
-    const startIndex = response.indexOf('```json') + 7; // 7 = length of '```json'
-    const endIndex = response.indexOf('```', startIndex);
-    
-    if (endIndex !== -1) {
-      const jsonContent = response.substring(startIndex, endIndex).trim();
-      console.log('Extracted JSON content:', jsonContent.substring(0, 100) + '...');
-      console.log('JSON content length:', jsonContent.length);
-      return tryParse(jsonContent);
-    }
-  }
-
-  // If no wrapper, try to parse as-is
-  try {
-    return tryParse(response);
-  } catch (error) {
-    console.log('Direct parsing failed, trying to find JSON array...');
-
-    // Try to find JSON array in the response
-    const arrayMatch = response.match(/\[[\s\S]*?\]/);
-    if (arrayMatch) {
-      console.log('Found JSON array in response, extracting...');
-      return tryParse(arrayMatch[0]);
-    }
-
-    // Log the full response for debugging
-    console.error('Failed to parse AI response:', response);
-    throw new Error(`Failed to parse AI JSON response: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
 }

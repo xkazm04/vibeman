@@ -1,9 +1,11 @@
 'use client';
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Loader2, Zap, X } from 'lucide-react';
-import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app/Claude/lib/requirementApi';
+import { Loader2, Zap, X } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
+import QueueVisualization from './components/QueueVisualization';
+import TaskRunButton from './components/TaskRunButton';
+import { executeNextRequirement as executeTask } from './lib/taskExecutor';
 
 interface TaskRunnerHeaderProps {
   selectedCount: number;
@@ -32,134 +34,40 @@ export default function TaskRunnerHeader({
   const isExecutingRef = useRef(false);
   const { setRequirements, setIsRunning, setProcessedCount, setError } = actions;
 
-  const executeNextRequirement = useCallback(async () => {
-    if (executionQueueRef.current.length === 0 || isExecutingRef.current) return;
-
-    isExecutingRef.current = true;
-    const reqId = executionQueueRef.current[0];
-    const req = requirements.find((r) => getRequirementId(r) === reqId);
-
-    if (!req) {
-      executionQueueRef.current.shift();
-      isExecutingRef.current = false;
-      return;
+  // Pause/Resume state management with localStorage
+  const [isPaused, setIsPaused] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('taskRunnerPaused');
+      return stored === 'true';
     }
+    return false;
+  });
 
-    console.log(`[TaskRunner] Executing: ${req.requirementName} (${req.projectName})`);
-
-    // Update status to running
-    setRequirements((prev) =>
-      prev.map((r) =>
-        getRequirementId(r) === reqId
-          ? { ...r, status: 'running' as const }
-          : r
-      )
-    );
-
-    // Remove from queue
-    executionQueueRef.current.shift();
-    setProcessedCount((prev) => prev + 1);
-
-    try {
-      // Start async execution
-      const { taskId } = await executeRequirementAsync(
-        req.projectPath,
-        req.requirementName,
-        req.projectId
-      );
-
-      // Store task ID (should be the requirement name)
-      setRequirements((prev) =>
-        prev.map((r) =>
-          getRequirementId(r) === reqId ? { ...r, taskId } : r
-        )
-      );
-
-      // Poll for status using the requirement name as task ID
-      const pollInterval = setInterval(async () => {
-        try {
-          const task = await getTaskStatus(req.requirementName);
-
-          setRequirements((prev) =>
-            prev.map((r) =>
-              getRequirementId(r) === reqId
-                ? { ...r, status: task.status }
-                : r
-            )
-          );
-
-          // Stop polling if completed
-          if (
-            task.status === 'completed' ||
-            task.status === 'failed' ||
-            task.status === 'session-limit'
-          ) {
-            clearInterval(pollInterval);
-            isExecutingRef.current = false;
-
-            // Handle completion
-            if (task.status === 'completed') {
-              // Delete requirement file after successful completion
-              try {
-                await deleteRequirement(req.projectPath, req.requirementName);
-                // Remove from requirements list
-                setRequirements((prev) => prev.filter((r) => getRequirementId(r) !== reqId));
-                console.log(`[TaskRunner] Successfully completed and deleted: ${req.requirementName}`);
-              } catch (deleteError) {
-                console.error('Failed to delete completed requirement:', deleteError);
-                setError(`Failed to delete completed requirement: ${req.requirementName}`);
-              }
-            } else if (task.status === 'failed') {
-              const errorMessage = task.error || 'Unknown error';
-              const logInfo = task.logFilePath ? ` Check log: ${task.logFilePath}` : '';
-              console.error(`[TaskRunner] Task failed:`, {
-                requirementName: req.requirementName,
-                error: errorMessage,
-                logFilePath: task.logFilePath,
-                progress: task.progress,
-              });
-              setError(`Task failed: ${req.requirementName}\nError: ${errorMessage}${logInfo}`);
-            } else if (task.status === 'session-limit') {
-              const errorMessage = task.error || 'Session limit reached';
-              console.log('[TaskRunner] Session limit reached, clearing queue');
-              setError(`Session limit reached: ${errorMessage}\nPlease try again later.`);
-              executionQueueRef.current = [];
-              setIsRunning(false);
-              setRequirements((prev) =>
-                prev.map((r) =>
-                  r.status === 'queued' ? { ...r, status: 'idle' as const } : r
-                )
-              );
-            }
-          }
-        } catch (pollErr) {
-          console.error('Error polling task status:', pollErr);
-        }
-      }, 2000);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[TaskRunner] Failed to execute ${req.requirementName}:`, {
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-      isExecutingRef.current = false;
-      setError(`Failed to execute: ${req.requirementName}\nError: ${errorMessage}`);
-
-      setRequirements((prev) =>
-        prev.map((r) =>
-          getRequirementId(r) === reqId
-            ? { ...r, status: 'failed' as const }
-            : r
-        )
-      );
+  // Persist pause state to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taskRunnerPaused', isPaused.toString());
     }
-  }, [requirements, getRequirementId, setRequirements, setProcessedCount, setError, setIsRunning]);
+  }, [isPaused]);
+
+  // Wrapper for executeNextRequirement from taskExecutor
+  const executeNextRequirement = useCallback(() => {
+    executeTask({
+      executionQueueRef,
+      isExecutingRef,
+      isPaused,
+      requirements,
+      actions,
+      getRequirementId,
+      executeNextRequirement: () => executeNextRequirement(),
+    });
+  }, [requirements, getRequirementId, actions, isPaused]);
 
   // Auto-process queue - execute next requirement when current finishes
   useEffect(() => {
     const runningReq = requirements.find((r) => r.status === 'running');
 
-    if (!runningReq && executionQueueRef.current.length > 0 && !isExecutingRef.current) {
+    if (!runningReq && executionQueueRef.current.length > 0 && !isExecutingRef.current && !isPaused) {
       const nextReqId = executionQueueRef.current[0];
       console.log(`[TaskRunner] Auto-processing next requirement: ${nextReqId}`);
       executeNextRequirement();
@@ -171,38 +79,37 @@ export default function TaskRunnerHeader({
       setIsRunning(false);
       setProcessedCount(0);
     }
-  }, [requirements, isRunning, setIsRunning, setProcessedCount, executeNextRequirement]);
-
-  const handleBatchRun = () => {
-    if (selectedRequirements.size === 0 || isRunning) return;
-
-    console.log(`[TaskRunner] Starting batch run of ${selectedRequirements.size} requirements`);
-    setError(undefined); // Clear any previous errors
-
-    // Queue all selected requirements
-    executionQueueRef.current = Array.from(selectedRequirements);
-
-    // Update all as queued
-    setRequirements((prev) =>
-      prev.map((r) =>
-        selectedRequirements.has(getRequirementId(r))
-          ? { ...r, status: 'queued' as const }
-          : r
-      )
-    );
-
-    setIsRunning(true);
-    setProcessedCount(0);
-
-    // Start execution
-    setTimeout(() => {
-      executeNextRequirement();
-    }, 100);
-  };
+  }, [requirements, isRunning, setIsRunning, setProcessedCount, executeNextRequirement, isPaused]);
 
   const clearError = () => {
     setError(undefined);
   };
+
+  const handlePause = () => {
+    console.log('[TaskRunner] Pausing queue execution');
+    setIsPaused(true);
+  };
+
+  const handleResume = () => {
+    console.log('[TaskRunner] Resuming queue execution');
+    setIsPaused(false);
+    // Trigger queue processing after resume
+    setTimeout(() => {
+      if (executionQueueRef.current.length > 0 && !isExecutingRef.current) {
+        executeNextRequirement();
+      }
+    }, 100);
+  };
+
+  // Filter requirements to show active queue items
+  const activeQueueItems = requirements.filter(
+    (r) =>
+      r.status === 'queued' ||
+      r.status === 'running' ||
+      r.status === 'completed' ||
+      r.status === 'failed' ||
+      r.status === 'session-limit'
+  );
 
   return (
     <div className="relative space-y-4">
@@ -225,6 +132,14 @@ export default function TaskRunnerHeader({
             <X className="w-4 h-4" />
           </button>
         </motion.div>
+      )}
+
+      {/* Queue Visualization */}
+      {activeQueueItems.length > 0 && (
+        <QueueVisualization
+          requirements={requirements}
+          getRequirementId={getRequirementId}
+        />
       )}
 
       {/* Main Header */}
@@ -253,12 +168,25 @@ export default function TaskRunnerHeader({
               {/* Stats */}
               <div className="flex items-center gap-4 ml-8">
                 {isRunning ? (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                    <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
-                    <span className="text-sm text-blue-400 font-medium">
-                      Processing {processedCount} / {selectedCount}
-                    </span>
-                  </div>
+                  <>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                      <span className="text-sm text-blue-400 font-medium">
+                        Processing {processedCount} / {selectedCount}
+                      </span>
+                    </div>
+                    {isPaused && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/30 rounded-lg"
+                      >
+                        <span className="text-sm text-orange-400 font-medium">
+                          Queue Paused
+                        </span>
+                      </motion.div>
+                    )}
+                  </>
                 ) : (
                   <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg">
                     <span className="text-sm text-gray-400">
@@ -275,37 +203,19 @@ export default function TaskRunnerHeader({
 
             {/* Center: Batch Run Button */}
             <div className="flex-1 flex justify-center">
-              <motion.button
-                whileHover={{ scale: selectedCount > 0 && !isRunning ? 1.05 : 1 }}
-                whileTap={{ scale: selectedCount > 0 && !isRunning ? 0.95 : 1 }}
-                onClick={handleBatchRun}
-                disabled={selectedCount === 0 || isRunning}
-                className={`
-                  flex items-center gap-3 px-8 py-4 rounded-lg font-semibold text-base
-                  transition-all duration-200 shadow-lg
-                  ${
-                    selectedCount === 0 || isRunning
-                      ? 'bg-gray-800 text-gray-600 cursor-not-allowed border border-gray-700/50'
-                      : 'bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border border-emerald-500/30 shadow-emerald-500/20'
-                  }
-                `}
-              >
-                {isRunning ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Running...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-5 h-5" />
-                    <span>
-                      {selectedCount === 0
-                        ? 'Select Requirements'
-                        : `Run ${selectedCount} Requirement${selectedCount > 1 ? 's' : ''}`}
-                    </span>
-                  </>
-                )}
-              </motion.button>
+              <TaskRunButton
+                selectedRequirements={selectedRequirements}
+                isRunning={isRunning}
+                isPaused={isPaused}
+                executionQueueRef={executionQueueRef}
+                isExecutingRef={isExecutingRef}
+                requirements={requirements}
+                actions={actions}
+                getRequirementId={getRequirementId}
+                executeNextRequirement={executeNextRequirement}
+                onPause={handlePause}
+                onResume={handleResume}
+              />
             </div>
 
             {/* Right: Placeholder for balance */}

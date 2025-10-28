@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { contextDb, DbContext } from '@/lib/database';
+import { contextDb, DbContext } from '@/app/db';
 import { contextQueries } from '@/lib/queries/contextQueries';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';

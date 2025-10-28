@@ -3,7 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
 import { ContextFileGenerator } from '@/services/contextFileGenerator';
-import { eventDb } from '@/lib/database';
+import { eventDb } from '@/app/db';
 
 export async function POST(request: NextRequest) {
   try {

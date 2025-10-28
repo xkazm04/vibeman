@@ -4,6 +4,7 @@ import "./globals.css";
 import BackgroundPattern from "../components/BackgroundPattern";
 import QueryProvider from "../components/QueryProvider";
 import { ModalProvider } from "../contexts/ModalContext";
+import { ErrorProvider } from "../contexts/ErrorContext";
 import ContextOverview from "./coder/Context/ContextOverview/ContextOverview";
 import TopBar from "../components/Navigation/TopBar";
 import PageTransition from "../components/Navigation/PageTransition";
@@ -35,13 +36,15 @@ export default function RootLayout({
       >
         <BackgroundPattern />
         <QueryProvider>
-          <ModalProvider>
-            <TopBar />
-            <PageTransition>
-              {children}
-            </PageTransition>
-            <ContextOverview />
-          </ModalProvider>
+          <ErrorProvider>
+            <ModalProvider>
+              <TopBar />
+              <PageTransition>
+                {children}
+              </PageTransition>
+              <ContextOverview />
+            </ModalProvider>
+          </ErrorProvider>
         </QueryProvider>
       </body>
     </html>

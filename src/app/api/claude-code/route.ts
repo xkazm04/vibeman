@@ -279,14 +279,90 @@ export async function POST(request: NextRequest) {
       }
 
       const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-      const task = executionQueue.getTask(taskId);
+      let task = executionQueue.getTask(taskId);
 
+      // If task not found in memory, check if log file exists
       if (!task) {
-        console.error('[API Backend] ❌ Task not found:', { taskId });
-        return NextResponse.json(
-          { error: 'Task not found' },
-          { status: 404 }
-        );
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          const { getLogsDirectory } = await import('@/app/Claude/lib/claudeCodeManager');
+
+          // Try to find the project path by checking all projects
+          const { projectDb } = await import('@/lib/project_database');
+          const projects = projectDb.getAllProjects();
+
+          let logFound = false;
+          let latestLogPath: string | undefined;
+
+          for (const project of projects) {
+            const logsDir = getLogsDirectory(project.path);
+            try {
+              if (fs.existsSync(logsDir)) {
+                const logFiles = fs.readdirSync(logsDir);
+                // Find log files that start with the taskId
+                const matchingLogs = logFiles
+                  .filter((f: string) => f.startsWith(taskId) && f.endsWith('.log'))
+                  .map((f: string) => path.join(logsDir, f));
+
+                if (matchingLogs.length > 0) {
+                  // Get the most recent log file
+                  latestLogPath = matchingLogs[matchingLogs.length - 1];
+                  logFound = true;
+
+                  // Check if process has exited
+                  const logContent = fs.readFileSync(latestLogPath, 'utf-8');
+                  const hasExited = logContent.includes('Process exited with code');
+
+                  // Reconstruct task object from log file
+                  if (hasExited) {
+                    const exitCode = logContent.match(/Process exited with code:\s*(\d+)/)?.[1];
+                    task = {
+                      status: exitCode === '0' ? 'completed' : 'failed',
+                      progress: [],
+                      error: exitCode !== '0' ? 'Execution failed' : undefined,
+                      output: exitCode === '0' ? 'Execution completed' : undefined,
+                      logFilePath: latestLogPath,
+                    };
+                  } else {
+                    // Still running
+                    task = {
+                      status: 'running',
+                      progress: [],
+                      logFilePath: latestLogPath,
+                    };
+                  }
+
+                  console.log('[API Backend] 🔍 Task reconstructed from log file:', {
+                    taskId,
+                    status: task.status,
+                    logPath: latestLogPath,
+                  });
+                  break;
+                }
+              }
+            } catch (err) {
+              // Skip projects where we can't access the logs directory
+              console.warn('[API Backend] Could not access logs for project:', project.name, err);
+              continue;
+            }
+          }
+
+          if (!logFound) {
+            console.error('[API Backend] ❌ Task not found in memory or logs:', { taskId });
+            return NextResponse.json(
+              { error: 'Task not found' },
+              { status: 404 }
+            );
+          }
+        } catch (fallbackError) {
+          console.error('[API Backend] ❌ Error during log file fallback:', fallbackError);
+          // If fallback fails, return task not found
+          return NextResponse.json(
+            { error: 'Task not found', details: fallbackError instanceof Error ? fallbackError.message : 'Unknown error' },
+            { status: 404 }
+          );
+        }
       }
 
       // Log detailed task status for debugging

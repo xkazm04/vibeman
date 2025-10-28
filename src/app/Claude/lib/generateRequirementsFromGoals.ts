@@ -1,4 +1,4 @@
-import { goalDb, contextDb, DbGoal, DbContext } from '@/lib/database';
+import { goalDb, contextDb, DbGoal, DbContext } from '@/app/db';
 import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
 import { createRequirement } from './claudeCodeManager';
 import {

@@ -24,7 +24,6 @@ import {
 
 // Component imports
 import ProviderSelector from '@/components/llm/ProviderSelector';
-import ContextSelector from './components/ContextSelector';
 import ScanButton from './components/ScanButton';
 import BatchScanButton from './components/BatchScanButton';
 import ProgressBar from './ProgressBar';
@@ -290,11 +289,11 @@ export default function ScanInitiator({
   return (
     <div className="space-y-4">
       {/* Main Controls Row */}
-      <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl p-4 border border-gray-700/40">
+      <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl p-4 border border-gray-700/40 space-y-4">
         {/* Status message */}
         {message && (
           <motion.div
-            className="mb-4 text-sm text-gray-300"
+            className="text-sm text-gray-300"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
@@ -302,114 +301,103 @@ export default function ScanInitiator({
           </motion.div>
         )}
 
-        <div className="flex items-center gap-4">
-          {/* Scan Type Selector - Inline */}
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <h4 className="text-xs font-semibold text-cyan-300">
-                Scan Type {selectedScanTypes.length > 1 && <span className="text-[10px] text-cyan-500">({selectedScanTypes.length})</span>}
-              </h4>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {SCAN_TYPES.map((type) => {
-                const isSelected = selectedScanTypes.includes(type.value);
-                return (
-                  <motion.button
-                    key={type.value}
-                    onClick={() => handleScanTypeToggle(type.value)}
-                    className={`relative px-2 py-1.5 rounded-lg border-2 transition-all duration-300 ${
-                      isSelected
-                        ? type.color
-                        : 'bg-gray-800/40 border-gray-700/40 text-gray-400 hover:bg-gray-800/60 hover:border-gray-600/40'
-                    }`}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.98 }}
-                    title={type.description}
-                  >
-                    {/* Selected indicator */}
-                    {isSelected && (
-                      <motion.div
-                        className="absolute inset-0 rounded-lg opacity-20"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)'
-                        }}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.2 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    )}
-
-                    <div className="relative flex items-center space-x-1.5">
-                      <span className="text-base">{type.emoji}</span>
-                      <span className={`text-[10px] font-semibold ${isSelected ? '' : 'text-gray-400'}`}>
-                        {type.label}
-                      </span>
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </div>
+        {/* Scan Type Selector Row */}
+        <div>
+          <div className="flex items-center space-x-2 mb-2">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            <h4 className="text-xs font-semibold text-cyan-300">
+              Scan Type {selectedScanTypes.length > 1 && <span className="text-[10px] text-cyan-500">({selectedScanTypes.length})</span>}
+            </h4>
           </div>
 
-          {/* Right side controls */}
-          <div className="flex items-center gap-3">
-            {/* Context Selector */}
-            {activeProject && projectContexts.length > 0 && !batchMode && (
-              <ContextSelector
-                contexts={projectContexts}
-                selectedContext={selectedContext}
-                onSelectContext={handleContextSelect}
-                disabled={scanState === 'scanning'}
-              />
-            )}
-
-            {/* Generate Button with Provider Popup */}
-            <div className="relative">
-              <ScanButton
-                onClick={handleScan}
-                onProviderClick={() => setShowProviderPopup(!showProviderPopup)}
-                disabled={scanState === 'scanning' || !activeProject}
-                scanState={scanState}
-                buttonColor={getButtonColor(scanState)}
-                buttonText={getButtonText(scanState, batchMode, selectedScanTypes.length)}
-              />
-
-              {/* Provider Selector Popup */}
-              <AnimatePresence>
-                {showProviderPopup && (
-                  <motion.div
-                    className="absolute bottom-full mb-2 right-0 bg-gray-800 border border-gray-700/40 rounded-lg shadow-xl p-3 z-50"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                  >
-                    <div className="text-xs text-gray-400 mb-2 font-semibold">Select LLM Provider:</div>
-                    <ProviderSelector
-                      selectedProvider={selectedProvider}
-                      onSelectProvider={(provider) => {
-                        setSelectedProvider(provider);
-                        setShowProviderPopup(false);
+          <div className="flex flex-wrap gap-2">
+            {SCAN_TYPES.map((type) => {
+              const isSelected = selectedScanTypes.includes(type.value);
+              return (
+                <motion.button
+                  key={type.value}
+                  onClick={() => handleScanTypeToggle(type.value)}
+                  className={`relative px-2 py-1.5 rounded-lg border-2 transition-all duration-300 ${
+                    isSelected
+                      ? type.color
+                      : 'bg-gray-800/40 border-gray-700/40 text-gray-400 hover:bg-gray-800/60 hover:border-gray-600/40'
+                  }`}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                  title={type.description}
+                >
+                  {/* Selected indicator */}
+                  {isSelected && (
+                    <motion.div
+                      className="absolute inset-0 rounded-lg opacity-20"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)'
                       }}
-                      disabled={scanState === 'scanning'}
-                      compact={true}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.2 }}
+                      transition={{ duration: 0.3 }}
                     />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                  )}
 
-            {/* Batch Ideas Button */}
-            {activeProject && projectContexts.length > 0 && (
-              <BatchScanButton
-                onClick={onBatchScan || handleBatchScan}
-                disabled={scanState === 'scanning' || !activeProject}
-                isScanning={scanState === 'scanning' && batchMode}
-                contextsCount={projectContexts.length + 1}
-              />
-            )}
+                  <div className="relative flex items-center space-x-1.5">
+                    <span className="text-base">{type.emoji}</span>
+                    <span className={`text-[10px] font-semibold ${isSelected ? '' : 'text-gray-400'}`}>
+                      {type.label}
+                    </span>
+                  </div>
+                </motion.button>
+              );
+            })}
           </div>
+        </div>
+
+
+        {/* Action Buttons Row */}
+        <div className="flex items-center gap-3 pt-2 border-t border-gray-700/20">
+          {/* Generate Button with Provider Popup */}
+          <div className="relative">
+            <ScanButton
+              onClick={handleScan}
+              onProviderClick={() => setShowProviderPopup(!showProviderPopup)}
+              disabled={scanState === 'scanning' || !activeProject}
+              scanState={scanState}
+              buttonColor={getButtonColor(scanState)}
+              buttonText={getButtonText(scanState, batchMode, selectedScanTypes.length)}
+            />
+
+            {/* Provider Selector Popup */}
+            <AnimatePresence>
+              {showProviderPopup && (
+                <motion.div
+                  className="absolute bottom-full mb-2 left-0 bg-gray-800 border border-gray-700/40 rounded-lg shadow-xl p-3 z-50"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                >
+                  <div className="text-xs text-gray-400 mb-2 font-semibold">Select LLM Provider:</div>
+                  <ProviderSelector
+                    selectedProvider={selectedProvider}
+                    onSelectProvider={(provider) => {
+                      setSelectedProvider(provider);
+                      setShowProviderPopup(false);
+                    }}
+                    disabled={scanState === 'scanning'}
+                    compact={true}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Batch Ideas Button - Next to Generate Button */}
+          {activeProject && projectContexts.length > 0 && (
+            <BatchScanButton
+              onClick={onBatchScan || handleBatchScan}
+              disabled={scanState === 'scanning' || !activeProject}
+              isScanning={scanState === 'scanning' && batchMode}
+              contextsCount={projectContexts.length + 1}
+            />
+          )}
         </div>
       </div>
 

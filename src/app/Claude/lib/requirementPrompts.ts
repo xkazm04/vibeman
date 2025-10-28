@@ -1,4 +1,4 @@
-import { DbGoal, DbContext } from '@/lib/database';
+import { DbGoal, DbContext } from '@/app/db';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -318,6 +318,17 @@ export function buildRequirementContent(req: GeneratedRequirement): string {
   if (req.ui_innovation) {
     content += `## UI/UX Innovation Experiment\n\n${req.ui_innovation}\n\n`;
   }
+
+  // Add context reference update section
+  content += `## Context Reference Update\n\n`;
+  content += `After implementing the changes, if this requirement relates to a specific feature context:\n\n`;
+  content += `1. Look for corresponding \`.context\` files in the project (usually in \`contexts/\` or similar directories)\n`;
+  content += `2. Update the relevant context file with:\n`;
+  content += `   - New files created\n`;
+  content += `   - Modified components and their purposes\n`;
+  content += `   - Updated functionality and patterns\n`;
+  content += `   - Any architectural decisions made\n\n`;
+  content += `This keeps the context documentation synchronized with code changes and helps maintain feature group organization.\n\n`;
 
   // Add FILE_STRUCTURE.MD update instruction if needed
   if (req.update_file_structure) {

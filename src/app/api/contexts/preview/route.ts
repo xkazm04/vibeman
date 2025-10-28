@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { contextDb } from '@/lib/database';
+import { contextDb } from '@/app/db';
 
 /**
  * PATCH /api/contexts/preview - Update context preview image

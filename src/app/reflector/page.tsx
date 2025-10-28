@@ -1,24 +1,55 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, TrendingUp } from 'lucide-react';
+import { Trophy, Calendar, TrendingUp, Network } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useContextStore } from '@/stores/contextStore';
+import TotalViewFilters from '@/app/features/reflector/components/TotalViewFilters';
+import TotalViewDashboard from '@/app/features/reflector/components/TotalViewDashboard';
+import ActiveFiltersDisplay from '@/app/features/reflector/components/ActiveFiltersDisplay';
+import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
+import { IdeaFilterState, getEmptyFilterState, applyFilters } from '@/app/features/reflector/lib/filterIdeas';
 
 export default function ReflectorPage() {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'weekly' | 'total'>('weekly');
+  const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'dependencies'>('weekly');
+  const [filters, setFilters] = useState<IdeaFilterState>(getEmptyFilterState());
 
   const { projects, initializeProjects } = useProjectConfigStore();
   const { contexts } = useContextStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
+  // Initialize projects and load ideas
   useEffect(() => {
     initializeProjects();
     loadImplementedIdeas();
   }, []);
+
+  // Sync filters with URL parameters
+  useEffect(() => {
+    const projectIds = searchParams.get('projects')?.split(',').filter(Boolean) || [];
+    const contextIds = searchParams.get('contexts')?.split(',').filter(Boolean) || [];
+    const statuses = searchParams.get('statuses')?.split(',').filter(Boolean) || [];
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const searchQuery = searchParams.get('search') || '';
+
+    setFilters({
+      projectIds,
+      contextIds,
+      statuses,
+      dateRange: {
+        start: startDate ? new Date(startDate) : null,
+        end: endDate ? new Date(endDate) : null,
+      },
+      searchQuery,
+    });
+  }, [searchParams]);
 
   const loadImplementedIdeas = async () => {
     try {
@@ -34,19 +65,29 @@ export default function ReflectorPage() {
     }
   };
 
-  // Filter ideas for weekly view (last 7 days)
-  const filteredIdeas = React.useMemo(() => {
-    if (viewMode === 'total') return ideas;
+  // Apply filters and view mode
+  const displayedIdeas = React.useMemo(() => {
+    let filtered = ideas;
 
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    // Apply view mode filter first (weekly vs total)
+    if (viewMode === 'weekly') {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    return ideas.filter(idea => {
-      if (!idea.implemented_at) return false;
-      const implementedDate = new Date(idea.implemented_at);
-      return implementedDate >= oneWeekAgo;
-    });
-  }, [ideas, viewMode]);
+      filtered = filtered.filter(idea => {
+        if (!idea.implemented_at) return false;
+        const implementedDate = new Date(idea.implemented_at);
+        return implementedDate >= oneWeekAgo;
+      });
+    }
+
+    // Apply user filters only in total view
+    if (viewMode === 'total') {
+      filtered = applyFilters(filtered, filters);
+    }
+
+    return filtered;
+  }, [ideas, viewMode, filters]);
 
   // Calculate stats
   const stats = React.useMemo(() => {
@@ -75,6 +116,53 @@ export default function ReflectorPage() {
       }).length,
     };
   }, [ideas]);
+
+  // Update URL when filters change
+  const handleFilterChange = (newFilters: IdeaFilterState) => {
+    setFilters(newFilters);
+
+    const params = new URLSearchParams();
+    if (newFilters.projectIds.length > 0) {
+      params.set('projects', newFilters.projectIds.join(','));
+    }
+    if (newFilters.contextIds.length > 0) {
+      params.set('contexts', newFilters.contextIds.join(','));
+    }
+    if (newFilters.statuses.length > 0) {
+      params.set('statuses', newFilters.statuses.join(','));
+    }
+    if (newFilters.dateRange.start) {
+      params.set('startDate', newFilters.dateRange.start.toISOString());
+    }
+    if (newFilters.dateRange.end) {
+      params.set('endDate', newFilters.dateRange.end.toISOString());
+    }
+    if (newFilters.searchQuery.trim()) {
+      params.set('search', newFilters.searchQuery);
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '/reflector';
+    router.push(newUrl, { scroll: false });
+  };
+
+  // Remove individual filter
+  const handleRemoveFilter = (filterType: keyof IdeaFilterState, value?: string) => {
+    const newFilters = { ...filters };
+
+    if (filterType === 'projectIds' && value) {
+      newFilters.projectIds = newFilters.projectIds.filter(id => id !== value);
+    } else if (filterType === 'contextIds' && value) {
+      newFilters.contextIds = newFilters.contextIds.filter(id => id !== value);
+    } else if (filterType === 'statuses' && value) {
+      newFilters.statuses = newFilters.statuses.filter(s => s !== value);
+    } else if (filterType === 'dateRange') {
+      newFilters.dateRange = { start: null, end: null };
+    } else if (filterType === 'searchQuery') {
+      newFilters.searchQuery = '';
+    }
+
+    handleFilterChange(newFilters);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/10 to-gray-900">
@@ -148,13 +236,24 @@ export default function ReflectorPage() {
             >
               Reflection
             </button>
+            <button
+              onClick={() => setViewMode('dependencies')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                viewMode === 'dependencies'
+                  ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
+                  : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60'
+              }`}
+            >
+              <Network className="w-4 h-4" />
+              Dependencies
+            </button>
           </div>
         </div>
       </motion.div>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {loading ? (
+        {loading && viewMode !== 'dependencies' ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-gray-400">Loading...</div>
           </div>
@@ -162,11 +261,39 @@ export default function ReflectorPage() {
           <div className="text-center py-24 text-gray-400">
             Weekly view content will be implemented here
             <br />
-            {filteredIdeas.length} ideas implemented in the last 7 days
+            {displayedIdeas.length} ideas implemented in the last 7 days
           </div>
+        ) : viewMode === 'dependencies' ? (
+          <DependenciesTab />
         ) : (
-          <div className="text-center py-24 text-gray-400">
-            Total view coming soon...
+          <div className="space-y-6">
+            {/* Filters and Active Filter Display */}
+            <div className="space-y-4">
+              <TotalViewFilters
+                projects={projects}
+                filters={filters}
+                onChange={handleFilterChange}
+                ideas={ideas}
+              />
+              <ActiveFiltersDisplay
+                filters={filters}
+                projects={projects}
+                onRemoveFilter={handleRemoveFilter}
+              />
+            </div>
+
+            {/* Dashboard */}
+            <TotalViewDashboard
+              ideas={displayedIdeas}
+              isFiltered={
+                filters.projectIds.length > 0 ||
+                filters.contextIds.length > 0 ||
+                filters.statuses.length > 0 ||
+                !!filters.dateRange.start ||
+                !!filters.dateRange.end ||
+                !!filters.searchQuery.trim()
+              }
+            />
           </div>
         )}
       </div>

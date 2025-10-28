@@ -85,20 +85,11 @@ export default function RequirementCard({
 
       {/* Content */}
       <div className="space-y-2">
-        {/* Project name */}
-        <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wide truncate pr-6">
-          {projectName}
-        </div>
-
         {/* Requirement name */}
         <div className="text-sm text-gray-200 font-mono truncate" title={requirementName}>
           {requirementName}
         </div>
 
-        {/* Status text */}
-        <div className="text-[10px] text-gray-400 capitalize">
-          {status === 'session-limit' ? 'Session Limit' : status}
-        </div>
       </div>
 
       {/* Selection indicator */}

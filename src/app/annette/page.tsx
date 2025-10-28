@@ -125,6 +125,9 @@ export default function AnnettePage() {
       return result;
 
     } catch (error) {
+      // Enhanced error handling with classification
+      addLog('system', `Error classified: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
       setState('error');
       setTimeout(() => setState('idle'), 3000);
       throw error;

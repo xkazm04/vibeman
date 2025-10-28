@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import CoderLayout from './coder/CoderLayout';
 import MonitorLayout from './features/footer-monitor/MonitorLayout';
 import { ProjectManagerPanel } from './features/ProjectManager';
-import DependencyVisualizer from './features/DependencyVisualizer/DependencyVisualizer';
 import FrozenComponent from '../components/FrozenComponent';
 import LazyContentSection from '../components/Navigation/LazyContentSection';
 
@@ -31,10 +30,6 @@ export default function Home() {
 
       <LazyContentSection delay={0.3}>
         <ProjectManagerPanel onFreezeStateChange={handleFreezeStateChange} />
-      </LazyContentSection>
-
-      <LazyContentSection delay={0.4}>
-        <DependencyVisualizer />
       </LazyContentSection>
     </main>
   );

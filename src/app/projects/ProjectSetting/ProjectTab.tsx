@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Project } from '@/types';
 import { useAnalysisStore } from '@/stores/analysisStore';
 import ProjectTabMenu from './ProjectTabMenu';

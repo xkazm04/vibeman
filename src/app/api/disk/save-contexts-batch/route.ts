@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { contextDb } from '@/lib/database';
+import { contextDb } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ContextToSave {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Sparkles } from 'lucide-react';
-import { DbIdea } from '@/lib/database';
+import { DbIdea } from '@/app/db';
 
 interface ScanRightPanelProps {
   projectId?: string;

@@ -11,7 +11,7 @@ import { useActiveProjectStore } from '../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../stores/projectsToolbarStore';
 import { useProjectConfigStore } from '../../stores/projectConfigStore';
 import { deleteProject } from './ProjectSetting/lib/projectApi';
-import AIProjectReviewModal from './AIProjectReviewModal';
+import HighLevelDocsModalWrapper from './HighLevelDocsModalWrapper';
 import ProjectAdd from './ProjectSetting/ProjectAdd';
 import ProjectEdit from './ProjectSetting/ProjectEdit';
 import ProjectManagement from './ProjectSetting/ProjectManagement';
@@ -160,8 +160,8 @@ export default function ProjectsLayout() {
         </div>
       </motion.div>
 
-      {/* AI Project Review Modal */}
-      <AIProjectReviewModal
+      {/* High-Level Documentation Modal */}
+      <HighLevelDocsModalWrapper
         isOpen={showAIReview}
         onClose={() => setShowAIReview(false)}
       />

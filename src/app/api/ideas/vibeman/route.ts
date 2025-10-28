@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
-import { goalDb } from '@/lib/database';
+import { goalDb } from '@/app/db';
 import { OllamaClient } from '@/lib/llm/providers/ollama-client';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementContent } from '@/app/Claude/lib/requirementPrompts';

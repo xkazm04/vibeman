@@ -3,7 +3,7 @@
  * Constructs different sections of the LLM prompt from various data sources
  */
 
-import { DbIdea, DbContext } from '@/lib/database';
+import { DbIdea, DbContext } from '@/app/db';
 
 /**
  * Build the code analysis section from codebase files

@@ -44,10 +44,10 @@ Vibeman uses a **multi-project orchestration** architecture where:
   - Graceful shutdown with fallback to force kill
 
 #### 2. Database Layer
-- **Primary DB**: `src/lib/database.ts` - Main SQLite database with goals, contexts, backlog items, events
+- **Primary DB**: `src/app/db/` - Modular SQLite database with goals, contexts, backlog items, events, scans, ideas, and implementation logs
 - **Project DB**: `src/lib/project_database.ts` - Project registry and configurations
 - **Monitor DB**: `src/lib/monitor_database.ts` - Real-time monitoring data
-- **Architecture**: Each table has typed interfaces (e.g., `DbGoal`, `DbContext`) and a namespace object with CRUD operations (e.g., `goalDb`, `contextDb`)
+- **Architecture**: Each table has typed interfaces (e.g., `DbGoal`, `DbContext`) and a repository with CRUD operations (e.g., `goalDb`, `contextDb`)
 - **Migration System**: Schema migrations run automatically on initialization via `runMigrations()`
 
 #### 3. State Management (Zustand)
@@ -130,7 +130,7 @@ TypeScript path alias `@/*` maps to `./src/*` (defined in `tsconfig.json`).
 Always use the `@/` alias for imports:
 ```typescript
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { goalDb } from '@/lib/database';
+import { goalDb } from '@/app/db';
 ```
 
 ### UI Architecture

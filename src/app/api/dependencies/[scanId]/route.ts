@@ -14,10 +14,10 @@ import { projectDb } from '@/lib/project_database';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { scanId: string } }
+  { params }: { params: Promise<{ scanId: string }> }
 ) {
   try {
-    const scanId = params.scanId;
+    const { scanId } = await params;
 
     // Get scan info
     const scan = dependencyScanDb.getScanById(scanId);
@@ -96,10 +96,10 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { scanId: string } }
+  { params }: { params: Promise<{ scanId: string }> }
 ) {
   try {
-    const scanId = params.scanId;
+    const { scanId } = await params;
 
     const success = dependencyScanDb.deleteScan(scanId);
 

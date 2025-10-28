@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useRetryErrorHandler } from '@/hooks/useErrorHandler';
+import { InlineErrorDisplay } from '@/components/errors/ErrorBoundary';
 
 interface ClaudeLogViewerProps {
   logFilePath: string;
@@ -11,29 +13,30 @@ interface ClaudeLogViewerProps {
 export default function ClaudeLogViewer({ logFilePath, requirementName }: ClaudeLogViewerProps) {
   const [logContent, setLogContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const {
+    error,
+    isError,
+    clearError,
+    executeFetchWithRetry,
+    retryCount,
+  } = useRetryErrorHandler('ClaudeLogViewer', 3);
 
   const loadLog = async () => {
     setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/claude-code/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logFilePath }),
-      });
+    clearError();
 
-      if (!response.ok) {
-        throw new Error('Failed to load log file');
-      }
+    const data = await executeFetchWithRetry('/api/claude-code/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logFilePath }),
+    });
 
-      const data = await response.json();
+    if (data) {
       setLogContent(data.content || 'No log content available');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load log');
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -87,12 +90,17 @@ export default function ClaudeLogViewer({ logFilePath, requirementName }: Claude
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-gray-400">Loading log...</div>
+            <div className="text-gray-400">
+              Loading log...
+              {retryCount > 0 && <span className="ml-2 text-xs">(Retry {retryCount}/3)</span>}
+            </div>
           </div>
-        ) : error ? (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded text-red-400">
-            {error}
-          </div>
+        ) : isError && error ? (
+          <InlineErrorDisplay
+            error={error}
+            onRetry={loadLog}
+            onDismiss={clearError}
+          />
         ) : (
           <pre className="text-xs text-gray-300 bg-gray-900 p-4 rounded font-mono whitespace-pre-wrap break-words">
             {logContent}

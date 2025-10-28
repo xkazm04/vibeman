@@ -139,6 +139,7 @@ class ClaudeExecutionQueue {
       const result = await executeRequirement(
         task.projectPath,
         task.requirementName,
+        task.projectId, // Pass project ID as 3rd parameter
         (progressMsg: string) => {
           // Capture progress messages
           task.progress.push(`[${new Date().toISOString()}] ${progressMsg}`);

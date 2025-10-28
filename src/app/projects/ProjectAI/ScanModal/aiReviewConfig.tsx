@@ -1,7 +1,6 @@
 import React from 'react';
 import { AIReviewMode } from '@/lib/api/aiProjectReviewApi';
 import { AIDocsDisplay } from '../sub_ScanHigh';
-import GoalResultDisplay from '../ScanGoals/GoalResultDisplay';
 import { ContextResultDisplay } from '../Context';
 
 export interface AIReviewModeConfig {
@@ -33,26 +32,6 @@ export const AI_REVIEW_MODE_CONFIG: Record<AIReviewMode, AIReviewModeConfig> = {
         previewMode={props.previewMode}
         onPreviewModeChange={props.onPreviewModeChange}
         onContentChange={props.onContentChange}
-        activeProject={props.activeProject}
-      />
-    ),
-  },
-  goals: {
-    mode: 'goals',
-    loadingKey: 'goalsLoading',
-    errorKey: 'goalsError',
-    dataKey: 'goals',
-    setLoadingKey: 'setGoalsLoading',
-    setErrorKey: 'setGoalsError',
-    setDataKey: 'setGoals',
-    renderComponent: (props) => (
-      <GoalResultDisplay
-        goals={props.data}
-        loading={props.loading}
-        error={props.error}
-        onBack={props.onBack}
-        onAcceptGoal={props.onAcceptGoal}
-        onRejectGoal={props.onRejectGoal}
         activeProject={props.activeProject}
       />
     ),

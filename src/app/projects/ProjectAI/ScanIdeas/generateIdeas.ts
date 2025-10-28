@@ -1,14 +1,13 @@
 import { ideaDb, scanDb } from '@/app/db';
-import { contextDb } from '@/lib/database';
+import { contextDb } from '@/app/db';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
 import { buildAIDocsSection } from '../ScanGoals/lib/sectionBuilders';
 import { readAIDocs } from '../ScanGoals/lib/utils';
-import { IDEA_GENERATION_PROMPTS } from './lib/prompts';
-import { buildSpecializedPrompt } from './lib/specializdPrompts';
-import { buildCodeSection, buildContextSection, buildExistingIdeasSection } from './lib/sectionBuilders';
+import { buildIdeaGenerationPrompt } from '../lib/promptBuilder';
 import { ScanType } from '@/app/ideas/components/ScanTypeSelector';
+import { parseAIJsonResponse } from '@/lib/aiJsonParser';
 import { v4 as uuidv4 } from 'uuid';
-import type { IdeaCategory } from '@/types/ideaCategory';
+
 
 export interface IdeaGenerationOptions {
   projectId: string;
@@ -62,12 +61,11 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     console.log(`[generateIdeas] AI documentation loaded: ${aiDocsLength} characters`);
 
     // 2. Get context information if provided
-    let contextSection = '';
+    let context = null;
     let contextFilesCount = 0;
     if (contextId) {
       console.log(`[generateIdeas] Fetching context: ${contextId}`);
-      const context = contextDb.getContextById(contextId);
-      contextSection = buildContextSection(context);
+      context = contextDb.getContextById(contextId);
 
       // Count context files
       if (context && context.file_paths) {
@@ -86,36 +84,35 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     const existingIdeas = contextId
       ? ideaDb.getIdeasByContext(contextId)
       : ideaDb.getIdeasByProject(projectId);
-    const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
 
-    // 4. Build code section from provided files
-    console.log(`[generateIdeas] Building code section with ${codebaseFiles.length} files...`);
-    const codeSection = buildCodeSection(codebaseFiles);
+    // 4. Map scan type to mode for standardized prompts
+    const scanTypeMap: Record<ScanType, 'overall' | 'bug_hunter' | 'insight_synth'> = {
+      overall: 'overall',
+      zen_architect: 'overall', // fallback to overall
+      bug_hunter: 'bug_hunter',
+      perf_optimizer: 'overall', // fallback to overall
+      security_protector: 'overall', // fallback to overall
+      insight_synth: 'insight_synth',
+      ambiguity_guardian: 'overall', // fallback to overall
+    };
 
-    // 5. Build comprehensive prompt (use specialized prompt if scan type is not 'overall')
-    const prompt = scanType === 'overall'
-      ? IDEA_GENERATION_PROMPTS.buildMainPrompt({
-          projectName,
-          aiDocsSection,
-          contextSection,
-          existingIdeasSection,
-          codeSection,
-          hasContext: !!contextId
-        })
-      : buildSpecializedPrompt({
-          scanType,
-          projectName,
-          aiDocsSection,
-          contextSection,
-          existingIdeasSection,
-          codeSection,
-          hasContext: !!contextId
-        });
+    const promptMode = scanTypeMap[scanType] || 'overall';
 
+    // 5. Build prompt using standardized template
+    console.log(`[generateIdeas] Building prompt with mode: ${promptMode}...`);
+    const promptResult = buildIdeaGenerationPrompt(promptMode, {
+      projectName,
+      aiDocs: aiDocsContent,
+      context,
+      codeFiles: codebaseFiles,
+      existingIdeas,
+    });
+
+    const prompt = promptResult.fullPrompt;
     console.log('[generateIdeas] Sending prompt to LLM...');
     console.log(`[generateIdeas] Prompt length: ${prompt.length} characters`);
 
-    // 6. Generate ideas using LLM with high token limit
+    // 6. Generate ideas using LLM with config from standardized template
     const selectedProvider = (provider as any) || DefaultProviderStorage.getDefaultProvider();
     console.log(`[generateIdeas] Using provider: ${selectedProvider}`);
 
@@ -124,8 +121,8 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       projectId,
       taskType: 'idea_generation',
       taskDescription: `Generate ideas for ${projectName}${contextId ? ` - Context: ${contextId}` : ''}`,
-      maxTokens: 30000, // High limit for comprehensive analysis
-      temperature: 0.7 // Balanced creativity
+      maxTokens: promptResult.llmConfig.maxTokens || 30000,
+      temperature: promptResult.llmConfig.temperature || 0.7
     });
 
     if (!result.success || !result.response) {
@@ -134,21 +131,22 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
 
     console.log('[generateIdeas] LLM response received');
 
-    // 7. Parse JSON response
+    // 7. Parse JSON response using robust parser
     let parsedIdeas: GeneratedIdea[];
     try {
-      // Try to extract JSON from response (handle markdown code blocks)
-      const jsonMatch = result.response.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
+      parsedIdeas = parseAIJsonResponse(result.response);
+
+      // Validate that we got an array
+      if (!Array.isArray(parsedIdeas)) {
+        console.error('[generateIdeas] Parsed result is not an array:', typeof parsedIdeas);
+        throw new Error('Expected JSON array, got ' + typeof parsedIdeas);
       }
 
-      parsedIdeas = JSON.parse(jsonMatch[0]);
-      console.log(`[generateIdeas] Parsed ${parsedIdeas.length} ideas`);
+      console.log(`[generateIdeas] Successfully parsed ${parsedIdeas.length} ideas`);
     } catch (parseError) {
       console.error('[generateIdeas] Failed to parse LLM response:', parseError);
       console.error('[generateIdeas] Raw response:', result.response);
-      throw new Error('Failed to parse LLM response as JSON');
+      throw new Error('Failed to parse LLM response as JSON: ' + (parseError instanceof Error ? parseError.message : 'Unknown error'));
     }
 
     // 8. Create scan record with token tracking

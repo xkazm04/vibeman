@@ -37,59 +37,91 @@ export async function executeRequirementAsync(
   requirementName: string,
   projectId?: string
 ): Promise<{ success: boolean; taskId: string }> {
-  console.log('[API] 🚀 CREATING NEW TASK:', {
-    action: 'execute-requirement',
-    requirementName,
-    projectId,
-    async: true,
-  });
-
-  const response = await fetch('/api/claude-code', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectPath,
+  try {
+    console.log('[API] 🚀 CREATING NEW TASK:', {
       action: 'execute-requirement',
       requirementName,
       projectId,
       async: true,
-    }),
-  });
+    });
 
-  const data = await response.json();
+    const response = await fetch('/api/claude-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectPath,
+        action: 'execute-requirement',
+        requirementName,
+        projectId,
+        async: true,
+      }),
+    });
 
-  if (!response.ok) {
-    console.error('[API] ❌ Task creation failed:', data.error);
-    throw new Error(data.error || 'Failed to queue execution');
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('[API] ❌ Non-JSON response received:', text.substring(0, 200));
+      throw new Error(`Server returned non-JSON response (${response.status}). This may be a temporary Next.js build error - will retry.`);
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[API] ❌ Task creation failed:', data.error);
+      throw new Error(data.error || 'Failed to queue execution');
+    }
+
+    console.log('[API] ✅ Task created successfully:', { taskId: data.taskId });
+    return data;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      console.error('[API] ❌ JSON parse error - server may have returned HTML error page');
+      throw new Error('Server error - received invalid response format. This may be a temporary Next.js build error - will retry.');
+    }
+    throw error;
   }
-
-  console.log('[API] ✅ Task created successfully:', { taskId: data.taskId });
-  return data;
 }
 
 /**
  * Get execution task status
  */
 export async function getTaskStatus(taskId: string): Promise<any> {
-  const response = await fetch('/api/claude-code', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectPath: '', // Not needed for task status
-      action: 'get-task-status',
-      taskId,
-    }),
-  });
+  try {
+    const response = await fetch('/api/claude-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectPath: '', // Not needed for task status
+        action: 'get-task-status',
+        taskId,
+      }),
+    });
 
-  const data = await response.json();
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('[API] ❌ Non-JSON response received:', text.substring(0, 200));
+      throw new Error(`Server returned non-JSON response (${response.status})`);
+    }
 
-  if (!response.ok) {
-    console.error('[API] ❌ Status poll failed:', data.error);
-    throw new Error(data.error || 'Failed to get task status');
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[API] ❌ Status poll failed:', data.error);
+      throw new Error(data.error || 'Failed to get task status');
+    }
+
+    console.log('[API] 🔍 get-task-status:', { status: data.task?.status });
+    return data.task;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      console.error('[API] ❌ JSON parse error - server may have returned HTML error page');
+      throw new Error('Server error - received invalid response format');
+    }
+    throw error;
   }
-
-  console.log('[API] 🔍 get-task-status:', { status: data.task?.status });
-  return data.task;
 }
 
 /**

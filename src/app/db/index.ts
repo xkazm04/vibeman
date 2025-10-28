@@ -5,8 +5,14 @@
 
 import { getDatabase, closeDatabase } from './connection';
 import { initializeTables } from './schema';
+import { goalRepository } from './repositories/goal.repository';
+import { backlogRepository } from './repositories/backlog.repository';
+import { contextGroupRepository } from './repositories/context-group.repository';
+import { contextRepository } from './repositories/context.repository';
+import { eventRepository } from './repositories/event.repository';
 import { scanRepository } from './repositories/scan.repository';
 import { ideaRepository } from './repositories/idea.repository';
+import { implementationLogRepository } from './repositories/implementation-log.repository';
 
 // Export types
 export * from './models/types';
@@ -28,6 +34,51 @@ function ensureInitialized() {
 ensureInitialized();
 
 /**
+ * Goal Database Operations
+ * Handles development goals and objectives
+ */
+export const goalDb = {
+  ...goalRepository,
+  close: closeDatabase
+};
+
+/**
+ * Backlog Database Operations
+ * Handles backlog items and proposals
+ */
+export const backlogDb = {
+  ...backlogRepository,
+  close: closeDatabase
+};
+
+/**
+ * Context Group Database Operations
+ * Handles organization of contexts into groups
+ */
+export const contextGroupDb = {
+  ...contextGroupRepository,
+  close: closeDatabase
+};
+
+/**
+ * Context Database Operations
+ * Handles file contexts and documentation
+ */
+export const contextDb = {
+  ...contextRepository,
+  close: closeDatabase
+};
+
+/**
+ * Event Database Operations
+ * Handles system events and logging
+ */
+export const eventDb = {
+  ...eventRepository,
+  close: closeDatabase
+};
+
+/**
  * Scan Database Operations
  * Handles scans with LLM token tracking
  */
@@ -45,25 +96,28 @@ export const ideaDb = {
   close: closeDatabase
 };
 
-// Note: Other repositories (goals, contexts, etc.) should be imported from @/lib/database
-// This module focuses on scan and idea operations with the new token tracking feature
+/**
+ * Implementation Log Database Operations
+ * Handles implementation tracking and history
+ */
+export const implementationLogDb = {
+  ...implementationLogRepository,
+  close: closeDatabase
+};
 
 // Cleanup handlers
 if (typeof process !== 'undefined') {
   process.on('exit', () => {
-    scanDb.close();
-    ideaDb.close();
+    closeDatabase();
   });
 
   process.on('SIGINT', () => {
-    scanDb.close();
-    ideaDb.close();
+    closeDatabase();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
-    scanDb.close();
-    ideaDb.close();
+    closeDatabase();
     process.exit(0);
   });
 }

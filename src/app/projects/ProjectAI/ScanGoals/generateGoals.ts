@@ -1,8 +1,7 @@
 import { goalDb } from '../../../../lib/database';
 import { generateWithLLM, DefaultProviderStorage } from '../../../../lib/llm';
-import { buildAnalysisSection, buildExistingGoalsSection, buildAIDocsSection } from './lib/sectionBuilders';
-import { readAIDocs, readProjectGoalsTemplate } from './lib/utils';
-import { DEFAULT_GOALS_PROMPT, buildGoalsPrompt } from './lib/prompts';
+import { buildStrategicGoalsPrompt } from '../lib/promptBuilder';
+import { readAIDocs } from './lib/utils';
 
 /**
  * Generate strategic goals for a project based on analysis data
@@ -29,37 +28,27 @@ export async function generateGoals(
     aiDocsContent = await readAIDocs(projectPath);
   }
 
-  // Try to read the project goals template
-  let promptTemplate = await readProjectGoalsTemplate();
+  // Attach AI docs to analysis if available
+  const analysisWithDocs = {
+    ...analysis,
+    aiDocs: aiDocsContent,
+  };
 
-  // Fallback to default template if file not found
-  if (!promptTemplate) {
-    console.warn('Using fallback goals prompt template');
-    promptTemplate = DEFAULT_GOALS_PROMPT;
-  }
-
-  // Build all sections
-  const analysisSection = buildAnalysisSection(projectName, analysis);
-  const existingGoalsSection = buildExistingGoalsSection(existingGoals);
-  const aiDocsSection = buildAIDocsSection(aiDocsContent);
-
-  // Build the final prompt
-  const prompt = buildGoalsPrompt(
-    promptTemplate,
-    aiDocsSection,
-    analysisSection,
-    existingGoalsSection,
-    !!aiDocsContent
+  // Build prompt using standardized template
+  const promptResult = buildStrategicGoalsPrompt(
+    projectName,
+    analysisWithDocs,
+    existingGoals
   );
 
-  // Generate goals using LLM
-  const result = await generateWithLLM(prompt, {
+  // Generate goals using LLM with config from template
+  const result = await generateWithLLM(promptResult.fullPrompt, {
     provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'strategic_goals',
     taskDescription: `Generate strategic goals for ${projectName}`,
-    maxTokens: 20000,
-    temperature: 0.8
+    maxTokens: promptResult.llmConfig.maxTokens || 20000,
+    temperature: promptResult.llmConfig.temperature || 0.8
   });
 
   if (!result.success || !result.response) {

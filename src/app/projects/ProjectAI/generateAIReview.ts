@@ -1,9 +1,15 @@
 import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
+import { buildHighLevelDocsPrompt } from './lib/promptBuilder';
 
 // Generate AI documentation review
-export async function generateAIReview(projectName: string, analysis: any, projectId?: string, provider?: string): Promise<string> {
-  // Use the optimized fallback prompt as primary - it's comprehensive and works well
-  // Reading from external file has proven to be unreliable due to path variations across environments
+export async function generateAIReview(projectName: string, analysis: any, projectId?: string, provider?: string, userVision?: string): Promise<string> {
+  // Use the standardized high-level docs prompt
+  const promptResult = buildHighLevelDocsPrompt(projectName, analysis, userVision);
+  const prompt = promptResult.fullPrompt;
+
+  /*
+  // LEGACY PROMPT - Kept for reference
+  // Old approach was too technical and implementation-focused
   const promptTemplate = `You are an expert software architect and technical reviewer. Analyze this repository and provide a comprehensive technical documentation following this EXACT structure:
 
 # 📋 Application Overview
@@ -98,68 +104,16 @@ export async function generateAIReview(projectName: string, analysis: any, proje
 
 ---
 *Analysis complete. This structure ensures consistent, scannable technical documentation.*`;
+  */
 
-  // Build the analysis data section with safe fallbacks
-  const buildAnalysisSection = () => {
-    let section = `## Project Analysis Data\n\n**Project Name**: ${projectName}\n\n`;
-
-    // Add project structure if available
-    if (analysis?.structure) {
-      section += `**Project Structure**:\n\`\`\`\n${JSON.stringify(analysis.structure, null, 2)}\n\`\`\`\n\n`;
-    }
-
-    // Add technologies if available
-    if (analysis?.stats?.technologies?.length > 0) {
-      section += `**Technologies Detected**: ${analysis.stats.technologies.join(', ')}\n\n`;
-    }
-
-    // Add configuration files if available
-    if (analysis?.codebase?.configFiles?.length > 0) {
-      section += `**Key Configuration Files**:\n`;
-      section += analysis.codebase.configFiles.map((f: any) =>
-        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${f.content || 'Content not available'}\n\`\`\``
-      ).join('\n');
-      section += '\n\n';
-    }
-
-    // Add main implementation files if available
-    if (analysis?.codebase?.mainFiles?.length > 0) {
-      section += `**Main Implementation Files** (sample):\n`;
-      section += analysis.codebase.mainFiles.slice(0, 8).map((f: any) =>
-        `\n### ${f.path}\n\`\`\`${f.type || 'text'}\n${(f.content || 'Content not available').slice(0, 1500)}\n\`\`\``
-      ).join('\n');
-      section += '\n\n';
-    }
-
-    // Add documentation files if available
-    if (analysis?.codebase?.documentationFiles?.length > 0) {
-      section += `**Documentation Files**:\n`;
-      section += analysis.codebase.documentationFiles.map((f: any) =>
-        `\n### ${f.path}\n\`\`\`markdown\n${(f.content || 'Content not available').slice(0, 2000)}\n\`\`\``
-      ).join('\n');
-      section += '\n\n';
-    }
-
-    return section;
-  };
-
-  const prompt = `${promptTemplate}
-
----
-
-${buildAnalysisSection()}
-
----
-
-IMPORTANT: Follow the EXACT structure above with all headings and subheadings. Replace bracketed placeholders [like this] with actual information. Use bullet points and clear formatting. Be specific and actionable in your recommendations.`;
-
+  // Use standardized LLM config from the prompt template
   const result = await generateWithLLM(prompt, {
     provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'ai_review',
     taskDescription: `Generate AI review for ${projectName}`,
-    maxTokens: 4000,
-    temperature: 0.7
+    maxTokens: promptResult.llmConfig.maxTokens || 4000,
+    temperature: promptResult.llmConfig.temperature || 0.7
   });
 
   if (!result.success || !result.response) {

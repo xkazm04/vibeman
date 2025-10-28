@@ -18,10 +18,27 @@ export interface DbGoal {
   updated_at: string;
 }
 
+// Backlog types
 export interface ImpactedFile {
   path: string;
   changeType: 'create' | 'modify' | 'delete';
   description?: string;
+}
+
+export interface DbBacklogItem {
+  id: string;
+  project_id: string;
+  goal_id: string | null;
+  agent: 'developer' | 'mastermind' | 'tester' | 'artist' | 'custom';
+  title: string;
+  description: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
+  type: 'proposal' | 'custom';
+  impacted_files: string | null; // JSON string
+  created_at: string;
+  updated_at: string;
+  accepted_at: string | null;
+  rejected_at: string | null;
 }
 
 // Context group types
@@ -93,6 +110,17 @@ export interface DbIdea {
   created_at: string;
   updated_at: string;
   implemented_at: string | null; // Date when idea was implemented
+}
+
+// Implementation log types
+export interface DbImplementationLog {
+  id: string;
+  project_id: string;
+  requirement_name: string;
+  title: string;
+  overview: string;
+  tested: number; // SQLite boolean (0 or 1)
+  created_at: string;
 }
 
 // Export standard category type for use in type annotations

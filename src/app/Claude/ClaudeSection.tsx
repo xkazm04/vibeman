@@ -3,16 +3,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileCode, AlertCircle } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import ClaudeRequirementInput from './ClaudeRequirementInput';
 import ClaudeRequirementsList from './ClaudeRequirementsList';
 
 export default function ClaudeSection() {
   const { activeProject } = useActiveProjectStore();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  const handleRequirementCreated = () => {
-    setRefreshTrigger((prev) => prev + 1);
-  };
 
   if (!activeProject) {
     return (
@@ -36,12 +31,6 @@ export default function ClaudeSection() {
       transition={{ duration: 0.5 }}
       className="space-y-4"
     >
-      {/* Input Row */}
-      <ClaudeRequirementInput
-        projectPath={activeProject.path}
-        onRequirementCreated={handleRequirementCreated}
-      />
-
       {/* Requirements List */}
       <div className="bg-gray-800/30 rounded-lg border border-gray-700/50 p-4">
         <ClaudeRequirementsList

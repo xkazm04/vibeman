@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { goalDb } from '@/lib/database';
+import { goalDb } from '@/app/db';
 import { randomUUID } from 'crypto';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx

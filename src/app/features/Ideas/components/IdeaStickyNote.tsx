@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { DbIdea } from '@/lib/database';
+import { DbIdea } from '@/app/db';
 import {
   getCategoryConfig,
   statusConfig,

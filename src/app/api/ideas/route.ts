@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, scanDb, DbIdea } from '@/lib/database';
+import { ideaDb, scanDb, DbIdea } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

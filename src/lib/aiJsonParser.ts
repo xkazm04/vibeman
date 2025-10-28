@@ -57,15 +57,120 @@ export function parseAIJsonResponse(response: string): any {
   } catch (error) {
     console.log('Direct parsing failed, trying to find JSON array...');
 
-    // Try to find JSON array in the response
-    const arrayMatch = response.match(/\[[\s\S]*?\]/);
-    if (arrayMatch) {
-      console.log('Found JSON array in response, extracting...');
-      return tryParse(arrayMatch[0]);
+    // Try to extract JSON array using bracket counting (handles nested arrays/objects)
+    const extracted = extractJsonArray(response);
+    if (extracted) {
+      console.log('Found JSON array in response using bracket counting, extracting...');
+      return tryParse(extracted);
+    }
+
+    // Fallback: try object extraction
+    const extractedObj = extractJsonObject(response);
+    if (extractedObj) {
+      console.log('Found JSON object in response using bracket counting, extracting...');
+      return tryParse(extractedObj);
     }
 
     // Log the full response for debugging
     console.error('Failed to parse AI response:', response);
     throw new Error(`Failed to parse AI JSON response: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+/**
+ * Extract JSON array from text using bracket counting to handle nested structures
+ */
+function extractJsonArray(text: string): string | null {
+  const startIndex = text.indexOf('[');
+  if (startIndex === -1) return null;
+
+  let bracketCount = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+
+    // Handle escape sequences in strings
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    // Track string boundaries (to ignore brackets inside strings)
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      continue;
+    }
+
+    // Only count brackets outside of strings
+    if (!inString) {
+      if (char === '[') {
+        bracketCount++;
+      } else if (char === ']') {
+        bracketCount--;
+
+        // Found matching closing bracket
+        if (bracketCount === 0) {
+          return text.substring(startIndex, i + 1);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract JSON object from text using brace counting to handle nested structures
+ */
+function extractJsonObject(text: string): string | null {
+  const startIndex = text.indexOf('{');
+  if (startIndex === -1) return null;
+
+  let braceCount = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+
+    // Handle escape sequences in strings
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    // Track string boundaries (to ignore braces inside strings)
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      continue;
+    }
+
+    // Only count braces outside of strings
+    if (!inString) {
+      if (char === '{') {
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+
+        // Found matching closing brace
+        if (braceCount === 0) {
+          return text.substring(startIndex, i + 1);
+        }
+      }
+    }
+  }
+
+  return null;
 }

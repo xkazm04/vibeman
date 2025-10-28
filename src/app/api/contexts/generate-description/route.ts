@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
-import { buildDescriptionGenerationPrompt } from '@/app/coder/Context/ContextGen/lib/contextGenPrompts';
+import { buildContextDescriptionPrompt } from '@/app/projects/ProjectAI/lib/promptBuilder';
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,19 +59,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build prompt
-    const prompt = buildDescriptionGenerationPrompt({ fileContents });
+    // Determine context name from file paths
+    const contextName = body.contextName || 'Context';
+    const initialDescription = body.initialDescription || '';
+
+    // Build prompt using standardized template
+    const promptResult = buildContextDescriptionPrompt(
+      contextName,
+      initialDescription,
+      fileContents
+    );
 
     // Generate description using LLM Manager
     // Default to ollama if no provider specified
     const selectedProvider: SupportedProvider = (provider as SupportedProvider) || 'ollama';
 
     const result = await llmManager.generate({
-      prompt,
+      prompt: promptResult.fullPrompt,
       provider: selectedProvider,
       model: model, // Use specified model or provider's default
-      maxTokens: 4000, // Increased to allow longer descriptions
-      temperature: 0.7,
+      maxTokens: promptResult.llmConfig.maxTokens || 4000,
+      temperature: promptResult.llmConfig.temperature || 0.7,
       taskType: 'context-description-generation',
       taskDescription: 'Generate context description from files',
     });

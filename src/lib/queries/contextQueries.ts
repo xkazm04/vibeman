@@ -1,4 +1,4 @@
-import { contextDb, contextGroupDb, DbContext, DbContextGroup } from '../database';
+import { contextDb, contextGroupDb, DbContext, DbContextGroup } from '@/app/db'
 
 // Context Group Types
 export interface ContextGroup {

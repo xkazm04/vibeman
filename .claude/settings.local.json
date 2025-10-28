@@ -26,7 +26,15 @@
       "Bash(npx tsc --noEmit \"src/app/features/Ideas/sub_IdeasSetup/components/ContextSelector.tsx\" \"src/app/features/Ideas/sub_Vibeman/VibemanPowerButton.tsx\" \"src/app/features/Ideas/sub_Vibeman/VibemanStatus.tsx\" \"src/app/features/Ideas/sub_Vibeman/VibemanControl.tsx\" \"src/app/features/Ideas/sub_Vibeman/VibemanAutomation.tsx\" \"src/app/features/Ideas/components/IdeasHeaderWithFilter.tsx\")",
       "Bash(npx tsc --noEmit \"src/app/ideas/page.tsx\" \"src/app/features/Ideas/components/IdeasHeaderWithFilter.tsx\" \"src/app/features/Ideas/sub_Vibeman/VibemanControl.tsx\" \"src/app/features/Ideas/sub_Vibeman/VibemanAutomation.tsx\")",
       "Bash(claude auth status)",
-      "Bash(claude auth login)"
+      "Bash(claude auth login)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e:*)",
+      "Bash(curl:*)",
+      "Bash(test:*)",
+      "Read(//c/**)",
+      "Bash(find:*)",
+      "Bash(node test-json-parser.js:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

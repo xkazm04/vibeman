@@ -11,7 +11,8 @@ export type ScanType =
   | 'security_protector'
   | 'insight_synth'
   | 'ambiguity_guardian'
-  | 'business_visionary';
+  | 'business_visionary'
+  | 'ui_perfectionist';
 
 export interface ScanTypeOption {
   value: ScanType;
@@ -85,6 +86,14 @@ export const SCAN_TYPES: ScanTypeOption[] = [
     color: 'bg-gradient-to-r from-orange-500/20 to-orange-600/20 border-orange-500/40 text-orange-300',
     description: 'Innovative app ideas & market opportunities',
     agentFile: 'business_visionary.md'
+  },
+  {
+    value: 'ui_perfectionist',
+    label: 'UI Perfectionist',
+    emoji: '🎨',
+    color: 'bg-gradient-to-r from-pink-500/20 to-pink-600/20 border-pink-500/40 text-pink-300',
+    description: 'Extract reusable components & improve design',
+    agentFile: 'ui_perfectionist.md'
   }
 ];
 
