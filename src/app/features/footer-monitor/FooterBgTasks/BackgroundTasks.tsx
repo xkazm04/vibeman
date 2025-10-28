@@ -118,7 +118,7 @@ export default function BackgroundTasks({
             {taskCounts.completed > 0 && (
               <button
                 onClick={clearCompleted}
-                className="text-xs px-2 py-1 bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/50 rounded text-gray-400 hover:text-gray-300 transition-all"
+                className="text-sm px-2 py-1 bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/50 rounded text-gray-400 hover:text-gray-300 transition-all"
                 title="Clear completed tasks"
               >
                 Clear ({taskCounts.completed})
@@ -130,7 +130,7 @@ export default function BackgroundTasks({
               <button
                 key={value}
                 onClick={() => setTaskFilter(value)}
-                className={`flex items-center space-x-1 px-2 py-1 rounded-full border text-xs font-medium transition-all ${
+                className={`flex items-center space-x-1 px-2 py-1 rounded-full border text-sm font-medium transition-all ${
                   taskFilter === value
                     ? getFilterColor(value)
                     : 'border-gray-700/50 bg-gray-800/30 text-gray-400 hover:border-gray-600/50 hover:bg-gray-700/30'
@@ -138,7 +138,7 @@ export default function BackgroundTasks({
               >
                 {Icon && <Icon className="w-3 h-3" />}
                 <span>{label}</span>
-                <span className="bg-gray-900/50 px-1 py-0.5 rounded-full text-xs">
+                <span className="bg-gray-900/50 px-1 py-0.5 rounded-full text-sm">
                   {count}
                 </span>
               </button>

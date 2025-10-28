@@ -75,7 +75,7 @@ export default function ConvControls({
       </div>
       
       {/* Monitoring Toggle */}
-      <div className="mb-3 flex items-center gap-3 text-xs bg-slate-800/40 px-3 py-2 rounded-lg border border-slate-700/50">
+      <div className="mb-3 flex items-center gap-3 text-sm bg-slate-800/40 px-3 py-2 rounded-lg border border-slate-700/50">
         <label className="flex items-center gap-2 cursor-pointer flex-1">
           <input
             type="checkbox"
@@ -87,13 +87,13 @@ export default function ConvControls({
           <span className="text-slate-300 font-medium">Enable Call Monitoring</span>
         </label>
         {monitoring && (
-          <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-400 text-xs font-mono">
+          <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-400 text-sm font-mono">
             TRACKING
           </span>
         )}
       </div>
       
-      <div className="flex items-center gap-2 text-xs bg-slate-800/40 px-3 py-2 rounded-lg border border-slate-700/50">
+      <div className="flex items-center gap-2 text-sm bg-slate-800/40 px-3 py-2 rounded-lg border border-slate-700/50">
         <span className="text-slate-400 font-medium">Status:</span>
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full animate-pulse ${

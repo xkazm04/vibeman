@@ -59,13 +59,13 @@ export default function ContextModalContent({
 
 
           {context.filePaths.length === 0 && (
-            <p className="text-xs text-gray-500 mt-3">
+            <p className="text-sm text-gray-500 mt-3">
               Add files to this context to enable AI generation
             </p>
           )}
 
           {context.filePaths.length > 0 && (
-            <div className="mt-4 text-xs text-gray-500">
+            <div className="mt-4 text-sm text-gray-500">
               <p>AI will analyze {context.filePaths.length} file{context.filePaths.length !== 1 ? 's' : ''} in this context</p>
               <p className="mt-1">Requires Ollama running locally on port 11434</p>
             </div>

@@ -179,7 +179,7 @@ function PlantUMLRenderer({ content }: PlantUMLRendererProps) {
         <pre className="text-sm text-gray-300 bg-gray-800 p-3 rounded overflow-x-auto max-h-64">
           {content.replace(/\\n/g, '\n')}
         </pre>
-        <div className="mt-3 text-xs text-gray-500">
+        <div className="mt-3 text-sm text-gray-500">
           <p>Troubleshooting tips:</p>
           <ul className="list-disc list-inside mt-1 space-y-1">
             <li>Check if PlantUML syntax is correct</li>

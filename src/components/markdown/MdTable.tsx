@@ -74,7 +74,7 @@ export default function MdTable({ headers, rows, renderInlineContent }: MdTableP
       </div>
       
       {/* Table info */}
-      <div className="mt-2 text-xs text-gray-500 flex items-center justify-between">
+      <div className="mt-2 text-sm text-gray-500 flex items-center justify-between">
         <span>{rows.length} row{rows.length !== 1 ? 's' : ''}</span>
         <span>{headers.length} column{headers.length !== 1 ? 's' : ''}</span>
       </div>

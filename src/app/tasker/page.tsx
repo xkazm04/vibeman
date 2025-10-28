@@ -257,7 +257,7 @@ export default function TaskRunnerPage() {
                       <h2 className="text-lg font-semibold text-white">
                         Implementation Logs
                       </h2>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm text-gray-500">
                         Recent automated implementations by Claude Code
                       </p>
                     </div>

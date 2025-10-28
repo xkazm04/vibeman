@@ -34,7 +34,7 @@ export function MdImage({ content, alt }: MdImageProps) {
       <div className="my-8">
         <div className="flex flex-col items-center justify-center h-32 bg-muted rounded-lg border border-border">
           <span className="text-muted-foreground text-sm">Failed to load image</span>
-          <span className="text-muted-foreground text-xs mt-1 opacity-70">Check the URL or try refreshing</span>
+          <span className="text-muted-foreground text-sm mt-1 opacity-70">Check the URL or try refreshing</span>
         </div>
       </div>
     )

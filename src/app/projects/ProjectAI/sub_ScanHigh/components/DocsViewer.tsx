@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Check, Edit3, Eye, FileText, AlertCircle, Loader2, RefreshCw, Sparkles, X } from 'lucide-react';
 import { MarkdownViewer } from '@/components/markdown';
+import { ExportButton } from '@/app/features/Export';
 
 interface DocsViewerProps {
   content: string;
@@ -11,6 +12,8 @@ interface DocsViewerProps {
   isSaving: boolean;
   isRegenerating?: boolean;
   projectName: string;
+  projectId?: string;
+  llmProvider?: string;
 }
 
 export default function DocsViewer({
@@ -20,7 +23,9 @@ export default function DocsViewer({
   onRegenerate,
   isSaving,
   isRegenerating = false,
-  projectName
+  projectName,
+  projectId,
+  llmProvider
 }: DocsViewerProps) {
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -67,7 +72,7 @@ export default function DocsViewer({
           </div>
           <div>
             <h3 className="text-white font-semibold">{projectName}</h3>
-            <p className="text-slate-400 text-xs">context/high.md</p>
+            <p className="text-slate-400 text-sm">context/high.md</p>
           </div>
         </div>
 
@@ -87,6 +92,18 @@ export default function DocsViewer({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Export Button */}
+          {projectId && content && (
+            <ExportButton
+              projectId={projectId}
+              projectName={projectName}
+              aiDocsContent={content}
+              aiDocsProvider={llmProvider}
+              llmProvider={llmProvider}
+              compact={true}
+            />
+          )}
 
           {/* Regenerate Button */}
           {onRegenerate && (
@@ -281,7 +298,7 @@ Start writing your project vision here...
                   placeholder="What's your vision for this project? What problem does it solve? What makes it unique?&#10;&#10;Examples:&#10;- 'Build a platform that helps developers manage multiple projects efficiently'&#10;- 'Create an AI-powered tool for code analysis and documentation'&#10;- 'Revolutionary approach to team collaboration with real-time insights'"
                   className="w-full h-40 bg-slate-900/50 text-slate-300 text-sm rounded-lg border border-slate-700/50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none custom-scrollbar"
                 />
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="text-sm text-slate-500 mt-2">
                   This helps the AI understand your project's purpose and generate more personalized documentation
                 </p>
               </div>
@@ -292,7 +309,7 @@ Start writing your project vision here...
                   <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm text-amber-400 font-medium">This will replace your current documentation</p>
-                    <p className="text-xs text-amber-300/70 mt-1">
+                    <p className="text-sm text-amber-300/70 mt-1">
                       Any unsaved changes will be lost. Make sure to save your work before regenerating.
                     </p>
                   </div>

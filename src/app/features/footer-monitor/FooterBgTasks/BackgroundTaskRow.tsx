@@ -103,29 +103,29 @@ export default function BackgroundTaskRow({ task, index, onCancel, onRetry, onDe
       <td className="px-3 py-1 align-middle">
         <div className="text-gray-300 text-sm min-h-[32px] flex flex-col justify-center">
           <div className="font-medium truncate leading-tight">{task.project_name}</div>
-          <div className="text-xs text-gray-400 truncate leading-tight">{task.project_path}</div>
+          <div className="text-sm text-gray-400 truncate leading-tight">{task.project_path}</div>
         </div>
       </td>
       <td className="px-3 py-1 align-middle">
         <div className="min-h-[32px] flex flex-col justify-center">
           <div className="flex items-center space-x-2">
             <StatusIcon className={`w-3.5 h-3.5 ${statusColor} flex-shrink-0 ${task.status === 'processing' ? 'animate-spin' : ''}`} />
-            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${statusBgColor} ${statusColor} capitalize`}>
+            <span className={`inline-flex items-center text-sm font-medium px-2 py-0.5 rounded-full ${statusBgColor} ${statusColor} capitalize`}>
               {task.status}
             </span>
             {task.status === 'error' && (
-              <span className="text-xs text-gray-400">({task.retry_count}/{task.max_retries})</span>
+              <span className="text-sm text-gray-400">({task.retry_count}/{task.max_retries})</span>
             )}
           </div>
           {task.error_message && (
-            <div className="text-xs text-red-400 truncate leading-tight" title={task.error_message}>
+            <div className="text-sm text-red-400 truncate leading-tight" title={task.error_message}>
               {task.error_message}
             </div>
           )}
         </div>
       </td>
       <td className="px-3 py-1 align-middle">
-        <div className="text-gray-400 text-xs font-mono min-h-[32px] flex flex-col justify-center">
+        <div className="text-gray-400 text-sm font-mono min-h-[32px] flex flex-col justify-center">
           <div className="leading-tight">
             {new Date(task.created_at).toLocaleTimeString([], {
               hour: '2-digit',
@@ -134,7 +134,7 @@ export default function BackgroundTaskRow({ task, index, onCancel, onRetry, onDe
             })}
           </div>
           {task.priority > 0 && (
-            <div className="text-yellow-400 text-xs leading-tight">
+            <div className="text-yellow-400 text-sm leading-tight">
               Priority: {task.priority}
             </div>
           )}

@@ -46,7 +46,7 @@ export default function ProjectSelectionItem({
               {project.name}
             </h3>
             <div className="flex items-center absolute right-5 top-5 space-x-2 mt-1">
-              <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${isActive
+              <span className={`text-sm px-2 py-0.5 rounded-md font-medium ${isActive
                 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                 : `${typeConfig.bg} ${typeConfig.color} border ${typeConfig.border}`
                 }`}>
@@ -65,8 +65,8 @@ export default function ProjectSelectionItem({
       {relatedProject && (
         <div className="flex items-center space-x-2 mb-3 p-2 bg-gray-700/30 rounded-md border border-gray-600/30">
           <Link className="w-3 h-3 text-blue-400 flex-shrink-0" />
-          <span className="text-xs text-gray-400">Connected to:</span>
-          <span className="text-xs text-blue-400 font-medium truncate">
+          <span className="text-sm text-gray-400">Connected to:</span>
+          <span className="text-sm text-blue-400 font-medium truncate">
             {relatedProject.name}
           </span>
         </div>
@@ -76,7 +76,7 @@ export default function ProjectSelectionItem({
       {connectedProjects.length > 0 && !relatedProject && (
         <div className="flex items-center space-x-2 mb-3 p-2 bg-green-500/10 rounded-md border border-green-500/20">
           <ExternalLink className="w-3 h-3 text-green-400 flex-shrink-0" />
-          <span className="text-xs text-gray-400">
+          <span className="text-sm text-gray-400">
             {connectedProjects.length} connected project{connectedProjects.length > 1 ? 's' : ''}
           </span>
         </div>
@@ -86,10 +86,10 @@ export default function ProjectSelectionItem({
       {project.git && (
         <div className="flex items-center space-x-2 mb-3">
           <GitBranch className="w-3 h-3 text-green-400 flex-shrink-0" />
-          <span className="text-xs text-gray-500 truncate font-mono">
+          <span className="text-sm text-gray-500 truncate font-mono">
             {project.git.repository.split('/').pop()?.replace('.git', '')}
           </span>
-          <span className="text-xs text-green-400 font-mono">
+          <span className="text-sm text-green-400 font-mono">
             {project.git.branch}
           </span>
         </div>
@@ -99,8 +99,8 @@ export default function ProjectSelectionItem({
       {project.runScript && (
         <div className="mt-3 pt-3 border-t border-gray-600/30">
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">Run:</span>
-            <code className="text-xs bg-gray-700/50 px-2 py-1 rounded text-gray-300 font-mono truncate">
+            <span className="text-sm text-gray-500">Run:</span>
+            <code className="text-sm bg-gray-700/50 px-2 py-1 rounded text-gray-300 font-mono truncate">
               {project.runScript}
             </code>
           </div>

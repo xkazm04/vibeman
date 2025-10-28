@@ -36,12 +36,12 @@ export default function StatusFilter({ selectedStatuses, onChange }: StatusFilte
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+        <label className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
           Status
         </label>
         <button
           onClick={toggleAll}
-          className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
+          className="text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
         >
           {selectedStatuses.length === STATUS_OPTIONS.length ? 'Clear All' : 'Select All'}
         </button>

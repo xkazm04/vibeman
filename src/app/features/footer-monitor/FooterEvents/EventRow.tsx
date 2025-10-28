@@ -79,12 +79,12 @@ export default function EventRow({ event, index, onClick, onDelete }: EventRowPr
         <span className="text-gray-300 text-sm line-clamp-2">{event.description}</span>
       </td>
       <td className="px-3 py-2">
-        <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${bgColorClass} ${colorClass} capitalize`}>
+        <span className={`inline-flex items-center text-sm font-medium px-2 py-0.5 rounded-full ${bgColorClass} ${colorClass} capitalize`}>
           {event.type}
         </span>
       </td>
       <td className="px-3 py-2">
-        <span className="text-gray-400 text-xs font-mono">
+        <span className="text-gray-400 text-sm font-mono">
           {(() => {
             try {
               const timestamp = typeof event.timestamp === 'string' 

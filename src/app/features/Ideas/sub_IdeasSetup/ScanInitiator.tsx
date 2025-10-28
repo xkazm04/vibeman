@@ -305,7 +305,7 @@ export default function ScanInitiator({
         <div>
           <div className="flex items-center space-x-2 mb-2">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <h4 className="text-xs font-semibold text-cyan-300">
+            <h4 className="text-sm font-semibold text-cyan-300">
               Scan Type {selectedScanTypes.length > 1 && <span className="text-[10px] text-cyan-500">({selectedScanTypes.length})</span>}
             </h4>
           </div>
@@ -374,7 +374,7 @@ export default function ScanInitiator({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
                 >
-                  <div className="text-xs text-gray-400 mb-2 font-semibold">Select LLM Provider:</div>
+                  <div className="text-sm text-gray-400 mb-2 font-semibold">Select LLM Provider:</div>
                   <ProviderSelector
                     selectedProvider={selectedProvider}
                     onSelectProvider={(provider) => {

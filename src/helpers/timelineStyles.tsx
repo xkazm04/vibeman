@@ -31,7 +31,7 @@ export const getStatusIcon = (status: Goal['status']) => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-green-300 text-xs font-bold"
+            className="text-green-300 text-sm font-bold"
           >
             ✓
           </motion.div>
@@ -42,7 +42,7 @@ export const getStatusIcon = (status: Goal['status']) => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-yellow-300 text-xs font-bold"
+            className="text-yellow-300 text-sm font-bold"
           >
             <HammerIcon size={12} />
           </motion.div>

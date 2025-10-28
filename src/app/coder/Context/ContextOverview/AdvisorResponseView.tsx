@@ -102,7 +102,7 @@ function renderUXResponse(data: any, color: string) {
                 <h6 className="text-sm font-semibold text-gray-200">{rec.title}</h6>
                 {rec.priority && (
                   <span
-                    className={`text-xs px-2 py-1 rounded-full font-mono ${
+                    className={`text-sm px-2 py-1 rounded-full font-mono ${
                       rec.priority === 'high'
                         ? 'bg-red-500/20 text-red-400'
                         : rec.priority === 'medium'
@@ -120,7 +120,7 @@ function renderUXResponse(data: any, color: string) {
                   {rec.files.map((file: string, i: number) => (
                     <span
                       key={i}
-                      className="text-xs px-2 py-1 rounded bg-gray-700/50 text-gray-400 font-mono flex items-center space-x-1"
+                      className="text-sm px-2 py-1 rounded bg-gray-700/50 text-gray-400 font-mono flex items-center space-x-1"
                     >
                       <FileCode className="w-3 h-3" />
                       <span>{file}</span>
@@ -191,7 +191,7 @@ function renderSecurityResponse(data: any, color: string) {
               <div className="flex items-start justify-between mb-2">
                 <h6 className="text-sm font-semibold text-gray-200">{vuln.title}</h6>
                 <span
-                  className={`text-xs px-2 py-1 rounded-full font-mono ${
+                  className={`text-sm px-2 py-1 rounded-full font-mono ${
                     vuln.severity === 'critical'
                       ? 'bg-red-600/30 text-red-300'
                       : vuln.severity === 'high'
@@ -207,8 +207,8 @@ function renderSecurityResponse(data: any, color: string) {
               <p className="text-sm text-gray-400 mb-3">{vuln.description}</p>
               {vuln.fix && (
                 <div className="p-3 rounded bg-gray-700/30 border border-gray-600/30">
-                  <p className="text-xs text-gray-300 mb-1 font-semibold">Suggested Fix:</p>
-                  <p className="text-xs text-gray-400">{vuln.fix}</p>
+                  <p className="text-sm text-gray-300 mb-1 font-semibold">Suggested Fix:</p>
+                  <p className="text-sm text-gray-400">{vuln.fix}</p>
                 </div>
               )}
               {vuln.files && vuln.files.length > 0 && (
@@ -216,7 +216,7 @@ function renderSecurityResponse(data: any, color: string) {
                   {vuln.files.map((file: string, i: number) => (
                     <span
                       key={i}
-                      className="text-xs px-2 py-1 rounded bg-gray-700/50 text-gray-400 font-mono flex items-center space-x-1"
+                      className="text-sm px-2 py-1 rounded bg-gray-700/50 text-gray-400 font-mono flex items-center space-x-1"
                     >
                       <FileCode className="w-3 h-3" />
                       <span>{file}</span>
@@ -275,7 +275,7 @@ function renderArchitectResponse(data: any, color: string) {
               <div className="flex items-start justify-between mb-2">
                 <h6 className="text-sm font-semibold text-gray-200">{imp.title}</h6>
                 {imp.pattern && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 font-mono">
+                  <span className="text-sm px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 font-mono">
                     {imp.pattern}
                   </span>
                 )}
@@ -286,7 +286,7 @@ function renderArchitectResponse(data: any, color: string) {
                   {imp.files.map((file: string, i: number) => (
                     <span
                       key={i}
-                      className="text-xs px-2 py-1 rounded bg-gray-700/50 text-gray-400 font-mono flex items-center space-x-1"
+                      className="text-sm px-2 py-1 rounded bg-gray-700/50 text-gray-400 font-mono flex items-center space-x-1"
                     >
                       <FileCode className="w-3 h-3" />
                       <span>{file}</span>
@@ -361,7 +361,7 @@ function renderVisionaryResponse(data: any, color: string) {
               {opp.impact && (
                 <div className="flex items-start space-x-2 p-3 rounded bg-purple-500/10 border border-purple-500/20">
                   <TrendingUp className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-purple-300">{opp.impact}</p>
+                  <p className="text-sm text-purple-300">{opp.impact}</p>
                 </div>
               )}
             </motion.div>
@@ -423,7 +423,7 @@ function renderChumResponse(data: any, color: string) {
               <div className="flex items-start justify-between mb-2">
                 <h6 className="text-sm font-semibold text-gray-200">{idea.title}</h6>
                 <span
-                  className={`text-xs px-2 py-1 rounded-full font-mono ${
+                  className={`text-sm px-2 py-1 rounded-full font-mono ${
                     idea.feasibility === 'high'
                       ? 'bg-green-500/20 text-green-400'
                       : idea.feasibility === 'medium'
@@ -473,7 +473,7 @@ function renderMarkdownFallback(markdown: string, color: string) {
         }}
       >
         <FileText className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color }} />
-        <p className="text-xs text-gray-400 font-mono">
+        <p className="text-sm text-gray-400 font-mono">
           Response received in markdown format. The AI did not follow the structured JSON format, so we're displaying the raw content below.
         </p>
       </div>
@@ -507,7 +507,7 @@ function renderGenericResponse(data: any, advisor: AdvisorPersona) {
         }}
       >
         <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color }} />
-        <p className="text-xs text-gray-400 font-mono">
+        <p className="text-sm text-gray-400 font-mono">
           Response received in generic format. The AI provided issues/recommendations instead of the expected structure.
         </p>
       </div>
@@ -537,7 +537,7 @@ function renderGenericResponse(data: any, advisor: AdvisorPersona) {
               {issue.file && (
                 <div className="flex items-center space-x-2 mt-2">
                   <FileCode className="w-3 h-3 text-gray-500" />
-                  <span className="text-xs text-gray-500 font-mono">{issue.file}</span>
+                  <span className="text-sm text-gray-500 font-mono">{issue.file}</span>
                 </div>
               )}
             </motion.div>
@@ -570,7 +570,7 @@ function renderGenericResponse(data: any, advisor: AdvisorPersona) {
               {rec.file && (
                 <div className="flex items-center space-x-2 mt-2">
                   <FileCode className="w-3 h-3 text-gray-500" />
-                  <span className="text-xs text-gray-500 font-mono">{rec.file}</span>
+                  <span className="text-sm text-gray-500 font-mono">{rec.file}</span>
                 </div>
               )}
             </motion.div>

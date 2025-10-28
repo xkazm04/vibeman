@@ -196,7 +196,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
                 selectedPaths.forEach(path => onPathToggle(path));
                 clearSelection();
               }}
-              className="text-xs text-red-400 hover:text-red-300 transition-colors"
+              className="text-sm text-red-400 hover:text-red-300 transition-colors"
             >
               Clear all
             </button>
@@ -211,7 +211,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
           <button
             onClick={handleSmartSelection}
             disabled={isAnalyzing}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded-lg hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium border border-purple-500/30"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded-lg hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium border border-purple-500/30"
           >
             {isAnalyzing ? (
               <>

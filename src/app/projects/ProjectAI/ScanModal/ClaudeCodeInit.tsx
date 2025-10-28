@@ -141,15 +141,15 @@ export default function ClaudeCodeInit({ projectPath, projectName, projectId, pr
         {renderStatusIcon()}
       </div>
 
-      <p className="text-xs text-gray-400 leading-relaxed mb-3">
+      <p className="text-sm text-gray-400 leading-relaxed mb-3">
         {renderStatusText()}
       </p>
 
       {/* Show missing items if partially initialized */}
       {status.exists && !status.initialized && status.missing.length > 0 && (
         <div className="mb-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-          <p className="text-xs text-amber-400 font-semibold mb-1">Missing Components:</p>
-          <ul className="text-xs text-amber-300/80 space-y-0.5">
+          <p className="text-sm text-amber-400 font-semibold mb-1">Missing Components:</p>
+          <ul className="text-sm text-amber-300/80 space-y-0.5">
             {status.missing.map((item, idx) => (
               <li key={idx} className="flex items-center">
                 <span className="w-1 h-1 bg-amber-400 rounded-full mr-2" />
@@ -165,7 +165,7 @@ export default function ClaudeCodeInit({ projectPath, projectName, projectId, pr
         <motion.button
           onClick={handleInitialize}
           disabled={initializing}
-          className={`w-full py-2 px-3 rounded-lg flex items-center justify-center space-x-2 text-xs font-semibold transition-all duration-300 ${
+          className={`w-full py-2 px-3 rounded-lg flex items-center justify-center space-x-2 text-sm font-semibold transition-all duration-300 ${
             initializing
               ? 'bg-blue-500/20 text-blue-300 cursor-not-allowed'
               : 'bg-blue-500/30 hover:bg-blue-500/40 text-blue-200 hover:text-white border border-blue-500/40 hover:border-blue-500/60'
@@ -196,7 +196,7 @@ export default function ClaudeCodeInit({ projectPath, projectName, projectId, pr
       {status.initialized && (
         <div className="flex items-center space-x-2 p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
           <FolderCog className="w-3.5 h-3.5 text-green-400" />
-          <span className="text-xs text-green-300">Ready for automation</span>
+          <span className="text-sm text-green-300">Ready for automation</span>
         </div>
       )}
     </motion.div>

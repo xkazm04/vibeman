@@ -85,7 +85,7 @@ export default function MultiModelSessionLogs({
                   repeat: (sessionState === 'active' || sessionState === 'processing') ? Infinity : 0,
                 }}
               />
-              <span className="text-xs text-cyan-400/60 font-mono uppercase">
+              <span className="text-sm text-cyan-400/60 font-mono uppercase">
                 {sessionState === 'active' || sessionState === 'processing' ? 'TESTING' : 
                  sessionState === 'connecting' ? 'CONNECTING' :
                  sessionState === 'error' ? 'ERROR' : 'OFFLINE'}
@@ -112,10 +112,10 @@ export default function MultiModelSessionLogs({
             const color = getProviderColor(m.provider);
             return (
               <div key={idx} className={`px-3 py-1 rounded-lg border ${color.border} bg-gradient-to-r ${color.bg} backdrop-blur-sm`}>
-                <span className={`text-xs font-mono font-bold ${color.text}`}>
+                <span className={`text-sm font-mono font-bold ${color.text}`}>
                   {m.provider.toUpperCase()}
                 </span>
-                <span className="text-xs text-gray-400 ml-1">({m.model})</span>
+                <span className="text-sm text-gray-400 ml-1">({m.model})</span>
               </div>
             );
           })}
@@ -132,7 +132,7 @@ export default function MultiModelSessionLogs({
           >
             <Activity className="w-16 h-16 text-cyan-400/40 mb-4" />
             <p className="text-cyan-300/60 font-mono text-sm">Waiting for test to begin</p>
-            <p className="text-gray-500 text-xs mt-2">Multi-model responses will appear here</p>
+            <p className="text-gray-500 text-sm mt-2">Multi-model responses will appear here</p>
           </motion.div>
         ) : (
           <AnimatePresence>
@@ -148,8 +148,8 @@ export default function MultiModelSessionLogs({
                 {/* Question */}
                 <div className="p-4 rounded-xl border border-cyan-400/30 bg-gradient-to-r from-cyan-600/20 via-blue-600/10 to-cyan-800/20 backdrop-blur-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-cyan-400 font-mono font-bold">USER QUESTION</span>
-                    <span className="text-xs text-gray-500 font-mono">{log.timestamp}</span>
+                    <span className="text-sm text-cyan-400 font-mono font-bold">USER QUESTION</span>
+                    <span className="text-sm text-gray-500 font-mono">{log.timestamp}</span>
                   </div>
                   <p className="text-white text-sm font-mono">{log.question}</p>
                 </div>
@@ -170,14 +170,14 @@ export default function MultiModelSessionLogs({
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center space-x-2">
                             <Bot className={`w-4 h-4 ${color.text}`} />
-                            <span className={`text-xs font-mono font-bold ${color.text}`}>
+                            <span className={`text-sm font-mono font-bold ${color.text}`}>
                               {response.provider.toUpperCase()}
                             </span>
                           </div>
                           {response.timing && (
                             <div className="flex items-center space-x-1">
                               <Clock className="w-3 h-3 text-gray-400" />
-                              <span className="text-xs text-gray-400 font-mono">
+                              <span className="text-sm text-gray-400 font-mono">
                                 {((response.timing.llmMs || 0) / 1000).toFixed(2)}s
                               </span>
                             </div>
@@ -191,7 +191,7 @@ export default function MultiModelSessionLogs({
 
                         {/* Model Name */}
                         <div className="mt-3 pt-3 border-t border-gray-700/50">
-                          <span className="text-xs text-gray-400 font-mono">{response.model}</span>
+                          <span className="text-sm text-gray-400 font-mono">{response.model}</span>
                         </div>
                       </motion.div>
                     );

@@ -32,11 +32,11 @@ const EventTable = ({
         <table className="w-full">
           <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50">
             <tr>
-              <th className="px-3 py-2 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Event</th>
-              <th className="px-3 py-2 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Description</th>
-              <th className="px-3 py-2 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Type</th>
-              <th className="px-3 py-2 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Time</th>
-              <th className="px-3 py-2 text-center text-gray-300 font-medium text-xs uppercase tracking-wider w-16">Actions</th>
+              <th className="px-3 py-2 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Event</th>
+              <th className="px-3 py-2 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Description</th>
+              <th className="px-3 py-2 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Type</th>
+              <th className="px-3 py-2 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Time</th>
+              <th className="px-3 py-2 text-center text-gray-300 font-medium text-sm uppercase tracking-wider w-16">Actions</th>
             </tr>
           </thead>
           <tbody>

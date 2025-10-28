@@ -122,7 +122,7 @@ export default function TestStatus() {
       
       <div className="space-y-2">
         {tests.map((test) => (
-          <div key={test.name} className="flex items-center justify-between text-xs">
+          <div key={test.name} className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${getStatusDot(test.status)}`} />
               <span className="text-gray-300">{test.name}</span>

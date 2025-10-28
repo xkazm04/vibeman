@@ -67,7 +67,7 @@ export const PreviewContentArea: React.FC<PreviewContentAreaProps> = ({
                           <span className="text-sm font-medium text-gray-300">
                             {tabProject.project.name}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-sm text-gray-500">
                             :{tabProject.project.port}
                           </span>
                         </div>

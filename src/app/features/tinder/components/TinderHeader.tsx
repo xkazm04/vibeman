@@ -71,19 +71,19 @@ export default function TinderHeader({
 
           {/* Right: Stats */}
           <div className="flex items-center space-x-6">
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Remaining:</span>{' '}
               <span className="text-white font-mono font-semibold">{remainingCount}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Accepted:</span>{' '}
               <span className="text-green-400 font-mono font-semibold">{stats.accepted}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Rejected:</span>{' '}
               <span className="text-red-400 font-mono font-semibold">{stats.rejected}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Deleted:</span>{' '}
               <span className="text-gray-400 font-mono font-semibold">{stats.deleted}</span>
             </div>

@@ -106,10 +106,10 @@ export default function ProjectDelete({ isOpen, onClose, onProjectDeleted, proje
 
             {/* Project Info */}
             <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
-              <div className="text-xs text-gray-400 mb-1">Project Details:</div>
+              <div className="text-sm text-gray-400 mb-1">Project Details:</div>
               <div className="text-sm text-white font-mono">{project.name}</div>
-              <div className="text-xs text-gray-400 font-mono">{project.path}</div>
-              <div className="text-xs text-gray-400">Port: {project.port}</div>
+              <div className="text-sm text-gray-400 font-mono">{project.path}</div>
+              <div className="text-sm text-gray-400">Port: {project.port}</div>
             </div>
 
             {/* Confirmation Input */}

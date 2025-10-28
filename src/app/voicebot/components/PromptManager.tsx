@@ -160,7 +160,7 @@ export default function PromptManager() {
       if (numberedMatch) {
         return (
           <div key={idx} className="flex items-start space-x-3 mb-2">
-            <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/40 rounded-full flex items-center justify-center text-cyan-400 text-xs font-bold">
+            <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/40 rounded-full flex items-center justify-center text-cyan-400 text-sm font-bold">
               {numberedMatch[1]}
             </span>
             <span className="text-cyan-100/90">{numberedMatch[2]}</span>
@@ -368,7 +368,7 @@ export default function PromptManager() {
             </div>
 
             <div className="p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-lg">
-              <p className="text-xs text-cyan-300/70 font-mono leading-relaxed">
+              <p className="text-sm text-cyan-300/70 font-mono leading-relaxed">
                 <span className="font-bold text-cyan-400">Usage:</span> This section defines the core analysis workflow. 
                 The LLM uses these instructions to determine user intent, select appropriate tools, and decide if confirmation is needed.
               </p>
@@ -424,7 +424,7 @@ export default function PromptManager() {
             </div>
 
             <div className="p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-lg">
-              <p className="text-xs text-cyan-300/70 font-mono leading-relaxed">
+              <p className="text-sm text-cyan-300/70 font-mono leading-relaxed">
                 <span className="font-bold text-cyan-400">Usage:</span> These sections guide the LLM in formatting responses. 
                 Instructions define what to do, while Guidelines specify how to present information to users.
               </p>

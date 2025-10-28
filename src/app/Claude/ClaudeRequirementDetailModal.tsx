@@ -63,7 +63,7 @@ export default function ClaudeRequirementDetailModal({
         </div>
         <div>
           <h3 className="text-lg font-semibold text-white">/{requirementName}</h3>
-          <p className="text-xs text-gray-400">Claude Code Requirement</p>
+          <p className="text-sm text-gray-400">Claude Code Requirement</p>
         </div>
       </div>
 

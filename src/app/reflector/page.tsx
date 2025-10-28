@@ -198,16 +198,16 @@ export default function ReflectorPage() {
             <div className="flex items-center space-x-6">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-yellow-400" />
-                <div className="text-xs">
+                <div className="text-sm">
                   <span className="text-gray-500">Today:</span>{' '}
                   <span className="text-yellow-400 font-mono font-semibold">{stats.today}</span>
                 </div>
               </div>
-              <div className="text-xs">
+              <div className="text-sm">
                 <span className="text-gray-500">Week:</span>{' '}
                 <span className="text-yellow-400 font-mono font-semibold">{stats.week}</span>
               </div>
-              <div className="text-xs">
+              <div className="text-sm">
                 <span className="text-gray-500">Month:</span>{' '}
                 <span className="text-amber-400 font-mono font-semibold">{stats.month}</span>
               </div>

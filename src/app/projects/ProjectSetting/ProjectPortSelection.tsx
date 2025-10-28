@@ -60,7 +60,7 @@ export default function ProjectPortSelection({
     <div className="space-y-3">
       <label className="block text-sm font-medium text-gray-300">
         Port Selection
-        <span className="text-xs text-gray-500 ml-2">
+        <span className="text-sm text-gray-500 ml-2">
           ({projectType === 'nextjs' ? '3000-3010' : '8000-8010'})
         </span>
       </label>
@@ -130,13 +130,13 @@ export default function ProjectPortSelection({
         <motion.div
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-xs text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 rounded-md px-3 py-2"
+          className="text-sm text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 rounded-md px-3 py-2"
         >
           Selected port: {selectedPort}
         </motion.div>
       )}
       
-      <div className="flex items-center space-x-4 text-xs text-gray-500">
+      <div className="flex items-center space-x-4 text-sm text-gray-500">
         <div className="flex items-center space-x-1">
           <div className="w-3 h-3 bg-gray-700/30 border border-gray-600 rounded"></div>
           <span>Available</span>

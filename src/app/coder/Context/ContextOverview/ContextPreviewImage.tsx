@@ -30,7 +30,7 @@ export default function ContextPreviewImage({
           <div className="text-center">
             <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="text-sm">Preview image not found</p>
-            <p className="text-xs text-gray-600 mt-1">{preview}</p>
+            <p className="text-sm text-gray-600 mt-1">{preview}</p>
           </div>
         </div>
       </div>

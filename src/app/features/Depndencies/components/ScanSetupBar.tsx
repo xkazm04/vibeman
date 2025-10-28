@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Network, Check } from 'lucide-react';
+import { GradientButton } from '@/components/ui';
 import { Project } from '../lib/types';
 
 interface ScanSetupBarProps {
@@ -32,7 +33,7 @@ export default function ScanSetupBar({
         {/* Main Row with Projects */}
         <div className="flex items-start gap-4">
           {/* Label */}
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0 mt-1.5">
+          <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide shrink-0 mt-1.5">
             Projects:
           </span>
 
@@ -41,7 +42,7 @@ export default function ScanSetupBar({
             {/* Select All / Clear Button */}
             <motion.button
               onClick={allSelected ? onClearSelection : onSelectAll}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
                 allSelected
                   ? 'bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30'
                   : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 hover:bg-yellow-500/30'
@@ -69,41 +70,25 @@ export default function ScanSetupBar({
                 >
                   {isSelected && <Check className="w-3.5 h-3.5" />}
                   {project.name}
-                  <span className="text-xs opacity-60">({project.type})</span>
+                  <span className="text-sm opacity-60">({project.type})</span>
                 </motion.button>
               );
             })}
           </div>
 
           {/* Run Scan Button */}
-          <motion.button
+          <GradientButton
             onClick={onRunScan}
             disabled={scanning || selectedProjects.length === 0}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all shrink-0 flex items-center gap-2 ${
-              scanning || selectedProjects.length === 0
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-gray-900 shadow-lg shadow-yellow-500/20'
-            }`}
-            whileHover={scanning || selectedProjects.length === 0 ? {} : { scale: 1.05 }}
-            whileTap={scanning || selectedProjects.length === 0 ? {} : { scale: 0.95 }}
+            loading={scanning}
+            colorScheme="yellow"
+            icon={scanning ? Network : Play}
+            iconPosition="left"
+            size="md"
+            className="shrink-0"
           >
-            {scanning ? (
-              <>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                >
-                  <Network className="w-4 h-4" />
-                </motion.div>
-                Scanning...
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Run Scan ({selectedProjects.length})
-              </>
-            )}
-          </motion.button>
+            {scanning ? 'Scanning...' : `Run Scan (${selectedProjects.length})`}
+          </GradientButton>
         </div>
       </div>
 

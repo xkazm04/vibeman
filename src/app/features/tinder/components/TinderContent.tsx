@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Sparkles } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import ActionButtons from './ActionButtons';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
@@ -54,13 +55,14 @@ export default function TinderContent({
           <p className="text-gray-400 mb-6">
             You&apos;ve reviewed all pending ideas
           </p>
-          <motion.button
-            {...TINDER_ANIMATIONS.BUTTON_HOVER}
+          <GradientButton
             onClick={onStartOver}
-            className="px-6 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-lg text-white font-semibold shadow-lg"
+            colorScheme="pink"
+            size="lg"
+            animate={true}
           >
             Start Over
-          </motion.button>
+          </GradientButton>
         </div>
       </div>
     );

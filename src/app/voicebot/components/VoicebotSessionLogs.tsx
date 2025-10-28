@@ -83,7 +83,7 @@ export default function VoicebotSessionLogs({
                   repeat: (sessionState === 'active' || sessionState === 'processing') ? Infinity : 0,
                 }}
               />
-              <span className="text-xs text-cyan-400/60 font-mono uppercase">
+              <span className="text-sm text-cyan-400/60 font-mono uppercase">
                 {sessionState === 'active' || sessionState === 'processing' ? 'LIVE' : 
                  sessionState === 'connecting' ? 'CONNECTING' :
                  sessionState === 'error' ? 'ERROR' : 'OFFLINE'}
@@ -105,7 +105,7 @@ export default function VoicebotSessionLogs({
         </div>
 
         {/* Session Stats */}
-        <div className="grid grid-cols-3 gap-4 text-xs font-mono">
+        <div className="grid grid-cols-3 gap-4 text-sm font-mono">
           <div className="p-2 bg-black/20 rounded-lg border border-cyan-500/20">
             <div className="text-gray-400 mb-1">Messages</div>
             <div className="text-white text-lg">{logs.length}</div>
@@ -156,7 +156,7 @@ export default function VoicebotSessionLogs({
               <Activity className="w-16 h-16 text-cyan-400/40 mb-4" />
             </motion.div>
             <p className="text-cyan-300/60 font-mono text-sm">Waiting for call session to begin</p>
-            <p className="text-gray-500 text-xs mt-2">Your conversation will appear here</p>
+            <p className="text-gray-500 text-sm mt-2">Your conversation will appear here</p>
           </motion.div>
         ) : (
           <AnimatePresence>
@@ -215,7 +215,7 @@ export default function VoicebotSessionLogs({
                             {style.label}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-500 font-mono">{log.timestamp}</span>
+                        <span className="text-sm text-gray-500 font-mono">{log.timestamp}</span>
                       </div>
 
                       {/* Tools Used (for assistant messages) - TOP ROW, CENTERED */}
@@ -226,11 +226,11 @@ export default function VoicebotSessionLogs({
                           className="mb-3 pb-2 border-b border-green-500/20"
                         >
                           <div className="flex flex-wrap gap-2 justify-center items-center">
-                            <span className="text-xs text-green-400/60 font-mono uppercase tracking-wider">Tools:</span>
+                            <span className="text-sm text-green-400/60 font-mono uppercase tracking-wider">Tools:</span>
                             {log.toolsUsed.map((tool, idx) => (
                               <span
                                 key={idx}
-                                className="px-2 py-1 text-xs bg-green-500/10 border border-green-500/30 rounded text-green-300 font-mono"
+                                className="px-2 py-1 text-sm bg-green-500/10 border border-green-500/30 rounded text-green-300 font-mono"
                                 title={tool.description || tool.name}
                               >
                                 {tool.name}
@@ -252,7 +252,7 @@ export default function VoicebotSessionLogs({
                             <motion.div
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: 'auto' }}
-                              className="flex items-center space-x-2 text-xs text-green-400/80"
+                              className="flex items-center space-x-2 text-sm text-green-400/80"
                             >
                               <Activity className="w-3 h-3" />
                               <span className="font-mono">Audio response played</span>
@@ -265,7 +265,7 @@ export default function VoicebotSessionLogs({
                           <motion.div
                             initial={{ opacity: 0, x: 10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center space-x-3 text-xs text-slate-400 font-mono"
+                            className="flex items-center space-x-3 text-sm text-slate-400 font-mono"
                           >
                             <Clock className="w-3 h-3" />
                             <div className="flex items-center space-x-2">

@@ -186,7 +186,7 @@ export default function MultiFileEditor({
               <h2 className="text-sm md:text-base font-semibold text-white font-mono">
                 {title}{activeFile?.dirty ? ' • (unsaved)' : ''}
               </h2>
-              {status && <span className="text-xs text-emerald-400">{status}</span>}
+              {status && <span className="text-sm text-emerald-400">{status}</span>}
             </div>
             <button onClick={onClose} className="p-1 hover:bg-gray-700 rounded-sm">
               <X className="w-4 h-4 text-gray-400" />
@@ -217,14 +217,14 @@ export default function MultiFileEditor({
           {/* Toolbar */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800 bg-gray-900/50">
             <button
-              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs flex items-center gap-2 disabled:opacity-50"
+              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm flex items-center gap-2 disabled:opacity-50"
               onClick={handleSave} disabled={saving || !activeFile?.dirty || !onSave}
               title="Save (Ctrl+S)"
             >
               <Save className="w-4 h-4" /> Save
             </button>
             <button
-              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2 disabled:opacity-50"
+              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2 disabled:opacity-50"
               onClick={handleRevert} disabled={!activeFile?.dirty}
               title="Revert to original"
             >
@@ -232,7 +232,7 @@ export default function MultiFileEditor({
             </button>
             <div className="mx-2 h-5 w-px bg-gray-700" />
             <button
-              className={`px-2 py-1 rounded text-xs flex items-center gap-2 ${compare ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'}`}
+              className={`px-2 py-1 rounded text-sm flex items-center gap-2 ${compare ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'}`}
               onClick={() => canCompare && setCompare(v => !v)}
               disabled={!canCompare}
               title="Toggle Compare (Ctrl+D)"
@@ -241,7 +241,7 @@ export default function MultiFileEditor({
             </button>
             {compare && (
               <button
-                className={`px-2 py-1 rounded text-xs flex items-center gap-2 ${inlineDiff ? 'bg-gray-700' : 'bg-gray-800 hover:bg-gray-700'} text-gray-200`}
+                className={`px-2 py-1 rounded text-sm flex items-center gap-2 ${inlineDiff ? 'bg-gray-700' : 'bg-gray-800 hover:bg-gray-700'} text-gray-200`}
                 onClick={() => setInlineDiff(v => !v)}
                 title={inlineDiff ? 'Side-by-side diff' : 'Inline diff'}
               >
@@ -250,21 +250,21 @@ export default function MultiFileEditor({
             )}
             <div className="mx-2 h-5 w-px bg-gray-700" />
             <button
-              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2"
+              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2"
               onClick={() => setWordWrap(w => (w === 'on' ? 'off' : 'on'))}
               title="Toggle word wrap (Alt+Z)"
             >
               <WrapText className="w-4 h-4" /> Wrap: {wordWrap}
             </button>
             <button
-              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2"
+              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2"
               onClick={() => setMinimap(m => !m)}
               title="Toggle minimap"
             >
               {minimap ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} Minimap
             </button>
             <button
-              className="ml-auto px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-2"
+              className="ml-auto px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2"
               onClick={() => {
                 // Format using Monaco action if available via DOM event bridge
                 // Users can also use Shift+Alt+F in most setups
@@ -309,7 +309,7 @@ export default function MultiFileEditor({
           </div>
 
           {/* Status bar */}
-          <div className="h-7 px-3 text-xs text-gray-400 bg-gray-900/60 border-t border-gray-800 flex items-center justify-between">
+          <div className="h-7 px-3 text-sm text-gray-400 bg-gray-900/60 border-t border-gray-800 flex items-center justify-between">
             <span>{activeFile?.path || ''}</span>
             <span>{activeFile?.language} • {activeFile?.dirty ? 'Unsaved changes' : 'Clean'}</span>
           </div>

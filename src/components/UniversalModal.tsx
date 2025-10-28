@@ -145,7 +145,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
                         {title}
                       </h2>
                       {subtitle && (
-                        <p className="text-xs text-slate-400 font-medium mt-0.5">
+                        <p className="text-sm text-slate-400 font-medium mt-0.5">
                           {subtitle}
                         </p>
                       )}

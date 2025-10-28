@@ -94,7 +94,7 @@ export default function ProjectFilter({
       <div className="max-w-7xl mx-auto px-6 py-3">
         {/* Project Selection Row */}
         <div className="flex items-center space-x-3 overflow-x-auto">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">
+          <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide shrink-0">
             Projects:
           </span>
           <motion.button
@@ -136,7 +136,7 @@ export default function ProjectFilter({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">
+                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide shrink-0">
                   Context:
                 </span>
 
@@ -184,7 +184,7 @@ export default function ProjectFilter({
                             <div key={group.id} className="border-b border-gray-700/20">
                               {/* Group Header */}
                               <div
-                                className="px-4 py-2 text-xs font-semibold uppercase tracking-wide"
+                                className="px-4 py-2 text-sm font-semibold uppercase tracking-wide"
                                 style={{ color: group.color }}
                               >
                                 {group.name}
@@ -211,7 +211,7 @@ export default function ProjectFilter({
                         {/* Ungrouped Contexts */}
                         {groupedContexts.ungrouped && groupedContexts.ungrouped.length > 0 && (
                           <div>
-                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            <div className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase tracking-wide">
                               Ungrouped
                             </div>
                             {groupedContexts.ungrouped.map((context) => (

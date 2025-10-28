@@ -34,7 +34,7 @@ export const ProposalCardContent = React.memo(({
         transition={{ delay: 0.4 }}
         className="bg-gray-800/30 border border-gray-700/30 rounded-2xl p-6 backdrop-blur-sm"
       >
-        <p className={`text-gray-300 leading-relaxed font-mono ${isMain ? 'text-sm' : 'text-xs'}`}>
+        <p className={`text-gray-300 leading-relaxed font-mono ${isMain ? 'text-sm' : 'text-sm'}`}>
           {rationale}
         </p>
       </motion.div>

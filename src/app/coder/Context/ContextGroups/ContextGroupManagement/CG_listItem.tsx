@@ -109,7 +109,7 @@ export default function GroupListItem({
               {/* Context count placeholder */}
               0
             </div>
-            <div className="text-xs text-gray-500 uppercase tracking-wider">
+            <div className="text-sm text-gray-500 uppercase tracking-wider">
               Contexts
             </div>
           </div>

@@ -101,7 +101,7 @@ const AnnetteChatInput = ({
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-cyan-400/60 font-mono">
+                  <span className="text-sm text-cyan-400/60 font-mono">
                     {inputValue.length}
                   </span>
                 </motion.div>
@@ -206,7 +206,7 @@ const AnnetteChatInput = ({
       
       {/* Neural Status Bar */}
       <motion.div
-        className="mt-4 flex items-center justify-between text-xs font-mono"
+        className="mt-4 flex items-center justify-between text-sm font-mono"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}

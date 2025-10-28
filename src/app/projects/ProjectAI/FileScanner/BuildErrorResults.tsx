@@ -149,7 +149,7 @@ export default function BuildErrorResults({
                 <span className="text-red-400">{stats.totalErrors} errors</span>
                 <span className="text-yellow-400">{stats.totalWarnings} warnings</span>
                 <span className="text-gray-400">{(executionTime / 1000).toFixed(1)}s execution</span>
-                <span className="text-blue-400 font-mono text-xs">{buildCommand}</span>
+                <span className="text-blue-400 font-mono text-sm">{buildCommand}</span>
                 {fixStats && (
                   <>
                     <span className="text-green-400">{fixStats.errorsFixed} fixed</span>
@@ -230,15 +230,15 @@ export default function BuildErrorResults({
                     <div key={index} className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-mono text-green-300">{fix.file}:{fix.line}:{fix.column}</span>
-                        <span className={`px-2 py-1 rounded text-xs ${fix.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                        <span className={`px-2 py-1 rounded text-sm ${fix.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
                           fix.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
                             'bg-orange-500/20 text-orange-400'
                           }`}>
                           {fix.confidence} confidence
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mb-1">{fix.originalError}</p>
-                      <p className="text-xs text-green-300">Fix: {fix.fixApplied}</p>
+                      <p className="text-sm text-gray-400 mb-1">{fix.originalError}</p>
+                      <p className="text-sm text-green-300">Fix: {fix.fixApplied}</p>
                     </div>
                   ))}
                 </div>
@@ -255,8 +255,8 @@ export default function BuildErrorResults({
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-mono text-yellow-300">{skip.file}:{skip.line}:{skip.column}</span>
                       </div>
-                      <p className="text-xs text-gray-400 mb-1">{skip.originalError}</p>
-                      <p className="text-xs text-yellow-300">Reason: {skip.reason}</p>
+                      <p className="text-sm text-gray-400 mb-1">{skip.originalError}</p>
+                      <p className="text-sm text-yellow-300">Reason: {skip.reason}</p>
                     </div>
                   ))}
                 </div>
@@ -296,14 +296,14 @@ export default function BuildErrorResults({
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-white font-semibold truncate">{issue.file}</h3>
                       {issue.line && (
-                        <span className="text-xs text-gray-400 font-mono">
+                        <span className="text-sm text-gray-400 font-mono">
                           {issue.line}:{issue.column}
                         </span>
                       )}
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getErrorTypeColor(issue.type)}`}>
+                      <span className={`px-2 py-1 rounded text-sm font-medium ${getErrorTypeColor(issue.type)}`}>
                         {issue.type.toUpperCase()}
                       </span>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(issue.severity)}`}>
+                      <span className={`px-2 py-1 rounded text-sm font-medium ${getSeverityColor(issue.severity)}`}>
                         {issue.severity.toUpperCase()}
                       </span>
                     </div>
@@ -316,8 +316,8 @@ export default function BuildErrorResults({
                     {/* Rule/Code */}
                     {issue.rule && (
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">Rule:</span>
-                        <span className="text-xs text-gray-400 font-mono bg-gray-800/50 px-2 py-1 rounded">
+                        <span className="text-sm text-gray-500">Rule:</span>
+                        <span className="text-sm text-gray-400 font-mono bg-gray-800/50 px-2 py-1 rounded">
                           {issue.rule}
                         </span>
                       </div>

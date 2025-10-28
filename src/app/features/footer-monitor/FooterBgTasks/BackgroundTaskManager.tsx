@@ -80,7 +80,7 @@ export default function BackgroundTaskManager({
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                   <span className="text-sm">Queue Active</span>
                   {taskCounts.pending === 0 && taskCounts.processing === 0 && (
-                    <span className="text-xs text-yellow-400 ml-2">Auto-stopping...</span>
+                    <span className="text-sm text-yellow-400 ml-2">Auto-stopping...</span>
                   )}
                 </div>
               ) : (
@@ -139,7 +139,7 @@ export default function BackgroundTaskManager({
             <button
               key={value}
               onClick={() => setFilter(value)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${
                 filter === value
                   ? getFilterColor(value)
                   : 'border-gray-700/50 bg-gray-800/30 text-gray-400 hover:border-gray-600/50 hover:bg-gray-700/30'
@@ -147,13 +147,13 @@ export default function BackgroundTaskManager({
             >
               {Icon && <Icon className="w-3 h-3" />}
               <span>{label}</span>
-              <span className="bg-gray-900/50 px-1.5 py-0.5 rounded-full text-xs">
+              <span className="bg-gray-900/50 px-1.5 py-0.5 rounded-full text-sm">
                 {count}
               </span>
             </button>
           ))}
           {isLoading && (
-            <div className="flex items-center text-xs text-gray-400">
+            <div className="flex items-center text-sm text-gray-400">
               <span className="animate-pulse">Loading tasks...</span>
             </div>
           )}
@@ -167,7 +167,7 @@ export default function BackgroundTaskManager({
             <XCircle className="w-4 h-4" />
             <span className="text-sm font-medium">Error loading background tasks</span>
           </div>
-          <p className="text-xs text-red-300 mt-1">{error.message}</p>
+          <p className="text-sm text-red-300 mt-1">{error.message}</p>
         </div>
       )}
 

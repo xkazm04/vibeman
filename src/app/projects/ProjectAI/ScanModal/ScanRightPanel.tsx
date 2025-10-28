@@ -79,7 +79,7 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
           </h3>
         </div>
         <div className="w-12 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500 rounded-full ml-14"></div>
-        <p className="text-xs text-gray-400 mt-2 ml-14">LLM-generated insights</p>
+        <p className="text-sm text-gray-400 mt-2 ml-14">LLM-generated insights</p>
       </motion.div>
 
       {/* Ideas List */}
@@ -96,7 +96,7 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
           <div className="text-center py-12">
             <Sparkles className="w-8 h-8 text-gray-600 mx-auto mb-2" />
             <p className="text-sm text-gray-500">No ideas yet</p>
-            <p className="text-xs text-gray-600 mt-1">Run a scan to generate ideas</p>
+            <p className="text-sm text-gray-600 mt-1">Run a scan to generate ideas</p>
           </div>
         ) : (
           ideas.map((idea, index) => (
@@ -111,7 +111,7 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
               {/* One-row minimalistic design */}
               <div className="flex items-center justify-between gap-2">
                 {/* Date */}
-                <span className="text-xs text-gray-500 font-mono flex-shrink-0">
+                <span className="text-sm text-gray-500 font-mono flex-shrink-0">
                   {formatDate(idea.created_at)}
                 </span>
 
@@ -148,14 +148,14 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
         transition={{ duration: 0.4, delay: 0.7 }}
       >
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-white">Idea Stats</span>
+          <span className="text-sm font-semibold text-white">Idea Stats</span>
           <motion.div
             className="w-2 h-2 bg-blue-400 rounded-full"
             animate={{ opacity: [0.5, 1, 0.5] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           />
         </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
             <p className="text-gray-500">Total</p>
             <p className="text-white font-mono font-semibold">{ideas.length}</p>

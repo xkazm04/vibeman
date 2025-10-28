@@ -143,7 +143,7 @@ const AnnetteChatHeader = ({
             }}
           />
           
-          <span className="text-xs text-cyan-300/60 font-mono uppercase tracking-wider">
+          <span className="text-sm text-cyan-300/60 font-mono uppercase tracking-wider">
             {isProcessing ? 'PROC' : isListening ? 'LISTEN' : 'READY'}
           </span>
         </motion.div>

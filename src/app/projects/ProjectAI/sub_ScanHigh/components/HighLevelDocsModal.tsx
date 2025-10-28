@@ -235,6 +235,8 @@ export default function HighLevelDocsModal({
                   isSaving={isSaving}
                   isRegenerating={isGenerating}
                   projectName={projectName}
+                  projectId={projectId}
+                  llmProvider={selectedProvider}
                 />
               </motion.div>
             )}
@@ -254,7 +256,7 @@ export default function HighLevelDocsModal({
             animate={{ opacity: 1, y: 0 }}
             className="px-6 py-3 border-t border-slate-700/30 bg-slate-900/30 backdrop-blur-sm flex-shrink-0"
           >
-            <div className="flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center justify-between text-sm text-slate-500">
               <div className="flex items-center space-x-4">
                 <span>📁 {projectPath}/context/high.md</span>
                 {isGenerating && (

@@ -92,11 +92,11 @@ export default function QueueVisualization({
         <div className="flex items-center gap-2 mb-3">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
               Execution Queue
             </span>
           </div>
-          <div className="flex items-center gap-2 ml-auto text-xs text-gray-500">
+          <div className="flex items-center gap-2 ml-auto text-sm text-gray-500">
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3 text-amber-400" />
               {queuedItems.length}
@@ -143,7 +143,7 @@ export default function QueueVisualization({
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-300 truncate">
+                    <div className="text-sm font-medium text-gray-300 truncate">
                       {item.requirementName}
                     </div>
                     <div className="text-[10px] text-gray-500 truncate">

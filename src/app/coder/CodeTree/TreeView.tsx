@@ -37,7 +37,7 @@ export default function TreeView({
               <RefreshCw className="w-8 h-8 animate-spin opacity-50" />
             </div>
             <p className="text-sm mb-2">Loading project structure...</p>
-            <p className="text-xs text-gray-600">This may take a moment</p>
+            <p className="text-sm text-gray-600">This may take a moment</p>
           </div>
         ) : error ? (
           <div className="text-center py-12 text-red-400">
@@ -45,7 +45,7 @@ export default function TreeView({
               <AlertCircle className="w-8 h-8 opacity-50" />
             </div>
             <p className="text-sm mb-2">Failed to load project structure</p>
-            <p className="text-xs text-gray-600 mb-4">{error}</p>
+            <p className="text-sm text-gray-600 mb-4">{error}</p>
             <div className="flex justify-center space-x-2">
               <button
                 onClick={onClearError}
@@ -67,7 +67,7 @@ export default function TreeView({
               <FolderTree className="w-8 h-8 opacity-50" />
             </div>
             <p className="text-sm mb-2">No active project</p>
-            <p className="text-xs text-gray-600">Select a project to view its structure</p>
+            <p className="text-sm text-gray-600">Select a project to view its structure</p>
           </div>
         ) : filteredStructure ? (
           <TreeNode

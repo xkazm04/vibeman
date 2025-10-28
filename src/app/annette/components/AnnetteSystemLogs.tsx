@@ -197,7 +197,7 @@ const AnnetteSystemLogs = ({
             <div className="flex items-center space-x-2 bg-gray-800/50 rounded-lg p-1">
               <motion.button
                 onClick={() => setDisplayMode('full')}
-                className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-all ${displayMode === 'full'
+                className={`px-3 py-1 rounded text-sm font-mono uppercase tracking-wider transition-all ${displayMode === 'full'
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                     : 'text-gray-400 hover:text-cyan-300'
                   }`}
@@ -208,7 +208,7 @@ const AnnetteSystemLogs = ({
               </motion.button>
               <motion.button
                 onClick={() => setDisplayMode('online')}
-                className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-all ${displayMode === 'online'
+                className={`px-3 py-1 rounded text-sm font-mono uppercase tracking-wider transition-all ${displayMode === 'online'
                     ? 'bg-green-500/20 text-green-300 border border-green-500/30'
                     : 'text-gray-400 hover:text-green-300'
                   }`}
@@ -229,7 +229,7 @@ const AnnetteSystemLogs = ({
                 }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
-              <span className="text-xs text-cyan-400/60 font-mono">
+              <span className="text-sm text-cyan-400/60 font-mono">
                 {displayMode === 'online' ? 'ONLINE' : 'ARCHIVE'}
               </span>
             </div>
@@ -255,7 +255,7 @@ const AnnetteSystemLogs = ({
                   className="flex flex-col items-center justify-center h-full text-center"
                 >
                   <p className="text-cyan-300/60 font-mono text-sm">Neural pipeline ready for activation</p>
-                  <p className="text-gray-500 text-xs mt-2">Click the neural interface to begin testing</p>
+                  <p className="text-gray-500 text-sm mt-2">Click the neural interface to begin testing</p>
                 </motion.div>
               ) : (
                 logs.map((log, index) => (
@@ -319,7 +319,7 @@ const AnnetteSystemLogs = ({
                           </div>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500 font-mono">{log.timestamp}</span>
+                      <span className="text-sm text-gray-500 font-mono">{log.timestamp}</span>
                     </div>
 
                     <p className="text-white leading-relaxed font-mono text-base">{log.message}</p>
@@ -358,7 +358,7 @@ const AnnetteSystemLogs = ({
                       />
                       <p className="text-green-300/80 font-mono text-sm uppercase tracking-wider">Online Mode Active</p>
                     </div>
-                    <p className="text-gray-500 text-xs">New neural activity will appear here temporarily</p>
+                    <p className="text-gray-500 text-sm">New neural activity will appear here temporarily</p>
                   </motion.div>
                 ) : (
                   <AnimatePresence>
@@ -446,7 +446,7 @@ const AnnetteSystemLogs = ({
 
                             {/* Online mode indicator */}
                             <motion.span
-                              className="text-xs text-green-400/80 font-mono uppercase tracking-wider bg-green-400/10 px-2 py-1 rounded-full border border-green-400/30"
+                              className="text-sm text-green-400/80 font-mono uppercase tracking-wider bg-green-400/10 px-2 py-1 rounded-full border border-green-400/30"
                               animate={{
                                 opacity: [0.6, 1, 0.6],
                               }}
@@ -455,7 +455,7 @@ const AnnetteSystemLogs = ({
                               LIVE
                             </motion.span>
                           </div>
-                          <span className="text-xs text-gray-500 font-mono">{queueItem.timestamp}</span>
+                          <span className="text-sm text-gray-500 font-mono">{queueItem.timestamp}</span>
                         </div>
 
                         <p className="text-white leading-relaxed font-mono text-base">{queueItem.message}</p>

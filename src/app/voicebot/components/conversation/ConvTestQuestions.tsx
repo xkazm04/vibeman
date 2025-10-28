@@ -67,11 +67,11 @@ export default function ConvTestQuestions({
   return (
     <div className="mt-3 pt-3 border-t border-slate-700">
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-xs font-semibold text-slate-400">Test Questions</h4>
+        <h4 className="text-sm font-semibold text-slate-400">Test Questions</h4>
         {!isPlaying && (
           <button
             onClick={isEditing ? handleSave : handleEdit}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
           >
             {isEditing ? (
               <>
@@ -104,7 +104,7 @@ export default function ConvTestQuestions({
                   value={question}
                   onChange={(e) => handleQuestionChange(index, e.target.value)}
                   placeholder={`Question ${index + 1}`}
-                  className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
                 />
                 <button
                   onClick={() => handleDeleteQuestion(index)}
@@ -118,14 +118,14 @@ export default function ConvTestQuestions({
             <div className="flex gap-2">
               <button
                 onClick={handleAddQuestion}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 Add Question
               </button>
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
               >
                 <X className="w-3 h-3" />
                 Cancel
@@ -143,7 +143,7 @@ export default function ConvTestQuestions({
             {questions.map((sentence, index) => (
               <div
                 key={index}
-                className={`px-2 py-1 rounded text-xs ${
+                className={`px-2 py-1 rounded text-sm ${
                   index === currentIndex && isPlaying
                     ? 'bg-blue-900 border border-blue-500 text-white'
                     : index < currentIndex && isPlaying
@@ -167,7 +167,7 @@ export default function ConvTestQuestions({
             style={{ width: `${(currentIndex / questions.length) * 100}%` }}
           />
         </div>
-        <div className="text-xs text-gray-400 text-right">
+        <div className="text-sm text-gray-400 text-right">
           {currentIndex} / {questions.length}
         </div>
       </div>

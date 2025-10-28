@@ -190,7 +190,7 @@ export default function ContextCard({
                 </motion.h3>
                 {context.files.length > 0 && (
                   <motion.div 
-                    className="flex-shrink-0 px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 text-xs rounded-full font-medium border border-cyan-500/30 backdrop-blur-sm"
+                    className="flex-shrink-0 px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 text-sm rounded-full font-medium border border-cyan-500/30 backdrop-blur-sm"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2, type: "spring", stiffness: 300 }}

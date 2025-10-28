@@ -4,6 +4,8 @@
 
 import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from './types';
+import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
+import type { GitConfig } from '../sub_Git/useGitConfig';
 
 /**
  * Check if the API is healthy and ready to accept requests
@@ -186,7 +188,60 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
 
           // Handle completion
           if (task.status === 'completed') {
-            // Delete requirement file after successful completion
+            // Check if git mode is enabled
+            let gitOperationSuccess = true;
+            const gitEnabled = typeof window !== 'undefined' && localStorage.getItem('taskRunner_gitEnabled') === 'true';
+
+            if (gitEnabled) {
+              console.log('[TaskRunner] Git mode enabled, executing git operations...');
+              try {
+                // Get git configuration
+                const gitConfigStr = typeof window !== 'undefined' ? localStorage.getItem('taskRunner_gitConfig') : null;
+                let gitConfig: GitConfig | null = null;
+
+                if (gitConfigStr) {
+                  try {
+                    gitConfig = JSON.parse(gitConfigStr);
+                  } catch {
+                    console.warn('[TaskRunner] Failed to parse git config, skipping git operations');
+                  }
+                }
+
+                if (gitConfig && gitConfig.commands.length > 0) {
+                  // Generate commit message
+                  const commitMessage = generateCommitMessage(
+                    gitConfig.commitMessageTemplate,
+                    req.requirementName,
+                    req.projectName
+                  );
+
+                  console.log(`[TaskRunner] Executing git operations with message: ${commitMessage}`);
+
+                  // Execute git operations
+                  const gitResult = await executeGitOperations(
+                    req.projectId,
+                    gitConfig.commands,
+                    commitMessage
+                  );
+
+                  if (gitResult.success) {
+                    console.log('[TaskRunner] Git operations completed successfully');
+                  } else {
+                    console.error('[TaskRunner] Git operations failed:', gitResult.message);
+                    setError(`Git operations failed: ${gitResult.message}`);
+                    gitOperationSuccess = false;
+                  }
+                } else {
+                  console.log('[TaskRunner] No git commands configured, skipping git operations');
+                }
+              } catch (gitError) {
+                console.error('[TaskRunner] Git operations error:', gitError);
+                setError(`Git operations error: ${gitError instanceof Error ? gitError.message : 'Unknown error'}`);
+                gitOperationSuccess = false;
+              }
+            }
+
+            // Delete requirement file after successful completion (and git operations if enabled)
             try {
               await deleteRequirement(req.projectPath, req.requirementName);
 

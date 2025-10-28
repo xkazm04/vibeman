@@ -130,7 +130,7 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
           >
             <div className="space-y-2">
               {/* Repository Info */}
-              <div className="text-xs">
+              <div className="text-sm">
                 <div className="flex items-center gap-2 text-gray-400 mb-1">
                   <GitBranch size={12} />
                   <span>{project.git.repository.split('/').pop()?.replace('.git', '')}</span>
@@ -144,28 +144,28 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
               {gitStatus && (
                 <div className="space-y-1 py-2 border-t border-gray-700">
                   {hasLocalChanges && (
-                    <div className="flex items-center gap-2 text-yellow-400 text-xs">
+                    <div className="flex items-center gap-2 text-yellow-400 text-sm">
                       <AlertCircle size={12} />
                       <span>Uncommitted changes</span>
                     </div>
                   )}
                   
                   {gitStatus.behind > 0 && (
-                    <div className="flex items-center gap-2 text-blue-400 text-xs">
+                    <div className="flex items-center gap-2 text-blue-400 text-sm">
                       <ArrowDown size={12} />
                       <span>{gitStatus.behind} commit{gitStatus.behind !== 1 ? 's' : ''} behind</span>
                     </div>
                   )}
                   
                   {gitStatus.ahead > 0 && (
-                    <div className="flex items-center gap-2 text-green-400 text-xs">
+                    <div className="flex items-center gap-2 text-green-400 text-sm">
                       <ArrowUp size={12} />
                       <span>{gitStatus.ahead} commit{gitStatus.ahead !== 1 ? 's' : ''} ahead</span>
                     </div>
                   )}
                   
                   {!hasLocalChanges && gitStatus.behind === 0 && gitStatus.ahead === 0 && (
-                    <div className="flex items-center gap-2 text-green-400 text-xs">
+                    <div className="flex items-center gap-2 text-green-400 text-sm">
                       <CheckCircle size={12} />
                       <span>Up to date</span>
                     </div>
@@ -175,7 +175,7 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
 
               {/* Pull Result */}
               {pullResult && (
-                <div className={`text-xs p-2 rounded ${
+                <div className={`text-sm p-2 rounded ${
                   pullResult.success ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
                 }`}>
                   {pullResult.message}
@@ -189,7 +189,7 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
                   whileTap={{ scale: 0.95 }}
                   onClick={fetchGitStatus}
                   disabled={loading}
-                  className="flex-1 px-2 py-1 text-xs bg-gray-800 text-gray-300 rounded hover:bg-gray-700 flex items-center justify-center gap-1"
+                  className="flex-1 px-2 py-1 text-sm bg-gray-800 text-gray-300 rounded hover:bg-gray-700 flex items-center justify-center gap-1"
                 >
                   <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
                   Refresh
@@ -200,7 +200,7 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
                   whileTap={{ scale: 0.95 }}
                   onClick={handlePull}
                   disabled={loading || hasLocalChanges || isRunning}
-                  className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                   title={
                     hasLocalChanges 
                       ? 'Cannot pull with uncommitted changes' 
@@ -225,7 +225,7 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
               </div>
 
               {gitStatus?.lastFetch && (
-                <div className="text-xs text-gray-500 text-center">
+                <div className="text-sm text-gray-500 text-center">
                   Last checked: {new Date(gitStatus.lastFetch).toLocaleTimeString()}
                 </div>
               )}

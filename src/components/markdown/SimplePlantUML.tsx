@@ -183,7 +183,7 @@ skinparam package {
         <p className="text-red-400 text-sm mb-2 font-medium">{error}</p>
         <button
           onClick={() => setShowSource(!showSource)}
-          className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-300 transition-colors"
+          className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
         >
           {showSource ? <EyeOff size={14} /> : <Eye size={14} />}
           {showSource ? 'Hide' : 'View'} PlantUML Source
@@ -192,7 +192,7 @@ skinparam package {
           <motion.pre 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="mt-3 text-xs text-gray-300 bg-gray-800/80 p-3 rounded-lg overflow-x-auto border border-gray-700"
+            className="mt-3 text-sm text-gray-300 bg-gray-800/80 p-3 rounded-lg overflow-x-auto border border-gray-700"
           >
             {content.replace(/\\n/g, '\n')}
           </motion.pre>
@@ -220,7 +220,7 @@ skinparam package {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowSource(!showSource)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
               title={showSource ? 'Hide source' : 'View source'}
             >
               {showSource ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -229,7 +229,7 @@ skinparam package {
             
             <button
               onClick={downloadDiagram}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
               title="Download SVG"
             >
               <Download size={14} />
@@ -238,7 +238,7 @@ skinparam package {
             
             <button
               onClick={() => setIsFullscreen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
               title="View fullscreen"
             >
               <Maximize2 size={14} />
@@ -256,9 +256,9 @@ skinparam package {
           >
             <div className="bg-gray-900/60 rounded-lg border border-gray-700/50 overflow-hidden">
               <div className="px-3 py-2 bg-gray-800/50 border-b border-gray-700/50">
-                <span className="text-xs text-gray-400 font-medium">PlantUML Source</span>
+                <span className="text-sm text-gray-400 font-medium">PlantUML Source</span>
               </div>
-              <pre className="p-4 text-xs text-gray-300 overflow-x-auto">
+              <pre className="p-4 text-sm text-gray-300 overflow-x-auto">
                 {content.replace(/\\n/g, '\n')}
               </pre>
             </div>

@@ -80,7 +80,7 @@ const ProjectItem = React.memo(({
             <h5 className="text-sm text-white font-medium truncate font-mono">
               {project.name}
             </h5>
-            <div className="flex items-center space-x-2 text-xs text-gray-400 font-mono">
+            <div className="flex items-center space-x-2 text-sm text-gray-400 font-mono">
               <span>:{project.port}</span>
               {serverStatus.isRunning && serverStatus.status?.startTime && (
                 <span>• {calculateUptime(serverStatus.status.startTime)}s</span>

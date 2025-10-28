@@ -98,7 +98,7 @@ export default function ImplementationLogList({
       >
         <History className="w-12 h-12 text-gray-600 mx-auto mb-3" />
         <p className="text-sm text-gray-500">No implementation logs yet</p>
-        <p className="text-xs text-gray-600 mt-1">
+        <p className="text-sm text-gray-600 mt-1">
           Logs will appear here after Claude Code executes requirements
         </p>
       </motion.div>

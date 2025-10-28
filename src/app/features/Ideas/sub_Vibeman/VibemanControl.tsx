@@ -32,7 +32,7 @@ export default function VibemanControl({
         >
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-xs font-semibold text-gray-300">VIBEMAN</span>
+            <span className="text-sm font-semibold text-gray-300">VIBEMAN</span>
           </div>
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}

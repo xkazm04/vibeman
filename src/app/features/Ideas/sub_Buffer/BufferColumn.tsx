@@ -48,7 +48,7 @@ const BufferColumn = React.memo(function BufferColumn({
       {/* Header */}
       <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-xs font-semibold text-gray-300 truncate" title={contextName}>
+          <h3 className="text-sm font-semibold text-gray-300 truncate" title={contextName}>
             {contextName}
           </h3>
           <span className="text-[10px] text-gray-500 font-mono">

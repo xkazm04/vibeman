@@ -127,7 +127,7 @@ export default function ClaudeActionContextScan({
         whileTap={{ scale: 0.95 }}
         onClick={handleContextScan}
         disabled={isScanning || disabled}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
           isScanning || disabled
             ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
             : 'bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-lg'

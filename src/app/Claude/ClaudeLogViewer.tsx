@@ -92,7 +92,7 @@ export default function ClaudeLogViewer({ logFilePath, requirementName }: Claude
           <div className="flex items-center justify-center h-full">
             <div className="text-gray-400">
               Loading log...
-              {retryCount > 0 && <span className="ml-2 text-xs">(Retry {retryCount}/3)</span>}
+              {retryCount > 0 && <span className="ml-2 text-sm">(Retry {retryCount}/3)</span>}
             </div>
           </div>
         ) : isError && error ? (
@@ -102,14 +102,14 @@ export default function ClaudeLogViewer({ logFilePath, requirementName }: Claude
             onDismiss={clearError}
           />
         ) : (
-          <pre className="text-xs text-gray-300 bg-gray-900 p-4 rounded font-mono whitespace-pre-wrap break-words">
+          <pre className="text-sm text-gray-300 bg-gray-900 p-4 rounded font-mono whitespace-pre-wrap break-words">
             {logContent}
           </pre>
         )}
       </div>
 
       {/* Footer Info */}
-      <div className="mt-4 pt-3 border-t border-gray-700 text-xs text-gray-500">
+      <div className="mt-4 pt-3 border-t border-gray-700 text-sm text-gray-500">
         <div>Log file: {logFilePath}</div>
       </div>
     </div>

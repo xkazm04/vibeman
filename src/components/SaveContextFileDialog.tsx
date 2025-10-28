@@ -129,7 +129,7 @@ export default function SaveContextFileDialog({
                   placeholder="Enter file name..."
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1">
                 File will be saved as: <span className="font-mono text-cyan-400">{fileName.endsWith('.md') ? fileName : `${fileName}.md`}</span>
               </p>
             </div>
@@ -155,7 +155,7 @@ export default function SaveContextFileDialog({
           {/* Footer */}
           <div className="p-4 border-t border-gray-700 bg-gray-800/30">
             <div className="flex items-center justify-between">
-              <div className="text-xs text-gray-500">
+              <div className="text-sm text-gray-500">
                 {selectedFolder ? (
                   <span>
                     Saving to: <span className="font-mono text-cyan-400">{selectedFolder}/{fileName.endsWith('.md') ? fileName : `${fileName}.md`}</span>

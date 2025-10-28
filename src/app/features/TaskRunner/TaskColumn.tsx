@@ -76,7 +76,7 @@ const TaskColumn = React.memo(function TaskColumn({
                 <Square className="w-4 h-4" />
               )}
             </button>
-            <h3 className="text-xs font-semibold text-gray-300 truncate" title={projectName}>
+            <h3 className="text-sm font-semibold text-gray-300 truncate" title={projectName}>
               {projectName}
             </h3>
           </div>

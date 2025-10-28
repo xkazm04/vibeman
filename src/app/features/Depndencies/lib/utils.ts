@@ -48,11 +48,14 @@ export function getVersionColor(
   if (!currentVersion) return 'text-gray-600';
   if (!isShared) return 'text-gray-300'; // Default for unique libraries
 
-  // Compare with latest version
-  if (latestVersion && currentVersion === latestVersion) {
-    return 'text-green-400'; // Latest version
-  } else if (latestVersion && currentVersion !== latestVersion) {
-    return 'text-red-400'; // Outdated version
+  // Compare with latest version using semantic versioning
+  if (latestVersion) {
+    const comparison = compareVersions(currentVersion, latestVersion);
+    if (comparison === 0) {
+      return 'text-green-400'; // Up-to-date (semantically equal)
+    } else if (comparison < 0) {
+      return 'text-red-400'; // Outdated version
+    }
   }
 
   return 'text-yellow-400'; // Unknown comparison
@@ -69,10 +72,14 @@ export function getCellBackground(
   if (!currentVersion) return 'bg-gray-900/20';
   if (!isShared) return 'bg-gray-800/40';
 
-  if (latestVersion && currentVersion === latestVersion) {
-    return 'bg-green-500/10';
-  } else if (latestVersion && currentVersion !== latestVersion) {
-    return 'bg-red-500/10';
+  // Compare with latest version using semantic versioning
+  if (latestVersion) {
+    const comparison = compareVersions(currentVersion, latestVersion);
+    if (comparison === 0) {
+      return 'bg-green-500/10'; // Up-to-date (semantically equal)
+    } else if (comparison < 0) {
+      return 'bg-red-500/10'; // Outdated version
+    }
   }
 
   return 'bg-yellow-500/10';
@@ -80,11 +87,13 @@ export function getCellBackground(
 
 /**
  * Check if a package version is outdated
+ * Uses semantic versioning comparison (e.g., ^20 equals 20)
  */
 export function isPackageOutdated(
   currentVersion: string | null,
   latestVersion: string | null
 ): boolean {
   if (!currentVersion || !latestVersion) return false;
-  return currentVersion !== latestVersion;
+  // Use semantic version comparison instead of string comparison
+  return compareVersions(currentVersion, latestVersion) < 0;
 }

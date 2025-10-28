@@ -147,7 +147,7 @@ export default function CodeReviewNav({
           <div className="font-medium">
             {currentFileGlobalIndex + 1} / {totalFiles}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-sm text-gray-500">
             Session {currentSessionIndex + 1}/{totalSessions} • File {currentFileIndex + 1}/{currentSession?.files.length || 0}
           </div>
         </div>

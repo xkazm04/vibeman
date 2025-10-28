@@ -124,7 +124,7 @@ export default function FileScannerOptions({
           </div>
           <div className="ml-3">
             <span className="text-sm font-medium text-white">Write Files to Disk</span>
-            <p className="text-xs text-gray-400">
+            <p className="text-sm text-gray-400">
               {writeFiles ? 'Files will be automatically updated' : 'Scan only, no file changes'}
             </p>
           </div>
@@ -165,7 +165,7 @@ export default function FileScannerOptions({
                 </p>
                 <ul className="space-y-2">
                   {option.bulletPoints.map((point, i) => (
-                    <li key={i} className="text-xs text-gray-400 flex items-start group-hover:text-gray-300 transition-colors">
+                    <li key={i} className="text-sm text-gray-400 flex items-start group-hover:text-gray-300 transition-colors">
                       <div className="w-1 h-1 bg-current rounded-full mt-2 mr-2 flex-shrink-0" />
                       <span>{point}</span>
                     </li>

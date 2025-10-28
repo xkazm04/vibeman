@@ -50,7 +50,7 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
     <>
       <div className="relative flex items-center space-x-3 px-4 py-3 bg-gray-800/30 rounded-lg border border-gray-700/40 min-w-0">
         {/* Section Label */}
-        <div className="absolute -top-2 left-2 px-2 py-0.5 bg-gray-900 rounded text-xs font-bold text-cyan-400 tracking-wider">
+        <div className="absolute -top-2 left-2 px-2 py-0.5 bg-gray-900 rounded text-sm font-bold text-cyan-400 tracking-wider">
           REVIEWER
         </div>
 
@@ -73,7 +73,7 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="w-5 h-5 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold"
+                className="w-5 h-5 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold"
               >
                 {formatPendingCount(pendingCount)}
               </motion.div>

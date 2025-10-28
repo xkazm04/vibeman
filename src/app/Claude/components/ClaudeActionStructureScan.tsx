@@ -88,7 +88,7 @@ export default function ClaudeActionStructureScan({
         whileTap={{ scale: 0.95 }}
         onClick={handleStructureScan}
         disabled={isScanning || disabled}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
           isScanning || disabled
             ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
             : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg'
@@ -114,7 +114,7 @@ export default function ClaudeActionStructureScan({
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          className={`absolute top-full mt-1 right-0 text-xs whitespace-nowrap px-2 py-1 rounded z-10 ${
+          className={`absolute top-full mt-1 right-0 text-sm whitespace-nowrap px-2 py-1 rounded z-10 ${
             scanResult.type === 'success'
               ? 'text-green-400 bg-green-500/10'
               : 'text-red-400 bg-red-500/10'

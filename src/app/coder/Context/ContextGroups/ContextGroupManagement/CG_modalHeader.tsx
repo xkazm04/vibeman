@@ -90,7 +90,7 @@ export default function ModalHeader({ groupsCount, onClose }: ModalHeaderProps) 
           <div className="text-2xl font-bold text-blue-400 font-mono">
             {groupsCount}/20
           </div>
-          <div className="text-xs text-gray-500 uppercase tracking-wider">
+          <div className="text-sm text-gray-500 uppercase tracking-wider">
             Groups
           </div>
         </div>

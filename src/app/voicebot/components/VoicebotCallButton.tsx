@@ -160,7 +160,7 @@ export default function VoicebotCallButton({
             key={config.description}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-xs text-gray-400 font-mono truncate"
+            className="text-sm text-gray-400 font-mono truncate"
           >
             {config.description}
           </motion.p>
@@ -195,7 +195,7 @@ export default function VoicebotCallButton({
         )}
 
         {/* Session Status - Compact */}
-        <div className="flex-shrink-0 flex items-center gap-4 text-xs font-mono border-l border-cyan-500/20 pl-4">
+        <div className="flex-shrink-0 flex items-center gap-4 text-sm font-mono border-l border-cyan-500/20 pl-4">
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${
               sessionState === 'idle' ? 'bg-gray-400' :

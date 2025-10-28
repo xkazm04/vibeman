@@ -3,10 +3,11 @@ import { processManager } from '@/lib/processManager';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const logs = processManager.getLogs(params.id);
+    const { id } = await params;
+    const logs = processManager.getLogs(id);
     return NextResponse.json({ logs });
   } catch (error) {
     return NextResponse.json(

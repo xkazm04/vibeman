@@ -115,7 +115,7 @@ export default function DocsGenerator({ projectName, onGenerate, isGenerating }:
           placeholder="What's your vision for this project? What problem does it solve? What makes it unique?&#10;&#10;Examples:&#10;- 'Build a platform that helps developers manage multiple projects efficiently'&#10;- 'Create an AI-powered tool for code analysis and documentation'&#10;- 'Revolutionary approach to team collaboration with real-time insights'"
           className="w-full h-32 bg-slate-900/50 text-slate-300 text-sm rounded-lg border border-slate-700/50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none custom-scrollbar disabled:opacity-50 disabled:cursor-not-allowed"
         />
-        <p className="text-xs text-slate-500 mt-2">
+        <p className="text-sm text-slate-500 mt-2">
           This helps the AI understand your project's purpose and generate more personalized documentation
         </p>
       </motion.div>

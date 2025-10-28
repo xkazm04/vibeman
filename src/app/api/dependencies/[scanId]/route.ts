@@ -70,6 +70,11 @@ export async function GET(
     // Get dependency relationships
     const relationships = dependencyRelationshipDb.getRelationshipsByScan(scanId);
 
+    // Parse registry versions if available
+    const registryVersions = scan.registry_versions
+      ? JSON.parse(scan.registry_versions)
+      : null;
+
     return NextResponse.json({
       scan: {
         ...scan,
@@ -79,7 +84,8 @@ export async function GET(
       dependencies: dependenciesByProject,
       sharedDependencies: sharedDepsWithParsedData,
       codeDuplicates: duplicatesWithParsedData,
-      relationships
+      relationships,
+      registryVersions
     });
   } catch (error) {
     console.error('Error fetching scan details:', error);

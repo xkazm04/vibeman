@@ -55,7 +55,7 @@ export default function TreeSuggestionsDropdown({
             className="absolute top-full left-0 right-0 z-50 mt-2 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl overflow-hidden"
           >
             <div className="p-2">
-              <div className="text-xs text-gray-400 px-2 py-1 mb-1">
+              <div className="text-sm text-gray-400 px-2 py-1 mb-1">
                 {suggestions.length} suggestion{suggestions.length === 1 ? '' : 's'}
               </div>
               
@@ -82,18 +82,18 @@ export default function TreeSuggestionsDropdown({
                         {highlightMatch(suggestion.node.name, searchTerm)}
                       </span>
                       {suggestion.matchType === 'description' && (
-                        <span className="text-xs text-gray-500 bg-gray-700/50 px-1.5 py-0.5 rounded">
+                        <span className="text-sm text-gray-500 bg-gray-700/50 px-1.5 py-0.5 rounded">
                           desc
                         </span>
                       )}
                     </div>
                     
-                    <div className="text-xs text-gray-400 truncate mt-0.5">
+                    <div className="text-sm text-gray-400 truncate mt-0.5">
                       {suggestion.path}
                     </div>
                     
                     {suggestion.matchType === 'description' && (
-                      <div className="text-xs text-gray-500 truncate mt-1">
+                      <div className="text-sm text-gray-500 truncate mt-1">
                         {highlightMatch(suggestion.node.description, searchTerm)}
                       </div>
                     )}
@@ -122,7 +122,7 @@ export default function TreeSuggestionsDropdown({
             </div>
             <button
               onClick={onClear}
-              className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors mt-2"
+              className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors mt-2"
             >
               Clear search
             </button>

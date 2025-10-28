@@ -187,7 +187,7 @@ export default function ProjectForm({
             </div>
           ) : (
             <>
-              <div className="text-xs text-gray-500 mb-3">
+              <div className="text-sm text-gray-500 mb-3">
                 Parent directory: <span className="font-mono text-gray-400">{parentPath}</span>
               </div>
               
@@ -220,7 +220,7 @@ export default function ProjectForm({
                       <div className="text-sm font-medium text-white truncate">
                         {dir.name}
                       </div>
-                      <div className="text-xs text-gray-400 truncate font-mono">
+                      <div className="text-sm text-gray-400 truncate font-mono">
                         {dir.path}
                       </div>
                     </div>
@@ -247,7 +247,7 @@ export default function ProjectForm({
           <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-gray-300 text-sm font-mono">
             {selectedPath}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-sm text-gray-500 mt-1">
             Path cannot be changed after project creation
           </div>
         </div>
@@ -356,7 +356,7 @@ export default function ProjectForm({
             </select>
             <Link className="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-sm text-gray-500 mt-1">
             Link this FastAPI backend to a Next.js frontend
           </div>
         </div>
@@ -404,7 +404,7 @@ export default function ProjectForm({
           placeholder="npm run dev"
           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
         />
-        <div className="text-xs text-gray-500 mt-1">
+        <div className="text-sm text-gray-500 mt-1">
           Command to start the development server
         </div>
       </div>

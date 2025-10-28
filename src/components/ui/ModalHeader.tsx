@@ -48,7 +48,7 @@ export default function ModalHeader({
           <div className="flex items-center bg-gray-800 rounded-lg p-1">
             <button
               onClick={() => onPreviewModeChange('preview')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
                 previewMode === 'preview'
                   ? 'bg-gray-700 text-white'
                   : 'text-gray-400 hover:text-gray-300'
@@ -59,7 +59,7 @@ export default function ModalHeader({
             </button>
             <button
               onClick={() => onPreviewModeChange('edit')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
                 previewMode === 'edit'
                   ? 'bg-gray-700 text-white'
                   : 'text-gray-400 hover:text-gray-300'

@@ -156,7 +156,7 @@ export default function ScanResultsModal({ isOpen, onClose, results, scanStats }
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-white font-semibold truncate">{result.fileName}</h3>
-                      <span className={`px-2 py-1 rounded text-xs font-mono ${getFileExtension(result.fileName)}`}>
+                      <span className={`px-2 py-1 rounded text-sm font-mono ${getFileExtension(result.fileName)}`}>
                         {result.fileName.split('.').pop()?.toUpperCase()}
                       </span>
                     </div>
@@ -170,25 +170,25 @@ export default function ScanResultsModal({ isOpen, onClose, results, scanStats }
                     {/* Indicators */}
                     <div className="flex items-center space-x-4">
                       {result.docsAdded && (
-                        <div className="flex items-center space-x-1 text-xs text-green-400">
+                        <div className="flex items-center space-x-1 text-sm text-green-400">
                           <FileText className="w-3 h-3" />
                           <span>Docs Added</span>
                         </div>
                       )}
                       {result.codesCleaned && (
-                        <div className="flex items-center space-x-1 text-xs text-blue-400">
+                        <div className="flex items-center space-x-1 text-sm text-blue-400">
                           <Wrench className="w-3 h-3" />
                           <span>Code Cleaned</span>
                         </div>
                       )}
                       {result.error && (
-                        <div className="flex items-center space-x-1 text-xs text-red-400">
+                        <div className="flex items-center space-x-1 text-sm text-red-400">
                           <AlertCircle className="w-3 h-3" />
                           <span>Error</span>
                         </div>
                       )}
                       {!result.hasChanges && !result.error && (
-                        <div className="text-xs text-gray-500">No changes needed</div>
+                        <div className="text-sm text-gray-500">No changes needed</div>
                       )}
                     </div>
                   </div>

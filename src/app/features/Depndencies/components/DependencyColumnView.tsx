@@ -4,21 +4,22 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Package, Download } from 'lucide-react';
 import { Project, ProjectDependency, LibraryRow, getLatestVersion, getVersionColor, getCellBackground, isPackageOutdated } from '../lib';
-import PackageUpdateModal from './PackageUpdateModal';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
+import PackageUpdateModalContent from './PackageUpdateModalContent';
 
 interface DependencyColumnViewProps {
   projects: Project[];
   dependencies: Record<string, ProjectDependency[]>;
-  showReferenceColumn?: boolean;
+  registryVersions?: Record<string, string | null>;
 }
 
 export default function DependencyColumnView({
   projects,
   dependencies,
-  showReferenceColumn = false
+  registryVersions = {}
 }: DependencyColumnViewProps) {
   const [selectedPackages, setSelectedPackages] = useState<Map<string, string>>(new Map()); // "libraryName|||projectId" -> targetVersion
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const { showModal, hideModal } = useGlobalModal();
 
   // Process and organize dependencies into rows
   const libraryRows = useMemo(() => {
@@ -34,7 +35,8 @@ export default function DependencyColumnView({
             projectVersions: {},
             isShared: false,
             projectCount: 0,
-            latestVersion: null
+            latestVersion: null,
+            registryVersion: registryVersions?.[dep.dependency_name] || null
           });
         }
 
@@ -48,7 +50,7 @@ export default function DependencyColumnView({
     libraryMap.forEach((lib) => {
       lib.isShared = lib.projectCount > 1;
 
-      // Find latest version (semantic versioning comparison)
+      // Find latest version among scanned projects (for comparison)
       if (lib.isShared) {
         const versions = Object.values(lib.projectVersions).filter(Boolean) as string[];
         lib.latestVersion = getLatestVersion(versions);
@@ -69,7 +71,7 @@ export default function DependencyColumnView({
     });
 
     return rows;
-  }, [dependencies]);
+  }, [dependencies, registryVersions]);
 
   // Create a library versions map for the modal
   const libraryVersionsMap = useMemo(() => {
@@ -100,7 +102,22 @@ export default function DependencyColumnView({
 
   const handleOpenUpdateModal = () => {
     if (selectedPackages.size > 0) {
-      setShowUpdateModal(true);
+      showModal(
+        {
+          title: 'Generate Package Update Requirements',
+          icon: Download,
+          iconColor: 'text-yellow-400',
+          iconBgColor: 'bg-yellow-500/20',
+          maxWidth: 'max-w-2xl',
+          maxHeight: 'max-h-[90vh]'
+        },
+        <PackageUpdateModalContent
+          onClose={hideModal}
+          selectedPackages={selectedPackages}
+          projects={projects}
+          libraryVersions={libraryVersionsMap}
+        />
+      );
     }
   };
 
@@ -121,13 +138,13 @@ export default function DependencyColumnView({
               <div className="flex gap-2">
                 <button
                   onClick={handleClearSelection}
-                  className="px-3 py-1.5 text-xs text-gray-300 hover:text-gray-100 border border-gray-600 hover:border-gray-500 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-sm text-gray-300 hover:text-gray-100 border border-gray-600 hover:border-gray-500 rounded-lg transition-colors"
                 >
                   Clear Selection
                 </button>
                 <button
                   onClick={handleOpenUpdateModal}
-                  className="px-3 py-1.5 text-xs bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-sm bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-lg transition-colors flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Generate Requirements
@@ -139,9 +156,15 @@ export default function DependencyColumnView({
           {/* Header Row */}
           <div className="flex items-stretch border-b border-gray-700/50 bg-gray-800/60 sticky top-0 z-10">
             {/* Library Name Column Header */}
-            <div className="w-64 px-4 py-3 font-semibold text-yellow-300 border-r border-gray-700/50 flex items-center gap-2 sticky left-0 bg-gray-800/60">
+            <div className="w-64 px-4 py-3 font-semibold text-yellow-300 border-r border-gray-700/50 flex items-center gap-2 sticky left-0 bg-gray-800/60 z-20">
               <Package className="w-4 h-4" />
               <span>Library</span>
+            </div>
+
+            {/* Latest (Registry) Column Header - LEFTMOST */}
+            <div className="w-40 px-4 py-3 border-r border-gray-700/50 text-center font-semibold text-blue-300 bg-gray-800/60 sticky left-64 z-20">
+              <div>Latest</div>
+              <div className="text-sm text-gray-500 mt-1">Registry</div>
             </div>
 
             {/* Project Column Headers */}
@@ -151,17 +174,9 @@ export default function DependencyColumnView({
                 className="w-48 px-4 py-3 border-r border-gray-700/50 text-center"
               >
                 <div className="font-semibold text-yellow-300 mb-1">{project.name}</div>
-                <div className="text-xs text-gray-500">{project.type}</div>
+                <div className="text-sm text-gray-500">{project.type}</div>
               </div>
             ))}
-
-            {/* Reference Column Header */}
-            {showReferenceColumn && (
-              <div className="w-40 px-4 py-3 text-center font-semibold text-blue-300">
-                <div>Latest</div>
-                <div className="text-xs text-gray-500 mt-1">Available</div>
-              </div>
-            )}
           </div>
 
           {/* Data Rows */}
@@ -177,7 +192,7 @@ export default function DependencyColumnView({
                 }`}
               >
                 {/* Library Name Cell */}
-                <div className="w-64 px-4 py-3 border-r border-gray-700/50 sticky left-0 bg-gray-900/80 backdrop-blur-sm">
+                <div className="w-64 px-4 py-3 border-r border-gray-700/50 sticky left-0 bg-gray-900/80 backdrop-blur-sm z-10">
                   <div className="flex items-center gap-2">
                     {lib.isShared && (
                       <div className="flex items-center gap-1 text-yellow-400" title="Shared dependency">
@@ -187,70 +202,66 @@ export default function DependencyColumnView({
                     )}
                     <div className="flex-1 truncate" title={lib.name}>
                       <div className="text-sm text-gray-200 font-medium">{lib.name}</div>
-                      <div className="text-xs text-gray-500">{lib.type}</div>
+                      <div className="text-sm text-gray-500">{lib.type}</div>
                     </div>
                   </div>
+                </div>
+
+                {/* Latest (Registry) Column Cell - LEFTMOST */}
+                <div className="w-40 px-4 py-3 border-r border-gray-700/50 text-center bg-blue-500/5 sticky left-64 backdrop-blur-sm z-10">
+                  {lib.registryVersion ? (
+                    <div className="text-sm font-mono text-blue-300">
+                      {lib.registryVersion}
+                    </div>
+                  ) : (
+                    <div className="text-gray-600 text-sm">—</div>
+                  )}
                 </div>
 
                 {/* Project Version Cells */}
                 {projects.map((project) => {
                   const version = lib.projectVersions[project.id];
-                  const versionColor = getVersionColor(lib.isShared, version, lib.latestVersion);
-                  const cellBg = getCellBackground(lib.isShared, version, lib.latestVersion);
-                  const isOutdated = isPackageOutdated(version, lib.latestVersion);
+                  // Compare against registry version instead of project's latest version
+                  const versionColor = getVersionColor(lib.isShared, version, lib.registryVersion);
+                  const cellBg = getCellBackground(lib.isShared, version, lib.registryVersion);
+                  const isOutdated = isPackageOutdated(version, lib.registryVersion);
                   const isSelected = isPackageSelected(lib.name, project.id);
+
+                  // Apply yellow background if selected
+                  const selectedBg = isSelected ? 'bg-yellow-500/20 border-yellow-500/40' : '';
 
                   return (
                     <div
                       key={`${lib.name}-${project.id}`}
-                      className={`w-48 px-4 py-3 border-r border-gray-700/50 text-center ${cellBg} ${
-                        isOutdated && version ? 'cursor-pointer group relative' : ''
+                      className={`w-48 px-4 py-3 border-r border-gray-700/50 text-center ${cellBg} ${selectedBg} ${
+                        isOutdated && version ? 'cursor-pointer group relative transition-all' : ''
                       }`}
                       onClick={() => {
                         if (isOutdated && version) {
-                          togglePackageSelection(lib.name, project.id, lib.latestVersion);
+                          togglePackageSelection(lib.name, project.id, lib.registryVersion);
                         }
                       }}
                     >
                       {version ? (
-                        <div className="flex items-center justify-center gap-2">
-                          {isOutdated && (
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => togglePackageSelection(lib.name, project.id, lib.latestVersion)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="rounded border-gray-600 text-yellow-500 focus:ring-yellow-500/50"
-                            />
-                          )}
+                        <div className="flex items-center justify-center">
                           <div className={`text-sm font-mono ${versionColor}`}>
                             {version}
                           </div>
                         </div>
                       ) : (
-                        <div className="text-gray-600 text-xs">—</div>
+                        <div className="text-gray-600 text-sm">—</div>
                       )}
                       {isOutdated && version && !isSelected && (
                         <div className="absolute inset-0 bg-yellow-500/0 group-hover:bg-yellow-500/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <span className="text-xs text-yellow-300 font-medium">Click to select</span>
+                          <span className="text-sm text-yellow-300 font-medium">Click to select</span>
                         </div>
+                      )}
+                      {isSelected && (
+                        <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full"></div>
                       )}
                     </div>
                   );
                 })}
-
-                {/* Reference Column Cell */}
-                {showReferenceColumn && (
-                  <div className="w-40 px-4 py-3 text-center bg-blue-500/5">
-                    {lib.latestVersion ? (
-                      <div className="text-sm font-mono text-blue-300">
-                        {lib.latestVersion}
-                      </div>
-                    ) : (
-                      <div className="text-gray-600 text-xs">—</div>
-                    )}
-                  </div>
-                )}
               </motion.div>
             ))}
           </div>
@@ -268,14 +279,14 @@ export default function DependencyColumnView({
         {/* Legend */}
         <div className="mt-6 p-4 bg-gray-800/40 border border-gray-700/30 rounded-lg">
           <h4 className="text-sm font-semibold text-gray-300 mb-3">Color Legend</h4>
-          <div className="flex flex-wrap gap-4 text-xs">
+          <div className="flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-green-500/20 border border-green-500/40"></div>
-              <span className="text-gray-400">Latest Version (Shared)</span>
+              <span className="text-gray-400">Up-to-date with Registry</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-red-500/20 border border-red-500/40"></div>
-              <span className="text-gray-400">Outdated Version (Shared) - Click to select</span>
+              <span className="text-gray-400">Outdated (vs Registry) - Click to select</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-gray-800/40 border border-gray-700/40"></div>
@@ -307,15 +318,6 @@ export default function DependencyColumnView({
           }
         `}</style>
       </div>
-
-      {/* Package Update Modal */}
-      <PackageUpdateModal
-        isOpen={showUpdateModal}
-        onClose={() => setShowUpdateModal(false)}
-        selectedPackages={selectedPackages}
-        projects={projects}
-        libraryVersions={libraryVersionsMap}
-      />
     </>
   );
 }

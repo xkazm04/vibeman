@@ -66,7 +66,7 @@ export default function ContextFilter({ selectedProjectIds, selectedContextIds, 
 
   if (selectedProjectIds.length === 0) {
     return (
-      <div className="text-xs text-gray-500 py-4 text-center">
+      <div className="text-sm text-gray-500 py-4 text-center">
         Select projects to filter by context
       </div>
     );
@@ -75,13 +75,13 @@ export default function ContextFilter({ selectedProjectIds, selectedContextIds, 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+        <label className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
           Contexts
         </label>
         {contexts.length > 0 && (
           <button
             onClick={toggleAll}
-            className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
+            className="text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
           >
             {selectedContextIds.length === contexts.length + 1 ? 'Clear All' : 'Select All'}
           </button>
@@ -89,7 +89,7 @@ export default function ContextFilter({ selectedProjectIds, selectedContextIds, 
       </div>
 
       {loading ? (
-        <div className="text-xs text-gray-500 py-4 text-center">Loading contexts...</div>
+        <div className="text-sm text-gray-500 py-4 text-center">Loading contexts...</div>
       ) : (
         <div className="space-y-1.5 max-h-48 overflow-y-auto">
           {/* No Context option */}

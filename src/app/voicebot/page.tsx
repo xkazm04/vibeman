@@ -100,7 +100,7 @@ export default function VoicebotPage() {
         >
           {/* Project Selector */}
           <div className="flex-1">
-            <label className="block text-xs text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
+            <label className="block text-sm text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
               Project Context
             </label>
             <select
@@ -124,7 +124,7 @@ export default function VoicebotPage() {
 
           {/* Context Selector */}
           <div className="flex-1">
-            <label className="block text-xs text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
+            <label className="block text-sm text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
               Context
             </label>
             <select
@@ -275,7 +275,7 @@ export default function VoicebotPage() {
                 <h3 className="text-sm font-bold text-cyan-400 mb-1 font-mono">
                   {activeSolution === 'async' ? 'ASYNC PIPELINE' : activeSolution === 'websocket' ? 'WEBSOCKET REALTIME' : 'CONVERSATION TEST'}
                 </h3>
-                <p className="text-xs text-gray-400 font-mono">
+                <p className="text-sm text-gray-400 font-mono">
                   {activeSolution === 'async'
                     ? 'Voice input with multi-model LLM selection. Uses sequential API calls: Speech-to-Text (ElevenLabs) → LLM Processing (Ollama/OpenAI/Claude/Gemini) → Text-to-Speech (ElevenLabs).'
                     : activeSolution === 'websocket'
@@ -289,7 +289,7 @@ export default function VoicebotPage() {
                     activeSolution === 'conversation' ? 'bg-blue-400' :
                     'bg-yellow-400'
                   }`} />
-                  <span className="text-xs text-gray-500 font-mono">
+                  <span className="text-sm text-gray-500 font-mono">
                     {activeSolution === 'async' ? 'RECOMMENDED - Voice input with smart silence detection (10% threshold, 3s)' :
                      activeSolution === 'conversation' ? 'TESTING - Automated conversation flow' :
                      'EXPERIMENTAL - Using POST endpoint'}
@@ -332,7 +332,7 @@ export default function VoicebotPage() {
                 <Layers className="w-4 h-4 text-cyan-400" />
                 <h3 className="text-sm font-bold text-white font-mono">ASYNC PIPELINE</h3>
               </div>
-              <div className="space-y-2 text-xs font-mono text-gray-400">
+              <div className="space-y-2 text-sm font-mono text-gray-400">
                 <div className="flex items-start space-x-2">
                   <span className="text-cyan-400">1.</span>
                   <span>Voice input with smart silence detection (10%, 3s)</span>
@@ -355,9 +355,9 @@ export default function VoicebotPage() {
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-gray-700">
-                <div className="text-xs text-green-400">✓ Voice input</div>
-                <div className="text-xs text-green-400">✓ Multi-model selection</div>
-                <div className="text-xs text-green-400">✓ Smart silence detection</div>
+                <div className="text-sm text-green-400">✓ Voice input</div>
+                <div className="text-sm text-green-400">✓ Multi-model selection</div>
+                <div className="text-sm text-green-400">✓ Smart silence detection</div>
               </div>
             </div>
 
@@ -367,7 +367,7 @@ export default function VoicebotPage() {
                 <Zap className="w-4 h-4 text-cyan-400" />
                 <h3 className="text-sm font-bold text-white font-mono">WEBSOCKET REALTIME</h3>
               </div>
-              <div className="space-y-2 text-xs font-mono text-gray-400">
+              <div className="space-y-2 text-sm font-mono text-gray-400">
                 <div className="flex items-start space-x-2">
                   <span className="text-cyan-400">1.</span>
                   <span>Voice input with smart silence (10%, 3s)</span>
@@ -386,9 +386,9 @@ export default function VoicebotPage() {
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-gray-700">
-                <div className="text-xs text-yellow-400">⚠ POST endpoint (not WebSocket yet)</div>
-                <div className="text-xs text-blue-400">+ WebSocket for future streaming</div>
-                <div className="text-xs text-green-400">✓ All-in-one pipeline</div>
+                <div className="text-sm text-yellow-400">⚠ POST endpoint (not WebSocket yet)</div>
+                <div className="text-sm text-blue-400">+ WebSocket for future streaming</div>
+                <div className="text-sm text-green-400">✓ All-in-one pipeline</div>
               </div>
             </div>
 
@@ -398,7 +398,7 @@ export default function VoicebotPage() {
                 <MessageSquare className="w-4 h-4 text-cyan-400" />
                 <h3 className="text-sm font-bold text-white font-mono">CONVERSATION TEST</h3>
               </div>
-              <div className="space-y-2 text-xs font-mono text-gray-400">
+              <div className="space-y-2 text-sm font-mono text-gray-400">
                 <div className="flex items-start space-x-2">
                   <span className="text-cyan-400">1.</span>
                   <span>Load 5 predefined test sentences</span>
@@ -417,9 +417,9 @@ export default function VoicebotPage() {
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-gray-700">
-                <div className="text-xs text-blue-400">+ Automated testing</div>
-                <div className="text-xs text-blue-400">+ Multi-model selection</div>
-                <div className="text-xs text-blue-400">+ No voice input needed</div>
+                <div className="text-sm text-blue-400">+ Automated testing</div>
+                <div className="text-sm text-blue-400">+ Multi-model selection</div>
+                <div className="text-sm text-blue-400">+ No voice input needed</div>
               </div>
             </div>
           </div>
@@ -427,7 +427,7 @@ export default function VoicebotPage() {
           {/* API Endpoints */}
           <div className="mt-6 p-4 bg-black/30 rounded-xl border border-gray-700">
             <h3 className="text-sm font-bold text-gray-300 mb-3 font-mono">API ENDPOINTS</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm font-mono">
               <div>
                 <span className="text-cyan-400">POST</span>
                 <span className="text-gray-400 ml-2">/api/voicebot/speech-to-text</span>

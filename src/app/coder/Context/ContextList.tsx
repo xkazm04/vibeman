@@ -13,7 +13,7 @@ export default function ContextList() {
           <FolderTree className="w-8 h-8 opacity-50" />
         </div>
         <p className="text-sm mb-2">No contexts saved yet</p>
-        <p className="text-xs text-gray-600">Select files and save your first context</p>
+        <p className="text-sm text-gray-600">Select files and save your first context</p>
       </div>
     );
   }
@@ -38,12 +38,12 @@ export default function ContextList() {
               </div>
               
               {context.description && (
-                <p className="text-xs text-gray-400 mb-2 line-clamp-2">
+                <p className="text-sm text-gray-400 mb-2 line-clamp-2">
                   {context.description}
                 </p>
               )}
               
-              <div className="flex items-center space-x-4 text-xs text-gray-500">
+              <div className="flex items-center space-x-4 text-sm text-gray-500">
                 <div className="flex items-center space-x-1">
                   <FileText className="w-3 h-3" />
                   <span>{context.filePaths.length} files</span>
@@ -70,13 +70,13 @@ export default function ContextList() {
               {context.filePaths.slice(0, 3).map((path, fileIndex) => (
                 <span
                   key={fileIndex}
-                  className="inline-flex items-center px-2 py-1 bg-gray-900/50 text-xs text-gray-400 rounded-sm font-mono"
+                  className="inline-flex items-center px-2 py-1 bg-gray-900/50 text-sm text-gray-400 rounded-sm font-mono"
                 >
                   {path.split('/').pop()}
                 </span>
               ))}
               {context.filePaths.length > 3 && (
-                <span className="inline-flex items-center px-2 py-1 bg-gray-900/50 text-xs text-gray-500 rounded-sm">
+                <span className="inline-flex items-center px-2 py-1 bg-gray-900/50 text-sm text-gray-500 rounded-sm">
                   +{context.filePaths.length - 3} more
                 </span>
               )}

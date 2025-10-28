@@ -130,7 +130,7 @@ export default function IdeasHeaderWithFilter({
           {/* Token Heatmap Button */}
           <motion.button
             onClick={() => setShowTokenHeatmap(true)}
-            className="flex items-center space-x-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 rounded-lg text-xs font-medium transition-all"
+            className="flex items-center space-x-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 rounded-lg text-sm font-medium transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title="View token usage analytics"
@@ -141,19 +141,19 @@ export default function IdeasHeaderWithFilter({
 
           {/* Stats */}
           <div className="flex items-center space-x-4 bg-gray-800/60 backdrop-blur-sm rounded-lg px-4 py-2 border border-gray-700/40">
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Total:</span>{' '}
               <span className="text-white font-mono font-semibold">{stats.total}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Pending:</span>{' '}
               <span className="text-blue-400 font-mono font-semibold">{stats.pending}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Accepted:</span>{' '}
               <span className="text-green-400 font-mono font-semibold">{stats.accepted}</span>
             </div>
-            <div className="text-xs">
+            <div className="text-sm">
               <span className="text-gray-500">Implemented:</span>{' '}
               <span className="text-amber-400 font-mono font-semibold">{stats.implemented}</span>
             </div>
@@ -162,7 +162,7 @@ export default function IdeasHeaderWithFilter({
 
         {/* Project Selection Row */}
         <div className="flex items-center space-x-3 overflow-x-auto mb-3">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">
+          <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide shrink-0">
             Projects:
           </span>
           <motion.button
@@ -203,7 +203,7 @@ export default function IdeasHeaderWithFilter({
             exit={{ opacity: 0, height: 0 }}
           >
             <div className="flex items-start gap-3">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0 pt-1.5">
+              <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide shrink-0 pt-1.5">
                 Context:
               </span>
 

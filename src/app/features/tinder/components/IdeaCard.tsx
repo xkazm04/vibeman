@@ -114,7 +114,7 @@ export default function IdeaCard({
                 </h3>
                 <div className="flex items-center gap-2 mt-1">
                   <Tag className="w-3 h-3 text-gray-400" />
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">
+                  <span className="text-sm text-gray-400 uppercase tracking-wide">
                     {idea.category.replace('_', ' ')}{idea.scan_type ? ` - ${idea.scan_type.replace('_', ' ')}` : ''}
                   </span>
                 </div>
@@ -177,7 +177,7 @@ export default function IdeaCard({
               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
               <span className="text-sm text-gray-400">{projectName}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
               <Calendar className="w-3 h-3" />
               <span>{formatDate(idea.created_at)}</span>
             </div>

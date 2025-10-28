@@ -243,7 +243,7 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
                 {/* Status Icon and Text */}
                 <div className="flex flex-col items-center space-y-1">
                   {getProviderStatusIcon(provider)}
-                  <span className="text-xs text-gray-400">
+                  <span className="text-sm text-gray-400">
                     {getProviderStatusText(provider)}
                   </span>
                 </div>

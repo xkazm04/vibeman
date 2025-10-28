@@ -30,10 +30,10 @@ export default function ProgressBar({ items, totalIdeas, type }: ProgressBarProp
     >
       {/* Stats Row */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-gray-400">
+        <span className="text-sm font-semibold text-gray-400">
           Processing {completedCount} / {totalCount} {type === 'scan' ? 'scans' : 'contexts'}
         </span>
-        <span className="text-xs font-semibold text-blue-400">
+        <span className="text-sm font-semibold text-blue-400">
           {totalIdeas} ideas generated
         </span>
       </div>
@@ -92,7 +92,7 @@ export default function ProgressBar({ items, totalIdeas, type }: ProgressBarProp
           return (
             <motion.div
               key={`${isScanItem ? item.scanType : item.contextId}-${index}`}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
                 item.status === 'completed'
                   ? 'bg-green-500/20 border-green-500/40 text-green-300'
                   : item.status === 'failed'

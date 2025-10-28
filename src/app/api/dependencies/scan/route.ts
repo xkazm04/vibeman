@@ -8,6 +8,7 @@ import {
   dependencyRelationshipDb
 } from '@/lib/dependency_database';
 import { scanMultipleProjects } from '@/lib/dependencyScanner';
+import { projectDb } from '@/lib/project_database';
 
 /**
  * POST /api/dependencies/scan
@@ -124,11 +125,15 @@ export async function POST(request: NextRequest) {
       dependencyRelationshipDb.createRelationships(relationships);
     }
 
+    // Fetch registry versions for all packages
+    const registryVersions = await fetchRegistryVersionsForScan(projectIds, projectDeps);
+
     // Update scan statistics
     dependencyScanDb.updateScanStats(scanId, {
       total_dependencies: analysis.summary.totalDependencies,
       shared_dependencies: analysis.summary.sharedDependencies,
-      duplicate_code_instances: analysis.summary.codeDuplicates
+      duplicate_code_instances: analysis.summary.codeDuplicates,
+      registry_versions: registryVersions
     });
 
     return NextResponse.json({
@@ -142,5 +147,92 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to scan dependencies', details: (error as Error).message },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Fetch registry versions for all packages in the scan
+ */
+async function fetchRegistryVersionsForScan(
+  projectIds: string[],
+  projectDeps: Array<{ dependency_name: string; dependency_type: string; project_id: string }>
+): Promise<Record<string, string | null>> {
+  try {
+    // Get all unique package names
+    const uniquePackages = new Set<string>();
+    projectDeps.forEach(dep => {
+      // Only fetch for npm/python packages (not local imports or shared modules)
+      if (dep.dependency_type === 'npm' || dep.dependency_type === 'python') {
+        uniquePackages.add(dep.dependency_name);
+      }
+    });
+
+    if (uniquePackages.size === 0) {
+      return {};
+    }
+
+    // Get project types to determine which registry to use
+    // For simplicity, if any project is python/fastapi, use pypi; otherwise use npm
+    const projects = projectDb.getAllProjects();
+    const scannedProjects = projects.filter(p => projectIds.includes(p.id));
+    const hasPython = scannedProjects.some(p => p.type === 'python' || p.type === 'fastapi');
+    const hasNode = scannedProjects.some(p =>
+      p.type === 'nextjs' || p.type === 'react' || p.type === 'nodejs' || p.type === 'other'
+    );
+
+    const allVersions: Record<string, string | null> = {};
+
+    // Fetch npm packages
+    if (hasNode) {
+      const npmPackages = Array.from(uniquePackages).filter(pkg => {
+        const dep = projectDeps.find(d => d.dependency_name === pkg);
+        return dep?.dependency_type === 'npm';
+      });
+
+      if (npmPackages.length > 0) {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/dependencies/registry-versions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            packages: npmPackages,
+            projectType: 'nextjs'
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          Object.assign(allVersions, data.versions);
+        }
+      }
+    }
+
+    // Fetch python packages
+    if (hasPython) {
+      const pythonPackages = Array.from(uniquePackages).filter(pkg => {
+        const dep = projectDeps.find(d => d.dependency_name === pkg);
+        return dep?.dependency_type === 'python';
+      });
+
+      if (pythonPackages.length > 0) {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/dependencies/registry-versions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            packages: pythonPackages,
+            projectType: 'python'
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          Object.assign(allVersions, data.versions);
+        }
+      }
+    }
+
+    return allVersions;
+  } catch (error) {
+    console.error('Error fetching registry versions:', error);
+    return {};
   }
 }

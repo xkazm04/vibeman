@@ -100,7 +100,7 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
           autoFocus
         />
         {!isValid && (
-          <div className="flex items-center space-x-2 mt-2 text-xs text-slate-500">
+          <div className="flex items-center space-x-2 mt-2 text-sm text-slate-500">
             <AlertCircle className="w-3 h-3" />
             <span>Title is required</span>
           </div>
@@ -141,7 +141,7 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
             </option>
           ))}
         </select>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-sm text-slate-500">
           Associate this goal with a specific context for better organization
         </p>
       </div>

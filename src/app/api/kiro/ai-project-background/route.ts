@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat, readFile } from 'fs/promises';
 import { join, extname } from 'path';
-import { eventDb } from '../../../../lib/database';
+import { eventDb } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
 import { generateAIReview } from '@/app/projects/ProjectAI/promptFunctions';

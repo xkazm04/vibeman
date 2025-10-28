@@ -142,7 +142,7 @@ const CompactSystemLogs = () => {
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 />
-                <p className="text-xs text-gray-300 font-mono truncate">
+                <p className="text-sm text-gray-300 font-mono truncate">
                   {logs[0].message}
                 </p>
               </motion.div>
@@ -151,7 +151,7 @@ const CompactSystemLogs = () => {
           
           {/* Status Indicator */}
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-green-400 font-mono">ONLINE</span>
+            <span className="text-sm text-green-400 font-mono">ONLINE</span>
           </div>
         </div>
       </motion.div>
@@ -185,11 +185,11 @@ const CompactSystemLogs = () => {
                     <IconComponent className={`w-3 h-3 ${getLogColor(log.type)}`} />
                   </motion.div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-300 font-mono truncate">
+                    <p className="text-sm text-gray-300 font-mono truncate">
                       {log.message}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500 font-mono">
+                  <span className="text-sm text-gray-500 font-mono">
                     {log.timestamp.split(':').slice(0, 2).join(':')}
                   </span>
                 </motion.div>
@@ -232,7 +232,7 @@ const CompactSystemLogs = () => {
                       <p className="text-sm text-gray-300 font-mono leading-relaxed">
                         {log.message}
                       </p>
-                      <span className="text-xs text-gray-500 font-mono">
+                      <span className="text-sm text-gray-500 font-mono">
                         {log.timestamp}
                       </span>
                     </div>

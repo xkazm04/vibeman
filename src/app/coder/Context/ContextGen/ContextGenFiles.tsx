@@ -45,11 +45,11 @@ export default function ContextGenFiles({
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium text-gray-400">Project Files</h4>
             <div className="flex items-center space-x-2">
-              <span className="text-xs text-gray-500">Select files to include</span>
+              <span className="text-sm text-gray-500">Select files to include</span>
               <button
                 onClick={onRefresh}
                 disabled={fileStructureLoading}
-                className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
               >
                 {fileStructureLoading ? 'Loading...' : 'Refresh'}
               </button>
@@ -62,7 +62,7 @@ export default function ContextGenFiles({
                   <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                   <p className="text-sm text-gray-400">Loading project files...</p>
                   {projectName && (
-                    <p className="text-xs text-gray-500 mt-1">Project: {projectName}</p>
+                    <p className="text-sm text-gray-500 mt-1">Project: {projectName}</p>
                   )}
                 </div>
               </div>
@@ -73,7 +73,7 @@ export default function ContextGenFiles({
                   <p className="text-sm text-gray-400 mb-2">No project files loaded</p>
                   <button
                     onClick={onRefresh}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                    className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
                   >
                     Load Project Files
                   </button>

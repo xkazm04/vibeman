@@ -289,7 +289,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                                 {context.name}
                               </h4>
                               <div 
-                                className="px-2 py-1 rounded-lg text-xs font-bold font-mono"
+                                className="px-2 py-1 rounded-lg text-sm font-bold font-mono"
                                 style={{ 
                                   backgroundColor: `${selectedGroup.color}20`,
                                   color: selectedGroup.color 
@@ -308,7 +308,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
 
                             {/* File Paths Preview */}
                             <div className="space-y-2">
-                              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
                                 Files ({context.filePaths.length})
                               </p>
                               <div className="max-h-32 overflow-y-auto">
@@ -320,7 +320,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                                     return (
                                       <div key={pathIndex} className="flex items-center space-x-1 min-w-0">
                                         <div className="w-1 h-1 bg-gray-500 rounded-full flex-shrink-0"></div>
-                                        <p className="text-xs text-gray-400 font-mono truncate" title={normalizedPath}>
+                                        <p className="text-sm text-gray-400 font-mono truncate" title={normalizedPath}>
                                           {fileName}
                                         </p>
                                       </div>
@@ -328,7 +328,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                                   })}
                                 </div>
                                 {context.filePaths.length > 15 && (
-                                  <p className="text-xs text-gray-500 font-mono mt-2 text-center">
+                                  <p className="text-sm text-gray-500 font-mono mt-2 text-center">
                                     +{context.filePaths.length - 15} more files
                                   </p>
                                 )}
@@ -336,7 +336,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                             </div>
 
                             {/* Timestamps */}
-                            <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-700/30">
+                            <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t border-gray-700/30">
                               <div className="flex items-center space-x-1">
                                 <Clock className="w-3 h-3" />
                                 <span>{formatDate(context.createdAt)}</span>

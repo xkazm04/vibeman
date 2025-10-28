@@ -110,7 +110,7 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete }: B
 
       {/* Middle: Title */}
       <div className="flex-1 min-w-0">
-        <p className={`text-xs truncate ${
+        <p className={`text-sm truncate ${
           isPending
             ? 'text-gray-200 font-medium'
             : isAccepted

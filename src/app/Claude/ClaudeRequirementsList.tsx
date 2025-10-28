@@ -6,7 +6,7 @@ import ClaudeRequirement from './sub_ClaudeRequirement/ClaudeRequirement';
 import ClaudeActionStructureScan from './components/ClaudeActionStructureScan';
 import ClaudeActionContextScan from './components/ClaudeActionContextScan';
 import ClaudeActionAutoGenerate from './components/ClaudeActionAutoGenerate';
-import ClaudeActionBatchCode from './components/ClaudeActionBatchCode';
+import ClaudeActionBuildFixer from './components/ClaudeActionBuildFixer';
 import {
   Requirement,
   loadRequirements as apiLoadRequirements,
@@ -174,19 +174,12 @@ export default function ClaudeRequirementsList({
               Requirements ({requirements.length})
             </h3>
             {queueCount > 0 && (
-              <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-xs text-amber-400">
+              <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-sm text-amber-400">
                 {queueCount} in queue
               </span>
             )}
           </div>
           <div className="flex items-center gap-2 relative">
-            {/* Batch Code Button - NEW */}
-            <ClaudeActionBatchCode
-              requirements={requirements}
-              disabled={!activeProject}
-              onBatchStart={handleBatchCode}
-            />
-
             {/* Structure Scan Button - Always visible for nextjs/fastapi projects */}
             {activeProject?.type && (
               <ClaudeActionStructureScan
@@ -197,6 +190,14 @@ export default function ClaudeRequirementsList({
                 onScanComplete={loadRequirements}
               />
             )}
+
+            {/* Build Fixer Button - Always visible */}
+            <ClaudeActionBuildFixer
+              projectPath={projectPath}
+              projectId={activeProject?.id || ''}
+              disabled={!activeProject}
+              onScanComplete={loadRequirements}
+            />
 
             {/* Context Scan Button - Only show if scan-contexts.md exists */}
             <ClaudeActionContextScan
@@ -244,7 +245,7 @@ export default function ClaudeRequirementsList({
             />
           ))}
           {hasMore && (
-            <div className="text-center py-3 text-gray-500 text-xs">
+            <div className="text-center py-3 text-gray-500 text-sm">
               Showing {displayedCount} of {requirements.length} requirements
             </div>
           )}

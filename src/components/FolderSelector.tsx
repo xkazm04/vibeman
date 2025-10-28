@@ -204,7 +204,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
       
       {selectedPath && (
         <div className="mt-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700">
-          <div className="text-xs text-gray-400 mb-1">Selected folder:</div>
+          <div className="text-sm text-gray-400 mb-1">Selected folder:</div>
           <div className="text-sm font-mono text-cyan-400">{selectedPath}</div>
         </div>
       )}

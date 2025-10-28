@@ -155,7 +155,7 @@ export default function CodePreviewModal({
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-white">Code Preview</h2>
-                    <p className="text-xs text-gray-400 font-mono truncate max-w-md">
+                    <p className="text-sm text-gray-400 font-mono truncate max-w-md">
                       {filePath}
                     </p>
                   </div>
@@ -163,7 +163,7 @@ export default function CodePreviewModal({
 
                 <div className="flex items-center gap-2">
                   {hasChanges && (
-                    <span className="text-xs text-amber-400 flex items-center gap-1">
+                    <span className="text-sm text-amber-400 flex items-center gap-1">
                       <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
                       Unsaved changes
                     </span>
@@ -223,7 +223,7 @@ export default function CodePreviewModal({
 
               {/* Footer */}
               <div className="px-6 py-3 border-t border-gray-700/50 bg-gray-900/50">
-                <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center justify-between text-sm text-gray-500">
                   <div>
                     Language: <span className="text-gray-400 font-mono">{getLanguage(filePath)}</span>
                   </div>

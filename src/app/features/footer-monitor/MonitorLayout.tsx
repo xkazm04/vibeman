@@ -204,7 +204,7 @@ export default function MonitorLayout() {
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}
-                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all min-h-[32px] ${isLoading
+                  className={`flex items-center gap-1 px-2 py-1 text-sm rounded-md border transition-all min-h-[32px] ${isLoading
                     ? 'bg-gray-500/20 border-gray-500/50 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-500/20 border-blue-500/50 text-blue-400 hover:bg-blue-500/30 focus:ring-2 focus:ring-blue-500/50 focus:outline-none'
                     }`}
@@ -220,7 +220,7 @@ export default function MonitorLayout() {
               {isQueueActive ? (
                 <button
                   onClick={stopQueue}
-                  className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30 focus:ring-2 focus:ring-red-500/50 focus:outline-none transition-all min-h-[32px]"
+                  className="flex items-center gap-1 px-2 py-1 text-sm rounded-md bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30 focus:ring-2 focus:ring-red-500/50 focus:outline-none transition-all min-h-[32px]"
                   title="Stop queue processing"
                   aria-label="Stop queue processing"
                 >
@@ -231,7 +231,7 @@ export default function MonitorLayout() {
                 <button
                   onClick={startQueue}
                   disabled={taskCounts.pending === 0}
-                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all min-h-[32px] ${taskCounts.pending > 0
+                  className={`flex items-center gap-1 px-2 py-1 text-sm rounded-md border transition-all min-h-[32px] ${taskCounts.pending > 0
                     ? 'bg-green-500/20 border-green-500/50 text-green-400 hover:bg-green-500/30 focus:ring-2 focus:ring-green-500/50 focus:outline-none'
                     : 'bg-gray-500/20 border-gray-500/50 text-gray-500 cursor-not-allowed'
                     }`}
@@ -307,7 +307,7 @@ export default function MonitorLayout() {
                         <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                         <span className="text-sm">Auto Refresh (5s)</span>
                         {taskCounts.pending === 0 && taskCounts.processing === 0 && (
-                          <span className="text-xs text-yellow-400 ml-2">Auto-stopping...</span>
+                          <span className="text-sm text-yellow-400 ml-2">Auto-stopping...</span>
                         )}
                       </div>
                     ) : (
@@ -327,8 +327,8 @@ export default function MonitorLayout() {
                     <XCircle className="w-4 h-4" />
                     <span className="text-sm font-medium">Error loading data</span>
                   </div>
-                  {eventsError && <p className="text-xs text-red-300 mt-1">Events: {eventsError.message}</p>}
-                  {tasksError && <p className="text-xs text-red-300 mt-1">Tasks: {tasksError.message}</p>}
+                  {eventsError && <p className="text-sm text-red-300 mt-1">Events: {eventsError.message}</p>}
+                  {tasksError && <p className="text-sm text-red-300 mt-1">Tasks: {tasksError.message}</p>}
                 </div>
               )}
             </div>

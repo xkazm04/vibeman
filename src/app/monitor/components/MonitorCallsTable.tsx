@@ -72,7 +72,7 @@ export default function MonitorCallsTable() {
             <button
               key={filterOption}
               onClick={() => setFilter(filterOption)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase transition-all duration-200 ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-mono uppercase transition-all duration-200 ${
                 filter === filterOption
                   ? 'bg-cyan-500/30 border border-cyan-500/50 text-cyan-300'
                   : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-slate-300'
@@ -90,12 +90,12 @@ export default function MonitorCallsTable() {
           <table className="w-full">
             <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50">
               <tr>
-                <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Call ID</th>
-                <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Started</th>
-                <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Duration</th>
-                <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Intent</th>
-                <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">Outcome</th>
+                <th className="px-4 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Call ID</th>
+                <th className="px-4 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Started</th>
+                <th className="px-4 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Duration</th>
+                <th className="px-4 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Intent</th>
+                <th className="px-4 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">Outcome</th>
               </tr>
             </thead>
             <tbody>
@@ -112,7 +112,7 @@ export default function MonitorCallsTable() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
                     <div className="text-sm font-mono">No calls to display</div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-sm text-gray-500 mt-1">
                       Enable monitoring in voicebot tests to start tracking
                     </div>
                   </td>
@@ -135,7 +135,7 @@ export default function MonitorCallsTable() {
                       <td className="px-4 py-3">
                         <div className={`inline-flex items-center space-x-2 px-2 py-1 rounded ${statusColors.bg} border ${statusColors.border}`}>
                           <span className={statusColors.text}>{getStatusIcon(call.status)}</span>
-                          <span className={`${statusColors.text} text-xs font-medium uppercase`}>
+                          <span className={`${statusColors.text} text-sm font-medium uppercase`}>
                             {call.status}
                           </span>
                         </div>
@@ -143,7 +143,7 @@ export default function MonitorCallsTable() {
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-2 text-sm text-gray-300">
                           <Clock className="w-3 h-3 text-gray-500" />
-                          <span className="font-mono text-xs">{formatTimestamp(call.startTime)}</span>
+                          <span className="font-mono text-sm">{formatTimestamp(call.startTime)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -169,7 +169,7 @@ export default function MonitorCallsTable() {
       {/* Footer */}
       {!isLoading && calls.length > 0 && (
         <div className="p-4 border-t border-gray-800/50 bg-black/20">
-          <div className="text-xs text-gray-400 font-mono">
+          <div className="text-sm text-gray-400 font-mono">
             Showing {calls.length} {calls.length === 1 ? 'call' : 'calls'}
           </div>
         </div>

@@ -76,7 +76,7 @@ const ProposalPanel = React.memo(({ isVisible }: ProposalPanelProps) => {
             transition={{ delay: 0.3 }}
           >
             <div className="flex items-center space-x-2 px-4 py-2 bg-gray-900/80 backdrop-blur-xl border border-gray-700/40 rounded-full">
-              <span className="text-xs text-gray-400 font-mono">
+              <span className="text-sm text-gray-400 font-mono">
                 {currentIndex + 1} / {totalProposals}
               </span>
               <div className="flex space-x-1">

@@ -16,7 +16,7 @@ export default function ContextFileFooter({ markdownContent, previewMode }: Cont
 
   return (
     <div className="px-4 py-3 border-t border-gray-700 bg-gray-800/30">
-      <div className="flex items-center justify-between text-xs text-gray-400">
+      <div className="flex items-center justify-between text-sm text-gray-400">
         <div className="flex items-center space-x-4">
           <span>Language: Markdown</span>
           <span>•</span>

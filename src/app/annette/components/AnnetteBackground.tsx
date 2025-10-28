@@ -18,7 +18,7 @@ const AnnetteBackground = () => {
 
   // Optimized transition settings to reduce GPU load
   const orbTransition = {
-    ease: "easeInOut",
+    ease: [0.42, 0, 0.58, 1] as const, // easeInOut bezier curve
     times: [0, 0.5, 1], // Simplified keyframes
   };
 

@@ -1,4 +1,4 @@
-import { goalDb } from '../../../../lib/database';
+import { goalDb } from '@/app/db';
 import { generateWithLLM, DefaultProviderStorage } from '../../../../lib/llm';
 import { buildStrategicGoalsPrompt } from '../lib/promptBuilder';
 import { readAIDocs } from './lib/utils';

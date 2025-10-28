@@ -157,7 +157,7 @@ export default function TokenHeatmap({ projectId = 'all', daysBack = 7 }: TokenH
             {/* Header row with dates */}
             <div></div>
             {dates.map(date => (
-              <div key={date} className="text-xs text-gray-400 text-center py-1">
+              <div key={date} className="text-sm text-gray-400 text-center py-1">
                 {formatDate(date)}
               </div>
             ))}
@@ -186,7 +186,7 @@ export default function TokenHeatmap({ projectId = 'all', daysBack = 7 }: TokenH
                     >
                       {tokens > 0 && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-xs font-medium text-white drop-shadow">
+                          <span className="text-sm font-medium text-white drop-shadow">
                             {formatNumber(tokens)}
                           </span>
                         </div>
@@ -246,7 +246,7 @@ export default function TokenHeatmap({ projectId = 'all', daysBack = 7 }: TokenH
               className="bg-gray-700/30 border border-gray-600/50 rounded-lg p-3"
             >
               <div className="text-sm font-medium text-white mb-2">{item.scan_type}</div>
-              <div className="space-y-1 text-xs">
+              <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total:</span>
                   <span className="text-white font-semibold">{formatNumber(item.total_tokens)}</span>
@@ -266,7 +266,7 @@ export default function TokenHeatmap({ projectId = 'all', daysBack = 7 }: TokenH
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+      <div className="mt-4 flex items-center gap-2 text-sm text-gray-400">
         <span>Intensity:</span>
         <div className="flex gap-1">
           <div className="w-8 h-4 bg-gray-800 border border-gray-700 rounded"></div>

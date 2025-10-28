@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ollamaClient } from '../../../../lib/ollama';
-import { contextDb } from '../../../../lib/database';
+import { contextDb } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';

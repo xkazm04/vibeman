@@ -63,7 +63,7 @@ export default function VibemanStatus({
         className="flex items-center gap-1.5 flex-1 min-w-0"
       >
         {statusIcon && <span className={statusColor}>{statusIcon}</span>}
-        <span className={`text-xs w-[250px] font-medium ${statusColor} truncate`}>
+        <span className={`text-sm w-[250px] font-medium ${statusColor} truncate`}>
           {message || 'Ready'}
         </span>
       </motion.div>

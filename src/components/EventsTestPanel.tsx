@@ -103,7 +103,7 @@ export default function EventsTestPanel() {
       {/* Event Counts */}
       <div className="mb-4">
         <h4 className="text-sm font-medium text-gray-300 mb-2">Event Counts:</h4>
-        <div className="flex gap-4 text-xs">
+        <div className="flex gap-4 text-sm">
           <span className="text-blue-400">Info: {eventCounts.info || 0}</span>
           <span className="text-yellow-400">Warning: {eventCounts.warning || 0}</span>
           <span className="text-red-400">Error: {eventCounts.error || 0}</span>
@@ -121,11 +121,11 @@ export default function EventsTestPanel() {
             {events.map((event) => (
               <div
                 key={event.id}
-                className="p-2 bg-gray-800 rounded border border-gray-700 text-xs"
+                className="p-2 bg-gray-800 rounded border border-gray-700 text-sm"
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium text-white">{event.title}</span>
-                  <span className={`px-1 py-0.5 rounded text-xs ${
+                  <span className={`px-1 py-0.5 rounded text-sm ${
                     event.type === 'error' ? 'bg-red-900 text-red-300' :
                     event.type === 'warning' ? 'bg-yellow-900 text-yellow-300' :
                     event.type === 'success' ? 'bg-green-900 text-green-300' :
@@ -135,14 +135,14 @@ export default function EventsTestPanel() {
                   </span>
                 </div>
                 <div className="text-gray-400 mb-1">{event.description}</div>
-                <div className="text-gray-500 text-xs">
+                <div className="text-gray-500 text-sm">
                   {new Date(event.created_at).toLocaleString()}
                   {event.agent && ` • ${event.agent}`}
                 </div>
                 {event.message && (
                   <details className="mt-1">
                     <summary className="text-gray-500 cursor-pointer">Message</summary>
-                    <pre className="text-gray-400 text-xs mt-1 whitespace-pre-wrap">
+                    <pre className="text-gray-400 text-sm mt-1 whitespace-pre-wrap">
                       {event.message}
                     </pre>
                   </details>

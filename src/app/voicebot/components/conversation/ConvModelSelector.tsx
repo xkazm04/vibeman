@@ -46,7 +46,7 @@ export default function ConvModelSelector({
           />
           <span className="text-sm text-slate-300 font-medium">Multi-Model Test</span>
         </label>
-        <p className="text-xs text-slate-400 mt-1">Run all models in parallel</p>
+        <p className="text-sm text-slate-400 mt-1">Run all models in parallel</p>
       </div>
 
       {/* Provider & Model - Same Column */}
@@ -54,7 +54,7 @@ export default function ConvModelSelector({
         <div className="space-y-2">
           {/* Provider Selector */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Provider</label>
+            <label className="block text-sm text-slate-400 mb-1">Provider</label>
             <select
               value={provider}
               onChange={(e) => {
@@ -72,7 +72,7 @@ export default function ConvModelSelector({
 
           {/* Model Selector */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Model</label>
+            <label className="block text-sm text-slate-400 mb-1">Model</label>
             {AVAILABLE_LLM_MODELS[provider].length > 1 ? (
               <select
                 value={model}

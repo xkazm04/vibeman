@@ -44,7 +44,7 @@ const ProjectList = React.memo(({
               className="flex items-center justify-center p-4"
             >
               <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
-              <span className="ml-2 text-xs text-gray-400">Loading...</span>
+              <span className="ml-2 text-sm text-gray-400">Loading...</span>
             </motion.div>
           ) : projects.length === 0 ? (
             <motion.div
@@ -53,7 +53,7 @@ const ProjectList = React.memo(({
               className="text-center p-4 text-gray-400"
             >
               <Code className="w-6 h-6 mx-auto mb-1 opacity-50" />
-              <p className="text-xs">No projects found</p>
+              <p className="text-sm">No projects found</p>
             </motion.div>
           ) : (
             projects.map((project, index) => (

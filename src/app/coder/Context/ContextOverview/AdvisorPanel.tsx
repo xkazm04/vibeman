@@ -210,7 +210,7 @@ export default function AdvisorPanel({
         {/* LLM Provider Button */}
         <motion.button
           onClick={() => setShowLLMSelector(!showLLMSelector)}
-          className="px-3 py-1.5 bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg text-xs font-mono transition-colors border border-gray-600/50"
+          className="px-3 py-1.5 bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg text-sm font-mono transition-colors border border-gray-600/50"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >

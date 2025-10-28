@@ -155,7 +155,7 @@ export default function EmergencyKillModal({
                         <div className="text-slate-400">
                           PID: {process.pid || 'Unknown'}
                           {process.command && (
-                            <span className="ml-2 text-xs font-mono">
+                            <span className="ml-2 text-sm font-mono">
                               {process.command.substring(0, 50)}...
                             </span>
                           )}
@@ -165,7 +165,7 @@ export default function EmergencyKillModal({
                     
                     <div className="flex items-center gap-3">
                       {killResults[process.port] && (
-                        <span className={`text-xs px-3 py-1 rounded-lg border ${
+                        <span className={`text-sm px-3 py-1 rounded-lg border ${
                           killResults[process.port].includes('success')
                             ? 'bg-green-500/20 text-green-400 border-green-500/30'
                             : 'bg-red-500/20 text-red-400 border-red-500/30'

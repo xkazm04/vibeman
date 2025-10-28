@@ -31,12 +31,12 @@ export default function MdCode({ content, language, index }: MdCodeProps) {
       <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-lg">
         {/* Code header */}
         <div className="flex items-center justify-between px-4 py-2 bg-gray-800/50 border-b border-gray-700">
-          <span className="text-xs text-gray-400 font-mono">
+          <span className="text-sm text-gray-400 font-mono">
             {language}
           </span>
           <button
             onClick={() => copyCode(content)}
-            className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded transition-colors"
+            className="flex items-center space-x-1 px-2 py-1 text-sm text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded transition-colors"
           >
             {copiedCode === content ? (
               <>

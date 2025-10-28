@@ -33,7 +33,7 @@ export default function ProjectActions({
         </span>
         {displayProjects.length > 1 && (
           <div
-            className="text-xs text-cyan-400/60 font-mono animate-pulse cursor-pointer"
+            className="text-sm text-cyan-400/60 font-mono animate-pulse cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               onProjectTitleClick();
@@ -55,7 +55,7 @@ export default function ProjectActions({
         {activeProject.git && (
           <div className="flex items-center space-x-1.5 bg-green-500/15 px-3 py-1 rounded-lg border border-green-500/25">
             <GitBranch className="w-3.5 h-3.5 text-green-400" />
-            <span className="text-xs text-green-400/90 font-mono">
+            <span className="text-sm text-green-400/90 font-mono">
               {activeProject.git.branch}
             </span>
           </div>
@@ -65,7 +65,7 @@ export default function ProjectActions({
         {relatedProject && (
           <div className="flex items-center space-x-1.5 bg-blue-500/15 px-3 py-1 rounded-lg border border-blue-500/25">
             <Link className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-xs text-blue-400/90 font-medium">
+            <span className="text-sm text-blue-400/90 font-medium">
               → {relatedProject.name}
             </span>
           </div>
@@ -75,7 +75,7 @@ export default function ProjectActions({
         {connectedProjects.length > 0 && !relatedProject && (
           <div className="flex items-center space-x-1.5 bg-blue-500/15 px-3 py-1 rounded-lg border border-blue-500/25">
             <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-xs text-blue-400/90 font-medium">
+            <span className="text-sm text-blue-400/90 font-medium">
               {connectedProjects.length} connected
             </span>
           </div>
@@ -84,7 +84,7 @@ export default function ProjectActions({
         {/* Run Script Hint */}
         {activeProject.runScript && (
           <div className="hidden lg:flex items-center space-x-1.5 bg-gray-500/15 px-3 py-1 rounded-lg border border-gray-500/25">
-            <span className="text-xs text-gray-400 font-mono truncate max-w-32">
+            <span className="text-sm text-gray-400 font-mono truncate max-w-32">
               {activeProject.runScript}
             </span>
           </div>

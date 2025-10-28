@@ -30,12 +30,12 @@ export default function ProjectFilter({ projects, selectedProjectIds, onChange }
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+        <label className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
           Projects
         </label>
         <button
           onClick={toggleAll}
-          className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
+          className="text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
         >
           {selectedProjectIds.length === projects.length ? 'Clear All' : 'Select All'}
         </button>

@@ -145,6 +145,7 @@ export default function DependenciesTab() {
                 <DependencyColumnView
                   projects={scanData.projects}
                   dependencies={scanData.dependencies}
+                  registryVersions={scanData.registryVersions}
                 />
               </div>
             </motion.div>

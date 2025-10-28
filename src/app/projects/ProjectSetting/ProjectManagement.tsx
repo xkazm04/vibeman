@@ -122,7 +122,7 @@ export default function ProjectManagement() {
     <div className="relative flex items-center justify-between px-6 py-5 min-w-0 flex-1">
       {/* Debug info - remove in production */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-0 right-0 text-xs text-gray-500">
+        <div className="absolute top-0 right-0 text-sm text-gray-500">
           Projects: {projects.length} | Loading: {isLoadingProjects ? 'Yes' : 'No'}
         </div>
       )}

@@ -40,7 +40,7 @@ const TreeSearch = ({
                 <button
                     key={type}
                     onClick={() => setFilterType(type)}
-                    className={`px-3 py-1 text-xs rounded-md transition-all capitalize ${filterType === type
+                    className={`px-3 py-1 text-sm rounded-md transition-all capitalize ${filterType === type
                             ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                             : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                         }`}

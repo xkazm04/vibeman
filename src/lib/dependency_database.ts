@@ -41,6 +41,7 @@ function initializeDependencyTables() {
       total_dependencies INTEGER DEFAULT 0,
       shared_dependencies INTEGER DEFAULT 0,
       duplicate_code_instances INTEGER DEFAULT 0,
+      registry_versions TEXT, -- JSON object mapping package name to registry version
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -128,6 +129,14 @@ function initializeDependencyTables() {
     CREATE INDEX IF NOT EXISTS idx_dependency_relationships_target ON dependency_relationships(target_project_id);
   `);
 
+  // Migration: Add registry_versions column if it doesn't exist
+  try {
+    db.exec(`ALTER TABLE dependency_scans ADD COLUMN registry_versions TEXT;`);
+    console.log('Added registry_versions column to dependency_scans table');
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+
   console.log('Dependency database initialized successfully');
 }
 
@@ -140,6 +149,7 @@ export interface DbDependencyScan {
   total_dependencies: number;
   shared_dependencies: number;
   duplicate_code_instances: number;
+  registry_versions: string | null; // JSON string mapping package name to registry version
   created_at: string;
   updated_at: string;
 }
@@ -203,6 +213,7 @@ export const dependencyScanDb = {
     total_dependencies?: number;
     shared_dependencies?: number;
     duplicate_code_instances?: number;
+    registry_versions?: Record<string, string | null>;
   }): DbDependencyScan | null => {
     const db = getDependencyDatabase();
     const now = new Date().toISOString();
@@ -221,6 +232,10 @@ export const dependencyScanDb = {
     if (stats.duplicate_code_instances !== undefined) {
       updateFields.push('duplicate_code_instances = ?');
       values.push(stats.duplicate_code_instances);
+    }
+    if (stats.registry_versions !== undefined) {
+      updateFields.push('registry_versions = ?');
+      values.push(JSON.stringify(stats.registry_versions));
     }
 
     if (updateFields.length === 0) {

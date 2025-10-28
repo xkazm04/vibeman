@@ -40,7 +40,7 @@ export default function FileAdd({
               </span>
               <button
                 onClick={onAddSelectedFiles}
-                className="flex items-center space-x-1 px-2 py-1 bg-green-500/20 text-green-400 rounded-sm hover:bg-green-500/30 transition-colors text-xs"
+                className="flex items-center space-x-1 px-2 py-1 bg-green-500/20 text-green-400 rounded-sm hover:bg-green-500/30 transition-colors text-sm"
               >
                 <Plus className="w-3 h-3" />
                 <span>Add All</span>
@@ -48,7 +48,7 @@ export default function FileAdd({
             </div>
             <div className="space-y-1 max-h-20 overflow-y-auto">
               {availableFilesToAdd.map((path, index) => (
-                <div key={index} className="text-xs text-green-300 font-mono">
+                <div key={index} className="text-sm text-green-300 font-mono">
                   {path}
                 </div>
               ))}
@@ -72,7 +72,7 @@ export default function FileAdd({
             <div className="p-2 space-y-1">
               {filePaths.map((path, index) => (
                 <div key={index} className="flex items-center justify-between group p-2 hover:bg-gray-800/50 rounded-sm">
-                  <span className="text-xs text-gray-300 font-mono flex-1 truncate" title={path}>
+                  <span className="text-sm text-gray-300 font-mono flex-1 truncate" title={path}>
                     {path}
                   </span>
                   <button

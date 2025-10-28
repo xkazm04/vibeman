@@ -101,7 +101,7 @@ export default function ContextPreviewManager({
           <motion.button
             onClick={handleRemove}
             disabled={isSaving}
-            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-red-500/30"
+            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-red-500/30"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -126,7 +126,7 @@ export default function ContextPreviewManager({
             placeholder="logo/vibeman_logo.png"
             className="w-full px-4 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 font-mono"
           />
-          <p className="text-xs text-gray-500 mt-1 font-mono">
+          <p className="text-sm text-gray-500 mt-1 font-mono">
             Example: logo/vibeman_logo.png (for public/logo/vibeman_logo.png)
           </p>
         </div>
@@ -162,7 +162,7 @@ export default function ContextPreviewManager({
               <motion.p
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-xs text-red-400 font-mono"
+                className="text-sm text-red-400 font-mono"
               >
                 {error}
               </motion.p>

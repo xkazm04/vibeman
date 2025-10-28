@@ -44,7 +44,7 @@ export default function ClaudeRequirementDetail({
     >
       <p className="text-sm font-mono text-gray-300 truncate">/{requirement.name}</p>
       {requirement.startTime && (
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-sm text-gray-500 mt-0.5">
           {requirement.startTime.toLocaleTimeString()}
         </p>
       )}

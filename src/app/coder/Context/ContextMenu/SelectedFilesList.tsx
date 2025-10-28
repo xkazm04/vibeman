@@ -20,7 +20,7 @@ export const SelectedFilesList: React.FC<SelectedFilesListProps> = ({
         {selectedPaths.length > 0 && (
           <button
             onClick={onClearAll}
-            className="text-xs text-red-400 hover:text-red-300 transition-colors"
+            className="text-sm text-red-400 hover:text-red-300 transition-colors"
           >
             Clear all
           </button>
@@ -58,7 +58,7 @@ export const SelectedFilesList: React.FC<SelectedFilesListProps> = ({
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <FolderTree className="w-12 h-12 mb-3 opacity-30" />
             <p className="text-sm font-medium">No files selected</p>
-            <p className="text-xs mt-1 text-center px-4">
+            <p className="text-sm mt-1 text-center px-4">
               Select files from the project tree on the left
             </p>
           </div>

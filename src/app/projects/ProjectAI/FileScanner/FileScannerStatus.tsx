@@ -126,19 +126,19 @@ export default function FileScannerStatus({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-blue-400">{scanStats.filesProcessed}</div>
-              <div className="text-xs text-gray-400">Processed</div>
+              <div className="text-sm text-gray-400">Processed</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-green-400">{scanStats.docsUpdated}</div>
-              <div className="text-xs text-gray-400">Docs Added</div>
+              <div className="text-sm text-gray-400">Docs Added</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-blue-400">{scanStats.codesCleaned}</div>
-              <div className="text-xs text-gray-400">Code Cleaned</div>
+              <div className="text-sm text-gray-400">Code Cleaned</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-red-400">{scanStats.errors}</div>
-              <div className="text-xs text-gray-400">Errors</div>
+              <div className="text-sm text-gray-400">Errors</div>
             </div>
           </div>
         )}
@@ -148,19 +148,19 @@ export default function FileScannerStatus({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-red-400">{buildStats.totalErrors}</div>
-              <div className="text-xs text-gray-400">Errors</div>
+              <div className="text-sm text-gray-400">Errors</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-yellow-400">{buildStats.totalWarnings}</div>
-              <div className="text-xs text-gray-400">Warnings</div>
+              <div className="text-sm text-gray-400">Warnings</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-blue-400">{buildStats.typescriptErrors}</div>
-              <div className="text-xs text-gray-400">TypeScript</div>
+              <div className="text-sm text-gray-400">TypeScript</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-blue-400">{buildStats.eslintErrors}</div>
-              <div className="text-xs text-gray-400">ESLint</div>
+              <div className="text-sm text-gray-400">ESLint</div>
             </div>
           </div>
         )}
@@ -170,19 +170,19 @@ export default function FileScannerStatus({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-blue-400">{fixStats.filesProcessed}</div>
-              <div className="text-xs text-gray-400">Files Processed</div>
+              <div className="text-sm text-gray-400">Files Processed</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-green-400">{fixStats.errorsFixed}</div>
-              <div className="text-xs text-gray-400">Errors Fixed</div>
+              <div className="text-sm text-gray-400">Errors Fixed</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-yellow-400">{fixStats.errorsSkipped}</div>
-              <div className="text-xs text-gray-400">Errors Skipped</div>
+              <div className="text-sm text-gray-400">Errors Skipped</div>
             </div>
             <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
               <div className="text-lg font-bold text-blue-400">{fixStats.filesWithChanges}</div>
-              <div className="text-xs text-gray-400">Files Changed</div>
+              <div className="text-sm text-gray-400">Files Changed</div>
             </div>
           </div>
         )}

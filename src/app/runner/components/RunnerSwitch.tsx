@@ -78,7 +78,7 @@ export default function RunnerSwitch({ project, index, disabled }: ProjectCardPr
       {/* Main Card Content */}
       <div className="p-3">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-3 text-xs text-gray-400">
+          <div className="flex items-center space-x-3 text-sm text-gray-400">
             <StatusLever
               isRunning={isRunning}
               isLoading={loading}
@@ -87,7 +87,7 @@ export default function RunnerSwitch({ project, index, disabled }: ProjectCardPr
               hasError={hasError}
               isStopping={isStopping}
             />
-            <div className="flex flex-col items-start space-x-2 text-xs">
+            <div className="flex flex-col items-start space-x-2 text-sm">
               <div className="flex flex-row items-center space-x-2">
                 <div className='text-gray-100'>{project.name}</div>
                 {isRunning && (

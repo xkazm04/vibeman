@@ -6,10 +6,11 @@ const execAsync = promisify(exec);
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { port: string } }
+  { params }: { params: Promise<{ port: string }> }
 ) {
   try {
-    const port = parseInt(params.port);
+    const { port: portStr } = await params;
+    const port = parseInt(portStr);
     if (isNaN(port)) {
       return NextResponse.json(
         { error: 'Invalid port number' },

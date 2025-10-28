@@ -53,8 +53,8 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
                   hover:bg-cyan-950/50 hover:text-cyan-50
                   disabled:opacity-50 disabled:cursor-not-allowed disabled:text-cyan-400/40`,
           icon: 'text-cyan-400 group-hover:text-cyan-300',
-          label: 'text-cyan-300 font-mono tracking-wider uppercase text-xs',
-          helper: 'text-cyan-400/60 font-mono text-xs'
+          label: 'text-cyan-300 font-mono tracking-wider uppercase text-sm',
+          helper: 'text-cyan-400/60 font-mono text-sm'
         };
       case 'minimal':
         return {
@@ -68,7 +68,7 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
                   disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500`,
           icon: 'text-slate-400 group-hover:text-slate-300',
           label: 'text-slate-300 text-sm',
-          helper: 'text-slate-500 text-xs'
+          helper: 'text-slate-500 text-sm'
         };
       default:
         return {
@@ -83,7 +83,7 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
                   disabled:opacity-50 disabled:cursor-not-allowed disabled:text-gray-500`,
           icon: 'text-gray-400 group-hover:text-gray-300',
           label: 'text-gray-300 text-sm font-medium tracking-wide',
-          helper: 'text-gray-400 text-xs'
+          helper: 'text-gray-400 text-sm'
         };
     }
   };

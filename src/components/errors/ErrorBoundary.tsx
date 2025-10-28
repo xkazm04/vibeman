@@ -141,18 +141,18 @@ function DefaultErrorFallback({ error, onReset }: DefaultErrorFallbackProps) {
                 Technical Details
               </summary>
               <div className="mt-3 space-y-2">
-                <div className="text-xs text-gray-400">
+                <div className="text-sm text-gray-400">
                   <span className="font-semibold">Type:</span> {error.type}
                 </div>
                 {error.statusCode && (
-                  <div className="text-xs text-gray-400">
+                  <div className="text-sm text-gray-400">
                     <span className="font-semibold">Status Code:</span> {error.statusCode}
                   </div>
                 )}
-                <div className="text-xs text-gray-400">
+                <div className="text-sm text-gray-400">
                   <span className="font-semibold">Message:</span> {error.message}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-sm text-gray-400">
                   <span className="font-semibold">Transient:</span> {error.isTransient ? 'Yes' : 'No'}
                 </div>
               </div>
@@ -243,7 +243,7 @@ export function InlineErrorDisplay({
             {error.userMessage}
           </p>
           {process.env.NODE_ENV === 'development' && (
-            <p className="text-red-400/70 text-xs">
+            <p className="text-red-400/70 text-sm">
               {error.message}
             </p>
           )}
@@ -252,7 +252,7 @@ export function InlineErrorDisplay({
           {(error.shouldRetry && onRetry) && (
             <button
               onClick={onRetry}
-              className="text-red-300 hover:text-red-200 text-xs font-medium underline"
+              className="text-red-300 hover:text-red-200 text-sm font-medium underline"
             >
               Retry
             </button>
@@ -260,7 +260,7 @@ export function InlineErrorDisplay({
           {onDismiss && (
             <button
               onClick={onDismiss}
-              className="text-red-300 hover:text-red-200 text-xs font-medium"
+              className="text-red-300 hover:text-red-200 text-sm font-medium"
             >
               ✕
             </button>

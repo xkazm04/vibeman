@@ -49,7 +49,7 @@ export default function ContextSelector({
     <div className="w-full">
       <div className="flex items-center space-x-2 mb-2">
         <Folder className="w-3.5 h-3.5 text-cyan-400" />
-        <span className="text-xs font-semibold text-cyan-300">Context Filter</span>
+        <span className="text-sm font-semibold text-cyan-300">Context Filter</span>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -57,7 +57,7 @@ export default function ContextSelector({
         <motion.button
           onClick={() => onSelectContext(null)}
           disabled={disabled}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
             !selectedContext
               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
               : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
@@ -87,7 +87,7 @@ export default function ContextSelector({
                   key={context.id}
                   onClick={() => onSelectContext(context.id)}
                   disabled={disabled}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
                     selectedContext?.id === context.id
                       ? 'text-cyan-300 border border-cyan-500/40'
                       : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
@@ -118,7 +118,7 @@ export default function ContextSelector({
                 key={context.id}
                 onClick={() => onSelectContext(context.id)}
                 disabled={disabled}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
                   selectedContext?.id === context.id
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                     : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'

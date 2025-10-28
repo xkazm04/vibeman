@@ -97,7 +97,7 @@ export default function AILeftPanel({
               )}
             </div>
           </div>
-          <p className="text-xs text-gray-400 leading-relaxed">
+          <p className="text-sm text-gray-400 leading-relaxed">
             {checkingDocs
               ? 'Scanning project structure...'
               : aiDocsExist
@@ -123,7 +123,7 @@ export default function AILeftPanel({
               <CheckCircle2 className="w-4 h-4 text-green-400" />
             </motion.div>
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-sm text-gray-400">
             <span className="text-green-400 font-mono">●</span> Running on localhost:11434
           </p>
         </motion.div>
@@ -155,7 +155,7 @@ export default function AILeftPanel({
                   transition={{ duration: 1.5, repeat: Infinity }}
                 />
               </div>
-              <p className="text-xs text-gray-400 font-mono bg-gray-900/30 px-2 py-1 rounded">
+              <p className="text-sm text-gray-400 font-mono bg-gray-900/30 px-2 py-1 rounded">
                 {activeProject.name}
               </p>
             </div>
@@ -184,7 +184,7 @@ export default function AILeftPanel({
           <span className="text-sm font-semibold text-white bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent">
             AI Provider
           </span>
-          <p className="text-xs text-gray-400 mt-1">Choose your preferred AI model</p>
+          <p className="text-sm text-gray-400 mt-1">Choose your preferred AI model</p>
         </div>
         <LLMSelector
           selectedProvider={selectedProvider}
@@ -247,7 +247,7 @@ export default function AILeftPanel({
           </div>
           <div className="ml-4">
             <span className="text-sm font-semibold text-white">Background Mode</span>
-            <p className="text-xs text-gray-400">Auto-save results to project</p>
+            <p className="text-sm text-gray-400">Auto-save results to project</p>
           </div>
         </motion.label>
       </motion.div>

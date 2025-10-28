@@ -40,13 +40,13 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+        <label className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
           Date Range
         </label>
         {(startDate || endDate) && (
           <button
             onClick={clearDates}
-            className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors flex items-center space-x-1"
+            className="text-sm text-yellow-400 hover:text-yellow-300 transition-colors flex items-center space-x-1"
           >
             <X className="w-3 h-3" />
             <span>Clear</span>
@@ -58,7 +58,7 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
       <div className="grid grid-cols-3 gap-2">
         <motion.button
           onClick={() => setQuickRange(7)}
-          className="px-2 py-1.5 text-xs bg-gray-800/40 text-gray-400 border border-gray-700/40 rounded-lg hover:bg-gray-800/60 transition-all"
+          className="px-2 py-1.5 text-sm bg-gray-800/40 text-gray-400 border border-gray-700/40 rounded-lg hover:bg-gray-800/60 transition-all"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -66,7 +66,7 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
         </motion.button>
         <motion.button
           onClick={() => setQuickRange(30)}
-          className="px-2 py-1.5 text-xs bg-gray-800/40 text-gray-400 border border-gray-700/40 rounded-lg hover:bg-gray-800/60 transition-all"
+          className="px-2 py-1.5 text-sm bg-gray-800/40 text-gray-400 border border-gray-700/40 rounded-lg hover:bg-gray-800/60 transition-all"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -74,7 +74,7 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
         </motion.button>
         <motion.button
           onClick={() => setQuickRange(90)}
-          className="px-2 py-1.5 text-xs bg-gray-800/40 text-gray-400 border border-gray-700/40 rounded-lg hover:bg-gray-800/60 transition-all"
+          className="px-2 py-1.5 text-sm bg-gray-800/40 text-gray-400 border border-gray-700/40 rounded-lg hover:bg-gray-800/60 transition-all"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -85,23 +85,23 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
       {/* Custom Date Inputs */}
       <div className="space-y-2">
         <div className="relative">
-          <label className="text-xs text-gray-500 mb-1 block">Start Date</label>
+          <label className="text-sm text-gray-500 mb-1 block">Start Date</label>
           <Calendar className="absolute left-3 top-8 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
           <input
             type="date"
             value={formatDateForInput(startDate)}
             onChange={(e) => handleStartChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-gray-800/40 border border-gray-700/40 rounded-lg text-xs text-gray-300 focus:outline-none focus:border-yellow-500/40 transition-all"
+            className="w-full pl-9 pr-3 py-1.5 bg-gray-800/40 border border-gray-700/40 rounded-lg text-sm text-gray-300 focus:outline-none focus:border-yellow-500/40 transition-all"
           />
         </div>
         <div className="relative">
-          <label className="text-xs text-gray-500 mb-1 block">End Date</label>
+          <label className="text-sm text-gray-500 mb-1 block">End Date</label>
           <Calendar className="absolute left-3 top-8 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
           <input
             type="date"
             value={formatDateForInput(endDate)}
             onChange={(e) => handleEndChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-gray-800/40 border border-gray-700/40 rounded-lg text-xs text-gray-300 focus:outline-none focus:border-yellow-500/40 transition-all"
+            className="w-full pl-9 pr-3 py-1.5 bg-gray-800/40 border border-gray-700/40 rounded-lg text-sm text-gray-300 focus:outline-none focus:border-yellow-500/40 transition-all"
           />
         </div>
       </div>

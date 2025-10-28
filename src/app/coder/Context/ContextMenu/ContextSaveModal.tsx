@@ -170,7 +170,7 @@ export default function ContextSaveModal({ isOpen, onClose, selectedFilePaths, p
               </label>
               <div className="max-h-32 overflow-y-auto bg-gray-900/50 border border-gray-600 rounded-md p-2">
                 {selectedFilePaths.map((path, index) => (
-                  <div key={index} className="text-xs text-gray-400 font-mono py-1">
+                  <div key={index} className="text-sm text-gray-400 font-mono py-1">
                     {path}
                   </div>
                 ))}

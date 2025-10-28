@@ -365,7 +365,7 @@ export default function Events({
               <button
                 key={value}
                 onClick={() => setEventFilter(value)}
-                className={`flex items-center space-x-1 px-2 py-1 rounded-full border text-xs font-medium transition-all ${
+                className={`flex items-center space-x-1 px-2 py-1 rounded-full border text-sm font-medium transition-all ${
                   eventFilter === value
                     ? getFilterColor(value)
                     : 'border-gray-700/50 bg-gray-800/30 text-gray-400 hover:border-gray-600/50 hover:bg-gray-700/30'
@@ -373,7 +373,7 @@ export default function Events({
               >
                 {Icon && <Icon className="w-3 h-3" />}
                 <span>{label}</span>
-                <span className="bg-gray-900/50 px-1 py-0.5 rounded-full text-xs">
+                <span className="bg-gray-900/50 px-1 py-0.5 rounded-full text-sm">
                   {count}
                 </span>
               </button>

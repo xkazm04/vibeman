@@ -53,7 +53,7 @@ export default function IdeaStickyNote({ idea, index, onClick }: IdeaStickyNoteP
       </motion.div>
 
       {/* Date */}
-      <div className="text-xs text-gray-500 font-mono mb-3">
+      <div className="text-sm text-gray-500 font-mono mb-3">
         {formatDate(idea.created_at)}
       </div>
 
@@ -93,7 +93,7 @@ export default function IdeaStickyNote({ idea, index, onClick }: IdeaStickyNoteP
         {/* Status indicator */}
         {idea.user_pattern === 1 && (
           <motion.div
-            className="ml-2 px-2 py-0.5 bg-blue-500/20 border border-blue-500/40 rounded text-xs text-blue-300 font-semibold"
+            className="ml-2 px-2 py-0.5 bg-blue-500/20 border border-blue-500/40 rounded text-sm text-blue-300 font-semibold"
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           >

@@ -8,9 +8,10 @@ import AnnetteChatHeader from './AnnetteChatHeader';
 import AnnetteChatInput from './AnnetteChatInput';
 import TypewriterMessage from '../../voicebot/components/TypewriterMessage';
 import { OllamaClient } from '@/lib/llm/providers/ollama-client';
+import { Project } from '@/types';
 
 interface ChatDialogProps {
-  selectedProject?: { id: string; name: string; [key: string]: unknown };
+  selectedProject?: Project;
   onSendMessage?: (message: string) => Promise<{ response: string; [key: string]: unknown }>;
   isProcessing?: boolean;
 }

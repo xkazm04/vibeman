@@ -95,7 +95,7 @@ export default function MonitorStatistics() {
             className={`bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} border rounded-xl p-4 backdrop-blur-sm`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-gray-400">
+              <span className="text-sm font-mono uppercase tracking-wider text-gray-400">
                 {stat.label}
               </span>
               <Icon className={`w-4 h-4 ${colorClasses[stat.color as keyof typeof colorClasses].split(' ')[3]}`} />

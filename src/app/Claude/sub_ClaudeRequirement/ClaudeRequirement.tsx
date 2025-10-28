@@ -140,7 +140,7 @@ export default function ClaudeRequirement({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => onToggleExpand(requirement.name)}
-              className="px-2 py-1 text-xs text-gray-400 hover:text-gray-300 transition-colors"
+              className="px-2 py-1 text-sm text-gray-400 hover:text-gray-300 transition-colors"
             >
               {isExpanded ? '▼' : '▶'}
             </motion.button>
@@ -159,16 +159,16 @@ export default function ClaudeRequirement({
           >
             {requirement.output && (
               <div className="space-y-1">
-                <p className="text-xs text-gray-500 font-semibold">Output:</p>
-                <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono bg-gray-900/50 p-3 rounded border border-gray-700/30 max-h-48 overflow-y-auto">
+                <p className="text-sm text-gray-500 font-semibold">Output:</p>
+                <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono bg-gray-900/50 p-3 rounded border border-gray-700/30 max-h-48 overflow-y-auto">
                   {requirement.output}
                 </pre>
               </div>
             )}
             {requirement.error && (
               <div className="space-y-1">
-                <p className="text-xs text-red-400 font-semibold">Error:</p>
-                <pre className="text-xs text-red-300 whitespace-pre-wrap font-mono bg-red-900/20 p-3 rounded border border-red-700/30 max-h-48 overflow-y-auto">
+                <p className="text-sm text-red-400 font-semibold">Error:</p>
+                <pre className="text-sm text-red-300 whitespace-pre-wrap font-mono bg-red-900/20 p-3 rounded border border-red-700/30 max-h-48 overflow-y-auto">
                   {requirement.error}
                 </pre>
               </div>

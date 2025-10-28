@@ -219,7 +219,7 @@ const GlobalTooltip = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
                       >
-                        <p className="text-xs text-gray-500 font-mono">No neural links detected</p>
+                        <p className="text-sm text-gray-500 font-mono">No neural links detected</p>
                       </motion.div>
                     )}
                   </div>

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
-import { ContextFileGenerator } from '@/services/contextFileGenerator';
-import { eventDb } from '@/app/db';
+import { eventDb, contextDb } from '@/app/db';
+import { ollamaClient } from '@/lib/ollama';
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,41 +67,52 @@ async function processContextFileGeneration({
   projectId: string;
 }) {
   try {
-    // Create a mock context object for the generator
-    const mockContext = {
-      id: contextId,
-      name: contextName,
-      filePaths: filePaths,
-      description: `Generated context for ${contextName}`,
-      hasContextFile: false,
-      contextFilePath: null
-    };
+    // Generate context file content using LLM
+    const prompt = `Generate comprehensive documentation for the context "${contextName}" based on the following files:\n\n${filePaths.map((fp: string) => `- ${fp}`).join('\n')}\n\nProvide a detailed explanation of what these files do, how they relate to each other, and their purpose in the project.`;
 
-    // Generate the context file content
-    const generatedContent = await ContextFileGenerator.generateContextFile({
-      context: mockContext,
-      onProgress: (status) => {
-        console.log(`Background generation progress: ${status}`);
-      }
+    const result = await ollamaClient.generate({
+      prompt,
+      model: 'llama3.1:8b',
+      projectId,
+      taskType: 'context_generation',
+      taskDescription: `Generate context documentation for: ${contextName}`
     });
 
+    if (!result.success || !result.response) {
+      throw new Error('Failed to generate context file content');
+    }
+
     // Create the context directory in the project
-    const contextDir = join(projectPath, 'context');
+    const contextDir = join(projectPath, '.kiro', 'contexts');
     if (!existsSync(contextDir)) {
       await mkdir(contextDir, { recursive: true });
     }
 
     // Generate the file name
-    const fileName = `${contextName.toLowerCase().replace(/\s+/g, '_')}_context.md`;
+    const fileName = `${contextName.toLowerCase().replace(/[^a-z0-9]/g, '-')}.md`;
     const filePath = join(contextDir, fileName);
 
+    // Create context file content
+    const contextContent = `# ${contextName}
+
+## Files
+${filePaths.map((fp: string) => `- \`${fp}\``).join('\n')}
+
+## Generated Context
+
+${result.response}
+
+---
+*Generated on ${new Date().toISOString()}*
+`;
+
     // Save the file
-    await writeFile(filePath, generatedContent, 'utf-8');
+    await writeFile(filePath, contextContent, 'utf-8');
+
+    // Make path relative to project root
+    const relativePath = join('.kiro', 'contexts', fileName);
 
     // Update the context in the database to mark it as having a context file
-    const { contextDb } = await import('@/lib/database');
-    const relativePath = `context/${fileName}`;
-    
     contextDb.updateContext(contextId, {
       has_context_file: true,
       context_file_path: relativePath

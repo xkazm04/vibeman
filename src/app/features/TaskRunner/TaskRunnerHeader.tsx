@@ -1,11 +1,12 @@
 'use client';
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Zap, X } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import QueueVisualization from './components/QueueVisualization';
 import TaskRunButton from './components/TaskRunButton';
 import { executeNextRequirement as executeTask } from './lib/taskExecutor';
+import { GitControl } from './sub_Git';
 
 interface TaskRunnerHeaderProps {
   selectedCount: number;
@@ -218,8 +219,10 @@ export default function TaskRunnerHeader({
               />
             </div>
 
-            {/* Right: Placeholder for balance */}
-            <div className="w-[200px]" />
+            {/* Right: Git Control */}
+            <div className="flex items-center justify-end">
+              <GitControl />
+            </div>
           </div>
         </div>
       </div>

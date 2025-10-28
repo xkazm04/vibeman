@@ -14,10 +14,10 @@ import { projectDb } from '@/lib/project_database';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { scanId: string } }
+  { params }: { params: Promise<{ scanId: string }> }
 ) {
   try {
-    const scanId = params.scanId;
+    const { scanId } = await params;
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'json';
 

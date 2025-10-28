@@ -115,7 +115,7 @@ export default function AIContentCard({
           >
             <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
             <p className="text-sm text-red-400 font-semibold">AI Docs Required</p>
-            <p className="text-xs text-red-300/70 mt-1">Generate documentation first</p>
+            <p className="text-sm text-red-300/70 mt-1">Generate documentation first</p>
           </motion.div>
         </motion.div>
       )}
@@ -162,7 +162,7 @@ export default function AIContentCard({
             {card.bulletPoints.map((point, i) => (
               <motion.li 
                 key={i}
-                className={`text-xs text-gray-400 flex items-start ${
+                className={`text-sm text-gray-400 flex items-start ${
                   disabled ? '' : 'group-hover:text-gray-300'
                 } transition-colors duration-300`}
                 initial={{ opacity: 0, x: -10 }}

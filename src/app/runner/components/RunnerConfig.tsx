@@ -23,16 +23,16 @@ const RunnerConfig = ({project, editedProject, handleConfigChange, hasChanges, s
         >
             <div className="p-3 space-y-2">
                 <div>
-                    <label className="text-xs text-gray-400">Name</label>
+                    <label className="text-sm text-gray-400">Name</label>
                     <input
                         type="text"
                         value={editedProject.name}
                         onChange={(e) => handleConfigChange('name', e.target.value)}
-                        className="w-full px-2 py-1 text-xs bg-gray-800 border border-gray-700 rounded text-gray-100 focus:border-blue-500 focus:outline-none"
+                        className="w-full px-2 py-1 text-sm bg-gray-800 border border-gray-700 rounded text-gray-100 focus:border-blue-500 focus:outline-none"
                     />
                 </div>
                 <div>
-                    <label className="text-xs text-gray-400 flex items-center gap-1">
+                    <label className="text-sm text-gray-400 flex items-center gap-1">
                         <Folder size={10} />
                         Path
                     </label>
@@ -40,16 +40,16 @@ const RunnerConfig = ({project, editedProject, handleConfigChange, hasChanges, s
                         type="text"
                         value={editedProject.path}
                         onChange={(e) => handleConfigChange('path', e.target.value)}
-                        className="w-full px-2 py-1 text-xs bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono focus:border-blue-500 focus:outline-none"
+                        className="w-full px-2 py-1 text-sm bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono focus:border-blue-500 focus:outline-none"
                     />
                 </div>
                 <div>
-                    <label className="text-xs text-gray-400">Port</label>
+                    <label className="text-sm text-gray-400">Port</label>
                     <input
                         type="number"
                         value={editedProject.port}
                         onChange={(e) => handleConfigChange('port', parseInt(e.target.value))}
-                        className="w-full px-2 py-1 text-xs bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono focus:border-blue-500 focus:outline-none"
+                        className="w-full px-2 py-1 text-sm bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono focus:border-blue-500 focus:outline-none"
                     />
                 </div>
                 {hasChanges && (
@@ -58,7 +58,7 @@ const RunnerConfig = ({project, editedProject, handleConfigChange, hasChanges, s
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={saveConfig}
-                            className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-1"
+                            className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-1"
                         >
                             <Save size={10} />
                             Save
@@ -70,7 +70,7 @@ const RunnerConfig = ({project, editedProject, handleConfigChange, hasChanges, s
                                 setEditedProject(project);
                                 setHasChanges(false);
                             }}
-                            className="flex-1 px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 flex items-center justify-center gap-1"
+                            className="flex-1 px-2 py-1 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600 flex items-center justify-center gap-1"
                         >
                             <X size={10} />
                             Cancel

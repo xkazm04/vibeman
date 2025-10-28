@@ -63,7 +63,7 @@ export default function PlantUMLDebug({ content }: PlantUMLDebugProps) {
               </span>
             </div>
             
-            <div className="text-xs text-gray-400 break-all mb-2">
+            <div className="text-sm text-gray-400 break-all mb-2">
               {result.url}
             </div>
             
@@ -82,7 +82,7 @@ export default function PlantUMLDebug({ content }: PlantUMLDebugProps) {
         <summary className="cursor-pointer text-sm text-gray-400 hover:text-gray-300">
           View Raw Content
         </summary>
-        <pre className="mt-2 text-xs text-gray-300 bg-gray-900 p-3 rounded overflow-x-auto">
+        <pre className="mt-2 text-sm text-gray-300 bg-gray-900 p-3 rounded overflow-x-auto">
           {content}
         </pre>
       </details>

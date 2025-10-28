@@ -341,7 +341,7 @@ export default function AsyncVoiceSolution() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center h-full">
             {/* Provider Selector */}
             <div>
-              <label className="block text-xs font-medium text-cyan-300/80 mb-1 font-mono uppercase">
+              <label className="block text-sm font-medium text-cyan-300/80 mb-1 font-mono uppercase">
                 Provider
               </label>
               <select
@@ -364,7 +364,7 @@ export default function AsyncVoiceSolution() {
 
             {/* Model Selector or Display */}
             <div>
-              <label className="block text-xs font-medium text-cyan-300/80 mb-1 font-mono uppercase">
+              <label className="block text-sm font-medium text-cyan-300/80 mb-1 font-mono uppercase">
                 Model
               </label>
               {AVAILABLE_LLM_MODELS[provider].length > 1 ? (

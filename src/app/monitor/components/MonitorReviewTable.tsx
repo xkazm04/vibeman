@@ -142,13 +142,13 @@ export default function MonitorReviewTable() {
           <table className="w-full">
             <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50">
               <tr>
-                <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider w-32">
+                <th className="px-4 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider w-32">
                   Message #
                 </th>
                 {callsData.map((call) => (
                   <th key={call.callId} className="px-2 py-3 text-center border-l border-gray-800/50">
                     <div className="flex flex-col items-center gap-2">
-                      <div className="text-cyan-400 font-mono text-xs truncate max-w-[120px]">
+                      <div className="text-cyan-400 font-mono text-sm truncate max-w-[120px]">
                         {call.callId.substring(0, 12)}...
                       </div>
                       <div className="flex gap-1">
@@ -216,7 +216,7 @@ export default function MonitorReviewTable() {
 
                       return (
                         <td key={call.callId} className="px-2 py-2 border-l border-gray-800/30">
-                          <div className={`${roleColors.bg} ${roleColors.border} border rounded p-2 text-xs relative`}>
+                          <div className={`${roleColors.bg} ${roleColors.border} border rounded p-2 text-sm relative`}>
                             <div className="flex items-center justify-between mb-1">
                               <span className={`${roleColors.text} font-semibold uppercase text-[10px]`}>
                                 {message.role}

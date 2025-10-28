@@ -94,7 +94,7 @@ export default function BufferView({
             <h2 className="text-lg font-semibold text-white">
               {getProjectName(projectId)}
             </h2>
-            <span className="text-xs text-gray-500 font-mono">
+            <span className="text-sm text-gray-500 font-mono">
               ({Object.values(contexts).flat().length} ideas)
             </span>
           </div>

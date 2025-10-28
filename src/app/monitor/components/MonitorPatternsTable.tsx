@@ -77,13 +77,13 @@ export default function MonitorPatternsTable() {
         <table className="w-full">
           <thead className="bg-gray-900/50 border-b border-gray-700/50">
             <tr>
-              <th className="px-6 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">
                 Pattern Type
               </th>
-              <th className="px-6 py-3 text-left text-gray-300 font-medium text-xs uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-gray-300 font-medium text-sm uppercase tracking-wider">
                 Description
               </th>
-              <th className="px-6 py-3 text-center text-gray-300 font-medium text-xs uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-gray-300 font-medium text-sm uppercase tracking-wider">
                 Frequency
               </th>
             </tr>
@@ -93,7 +93,7 @@ export default function MonitorPatternsTable() {
               <tr>
                 <td colSpan={3} className="px-6 py-12 text-center text-gray-400">
                   <div className="text-sm font-mono">No patterns detected yet</div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-sm text-gray-500 mt-1">
                     Patterns will appear after running evaluations
                   </div>
                 </td>
@@ -108,7 +108,7 @@ export default function MonitorPatternsTable() {
                   className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
                 >
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold uppercase border ${getTypeColor(pattern.patternType)}`}>
+                    <span className={`inline-flex px-3 py-1 rounded-full text-sm font-semibold uppercase border ${getTypeColor(pattern.patternType)}`}>
                       {pattern.patternType}
                     </span>
                   </td>

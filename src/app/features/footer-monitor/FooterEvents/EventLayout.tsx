@@ -124,35 +124,35 @@ export default function EventLayout() {
                   <button
                     key={value}
                     onClick={() => setFilter(value)}
-                    className={`flex cursor-pointer items-center space-x-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${filter === value
+                    className={`flex cursor-pointer items-center space-x-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${filter === value
                       ? getFilterColor(value)
                       : 'border-gray-700/50 bg-gray-800/30 text-gray-400 hover:border-gray-600/50 hover:bg-gray-700/30'
                       }`}
                   >
                     {Icon && <Icon className="w-3 h-3" />}
                     <span>{label}</span>
-                    <span className="bg-gray-900/50 px-1.5 py-0.5 rounded-full text-xs">
+                    <span className="bg-gray-900/50 px-1.5 py-0.5 rounded-full text-sm">
                       {count}
                     </span>
                   </button>
                 ))}
                 {isLoading && (
-                  <div className="flex items-center text-xs text-gray-400">
+                  <div className="flex items-center text-sm text-gray-400">
                     <span className="animate-pulse">Loading events...</span>
                   </div>
                 )}
                 {isPolling && (
-                  <div className="flex items-center text-xs text-blue-400">
+                  <div className="flex items-center text-sm text-blue-400">
                     <span className="animate-pulse">📡 Polling active (5s interval)</span>
                   </div>
                 )}
                 {isConnected && !isPolling && (
-                  <div className="flex items-center text-xs text-green-400">
+                  <div className="flex items-center text-sm text-green-400">
                     <span>🟢 Realtime connected</span>
                   </div>
                 )}
                 {!isConnected && !isPolling && !isLoading && (
-                  <div className="flex items-center text-xs text-yellow-400">
+                  <div className="flex items-center text-sm text-yellow-400">
                     <span>🟡 Realtime disconnected</span>
                   </div>
                 )}
@@ -165,7 +165,7 @@ export default function EventLayout() {
                     <XCircle className="w-4 h-4" />
                     <span className="text-sm font-medium">Error loading events</span>
                   </div>
-                  <p className="text-xs text-red-300 mt-1">{error.message}</p>
+                  <p className="text-sm text-red-300 mt-1">{error.message}</p>
                 </div>
               )}
 

@@ -41,7 +41,7 @@ const GoalsTitle = ({ selectedGoal, isTransitioning, handleGoalDetailClick }: Go
             y: isTransitioning ? -2 : 0
           }}
           transition={{ duration: 0.3, delay: 0.05, ease: "easeInOut" }}
-          className="text-xs text-slate-400 capitalize mt-1 font-medium tracking-wider group-hover:text-slate-300 transition-colors duration-200"
+          className="text-sm text-slate-400 capitalize mt-1 font-medium tracking-wider group-hover:text-slate-300 transition-colors duration-200"
         >
           {formatStatus(selectedGoal.status)}
         </motion.p>

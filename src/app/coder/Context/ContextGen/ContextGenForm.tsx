@@ -8,6 +8,8 @@ import { UniversalSelect } from '@/components/ui/UniversalSelect';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
 import ProviderSelector from '@/components/llm/ProviderSelector';
 import { SupportedProvider } from '@/lib/llm/types';
+import { AIErrorDisplay } from '@/components/ui';
+import { useAIOperation } from '@/hooks/useAIOperation';
 
 interface ContextGenFormProps {
   contextName: string;
@@ -34,10 +36,20 @@ export default function ContextGenForm({
   onGroupChange,
   onError,
 }: ContextGenFormProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>('ollama');
   const [showProviderSelector, setShowProviderSelector] = useState(false);
+
+  const { execute, retry, isLoading: isGenerating, error: aiError } = useAIOperation({
+    onSuccess: (data) => {
+      const result = data as { description: string };
+      onDescriptionChange(result.description);
+      onError('');
+    },
+    onError: (err) => {
+      onError(err.message);
+    },
+  });
 
   const handleInitiateGeneration = () => {
     if (selectedFilePaths.length === 0) {
@@ -50,23 +62,19 @@ export default function ContextGenForm({
   const handleProviderSelect = async (provider: SupportedProvider) => {
     setSelectedProvider(provider);
     setShowProviderSelector(false);
-    setIsGenerating(true);
     onError('');
 
-    try {
-      const result = await generateContextDescription({
+    await execute(async () => {
+      return await generateContextDescription({
         filePaths: selectedFilePaths,
         projectPath,
         provider,
       });
+    });
+  };
 
-      // Update description with generated markdown content
-      onDescriptionChange(result.description);
-    } catch (err) {
-      onError(err instanceof Error ? err.message : 'Failed to generate description');
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleRetryGeneration = () => {
+    retry();
   };
 
   return (
@@ -108,6 +116,16 @@ export default function ContextGenForm({
         </div>
       </div>
 
+      {/* AI Error Display */}
+      {aiError && (
+        <AIErrorDisplay
+          error={aiError}
+          onRetry={handleRetryGeneration}
+          onDismiss={() => onError('')}
+          compact
+        />
+      )}
+
       {/* Description with AI Generation */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -125,7 +143,7 @@ export default function ContextGenForm({
                   transition={{ duration: 0.2 }}
                   className="flex items-center gap-2 px-2 py-1.5 bg-gray-800/60 border border-gray-600/40 rounded-lg"
                 >
-                  <span className="text-xs text-gray-400">Select provider:</span>
+                  <span className="text-sm text-gray-400">Select provider:</span>
                   <ProviderSelector
                     selectedProvider={selectedProvider}
                     onSelectProvider={handleProviderSelect}
@@ -140,7 +158,7 @@ export default function ContextGenForm({
               whileTap={{ scale: 0.95 }}
               onClick={handleInitiateGeneration}
               disabled={isGenerating || selectedFilePaths.length === 0}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-all ${
                 isGenerating || selectedFilePaths.length === 0
                   ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 hover:from-purple-600/40 hover:to-pink-600/40 text-purple-300 border border-purple-500/30'
@@ -165,7 +183,7 @@ export default function ContextGenForm({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-cyan-600/30 hover:bg-cyan-600/40 text-cyan-300 border border-cyan-500/30"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-all bg-cyan-600/30 hover:bg-cyan-600/40 text-cyan-300 border border-cyan-500/30"
                 title={isExpanded ? 'Minimize viewer' : 'Expand viewer'}
               >
                 {isExpanded ? (
@@ -221,12 +239,12 @@ export default function ContextGenForm({
 
         {description && (
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-gray-500">
+            <p className="text-sm text-gray-500">
               {selectedFilePaths.length > 0
                 ? `Generated from ${selectedFilePaths.length} file${selectedFilePaths.length > 1 ? 's' : ''}`
                 : 'AI-generated markdown description'}
             </p>
-            <p className="text-xs text-gray-500">{description.length} characters</p>
+            <p className="text-sm text-gray-500">{description.length} characters</p>
           </div>
         )}
       </div>

@@ -59,7 +59,7 @@ export default function ActiveFiltersDisplay({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
     >
-      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
         Active Filters:
       </span>
 
@@ -151,7 +151,7 @@ function FilterTag({ icon, label, onRemove, color }: FilterTagProps) {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
       transition={{ duration: 0.2 }}
-      className={`flex items-center space-x-1.5 px-3 py-1.5 border rounded-full text-xs font-medium transition-all ${colorClasses[color]}`}
+      className={`flex items-center space-x-1.5 px-3 py-1.5 border rounded-full text-sm font-medium transition-all ${colorClasses[color]}`}
     >
       {icon}
       <span className="max-w-[150px] truncate">{label}</span>

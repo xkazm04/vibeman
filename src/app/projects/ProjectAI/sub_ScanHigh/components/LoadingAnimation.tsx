@@ -44,7 +44,7 @@ export default function LoadingAnimation() {
             transition={{ duration: 0.1 }}
           />
         </div>
-        <p className="text-xs text-gray-500">
+        <p className="text-sm text-gray-500">
           {Math.round(progress)}% complete • {Math.round((100 - progress) * 0.6)} seconds remaining
         </p>
       </div>

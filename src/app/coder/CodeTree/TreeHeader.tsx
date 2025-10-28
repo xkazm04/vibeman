@@ -57,7 +57,7 @@ export default function TreeHeader({
                       }`}
                     >
                       <div className="font-mono">{project.name}</div>
-                      <div className="text-xs text-gray-500 truncate">{project.path}</div>
+                      <div className="text-sm text-gray-500 truncate">{project.path}</div>
                     </button>
                   ))}
                 </div>

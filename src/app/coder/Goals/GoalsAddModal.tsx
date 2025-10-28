@@ -246,7 +246,7 @@ export default function GoalsAddModal({ isOpen, onClose, onSubmit, projectPath, 
             <motion.div 
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center space-x-2 mt-2 text-xs text-slate-500"
+              className="flex items-center space-x-2 mt-2 text-sm text-slate-500"
             >
               <AlertCircle className="w-3 h-3" />
               <span>Title is required</span>
@@ -416,7 +416,7 @@ export default function GoalsAddModal({ isOpen, onClose, onSubmit, projectPath, 
               <motion.div
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center space-x-2 mt-2 text-xs text-slate-500"
+                className="flex items-center space-x-2 mt-2 text-sm text-slate-500"
               >
                 <AlertCircle className="w-3 h-3" />
                 <span>Requirement name is required</span>
@@ -454,7 +454,7 @@ export default function GoalsAddModal({ isOpen, onClose, onSubmit, projectPath, 
                    }}
               />
             </div>
-            <p className="mt-2 text-xs text-slate-500">Press Ctrl+Enter to submit</p>
+            <p className="mt-2 text-sm text-slate-500">Press Ctrl+Enter to submit</p>
           </div>
 
           {/* Error Display */}

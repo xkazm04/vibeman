@@ -163,7 +163,7 @@ export default function ClaudeRequirementRun({
       whileTap={{ scale: 0.95 }}
       onClick={handleRun}
       disabled={isDisabled}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
         isDisabled
           ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
           : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white'

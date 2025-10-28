@@ -82,10 +82,10 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
                 : 'bg-gray-600'
         }`} />
         
-        <span className={`font-medium ${compact ? 'text-xs' : 'text-sm'}`}>
+        <span className={`font-medium ${compact ? 'text-sm' : 'text-sm'}`}>
           {project.name}
         </span>
-        <span className={`${compact ? 'text-xs' : 'text-xs'} opacity-70`}>
+        <span className={`${compact ? 'text-sm' : 'text-sm'} opacity-70`}>
           :{project.port}
         </span>
         

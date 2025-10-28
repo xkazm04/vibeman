@@ -113,7 +113,7 @@ export default function ModalContent({
             <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
               <div className="bg-cyan-400 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm text-gray-500">
               This may take a few minutes depending on the complexity
             </p>
           </div>

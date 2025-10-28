@@ -77,7 +77,7 @@ export default function TaskItem({
       {/* Requirement name and icon */}
       <div className="flex items-center gap-2 flex-1 min-w-0">
         {getStatusIcon()}
-        <span className="text-xs text-gray-200 font-mono truncate" title={requirementName}>
+        <span className="text-sm text-gray-200 font-mono truncate" title={requirementName}>
           {requirementName}
         </span>
       </div>

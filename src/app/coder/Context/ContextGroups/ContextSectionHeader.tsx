@@ -81,7 +81,7 @@ const ContextSectionHeader = React.memo(({ group, contexts, openGroupDetail }: C
           >
             {contexts.length}
           </motion.div>
-          <div className="text-xs text-gray-500 uppercase tracking-wider font-mono">
+          <div className="text-sm text-gray-500 uppercase tracking-wider font-mono">
             nodes
           </div>
 

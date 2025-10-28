@@ -67,7 +67,7 @@ export default function TotalViewFilters({ projects, filters, onChange, ideas }:
           <Filter className="w-4 h-4" />
           <span>Filters</span>
           {activeFilterCount > 0 && (
-            <span className="ml-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-300 rounded-full text-xs font-semibold">
+            <span className="ml-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-300 rounded-full text-sm font-semibold">
               {activeFilterCount}
             </span>
           )}
@@ -165,7 +165,7 @@ export default function TotalViewFilters({ projects, filters, onChange, ideas }:
                 </button>
               </div>
               {activeFilterCount > 0 && (
-                <div className="mt-2 text-xs text-gray-400">
+                <div className="mt-2 text-sm text-gray-400">
                   {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
                 </div>
               )}

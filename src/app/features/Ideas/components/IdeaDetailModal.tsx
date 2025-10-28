@@ -1,9 +1,11 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import { X, Check, XCircle, Star, Trash2, Edit2, Save } from 'lucide-react';
 import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { AIErrorDisplay } from '@/components/ui';
+import { useAIOperation } from '@/hooks/useAIOperation';
 
 interface IdeaDetailModalProps {
   idea: DbIdea;
@@ -19,8 +21,20 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const [isEditingDescription, setIsEditingDescription] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showAIError, setShowAIError] = React.useState(false);
 
   const { projects, initializeProjects } = useProjectConfigStore();
+
+  const { execute: executeRequirementGen, retry: retryRequirementGen, error: requirementError } = useAIOperation({
+    onSuccess: () => {
+      console.log('Requirement generation completed successfully');
+      setShowAIError(false);
+    },
+    onError: (err) => {
+      console.error('Failed to generate requirement:', err);
+      setShowAIError(true);
+    },
+  });
 
   // Ensure projects are loaded
   React.useEffect(() => {
@@ -53,14 +67,11 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         // 2. Generate Claude requirement for this goal (async, non-blocking)
         const project = projects.find(p => p.id === idea.project_id);
         if (project && goalData.goal) {
-          // Fire and forget - start requirement generation in background
-          generateRequirementForGoal(project.path, idea.project_id, goalData.goal.id)
-            .then(() => {
-              console.log('Requirement generation started for goal:', goalData.goal.id);
-            })
-            .catch((error) => {
-              console.error('Failed to start requirement generation:', error);
-            });
+          // Start requirement generation with error handling
+          await executeRequirementGen(async () => {
+            await generateRequirementForGoal(project.path, idea.project_id, goalData.goal.id);
+            return { success: true };
+          });
         }
       }
     } catch (error) {
@@ -197,7 +208,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
           </div>
 
           {/* Meta info */}
-          <div className="flex items-center space-x-4 mt-4 text-xs text-gray-400">
+          <div className="flex items-center space-x-4 mt-4 text-sm text-gray-400">
             <span className="font-mono">{new Date(idea.created_at).toLocaleDateString()}</span>
             <span>•</span>
             <span className="px-2 py-1 bg-gray-700/40 rounded">
@@ -214,6 +225,18 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* AI Error Display */}
+          <AnimatePresence>
+            {showAIError && requirementError && (
+              <AIErrorDisplay
+                error={requirementError}
+                onRetry={retryRequirementGen}
+                onDismiss={() => setShowAIError(false)}
+                compact
+              />
+            )}
+          </AnimatePresence>
+
           {/* Description */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -244,7 +267,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
                   </motion.button>
                   <button
                     onClick={handleCancelDescription}
-                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
                     Cancel
                   </button>
@@ -356,7 +379,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
                   </motion.button>
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
                     Cancel
                   </button>

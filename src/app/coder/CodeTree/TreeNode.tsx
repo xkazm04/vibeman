@@ -203,13 +203,13 @@ export default function TreeNode({
                 transition={{ duration: 0.2 }}
                 className="mt-1 overflow-hidden"
               >
-                <p className="text-xs text-orange-200 leading-relaxed pr-8">
+                <p className="text-sm text-orange-200 leading-relaxed pr-8">
                   {node.description}
                 </p>
               </motion.div>
             )}
           {!isHighlighted && (
-            <span className="text-xs text-gray-500 truncate hidden group-hover:inline mt-1">
+            <span className="text-sm text-gray-500 truncate hidden group-hover:inline mt-1">
               {node.description}
             </span>
           )}

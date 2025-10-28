@@ -130,7 +130,7 @@ export const typography = {
     serif: ['Crimson Text', 'Georgia', 'serif']
   },
   scales: {
-    xs: 'text-xs leading-4',
+    xs: 'text-sm leading-4',
     sm: 'text-sm leading-5',
     base: 'text-base leading-6',
     lg: 'text-lg leading-7',

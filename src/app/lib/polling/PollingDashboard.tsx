@@ -165,7 +165,7 @@ function PollerCard({ poller }: { poller: PollerMetadata }) {
             {getTypeIcon()}
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-200 truncate max-w-[150px]">
+            <div className="text-sm font-medium text-gray-200 truncate max-w-[150px]">
               {poller.name}
             </div>
             <div className="text-[10px] text-gray-500 capitalize">
@@ -173,7 +173,7 @@ function PollerCard({ poller }: { poller: PollerMetadata }) {
             </div>
           </div>
         </div>
-        <div className={`text-xs ${poller.isActive ? 'text-green-400' : 'text-gray-500'}`}>
+        <div className={`text-sm ${poller.isActive ? 'text-green-400' : 'text-gray-500'}`}>
           {poller.isActive ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
         </div>
       </div>
@@ -279,7 +279,7 @@ export default function PollingDashboard({
               Polling Dashboard
             </span>
             {activePollers.length > 0 && (
-              <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">
+              <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-sm">
                 {activePollers.length} active
               </span>
             )}
@@ -351,7 +351,7 @@ export default function PollingDashboard({
                   <div className="text-center py-8">
                     <AlertCircle className="w-8 h-8 text-gray-600 mx-auto mb-2" />
                     <div className="text-sm text-gray-500">No active pollers</div>
-                    <div className="text-xs text-gray-600 mt-1">
+                    <div className="text-sm text-gray-600 mt-1">
                       Pollers will appear here when you use usePollingTask
                     </div>
                   </div>

@@ -28,7 +28,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
       <div className="flex items-center space-x-2 mb-3">
         <Sparkles className="w-4 h-4 text-cyan-400" />
         <h3 className="text-sm font-semibold text-cyan-300">
-          Scan Type {selectedTypes.length > 1 && <span className="text-xs text-cyan-500">({selectedTypes.length} selected)</span>}
+          Scan Type {selectedTypes.length > 1 && <span className="text-sm text-cyan-500">({selectedTypes.length} selected)</span>}
         </h3>
       </div>
 
@@ -62,7 +62,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
 
               <div className="relative flex flex-col items-center space-y-2">
                 <span className="text-2xl">{type.emoji}</span>
-                <span className={`text-xs font-semibold ${isSelected ? '' : 'text-gray-400'}`}>
+                <span className={`text-sm font-semibold ${isSelected ? '' : 'text-gray-400'}`}>
                   {type.label}
                 </span>
                 <span className={`text-[10px] text-center leading-tight ${isSelected ? 'opacity-80' : 'opacity-60'}`}>

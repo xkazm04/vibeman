@@ -68,7 +68,7 @@ export default function ImplementationLogItem({
         <button
           onClick={handleToggleTested}
           className={`
-            flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors
+            flex items-center gap-1 px-2 py-1 rounded text-sm font-medium transition-colors
             ${isTested
               ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
               : 'bg-gray-700/40 text-gray-400 hover:bg-gray-700/60'
@@ -91,7 +91,7 @@ export default function ImplementationLogItem({
       </div>
 
       {/* Overview */}
-      <p className="text-xs text-gray-400 mb-2 line-clamp-2">
+      <p className="text-sm text-gray-400 mb-2 line-clamp-2">
         {log.overview}
       </p>
 

@@ -17,6 +17,7 @@ import ProjectEdit from './ProjectSetting/ProjectEdit';
 import ProjectManagement from './ProjectSetting/ProjectManagement';
 import ReviewerPanel from '../reviewer/ReviewerPanel';
 import CodeReviewModal from '../reviewer/CodeReviewModal';
+import { ActionGroup, ActionConfig } from '@/components/ui';
 
 
 export default function ProjectsLayout() {
@@ -68,11 +69,11 @@ export default function ProjectsLayout() {
   // Handle project deletion
   const handleDeleteProject = async () => {
     if (!activeProject) return;
-    
+
     const confirmDelete = window.confirm(
       `Are you sure you want to delete project "${activeProject.name}"? This action cannot be undone.`
     );
-    
+
     if (confirmDelete) {
       const success = await deleteProject(activeProject.id);
       if (success) {
@@ -90,6 +91,40 @@ export default function ProjectsLayout() {
       }
     }
   };
+
+  // Define actions for ActionGroup
+  const projectActions: ActionConfig[] = [
+    {
+      id: 'add-goal',
+      icon: Target,
+      text: 'Goal',
+      onClick: handleAddGoal,
+      tooltip: 'Add new goal',
+      colorScheme: 'blue',
+      iconAnimation: 'rotate',
+    },
+    {
+      id: 'ai-review',
+      icon: Zap,
+      text: 'Plan',
+      onClick: handleAIProjectReview,
+      tooltip: 'AI-powered project review and analysis',
+      disabled: !activeProject,
+      colorScheme: 'amber',
+      iconAnimation: 'scale',
+    },
+    {
+      id: 'delete-project',
+      icon: Trash2,
+      text: '',
+      onClick: handleDeleteProject,
+      tooltip: 'Delete current project',
+      disabled: !activeProject,
+      colorScheme: 'red',
+      iconOnly: true,
+      iconAnimation: 'scale',
+    },
+  ];
 
   return (
     <>
@@ -110,52 +145,7 @@ export default function ProjectsLayout() {
 
           {/* Right Section: Goals & AI Actions */}
           <div className="flex items-center space-x-4">
-
-            {/* Actions Group */}
-            <div className="relative flex items-center space-x-3 px-4 py-3 bg-gray-800/30 rounded-lg border border-gray-700/40 min-w-0">
-              {/* Section Label */}
-              <div className="absolute -top-2 left-2 px-2 py-0.5 bg-gray-900 rounded text-xs font-bold text-amber-400 tracking-wider">
-                Actions
-              </div>
-
-              <div className="flex items-center space-x-3">
-                {/* Add Goal Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleAddGoal}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-red-500/20 hover:from-blue-500/30 hover:to-red-500/30 border border-blue-500/30 rounded-md text-blue-400 transition-all duration-300 group text-sm"
-                  title="Add new goal"
-                >
-                  <Target className="w-3 h-3 group-hover:rotate-90 transition-transform duration-300" />
-                  <span className="font-medium">Goal</span>
-                </motion.button>
-                {/* AI Project Review Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleAIProjectReview}
-                  disabled={!activeProject}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/30 rounded-md text-amber-400 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  title="AI-powered project review and analysis"
-                >
-                  <Zap className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
-                  <span className="font-medium">Plan</span>
-                </motion.button>
-                
-                {/* Delete Project Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleDeleteProject}
-                  disabled={!activeProject}
-                  className="flex items-center justify-center px-2 py-1.5 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30 rounded-md text-red-400 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Delete current project"
-                >
-                  <Trash2 className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
-                </motion.button>
-              </div>
-            </div>
+            <ActionGroup label="Actions" actions={projectActions} />
           </div>
         </div>
       </motion.div>
