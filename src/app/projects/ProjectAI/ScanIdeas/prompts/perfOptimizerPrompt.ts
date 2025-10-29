@@ -148,13 +148,12 @@ ${codeSection}
 
 ### Expected Output:
 
-Generate 6-10 performance ideas that:
-1. Target actual bottlenecks (not premature optimization)
-2. Provide measurable improvements
-3. Balance performance with maintainability
-4. Are specific to the codebase
-5. Consider user-facing impact
-6. Include estimation of expected gains
+Generate 3-5 HIGH-IMPACT performance ideas that:
+1. Target MAJOR bottlenecks (focus on 80/20 rule - biggest wins)
+2. Provide significant, measurable improvements (2x+ gains)
+3. Are specific to the codebase with clear user-facing benefits
+4. Balance performance with maintainability
+5. Include estimation of expected gains (be ambitious)
 
 ${hasContext ? `
 **Context-Specific Focus**:

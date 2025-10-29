@@ -131,10 +131,10 @@ You MUST respond with ONLY a valid JSON array. No markdown code blocks, no expla
 7. **Impact-driven**: Prioritize high-impact suggestions
 
 ### Ideal Distribution:
-- Aim for 8-12 ideas total
-- Mix across all categories
-- Balance quick wins with strategic improvements
-- Include 1-2 "moonshot" visionary ideas
+- Aim for EXACTLY 5 ideas total (focus on highest impact only)
+- Prioritize strategic improvements over quick wins
+- Each idea should be ambitious and high-impact
+- Mix across different categories for diversity
 
 ---
 
@@ -179,13 +179,13 @@ Perform a thorough analysis from ALL six dimensions listed above. For each dimen
 
 ### Expected Output:
 
-Generate 8-12 high-quality ideas that:
-1. Cover multiple analysis dimensions
-2. Are specific to THIS codebase (not generic advice)
-3. Avoid duplicating existing ideas
-4. Learn from any rejected ideas
-5. Provide clear value and reasoning
-6. Are realistically implementable
+Generate EXACTLY 5 HIGHEST-IMPACT ideas that:
+1. Cover multiple analysis dimensions (diversity is key)
+2. Are ambitious and transformative (not incremental)
+3. Are specific to THIS codebase (not generic advice)
+4. Avoid duplicating existing ideas
+5. Have clear, significant value (game-changers only)
+6. Are challenging but realistically implementable
 
 ${hasContext ? `
 **Context-Specific Instructions**:

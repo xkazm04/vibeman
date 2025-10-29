@@ -10,6 +10,8 @@ import ProjectSelectionModal from './ProjectSelectionModal';
 import { getProjectTypeIcon, getRelatedProject, getConnectedProjects } from './lib/projectUtils';
 import { fetchProjectsDirectly as fetchProjectsApi } from './lib/projectApi';
 import ProjectActions from './components/ProjectActions';
+import GlowWrapper from '@/app/features/Onboarding/components/GlowWrapper';
+import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 
 
 
@@ -20,6 +22,9 @@ export default function ProjectManagement() {
   const { showFullScreenModal, hideModal } = useGlobalModal();
   const [isLoadingProjects, setIsLoadingProjects] = React.useState(false);
   const fetchInProgressRef = React.useRef(false);
+
+  // Onboarding
+  const { isCreateProjectActive } = useActiveOnboardingStep();
 
   // Fetch projects directly from API (debounced to prevent multiple calls)
   const fetchProjects = React.useCallback(async () => {
@@ -200,16 +205,18 @@ export default function ProjectManagement() {
         </motion.button>
 
         {/* Add Project Button */}
-        <motion.button
-          whileHover={{ scale: 1.05, y: -1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleAddProject}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded-xl text-cyan-400 transition-all duration-300 group text-sm flex-shrink-0 shadow-lg shadow-cyan-500/10 backdrop-blur-sm"
-          title="Add new project"
-        >
-          <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-          <span className="font-medium">Add Project</span>
-        </motion.button>
+        <GlowWrapper isActive={isCreateProjectActive}>
+          <motion.button
+            whileHover={{ scale: 1.05, y: -1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleAddProject}
+            className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded-xl text-cyan-400 transition-all duration-300 group text-sm flex-shrink-0 shadow-lg shadow-cyan-500/10 backdrop-blur-sm"
+            title="Add new project"
+          >
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
+            <span className="font-medium">Add Project</span>
+          </motion.button>
+        </GlowWrapper>
       </div>
     </div>
   );

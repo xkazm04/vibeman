@@ -109,33 +109,6 @@ export default function ClaudeRequirementsList({
     setRequirements((prev) => [...prev]);
   };
 
-  const handleBatchCode = (requirementNames: string[]) => {
-    console.log(`[BatchCode] 📋 Starting batch code for ${requirementNames.length} requirements`);
-
-    // Queue all requirements
-    requirementNames.forEach((name) => {
-      if (!executionQueueRef.current.includes(name)) {
-        executionQueueRef.current.push(name);
-      }
-    });
-
-    console.log(`[BatchCode] Queue now has ${executionQueueRef.current.length} items`);
-
-    // Update all as queued
-    setRequirements((prev) =>
-      prev.map((r) =>
-        requirementNames.includes(r.name) && r.status !== 'running'
-          ? { ...r, status: 'queued' as const }
-          : r
-      )
-    );
-
-    // Trigger queue processing via handleQueueUpdate
-    setTimeout(() => {
-      handleQueueUpdate();
-    }, 100);
-  };
-
   const handleToggleExpand = (name: string) => {
     setExpandedReq(expandedReq === name ? null : name);
   };

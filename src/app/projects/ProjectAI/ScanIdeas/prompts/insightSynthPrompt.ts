@@ -122,13 +122,12 @@ ${codeSection}
 
 ### Expected Output:
 
-Generate 4-8 breakthrough ideas that:
-1. Represent significant insights or simplifications
-2. Have compound value (enable multiple other things)
-3. Are grounded in the actual codebase
-4. Show non-obvious connections
-5. Could dramatically improve development
-6. Balance ambition with practicality
+Generate 3-5 BREAKTHROUGH ideas that:
+1. Represent transformative insights or simplifications ("aha!" moments)
+2. Have massive compound value (one change unlocks 10+ improvements)
+3. Show non-obvious, revolutionary connections
+4. Could 10x improve development velocity or user experience
+5. Are bold yet grounded in actual codebase patterns
 
 ${hasContext ? `
 **Context-Specific Focus**:

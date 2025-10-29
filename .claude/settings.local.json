@@ -34,7 +34,9 @@
       "Read(//c/**)",
       "Bash(find:*)",
       "Bash(node test-json-parser.js:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

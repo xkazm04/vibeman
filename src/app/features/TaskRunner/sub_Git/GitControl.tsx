@@ -1,7 +1,5 @@
 'use client';
-
-import { motion } from 'framer-motion';
-import { Github, Settings } from 'lucide-react';
+import { Github } from 'lucide-react';
 import { useGitConfig } from './useGitConfig';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import GitConfigModalContent from './GitConfigModalContent';
@@ -17,7 +15,7 @@ export default function GitControl() {
         icon: Github,
         iconColor: 'text-purple-400',
         iconBgColor: 'bg-purple-500/20',
-        maxWidth: 'max-w-2xl',
+        maxWidth: 'max-w-6xl',
         maxHeight: 'max-h-[80vh]'
       },
       <GitConfigModalContent onClose={hideModal} />
@@ -34,7 +32,6 @@ export default function GitControl() {
           onChange={(e) => setGitEnabled(e.target.checked)}
           className="rounded border-gray-600 text-purple-500 focus:ring-purple-500/50"
         />
-        <span className="text-sm text-gray-300 font-medium">Git Mode</span>
       </label>
 
       {/* Config Button */}
@@ -45,26 +42,6 @@ export default function GitControl() {
       >
         <Github className="w-4 h-4" />
       </button>
-
-      <button
-        onClick={handleOpenConfig}
-        className="p-1.5 rounded-lg hover:bg-gray-700/50 transition-colors text-gray-400 hover:text-gray-300"
-        title="Edit configuration"
-      >
-        <Settings className="w-3.5 h-3.5" />
-      </button>
-
-      {/* Status Indicator */}
-      {gitEnabled && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-1.5 ml-1"
-        >
-          <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
-          <span className="text-sm text-purple-400">Active</span>
-        </motion.div>
-      )}
     </div>
   );
 }

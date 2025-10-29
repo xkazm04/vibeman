@@ -1,10 +1,9 @@
 import { ideaDb, scanDb } from '@/app/db';
 import { contextDb } from '@/app/db';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
-import { buildAIDocsSection } from '../ScanGoals/lib/sectionBuilders';
 import { readAIDocs } from '../ScanGoals/lib/utils';
-import { buildIdeaGenerationPrompt } from '../lib/promptBuilder';
-import { ScanType } from '@/app/ideas/components/ScanTypeSelector';
+import { buildIdeaGenerationPrompt } from './lib/promptBuilder';
+import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { parseAIJsonResponse } from '@/lib/aiJsonParser';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -54,7 +53,6 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     // 1. Read AI documentation
     console.log('[generateIdeas] Reading AI documentation...');
     const aiDocsContent = await readAIDocs(projectPath);
-    const aiDocsSection = buildAIDocsSection(aiDocsContent);
 
     // Log AI documentation character length
     const aiDocsLength = aiDocsContent ? aiDocsContent.length : 0;
@@ -85,22 +83,9 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       ? ideaDb.getIdeasByContext(contextId)
       : ideaDb.getIdeasByProject(projectId);
 
-    // 4. Map scan type to mode for standardized prompts
-    const scanTypeMap: Record<ScanType, 'overall' | 'bug_hunter' | 'insight_synth'> = {
-      overall: 'overall',
-      zen_architect: 'overall', // fallback to overall
-      bug_hunter: 'bug_hunter',
-      perf_optimizer: 'overall', // fallback to overall
-      security_protector: 'overall', // fallback to overall
-      insight_synth: 'insight_synth',
-      ambiguity_guardian: 'overall', // fallback to overall
-    };
-
-    const promptMode = scanTypeMap[scanType] || 'overall';
-
-    // 5. Build prompt using standardized template
-    console.log(`[generateIdeas] Building prompt with mode: ${promptMode}...`);
-    const promptResult = buildIdeaGenerationPrompt(promptMode, {
+    // 4. Build prompt using specialized prompt builder
+    console.log(`[generateIdeas] Building prompt with scan type: ${scanType}...`);
+    const promptResult = buildIdeaGenerationPrompt(scanType, {
       projectName,
       aiDocs: aiDocsContent,
       context,

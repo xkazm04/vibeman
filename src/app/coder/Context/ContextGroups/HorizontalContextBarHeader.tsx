@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Save, Plus, Grid3X3, ChevronUp } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
+import GlowWrapper from '@/app/features/Onboarding/components/GlowWrapper';
+import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 
 interface HorizontalContextBarHeaderProps {
   selectedFilesCount: number;
@@ -28,6 +30,8 @@ const HorizontalContextBarHeader = React.memo(({
   onAddContextClick,
   onToggleExpanded
 }: HorizontalContextBarHeaderProps) => {
+  // Onboarding
+  const { isComposeContextActive } = useActiveOnboardingStep();
   return (
     <div className="relative flex items-center justify-between px-8 py-6 bg-gradient-to-r from-gray-800/30 via-slate-900/20 to-gray-800/30 border-b border-gray-700/30 backdrop-blur-sm">
       <div className="flex items-center space-x-6">
@@ -133,15 +137,17 @@ const HorizontalContextBarHeader = React.memo(({
 
             {/* Add Context Button */}
             {groups.length > 0 && (
-              <motion.button
-                onClick={onAddContextClick}
-                className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30"
-                title="Create new context"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Plus className="w-5 h-5" />
-              </motion.button>
+              <GlowWrapper isActive={isComposeContextActive}>
+                <motion.button
+                  onClick={onAddContextClick}
+                  className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30"
+                  title="Create new context"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Plus className="w-5 h-5" />
+                </motion.button>
+              </GlowWrapper>
             )}
           </div>
 

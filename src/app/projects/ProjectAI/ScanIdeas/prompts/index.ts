@@ -10,7 +10,13 @@ import { buildPerfOptimizerPrompt } from './perfOptimizerPrompt';
 import { buildSecurityProtectorPrompt } from './securityProtectorPrompt';
 import { buildInsightSynthPrompt } from './insightSynthPrompt';
 import { buildAmbiguityGuardianPrompt } from './ambiguityGuardianPrompt';
-import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
+import { buildBusinessVisionaryPrompt } from './businessVisionaryPrompt';
+import { buildUiPerfectionistPrompt } from './uiPerfectionistPrompt';
+import { buildFeatureScoutPrompt } from './featureScoutPrompt';
+import { buildOnboardingOptimizerPrompt } from './onboardingOptimizerPrompt';
+import { buildAiIntegrationScoutPrompt } from './aiIntegrationScoutPrompt';
+import { buildDelightDesignerPrompt } from './delightDesignerPrompt';
+import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 export interface PromptOptions {
   projectName: string;
@@ -34,6 +40,12 @@ export const PROMPT_BUILDERS: Record<ScanType, PromptBuilder> = {
   security_protector: buildSecurityProtectorPrompt,
   insight_synth: buildInsightSynthPrompt,
   ambiguity_guardian: buildAmbiguityGuardianPrompt,
+  business_visionary: buildBusinessVisionaryPrompt,
+  ui_perfectionist: buildUiPerfectionistPrompt,
+  feature_scout: buildFeatureScoutPrompt,
+  onboarding_optimizer: buildOnboardingOptimizerPrompt,
+  ai_integration_scout: buildAiIntegrationScoutPrompt,
+  delight_designer: buildDelightDesignerPrompt,
 };
 
 /**
@@ -60,4 +72,10 @@ export {
   buildSecurityProtectorPrompt,
   buildInsightSynthPrompt,
   buildAmbiguityGuardianPrompt,
+  buildBusinessVisionaryPrompt,
+  buildUiPerfectionistPrompt,
+  buildFeatureScoutPrompt,
+  buildOnboardingOptimizerPrompt,
+  buildAiIntegrationScoutPrompt,
+  buildDelightDesignerPrompt,
 };

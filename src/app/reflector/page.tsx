@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, TrendingUp, Network } from 'lucide-react';
+import { Trophy, Calendar, Network, BarChart3 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useContextStore } from '@/stores/contextStore';
@@ -11,16 +11,16 @@ import TotalViewFilters from '@/app/features/reflector/components/TotalViewFilte
 import TotalViewDashboard from '@/app/features/reflector/components/TotalViewDashboard';
 import ActiveFiltersDisplay from '@/app/features/reflector/components/ActiveFiltersDisplay';
 import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
+import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { IdeaFilterState, getEmptyFilterState, applyFilters } from '@/app/features/reflector/lib/filterIdeas';
 
 export default function ReflectorPage() {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'dependencies'>('weekly');
+  const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'ideas_stats' | 'dependencies'>('weekly');
   const [filters, setFilters] = useState<IdeaFilterState>(getEmptyFilterState());
 
   const { projects, initializeProjects } = useProjectConfigStore();
-  const { contexts } = useContextStore();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -234,7 +234,18 @@ export default function ReflectorPage() {
                   : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60'
               }`}
             >
-              Reflection
+              Implemented
+            </button>
+            <button
+              onClick={() => setViewMode('ideas_stats')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                viewMode === 'ideas_stats'
+                  ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
+                  : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Ideas Stats
             </button>
             <button
               onClick={() => setViewMode('dependencies')}
@@ -253,7 +264,7 @@ export default function ReflectorPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {loading && viewMode !== 'dependencies' ? (
+        {loading && viewMode !== 'dependencies' && viewMode !== 'ideas_stats' ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-gray-400">Loading...</div>
           </div>
@@ -265,6 +276,8 @@ export default function ReflectorPage() {
           </div>
         ) : viewMode === 'dependencies' ? (
           <DependenciesTab />
+        ) : viewMode === 'ideas_stats' ? (
+          <ReflectionDashboard />
         ) : (
           <div className="space-y-6">
             {/* Filters and Active Filter Display */}

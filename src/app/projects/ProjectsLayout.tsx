@@ -18,12 +18,18 @@ import ProjectManagement from './ProjectSetting/ProjectManagement';
 import ReviewerPanel from '../reviewer/ReviewerPanel';
 import CodeReviewModal from '../reviewer/CodeReviewModal';
 import { ActionGroup, ActionConfig } from '@/components/ui';
+import GlowWrapper from '@/app/features/Onboarding/components/GlowWrapper';
+import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 
 
 export default function ProjectsLayout() {
   const { isActive } = useAnalysisStore();
   const { activeProject, setActiveProject } = useActiveProjectStore();
   const { syncWithServer } = useProjectConfigStore();
+
+  // Onboarding
+  const { isGenerateDocsActive } = useActiveOnboardingStep();
+
   const {
     showAddProject,
     showEditProject,
@@ -145,7 +151,9 @@ export default function ProjectsLayout() {
 
           {/* Right Section: Goals & AI Actions */}
           <div className="flex items-center space-x-4">
-            <ActionGroup label="Actions" actions={projectActions} />
+            <GlowWrapper isActive={isGenerateDocsActive}>
+              <ActionGroup label="Actions" actions={projectActions} />
+            </GlowWrapper>
           </div>
         </div>
       </motion.div>

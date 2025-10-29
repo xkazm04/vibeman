@@ -1,27 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries, contextGroupQueries } from '../../../lib/queries/contextQueries';
+import { contextDb } from '@/app/db';
 
-// GET /api/contexts - Get all contexts and groups for a project
+// GET /api/contexts - Get all contexts (optionally filtered by project)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
 
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'Project ID is required' },
-        { status: 400 }
-      );
+    // If projectId is provided, get contexts for that project
+    if (projectId) {
+      const [contexts, groups] = await Promise.all([
+        contextQueries.getContextsByProject(projectId),
+        contextGroupQueries.getGroupsByProject(projectId),
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        data: { contexts, groups }
+      });
     }
 
-    const [contexts, groups] = await Promise.all([
-      contextQueries.getContextsByProject(projectId),
-      contextGroupQueries.getGroupsByProject(projectId),
-    ]);
+    // Otherwise, get all contexts across all projects
+    const { getDatabase } = await import('@/app/db/connection');
+    const db = getDatabase();
+    const allContexts = db.prepare(`
+      SELECT * FROM contexts
+      ORDER BY created_at DESC
+    `).all();
 
     return NextResponse.json({
       success: true,
-      data: { contexts, groups }
+      data: { contexts: allContexts, groups: [] }
     });
   } catch (error) {
     console.error('Failed to fetch contexts:', error);

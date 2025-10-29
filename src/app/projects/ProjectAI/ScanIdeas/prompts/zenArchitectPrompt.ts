@@ -135,13 +135,12 @@ ${codeSection}
 
 ### Expected Output:
 
-Generate 6-10 architectural ideas that:
-1. Make the codebase simpler and more maintainable
-2. Reduce cognitive load for developers
-3. Improve code organization and clarity
-4. Enable better testing and modularity
-5. Are specific to THIS codebase
-6. Respect existing project patterns
+Generate 3-5 AMBITIOUS architectural ideas that:
+1. Dramatically simplify the codebase (remove entire classes of complexity)
+2. Enable major improvements in maintainability
+3. Have compound value (one change unlocks multiple benefits)
+4. Are specific to THIS codebase with high impact
+5. Respect existing project patterns but think boldly
 
 ${hasContext ? `
 **Context-Specific Focus**:

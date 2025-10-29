@@ -147,13 +147,12 @@ ${codeSection}
 
 ### Expected Output:
 
-Generate 6-10 security ideas that:
-1. Address real security vulnerabilities
-2. Prioritize high-impact threats
+Generate 3-5 CRITICAL security ideas that:
+1. Address HIGH-SEVERITY vulnerabilities (OWASP Top 10 focus)
+2. Prioritize threats with highest likelihood × impact
 3. Provide practical remediation steps
-4. Consider defense in depth
-5. Focus on the actual codebase
-6. Balance security with usability
+4. Focus on the actual codebase's most exposed areas
+5. Balance security with usability (no security theater)
 
 ${hasContext ? `
 **Context-Specific Focus**:

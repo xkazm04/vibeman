@@ -134,13 +134,12 @@ ${codeSection}
 
 ### Expected Output:
 
-Generate 5-8 ideas that:
-1. Expose important trade-offs or tensions
-2. Present multiple valid approaches fairly
-3. Help navigate uncertainty productively
-4. Recognize context-dependent solutions
-5. Make implicit choices explicit
-6. Enable informed decision-making
+Generate 3-5 CRITICAL ambiguity ideas that:
+1. Expose MAJOR trade-offs or tensions (not minor decisions)
+2. Present fundamentally different valid approaches
+3. Address uncertainty that blocks important decisions
+4. Recognize context-dependent solutions with high impact
+5. Enable strategic, informed decision-making
 
 ${hasContext ? `
 **Context-Specific Focus**:

@@ -129,13 +129,12 @@ ${codeSection}
 
 ### Expected Output:
 
-Generate 6-10 bug-related ideas that:
-1. Identify actual potential failures
-2. Explain the risk and impact
-3. Provide clear fix approaches
-4. Focus on high-probability issues
-5. Consider edge cases and error scenarios
-6. Improve overall code reliability
+Generate 3-5 HIGH-PRIORITY bug-related ideas that:
+1. Identify critical potential failures (not minor edge cases)
+2. Focus on high-probability, high-impact issues
+3. Provide clear, efficient fix approaches
+4. Target bugs that could cause data loss, security issues, or major UX problems
+5. Improve overall system reliability significantly
 
 ${hasContext ? `
 **Context-Specific Focus**:
