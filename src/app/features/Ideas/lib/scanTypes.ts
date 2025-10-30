@@ -3,7 +3,6 @@
  */
 
 export type ScanType =
-  | 'overall'
   | 'zen_architect'
   | 'bug_hunter'
   | 'perf_optimizer'
@@ -29,6 +28,7 @@ export interface QueueItem {
 export interface ContextQueueItem {
   contextId: string | null;
   contextName: string;
+  scanType: ScanType;
   status: 'pending' | 'running' | 'completed' | 'failed';
   ideaCount: number;
   error?: string;

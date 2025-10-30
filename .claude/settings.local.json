@@ -36,7 +36,8 @@
       "Bash(node test-json-parser.js:*)",
       "Bash(del:*)",
       "Bash(mkdir:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(set:*)"
     ],
     "deny": [],
     "ask": []

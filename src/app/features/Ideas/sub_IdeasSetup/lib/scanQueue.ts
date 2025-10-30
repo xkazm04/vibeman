@@ -18,22 +18,36 @@ export function initializeScanQueue(selectedScanTypes: ScanType[]): QueueItem[] 
 
 /**
  * Initialize context queue for batch scanning
+ * Creates a cartesian product of contexts × scan types
  */
-export function initializeContextQueue(contexts: Context[]): ContextQueueItem[] {
-  return [
+export function initializeContextQueue(contexts: Context[], selectedScanTypes: ScanType[]): ContextQueueItem[] {
+  const allContexts = [
     {
       contextId: null,
-      contextName: 'Full Project',
-      status: 'pending',
-      ideaCount: 0
+      contextName: 'Full Project'
     },
     ...contexts.map(context => ({
       contextId: context.id,
-      contextName: context.name,
-      status: 'pending' as const,
-      ideaCount: 0
+      contextName: context.name
     }))
   ];
+
+  // Create cartesian product: each context × each scan type
+  const queue: ContextQueueItem[] = [];
+
+  for (const context of allContexts) {
+    for (const scanType of selectedScanTypes) {
+      queue.push({
+        contextId: context.contextId,
+        contextName: context.contextName,
+        scanType,
+        status: 'pending',
+        ideaCount: 0
+      });
+    }
+  }
+
+  return queue;
 }
 
 /**

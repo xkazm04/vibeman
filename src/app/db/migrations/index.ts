@@ -26,6 +26,9 @@ export function runMigrations() {
     // Migration 6: Add implemented_at column to ideas table
     migrateIdeasImplementedAt();
 
+    // Migration 7: Remove category CHECK constraint from ideas table
+    migrateIdeasCategoryConstraint();
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -418,5 +421,119 @@ function migrateIdeasImplementedAt() {
     }
   } catch (error) {
     console.error('Error migrating ideas table implemented_at:', error);
+  }
+}
+
+/**
+ * Remove category CHECK constraint from ideas table
+ * This allows any string value for category instead of restricting to specific values
+ */
+function migrateIdeasCategoryConstraint() {
+  const db = getDatabase();
+
+  try {
+    // Test if we can insert a non-standard category value
+    const testId = 'category-test-' + Date.now();
+    const testInsert = db.prepare(`
+      INSERT INTO ideas (id, scan_id, project_id, scan_type, category, title, status, created_at, updated_at)
+      VALUES (?, 'test-scan', 'test-project', 'test', 'custom_category_test', 'Test', 'pending', ?, ?)
+    `);
+
+    try {
+      const now = new Date().toISOString();
+      testInsert.run(testId, now, now);
+
+      // If successful, cleanup the test record and exit (no migration needed)
+      const deleteStmt = db.prepare('DELETE FROM ideas WHERE id = ?');
+      deleteStmt.run(testId);
+
+      console.log('Ideas table already supports flexible category values');
+      return;
+    } catch (constraintError) {
+      console.log('Ideas table has category constraint, removing it...');
+
+      // Backup existing ideas
+      const existingIdeas = db.prepare('SELECT * FROM ideas').all();
+
+      // Drop and recreate the ideas table without category constraint
+      db.exec('DROP TABLE IF EXISTS ideas_backup');
+      db.exec(`CREATE TABLE ideas_backup AS SELECT * FROM ideas`);
+
+      db.exec('DROP TABLE ideas');
+
+      db.exec(`
+        CREATE TABLE ideas (
+          id TEXT PRIMARY KEY,
+          scan_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          context_id TEXT,
+          scan_type TEXT DEFAULT 'overall',
+          category TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          reasoning TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'implemented')),
+          user_feedback TEXT,
+          user_pattern INTEGER DEFAULT 0,
+          effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 3)),
+          impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 3)),
+          implemented_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+          FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
+        )
+      `);
+
+      // Restore data
+      if (existingIdeas.length > 0) {
+        const insertStmt = db.prepare(`
+          INSERT INTO ideas (
+            id, scan_id, project_id, context_id, scan_type, category, title, description,
+            reasoning, status, user_feedback, user_pattern, effort, impact, implemented_at,
+            created_at, updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        for (const idea of existingIdeas as any[]) {
+          insertStmt.run(
+            idea.id,
+            idea.scan_id,
+            idea.project_id,
+            idea.context_id || null,
+            idea.scan_type || 'overall',
+            idea.category || 'general',
+            idea.title,
+            idea.description || null,
+            idea.reasoning || null,
+            idea.status || 'pending',
+            idea.user_feedback || null,
+            idea.user_pattern || 0,
+            idea.effort || null,
+            idea.impact || null,
+            idea.implemented_at || null,
+            idea.created_at,
+            idea.updated_at
+          );
+        }
+      }
+
+      // Clean up backup table
+      db.exec('DROP TABLE ideas_backup');
+
+      // Recreate indexes
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_ideas_scan_id ON ideas(scan_id);
+        CREATE INDEX IF NOT EXISTS idx_ideas_project_id ON ideas(project_id);
+        CREATE INDEX IF NOT EXISTS idx_ideas_context_id ON ideas(context_id);
+        CREATE INDEX IF NOT EXISTS idx_ideas_status ON ideas(project_id, status);
+        CREATE INDEX IF NOT EXISTS idx_ideas_category ON ideas(category);
+      `);
+
+      console.log('Ideas table category constraint removed successfully');
+    }
+  } catch (error) {
+    console.error('Error during ideas category constraint migration:', error);
   }
 }

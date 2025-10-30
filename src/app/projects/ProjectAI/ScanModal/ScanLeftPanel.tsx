@@ -4,6 +4,7 @@ import { CheckCircle2, AlertCircle, BookOpen, Play, Pause } from 'lucide-react';
 import LLMSelector from '../LLMSelector';
 import { SupportedProvider } from '../../../../lib/llm';
 import ClaudeCodeInit from './ClaudeCodeInit';
+import SupabaseSync from './SupabaseSync';
 
 interface AILeftPanelProps {
   aiDocsExist: boolean;
@@ -28,7 +29,7 @@ export default function AILeftPanel({
 }: AILeftPanelProps) {
   return (
     <motion.div 
-      className="w-72 bg-gradient-to-b from-gray-900/60 to-gray-900/80 backdrop-blur-xl border-r border-gray-700/40 p-6 flex flex-col shadow-2xl"
+      className="w-72 overflow-y-scroll bg-gradient-to-b from-gray-900/60 to-gray-900/80 backdrop-blur-xl border-r border-gray-700/40 p-6 flex flex-col shadow-2xl"
       initial={{ x: -50, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.5 }}
@@ -107,60 +108,6 @@ export default function AILeftPanel({
           </p>
         </motion.div>
 
-        {/* Ollama Status with Pulse Animation */}
-        <motion.div 
-          className="p-5 bg-gradient-to-br from-gray-800/40 to-gray-800/60 backdrop-blur-sm rounded-xl border border-gray-700/40"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-white">Ollama Service</span>
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <CheckCircle2 className="w-4 h-4 text-green-400" />
-            </motion.div>
-          </div>
-          <p className="text-sm text-gray-400">
-            <span className="text-green-400 font-mono">●</span> Running on localhost:11434
-          </p>
-        </motion.div>
-
-        {/* Project Info with Gradient Border */}
-        {activeProject && (
-          <motion.div 
-            className="p-5 bg-gradient-to-br from-gray-800/40 to-gray-800/60 backdrop-blur-sm rounded-xl border border-gray-700/40 relative overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.5 }}
-          >
-            {/* Animated Border */}
-            <motion.div
-              className="absolute inset-0 rounded-xl opacity-30"
-              style={{
-                background: 'linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.3), transparent)',
-              }}
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-            />
-            
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-white">Active Project</span>
-                <motion.div 
-                  className="w-2 h-2 bg-green-400 rounded-full"
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-              </div>
-              <p className="text-sm text-gray-400 font-mono bg-gray-900/30 px-2 py-1 rounded">
-                {activeProject.name}
-              </p>
-            </div>
-          </motion.div>
-        )}
 
         {/* Claude Code Initialization */}
         {activeProject && (
@@ -171,6 +118,9 @@ export default function AILeftPanel({
             projectType={activeProject.type}
           />
         )}
+
+        {/* Supabase Sync Status */}
+        <SupabaseSync />
       </div>
 
       {/* LLM Provider Selection with Enhanced Styling */}

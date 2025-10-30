@@ -1,8 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, Layers } from 'lucide-react';
+import { Loader2, Layers, Settings } from 'lucide-react';
 import { startStructureScan } from '../lib/structureScanManager';
+import StructureTemplateEditor from '../sub_ClaudeStructureScan/components/StructureTemplateEditor';
 
 interface ClaudeActionStructureScanProps {
   projectPath: string;
@@ -24,6 +25,7 @@ export default function ClaudeActionStructureScan({
     message: string;
     type: 'success' | 'error';
   } | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const handleStructureScan = async () => {
     console.log('[StructureScan] 🎯 Button clicked');
@@ -82,47 +84,71 @@ export default function ClaudeActionStructureScan({
   };
 
   return (
-    <div className="relative">
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={handleStructureScan}
-        disabled={isScanning || disabled}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-          isScanning || disabled
-            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg'
-        }`}
-        title="Scan project structure and generate refactoring requirements"
-      >
-        {isScanning ? (
-          <>
-            <Loader2 className="w-3 h-3 animate-spin" />
-            <span>Scanning...</span>
-          </>
-        ) : (
-          <>
-            <Layers className="w-3 h-3" />
-            <span>Structure Scan</span>
-          </>
-        )}
-      </motion.button>
-
-      {/* Structure Scan Result Message */}
-      {scanResult && (
-        <motion.div
-          initial={{ opacity: 0, y: -5 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className={`absolute top-full mt-1 right-0 text-sm whitespace-nowrap px-2 py-1 rounded z-10 ${
-            scanResult.type === 'success'
-              ? 'text-green-400 bg-green-500/10'
-              : 'text-red-400 bg-red-500/10'
-          }`}
+    <>
+      <div className="relative flex items-center gap-2">
+        {/* Settings Button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsEditorOpen(true)}
+          disabled={!projectType || disabled}
+          className="p-1.5 bg-gray-700/50 hover:bg-gray-600/50 rounded-md text-gray-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Customize structure template"
         >
-          {scanResult.message}
-        </motion.div>
+          <Settings className="w-3.5 h-3.5" />
+        </motion.button>
+
+        {/* Structure Scan Button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleStructureScan}
+          disabled={isScanning || disabled}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+            isScanning || disabled
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg'
+          }`}
+          title="Scan project structure and generate refactoring requirements"
+        >
+          {isScanning ? (
+            <>
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Scanning...</span>
+            </>
+          ) : (
+            <>
+              <Layers className="w-3 h-3" />
+              <span>Structure Scan</span>
+            </>
+          )}
+        </motion.button>
+
+        {/* Structure Scan Result Message */}
+        {scanResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className={`absolute top-full mt-1 right-0 text-sm whitespace-nowrap px-2 py-1 rounded z-10 ${
+              scanResult.type === 'success'
+                ? 'text-green-400 bg-green-500/10'
+                : 'text-red-400 bg-red-500/10'
+            }`}
+          >
+            {scanResult.message}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Structure Template Editor Modal */}
+      {projectType && (
+        <StructureTemplateEditor
+          isOpen={isEditorOpen}
+          onClose={() => setIsEditorOpen(false)}
+          projectType={projectType as 'nextjs' | 'fastapi'}
+        />
       )}
-    </div>
+    </>
   );
 }

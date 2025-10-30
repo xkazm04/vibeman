@@ -68,7 +68,7 @@ export function buildStrategicGoalsPrompt(
  * Build idea generation prompt
  */
 export function buildIdeaGenerationPrompt(
-  scanType: 'overall' | 'bug_hunter' | 'insight_synth',
+  scanType: 'bug_hunter' | 'insight_synth',
   options: {
     projectName?: string;
     aiDocs?: string;

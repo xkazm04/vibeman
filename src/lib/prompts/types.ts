@@ -27,7 +27,6 @@ export type PromptTaskType =
  * Prompt mode determines which template variant to use
  */
 export type PromptMode =
-  | 'overall'
   | 'zen_architect'
   | 'bug_hunter'
   | 'perf_optimizer'

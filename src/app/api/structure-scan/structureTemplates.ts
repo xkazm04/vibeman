@@ -424,7 +424,43 @@ export const FASTAPI_STRUCTURE: ProjectStructureTemplate = {
 };
 
 /**
- * Get structure template by project type
+ * Get structure template by project type (with custom template support)
+ * Server-side only - loads from file system
+ */
+export async function getStructureTemplateWithCustom(type: 'nextjs' | 'fastapi'): Promise<ProjectStructureTemplate> {
+  if (typeof window !== 'undefined') {
+    // Client-side: use default
+    return getStructureTemplate(type);
+  }
+
+  // Server-side: check for custom template
+  try {
+    const { promises: fs } = await import('fs');
+    const path = await import('path');
+
+    const customPath = path.join(process.cwd(), 'data', 'custom-templates', `${type}.json`);
+
+    try {
+      const customContent = await fs.readFile(customPath, 'utf-8');
+      const customTemplate = JSON.parse(customContent);
+
+      const baseTemplate = type === 'nextjs' ? NEXTJS_STRUCTURE : FASTAPI_STRUCTURE;
+      return {
+        ...baseTemplate,
+        rules: customTemplate.rules,
+      };
+    } catch {
+      // Custom template doesn't exist, use default
+      return getStructureTemplate(type);
+    }
+  } catch (error) {
+    console.warn('Failed to load custom template, using default:', error);
+    return getStructureTemplate(type);
+  }
+}
+
+/**
+ * Get structure template by project type (default only)
  */
 export function getStructureTemplate(type: 'nextjs' | 'fastapi'): ProjectStructureTemplate {
   switch (type) {

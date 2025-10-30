@@ -31,7 +31,7 @@ export default function ProgressBar({ items, totalIdeas, type }: ProgressBarProp
       {/* Stats Row */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-semibold text-gray-400">
-          Processing {completedCount} / {totalCount} {type === 'scan' ? 'scans' : 'contexts'}
+          Processing {completedCount} / {totalCount} scans
         </span>
         <span className="text-sm font-semibold text-blue-400">
           {totalIdeas} ideas generated
@@ -81,17 +81,18 @@ export default function ProgressBar({ items, totalIdeas, type }: ProgressBarProp
       {/* Individual Item Status */}
       <div className="flex flex-wrap gap-2 mt-3">
         {items.map((item, index) => {
-          const isScanItem = 'scanType' in item;
-          const label = isScanItem 
-            ? getScanTypeConfig(item.scanType)?.label || item.scanType
-            : item.contextName;
-          const emoji = isScanItem 
-            ? getScanTypeConfig(item.scanType)?.emoji || '📋'
-            : '📂';
+          const isContextItem = 'contextName' in item;
+          const scanConfig = getScanTypeConfig(item.scanType);
+
+          // For context items: show "Context - ScanType", for scan items: show "ScanType"
+          const label = isContextItem
+            ? `${item.contextName} - ${scanConfig?.label || item.scanType}`
+            : scanConfig?.label || item.scanType;
+          const emoji = scanConfig?.emoji || '📋';
 
           return (
             <motion.div
-              key={`${isScanItem ? item.scanType : item.contextId}-${index}`}
+              key={`${isContextItem ? item.contextId : item.scanType}-${item.scanType}-${index}`}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
                 item.status === 'completed'
                   ? 'bg-green-500/20 border-green-500/40 text-green-300'
@@ -106,7 +107,7 @@ export default function ProgressBar({ items, totalIdeas, type }: ProgressBarProp
               transition={{ delay: index * 0.05 }}
             >
               <span className="text-base">{emoji}</span>
-              <span className="max-w-[120px] truncate">{label}</span>
+              <span className="max-w-[200px] truncate">{label}</span>
               {item.status === 'running' && (
                 <Loader2 className="w-3 h-3 animate-spin ml-1" />
               )}

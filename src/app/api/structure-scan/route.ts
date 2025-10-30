@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import {
   getStructureTemplate,
+  getStructureTemplateWithCustom,
   ProjectStructureTemplate,
   getEnforcedStructure,
   EnforcedStructure,
@@ -497,9 +498,9 @@ export async function POST(request: NextRequest) {
       console.log(`[StructureScan] 📐 Using ${enforcedStructure.name} enforced structure`);
       violations = await scanWithEnforcedStructure(projectPath, enforcedStructure);
     } else {
-      // Fallback to old method
-      const template = getStructureTemplate(projectType);
-      console.log(`[StructureScan] 📐 Using ${template.name} template (fallback)`);
+      // Fallback to old method with custom template support
+      const template = await getStructureTemplateWithCustom(projectType);
+      console.log(`[StructureScan] 📐 Using ${template.name} template (fallback)${template.rules !== getStructureTemplate(projectType).rules ? ' [CUSTOM]' : ''}`);
       violations = await scanForViolations(projectPath, template);
     }
 

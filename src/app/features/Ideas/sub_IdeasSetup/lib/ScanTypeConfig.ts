@@ -4,7 +4,6 @@
  */
 
 export type ScanType =
-  | 'overall'
   | 'zen_architect'
   | 'bug_hunter'
   | 'perf_optimizer'
@@ -12,7 +11,11 @@ export type ScanType =
   | 'insight_synth'
   | 'ambiguity_guardian'
   | 'business_visionary'
-  | 'ui_perfectionist';
+  | 'ui_perfectionist'
+  | 'feature_scout'
+  | 'onboarding_optimizer'
+  | 'ai_integration_scout'
+  | 'delight_designer';
 
 export interface ScanTypeOption {
   value: ScanType;
@@ -24,13 +27,6 @@ export interface ScanTypeOption {
 }
 
 export const SCAN_TYPES: ScanTypeOption[] = [
-  {
-    value: 'overall',
-    label: 'Overall',
-    emoji: '🔍',
-    color: 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 border-blue-500/40 text-blue-300',
-    description: 'Multi-dimensional comprehensive analysis'
-  },
   {
     value: 'zen_architect',
     label: 'Zen Architect',
@@ -94,6 +90,38 @@ export const SCAN_TYPES: ScanTypeOption[] = [
     color: 'bg-gradient-to-r from-pink-500/20 to-pink-600/20 border-pink-500/40 text-pink-300',
     description: 'Extract reusable components & improve design',
     agentFile: 'ui_perfectionist.md'
+  },
+  {
+    value: 'feature_scout',
+    label: 'Feature Scout',
+    emoji: '🔍',
+    color: 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 border-teal-500/40 text-teal-300',
+    description: 'Discover new feature opportunities',
+    agentFile: 'feature_scout.md'
+  },
+  {
+    value: 'onboarding_optimizer',
+    label: 'Onboarding',
+    emoji: '👋',
+    color: 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 border-blue-500/40 text-blue-300',
+    description: 'Improve user onboarding experience',
+    agentFile: 'onboarding_optimizer.md'
+  },
+  {
+    value: 'ai_integration_scout',
+    label: 'AI Integration',
+    emoji: '🤖',
+    color: 'bg-gradient-to-r from-violet-500/20 to-violet-600/20 border-violet-500/40 text-violet-300',
+    description: 'AI integration opportunities',
+    agentFile: 'ai_integration_scout.md'
+  },
+  {
+    value: 'delight_designer',
+    label: 'Delight Designer',
+    emoji: '✨',
+    color: 'bg-gradient-to-r from-rose-500/20 to-rose-600/20 border-rose-500/40 text-rose-300',
+    description: 'Moments of user delight & surprise',
+    agentFile: 'delight_designer.md'
   }
 ];
 

@@ -19,10 +19,10 @@ export interface IdeaGenerationOptions {
 }
 
 export interface GeneratedIdea {
-  category: string; // Accepts any string, IdeaCategory provides standard guideline values
-  title: string;
-  description: string;
-  reasoning: string;
+  category?: string; // Accepts any string, IdeaCategory provides standard guideline values (defaults to 'general')
+  title: string; // Required - ideas without title will be skipped
+  description?: string; // Optional
+  reasoning?: string; // Optional
   effort?: number; // 1 = lowest, 3 = highest
   impact?: number; // 1 = lowest, 3 = highest
 }
@@ -44,7 +44,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       projectPath,
       contextId,
       provider,
-      scanType = 'overall',
+      scanType,
       codebaseFiles = []
     } = options;
 
@@ -128,6 +128,15 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       }
 
       console.log(`[generateIdeas] Successfully parsed ${parsedIdeas.length} ideas`);
+
+      // Log validation summary
+      const validIdeas = parsedIdeas.filter(idea =>
+        idea.title && typeof idea.title === 'string' && idea.title.trim() !== ''
+      );
+      const invalidIdeas = parsedIdeas.length - validIdeas.length;
+      if (invalidIdeas > 0) {
+        console.warn(`[generateIdeas] ${invalidIdeas} idea(s) will be skipped due to missing required fields`);
+      }
     } catch (parseError) {
       console.error('[generateIdeas] Failed to parse LLM response:', parseError);
       console.error('[generateIdeas] Raw response:', result.response);
@@ -151,23 +160,46 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
 
     // 9. Save ideas to database
     console.log('[generateIdeas] Saving ideas to database...');
-    const savedIdeas = parsedIdeas.map(idea => {
-      const ideaId = uuidv4();
-      return ideaDb.createIdea({
-        id: ideaId,
-        scan_id: scanId,
-        project_id: projectId,
-        context_id: contextId || null,
-        scan_type: scanType,
-        category: idea.category,
-        title: idea.title,
-        description: idea.description,
-        reasoning: idea.reasoning,
-        status: 'pending',
-        effort: idea.effort || null,
-        impact: idea.impact || null
+    const savedIdeas = parsedIdeas
+      .filter(idea => {
+        // Skip ideas without required fields
+        if (!idea.title || typeof idea.title !== 'string' || idea.title.trim() === '') {
+          console.warn('[generateIdeas] Skipping idea without valid title:', idea);
+          return false;
+        }
+        return true;
+      })
+      .map(idea => {
+        const ideaId = uuidv4();
+
+        // Ensure all required fields have valid values with fallbacks
+        const category = idea.category && typeof idea.category === 'string' && idea.category.trim() !== ''
+          ? idea.category.trim()
+          : 'general';
+
+        const title = idea.title.trim();
+        const description = idea.description && typeof idea.description === 'string' && idea.description.trim() !== ''
+          ? idea.description.trim()
+          : null;
+        const reasoning = idea.reasoning && typeof idea.reasoning === 'string' && idea.reasoning.trim() !== ''
+          ? idea.reasoning.trim()
+          : null;
+
+        return ideaDb.createIdea({
+          id: ideaId,
+          scan_id: scanId,
+          project_id: projectId,
+          context_id: contextId || null,
+          scan_type: scanType,
+          category,
+          title,
+          description,
+          reasoning,
+          status: 'pending',
+          effort: idea.effort || null,
+          impact: idea.impact || null
+        });
       });
-    });
 
     console.log(`[generateIdeas] Successfully saved ${savedIdeas.length} ideas`);
 

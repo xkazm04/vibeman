@@ -9,14 +9,18 @@ interface BatchScanButtonProps {
   disabled?: boolean;
   isScanning: boolean;
   contextsCount: number;
+  scanTypesCount: number;
 }
 
 export default function BatchScanButton({
   onClick,
   disabled = false,
   isScanning,
-  contextsCount
+  contextsCount,
+  scanTypesCount
 }: BatchScanButtonProps) {
+  const totalScans = contextsCount * scanTypesCount;
+
   return (
     <motion.button
       onClick={onClick}
@@ -28,7 +32,7 @@ export default function BatchScanButton({
       } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       whileHover={!disabled && !isScanning ? { scale: 1.05 } : {}}
       whileTap={!disabled && !isScanning ? { scale: 0.95 } : {}}
-      title="Generate ideas for all contexts in this project"
+      title={`Generate ideas for all contexts × scan types (${contextsCount} contexts × ${scanTypesCount} scan types = ${totalScans} scans)`}
     >
       {isScanning ? (
         <Loader2 className="w-4 h-4 animate-spin" />
@@ -38,7 +42,7 @@ export default function BatchScanButton({
       <span className="text-white">
         {isScanning
           ? 'Batch Scanning...'
-          : `Batch Ideas (${contextsCount})`}
+          : `Batch Ideas (${totalScans})`}
       </span>
     </motion.button>
   );

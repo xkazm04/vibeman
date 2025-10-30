@@ -48,6 +48,7 @@ export default function TinderPage() {
         stats={stats}
         loading={loading}
         processing={processing}
+        onSyncComplete={loadIdeas}
       />
       
       <TinderContent

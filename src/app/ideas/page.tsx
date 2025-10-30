@@ -34,7 +34,7 @@ export default function IdeasPage() {
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
   const [filterProject, setFilterProject] = React.useState<string>('all');
   const [filterContext, setFilterContext] = React.useState<string | null>(null);
-  const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>(['overall']);
+  const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
   const [contextsMap, setContextsMap] = React.useState<Record<string, Context[]>>({});
 
   const { projects, initializeProjects, getProject } = useProjectConfigStore();

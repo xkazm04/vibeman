@@ -82,11 +82,5 @@ export async function POST(request: NextRequest) {
 export const maxDuration = 300; // 5 minutes (max for hobby plan)
 // For self-hosted or Pro plan, you can set higher values
 
-// Disable body size limit for large codebase analysis
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb'
-    }
-  }
-};
+// Note: In Next.js App Router, body size limits are configured at the server level
+// via next.config.js or through middleware, not through route-level config

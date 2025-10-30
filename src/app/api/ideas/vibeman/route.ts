@@ -366,7 +366,7 @@ function buildEvaluationPrompt(ideas: any[], goals: any[]): string {
 - **Status**: ${idea.status}
 - **Description**: ${idea.description || 'No description'}
 - **Reasoning**: ${idea.reasoning || 'No reasoning provided'}
-- **Scan Type**: ${idea.scan_type || 'overall'}
+- **Scan Type**: ${idea.scan_type}
 `
     )
     .join('\n');
@@ -445,7 +445,7 @@ function buildRequirementContentFromIdea(idea: any): string {
 - **Category**: ${idea.category}
 - **Effort**: ${effortLabel} (${idea.effort || 'N/A'}/3)
 - **Impact**: ${impactLabel} (${idea.impact || 'N/A'}/3)
-- **Scan Type**: ${idea.scan_type || 'overall'}
+- **Scan Type**: ${idea.scan_type}
 - **Generated**: ${new Date(idea.created_at).toLocaleString()}
 
 ## Description

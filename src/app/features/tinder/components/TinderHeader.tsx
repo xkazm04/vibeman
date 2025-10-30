@@ -1,8 +1,7 @@
 'use client';
-
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
+import { Heart, CloudDownload, RefreshCw } from 'lucide-react';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { TinderStats } from '../lib/tinderHooks';
@@ -15,6 +14,7 @@ interface TinderHeaderProps {
   stats: TinderStats;
   loading?: boolean;
   processing?: boolean;
+  onSyncComplete?: () => void; // Callback to refresh ideas after sync
 }
 
 export default function TinderHeader({
@@ -24,8 +24,66 @@ export default function TinderHeader({
   stats,
   loading = false,
   processing = false,
+  onSyncComplete,
 }: TinderHeaderProps) {
   const { projects } = useProjectConfigStore();
+  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
+
+  // Check if Supabase is configured on mount
+  useEffect(() => {
+    checkSupabaseConfig();
+  }, []);
+
+  const checkSupabaseConfig = async () => {
+    try {
+      const response = await fetch('/api/db-sync/status');
+      const data = await response.json();
+      setIsSupabaseConfigured(data.configured && data.connected);
+    } catch (error) {
+      console.error('Failed to check Supabase config:', error);
+      setIsSupabaseConfigured(false);
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true);
+      setSyncError(null);
+      setSyncSuccess(false);
+
+      const response = await fetch('/api/db-sync/pull-ideas', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to sync ideas');
+      }
+
+      console.log(`Synced ${data.recordCount} ideas from Supabase`);
+      setSyncSuccess(true);
+
+      // Call the callback to refresh the ideas list
+      if (onSyncComplete) {
+        onSyncComplete();
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSyncSuccess(false), 3000);
+    } catch (error) {
+      console.error('Sync failed:', error);
+      setSyncError(error instanceof Error ? error.message : 'Sync failed');
+
+      // Clear error message after 5 seconds
+      setTimeout(() => setSyncError(null), 5000);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const projectOptions = [
     { value: 'all', label: 'All Projects' },
@@ -58,8 +116,65 @@ export default function TinderHeader({
             </div>
           </div>
 
-          {/* Center: Project Filter */}
-          <div className="flex items-center">
+          {/* Center: Sync Button + Project Filter */}
+          <div className="flex items-center gap-3">
+            {/* Supabase Sync Button */}
+            {isSupabaseConfigured && (
+              <div className="relative">
+                <motion.button
+                  onClick={handleSync}
+                  disabled={syncing || loading || processing}
+                  className={`p-2.5 rounded-lg border transition-all duration-200 ${
+                    syncing
+                      ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+                      : syncSuccess
+                      ? 'bg-green-500/20 border-green-500/40 text-green-400'
+                      : syncError
+                      ? 'bg-red-500/20 border-red-500/40 text-red-400'
+                      : 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20 hover:border-blue-500/50 text-blue-400'
+                  }`}
+                  whileHover={syncing ? {} : { scale: 1.05 }}
+                  whileTap={syncing ? {} : { scale: 0.95 }}
+                  title={
+                    syncing
+                      ? 'Syncing from Supabase...'
+                      : syncSuccess
+                      ? 'Sync completed!'
+                      : syncError
+                      ? syncError
+                      : 'Pull ideas from Supabase'
+                  }
+                >
+                  {syncing ? (
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </motion.div>
+                  ) : (
+                    <CloudDownload className="w-4 h-4" />
+                  )}
+                </motion.button>
+
+                {/* Error/Success Tooltip */}
+                {(syncError || syncSuccess) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className={`absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap z-50 shadow-lg ${
+                      syncSuccess
+                        ? 'bg-green-500/90 text-white'
+                        : 'bg-red-500/90 text-white'
+                    }`}
+                  >
+                    {syncSuccess ? 'Ideas synced!' : syncError}
+                  </motion.div>
+                )}
+              </div>
+            )}
+
             <UniversalSelect
               value={selectedProjectId}
               onChange={onProjectChange}
