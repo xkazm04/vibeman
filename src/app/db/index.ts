@@ -13,9 +13,11 @@ import { eventRepository } from './repositories/event.repository';
 import { scanRepository } from './repositories/scan.repository';
 import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
+import { featureRequestRepository } from './repositories/feature-request.repository';
 
 // Export types
 export * from './models/types';
+export * from './models/feature-request.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -102,6 +104,15 @@ export const ideaDb = {
  */
 export const implementationLogDb = {
   ...implementationLogRepository,
+  close: closeDatabase
+};
+
+/**
+ * Feature Request Database Operations
+ * Handles AI Code Concierge feature requests
+ */
+export const featureRequestDb = {
+  ...featureRequestRepository,
   close: closeDatabase
 };
 

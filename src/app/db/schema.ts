@@ -140,6 +140,59 @@ export function initializeTables() {
     );
   `);
 
+  // Create feature_requests table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feature_requests (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      requester_name TEXT NOT NULL,
+      requester_email TEXT,
+      source TEXT NOT NULL CHECK (source IN ('ui', 'notion', 'jira', 'confluence', 'slack', 'api')),
+      source_metadata TEXT,
+      natural_language_description TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'analyzing', 'code_generated', 'committed', 'approved', 'rejected', 'failed')),
+      priority TEXT NOT NULL CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+      ai_analysis TEXT,
+      generated_code TEXT,
+      generated_tests TEXT,
+      generated_documentation TEXT,
+      commit_sha TEXT,
+      commit_url TEXT,
+      error_message TEXT,
+      developer_notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT
+    );
+  `);
+
+  // Create feature_request_comments table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feature_request_comments (
+      id TEXT PRIMARY KEY,
+      feature_request_id TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      author_email TEXT,
+      comment_text TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (feature_request_id) REFERENCES feature_requests(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create feature_request_notifications table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feature_request_notifications (
+      id TEXT PRIMARY KEY,
+      feature_request_id TEXT NOT NULL,
+      recipient_email TEXT NOT NULL,
+      notification_type TEXT NOT NULL CHECK (notification_type IN ('new_request', 'code_generated', 'committed', 'approved', 'rejected', 'failed')),
+      sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+      delivery_status TEXT NOT NULL CHECK (delivery_status IN ('pending', 'sent', 'failed')),
+      error_message TEXT,
+      FOREIGN KEY (feature_request_id) REFERENCES feature_requests(id) ON DELETE CASCADE
+    );
+  `);
+
   // Run migrations for existing databases
   runMigrations();
 
@@ -166,5 +219,11 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_ideas_category ON ideas(category);
     CREATE INDEX IF NOT EXISTS idx_implementation_log_project_id ON implementation_log(project_id);
     CREATE INDEX IF NOT EXISTS idx_implementation_log_created_at ON implementation_log(project_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_project_id ON feature_requests(project_id);
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_status ON feature_requests(project_id, status);
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_created_at ON feature_requests(project_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_feature_request_comments_request_id ON feature_request_comments(feature_request_id);
+    CREATE INDEX IF NOT EXISTS idx_feature_request_notifications_request_id ON feature_request_notifications(feature_request_id);
+    CREATE INDEX IF NOT EXISTS idx_feature_request_notifications_status ON feature_request_notifications(delivery_status);
   `);
 }
