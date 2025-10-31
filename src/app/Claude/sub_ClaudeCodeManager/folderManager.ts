@@ -253,6 +253,37 @@ export function readRequirement(
 }
 
 /**
+ * Update an existing requirement file
+ */
+export function updateRequirement(
+  projectPath: string,
+  requirementName: string,
+  content: string
+): { success: boolean; error?: string } {
+  try {
+    const structure = getClaudeFolderStructure(projectPath);
+    const fileName = requirementName.endsWith('.md') ? requirementName : `${requirementName}.md`;
+    const filePath = path.join(structure.commands, fileName);
+
+    if (!fs.existsSync(filePath)) {
+      return {
+        success: false,
+        error: `Requirement "${fileName}" not found`,
+      };
+    }
+
+    fs.writeFileSync(filePath, content, 'utf-8');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating requirement:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * List all requirement files in .claude/commands
  */
 export function listRequirements(projectPath: string): {

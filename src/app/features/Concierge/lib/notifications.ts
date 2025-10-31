@@ -81,7 +81,7 @@ AI Code Concierge
   });
 
   // Log event
-  eventDb.create({
+  eventDb.createEvent({
     id: uuidv4(),
     project_id: request.project_id,
     title: 'Notification Sent',
@@ -127,7 +127,7 @@ AI Code Concierge
   });
 
   // Log event
-  eventDb.create({
+  eventDb.createEvent({
     id: uuidv4(),
     project_id: request.project_id,
     title: 'Code Generation Notification Sent',
@@ -170,7 +170,7 @@ AI Code Concierge
   });
 
   // Log event
-  eventDb.create({
+  eventDb.createEvent({
     id: uuidv4(),
     project_id: request.project_id,
     title: 'Commit Notification Sent',
@@ -210,7 +210,7 @@ AI Code Concierge
   });
 
   // Log event
-  eventDb.create({
+  eventDb.createEvent({
     id: uuidv4(),
     project_id: request.project_id,
     title: 'Failure Notification Sent',

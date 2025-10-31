@@ -8,6 +8,7 @@ export interface StructureRule {
   description: string; // What should be in this location (for LLMs)
   required?: boolean; // Whether this structure is mandatory
   examples?: string[]; // Example file paths
+  context?: boolean; // Whether this pattern defines a context (for scripted context scanning)
 }
 
 export interface ProjectStructureTemplate {
@@ -81,6 +82,22 @@ export const NEXTJS_STRUCTURE: ProjectStructureTemplate = {
       description: 'Feature-specific components should be co-located with their feature pages. Example: src/app/goals/GoalsList.tsx',
       required: false,
       examples: ['src/app/goals/GoalsList.tsx', 'src/app/coder/Context/ContextOverview.tsx'],
+    },
+
+    // Feature context detection (for scripted scanning)
+    {
+      pattern: 'src/app/features/**/layout.tsx',
+      description: 'Feature layout files that define context boundaries. Each layout.tsx and its dependencies form a context.',
+      required: false,
+      context: true,
+      examples: ['src/app/features/Dashboard/layout.tsx', 'src/app/features/Auth/sub_Login/layout.tsx'],
+    },
+    {
+      pattern: 'src/app/features/**/*layout.tsx',
+      description: 'Feature-specific layout files (e.g., DashboardLayout.tsx). Each layout and its dependencies form a context.',
+      required: false,
+      context: true,
+      examples: ['src/app/features/Dashboard/DashboardLayout.tsx', 'src/app/features/Auth/AuthLayout.tsx'],
     },
 
     // Shared resources
@@ -367,6 +384,7 @@ export const FASTAPI_STRUCTURE: ProjectStructureTemplate = {
       pattern: 'app/services/**',
       description: 'Business logic layer. Services should contain the core application logic, separate from API routes.',
       required: true,
+      context: true,
       examples: ['app/services/user_service.py', 'app/services/auth_service.py'],
     },
 

@@ -7,7 +7,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Activity, Trash2, Clock } from 'lucide-react';
-import { LLMProvider } from '../lib/voicebotTypes';
+import { LLMProvider } from '../../features/Annette/lib/voicebotTypes';
 
 type SessionState = 'idle' | 'connecting' | 'active' | 'processing' | 'error';
 

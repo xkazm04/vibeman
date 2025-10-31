@@ -2,11 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Activity } from 'lucide-react';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import VibemanControl from '../sub_Vibeman/VibemanControl';
-import TokenHeatmapModal from './TokenHeatmapModal';
-
 interface IdeaStats {
   total: number;
   pending: number;
@@ -40,7 +37,6 @@ export default function IdeasHeaderWithFilter({
   const [contexts, setContexts] = React.useState<Context[]>([]);
   const [contextGroups, setContextGroups] = React.useState<ContextGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [showTokenHeatmap, setShowTokenHeatmap] = React.useState(false);
 
   const showVibemanButton = selectedProjectId && selectedProjectId !== 'all' && selectedProjectPath;
 
@@ -125,40 +121,6 @@ export default function IdeasHeaderWithFilter({
       >
         <div className="max-w-7xl mx-auto px-6 py-6">
 
-        {/* Stats and Token Heatmap Button - Absolute Top Right */}
-        <div className="absolute top-4 right-6 flex items-center space-x-3">
-          {/* Token Heatmap Button */}
-          <motion.button
-            onClick={() => setShowTokenHeatmap(true)}
-            className="flex items-center space-x-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 rounded-lg text-sm font-medium transition-all"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            title="View token usage analytics"
-          >
-            <Activity className="w-4 h-4" />
-            <span>Token Usage</span>
-          </motion.button>
-
-          {/* Stats */}
-          <div className="flex items-center space-x-4 bg-gray-800/60 backdrop-blur-sm rounded-lg px-4 py-2 border border-gray-700/40">
-            <div className="text-sm">
-              <span className="text-gray-500">Total:</span>{' '}
-              <span className="text-white font-mono font-semibold">{stats.total}</span>
-            </div>
-            <div className="text-sm">
-              <span className="text-gray-500">Pending:</span>{' '}
-              <span className="text-blue-400 font-mono font-semibold">{stats.pending}</span>
-            </div>
-            <div className="text-sm">
-              <span className="text-gray-500">Accepted:</span>{' '}
-              <span className="text-green-400 font-mono font-semibold">{stats.accepted}</span>
-            </div>
-            <div className="text-sm">
-              <span className="text-gray-500">Implemented:</span>{' '}
-              <span className="text-amber-400 font-mono font-semibold">{stats.implemented}</span>
-            </div>
-          </div>
-        </div>
 
         {/* Project Selection Row */}
         <div className="flex items-center space-x-3 overflow-x-auto mb-3">
@@ -288,14 +250,25 @@ export default function IdeasHeaderWithFilter({
           </motion.div>
         )}
       </div>
+              {/* Stats and Token Heatmap Button - Absolute Top Right */}
+        <div className="absolute top-4 right-6 flex items-center space-x-3">
+          {/* Stats */}
+          <div className="flex items-center space-x-4 bg-gray-800/60 backdrop-blur-sm rounded-lg px-4 py-2 border border-gray-700/40">
+            <div className="text-sm">
+              <span className="text-gray-500">Pending:</span>{' '}
+              <span className="text-blue-400 font-mono font-semibold">{stats.pending}</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-gray-500">Accepted:</span>{' '}
+              <span className="text-green-400 font-mono font-semibold">{stats.accepted}</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-gray-500">Implemented:</span>{' '}
+              <span className="text-amber-400 font-mono font-semibold">{stats.implemented}</span>
+            </div>
+          </div>
+        </div>
       </motion.div>
-
-      {/* Token Heatmap Modal */}
-      <TokenHeatmapModal
-        isOpen={showTokenHeatmap}
-        onClose={() => setShowTokenHeatmap(false)}
-        projectId={selectedProjectId}
-      />
     </>
   );
 }

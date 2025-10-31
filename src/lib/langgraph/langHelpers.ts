@@ -63,13 +63,6 @@ export async function executeTool(
       const projectPath = parameters.projectPath ? `?projectPath=${encodeURIComponent(parameters.projectPath as string)}` : '';
       endpoint = `${baseUrl}/api/kiro/folder-structure${projectPath}`;
     }
-    else if (toolName === 'get_background_tasks') {
-      const queryParams = new URLSearchParams();
-      if (parameters.projectId) queryParams.append('projectId', parameters.projectId as string);
-      if (parameters.status) queryParams.append('status', parameters.status as string);
-      if (parameters.limit) queryParams.append('limit', String(parameters.limit));
-      endpoint = `${baseUrl}/api/kiro/background-tasks?${queryParams.toString()}`;
-    }
     else if (toolName === 'get_requirements_status') {
       endpoint = `${baseUrl}/api/requirements/status`;
     }
@@ -133,24 +126,6 @@ export async function executeTool(
       endpoint = `${baseUrl}/api/backlog`;
       method = 'DELETE';
       body = { itemId: parameters.itemId };
-    }
-
-    // ============= BACKGROUND PROCESSING =============
-    
-    else if (toolName === 'queue_background_task') {
-      endpoint = `${baseUrl}/api/kiro/background-tasks`;
-      method = 'POST';
-      body = parameters;
-    }
-    else if (toolName === 'cancel_background_task') {
-      endpoint = `${baseUrl}/api/kiro/background-tasks`;
-      method = 'DELETE';
-      body = { taskId: parameters.taskId };
-    }
-    else if (toolName === 'retry_failed_task') {
-      endpoint = `${baseUrl}/api/kiro/background-tasks/retry`;
-      method = 'POST';
-      body = { taskId: parameters.taskId };
     }
 
     // ============= FILE OPERATIONS =============

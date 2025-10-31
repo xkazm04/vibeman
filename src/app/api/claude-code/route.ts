@@ -5,6 +5,7 @@ import {
   initializeClaudeFolder,
   createRequirement,
   readRequirement,
+  updateRequirement,
   listRequirements,
   deleteRequirement,
   readClaudeSettings,
@@ -314,10 +315,18 @@ export async function POST(request: NextRequest) {
                   const logContent = fs.readFileSync(latestLogPath, 'utf-8');
                   const hasExited = logContent.includes('Process exited with code');
 
+                  // Extract requirement name from log filename if possible
+                  const logFileName = path.basename(latestLogPath, '.log');
+                  const requirementName = logFileName.replace(taskId + '-', '') || 'unknown';
+
                   // Reconstruct task object from log file
                   if (hasExited) {
                     const exitCode = logContent.match(/Process exited with code:\s*(\d+)/)?.[1];
                     task = {
+                      id: taskId,
+                      projectPath: project.path,
+                      requirementName,
+                      projectId: project.id,
                       status: exitCode === '0' ? 'completed' : 'failed',
                       progress: [],
                       error: exitCode !== '0' ? 'Execution failed' : undefined,
@@ -327,6 +336,10 @@ export async function POST(request: NextRequest) {
                   } else {
                     // Still running
                     task = {
+                      id: taskId,
+                      projectPath: project.path,
+                      requirementName,
+                      projectId: project.id,
                       status: 'running',
                       progress: [],
                       logFilePath: latestLogPath,
@@ -363,6 +376,15 @@ export async function POST(request: NextRequest) {
             { status: 404 }
           );
         }
+      }
+
+      // Final check - if task still not found, return error
+      if (!task) {
+        console.error('[API Backend] ❌ Task could not be found or reconstructed:', { taskId });
+        return NextResponse.json(
+          { error: 'Task not found' },
+          { status: 404 }
+        );
       }
 
       // Log detailed task status for debugging
@@ -514,6 +536,60 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in DELETE /api/claude-code:', error);
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT - Update requirement
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { projectPath, action, requirementName, content } = body;
+
+    if (!projectPath) {
+      return NextResponse.json(
+        { error: 'Project path is required' },
+        { status: 400 }
+      );
+    }
+
+    // Update requirement
+    if (action === 'update-requirement') {
+      if (!requirementName || !content) {
+        return NextResponse.json(
+          { error: 'Requirement name and content are required' },
+          { status: 400 }
+        );
+      }
+
+      const result = updateRequirement(projectPath, requirementName, content);
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error || 'Failed to update requirement' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Requirement updated successfully',
+      });
+    }
+
+    return NextResponse.json(
+      { error: 'Invalid action parameter' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error in PUT /api/claude-code:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',

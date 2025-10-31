@@ -171,27 +171,3 @@ export async function generateCodeTasks(
 
   throw new Error('No code tasks returned from API');
 }
-
-/**
- * Queue a background task
- */
-export async function queueBackgroundTask(
-  request: BackgroundTaskRequest
-): Promise<{ success: boolean; task?: any; error?: string }> {
-  const response = await fetch('/api/kiro/background-tasks', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...request,
-      priority: request.priority ?? 1, // Default priority for user-initiated tasks
-    }),
-  });
-
-  const result = await response.json();
-
-  if (!result.success) {
-    throw new Error(result.error || `Failed to queue background ${request.taskType} task`);
-  }
-
-  return result;
-}

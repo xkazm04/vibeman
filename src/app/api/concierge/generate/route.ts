@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     featureRequestDb.update(requestId, { status: 'analyzing' });
 
     // Log event
-    eventDb.create({
+    eventDb.createEvent({
       id: uuidv4(),
       project_id: featureRequest.project_id,
       title: 'Analyzing Feature Request',
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Log success event
-      eventDb.create({
+      eventDb.createEvent({
         id: uuidv4(),
         project_id: featureRequest.project_id,
         title: 'Code Generated Successfully',
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Log error event
-      eventDb.create({
+      eventDb.createEvent({
         id: uuidv4(),
         project_id: featureRequest.project_id,
         title: 'Code Generation Failed',

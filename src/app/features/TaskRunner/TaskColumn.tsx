@@ -111,6 +111,7 @@ const TaskColumn = React.memo(function TaskColumn({
                 isSelected={selectedRequirements.has(reqId)}
                 onToggleSelect={() => onToggleSelect(reqId)}
                 onDelete={() => onDelete(reqId)}
+                projectPath={req.projectPath}
               />
             );
           })

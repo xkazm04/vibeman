@@ -8,10 +8,17 @@ export type OnboardingStep =
   | 'scan-ideas'
   | 'let-code';
 
+export type AppModule = 'coder' | 'ideas' | 'tinder' | 'tasker' | 'reflector';
+
 interface OnboardingState {
   completedSteps: OnboardingStep[];
   currentStep: OnboardingStep | null;
   refreshTrigger: number; // Used to trigger re-checking
+
+  // Navigation state
+  activeModule: AppModule;
+  isControlPanelOpen: boolean;
+  isBlueprintOpen: boolean;
 
   // Actions
   completeStep: (step: OnboardingStep) => void;
@@ -21,6 +28,14 @@ interface OnboardingState {
   getNextIncompleteStep: () => OnboardingStep | null;
   resetOnboarding: () => void;
   triggerRefresh: () => void; // Manually trigger condition re-check
+
+  // Navigation actions
+  setActiveModule: (module: AppModule) => void;
+  openControlPanel: () => void;
+  closeControlPanel: () => void;
+  openBlueprint: () => void;
+  closeBlueprint: () => void;
+  toggleControlPanel: () => void;
 }
 
 const STEP_ORDER: OnboardingStep[] = [
@@ -37,6 +52,11 @@ export const useOnboardingStore = create<OnboardingState>()(
       completedSteps: [],
       currentStep: null,
       refreshTrigger: 0,
+
+      // Navigation state
+      activeModule: 'coder',
+      isControlPanelOpen: false,
+      isBlueprintOpen: false,
 
       completeStep: (step: OnboardingStep) => {
         const { completedSteps } = get();
@@ -93,7 +113,32 @@ export const useOnboardingStore = create<OnboardingState>()(
 
       triggerRefresh: () => {
         set((state) => ({ refreshTrigger: state.refreshTrigger + 1 }));
-      }
+      },
+
+      // Navigation actions
+      setActiveModule: (module: AppModule) => {
+        set({ activeModule: module });
+      },
+
+      openControlPanel: () => {
+        set({ isControlPanelOpen: true, isBlueprintOpen: false });
+      },
+
+      closeControlPanel: () => {
+        set({ isControlPanelOpen: false });
+      },
+
+      openBlueprint: () => {
+        set({ isBlueprintOpen: true, isControlPanelOpen: false });
+      },
+
+      closeBlueprint: () => {
+        set({ isBlueprintOpen: false });
+      },
+
+      toggleControlPanel: () => {
+        set((state) => ({ isControlPanelOpen: !state.isControlPanelOpen }));
+      },
     }),
     {
       name: 'onboarding-storage',

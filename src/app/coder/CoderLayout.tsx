@@ -1,11 +1,12 @@
 'use client';
+import React from 'react';
 import GoalsLayout from './Goals/GoalsLayout';
 import HorizontalContextBar from './Context/HorizontalContextBar';
 import { useStore } from '../../stores/nodeStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
 import ClaudeSection from '../Claude/ClaudeSection';
 
-export default function CoderLayout() {
+const CoderLayout = () => {
   const { getSelectedFilePaths } = useStore();
   const { fileStructure, activeProject } = useActiveProjectStore();
 
@@ -34,4 +35,6 @@ export default function CoderLayout() {
       </div>
     </div>
   );
-}
+};
+
+export default React.memo(CoderLayout);

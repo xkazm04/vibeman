@@ -36,7 +36,7 @@ export async function GET(
     const projects = projectIds.map((id: string) => {
       const project = allProjects.find(p => p.id === id);
       return project;
-    }).filter(Boolean);
+    }).filter((p: any): p is NonNullable<typeof p> => Boolean(p));
 
     // Get shared dependencies and relationships
     const sharedDependencies = sharedDependencyDb.getSharedDependenciesByScan(scanId);
@@ -48,7 +48,7 @@ export async function GET(
     const nodeMap = new Map<string, number>();
 
     // Add project nodes
-    projects.forEach((project, index) => {
+    projects.forEach((project: any, index: number) => {
       const nodeId = `project-${project.id}`;
       nodeMap.set(nodeId, nodes.length);
 

@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
       console.error('[API] Sync completed with errors');
       return NextResponse.json(
         {
+          ...result,
           success: false,
           message: 'Sync completed with errors',
-          ...result
         },
         { status: 500 }
       );
@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
     console.log(`[API] Sync completed successfully. Total records: ${result.totalRecords}`);
 
     return NextResponse.json({
+      ...result,
       success: true,
       message: 'Database synced successfully',
-      ...result
     });
 
   } catch (error) {

@@ -14,10 +14,12 @@ import { scanRepository } from './repositories/scan.repository';
 import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
 import { featureRequestRepository } from './repositories/feature-request.repository';
+import { conversationRepository } from './repositories/conversation.repository';
 
 // Export types
 export * from './models/types';
 export * from './models/feature-request.types';
+export * from './models/conversation.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -113,6 +115,15 @@ export const implementationLogDb = {
  */
 export const featureRequestDb = {
   ...featureRequestRepository,
+  close: closeDatabase
+};
+
+/**
+ * Conversation Database Operations
+ * Handles Annette's conversation memory
+ */
+export const conversationDb = {
+  ...conversationRepository,
   close: closeDatabase
 };
 

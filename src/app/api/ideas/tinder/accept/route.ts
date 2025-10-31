@@ -95,13 +95,20 @@ ${idea.description || 'No description provided'}
 ## Reasoning
 ${idea.reasoning || 'No reasoning provided'}
 
-## Implementation guidelines
+## Implementation Guidelines
 
-The implementation should:
-- Fulfill the description and reasoning outlined above
-- Maintain or improve code quality
-- Be well-tested
-- Follow project conventions and patterns
+⚠️ **Important**: Before implementing this requirement, use the Claude Code skill for comprehensive guidelines:
+
+\`\`\`
+/implementation-guidelines
+\`\`\`
+
+This skill provides detailed guidance on:
+- Code quality standards
+- Testing requirements
+- Project conventions
+- Technical best practices
+- Quality checklist
 
 ## Notes
 

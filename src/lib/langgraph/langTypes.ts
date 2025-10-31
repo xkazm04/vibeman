@@ -81,6 +81,7 @@ export interface LangGraphResponse {
   steps?: string[];
   error?: string;
   isDestructive?: boolean;
+  [key: string]: unknown;
 }
 
 export interface ConfirmationState {

@@ -170,7 +170,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
       });
 
       // Log success event
-      eventDb.create({
+      eventDb.createEvent({
         id: uuidv4(),
         project_id: featureRequest.project_id,
         title: autoCommit ? 'Code Committed' : 'Code Written to Disk',
@@ -201,7 +201,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
       });
 
       // Log error event
-      eventDb.create({
+      eventDb.createEvent({
         id: uuidv4(),
         project_id: featureRequest.project_id,
         title: 'Code Commit Failed',

@@ -4,13 +4,13 @@
  */
 
 // Type Definitions
-export * from './voicebotTypes';
+export * from '../../features/Annette/lib/voicebotTypes';
 
 // API Operations
-export * from './voicebotApi';
+export * from '../../features/Annette/lib/voicebotApi';
 
 // Utility Functions
-export * from './voicebotUtils';
+export * from '../../features/Annette/lib/voicebotUtils';
 
 // Conversation Evaluation
 export * from './conversationEvaluation';

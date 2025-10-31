@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Trash2, ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { StructureRule } from '@/app/api/structure-scan/structureTemplates';
+import { StyledCheckbox } from '@/components/ui';
 
 interface RuleEditorRowProps {
   rule: StructureRule;
@@ -27,6 +28,10 @@ export default function RuleEditorRow({ rule, index, onUpdate, onDelete }: RuleE
 
   const handleRequiredChange = (required: boolean) => {
     onUpdate({ ...rule, required });
+  };
+
+  const handleContextChange = (context: boolean) => {
+    onUpdate({ ...rule, context });
   };
 
   const handleAddExample = () => {
@@ -90,15 +95,27 @@ export default function RuleEditorRow({ rule, index, onUpdate, onDelete }: RuleE
           />
 
           {/* Required Checkbox */}
-          <label className="flex items-center gap-1.5 cursor-pointer flex-shrink-0 px-2">
-            <input
-              type="checkbox"
+          <div className="flex-shrink-0">
+            <StyledCheckbox
               checked={rule.required || false}
-              onChange={(e) => handleRequiredChange(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-900/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
+              onChange={handleRequiredChange}
+              label="Required"
+              size="sm"
+              colorScheme="cyan"
             />
-            <span className="text-xs text-gray-400 whitespace-nowrap">Required</span>
-          </label>
+          </div>
+
+          {/* Context Checkbox */}
+          <div className="flex-shrink-0">
+            <StyledCheckbox
+              checked={rule.context || false}
+              onChange={handleContextChange}
+              label="Context"
+              size="sm"
+              colorScheme="purple"
+              title="Mark as context definition for scripted scanning"
+            />
+          </div>
 
           {/* Examples Count Badge */}
           <div className="flex-shrink-0 px-2 py-1 bg-gray-900/50 border border-gray-600/50 rounded text-xs text-gray-500 min-w-[60px] text-center">

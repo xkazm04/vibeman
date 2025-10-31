@@ -16,6 +16,7 @@ export {
   initializeClaudeFolder,
   createRequirement,
   readRequirement,
+  updateRequirement,
   listRequirements,
   deleteRequirement,
   updateClaudeSettings,

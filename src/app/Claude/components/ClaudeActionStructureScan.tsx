@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Layers, Settings } from 'lucide-react';
-import { startStructureScan } from '../lib/structureScanManager';
+import { startStructureScan } from '../../../lib/scanner/structureScanner/structureScanManager';
 import StructureTemplateEditor from '../sub_ClaudeStructureScan/components/StructureTemplateEditor';
 
 interface ClaudeActionStructureScanProps {

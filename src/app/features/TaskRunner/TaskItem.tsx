@@ -2,14 +2,21 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FileCode, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2 } from 'lucide-react';
+
+import { useGlobalModal } from '@/hooks/useGlobalModal';
+import { RequirementViewer } from '@/components/RequirementViewer';
 import type { ProjectRequirement } from './lib/types';
+import { useContextMenu } from '@/components/ContextMenu/useContextMenu';
+import { ContextMenuItem } from '@/components/ContextMenu/ContextMenu';
+import ContextMenu from '@/components/ContextMenu';
 
 interface TaskItemProps {
   requirement: ProjectRequirement;
   isSelected: boolean;
   onToggleSelect: () => void;
   onDelete: () => void;
+  projectPath: string;
 }
 
 export default function TaskItem({
@@ -17,13 +24,64 @@ export default function TaskItem({
   isSelected,
   onToggleSelect,
   onDelete,
+  projectPath,
 }: TaskItemProps) {
   const { requirementName, status } = requirement;
+  const contextMenu = useContextMenu();
+  const { showFullScreenModal } = useGlobalModal();
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    onDelete();
+    contextMenu.show(e);
   };
+
+  const handleEdit = () => {
+    showFullScreenModal(
+      `Edit Requirement: ${requirementName}`,
+      <RequirementViewer
+        projectPath={projectPath}
+        requirementName={requirementName}
+        allowEdit={true}
+      />,
+      {
+        icon: Edit2,
+        iconBgColor: 'from-purple-600/20 to-pink-600/20',
+        iconColor: 'text-purple-400',
+        maxWidth: 'max-w-5xl',
+        maxHeight: 'max-h-[90vh]',
+      }
+    );
+  };
+
+  const contextMenuItems: ContextMenuItem[] = [
+    {
+      id: 'edit',
+      label: 'Edit Requirement',
+      icon: Edit2,
+      iconColor: 'text-cyan-400',
+      hoverColors: {
+        from: 'cyan-500/10',
+        to: 'blue-500/10',
+        border: 'cyan-500/30',
+        text: 'cyan-300',
+      },
+      action: handleEdit,
+    },
+    {
+      id: 'divider',
+      label: '',
+      icon: FileCode, // Unused for divider
+      isDivider: true,
+      action: () => {},
+    },
+    {
+      id: 'delete',
+      label: 'Delete Requirement',
+      icon: Trash2,
+      isDanger: true,
+      action: onDelete,
+    },
+  ];
 
   const getStatusIcon = () => {
     switch (status) {
@@ -60,32 +118,42 @@ export default function TaskItem({
   const isDisabled = status === 'running' || status === 'queued';
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={!isDisabled ? onToggleSelect : undefined}
-      onContextMenu={handleContextMenu}
-      className={`
-        relative rounded-md border transition-all cursor-pointer
-        ${getStatusColor()}
-        ${isSelected && !isDisabled ? 'border-emerald-500/50 bg-emerald-500/5' : ''}
-        ${isDisabled ? 'cursor-not-allowed opacity-75' : 'hover:border-gray-600/60'}
-        px-2.5 py-2 flex items-center justify-between gap-2
-      `}
-    >
-      {/* Requirement name and icon */}
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        {getStatusIcon()}
-        <span className="text-sm text-gray-200 font-mono truncate" title={requirementName}>
-          {requirementName}
-        </span>
-      </div>
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={!isDisabled ? onToggleSelect : undefined}
+        onContextMenu={handleContextMenu}
+        className={`
+          relative rounded-md border transition-all cursor-pointer
+          ${getStatusColor()}
+          ${isSelected && !isDisabled ? 'border-emerald-500/50 bg-emerald-500/5' : ''}
+          ${isDisabled ? 'cursor-not-allowed opacity-75' : 'hover:border-gray-600/60'}
+          px-2.5 py-2 flex items-center justify-between gap-2
+        `}
+      >
+        {/* Requirement name and icon */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {getStatusIcon()}
+          <span className="text-sm text-gray-200 font-mono truncate" title={requirementName}>
+            {requirementName}
+          </span>
+        </div>
 
-      {/* Selection indicator */}
-      {isSelected && !isDisabled && (
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-      )}
-    </motion.div>
+        {/* Selection indicator */}
+        {isSelected && !isDisabled && (
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+        )}
+      </motion.div>
+
+      {/* Context Menu */}
+      <ContextMenu
+        isVisible={contextMenu.isVisible}
+        position={contextMenu.position}
+        onClose={contextMenu.hide}
+        items={contextMenuItems}
+      />
+    </>
   );
 }

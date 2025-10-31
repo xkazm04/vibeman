@@ -193,6 +193,31 @@ export function initializeTables() {
     );
   `);
 
+  // Create conversations table for Annette's memory
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      title TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Create messages table for conversation history
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+      content TEXT NOT NULL,
+      memory_type TEXT, -- Free string for future categorization (e.g., 'user_preference', 'project_fact', 'action')
+      metadata TEXT, -- JSON string for additional data
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+  `);
+
   // Run migrations for existing databases
   runMigrations();
 

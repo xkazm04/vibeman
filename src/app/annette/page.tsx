@@ -17,7 +17,7 @@ import {
   createConfirmationState, 
   resetConfirmationState 
 } from './lib/langgraphHelpers';
-import { generateTextToSpeech, playAudio } from './lib/ttsGen';
+import { generateTextToSpeech, playAudio } from '../features/Annette/lib/ttsGen';
 import { createProjectContext, getHardcodedActiveProject } from './lib/projectHelpers';
 import { createLogEntry, createLLMResponseLog } from './lib/logHelpers';
 

@@ -34,6 +34,7 @@ export interface LangGraphResponse {
   confidence?: number;
   userIntent?: string;
   analysis?: string;
+  [key: string]: unknown;
 }
 
 export interface ConfirmationRequest {

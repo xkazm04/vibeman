@@ -27,6 +27,7 @@
     "minimatch": "^10.0.3",
     "next": "16.0.0",
     "openai": "^5.10.2",
+    "playwright-core": "^1.56.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-markdown": "^10.1.0",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/glob": "^8.1.0",
     "@types/madge": "^5.0.3",
     "@types/node": "^20",
     "@types/react": "19.2.2",
