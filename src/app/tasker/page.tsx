@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, History, ChevronDown } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';

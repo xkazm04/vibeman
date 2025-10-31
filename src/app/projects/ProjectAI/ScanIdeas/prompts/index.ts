@@ -33,7 +33,6 @@ export type PromptBuilder = (options: PromptOptions) => string;
  * Map of scan types to their prompt builders
  */
 export const PROMPT_BUILDERS: Record<ScanType, PromptBuilder> = {
-  overall: buildOverallPrompt,
   zen_architect: buildZenArchitectPrompt,
   bug_hunter: buildBugHunterPrompt,
   perf_optimizer: buildPerfOptimizerPrompt,
@@ -52,7 +51,7 @@ export const PROMPT_BUILDERS: Record<ScanType, PromptBuilder> = {
  * Get the appropriate prompt builder for a scan type
  */
 export function getPromptBuilder(scanType: ScanType): PromptBuilder {
-  return PROMPT_BUILDERS[scanType] || PROMPT_BUILDERS.overall;
+  return PROMPT_BUILDERS[scanType];
 }
 
 /**

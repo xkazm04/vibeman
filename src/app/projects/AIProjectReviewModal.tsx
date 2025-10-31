@@ -8,26 +8,7 @@ import { SupportedProvider, DefaultProviderStorage } from '../../lib/llm';
 import { AIReviewMode } from '@/lib/api/aiProjectReviewApi';
 import { AI_REVIEW_MODE_CONFIG } from './ProjectAI/ScanModal/aiReviewConfig';
 import * as AIReviewAPI from '@/lib/api/aiProjectReviewApi';
-
-// Type definitions for AI-generated content
-interface Task {
-  title: string;
-  description: string;
-  priority?: string;
-  status?: string;
-}
-
-interface Goal {
-  title: string;
-  description: string;
-  type?: string;
-}
-
-interface CodeTask {
-  file: string;
-  task: string;
-  priority?: string;
-}
+import { useAIContentLoader, Task, Goal, CodeTask } from './ProjectAI/hooks/useAIContentLoader';
 
 interface AIProjectReviewModalProps {
   isOpen: boolean;
@@ -40,48 +21,21 @@ export default function AIProjectReviewModal({
 }: AIProjectReviewModalProps) {
   const { activeProject } = useActiveProjectStore();
 
+  // Use centralized AI content loader hook
+  const { state: contentState, actions: contentActions } = useAIContentLoader();
+
   // UI State
   const [currentView, setCurrentView] = useState<'selector' | AIReviewMode>('selector');
   const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('preview');
-  const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>(() => 
+  const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>(() =>
     DefaultProviderStorage.getDefaultProvider()
   );
-
-  // Content State
-  const [docsContent, setDocsContent] = useState('');
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [contexts, setContexts] = useState<Array<{ filename: string; content: string }>>([]);
-  const [codeTasks, setCodeTasks] = useState<CodeTask[]>([]);
-
-  // Loading States
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [tasksLoading, setTasksLoading] = useState(false);
-  const [goalsLoading, setGoalsLoading] = useState(false);
-  const [contextsLoading, setContextsLoading] = useState(false);
-  const [codeLoading, setCodeLoading] = useState(false);
-
-  // Error States
-  const [docsError, setDocsError] = useState<string | null>(null);
-  const [tasksError, setTasksError] = useState<string | null>(null);
-  const [goalsError, setGoalsError] = useState<string | null>(null);
-  const [contextsError, setContextsError] = useState<string | null>(null);
-  const [codeError, setCodeError] = useState<string | null>(null);
 
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       setCurrentView('selector');
-      setDocsContent('');
-      setTasks([]);
-      setGoals([]);
-      setContexts([]);
-      setCodeTasks([]);
-      setDocsError(null);
-      setTasksError(null);
-      setGoalsError(null);
-      setContextsError(null);
-      setCodeError(null);
+      contentActions.resetAll();
       setPreviewMode('preview');
     }
   }, [isOpen]);
@@ -120,42 +74,28 @@ export default function AIProjectReviewModal({
   };
 
   /**
-   * Unified content generation using configuration mapping
+   * Unified content generation using hook's centralized state management
    */
   const generateContent = async (mode: AIReviewMode) => {
     if (!activeProject || mode === 'file-scanner') return;
 
-    const setters = {
-      setDocsLoading,
-      setTasksLoading,
-      setGoalsLoading,
-      setContextsLoading,
-      setCodeLoading,
-      setDocsError,
-      setTasksError,
-      setGoalsError,
-      setContextsError,
-      setCodeError,
-      setDocsContent,
-      setTasks,
-      setGoals,
-      setContexts,
-      setCodeTasks,
+    // Map AIReviewMode to content loader mode
+    const modeMap: Record<AIReviewMode, 'docs' | 'goals' | 'contexts'> = {
+      docs: 'docs',
+      goals: 'goals',
+      context: 'contexts',
+      'file-scanner': 'docs', // fallback, won't be used due to early return
     };
 
-    const config = AI_REVIEW_MODE_CONFIG[mode];
-    if (!config) return;
+    const loaderMode = modeMap[mode];
+    if (!loaderMode) return;
 
-    const setLoading = setters[config.setLoadingKey];
-    const setError = setters[config.setErrorKey];
-    const setData = setters[config.setDataKey];
-
-    setLoading(true);
-    setError(null);
+    contentActions.setLoading(loaderMode, true);
+    contentActions.setError(loaderMode, null);
 
     try {
       let data;
-      
+
       switch (mode) {
         case 'docs':
           data = await AIReviewAPI.generateDocs(
@@ -184,12 +124,15 @@ export default function AIProjectReviewModal({
       }
 
       if (data) {
-        setData(data as never);
+        contentActions.setData(loaderMode, data as any);
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : `Failed to generate ${mode}`);
+      contentActions.setError(
+        loaderMode,
+        error instanceof Error ? error.message : `Failed to generate ${mode}`
+      );
     } finally {
-      setLoading(false);
+      contentActions.setLoading(loaderMode, false);
     }
   };
 
@@ -198,37 +141,28 @@ export default function AIProjectReviewModal({
   };
 
   const handleAcceptTask = (index: number) => {
-    console.log('Accept task:', tasks[index]);
+    console.log('Accept task:', contentState.tasks.data[index]);
     // TODO: Implement task acceptance logic
   };
 
   const handleRejectTask = (index: number) => {
-    console.log('Reject task:', tasks[index]);
+    console.log('Reject task:', contentState.tasks.data[index]);
     // TODO: Implement task rejection logic
   };
 
   const handleAcceptGoal = (index: number) => {
-    console.log('Accept goal:', goals[index]);
+    console.log('Accept goal:', contentState.goals.data[index]);
     // TODO: Implement goal acceptance logic
   };
 
   const handleRejectGoal = (index: number) => {
-    console.log('Reject goal:', goals[index]);
+    console.log('Reject goal:', contentState.goals.data[index]);
     // TODO: Implement goal rejection logic
   };
 
   const handleClose = () => {
     setCurrentView('selector');
-    setDocsContent('');
-    setTasks([]);
-    setGoals([]);
-    setContexts([]);
-    setCodeTasks([]);
-    setDocsError(null);
-    setTasksError(null);
-    setGoalsError(null);
-    setContextsError(null);
-    setCodeError(null);
+    contentActions.resetAll();
     onClose();
   };
 
@@ -244,38 +178,39 @@ export default function AIProjectReviewModal({
       );
     }
 
-    // Use configuration-based rendering
+    // Use configuration-based rendering with centralized state
     const config = AI_REVIEW_MODE_CONFIG[currentView as AIReviewMode];
     if (!config) return null;
 
-    const stateMap = {
-      docsContent,
-      tasks,
-      goals,
-      contexts,
-      codeTasks,
-      docsLoading,
-      tasksLoading,
-      goalsLoading,
-      contextsLoading,
-      codeLoading,
-      docsError,
-      tasksError,
-      goalsError,
-      contextsError,
-      codeError,
+    // Map mode to content state
+    const modeStateMap: Record<string, any> = {
+      docsContent: contentState.docs.data,
+      tasks: contentState.tasks.data,
+      goals: contentState.goals.data,
+      contexts: contentState.contexts.data,
+      codeTasks: contentState.code.data,
+      docsLoading: contentState.docs.loading,
+      tasksLoading: contentState.tasks.loading,
+      goalsLoading: contentState.goals.loading,
+      contextsLoading: contentState.contexts.loading,
+      codeLoading: contentState.code.loading,
+      docsError: contentState.docs.error,
+      tasksError: contentState.tasks.error,
+      goalsError: contentState.goals.error,
+      contextsError: contentState.contexts.error,
+      codeError: contentState.code.error,
     };
 
     return config.renderComponent({
-      data: stateMap[config.dataKey],
-      loading: stateMap[config.loadingKey],
-      error: stateMap[config.errorKey],
+      data: modeStateMap[config.dataKey],
+      loading: modeStateMap[config.loadingKey],
+      error: modeStateMap[config.errorKey],
       onBack: handleBack,
       activeProject,
       // Docs-specific props
       previewMode,
       onPreviewModeChange: setPreviewMode,
-      onContentChange: setDocsContent,
+      onContentChange: (content: string) => contentActions.setData('docs', content),
       // Task/Goal-specific props
       onAcceptTask: handleAcceptTask,
       onRejectTask: handleRejectTask,

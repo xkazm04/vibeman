@@ -95,22 +95,12 @@ ${idea.description || 'No description provided'}
 ## Reasoning
 ${idea.reasoning || 'No reasoning provided'}
 
-## Implementation Guidelines
-
-Please implement this feature following these guidelines:
-
-1. **Code Quality**: Follow existing code patterns and conventions in the project
-2. **Testing**: Add appropriate tests if applicable
-3. **Documentation**: Update relevant documentation
-4. **Error Handling**: Include proper error handling and edge cases
-5. **User Experience**: Consider the user experience and accessibility
-
-## Acceptance Criteria
+## Implementation guidelines
 
 The implementation should:
 - Fulfill the description and reasoning outlined above
 - Maintain or improve code quality
-- Be well-tested and documented
+- Be well-tested
 - Follow project conventions and patterns
 
 ## Notes

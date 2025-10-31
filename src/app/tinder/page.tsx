@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import TinderHeader from '@/app/features/tinder/components/TinderHeader';
 import TinderContent from '@/app/features/tinder/components/TinderContent';
