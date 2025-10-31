@@ -3,6 +3,8 @@
  * Combines all perspectives for holistic code review
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -84,42 +86,9 @@ You must analyze the code from ALL of these perspectives and generate ideas acro
 - User journey enhancements
 - Value multiplication opportunities
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown code blocks, no explanations, just pure JSON.
-
-\`\`\`json
-[
-  {
-    "category": "functionality|performance|maintenance|ui|code_quality|user_benefit",
-    "title": "Short, descriptive title (max 60 characters)",
-    "description": "Detailed explanation of the idea, what it solves, and how it helps (2-4 sentences). Be specific about implementation approach.",
-    "reasoning": "Why this idea is valuable. What problem does it solve? What's the impact? Include metrics if possible (2-3 sentences).",
-    "effort": 1-3,
-    "impact": 1-3
-  }
-]
-\`\`\`
-
-### Effort and Impact Ratings:
-
-**Effort** (Implementation difficulty):
-- **1** = Low effort (Quick fix, minor change, 1-2 hours)
-- **2** = Medium effort (Moderate change, requires planning, 1-2 days)
-- **3** = High effort (Major change, significant refactoring, 1+ weeks)
-
-**Impact** (Value to project):
-- **1** = Low impact (Nice to have, minor improvement)
-- **2** = Medium impact (Noticeable improvement, good value)
-- **3** = High impact (Game changer, major value, critical improvement)
-
-### Category Guidelines:
-- **functionality**: New features, missing capabilities, workflow improvements
-- **performance**: Speed, efficiency, memory, database, rendering optimizations
-- **maintenance**: Code organization, refactoring, technical debt, testing
-- **ui**: Visual design, UX improvements, accessibility, responsiveness
-- **code_quality**: Security, error handling, type safety, edge cases
-- **user_benefit**: High-level value propositions, business impact, user experience
+${getCategoryGuidance(['functionality', 'performance', 'maintenance', 'ui', 'code_quality', 'user_benefit'])}
 
 ### Quality Requirements:
 1. **Specificity**: Don't say "improve performance" - say "implement memoization in ProductList component to prevent re-renders"
@@ -198,5 +167,5 @@ You are analyzing a SPECIFIC CONTEXT within the project. Your ideas should:
 
 Now, analyze the provided code and generate your ideas in the JSON format specified above.
 
-Remember: Return ONLY the JSON array, nothing else.`;
+${JSON_OUTPUT_REMINDER}`;
 }

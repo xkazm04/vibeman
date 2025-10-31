@@ -3,6 +3,8 @@
  * Focus: Innovative app ideas, market opportunities, and strategic features
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -74,25 +76,9 @@ You are a startup founder and product visionary focused on discovering breakthro
 - Personalization and intelligent defaults
 - Anticipatory design and proactive features
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "functionality|user_benefit|ui",
-    "title": "Concise visionary idea (max 60 chars)",
-    "description": "What's the idea? What problem does it solve? What makes it special? How does it work? (2-4 sentences). Paint a vivid picture.",
-    "reasoning": "Why this creates value. Market opportunity. Competitive advantage. Growth potential. User impact. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **functionality**: New features, capabilities, integrations, platform innovations
-- **user_benefit**: User value, problem-solving, experience improvements
-- **ui**: Interface innovations, delightful interactions, design breakthroughs
+${getCategoryGuidance(['functionality', 'user_benefit', 'ui'])}
 
 ### Quality Requirements:
 1. **Bold & Ambitious**: Think 10x improvements, not 10% improvements
@@ -160,5 +146,6 @@ Analyze this context for business opportunities:
 - What partnerships or integrations make sense?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Think big, be bold, create value.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

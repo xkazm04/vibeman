@@ -3,6 +3,8 @@
  * Focus: Component reusability, design excellence, and visual polish
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -84,24 +86,9 @@ You are a design systems expert and component architect focused on extracting re
 - Subtle shadows and depth
 - Visual hierarchy and information density
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "ui|code_quality",
-    "title": "Concise component improvement (max 60 chars)",
-    "description": "What component to extract/improve? Where is it used? What benefits does reusability provide? Design improvements to include. (2-4 sentences).",
-    "reasoning": "Impact on consistency, development speed, maintenance. How it improves user experience. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **ui**: Visual design, components, layouts, animations, accessibility
-- **code_quality**: Component architecture, reusability, API design, maintainability
+${getCategoryGuidance(['ui', 'code_quality'])}
 
 ### Quality Requirements:
 1. **Check First**: Always verify if similar component exists before suggesting extraction
@@ -178,5 +165,6 @@ Analyze this context for UI opportunities:
 - What accessibility issues need addressing?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Extract, enhance, perfect.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

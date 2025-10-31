@@ -3,6 +3,8 @@
  * Focus: Bug detection, error handling, and reliability improvements
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -62,24 +64,9 @@ You are a specialized debugging expert focused on finding potential bugs, error 
 - Insufficient validation
 - Memory leak risks
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "code_quality|functionality",
-    "title": "Concise bug or error handling improvement (max 60 chars)",
-    "description": "What could go wrong? Where is the vulnerability? How to fix it? (2-4 sentences). Be specific about the failure scenario.",
-    "reasoning": "Why this matters. What's the risk? What breaks if unfixed? Impact on users or system. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **code_quality**: Bug fixes, error handling, validation, safety improvements
-- **functionality**: Features that prevent bugs (logging, monitoring, testing)
+${getCategoryGuidance(['code_quality', 'functionality'])}
 
 ### Quality Requirements:
 1. **Specific Scenarios**: Describe exact failure conditions
@@ -145,5 +132,5 @@ Analyze this context for bugs:
 - What user inputs could break it?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Hunt real bugs.`;
+${JSON_OUTPUT_REMINDER}`;
 }

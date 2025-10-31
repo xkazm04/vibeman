@@ -3,6 +3,8 @@
  * Focus: Trade-off analysis, uncertainty navigation, multiple valid approaches
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -66,25 +68,9 @@ Generate **development ideas** that:
 - Flexible approaches over rigid solutions
 - Adaptive behaviors based on context
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "maintenance|functionality|user_benefit",
-    "title": "Concise trade-off or uncertainty to address (max 60 chars)",
-    "description": "What's the tension or uncertainty? What are the competing considerations? What approaches exist? (2-4 sentences). Present multiple perspectives.",
-    "reasoning": "Why this ambiguity matters. What's lost with premature resolution? How does clarifying this help? (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **maintenance**: Trade-offs in technical decisions, competing patterns
-- **functionality**: Feature decisions with multiple valid approaches
-- **user_benefit**: User experience trade-offs, different user needs
+${getCategoryGuidance(['maintenance', 'functionality', 'user_benefit'])}
 
 ### Quality Requirements:
 1. **Balanced**: Present multiple perspectives fairly
@@ -150,5 +136,6 @@ Analyze this context for ambiguity:
 - Where is context-dependent behavior needed?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Preserve productive ambiguity.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

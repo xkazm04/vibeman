@@ -3,6 +3,8 @@
  * Focus: Revolutionary connections, breakthrough insights, simplification cascades
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -54,25 +56,9 @@ You discover revolutionary connections and breakthrough insights by combining di
 - Integrations that multiply value
 - Infrastructure that enables a new category of features
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "functionality|maintenance|user_benefit",
-    "title": "Concise insight or breakthrough (max 60 chars)",
-    "description": "What's the insight? What does it unlock? How does it simplify or revolutionize? (2-4 sentences). Be specific about the transformation.",
-    "reasoning": "Why this changes everything. What becomes possible? What complexity disappears? Compound value. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **functionality**: New capabilities, revolutionary features, game-changers
-- **maintenance**: Simplifications, unifications, pattern discoveries
-- **user_benefit**: User experience breakthroughs, value multipliers
+${getCategoryGuidance(['functionality', 'maintenance', 'user_benefit'])}
 
 ### Quality Requirements:
 1. **Transformative**: Should represent a significant insight
@@ -138,5 +124,6 @@ Analyze this context for insights:
 - What simplification would cascade through the system?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Find the insights that change everything.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

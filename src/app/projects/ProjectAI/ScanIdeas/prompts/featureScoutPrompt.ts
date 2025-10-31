@@ -3,6 +3,8 @@
  * Focus: Identifying areas logically structured to support new, adjacent, or complementary features
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -74,24 +76,9 @@ You see "feature expansion zones" - places where the architecture is already set
 - Lists without sorting/pagination
 - Forms without validation helpers
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "functionality|user_benefit",
-    "title": "Concise feature opportunity (max 60 chars)",
-    "description": "What new feature? What existing infrastructure enables it? Why is it a natural fit? How would it work? (2-4 sentences).",
-    "reasoning": "Why this is low-hanging fruit. What makes it architecturally ready? User value unlocked. Effort vs impact ratio. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **functionality**: New features, capabilities, extensions, integrations
-- **user_benefit**: Workflow improvements, automation, value additions
+${getCategoryGuidance(['functionality', 'user_benefit'])}
 
 ### Quality Requirements:
 1. **Infrastructure-Aware**: Point to specific existing code/systems that enable the feature
@@ -158,5 +145,5 @@ Analyze this context for feature opportunities:
 - What workflows could be completed or enhanced?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Find the adjacent possible.`;
+${JSON_OUTPUT_REMINDER}`;
 }

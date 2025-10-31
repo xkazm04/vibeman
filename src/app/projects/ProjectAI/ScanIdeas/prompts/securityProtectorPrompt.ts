@@ -3,6 +3,8 @@
  * Focus: Security vulnerabilities, data protection, and hardening
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -79,23 +81,9 @@ Generate **development ideas** that improve:
 - Missing intrusion detection
 - No security alerting
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "code_quality",
-    "title": "Concise security improvement (max 60 chars)",
-    "description": "What's the vulnerability? How can it be exploited? How to fix it? (2-4 sentences). Be specific about the security risk.",
-    "reasoning": "Why this matters. What's the threat? What could an attacker do? Impact on users/system. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **code_quality**: Security fixes, hardening, validation, encryption
+${getCategoryGuidance(['code_quality'])}
 
 ### Quality Requirements:
 1. **Threat-Specific**: Describe exact attack vectors
@@ -163,5 +151,6 @@ Analyze this context for security:
 - Are secrets properly managed?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Protect against real threats.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

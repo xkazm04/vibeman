@@ -3,6 +3,8 @@
  * Focus: Improving new user experience, reducing time-to-value, and eliminating friction
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -78,25 +80,9 @@ The first 5 minutes determine if a user stays or leaves. Every moment of confusi
 - Social proof and testimonials
 - "You're doing great!" encouragement
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "user_benefit|ui|functionality",
-    "title": "Concise onboarding improvement (max 60 chars)",
-    "description": "What friction point or opportunity? What specific improvement? How does it help new users? User journey impact. (2-4 sentences).",
-    "reasoning": "Why this matters for adoption. Time-to-value impact. Churn reduction. Success rate improvement. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **user_benefit**: Experience improvements, friction reduction, value acceleration
-- **ui**: Visual clarity, guidance, discoverability, empty states
-- **functionality**: Setup wizards, templates, imports, automation
+${getCategoryGuidance(['user_benefit', 'ui', 'functionality'])}
 
 ### Quality Requirements:
 1. **User Journey Focus**: Clearly describe which part of onboarding this improves
@@ -165,5 +151,6 @@ Analyze this context for onboarding opportunities:
 - What guidance or templates would help?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Optimize that first impression.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

@@ -19,3 +19,12 @@ export type {
 } from './GradientButton';
 export { default as AnimatedButton } from './AnimatedButton';
 export type { AnimatedButtonProps, ButtonVariant, ButtonSize } from './AnimatedButton';
+export { ModalTransition, ModalContent as ModalTransitionContent, modalVariants, modalTransitions } from './ModalTransition';
+export type { ModalVariant, ModalTransitionType } from './ModalTransition';
+export type {
+  ModalTransitionProps,
+  ModalContentProps,
+  ModalVariantDefinition,
+  ModalTransitionConfig,
+} from './ModalTransition.types';
+export { default as ModalTransitionDemo } from './ModalTransitionDemo';

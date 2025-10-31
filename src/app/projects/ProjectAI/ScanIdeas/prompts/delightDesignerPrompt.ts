@@ -3,6 +3,8 @@
  * Focus: Micro-interactions, "wow moments", and holistic experiences that create joy
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -84,25 +86,9 @@ Delight is in the details. It's the smooth animation, the helpful suggestion tha
 - "Are you sure?" confirmations with context
 - Bulk actions and time-savers
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "ui|user_benefit|functionality",
-    "title": "Concise delight opportunity (max 60 chars)",
-    "description": "What moment of delight? Where does it appear? How does it work? What makes it special? User emotional response. (2-4 sentences).",
-    "reasoning": "Why this creates delight. Psychological impact. Memorability factor. Business value (retention, word-of-mouth). (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **ui**: Visual polish, animations, micro-interactions, design magic
-- **user_benefit**: Experience improvements, emotional value, satisfaction
-- **functionality**: Smart features, anticipatory design, helpful automation
+${getCategoryGuidance(['ui', 'user_benefit', 'functionality'])}
 
 ### Quality Requirements:
 1. **Emotional Resonance**: Should make users feel good
@@ -172,5 +158,6 @@ Analyze this context for delight opportunities:
 - What personality could we add?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Create moments users will love and remember.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

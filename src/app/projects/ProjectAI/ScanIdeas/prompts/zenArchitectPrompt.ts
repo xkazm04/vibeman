@@ -3,6 +3,8 @@
  * Focus: Simplicity, elegant design patterns, and architectural improvements
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -67,24 +69,9 @@ Generate **development ideas** that promote:
 - Mixed concerns that should be separated
 - Better abstractions for complex logic
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "maintenance|functionality",
-    "title": "Concise architectural improvement (max 60 chars)",
-    "description": "Detailed explanation: what's wrong, why it matters, how to fix it (2-4 sentences). Be specific about files and components.",
-    "reasoning": "Why this improves the architecture. What becomes easier? What complexity is removed? (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **maintenance**: Refactoring, code organization, simplification, patterns
-- **functionality**: New architectural features that enable better development
+${getCategoryGuidance(['maintenance', 'functionality'])}
 
 ### Quality Requirements:
 1. **Specific**: Reference actual files, components, and patterns in the code
@@ -151,5 +138,6 @@ Analyze this specific context's architecture:
 - Could this context be simpler?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Embrace simplicity.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

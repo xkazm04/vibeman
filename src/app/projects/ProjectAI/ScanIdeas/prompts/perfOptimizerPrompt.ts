@@ -3,6 +3,8 @@
  * Focus: Speed, efficiency, and resource optimization
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -80,24 +82,9 @@ Generate **development ideas** that improve:
 - Virtual scrolling needs
 - Layout thrashing
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "performance|ui",
-    "title": "Concise performance improvement (max 60 chars)",
-    "description": "What's slow? Why is it slow? How to make it faster? (2-4 sentences). Include specific optimization technique.",
-    "reasoning": "Expected performance gain. Impact on user experience. Trade-offs to consider. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **performance**: Speed, memory, database, network optimizations
-- **ui**: Rendering performance, perceived speed, user experience
+${getCategoryGuidance(['performance', 'ui'])}
 
 ### Quality Requirements:
 1. **Evidence-Based**: Point to actual performance issues in the code
@@ -164,5 +151,6 @@ Analyze this context's performance:
 - Are there caching opportunities?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Measure first, optimize second.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }

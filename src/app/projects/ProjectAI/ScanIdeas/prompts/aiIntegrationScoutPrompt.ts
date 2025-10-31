@@ -3,6 +3,8 @@
  * Focus: Finding places where AI/ML could enhance functionality and user experience
  */
 
+import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+
 interface PromptOptions {
   projectName: string;
   aiDocsSection: string;
@@ -85,24 +87,9 @@ You understand what modern AI can do TODAY (not science fiction):
 - Content clustering and organization
 - "Find similar" features
 
-## Required Output Format
+${JSON_SCHEMA_INSTRUCTIONS}
 
-You MUST respond with ONLY a valid JSON array. No markdown, no explanations, just JSON.
-
-\`\`\`json
-[
-  {
-    "category": "functionality|user_benefit",
-    "title": "Concise AI enhancement (max 60 chars)",
-    "description": "What AI capability? Where would it be used? What problem does it solve? How would it work for users? (2-4 sentences).",
-    "reasoning": "Why AI is the right solution here. User value and efficiency gains. Feasibility with current AI tech. Competitive advantage. (2-3 sentences)."
-  }
-]
-\`\`\`
-
-### Category Guidelines:
-- **functionality**: New AI-powered features, intelligent capabilities, automation
-- **user_benefit**: Time savings, better decisions, reduced friction, enhanced experience
+${getCategoryGuidance(['functionality', 'user_benefit'])}
 
 ### Quality Requirements:
 1. **Practical AI**: Use AI capabilities that exist TODAY
@@ -170,5 +157,6 @@ Analyze this context for AI opportunities:
 - What patterns could AI learn and predict?
 ` : ''}
 
-Remember: Return ONLY the JSON array. Find the AI opportunities that matter.`;
+${JSON_OUTPUT_REMINDER}`;
+
 }
