@@ -4,6 +4,7 @@
  */
 
 import { JSON_SCHEMA_INSTRUCTIONS, JSON_OUTPUT_REMINDER, getCategoryGuidance } from './schemaTemplate';
+import { NEXTJS_STRUCTURE, type ProjectStructureTemplate } from '@/app/api/structure-scan/structureTemplates';
 
 interface PromptOptions {
   projectName: string;
@@ -12,6 +13,64 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+}
+
+/**
+ * Build project structure section from template
+ */
+function buildProjectStructureSection(template: ProjectStructureTemplate): string {
+  let section = `## Project Structure Standards\n\n`;
+  section += `**${template.name}**\n`;
+  section += `${template.description}\n\n`;
+  
+  // Group rules by category
+  const requiredRules = template.rules.filter(r => r.required);
+  const contextRules = template.rules.filter(r => r.context);
+  const antiPatterns = template.rules.filter(r => r.description.includes('AVOID'));
+  const optionalRules = template.rules.filter(r => !r.required && !r.context && !r.description.includes('AVOID'));
+  
+  if (requiredRules.length > 0) {
+    section += `### Core Structure (Required)\n\n`;
+    for (const rule of requiredRules) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+      if (rule.examples && rule.examples.length > 0) {
+        section += `  - Examples: ${rule.examples.map(e => `\`${e}\``).join(', ')}\n`;
+      }
+    }
+    section += `\n`;
+  }
+  
+  if (optionalRules.length > 0) {
+    section += `### Recommended Structure\n\n`;
+    for (const rule of optionalRules) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+      if (rule.examples && rule.examples.length > 0) {
+        section += `  - Examples: ${rule.examples.map(e => `\`${e}\``).join(', ')}\n`;
+      }
+    }
+    section += `\n`;
+  }
+  
+  if (contextRules.length > 0) {
+    section += `### Context Boundaries\n\n`;
+    for (const rule of contextRules) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+      if (rule.examples && rule.examples.length > 0) {
+        section += `  - Examples: ${rule.examples.map(e => `\`${e}\``).join(', ')}\n`;
+      }
+    }
+    section += `\n`;
+  }
+  
+  if (antiPatterns.length > 0) {
+    section += `### Anti-Patterns to Avoid\n\n`;
+    for (const rule of antiPatterns) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+    }
+    section += `\n`;
+  }
+  
+  return section;
 }
 
 export function buildZenArchitectPrompt(options: PromptOptions): string {
@@ -23,6 +82,9 @@ export function buildZenArchitectPrompt(options: PromptOptions): string {
     codeSection,
     hasContext
   } = options;
+
+  // Build project structure section
+  const projectStructureSection = buildProjectStructureSection(NEXTJS_STRUCTURE);
 
   return `You are the Zen Architect analyzing ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
 
@@ -81,6 +143,8 @@ ${getCategoryGuidance(['maintenance', 'functionality'])}
 5. **Pattern-based**: Use established design patterns where appropriate
 
 ---
+
+${projectStructureSection}
 
 ${aiDocsSection}
 

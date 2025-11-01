@@ -3,7 +3,7 @@
  * Constructs different sections of the LLM prompt from various data sources
  */
 
-import { DbIdea, DbContext } from '@/app/db';
+import { DbIdea, DbContext, DbGoal } from '@/app/db';
 
 /**
  * Build the code analysis section from codebase files
@@ -128,6 +128,35 @@ export function buildExistingIdeasSection(existingIdeas: DbIdea[]): string {
   section += `- LEARN from rejected ideas - understand the rejection rationale\n`;
   section += `- DO NOT re-suggest rejected ideas unless you have a fundamentally different approach\n`;
   section += `- Consider building on top of implemented ideas if there's more value to add\n\n`;
+
+  return section;
+}
+
+/**
+ * Build the project goals section for goal-idea matching
+ */
+export function buildGoalsSection(goals: DbGoal[]): string {
+  if (goals.length === 0) {
+    return `## Project Goals\n\nNo open goals found for this project.\n\n`;
+  }
+
+  let section = `## Project Goals (For Matching Ideas)\n\n`;
+  section += `Found ${goals.length} open goal(s) for this project:\n\n`;
+
+  goals.forEach((goal, index) => {
+    section += `${index + 1}. **Goal ID**: ${goal.id}\n`;
+    section += `   **Title**: ${goal.title}\n`;
+    if (goal.description) {
+      section += `   **Description**: ${goal.description}\n`;
+    }
+    section += `\n`;
+  });
+
+  section += `**Instructions for Goal Matching**:\n`;
+  section += `- For each idea you generate, evaluate if it significantly relates to any of the goals above\n`;
+  section += `- If there is a strong match based on the goal's title and description, include the goal's ID in the "goal_id" field\n`;
+  section += `- If there is no clear match, leave the "goal_id" field empty or omit it\n`;
+  section += `- Only match ideas to goals when there is a clear, meaningful connection\n\n`;
 
   return section;
 }

@@ -7,6 +7,8 @@ import { ColumnConfig } from '../lib/blueprintConfig';
 interface BlueprintColumnProps {
   column: ColumnConfig;
   delay: number;
+  selectedScanId: string | null;
+  onSelectScan: (scanId: string) => void;
   onScan: (scanId: string) => void;
   onNavigate: (module: 'ideas' | 'tinder' | 'tasker' | 'reflector') => void;
   getScanStatus: (scanId: string) => {
@@ -22,6 +24,8 @@ interface BlueprintColumnProps {
 export default function BlueprintColumn({
   column,
   delay,
+  selectedScanId,
+  onSelectScan,
   onScan,
   onNavigate,
   getScanStatus,
@@ -74,7 +78,7 @@ export default function BlueprintColumn({
       </div>
 
       {/* Buttons - Increased spacing from space-y-10  */}
-      <div className="space-y-10">
+      <div className="flex flex-col gap-16">
         {column.buttons.map((button, index) => (
           <motion.div
             key={button.id}
@@ -87,17 +91,21 @@ export default function BlueprintColumn({
               icon={button.icon}
               onClick={() => {
                 if (button.action === 'scan') {
-                  onScan(button.id);
+                  onSelectScan(button.id); // Select/deselect for scan
                 } else if (button.action === 'navigate' && button.target) {
                   onNavigate(button.target);
                 }
               }}
               color={button.color}
               size="md"
+              disabled={button.action === 'scan' && !button.scanHandler}
+              selected={button.id === selectedScanId}
+              hasError={getScanStatus(button.id).hasError}
               glowing={!getScanStatus(button.id).isRunning && button.id === 'contexts'}
               scanning={getScanStatus(button.id).isRunning}
               progress={getScanStatus(button.id).progress}
               daysAgo={getDaysAgo(button.id)}
+              showDaysAgo={!!button.scanHandler}
               redirectMode={button.action === 'navigate'}
             />
           </motion.div>

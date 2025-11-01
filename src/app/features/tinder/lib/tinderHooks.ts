@@ -108,10 +108,11 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     if (processing || currentIndex >= ideas.length) return;
 
     const currentIdea = ideas[currentIndex];
+    const selectedProject = getProject(currentIdea.project_id);
 
     setProcessing(true);
     try {
-      await rejectIdea(currentIdea.id);
+      await rejectIdea(currentIdea.id, selectedProject?.path);
       setStats(prev => ({ ...prev, rejected: prev.rejected + 1 }));
       moveToNext();
     } catch (error) {
@@ -120,7 +121,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, ideas, moveToNext]);
+  }, [processing, currentIndex, ideas, getProject, moveToNext]);
 
   const handleDelete = useCallback(async () => {
     if (processing || currentIndex >= ideas.length) return;

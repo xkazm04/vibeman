@@ -25,6 +25,7 @@ export interface GeneratedIdea {
   reasoning?: string; // Optional
   effort?: number; // 1 = lowest, 3 = highest
   impact?: number; // 1 = lowest, 3 = highest
+  goal_id?: string; // Optional - related goal ID if there's a significant match
 }
 
 /**
@@ -86,6 +87,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     // 4. Build prompt using specialized prompt builder
     console.log(`[generateIdeas] Building prompt with scan type: ${scanType}...`);
     const promptResult = buildIdeaGenerationPrompt(scanType, {
+      projectId,
       projectName,
       aiDocs: aiDocsContent,
       context,
@@ -197,7 +199,8 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           reasoning,
           status: 'pending',
           effort: idea.effort || null,
-          impact: idea.impact || null
+          impact: idea.impact || null,
+          goal_id: idea.goal_id || null
         });
       });
 

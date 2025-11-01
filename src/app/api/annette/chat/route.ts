@@ -6,8 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { conversationDb } from '@/app/db';
 import { executeTool, ANNETTE_TOOLS } from '../tools';
-import { getLLMClient } from '@/lib/llm';
-import { SupportedProvider } from '@/lib/llm/types';
+import { getLLMClient } from '@/lib/langgraph/langHelpers';
+import { LLMProvider } from '@/lib/langgraph/langTypes';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ interface AnnetteRequest {
   projectId: string;
   projectPath: string;
   message: string;
-  provider?: SupportedProvider;
+  provider?: LLMProvider;
   model?: string;
   conversationId?: string;
 }
@@ -57,17 +57,26 @@ IMPORTANT RULES:
 Remember: Your role is to be helpful but limited to these specific capabilities.`;
 
 /**
- * Create a chat completion prompt
+ * Create a chat completion prompt from conversation history
  */
-function createChatPrompt(conversationHistory: any[], newMessage: string): any[] {
-  return [
-    { role: 'system', content: ANNETTE_SYSTEM_PROMPT },
-    ...conversationHistory.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    })),
-    { role: 'user', content: newMessage },
-  ];
+function createChatPrompt(conversationHistory: any[], newMessage: string): string {
+  let prompt = '';
+
+  // Add conversation history
+  if (conversationHistory.length > 0) {
+    prompt += 'Previous Conversation:\n';
+    for (const msg of conversationHistory) {
+      const role = msg.role === 'user' ? 'User' : 'Annette';
+      prompt += `${role}: ${msg.content}\n`;
+    }
+    prompt += '\n';
+  }
+
+  // Add current message
+  prompt += `User: ${newMessage}\n`;
+  prompt += 'Annette:';
+
+  return prompt;
 }
 
 /**
@@ -198,14 +207,15 @@ export async function POST(request: NextRequest) {
     const llmClient = getLLMClient(provider);
     const chatPrompt = createChatPrompt(conversationHistory, enhancedMessage);
 
-    const llmResponse = await llmClient.chat({
+    const llmResponse = await llmClient.generate({
+      prompt: chatPrompt,
       model: model || (provider === 'gemini' ? 'gemini-2.0-flash-exp' : undefined),
-      messages: chatPrompt,
+      systemPrompt: ANNETTE_SYSTEM_PROMPT,
       temperature: 0.7,
       maxTokens: 500,
     });
 
-    const assistantResponse = llmResponse.content || 'I apologize, but I could not generate a response.';
+    const assistantResponse = llmResponse.response || 'I apologize, but I could not generate a response.';
 
     // Add assistant message to conversation
     conversationDb.addMessage({

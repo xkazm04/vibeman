@@ -50,7 +50,7 @@ export default function IdeasPage() {
     loadIdeas();
   }, []);
 
-  // Load contexts for all projects when ideas change
+  // Load contexts for all projects when project IDs change (not on every idea update)
   React.useEffect(() => {
     const loadContextsForIdeas = async () => {
       // Get unique project IDs from ideas
@@ -65,7 +65,7 @@ export default function IdeasPage() {
     if (ideas.length > 0) {
       loadContextsForIdeas();
     }
-  }, [ideas]);
+  }, [ideas.map(idea => idea.project_id).sort().join(',')]);
 
   const loadIdeas = async () => {
     setLoading(true);

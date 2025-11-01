@@ -1,10 +1,14 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowLeft } from 'lucide-react';
+import { X, ArrowLeft, Target } from 'lucide-react';
+import { useState } from 'react';
 import DarkBlueprint from '../sub_Blueprint/DarkBlueprintLayout';
 import AnnettePanel from '@/app/features/Annette/components/AnnettePanel';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import Drawer from '@/components/ui/Drawer';
+import GoalReviewer from '../sub_GoalDrawer/GoalReviewer';
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -13,6 +17,8 @@ interface BlueprintModalProps {
 
 export default function BlueprintModal({ isOpen, onClose }: BlueprintModalProps) {
   const { openControlPanel, closeBlueprint } = useOnboardingStore();
+  const { activeProject } = useActiveProjectStore();
+  const [isGoalDrawerOpen, setIsGoalDrawerOpen] = useState(false);
 
   const handleBackToGettingStarted = () => {
     closeBlueprint();
@@ -67,15 +73,31 @@ export default function BlueprintModal({ isOpen, onClose }: BlueprintModalProps)
                 <AnnettePanel />
               </div>
 
-              {/* Close button */}
-              <motion.button
-                onClick={onClose}
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                className="p-3 rounded-full bg-gray-900/80 backdrop-blur-xl border border-white/10 hover:border-red-500/50 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400 hover:text-red-400 transition-colors" />
-              </motion.button>
+              {/* Right - Goal Reviewer Button + Close */}
+              <div className="flex items-center gap-2">
+                {/* Goal Reviewer Button */}
+                {activeProject && (
+                  <motion.button
+                    onClick={() => setIsGoalDrawerOpen(true)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/80 backdrop-blur-xl border border-cyan-500/30 hover:border-cyan-400/50 transition-colors"
+                  >
+                    <Target className="w-4 h-4 text-cyan-400" />
+                    <span className="text-sm font-medium text-cyan-300">Goals</span>
+                  </motion.button>
+                )}
+
+                {/* Close button */}
+                <motion.button
+                  onClick={onClose}
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="p-3 rounded-full bg-gray-900/80 backdrop-blur-xl border border-white/10 hover:border-red-500/50 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400 hover:text-red-400 transition-colors" />
+                </motion.button>
+              </div>
             </div>
 
             {/* Blueprint Content */}
@@ -83,6 +105,19 @@ export default function BlueprintModal({ isOpen, onClose }: BlueprintModalProps)
               <DarkBlueprint />
             </div>
           </motion.div>
+
+          {/* Goal Reviewer Drawer - From Right Side */}
+          {activeProject && (
+            <Drawer
+              isOpen={isGoalDrawerOpen}
+              onClose={() => setIsGoalDrawerOpen(false)}
+              side="right"
+              maxWidth="max-w-2xl"
+              backgroundImage={null}
+            >
+              <GoalReviewer projectId={activeProject.id} />
+            </Drawer>
+          )}
         </>
       )}
     </AnimatePresence>

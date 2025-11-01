@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
-import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { type ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { SCAN_TYPES } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
 
 /**
  * GET /api/ideas/stats
@@ -26,22 +27,8 @@ export async function GET(request: NextRequest) {
       ideas = ideas.filter(idea => idea.context_id === contextId);
     }
 
-    // Define all scan types
-    const scanTypes: ScanType[] = [
-      'overall',
-      'zen_architect',
-      'bug_hunter',
-      'perf_optimizer',
-      'security_protector',
-      'insight_synth',
-      'ambiguity_guardian',
-      'business_visionary',
-      'ui_perfectionist',
-      'feature_scout',
-      'onboarding_optimizer',
-      'ai_integration_scout',
-      'delight_designer'
-    ];
+    // Get all scan types from configuration
+    const scanTypes: ScanType[] = SCAN_TYPES.map(t => t.value);
 
     // Calculate stats per scan type
     const scanTypeStats = scanTypes.map(scanType => {

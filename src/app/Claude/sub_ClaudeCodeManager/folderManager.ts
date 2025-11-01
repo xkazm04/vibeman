@@ -178,7 +178,8 @@ Document your coding standards, naming conventions, and best practices.
 export function createRequirement(
   projectPath: string,
   requirementName: string,
-  content: string
+  content: string,
+  overwrite: boolean = false
 ): { success: boolean; error?: string; filePath?: string } {
   try {
     const structure = getClaudeFolderStructure(projectPath);
@@ -201,15 +202,15 @@ export function createRequirement(
     const fileName = `${sanitizedName}.md`;
     const filePath = path.join(structure.commands, fileName);
 
-    // Check if file already exists
-    if (fs.existsSync(filePath)) {
+    // Check if file already exists (unless overwrite is true)
+    if (fs.existsSync(filePath) && !overwrite) {
       return {
         success: false,
         error: `Requirement "${fileName}" already exists`,
       };
     }
 
-    // Write the requirement file
+    // Write the requirement file (will overwrite if overwrite=true)
     fs.writeFileSync(filePath, content, 'utf-8');
 
     return { success: true, filePath };

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Caveat } from 'next/font/google';
 import { LucideIcon } from 'lucide-react';
@@ -17,10 +18,13 @@ export interface IlluminatedButtonProps {
   color?: 'blue' | 'cyan' | 'purple' | 'amber' | 'green' | 'red' | 'pink' | 'indigo';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
+  selected?: boolean; // Button is selected for scan (shows in decision panel)
+  hasError?: boolean; // Button shows red when last scan failed
   glowing?: boolean;
   scanning?: boolean;
   progress?: number; // 0-100
   daysAgo?: number | null; // null if never run
+  showDaysAgo?: boolean; // Show days ago indicator (only if scan has handler)
   redirectMode?: boolean; // Show exit icon for navigation buttons
 }
 
@@ -103,19 +107,33 @@ export default function IlluminatedButton({
   color = 'cyan',
   size = 'md',
   disabled = false,
+  selected = false,
+  hasError = false,
   glowing = false,
   scanning = false,
   progress = 0,
   daysAgo = null,
+  showDaysAgo = true,
   redirectMode = false,
 }: IlluminatedButtonProps) {
-  // Use green color when scanning, gray when never run
-  const effectiveColor = scanning ? 'green' : (daysAgo === null ? 'gray' : color);
-  const colors = colorMap[effectiveColor] || colorMap[color];
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Color priority: scanning > disabled > hasError > selected > gray (default)
+  const effectiveColor = scanning
+    ? 'green'
+    : disabled
+      ? 'gray'
+      : hasError
+        ? 'red'
+        : selected
+          ? color
+          : 'gray';
+
+  // On hover (and not disabled/scanning), preview the assigned color
+  const displayColor = !disabled && !scanning && isHovered ? color : effectiveColor;
+  const colors = colorMap[displayColor] || colorMap[color];
   const sizes = sizeMap[size];
 
-  // Calculate number of progress bars (1 second = 1 bar, max 5 bars)
-  const progressBars = scanning ? Math.min(Math.floor(progress / 20), 5) : 0;
 
   return (
     <div className="relative inline-flex items-center gap-3">
@@ -123,49 +141,11 @@ export default function IlluminatedButton({
       <motion.button
         onClick={onClick}
         disabled={disabled}
-        whileHover={{ scale: disabled ? 1 : 1.1, y: disabled ? 0 : -2 }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         whileTap={{ scale: disabled ? 1 : 0.95 }}
-        className={`group relative ${sizes.button} rounded-full disabled:opacity-40 disabled:cursor-not-allowed`}
+        className={`group relative ${sizes.button} bg-gradient-to-br ${colors.bg}  rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all ease-linear duration-300`}
       >
-        {/* Background gradient */}
-        <div
-          className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.bg} transition-all duration-300`}
-        />
-
-        {/* Circular border with loading animation */}
-        <svg className="absolute inset-0 w-full h-full -rotate-90" style={{ overflow: 'visible' }}>
-          {scanning ? (
-            /* Animated loading border */
-            <motion.circle
-              cx="50%"
-              cy="50%"
-              r="calc(50% - 1px)"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className={colors.text}
-              strokeDasharray="100"
-              initial={{ strokeDashoffset: 100 }}
-              animate={{ strokeDashoffset: 100 - progress }}
-              transition={{ duration: 0.3 }}
-              style={{
-                strokeLinecap: 'round',
-                filter: 'drop-shadow(0 0 4px currentColor)'
-              }}
-            />
-          ) : (
-            /* Static border */
-            <circle
-              cx="50%"
-              cy="50%"
-              r="calc(50% - 1px)"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className={`${colors.border.replace('border-', 'text-')}`}
-            />
-          )}
-        </svg>
 
         {/* Glass shine effect */}
         <div
@@ -176,6 +156,38 @@ export default function IlluminatedButton({
         <div className="absolute inset-0 flex items-center justify-center">
           <Icon className={`${sizes.icon} ${colors.text} drop-shadow-lg`} />
         </div>
+
+        {/* Cross-out X for disabled buttons */}
+        {disabled && (
+          <div className="absolute inset-0 opacity-10 flex items-center justify-center">
+            <svg
+              className="w-full h-full"
+              viewBox="0 0 100 100"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <line
+                x1="20"
+                y1="20"
+                x2="80"
+                y2="80"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                className="text-red-500/80"
+              />
+              <line
+                x1="80"
+                y1="20"
+                x2="20"
+                y2="80"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                className="text-red-500/80"
+              />
+            </svg>
+          </div>
+        )}
 
         {/* Outer glow */}
         <motion.div
@@ -191,41 +203,12 @@ export default function IlluminatedButton({
           }}
         />
 
-        {/* Scan line animation */}
-        {glowing && (
-          <motion.div
-            className="absolute inset-0 rounded-full overflow-hidden"
-            animate={{ rotate: 360 }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
-          >
-            <div
-              className={`absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-transparent via-white to-transparent opacity-30`}
-            />
-          </motion.div>
-        )}
-
-        {/* Inner light pulse */}
-        <motion.div
-          className={`absolute inset-2 rounded-full bg-white/5`}
-          animate={{
-            opacity: [0.1, 0.3, 0.1],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
       </motion.button>
 
       {/* Days ago indicator (top left of button) */}
-      {daysAgo !== null && daysAgo > 0 && (
+      {showDaysAgo && daysAgo !== null && daysAgo > 0 && (
         <div className="absolute -left-8 top-1/2 -translate-y-1/2">
-          <span className="text-xs text-gray-500 font-mono">
+          <span className={`text-xs font-mono ${daysAgo > 7 ? 'text-orange-500' : 'text-green-500'}`}>
             {daysAgo}d
           </span>
         </div>
@@ -239,11 +222,7 @@ export default function IlluminatedButton({
         className={`absolute ${sizes.labelY} left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none`}
       >
         <span
-          className={`${caveat.className} ${sizes.label} ${colors.text} font-semibold`}
-          style={{
-            textShadow: `0 0 10px rgba(255, 255, 255, 0.3)`,
-            transform: `rotate(${Math.random() * 6 - 3}deg)`,
-          }}
+          className={`uppercase text-2xl ${colors.text} ${caveat.className} font-semibold`}
         >
           {label}
         </span>

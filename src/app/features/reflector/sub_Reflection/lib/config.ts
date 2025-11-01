@@ -24,14 +24,6 @@ export interface ScanTypeConfig {
 }
 
 export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
-  overall: {
-    label: 'Overall Analysis',
-    icon: Brain,
-    color: 'text-purple-400',
-    borderColor: 'border-purple-500/40',
-    bgGradient: 'from-purple-500/5 to-purple-600/2',
-    description: 'Comprehensive multi-dimensional analysis'
-  },
   zen_architect: {
     label: 'Zen Architect',
     icon: Compass,

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
-import { goalDb } from '@/app/db';
+import { ideaDb, goalDb, contextDb } from '@/app/db';
 import { OllamaClient } from '@/lib/llm/providers/ollama-client';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
-import { buildRequirementContent } from '@/app/Claude/lib/requirementPrompts';
+import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
 
 interface IdeaEvaluationResult {
   selectedIdeaId: string | null;
@@ -272,10 +271,21 @@ async function implementIdea(
 
       console.log('[Vibeman] Creating requirement:', requirementName);
 
-      // 4. Build requirement content
-      const content = buildRequirementContentFromIdea(idea);
+      // 4. Fetch goal and context if they exist
+      const goal = idea.goal_id ? goalDb.getGoalById(idea.goal_id) : null;
+      const context = idea.context_id ? contextDb.getContextById(idea.context_id) : null;
 
-      // 5. Create requirement file
+      console.log('[Vibeman] Associated goal:', goal?.title || 'none');
+      console.log('[Vibeman] Associated context:', context?.name || 'none');
+
+      // 5. Build requirement content using unified builder
+      const content = buildRequirementFromIdea({
+        idea,
+        goal,
+        context,
+      });
+
+      // 6. Create requirement file
       const createResult = createRequirement(projectPath, requirementName, content);
 
       if (!createResult.success) {
@@ -284,7 +294,11 @@ async function implementIdea(
 
       console.log('[Vibeman] Requirement created successfully');
 
-      // 6. Queue requirement for execution using the execution queue
+      // 7. Update idea with requirement_id (the requirement file name)
+      ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
+      console.log('[Vibeman] Updated idea with requirement_id:', requirementName);
+
+      // 8. Queue requirement for execution using the execution queue
       const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
       const taskId = executionQueue.addTask(projectPath, requirementName, idea.project_id);
 
@@ -430,53 +444,6 @@ If NO suitable idea can be selected, respond with:
 REMEMBER: Copy the FULL ID value from the - **ID**: field above, not "Idea 1" or "1" or any index.
 
 Select the best idea now:`;
-}
-
-/**
- * Build requirement content from an idea
- */
-function buildRequirementContentFromIdea(idea: any): string {
-  const effortLabel = idea.effort === 1 ? 'Low' : idea.effort === 2 ? 'Medium' : idea.effort === 3 ? 'High' : 'Unknown';
-  const impactLabel = idea.impact === 1 ? 'Low' : idea.impact === 2 ? 'Medium' : idea.impact === 3 ? 'High' : 'Unknown';
-
-  return `# ${idea.title}
-
-## Metadata
-- **Category**: ${idea.category}
-- **Effort**: ${effortLabel} (${idea.effort || 'N/A'}/3)
-- **Impact**: ${impactLabel} (${idea.impact || 'N/A'}/3)
-- **Scan Type**: ${idea.scan_type}
-- **Generated**: ${new Date(idea.created_at).toLocaleString()}
-
-## Description
-${idea.description || 'No description provided'}
-
-## Reasoning
-${idea.reasoning || 'No reasoning provided'}
-
-## Implementation Guidelines
-
-Please implement this feature following these guidelines:
-
-1. **Code Quality**: Follow existing code patterns and conventions in the project
-2. **Testing**: Add appropriate tests if applicable
-3. **Documentation**: Update relevant documentation
-4. **Error Handling**: Include proper error handling and edge cases
-5. **User Experience**: Consider the user experience and accessibility
-
-## Acceptance Criteria
-
-The implementation should:
-- Fulfill the description and reasoning outlined above
-- Maintain or improve code quality
-- Be well-tested and documented
-- Follow project conventions and patterns
-
-## Notes
-
-This requirement was automatically generated from an AI-evaluated project idea.
-Original idea ID: ${idea.id}
-`;
 }
 
 /**

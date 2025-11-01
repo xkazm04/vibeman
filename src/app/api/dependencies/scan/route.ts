@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
           dependency_name: dep.name,
           dependency_version: dep.version,
           dependency_type: dep.type,
-          file_path: dep.files[0] || null,
+          file_path: dep.files[0] || undefined,
           usage_count: dep.usageCount,
           is_dev_dependency: dep.isDevDependency
         });
@@ -65,13 +65,13 @@ export async function POST(request: NextRequest) {
       scan_id: scanId,
       dependency_name: dep.name,
       dependency_type: dep.type,
-      project_ids: dep.projects.map(p => p.projectId),
+      project_ids: dep.projects.map(p => p.id),
       version_conflicts: dep.versionConflicts ? dep.projects.reduce((acc, p) => ({
         ...acc,
-        [p.projectId]: p.version
+        [p.id]: p.version
       }), {}) : undefined,
       usage_count: dep.projects.length,
-      refactoring_opportunity: dep.refactoringOpportunity,
+      refactoring_opportunity: dep.refactoringOpportunity || undefined,
       priority: dep.priority
     }));
 
@@ -87,7 +87,12 @@ export async function POST(request: NextRequest) {
       pattern_type: dup.patternType,
       code_snippet: dup.codeSnippet,
       similarity_score: dup.similarityScore,
-      occurrences: dup.occurrences,
+      occurrences: dup.occurrences.map(occ => ({
+        project_id: occ.projectId,
+        file_path: occ.filePath,
+        line_start: occ.lineStart,
+        line_end: occ.lineEnd
+      })),
       refactoring_suggestion: dup.refactoringSuggestion,
       estimated_savings: dup.estimatedSavings
     }));

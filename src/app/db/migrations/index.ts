@@ -29,6 +29,9 @@ export function runMigrations() {
     // Migration 7: Remove category CHECK constraint from ideas table
     migrateIdeasCategoryConstraint();
 
+    // Migration 8: Add requirement_id and goal_id columns to ideas table
+    migrateIdeasRequirementAndGoal();
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -535,5 +538,42 @@ function migrateIdeasCategoryConstraint() {
     }
   } catch (error) {
     console.error('Error during ideas category constraint migration:', error);
+  }
+}
+
+/**
+ * Add requirement_id and goal_id columns to ideas table
+ */
+function migrateIdeasRequirementAndGoal() {
+  const db = getDatabase();
+
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(ideas)").all() as Array<{
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: any;
+      pk: number;
+    }>;
+
+    const hasRequirementId = tableInfo.some(col => col.name === 'requirement_id');
+    const hasGoalId = tableInfo.some(col => col.name === 'goal_id');
+
+    if (!hasRequirementId) {
+      console.log('Adding requirement_id column to ideas table');
+      db.exec(`ALTER TABLE ideas ADD COLUMN requirement_id TEXT`);
+    }
+
+    if (!hasGoalId) {
+      console.log('Adding goal_id column to ideas table');
+      db.exec(`ALTER TABLE ideas ADD COLUMN goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL`);
+    }
+
+    if (hasRequirementId && hasGoalId) {
+      console.log('Ideas table already has requirement_id and goal_id columns');
+    }
+  } catch (error) {
+    console.error('Error migrating ideas table requirement_id and goal_id:', error);
   }
 }

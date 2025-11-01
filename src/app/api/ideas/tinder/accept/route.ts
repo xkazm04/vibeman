@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaDb, goalDb, contextDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
+import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
 
 /**
  * POST /api/ideas/tinder/accept
@@ -41,11 +42,22 @@ export async function POST(request: NextRequest) {
 
     console.log('[Tinder Accept] Creating requirement:', requirementName);
 
-    // 4. Build requirement content
-    const content = buildRequirementContentFromIdea(idea);
+    // 4. Fetch goal and context if they exist
+    const goal = idea.goal_id ? goalDb.getGoalById(idea.goal_id) : null;
+    const context = idea.context_id ? contextDb.getContextById(idea.context_id) : null;
 
-    // 5. Create requirement file
-    const createResult = createRequirement(projectPath, requirementName, content);
+    console.log('[Tinder Accept] Associated goal:', goal?.title || 'none');
+    console.log('[Tinder Accept] Associated context:', context?.name || 'none');
+
+    // 5. Build requirement content using unified builder
+    const content = buildRequirementFromIdea({
+      idea,
+      goal,
+      context,
+    });
+
+    // 6. Create requirement file (overwrite if exists)
+    const createResult = createRequirement(projectPath, requirementName, content, true);
 
     if (!createResult.success) {
       // Rollback status change
@@ -54,6 +66,10 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Tinder Accept] Requirement created successfully');
+
+    // 7. Update idea with requirement_id (the requirement file name)
+    ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
+    console.log('[Tinder Accept] Updated idea with requirement_id:', requirementName);
 
     return NextResponse.json({
       success: true,
@@ -72,47 +88,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Build requirement content from an idea
- */
-function buildRequirementContentFromIdea(idea: any): string {
-  const effortLabel = idea.effort === 1 ? 'Low' : idea.effort === 2 ? 'Medium' : idea.effort === 3 ? 'High' : 'Unknown';
-  const impactLabel = idea.impact === 1 ? 'Low' : idea.impact === 2 ? 'Medium' : idea.impact === 3 ? 'High' : 'Unknown';
-
-  return `# ${idea.title}
-
-## Metadata
-- **Category**: ${idea.category}
-- **Effort**: ${effortLabel} (${idea.effort || 'N/A'}/3)
-- **Impact**: ${impactLabel} (${idea.impact || 'N/A'}/3)
-- **Scan Type**: ${idea.scan_type}
-- **Generated**: ${new Date(idea.created_at).toLocaleString()}
-- **Accepted via**: Tinder UI
-
-## Description
-${idea.description || 'No description provided'}
-
-## Reasoning
-${idea.reasoning || 'No reasoning provided'}
-
-## Implementation Guidelines
-
-⚠️ **Important**: Before implementing this requirement, use the Claude Code skill for comprehensive guidelines:
-
-\`\`\`
-/implementation-guidelines
-\`\`\`
-
-This skill provides detailed guidance on:
-- Code quality standards
-- Testing requirements
-- Project conventions
-- Technical best practices
-- Quality checklist
-
-## Notes
-
-This requirement was generated from an AI-evaluated project idea via the Tinder UI.
-Original idea ID: ${idea.id}
-`;
-}

@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X  } from 'lucide-react';
+import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
 import { useTooltipStore } from '../../../stores/tooltipStore';
-import ContextMenu from './ContextMenu/ContextMenu';
+import { useStore } from '../../../stores/nodeStore';
+import { MultiFileEditor } from '../../../components/editor';
+import { useGlobalModal } from '../../../hooks/useGlobalModal';
+import ContextEditModal from './ContextGen/ContextEditModal';
+import ContextFileModal from './ContextFile/ContextFileModal';
+import ContextMenu from '@/components/ContextMenu';
 
 interface ContextCardProps {
   context: Context;
@@ -14,12 +19,16 @@ interface ContextCardProps {
 }
 
 export default function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
-  const { removeContext, selectedContextIds } = useContextStore();
+  const { removeContext, selectedContextIds, toggleContextSelection, setSelectedContext } = useContextStore();
   const { toggleTooltip } = useTooltipStore();
+  const { clearSelection } = useStore();
+  const { showFullScreenModal } = useGlobalModal();
   const isSelectedForBacklog = selectedContextIds.has(context.id);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
+  const [showFileEditor, setShowFileEditor] = useState(false);
+  const [showContextFileModal, setShowContextFileModal] = useState(false);
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', context.id);
@@ -82,7 +91,122 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
     setShowContextMenu(false);
   };
 
+  const handleSelect = () => {
+    clearSelection();
+    setSelectedContext(context.id);
+    setShowContextMenu(false);
+  };
 
+  const handleToggleForBacklog = () => {
+    toggleContextSelection(context.id);
+    setShowContextMenu(false);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(JSON.stringify(context, null, 2));
+    setShowContextMenu(false);
+  };
+
+  const handleEdit = () => {
+    showFullScreenModal(
+      `Edit Context: ${context.name}`,
+      <ContextEditModal
+        context={context}
+        availableGroups={availableGroups}
+        selectedFilePaths={selectedFilePaths}
+        onSave={() => {
+          // Context will be updated via the store
+        }}
+      />,
+      {
+        icon: Edit,
+        iconBgColor: "from-cyan-500/20 to-blue-500/20",
+        iconColor: "text-cyan-400",
+        maxWidth: "max-w-[95vw]",
+        maxHeight: "max-h-[95vh]"
+      }
+    );
+    setShowContextMenu(false);
+  };
+
+  const handleDelete = async () => {
+    try {
+      await removeContext(context.id);
+    } catch (error) {
+      console.error('Failed to delete context:', error);
+    }
+    setShowContextMenu(false);
+  };
+
+  const handleOpenFiles = () => {
+    setShowFileEditor(true);
+    setShowContextMenu(false);
+  };
+
+  const handleContextFile = () => {
+    setShowContextFileModal(true);
+    setShowContextMenu(false);
+  };
+
+  const handleFileEditorClose = () => {
+    setShowFileEditor(false);
+  };
+
+  const handleContextFileModalClose = () => {
+    setShowContextFileModal(false);
+  };
+
+  const handleFileSave = async (filePath: string, content: string) => {
+    console.log('Saving file:', filePath, 'with content length:', content.length);
+    return new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        if (Math.random() > 0.1) {
+          resolve();
+        } else {
+          reject(new Error('Failed to save file'));
+        }
+      }, 1000);
+    });
+  };
+
+  const contextMenuItems = [
+    {
+      label: 'Open Neural Files',
+      icon: FolderOpen,
+      onClick: handleOpenFiles,
+    },
+    {
+      label: 'Clone Context',
+      icon: Copy,
+      onClick: handleCopy,
+    },
+    {
+      label: 'Select',
+      icon: MousePointer,
+      onClick: handleSelect,
+    },
+    {
+      label: selectedContextIds.has(context.id) ? 'Remove from Queue' : 'Add to Queue',
+      icon: selectedContextIds.has(context.id) ? CheckSquare : Square,
+      onClick: handleToggleForBacklog,
+    },
+    {
+      label: 'Context Matrix',
+      icon: FileText,
+      onClick: handleContextFile,
+    },
+    {
+      label: 'Modify Node',
+      icon: Edit,
+      onClick: handleEdit,
+    },
+    {
+      label: 'Delete Context',
+      icon: Trash2,
+      onClick: handleDelete,
+      destructive: true,
+    },
+  ];
 
   return (
     <>
@@ -170,12 +294,28 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
       </motion.div>
 
       <ContextMenu
-        context={context}
-        isVisible={showContextMenu}
+        isOpen={showContextMenu}
         position={contextMenuPosition}
+        items={contextMenuItems}
         onClose={handleCloseContextMenu}
-        availableGroups={availableGroups}
-        selectedFilePaths={selectedFilePaths}
+        variant="neural"
+      />
+
+      {/* File Editor Modal */}
+      <MultiFileEditor
+        isOpen={showFileEditor}
+        onClose={handleFileEditorClose}
+        filePaths={context.filePaths}
+        title={`${context.name} - Files`}
+        readOnly={false}
+        onSave={handleFileSave}
+      />
+
+      {/* Context File Modal */}
+      <ContextFileModal
+        isOpen={showContextFileModal}
+        onClose={handleContextFileModalClose}
+        context={context}
       />
     </>
   );

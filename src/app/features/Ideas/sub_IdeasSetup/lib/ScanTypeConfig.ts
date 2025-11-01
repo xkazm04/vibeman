@@ -3,19 +3,7 @@
  * Defines all available scan types and their visual properties
  */
 
-export type ScanType =
-  | 'zen_architect'
-  | 'bug_hunter'
-  | 'perf_optimizer'
-  | 'security_protector'
-  | 'insight_synth'
-  | 'ambiguity_guardian'
-  | 'business_visionary'
-  | 'ui_perfectionist'
-  | 'feature_scout'
-  | 'onboarding_optimizer'
-  | 'ai_integration_scout'
-  | 'delight_designer';
+import { type ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 export interface ScanTypeOption {
   value: ScanType;

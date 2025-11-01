@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import BlueprintBackground from './components/BlueprintBackground';
 import BlueprintCornerLabels from './components/BlueprintCornerLabels';
@@ -12,137 +13,182 @@ import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
 export default function DarkBlueprint() {
-  const { startScan, updateScanProgress, completeScan, getScanStatus, getDaysAgo } = useBlueprintStore();
+  const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
+  const { startScan, updateScanProgress, completeScan, failScan, getScanStatus, getDaysAgo, loadScanEvents } = useBlueprintStore();
   const { setActiveModule, openControlPanel, closeBlueprint } = useOnboardingStore();
   const { currentDecision, addDecision } = useDecisionQueueStore();
+  const { activeProject } = useActiveProjectStore();
 
-  const handleScan = async (scanType: string) => {
-    console.log(`[Blueprint] Initiating ${scanType} scan...`);
+  // Load scan events when active project changes
+  useEffect(() => {
+    if (!activeProject) return;
 
-    // Structure scan - analyze project structure and show decision
-    if (scanType === 'structure') {
-      const { activeProject } = useActiveProjectStore.getState();
-      if (!activeProject) {
-        console.error('[Blueprint] No active project for structure scan');
+    // Build event title map from config
+    const eventTitles: Record<string, string> = {};
+    for (const column of BLUEPRINT_COLUMNS) {
+      for (const button of column.buttons) {
+        if (button.eventTitle) {
+          eventTitles[button.id] = button.eventTitle;
+        }
+      }
+    }
+
+    loadScanEvents(activeProject.id, eventTitles);
+  }, [activeProject, loadScanEvents]);
+
+  const handleSelectScan = (scanId: string) => {
+    // If already selected, deselect
+    if (selectedScanId === scanId) {
+      setSelectedScanId(null);
+      return;
+    }
+
+    // Find button config
+    let buttonConfig = null;
+    let buttonLabel = scanId;
+    for (const column of BLUEPRINT_COLUMNS) {
+      const button = column.buttons.find(b => b.id === scanId);
+      if (button) {
+        buttonConfig = button;
+        buttonLabel = button.label;
+        break;
+      }
+    }
+
+    if (!buttonConfig) {
+      console.error(`[Blueprint] No button config found for: ${scanId}`);
+      return;
+    }
+
+    // Select the scan
+    setSelectedScanId(scanId);
+
+    // Add pre-scan decision to queue
+    addDecision({
+      type: 'pre-scan',
+      title: `Execute ${buttonLabel} Scan?`,
+      description: `Click Accept to start the ${buttonLabel.toLowerCase()} scan for this project.`,
+      severity: 'info',
+      data: { scanId },
+      onAccept: async () => {
+        console.log(`[Blueprint] User confirmed ${scanId} scan`);
+        setSelectedScanId(null); // Clear selection
+        await handleScan(scanId); // Execute scan
+      },
+      onReject: async () => {
+        console.log(`[Blueprint] User cancelled ${scanId} scan`);
+        setSelectedScanId(null); // Clear selection
+      },
+    });
+  };
+
+  const handleScan = async (scanId: string) => {
+    console.log(`[Blueprint] Initiating ${scanId} scan...`);
+
+    // Find button config by scanning all columns
+    let buttonConfig = null;
+    for (const column of BLUEPRINT_COLUMNS) {
+      const button = column.buttons.find(b => b.id === scanId);
+      if (button) {
+        buttonConfig = button;
+        break;
+      }
+    }
+
+    if (!buttonConfig) {
+      console.error(`[Blueprint] No button config found for scan: ${scanId}`);
+      return;
+    }
+
+    // Check if scan handler is defined
+    if (!buttonConfig.scanHandler) {
+      console.warn(`[Blueprint] Scan handler not implemented for: ${scanId}`);
+      return;
+    }
+
+    // Start scan
+    startScan(scanId);
+
+    try {
+      // Execute scan
+      const result = await buttonConfig.scanHandler.execute();
+
+      // Handle failure
+      if (!result.success) {
+        const errorMsg = result.error || 'Scan failed';
+        console.error(`[Blueprint] ${scanId} scan failed:`, errorMsg);
+        failScan(errorMsg);
         return;
       }
 
-      startScan(scanType);
+      // Mark as complete
+      completeScan();
 
-      try {
-        // Step 1: Analyze structure via API
-        const response = await fetch('/api/structure-scan/trigger', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId: activeProject.id,
-            projectPath: activeProject.path,
-            projectType: activeProject.type || 'nextjs',
-            projectName: activeProject.name,
-          }),
-        });
+      // Create event for successful scan
+      if (buttonConfig.eventTitle && activeProject) {
+        await createScanEvent(buttonConfig.eventTitle, scanId);
+      }
 
-        const result = await response.json();
-        completeScan();
+      // Build decision data
+      const decisionData = buttonConfig.scanHandler.buildDecision(result);
 
-        if (!result.success) {
-          console.error('[Blueprint] Structure scan failed:', result.error);
-          return;
-        }
+      // If decision data exists, add to queue
+      if (decisionData) {
+        console.log(`[Blueprint] Adding decision to queue for ${scanId}`);
+        addDecision(decisionData);
+      } else {
+        console.log(`[Blueprint] ${scanId} scan completed - no decision needed`);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[Blueprint] ${scanId} scan error:`, error);
+      failScan(errorMsg);
+    }
+  };
 
-        const violations = result.violations || [];
+  const createScanEvent = async (eventTitle: string, scanId: string) => {
+    if (!activeProject) return;
 
-        if (violations.length === 0) {
-          console.log('[Blueprint] No structure violations found - project structure is compliant!');
-          return;
-        }
+    try {
+      console.log(`[Blueprint] Creating event: ${eventTitle}`);
 
-        // Step 2: Add decision to queue
-        console.log(`[Blueprint] Found ${violations.length} violations - adding to decision queue`);
-        addDecision({
-          type: 'structure-scan',
-          title: 'Structure Violations Detected',
-          description: `Found ${violations.length} structure violation${violations.length > 1 ? 's' : ''} in ${activeProject.name}`,
-          count: violations.length,
-          severity: violations.length > 10 ? 'error' : violations.length > 5 ? 'warning' : 'info',
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          projectType: activeProject.type || 'nextjs',
-          data: { violations },
+      const response = await fetch('/api/blueprint/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: activeProject.id,
+          title: eventTitle,
+          description: `Scan completed successfully`,
+          type: 'success',
+          agent: 'blueprint',
+          message: `${scanId} scan executed via Blueprint`,
+        }),
+      });
 
-          // Accept: Save requirements
-          onAccept: async () => {
-            console.log('[Blueprint] User accepted - saving requirements...');
-            const saveResponse = await fetch('/api/structure-scan/save', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                violations,
-                projectPath: activeProject.path,
-                projectId: activeProject.id,
-              }),
-            });
+      if (!response.ok) {
+        console.error('[Blueprint] Failed to create event');
+        return;
+      }
 
-            const saveData = await saveResponse.json();
-            if (!saveData.success) {
-              throw new Error(saveData.error || 'Failed to save requirements');
+      const result = await response.json();
+
+      if (result.success) {
+        console.log(`[Blueprint] ✅ Event created: ${eventTitle}`);
+
+        // Reload scan events to update days ago
+        const eventTitles: Record<string, string> = {};
+        for (const column of BLUEPRINT_COLUMNS) {
+          for (const button of column.buttons) {
+            if (button.eventTitle) {
+              eventTitles[button.id] = button.eventTitle;
             }
-
-            console.log(`[Blueprint] ✅ Saved ${saveData.requirementFiles.length} requirement files`);
-          },
-
-          // Reject: Log rejection
-          onReject: async () => {
-            console.log('[Blueprint] User rejected structure scan');
-            // Rejection is logged by the API in the save endpoint
-          },
-        });
-      } catch (error) {
-        completeScan();
-        console.error('[Blueprint] Structure scan error:', error);
-      }
-      return;
-    }
-
-    // Special handling for photo scan - executes all 5 module screenshots
-    if (scanType === 'photo') {
-      startScan(scanType);
-
-      try {
-        const response = await fetch('/api/tester/screenshot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ executeAll: true }), // Capture all 5 modules
-        });
-
-        if (!response.ok) {
-          throw new Error('Screenshot failed');
+          }
         }
-
-        const result = await response.json();
-        console.log('[Blueprint] Screenshot completed:', result);
-        completeScan();
-      } catch (error) {
-        console.error('[Blueprint] Screenshot error:', error);
-        completeScan();
+        await loadScanEvents(activeProject.id, eventTitles);
       }
-      return;
+    } catch (error) {
+      console.error('[Blueprint] Error creating event:', error);
     }
-
-    // Start the scan for other types
-    startScan(scanType);
-
-    // Simulate progress over 5 seconds (1 second = 20%)
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 20;
-      updateScanProgress(progress);
-
-      if (progress >= 100) {
-        clearInterval(interval);
-        completeScan();
-      }
-    }, 1000);
   };
 
   const handleNavigate = (module: 'ideas' | 'tinder' | 'tasker' | 'reflector') => {
@@ -163,18 +209,6 @@ export default function DarkBlueprint() {
       {/* Background elements */}
       <BlueprintBackground />
 
-      {/* Title - Top Left Corner */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.2 }}
-        className="absolute top-6 left-8"
-      >
-        <h1 className="text-3xl font-bold text-cyan-300/90 tracking-wider font-mono">
-          PROJECT BLUEPRINT
-        </h1>
-      </motion.div>
-
       {/* Corner labels */}
       <BlueprintCornerLabels />
 
@@ -188,12 +222,14 @@ export default function DarkBlueprint() {
       {/* Main content area */}
       <div className="relative h-full min-w-[1200px] flex items-center justify-center p-20">
         {/* 4-Column Grid Layout - Increased gap from 16 to 32 (100% increase) */}
-        <div className="grid grid-cols-4 min-w-[1200px] gap-16 z-10">
+        <div className="grid grid-cols-4 min-w-[1200px] gap-10 z-10">
           {BLUEPRINT_COLUMNS.map((column, index) => (
             <BlueprintColumn
               key={column.id}
               column={column}
               delay={0.4 + index * 0.1}
+              selectedScanId={selectedScanId}
+              onSelectScan={handleSelectScan}
               onScan={handleScan}
               onNavigate={handleNavigate}
               getScanStatus={getScanStatus}

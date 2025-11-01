@@ -1,9 +1,9 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Caveat } from 'next/font/google';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import Drawer from '@/components/ui/Drawer';
 
 const caveat = Caveat({
   weight: ['400', '500', '600', '700'],
@@ -75,84 +75,45 @@ export default function ControlPanel({ isOpen, onClose, onOpenBlueprint }: Contr
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-            onClick={onClose}
-          />
+    <Drawer
+      isOpen={isOpen}
+      onClose={() => {
+        onClose();
+        closeControlPanel();
+      }}
+      side="left"
+      maxWidth="max-w-md"
+      backgroundImage="/patterns/bg_blueprint.jpg"
+    >
 
-          {/* Drawer Panel - Slides from left */}
-          <motion.div
-            initial={{ x: '-100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '-100%', opacity: 0 }}
-            transition={{
-              type: 'spring',
-              damping: 30,
-              stiffness: 250,
-              mass: 0.8,
-            }}
-            className="fixed left-0 top-0 bottom-0 z-50 w-full max-w-md"
-          >
-            {/* Drawer content */}
-            <div className="relative h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-r-2 border-cyan-500/30 shadow-2xl shadow-cyan-500/20 overflow-y-auto">
-              {/* Blueprint pattern background */}
-              <div
-                className="absolute inset-0 opacity-10 pointer-events-none"
-                style={{
-                  backgroundImage: 'url(/patterns/bg_blueprint.jpg)',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              />
+      {/* Title */}
+      <motion.h2
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.2 }}
+        className={`${caveat.className} text-5xl text-cyan-200/90 mb-2 font-semibold`}
+        style={{ textShadow: '0 2px 10px rgba(34, 211, 238, 0.5)' }}
+      >
+        Getting Started
+      </motion.h2>
 
-              <div className="relative p-8">
-                {/* Close button */}
-                <button
-                  onClick={() => {
-                    onClose();
-                    closeControlPanel();
-                  }}
-                  className="absolute top-4 right-4 p-2 rounded-full bg-gray-700/50 hover:bg-gray-600/50 transition-colors z-10"
-                >
-                  <X className="w-4 h-4 text-gray-400 hover:text-white" />
-                </button>
+      <motion.p
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.3 }}
+        className="text-sm text-gray-400 mb-8 font-sans"
+      >
+        Complete these tasks to unlock the full potential of your development workflow.
+      </motion.p>
 
-                {/* Title */}
-                <motion.h2
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className={`${caveat.className} text-5xl text-cyan-200/90 mb-2 font-semibold`}
-                  style={{ textShadow: '0 2px 10px rgba(34, 211, 238, 0.5)' }}
-                >
-                  Getting Started
-                </motion.h2>
+      {/* Tasks list */}
+      <div className="space-y-5 mb-8">
+        {tasks.map((task, index) => {
+          const isNextTask = index === nextTaskIndex;
+          const isFutureTask = nextTaskIndex !== -1 && index > nextTaskIndex;
 
-                <motion.p
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-sm text-gray-400 mb-8 font-sans"
-                >
-                  Complete these tasks to unlock the full potential of your development workflow.
-                </motion.p>
-
-                {/* Tasks list */}
-                <div className="space-y-5 mb-8">
-                  {tasks.map((task, index) => {
-                    const isNextTask = index === nextTaskIndex;
-                    const isFutureTask = nextTaskIndex !== -1 && index > nextTaskIndex;
-
-                    return (
-                      <motion.div
+          return (
+            <motion.div
                         key={task.id}
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -249,84 +210,75 @@ export default function ControlPanel({ isOpen, onClose, onOpenBlueprint }: Contr
                             )}
                           </div>
                         </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+            </motion.div>
+          );
+        })}
+      </div>
 
-                {/* Divider */}
-                <motion.div
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ delay: 0.8 }}
-                  className="h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent my-8"
-                />
+      {/* Divider */}
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ delay: 0.8 }}
+        className="h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent my-8"
+      />
 
-                {/* Blueprint Access Button - Hand-written style */}
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.9 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={onOpenBlueprint}
-                  className="group relative w-full py-8 flex items-center justify-center"
-                >
-                  {/* Hand-written text */}
-                  <div className="relative">
-                    <motion.h2
-                      className={`${caveat.className} text-6xl font-bold text-cyan-300/80 group-hover:text-cyan-200 transition-all duration-300`}
-                      style={{
-                        textShadow: '0 0 20px rgba(34, 211, 238, 0.3)',
-                        transform: 'rotate(-2deg)',
-                      }}
-                      whileHover={{
-                        textShadow: '0 0 30px rgba(34, 211, 238, 0.6)',
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      BLUEPRINT
-                    </motion.h2>
+      {/* Blueprint Access Button - Hand-written style */}
+      <motion.button
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onOpenBlueprint}
+        className="group relative w-full py-8 flex items-center justify-center"
+      >
+        {/* Hand-written text */}
+        <div className="relative">
+          <motion.h2
+            className={`${caveat.className} text-6xl font-bold text-cyan-300/80 group-hover:text-cyan-200 transition-all duration-300`}
+            style={{
+              textShadow: '0 0 20px rgba(34, 211, 238, 0.3)',
+              transform: 'rotate(-2deg)',
+            }}
+            whileHover={{
+              textShadow: '0 0 30px rgba(34, 211, 238, 0.6)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            BLUEPRINT
+          </motion.h2>
 
-                    {/* Underline accent */}
-                    <motion.div
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ delay: 1.1, duration: 0.6 }}
-                      className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent origin-left"
-                      style={{
-                        transform: 'rotate(-1deg)',
-                      }}
-                    />
-                  </div>
+          {/* Underline accent */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 1.1, duration: 0.6 }}
+            className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent origin-left"
+            style={{
+              transform: 'rotate(-1deg)',
+            }}
+          />
+        </div>
 
-                  {/* Animated arrow */}
-                  <motion.div
-                    animate={{ x: [0, 8, 0] }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    }}
-                    className="absolute right-8 text-4xl text-cyan-400/60 group-hover:text-cyan-400 transition-colors"
-                  >
-                    →
-                  </motion.div>
+        {/* Animated arrow */}
+        <motion.div
+          animate={{ x: [0, 8, 0] }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className="absolute right-8 text-4xl text-cyan-400/60 group-hover:text-cyan-400 transition-colors"
+        >
+          →
+        </motion.div>
 
-                  {/* Glow effect on hover */}
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent rounded-xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  />
-                </motion.button>
-
-                {/* Decorative elements */}
-                <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-cyan-200/20 rounded-tl-lg" />
-                <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-cyan-200/20 rounded-br-lg" />
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        {/* Glow effect on hover */}
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent rounded-xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+        />
+      </motion.button>
+    </Drawer>
   );
 }

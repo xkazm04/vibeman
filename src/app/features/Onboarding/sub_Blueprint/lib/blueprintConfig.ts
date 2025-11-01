@@ -11,6 +11,37 @@ import {
   Camera,
   LucideIcon,
 } from 'lucide-react';
+import * as structureScan from './blueprintStructureScan';
+import * as photoScan from './blueprintPhotoScan';
+import * as visionScan from './blueprintVisionScan';
+import * as contextsScan from './blueprintContextsScan';
+import * as buildScan from './blueprintBuildScan';
+
+export interface ScanResult {
+  success: boolean;
+  error?: string;
+  violations?: any[];
+  data?: any;
+}
+
+export interface DecisionData {
+  type: string;
+  title: string;
+  description: string;
+  count?: number;
+  severity?: 'info' | 'warning' | 'error';
+  projectId?: string;
+  projectPath?: string;
+  projectType?: string;
+  data?: any;
+  onAccept: () => Promise<void>;
+  onReject: () => Promise<void>;
+}
+
+export interface ScanHandler {
+  execute: () => Promise<ScanResult>;
+  buildDecision: (result: ScanResult) => DecisionData | null;
+}
 
 export interface ButtonConfig {
   id: string;
@@ -19,6 +50,8 @@ export interface ButtonConfig {
   color: 'blue' | 'cyan' | 'purple' | 'amber' | 'green' | 'red' | 'pink' | 'indigo';
   action: 'scan' | 'navigate';
   target?: 'ideas' | 'tinder' | 'tasker' | 'reflector';
+  scanHandler?: ScanHandler;
+  eventTitle?: string; // Event title to track last scan execution
 }
 
 export interface ColumnConfig {
@@ -44,6 +77,11 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
         icon: Eye,
         color: 'cyan',
         action: 'scan',
+        eventTitle: 'Vision Scan Completed',
+        scanHandler: {
+          execute: visionScan.executeVisionScan,
+          buildDecision: visionScan.buildDecisionData,
+        },
       },
       {
         id: 'contexts',
@@ -51,6 +89,11 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
         icon: Layers,
         color: 'blue',
         action: 'scan',
+        eventTitle: 'Contexts Scan Completed',
+        scanHandler: {
+          execute: contextsScan.executeContextsScan,
+          buildDecision: contextsScan.buildDecisionData,
+        },
       },
     ],
   },
@@ -67,6 +110,11 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
         icon: Box,
         color: 'blue',
         action: 'scan',
+        eventTitle: 'Structure Scan Completed',
+        scanHandler: {
+          execute: structureScan.executeStructureScan,
+          buildDecision: structureScan.buildDecisionData,
+        },
       },
       {
         id: 'build',
@@ -74,6 +122,11 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
         icon: Hammer,
         color: 'indigo',
         action: 'scan',
+        eventTitle: 'Build Scan Completed',
+        scanHandler: {
+          execute: buildScan.executeBuildScan,
+          buildDecision: buildScan.buildDecisionData,
+        },
       },
       {
         id: 'dependencies',
@@ -137,6 +190,11 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
         icon: Camera,
         color: 'pink',
         action: 'scan',
+        eventTitle: 'Photo Scan Completed',
+        scanHandler: {
+          execute: photoScan.executePhotoScan,
+          buildDecision: photoScan.buildDecisionData,
+        },
       },
     ],
   },

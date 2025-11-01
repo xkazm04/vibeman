@@ -2,12 +2,11 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { SupportedProvider } from '@/lib/llm/types';
 import { ScanState, QueueItem, ContextQueueItem } from '../lib/scanTypes';
-import { ScanType, SCAN_TYPES } from './lib/ScanTypeConfig';
+import { ScanType } from './lib/ScanTypeConfig';
 import { getScanTypeConfig } from './lib/ScanTypeConfig';
 
 // Modular imports
@@ -27,6 +26,8 @@ import ProviderSelector from '@/components/llm/ProviderSelector';
 import ScanButton from './components/ScanButton';
 import BatchScanButton from './components/BatchScanButton';
 import ProgressBar from './ProgressBar';
+import ScanIdeaScoreboard from './components/ScanIdeaScoreboard';
+import ScanTypeSelector from './ScanTypeSelector';
 
 interface ScanInitiatorProps {
   onScanComplete: () => void;
@@ -72,27 +73,6 @@ export default function ScanInitiator({
     return contexts.filter(c => c.projectId === activeProject.id);
   }, [contexts, activeProject]);
 
-  const handleContextSelect = (contextId: string | null) => {
-    if (contextId === null) {
-      clearContextSelection();
-    } else {
-      setSelectedContext(contextId);
-    }
-  };
-
-  const handleScanTypeToggle = (type: ScanType) => {
-    if (!onScanTypesChange) return; // No-op if callback not provided
-
-    if (selectedScanTypes.includes(type)) {
-      // Deselect - but keep at least one selected
-      if (selectedScanTypes.length > 1) {
-        onScanTypesChange(selectedScanTypes.filter(t => t !== type));
-      }
-    } else {
-      // Select - add to array
-      onScanTypesChange([...selectedScanTypes, type]);
-    }
-  };
 
   const handleScan = async () => {
     if (!activeProject) {
@@ -303,56 +283,13 @@ export default function ScanInitiator({
           </motion.div>
         )}
 
-        {/* Scan Type Selector Row */}
-        <div>
-          <div className="flex items-center space-x-2 mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <h4 className="text-sm font-semibold text-cyan-300">
-              Scan Type {selectedScanTypes.length > 1 && <span className="text-[10px] text-cyan-500">({selectedScanTypes.length})</span>}
-            </h4>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {SCAN_TYPES.map((type) => {
-              const isSelected = selectedScanTypes.includes(type.value);
-              return (
-                <motion.button
-                  key={type.value}
-                  onClick={() => handleScanTypeToggle(type.value)}
-                  className={`relative px-2 py-1.5 rounded-lg border-2 transition-all duration-300 ${
-                    isSelected
-                      ? type.color
-                      : 'bg-gray-800/40 border-gray-700/40 text-gray-400 hover:bg-gray-800/60 hover:border-gray-600/40'
-                  }`}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.98 }}
-                  title={type.description}
-                >
-                  {/* Selected indicator */}
-                  {isSelected && (
-                    <motion.div
-                      className="absolute inset-0 rounded-lg opacity-20"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)'
-                      }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0.2 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  )}
-
-                  <div className="relative flex items-center space-x-1.5">
-                    <span className="text-base">{type.emoji}</span>
-                    <span className={`text-[10px] font-semibold ${isSelected ? '' : 'text-gray-400'}`}>
-                      {type.label}
-                    </span>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-
+        {/* Scan Type Selector */}
+        {onScanTypesChange && (
+          <ScanTypeSelector
+            selectedTypes={selectedScanTypes}
+            onChange={onScanTypesChange}
+          />
+        )}
 
         {/* Action Buttons Row */}
         <div className="flex items-center gap-3 pt-2 border-t border-gray-700/20">
@@ -406,12 +343,18 @@ export default function ScanInitiator({
 
       {/* Progress Bar - Scan Queue */}
       {scanQueue.length > 0 && isProcessingQueue && (
-        <ProgressBar items={scanQueue} totalIdeas={totalIdeas} type="scan" />
+        <>
+          <ProgressBar items={scanQueue} totalIdeas={totalIdeas} type="scan" />
+          <ScanIdeaScoreboard items={scanQueue} totalIdeas={totalIdeas} type="scan" />
+        </>
       )}
 
       {/* Progress Bar - Context Queue (Batch Mode) */}
       {contextQueue.length > 0 && isProcessingContextQueue && (
-        <ProgressBar items={contextQueue} totalIdeas={totalIdeas} type="context" />
+        <>
+          <ProgressBar items={contextQueue} totalIdeas={totalIdeas} type="context" />
+          <ScanIdeaScoreboard items={contextQueue} totalIdeas={totalIdeas} type="context" />
+        </>
       )}
     </div>
   );

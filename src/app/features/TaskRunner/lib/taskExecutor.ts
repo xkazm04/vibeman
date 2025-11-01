@@ -241,6 +241,25 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
               }
             }
 
+            // Update idea status to 'implemented' if this requirement came from an idea
+            try {
+              const ideaResponse = await fetch(`/api/ideas/update-implementation-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requirementName: req.requirementName }),
+              });
+
+              if (ideaResponse.ok) {
+                const result = await ideaResponse.json();
+                if (result.updated) {
+                  console.log(`[TaskRunner] Updated idea status to 'implemented': ${result.ideaId}`);
+                }
+              }
+            } catch (ideaUpdateError) {
+              console.warn('[TaskRunner] Failed to update idea status (non-critical):', ideaUpdateError);
+              // Don't fail the whole process if idea update fails
+            }
+
             // Delete requirement file after successful completion (and git operations if enabled)
             try {
               await deleteRequirement(req.projectPath, req.requirementName);

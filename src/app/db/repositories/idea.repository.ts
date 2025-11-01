@@ -58,6 +58,16 @@ export const ideaRepository = {
   },
 
   /**
+   * Get idea by requirement_id
+   */
+  getIdeaByRequirementId: (requirementId: string): DbIdea | null => {
+    const db = getDatabase();
+    const stmt = db.prepare('SELECT * FROM ideas WHERE requirement_id = ?');
+    const idea = stmt.get(requirementId) as DbIdea | undefined;
+    return idea || null;
+  },
+
+  /**
    * Get a single idea by ID
    */
   getIdeaById: (ideaId: string): DbIdea | null => {
@@ -86,6 +96,8 @@ export const ideaRepository = {
     user_pattern?: boolean;
     effort?: number | null;
     impact?: number | null;
+    requirement_id?: string | null;
+    goal_id?: string | null;
   }): DbIdea => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -93,9 +105,10 @@ export const ideaRepository = {
     const stmt = db.prepare(`
       INSERT INTO ideas (
         id, scan_id, project_id, context_id, scan_type, category, title, description,
-        reasoning, status, user_feedback, user_pattern, effort, impact, created_at, updated_at
+        reasoning, status, user_feedback, user_pattern, effort, impact, requirement_id, goal_id,
+        created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -113,6 +126,8 @@ export const ideaRepository = {
       idea.user_pattern ? 1 : 0,
       idea.effort || null,
       idea.impact || null,
+      idea.requirement_id || null,
+      idea.goal_id || null,
       now,
       now
     );
@@ -133,6 +148,8 @@ export const ideaRepository = {
     reasoning?: string;
     effort?: number | null;
     impact?: number | null;
+    requirement_id?: string | null;
+    goal_id?: string | null;
   }): DbIdea | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -143,6 +160,11 @@ export const ideaRepository = {
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
       values.push(updates.status);
+      // Update implemented_at when status changes to 'implemented'
+      if (updates.status === 'implemented') {
+        updateFields.push('implemented_at = ?');
+        values.push(now);
+      }
     }
     if (updates.user_feedback !== undefined) {
       updateFields.push('user_feedback = ?');
@@ -171,6 +193,14 @@ export const ideaRepository = {
     if (updates.impact !== undefined) {
       updateFields.push('impact = ?');
       values.push(updates.impact);
+    }
+    if (updates.requirement_id !== undefined) {
+      updateFields.push('requirement_id = ?');
+      values.push(updates.requirement_id || null);
+    }
+    if (updates.goal_id !== undefined) {
+      updateFields.push('goal_id = ?');
+      values.push(updates.goal_id || null);
     }
 
     if (updateFields.length === 0) {

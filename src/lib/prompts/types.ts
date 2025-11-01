@@ -25,14 +25,9 @@ export type PromptTaskType =
 
 /**
  * Prompt mode determines which template variant to use
+ * @deprecated Use ScanType from @/app/features/Ideas/lib/scanTypes instead
  */
-export type PromptMode =
-  | 'zen_architect'
-  | 'bug_hunter'
-  | 'perf_optimizer'
-  | 'security_protector'
-  | 'insight_synth'
-  | 'ambiguity_guardian';
+export type PromptMode = import('@/app/features/Ideas/lib/scanTypes').ScanType;
 
 /**
  * LLM provider configuration

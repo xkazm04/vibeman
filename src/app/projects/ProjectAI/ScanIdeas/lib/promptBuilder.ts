@@ -4,11 +4,12 @@
  */
 
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
-import { DbContext, DbIdea } from '@/app/db';
+import { DbContext, DbIdea, goalDb } from '@/app/db';
 import { buildPrompt, PromptOptions as NewPromptOptions } from '../prompts';
-import { buildCodeSection, buildContextSection, buildExistingIdeasSection } from './sectionBuilders';
+import { buildCodeSection, buildContextSection, buildExistingIdeasSection, buildGoalsSection } from './sectionBuilders';
 
 interface BuildPromptOptions {
+  projectId: string;
   projectName: string;
   aiDocs: string | null;
   context: DbContext | null;
@@ -29,7 +30,11 @@ export function buildIdeaGenerationPrompt(
     temperature: number;
   };
 } {
-  const { projectName, aiDocs, context, codeFiles, existingIdeas } = options;
+  const { projectId, projectName, aiDocs, context, codeFiles, existingIdeas } = options;
+
+  // Fetch open goals for the project
+  const allGoals = goalDb.getGoalsByProject(projectId);
+  const openGoals = allGoals.filter(goal => goal.status === 'open');
 
   // Build sections
   const aiDocsSection = aiDocs
@@ -38,6 +43,7 @@ export function buildIdeaGenerationPrompt(
 
   const contextSection = buildContextSection(context);
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
+  const goalsSection = buildGoalsSection(openGoals);
   const codeSection = buildCodeSection(codeFiles);
 
   // Create prompt options for new system
@@ -53,6 +59,12 @@ export function buildIdeaGenerationPrompt(
   // Use the new prompt builder
   const fullPrompt = buildPrompt(scanType, promptOptions);
 
+  // Insert goals section before the code section
+  const goalsInsertedPrompt = fullPrompt.replace(
+    codeSection,
+    goalsSection + codeSection
+  );
+
   // LLM configuration
   const llmConfig = {
     maxTokens: 30000,
@@ -60,7 +72,7 @@ export function buildIdeaGenerationPrompt(
   };
 
   return {
-    fullPrompt,
+    fullPrompt: goalsInsertedPrompt,
     llmConfig,
   };
 }

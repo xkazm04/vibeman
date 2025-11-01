@@ -55,11 +55,11 @@ export async function acceptIdea(
 /**
  * Reject an idea
  */
-export async function rejectIdea(ideaId: string): Promise<{ success: boolean }> {
+export async function rejectIdea(ideaId: string, projectPath?: string): Promise<{ success: boolean }> {
   const response = await fetch('/api/ideas/tinder/reject', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ideaId }),
+    body: JSON.stringify({ ideaId, projectPath }),
   });
 
   if (!response.ok) {

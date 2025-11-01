@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import {
@@ -10,7 +10,7 @@ import {
   EffortIcon,
   ImpactIcon,
 } from '@/app/features/Ideas/lib/ideaConfig';
-import { Calendar, Tag } from 'lucide-react';
+import { Calendar, Tag, Target } from 'lucide-react';
 
 interface IdeaCardProps {
   idea: DbIdea;
@@ -32,8 +32,26 @@ export default function IdeaCard({
 
   const [exitX, setExitX] = useState(0);
   const [exitOpacity, setExitOpacity] = useState(1);
+  const [goalTitle, setGoalTitle] = useState<string | null>(null);
+  const [loadingGoal, setLoadingGoal] = useState(false);
 
   const config = getCategoryConfig(idea.category);
+
+  // Fetch goal title if goal_id exists
+  useEffect(() => {
+    if (idea.goal_id) {
+      setLoadingGoal(true);
+      fetch(`/api/goals?id=${idea.goal_id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.goal) {
+            setGoalTitle(data.goal.title);
+          }
+        })
+        .catch(err => console.error('Error fetching goal:', err))
+        .finally(() => setLoadingGoal(false));
+    }
+  }, [idea.goal_id]);
 
   const handleDragEnd = (_: any, info: PanInfo) => {
     const threshold = 150;
@@ -148,6 +166,19 @@ export default function IdeaCard({
               </div>
             )}
           </div>
+
+          {/* Related Goal */}
+          {goalTitle && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 px-3 py-2 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                <Target className="w-4 h-4 text-purple-400" />
+                <div>
+                  <div className="text-[10px] text-purple-400 uppercase">Related Goal</div>
+                  <div className="text-sm font-semibold text-purple-300">{goalTitle}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div className="mb-6">

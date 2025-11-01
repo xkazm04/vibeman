@@ -107,6 +107,8 @@ export interface DbIdea {
   user_pattern: number; // Boolean flag (0 or 1)
   effort: number | null; // 1 = lowest effort, 3 = highest effort
   impact: number | null; // 1 = lowest impact, 3 = highest impact
+  requirement_id: string | null; // Claude Code requirement file name
+  goal_id: string | null; // Related goal (foreign key to goals table)
   created_at: string;
   updated_at: string;
   implemented_at: string | null; // Date when idea was implemented

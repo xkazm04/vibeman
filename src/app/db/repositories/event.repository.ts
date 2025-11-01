@@ -87,5 +87,41 @@ export const eventRepository = {
       LIMIT ?
     `);
     return stmt.all(projectId, type, limit) as DbEvent[];
+  },
+
+  /**
+   * Get latest event by title
+   */
+  getLatestEventByTitle: (projectId: string, title: string): DbEvent | null => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM events
+      WHERE project_id = ? AND title = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    return (stmt.get(projectId, title) as DbEvent) || null;
+  },
+
+  /**
+   * Get latest events for multiple titles
+   */
+  getLatestEventsByTitles: (projectId: string, titles: string[]): Record<string, DbEvent | null> => {
+    const db = getDatabase();
+    const result: Record<string, DbEvent | null> = {};
+
+    const stmt = db.prepare(`
+      SELECT * FROM events
+      WHERE project_id = ? AND title = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+
+    for (const title of titles) {
+      const event = stmt.get(projectId, title) as DbEvent | undefined;
+      result[title] = event || null;
+    }
+
+    return result;
   }
 };

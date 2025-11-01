@@ -329,6 +329,15 @@ src/app/db/index.ts (exported conversationDb)
 src/app/features/Annette/components/AnnettePanel.tsx (added buttons + logic)
 ```
 
+### Build Fixes Applied:
+```
+src/app/api/annette/chat/route.ts
+  - Fixed imports: Changed from @/lib/llm to @/lib/langgraph/langHelpers
+  - Fixed LLM client usage: Changed from non-existent chat() to generate() method
+  - Updated chat prompt formatting: Converted messages array to string format
+  - Changed provider type: SupportedProvider → LLMProvider
+```
+
 ---
 
 ## Future Enhancements
