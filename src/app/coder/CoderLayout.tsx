@@ -4,7 +4,6 @@ import GoalsLayout from './Goals/GoalsLayout';
 import HorizontalContextBar from './Context/HorizontalContextBar';
 import { useStore } from '../../stores/nodeStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
-import ClaudeSection from '../Claude/ClaudeSection';
 
 const CoderLayout = () => {
   const { getSelectedFilePaths } = useStore();
@@ -19,11 +18,6 @@ const CoderLayout = () => {
       <div className="max-w-[95vw] mx-auto h-full">
         {/* Goals Layout - Thin bar at the top */}
         <GoalsLayout />
-
-        {/* Claude Code Section - Below Goals */}
-        <div className="mb-8">
-          <ClaudeSection />
-        </div>
 
         {/* Horizontal Context Bar - Flexible Height */}
         <div className="mb-8">

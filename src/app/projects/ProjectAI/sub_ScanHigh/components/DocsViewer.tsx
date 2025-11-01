@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Check, Edit3, Eye, FileText, AlertCircle, Loader2, RefreshCw, Sparkles, X } from 'lucide-react';
 import { MarkdownViewer } from '@/components/markdown';
-import { ExportButton } from '@/app/features/Export';
 
 interface DocsViewerProps {
   content: string;
@@ -93,17 +92,6 @@ export default function DocsViewer({
             )}
           </AnimatePresence>
 
-          {/* Export Button */}
-          {projectId && content && (
-            <ExportButton
-              projectId={projectId}
-              projectName={projectName}
-              aiDocsContent={content}
-              aiDocsProvider={llmProvider}
-              llmProvider={llmProvider}
-              compact={true}
-            />
-          )}
 
           {/* Regenerate Button */}
           {onRegenerate && (

@@ -33,7 +33,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
     if (!fileStructure || !searchQuery.trim()) return fileStructure;
     
     const filterNode = (node: TreeNodeType): TreeNodeType | null => {
-      const nodePath = node.path || node.id;
+      const nodePath = node.path;
       const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            nodePath.toLowerCase().includes(searchQuery.toLowerCase());
       
@@ -57,7 +57,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
 
     // Find the node in the tree
     const findNode = (node: TreeNodeType, targetPath: string): TreeNodeType | null => {
-      const currentPath = node.path || node.id;
+      const currentPath = node.path;
       if (normalizePath(currentPath) === normalizePath(targetPath)) {
         return node;
       }
@@ -86,7 +86,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
 
       const collectChildFiles = (n: TreeNodeType) => {
         if (n.type === 'file') {
-          const filePath = n.path || n.id;
+          const filePath = n.path;
           childFilePaths.push(normalizePath(filePath));
         }
 

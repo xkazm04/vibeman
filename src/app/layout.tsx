@@ -9,8 +9,6 @@ import ContextOverview from "./coder/Context/ContextOverview/ContextOverview";
 import TopBar from "../components/Navigation/TopBar";
 import PageTransition from "../components/Navigation/PageTransition";
 import ControlPanelProvider from "./features/Onboarding/ControlPanelProvider";
-import GlobalKeyboardShortcuts from "../components/GlobalKeyboardShortcuts";
-import KeyboardShortcutsHelp from "../components/KeyboardShortcutsHelp";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,8 +40,6 @@ export default function RootLayout({
           <ErrorProvider>
             <ModalProvider>
               <ControlPanelProvider>
-                <GlobalKeyboardShortcuts />
-                <KeyboardShortcutsHelp />
                 <TopBar />
                 <PageTransition>
                   {children}

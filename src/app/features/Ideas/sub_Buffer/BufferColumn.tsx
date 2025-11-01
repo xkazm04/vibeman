@@ -1,25 +1,72 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Trash2 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferItem from './BufferItem';
 
 interface BufferColumnProps {
   contextName: string;
+  contextId: string | null;
   ideas: DbIdea[];
   projectName: string;
   onIdeaClick: (idea: DbIdea) => void;
   onIdeaDelete: (ideaId: string) => void;
+  onContextDelete?: (contextId: string) => void;
 }
 
 const BufferColumn = React.memo(function BufferColumn({
   contextName,
+  contextId,
   ideas,
-  projectName,
   onIdeaClick,
   onIdeaDelete,
+  onContextDelete,
 }: BufferColumnProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  console.log('BufferColumn render:', {
+    contextName,
+    contextId,
+    hasOnContextDelete: !!onContextDelete,
+    onContextDeleteType: typeof onContextDelete
+  });
+
+  const handleDeleteAll = async () => {
+    console.log('handleDeleteAll called', { contextId, hasHandler: !!onContextDelete, isDeleting });
+    
+    if (!contextId) {
+      console.log('No contextId, returning');
+      return;
+    }
+    
+    if (!onContextDelete) {
+      console.log('No onContextDelete handler, returning');
+      return;
+    }
+    
+    if (isDeleting) {
+      console.log('Already deleting, returning');
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `Delete all ${ideas.length} idea(s) in "${contextName}" context?`
+    );
+    
+    if (!confirmed) return;
+    
+    setIsDeleting(true);
+    try {
+      await onContextDelete(contextId);
+    } catch (error) {
+      console.error('Error deleting context ideas:', error);
+      alert('Failed to delete ideas');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   // Sort ideas: First by status (Pending, Accepted, etc.), then by category (type) within each status
   const sortedIdeas = React.useMemo(() => {
     return [...ideas].sort((a, b) => {
@@ -43,7 +90,9 @@ const BufferColumn = React.memo(function BufferColumn({
       className="flex flex-col bg-gray-900/40 border border-gray-700/40 rounded-lg overflow-hidden"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.8, x: -100 }}
       transition={{ duration: 0.3 }}
+      layout
     >
       {/* Header */}
       <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
@@ -51,9 +100,24 @@ const BufferColumn = React.memo(function BufferColumn({
           <h3 className="text-sm font-semibold text-gray-300 truncate" title={contextName}>
             {contextName}
           </h3>
-          <span className="text-[10px] text-gray-500 font-mono">
-            {ideas.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-500 font-mono">
+              {ideas.length}
+            </span>
+            {/* Always show if there's a contextId and ideas */}
+            {contextId && ideas.length > 0 && (
+              <motion.button
+                onClick={handleDeleteAll}
+                disabled={isDeleting}
+                className="p-1 hover:bg-red-500/20 rounded transition-colors disabled:opacity-50 cursor-pointer"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                title={`Delete all ideas in ${contextName}`}
+              >
+                <Trash2 className="w-3 h-3 text-red-400" />
+              </motion.button>
+            )}
+          </div>
         </div>
       </div>
 

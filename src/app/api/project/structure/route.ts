@@ -232,6 +232,7 @@ async function scanDirectory(dirPath: string, basePath: string): Promise<TreeNod
         description: getFolderDescription(name, children.length),
         detailedDescription: `Folder containing ${children.length} items`,
         children: children.length > 0 ? children : undefined,
+        path: relativePath || dirPath,
       };
     } else {
       // Check file size
@@ -262,6 +263,7 @@ async function scanDirectory(dirPath: string, basePath: string): Promise<TreeNod
         type: 'file',
         description: getFileDescription(name),
         detailedDescription: `${getFileDescription(name)} (${sizeKB}KB)`,
+        path: relativePath,
       };
     }
   } catch (error) {

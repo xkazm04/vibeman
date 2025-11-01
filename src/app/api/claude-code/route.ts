@@ -12,7 +12,6 @@ import {
   updateClaudeSettings,
   executeRequirement,
 } from '@/app/Claude/lib/claudeCodeManager';
-import { generateRequirementsFromGoals, generateRequirementForGoal } from '@/app/Claude/lib/generateRequirementsFromGoals';
 import {
   createProjectSnapshot,
   autoUpdateContexts,
@@ -442,59 +441,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Generate requirements from goals
-    if (action === 'generate-requirements') {
-      const { projectId } = body;
-      if (!projectId) {
-        return NextResponse.json(
-          { error: 'Project ID is required' },
-          { status: 400 }
-        );
-      }
-
-      const result = await generateRequirementsFromGoals(projectId, projectPath);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to generate requirements' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        count: result.count,
-        requirements: result.requirements,
-      });
-    }
-
-    // Generate requirement for a specific goal (async, non-blocking)
-    if (action === 'generate-requirement-for-goal') {
-      const { projectId, goalId } = body;
-      if (!projectId || !goalId) {
-        return NextResponse.json(
-          { error: 'Project ID and Goal ID are required' },
-          { status: 400 }
-        );
-      }
-
-      const result = await generateRequirementForGoal(projectId, projectPath, goalId);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to generate requirement for goal' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: result.message,
-      });
-    }
-
-    return NextResponse.json(
-      { error: 'Invalid action parameter' },
-      { status: 400 }
-    );
   } catch (error) {
     console.error('Error in POST /api/claude-code:', error);
     return NextResponse.json(

@@ -21,6 +21,16 @@ export { default as AnimatedButton } from './AnimatedButton';
 export type { AnimatedButtonProps, ButtonVariant, ButtonSize } from './AnimatedButton';
 export { default as StyledCheckbox } from './StyledCheckbox';
 export type { StyledCheckboxProps } from './StyledCheckbox';
+export { default as IconButton } from './IconButton';
+export type { IconButtonProps, IconButtonColorScheme, IconButtonSize } from './IconButton';
+export { default as MotionButton } from './MotionButton';
+export type {
+  MotionButtonProps,
+  MotionButtonColorScheme,
+  MotionButtonSize,
+  MotionButtonVariant,
+  AnimationPreset,
+} from './MotionButton';
 export { ModalTransition, ModalContent as ModalTransitionContent, modalVariants, modalTransitions } from './ModalTransition';
 export type { ModalVariant, ModalTransitionType } from './ModalTransition';
 export type {
@@ -30,3 +40,4 @@ export type {
   ModalTransitionConfig,
 } from './ModalTransition.types';
 export { default as ModalTransitionDemo } from './ModalTransitionDemo';
+export { default as LoadingSpinner } from './LoadingSpinner';

@@ -4,15 +4,9 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trash2, Edit2 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
-import {
-  getCategoryConfig,
-  effortConfig,
-  impactConfig,
-  EffortIcon,
-  ImpactIcon
-} from '../lib/ideaConfig';
 import { useProcessingIdea } from '../lib/ProcessingIdeaContext';
 import ContextMenu from '@/components/ContextMenu';
+import { getCategoryConfig, EffortIcon, ImpactIcon } from '../lib/ideaConfig';
 
 interface BufferItemProps {
   idea: DbIdea;
@@ -22,12 +16,8 @@ interface BufferItemProps {
 
 const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete }: BufferItemProps) {
   const { processingIdeaId } = useProcessingIdea();
-  const [isHovered, setIsHovered] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
-
-  const config = getCategoryConfig(idea.category);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -46,113 +36,108 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete }: B
     onClick();
   };
 
-  const isPending = idea.status === 'pending';
-  const isAccepted = idea.status === 'accepted';
+  const categoryConfig = getCategoryConfig(idea.category);
   const isProcessing = processingIdeaId === idea.id;
+
+  // Get status-based styling
+  const getStatusClasses = () => {
+    switch (idea.status) {
+      case 'accepted':
+        return 'border-green-500/40 bg-green-900/10 hover:bg-green-900/20';
+      case 'rejected':
+        return 'border-red-500/40 bg-red-900/10 hover:bg-red-900/20';
+      case 'implemented':
+        return 'border-amber-500/40 bg-amber-900/10 hover:bg-amber-900/20';
+      default:
+        return 'border-gray-600/40 bg-gray-800/20 hover:bg-gray-800/40';
+    }
+  };
+
+  const getEffortConfig = (effort: number | null) => {
+    if (!effort) return null;
+    const configs: Record<number, { label: string; color: string }> = {
+      1: { label: 'XS', color: 'text-green-400' },
+      2: { label: 'S', color: 'text-blue-400' },
+      3: { label: 'M', color: 'text-yellow-400' },
+      4: { label: 'L', color: 'text-orange-400' },
+      5: { label: 'XL', color: 'text-red-400' },
+    };
+    return configs[effort] || null;
+  };
+
+  const getImpactConfig = (impact: number | null) => {
+    if (!impact) return null;
+    const configs: Record<number, { label: string; color: string }> = {
+      1: { label: 'MIN', color: 'text-gray-400' },
+      2: { label: 'LOW', color: 'text-blue-400' },
+      3: { label: 'MED', color: 'text-yellow-400' },
+      4: { label: 'HIGH', color: 'text-orange-400' },
+      5: { label: 'MAX', color: 'text-red-400' },
+    };
+    return configs[impact] || null;
+  };
+
+  const effortConfig = getEffortConfig(idea.effort);
+  const impactConfig = getImpactConfig(idea.impact);
 
   return (
     <>
       <motion.div
-        className={`relative group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all ${
-          isProcessing
-            ? 'bg-yellow-900/30 hover:bg-yellow-900/40'
-            : isPending
-            ? 'bg-gray-800/40 hover:bg-gray-800/60'
-            : isAccepted
-            ? 'bg-green-900/20 hover:bg-green-900/30'
-            : 'bg-gray-800/20 hover:bg-gray-800/40'
-        } border-2 ${
-          isProcessing
-            ? 'border-yellow-500/70 shadow-lg shadow-yellow-500/50'
-            : isPending
-            ? 'border-gray-700/40 hover:border-gray-600/60'
-            : isAccepted
-            ? 'border-green-700/30 hover:border-green-600/50'
-            : 'border-gray-700/20 hover:border-gray-700/40'
+        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-colors ${getStatusClasses()} ${
+          isProcessing ? 'ring-2 ring-yellow-500/50' : ''
         }`}
         initial={{ opacity: 0, x: -10 }}
-        animate={
-          isProcessing
-            ? {
-                opacity: 1,
-                x: 0,
-                boxShadow: [
-                  '0 0 10px rgba(234, 179, 8, 0.3)',
-                  '0 0 20px rgba(234, 179, 8, 0.6)',
-                  '0 0 10px rgba(234, 179, 8, 0.3)',
-                ],
-              }
-            : { opacity: 1, x: 0 }
-        }
-        transition={
-          isProcessing
-            ? {
-                boxShadow: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
-              }
-            : {}
-        }
+        animate={{ opacity: 1, x: 0 }}
         whileHover={{ x: 2 }}
         onClick={onClick}
         onContextMenu={handleContextMenu}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
-      {/* Left: Icons/Indicators */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Category Emoji */}
-        <span className="text-sm">{config.emoji}</span>
+        {/* Badges */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Category Emoji */}
+          <span className="text-sm">{categoryConfig.emoji}</span>
 
-        {/* Impact Icon */}
-        {idea.impact && (
-          <ImpactIcon
-            className={`w-3 h-3 ${impactConfig[idea.impact]?.color || 'text-gray-400'}`}
-            title={`Impact: ${impactConfig[idea.impact]?.label}`}
-          />
-        )}
+          {/* Impact Badge */}
+          {impactConfig && (
+            <div className="flex items-center gap-0.5" title={`Impact: ${impactConfig.label}`}>
+              <ImpactIcon className={`w-3 h-3 ${impactConfig.color}`} />
+            </div>
+          )}
 
-        {/* Effort Icon */}
-        {idea.effort && (
-          <EffortIcon
-            className={`w-3 h-3 ${effortConfig[idea.effort]?.color || 'text-gray-400'}`}
-            title={`Effort: ${effortConfig[idea.effort]?.label}`}
-          />
-        )}
-      </div>
+          {/* Effort Badge */}
+          {effortConfig && (
+            <div className="flex items-center gap-0.5" title={`Effort: ${effortConfig.label}`}>
+              <EffortIcon className={`w-3 h-3 ${effortConfig.color}`} />
+            </div>
+          )}
+        </div>
 
-      {/* Middle: Title */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm truncate ${
-          isPending
-            ? 'text-gray-200 font-medium'
-            : isAccepted
-            ? 'text-green-300/80'
-            : 'text-gray-400'
-        }`}>
+        {/* Title */}
+        <span className="flex-1 min-w-0 text-xs text-gray-200 truncate font-medium">
           {idea.title}
-        </p>
-      </div>
-    </motion.div>
+        </span>
+      </motion.div>
 
-    {/* Context Menu */}
-    <ContextMenu
-      isOpen={showContextMenu}
-      position={contextMenuPosition}
-      onClose={() => setShowContextMenu(false)}
-      items={[
-        {
-          label: 'Edit idea',
-          icon: Edit2,
-          onClick: handleEditClick,
-        },
-        {
-          label: 'Delete idea',
-          icon: Trash2,
-          onClick: handleDeleteClick,
-          destructive: true,
-        },
-      ]}
-    />
-  </>
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={showContextMenu}
+        position={contextMenuPosition}
+        onClose={() => setShowContextMenu(false)}
+        items={[
+          {
+            label: 'Edit idea',
+            icon: Edit2,
+            onClick: handleEditClick,
+          },
+          {
+            label: 'Delete idea',
+            icon: Trash2,
+            onClick: handleDeleteClick,
+            destructive: true,
+          },
+        ]}
+      />
+    </>
   );
 });
 

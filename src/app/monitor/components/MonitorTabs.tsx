@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import MonitorStatistics from './MonitorStatistics';
 import MonitorCallsTable from './MonitorCallsTable';
 import MonitorReviewTable from './MonitorReviewTable';
 import MonitorPatternsTable from './MonitorPatternsTable';
+import { IconButton, LoadingSpinner } from '@/components/ui';
 import { BarChart3, Search } from 'lucide-react';
 
 export default function MonitorTabs() {
@@ -41,26 +42,30 @@ export default function MonitorTabs() {
 
       {/* Tab Content */}
       {activeTab === 'monitor' ? (
-        <motion.div
-          key="monitor"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <MonitorStatistics />
-          <MonitorCallsTable />
-        </motion.div>
+        <Suspense fallback={<LoadingSpinner size="md" message="Loading monitor data..." />}>
+          <motion.div
+            key="monitor"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <MonitorStatistics />
+            <MonitorCallsTable />
+          </motion.div>
+        </Suspense>
       ) : (
-        <motion.div
-          key="review"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="space-y-6"
-        >
-          <MonitorReviewTable />
-          <MonitorPatternsTable />
-        </motion.div>
+        <Suspense fallback={<LoadingSpinner size="md" message="Loading review data..." />}>
+          <motion.div
+            key="review"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            <MonitorReviewTable />
+            <MonitorPatternsTable />
+          </motion.div>
+        </Suspense>
       )}
     </div>
   );

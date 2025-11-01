@@ -93,16 +93,28 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
 
     setProcessing(true);
     try {
+      // Optimistically remove the idea from local state immediately
+      setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+
       await acceptIdea(currentIdea.id, selectedProject.path);
       setStats(prev => ({ ...prev, accepted: prev.accepted + 1 }));
-      moveToNext();
+
+      // Don't call moveToNext() - currentIndex stays the same, pointing to next card
+      loadMoreIfNeeded();
     } catch (error) {
       console.error('Failed to accept idea:', error);
       alert('Failed to accept idea: ' + (error instanceof Error ? error.message : 'Unknown error'));
+
+      // Revert: re-insert the idea at the same position
+      setIdeas(prev => {
+        const newIdeas = [...prev];
+        newIdeas.splice(currentIndex, 0, currentIdea);
+        return newIdeas;
+      });
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, ideas, getProject, moveToNext]);
+  }, [processing, currentIndex, ideas, getProject, loadMoreIfNeeded]);
 
   const handleReject = useCallback(async () => {
     if (processing || currentIndex >= ideas.length) return;
@@ -112,16 +124,28 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
 
     setProcessing(true);
     try {
+      // Optimistically remove the idea from local state immediately
+      setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+
       await rejectIdea(currentIdea.id, selectedProject?.path);
       setStats(prev => ({ ...prev, rejected: prev.rejected + 1 }));
-      moveToNext();
+
+      // Don't call moveToNext() - currentIndex stays the same, pointing to next card
+      loadMoreIfNeeded();
     } catch (error) {
       console.error('Failed to reject idea:', error);
       alert('Failed to reject idea');
+
+      // Revert: re-insert the idea at the same position
+      setIdeas(prev => {
+        const newIdeas = [...prev];
+        newIdeas.splice(currentIndex, 0, currentIdea);
+        return newIdeas;
+      });
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, ideas, getProject, moveToNext]);
+  }, [processing, currentIndex, ideas, getProject, loadMoreIfNeeded]);
 
   const handleDelete = useCallback(async () => {
     if (processing || currentIndex >= ideas.length) return;
@@ -134,16 +158,28 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
 
     setProcessing(true);
     try {
+      // Optimistically remove the idea from local state immediately
+      setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+
       await deleteIdea(currentIdea.id);
       setStats(prev => ({ ...prev, deleted: prev.deleted + 1 }));
-      moveToNext();
+
+      // Don't call moveToNext() - currentIndex stays the same, pointing to next card
+      loadMoreIfNeeded();
     } catch (error) {
       console.error('Failed to delete idea:', error);
       alert('Failed to delete idea');
+
+      // Revert: re-insert the idea at the same position
+      setIdeas(prev => {
+        const newIdeas = [...prev];
+        newIdeas.splice(currentIndex, 0, currentIdea);
+        return newIdeas;
+      });
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, ideas, moveToNext]);
+  }, [processing, currentIndex, ideas, loadMoreIfNeeded]);
 
   const resetStats = useCallback(() => {
     setStats({ accepted: 0, rejected: 0, deleted: 0 });

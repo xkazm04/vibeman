@@ -1,4 +1,4 @@
-import { ideaDb, scanDb } from '@/app/db';
+import { ideaDb, scanDb, goalDb } from '@/app/db';
 import { contextDb } from '@/app/db';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
 import { readAIDocs } from '../ScanGoals/lib/utils';
@@ -50,6 +50,12 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     } = options;
 
     console.log(`[generateIdeas] Starting idea generation for project: ${projectName}`);
+
+    // Fetch valid goal IDs for validation later
+    const validGoalIds = new Set(
+      goalDb.getGoalsByProject(projectId).map(g => g.id)
+    );
+    console.log(`[generateIdeas] Found ${validGoalIds.size} valid goal IDs for validation`);
 
     // 1. Read AI documentation
     console.log('[generateIdeas] Reading AI documentation...');
@@ -187,20 +193,54 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           ? idea.reasoning.trim()
           : null;
 
+        // Validate and sanitize effort (must be 1-3 or null, default to 1 if invalid)
+        const validateEffortImpact = (value: any): number | null => {
+          if (value === null || value === undefined) {
+            return 1; // Default to 1 if nothing provided
+          }
+          const num = typeof value === 'number' ? value : parseInt(value, 10);
+          if (isNaN(num) || num < 1 || num > 3) {
+            console.warn(`[generateIdeas] Invalid effort/impact value: ${value}, defaulting to 1`);
+            return 1; // Force to 1 if invalid
+          }
+          return num;
+        };
+
+        const effort = validateEffortImpact(idea.effort);
+        const impact = validateEffortImpact(idea.impact);
+
+        // Validate goal_id - ensure it exists in the database
+        let validatedGoalId: string | null = null;
+        if (idea.goal_id && typeof idea.goal_id === 'string') {
+          if (validGoalIds.has(idea.goal_id)) {
+            validatedGoalId = idea.goal_id;
+          } else {
+            console.warn(`[generateIdeas] Invalid goal_id "${idea.goal_id}" for idea "${title}". Setting to null.`);
+            validatedGoalId = null;
+          }
+        }
+
+        // Validate context_id if provided (might be passed incorrectly)
+        let validatedContextId: string | null = contextId || null;
+        if (validatedContextId && validatedContextId !== contextId) {
+          console.warn(`[generateIdeas] Context ID mismatch detected, using provided contextId: ${contextId}`);
+          validatedContextId = contextId || null;
+        }
+
         return ideaDb.createIdea({
           id: ideaId,
           scan_id: scanId,
           project_id: projectId,
-          context_id: contextId || null,
+          context_id: validatedContextId,
           scan_type: scanType,
           category,
           title,
           description,
           reasoning,
           status: 'pending',
-          effort: idea.effort || null,
-          impact: idea.impact || null,
-          goal_id: idea.goal_id || null
+          effort,
+          impact,
+          goal_id: validatedGoalId
         });
       });
 

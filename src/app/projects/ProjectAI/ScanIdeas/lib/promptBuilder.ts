@@ -6,7 +6,7 @@
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { DbContext, DbIdea, goalDb } from '@/app/db';
 import { buildPrompt, PromptOptions as NewPromptOptions } from '../prompts';
-import { buildCodeSection, buildContextSection, buildExistingIdeasSection, buildGoalsSection } from './sectionBuilders';
+import { buildContextSection, buildExistingIdeasSection, buildGoalsSection } from './sectionBuilders';
 
 interface BuildPromptOptions {
   projectId: string;
@@ -44,7 +44,6 @@ export function buildIdeaGenerationPrompt(
   const contextSection = buildContextSection(context);
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
   const goalsSection = buildGoalsSection(openGoals);
-  const codeSection = buildCodeSection(codeFiles);
 
   // Create prompt options for new system
   const promptOptions: NewPromptOptions = {
@@ -52,18 +51,15 @@ export function buildIdeaGenerationPrompt(
     aiDocsSection,
     contextSection,
     existingIdeasSection,
-    codeSection,
+    codeSection: '', // Removed - file paths already in context section
     hasContext: context !== null,
   };
 
   // Use the new prompt builder
   const fullPrompt = buildPrompt(scanType, promptOptions);
 
-  // Insert goals section before the code section
-  const goalsInsertedPrompt = fullPrompt.replace(
-    codeSection,
-    goalsSection + codeSection
-  );
+  // Append goals section to the prompt
+  const finalPrompt = fullPrompt + '\n\n' + goalsSection;
 
   // LLM configuration
   const llmConfig = {
@@ -72,7 +68,7 @@ export function buildIdeaGenerationPrompt(
   };
 
   return {
-    fullPrompt: goalsInsertedPrompt,
+    fullPrompt: finalPrompt,
     llmConfig,
   };
 }

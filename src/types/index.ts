@@ -51,7 +51,7 @@ export interface TreeNode {
   description: string;
   detailedDescription: string;
   children?: TreeNode[];
-  path?: string; // Optional path property for compatibility
+  path: string; // File path - always present for unified path handling
 }
 
 export interface ImpactedFile {
@@ -119,17 +119,17 @@ export interface AppStore extends AppState {
   setActiveTab: (tabId: string) => void;
   toggleAgent: (agentId: string) => void;
   toggleNode: (nodeId: string) => void;
-  toggleNodeWithFolder: (nodeId: string, fileStructure: TreeNode | null) => void; // New: enhanced toggle with folder support
-  highlightNodes: (nodeIds: string[]) => void; // New: highlight specific nodes
-  clearHighlights: () => void; // New: clear all highlights
-  clearSelection: () => void; // New: clear all selected nodes
-  selectFilesByPaths: (filePaths: string[], fileStructure: TreeNode | null) => void; // New: select files by paths
+  toggleNodeWithFolder: (nodeId: string, fileStructure: TreeNode | null) => void; // Enhanced toggle with folder support
+  highlightNodes: (nodeIds: string[]) => void; // Highlight specific nodes
+  clearHighlights: () => void; // Clear all highlights
+  clearSelection: () => void; // Clear all selected nodes
+  selectPaths: (filePaths: string[], fileStructure: TreeNode | null) => void; // Unified path-based selection API
   addEvent: (event: EventLogEntry) => void;
   acceptProposal: (proposalId: string) => void;
   rejectProposal: (proposalId: string) => void;
   addCustomBacklogItem: (item: CustomBacklogItem) => void;
-  moveToInProgress: (proposalId: string) => void; // New: move accepted proposals to in-progress
-  getSelectedFilePaths: (fileStructure: TreeNode | null, activeProjectId: string | null) => string[]; // New: get selected file paths
+  moveToInProgress: (proposalId: string) => void; // Move accepted proposals to in-progress
+  getSelectedFilePaths: (fileStructure: TreeNode | null, activeProjectId: string | null) => string[]; // Get selected file paths
 }
 
 // Database-related types

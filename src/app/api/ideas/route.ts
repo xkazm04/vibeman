@@ -5,23 +5,37 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * GET /api/ideas
  * Get all ideas or filter by query parameters
+ * Query params:
+ * - projectId: Filter by project
+ * - goalId: Filter by goal (can be combined with projectId)
+ * - status: Filter by status
+ * - contextId: Filter by context
+ * - limit: Limit number of results
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
+    const goalId = searchParams.get('goalId');
     const status = searchParams.get('status');
     const contextId = searchParams.get('contextId');
     const limit = searchParams.get('limit');
 
     let ideas: DbIdea[];
 
-    if (projectId) {
+    // Priority order: goalId > contextId > projectId > status > limit > all
+    if (goalId) {
+      ideas = ideaDb.getIdeasByGoal(goalId);
+      // If projectId is also specified, filter the results
+      if (projectId) {
+        ideas = ideas.filter(idea => idea.project_id === projectId);
+      }
+    } else if (contextId) {
+      ideas = ideaDb.getIdeasByContext(contextId);
+    } else if (projectId) {
       ideas = ideaDb.getIdeasByProject(projectId);
     } else if (status) {
       ideas = ideaDb.getIdeasByStatus(status as any);
-    } else if (contextId) {
-      ideas = ideaDb.getIdeasByContext(contextId);
     } else if (limit) {
       ideas = ideaDb.getRecentIdeas(parseInt(limit, 10));
     } else {

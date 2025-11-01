@@ -218,6 +218,56 @@ export function initializeTables() {
     );
   `);
 
+  // Create tech_debt table for Technical Debt Radar
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tech_debt (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      scan_id TEXT,
+      category TEXT NOT NULL CHECK (category IN (
+        'code_quality', 'security', 'performance', 'maintainability',
+        'testing', 'documentation', 'dependencies', 'architecture',
+        'accessibility', 'other'
+      )),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      severity TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low')),
+      risk_score INTEGER NOT NULL CHECK (risk_score >= 0 AND risk_score <= 100),
+
+      -- Impact metrics
+      estimated_effort_hours REAL,
+      impact_scope TEXT, -- JSON array
+      technical_impact TEXT,
+      business_impact TEXT,
+
+      -- Detection information
+      detected_by TEXT NOT NULL CHECK (detected_by IN ('automated_scan', 'manual_entry', 'ai_analysis')),
+      detection_details TEXT, -- JSON metadata
+      file_paths TEXT, -- JSON array
+
+      -- Remediation planning
+      status TEXT NOT NULL CHECK (status IN ('detected', 'acknowledged', 'planned', 'in_progress', 'resolved', 'dismissed')),
+      remediation_plan TEXT, -- JSON structured plan
+      remediation_steps TEXT, -- JSON array
+      estimated_completion_date TEXT,
+
+      -- Integration
+      backlog_item_id TEXT,
+      goal_id TEXT,
+
+      -- Timestamps
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      resolved_at TEXT,
+      dismissed_at TEXT,
+      dismissal_reason TEXT,
+
+      FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE SET NULL,
+      FOREIGN KEY (backlog_item_id) REFERENCES backlog_items(id) ON DELETE SET NULL,
+      FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
+    );
+  `);
+
   // Run migrations for existing databases
   runMigrations();
 
@@ -250,5 +300,11 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_feature_request_comments_request_id ON feature_request_comments(feature_request_id);
     CREATE INDEX IF NOT EXISTS idx_feature_request_notifications_request_id ON feature_request_notifications(feature_request_id);
     CREATE INDEX IF NOT EXISTS idx_feature_request_notifications_status ON feature_request_notifications(delivery_status);
+    CREATE INDEX IF NOT EXISTS idx_tech_debt_project_id ON tech_debt(project_id);
+    CREATE INDEX IF NOT EXISTS idx_tech_debt_status ON tech_debt(project_id, status);
+    CREATE INDEX IF NOT EXISTS idx_tech_debt_severity ON tech_debt(project_id, severity);
+    CREATE INDEX IF NOT EXISTS idx_tech_debt_category ON tech_debt(category);
+    CREATE INDEX IF NOT EXISTS idx_tech_debt_risk_score ON tech_debt(project_id, risk_score);
+    CREATE INDEX IF NOT EXISTS idx_tech_debt_backlog_item ON tech_debt(backlog_item_id);
   `);
 }

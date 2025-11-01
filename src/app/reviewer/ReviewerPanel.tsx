@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Eye, RefreshCw } from 'lucide-react';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
 import { fetchPendingCount, formatPendingCount } from './lib';
+import { LoadingSpinner } from '@/components/ui';
 
 interface ReviewerPanelProps {
   onOpenReview?: () => void;
@@ -47,7 +48,7 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
   };
 
   return (
-    <>
+    <Suspense fallback={<LoadingSpinner size="sm" message="Loading reviewer..." />}>
       <div className="relative flex items-center space-x-3 px-4 py-3 bg-gray-800/30 rounded-lg border border-gray-700/40 min-w-0">
         {/* Section Label */}
         <div className="absolute -top-2 left-2 px-2 py-0.5 bg-gray-900 rounded text-sm font-bold text-cyan-400 tracking-wider">
@@ -93,8 +94,6 @@ export default function ReviewerPanel({ onOpenReview }: ReviewerPanelProps) {
           </motion.button>
         </div>
       </div>
-
-
-    </>
+    </Suspense>
   );
 }

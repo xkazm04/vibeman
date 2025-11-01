@@ -91,6 +91,39 @@ export default function IdeasPage() {
     }
   };
 
+  const handleContextDelete = async (contextId: string) => {
+    // Capture ideas to delete BEFORE optimistic update
+    const contextIdeas = ideas.filter(idea => idea.context_id === contextId);
+    const projectId = contextIdeas[0]?.project_id;
+    const project = projectId ? getProject(projectId) : null;
+    
+    // Optimistically update UI immediately
+    setIdeas(prevIdeas => prevIdeas.filter(idea => idea.context_id !== contextId));
+    
+    try {
+      const response = await fetch(
+        `/api/contexts/ideas?contextId=${encodeURIComponent(contextId)}${project?.path ? `&projectPath=${encodeURIComponent(project.path)}` : ''}`,
+        { method: 'DELETE' }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Deleted ${data.deletedCount} idea(s) from context`);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to delete context ideas:', errorData.error);
+        // Revert optimistic update on error
+        setIdeas(prevIdeas => [...prevIdeas, ...contextIdeas]);
+        alert(`Failed to delete ideas: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting context ideas:', error);
+      // Revert optimistic update on error
+      setIdeas(prevIdeas => [...prevIdeas, ...contextIdeas]);
+      alert('Failed to delete ideas. Please refresh the page.');
+    }
+  };
+
   const handleIdeaClose = () => {
     setSelectedIdea(null);
   };
@@ -176,6 +209,7 @@ export default function IdeasPage() {
               getContextName={getContextName}
               onIdeaClick={setSelectedIdea}
               onIdeaDelete={handleQuickDelete}
+              onContextDelete={handleContextDelete}
             />
           </div>
         </LazyContentSection>

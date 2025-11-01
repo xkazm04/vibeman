@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
         cwd: projectPath,
         absolute: false,
         nodir: true,
+        nocase: true, // Case-insensitive matching
         ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.next/**'],
       });
 

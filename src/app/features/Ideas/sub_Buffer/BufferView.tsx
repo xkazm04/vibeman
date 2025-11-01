@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, Loader2 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferColumn from './BufferColumn';
 import { GroupedIdeas } from '../lib/ideasUtils';
+import { useProjectConfigStore } from '@/stores/projectConfigStore';
 
 interface BufferViewProps {
   loading: boolean;
@@ -15,6 +16,7 @@ interface BufferViewProps {
   getContextName: (contextId: string) => string;
   onIdeaClick: (idea: DbIdea) => void;
   onIdeaDelete: (ideaId: string) => void;
+  onContextDelete?: (contextId: string) => void;
 }
 
 export default function BufferView({
@@ -25,7 +27,94 @@ export default function BufferView({
   getContextName,
   onIdeaClick,
   onIdeaDelete,
+  onContextDelete,
 }: BufferViewProps) {
+  const [localIdeas, setLocalIdeas] = useState<DbIdea[]>(ideas);
+  const { getProject } = useProjectConfigStore();
+
+  // Sync local state with props
+  React.useEffect(() => {
+    setLocalIdeas(ideas);
+  }, [ideas]);
+
+  // Create a derived groupedIdeas from localIdeas that filters out empty contexts
+  const localGroupedIdeas = React.useMemo(() => {
+    const grouped: GroupedIdeas = {};
+
+    localIdeas.forEach((idea) => {
+      const projectId = idea.project_id;
+      const contextId = idea.context_id || 'no-context';
+
+      if (!grouped[projectId]) {
+        grouped[projectId] = {};
+      }
+
+      if (!grouped[projectId][contextId]) {
+        grouped[projectId][contextId] = [];
+      }
+
+      grouped[projectId][contextId].push(idea);
+    });
+
+    return grouped;
+  }, [localIdeas]);
+
+  const handleIdeaDelete = async (ideaId: string) => {
+    // Optimistically update local state
+    setLocalIdeas(prev => prev.filter(idea => idea.id !== ideaId));
+
+    // Call parent handler
+    try {
+      await onIdeaDelete(ideaId);
+    } catch (error) {
+      console.error('Error deleting idea:', error);
+      // Revert on error - find the idea from the original ideas prop
+      const deletedIdea = ideas.find(idea => idea.id === ideaId);
+      if (deletedIdea) {
+        setLocalIdeas(prev => [...prev, deletedIdea]);
+      }
+    }
+  };
+
+  const handleContextDelete = async (contextId: string) => {
+    // If parent provided a handler, use it
+    if (onContextDelete) {
+      await onContextDelete(contextId);
+      return;
+    }
+
+    // Otherwise, handle it ourselves
+    const contextIdeas = localIdeas.filter(idea => idea.context_id === contextId);
+    const projectId = contextIdeas[0]?.project_id;
+    const project = projectId ? getProject(projectId) : null;
+
+    // Optimistically update UI
+    setLocalIdeas(prev => prev.filter(idea => idea.context_id !== contextId));
+
+    try {
+      const response = await fetch(
+        `/api/contexts/ideas?contextId=${encodeURIComponent(contextId)}${project?.path ? `&projectPath=${encodeURIComponent(project.path)}` : ''}`,
+        { method: 'DELETE' }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Deleted ${data.deletedCount} idea(s) from context`);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to delete context ideas:', errorData.error);
+        // Revert on error
+        setLocalIdeas(prev => [...prev, ...contextIdeas]);
+        alert(`Failed to delete ideas: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting context ideas:', error);
+      // Revert on error
+      setLocalIdeas(prev => [...prev, ...contextIdeas]);
+      alert('Failed to delete ideas. Please refresh the page.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -39,7 +128,7 @@ export default function BufferView({
     );
   }
 
-  if (ideas.length === 0) {
+  if (localIdeas.length === 0) {
     return (
       <motion.div
         className="text-center py-24"
@@ -55,33 +144,10 @@ export default function BufferView({
     );
   }
 
-  // Flatten grouped ideas into a list of buffers/columns
-  const buffers: Array<{
-    key: string;
-    projectId: string;
-    contextId: string;
-    projectName: string;
-    contextName: string;
-    ideas: DbIdea[];
-  }> = [];
-
-  Object.entries(groupedIdeas).forEach(([projectId, contexts]) => {
-    Object.entries(contexts).forEach(([contextId, contextIdeas]) => {
-      buffers.push({
-        key: `${projectId}-${contextId}`,
-        projectId,
-        contextId,
-        projectName: getProjectName(projectId),
-        contextName: contextId === 'no-context' ? 'General' : getContextName(contextId),
-        ideas: contextIdeas,
-      });
-    });
-  });
-
   return (
     <div className="space-y-8">
       {/* Project Sections */}
-      {Object.entries(groupedIdeas).map(([projectId, contexts]) => (
+      {Object.entries(localGroupedIdeas).map(([projectId, contexts]) => (
         <motion.div
           key={projectId}
           initial={{ opacity: 0, y: 20 }}
@@ -101,16 +167,22 @@ export default function BufferView({
 
           {/* Buffer Grid - 4 columns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Object.entries(contexts).map(([contextId, contextIdeas]) => (
-              <BufferColumn
-                key={`${projectId}-${contextId}`}
-                contextName={contextId === 'no-context' ? 'General' : getContextName(contextId)}
-                projectName={getProjectName(projectId)}
-                ideas={contextIdeas}
-                onIdeaClick={onIdeaClick}
-                onIdeaDelete={onIdeaDelete}
-              />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {Object.entries(contexts)
+                .sort(([, ideasA], [, ideasB]) => ideasB.length - ideasA.length)
+                .map(([contextId, contextIdeas]) => (
+                  <BufferColumn
+                    key={`${projectId}-${contextId}`}
+                    contextName={contextId === 'no-context' ? 'General' : getContextName(contextId)}
+                    contextId={contextId === 'no-context' ? null : contextId}
+                    projectName={getProjectName(projectId)}
+                    ideas={contextIdeas}
+                    onIdeaClick={onIdeaClick}
+                    onIdeaDelete={handleIdeaDelete}
+                    onContextDelete={handleContextDelete}
+                  />
+                ))}
+            </AnimatePresence>
           </div>
         </motion.div>
       ))}

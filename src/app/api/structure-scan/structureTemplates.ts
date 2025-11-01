@@ -99,6 +99,13 @@ export const NEXTJS_STRUCTURE: ProjectStructureTemplate = {
       context: true,
       examples: ['src/app/features/Dashboard/DashboardLayout.tsx', 'src/app/features/Auth/AuthLayout.tsx'],
     },
+    {
+      pattern: 'src/app/features/**/*Layout.tsx',
+      description: 'Feature-specific layout files with uppercase L (e.g., DashboardLayout.tsx). Each layout and its dependencies form a context.',
+      required: false,
+      context: true,
+      examples: ['src/app/features/Dashboard/DashboardLayout.tsx', 'src/app/features/Auth/AuthLayout.tsx'],
+    },
 
     // Shared resources
     {

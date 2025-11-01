@@ -6,11 +6,13 @@ import BlueprintBackground from './components/BlueprintBackground';
 import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import BlueprintColumn from './components/BlueprintColumn';
 import DecisionPanel from './components/DecisionPanel';
+import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
 import { BLUEPRINT_COLUMNS } from './lib/blueprintConfig';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShortcuts';
 
 export default function DarkBlueprint() {
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
@@ -198,6 +200,16 @@ export default function DarkBlueprint() {
     openControlPanel();
   };
 
+  // Keyboard shortcuts
+  useBlueprintKeyboardShortcuts({
+    onVisionScan: () => handleSelectScan('vision'),
+    onContextsScan: () => handleSelectScan('contexts'),
+    onStructureScan: () => handleSelectScan('structure'),
+    onBuildScan: () => handleSelectScan('build'),
+    onPhotoScan: () => handleSelectScan('photo'),
+    onClose: closeBlueprint,
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -211,6 +223,9 @@ export default function DarkBlueprint() {
 
       {/* Corner labels */}
       <BlueprintCornerLabels />
+
+      {/* Keyboard shortcuts help */}
+      <BlueprintKeyboardShortcuts />
 
       {/* Decision Panel - Top Center */}
       {currentDecision && (

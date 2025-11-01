@@ -1,0 +1,4 @@
+  // Helper function to normalize paths for comparison
+  const normalizePath = (path: string): string => {
+    return path.replace(/\/g, '/');
+  };

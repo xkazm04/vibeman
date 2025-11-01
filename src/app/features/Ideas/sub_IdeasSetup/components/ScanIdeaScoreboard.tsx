@@ -62,10 +62,6 @@ export default function ScanIdeaScoreboard({ items, totalIdeas, type }: ScanIdea
     return Array.from(statsMap.values());
   }, [items]);
 
-  const totalCompleted = items.filter(i => i.status === 'completed').length;
-  const totalFailed = items.filter(i => i.status === 'failed').length;
-  const progressPercentage = ((totalCompleted + totalFailed) / items.length) * 100;
-
   return (
     <motion.div
       className="mt-3 w-full"
@@ -73,43 +69,6 @@ export default function ScanIdeaScoreboard({ items, totalIdeas, type }: ScanIdea
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
     >
-      {/* Stats Row */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-gray-400">
-          Processing {totalCompleted} / {items.length} scans
-        </span>
-        <span className="text-xs font-semibold text-blue-400">
-          {totalIdeas} ideas generated
-        </span>
-      </div>
-
-      {/* Progress Bar - Full Width Thin Bar */}
-      <div className="w-full h-1.5 bg-gray-700/40 rounded-full overflow-hidden relative mb-3">
-        {/* Animated gradient background */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20"
-          animate={{
-            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: 'linear'
-          }}
-        />
-
-        {/* Progress fill */}
-        <motion.div
-          className="relative h-full bg-gradient-to-r from-blue-500 via-blue-400 to-cyan-500 shadow-lg shadow-blue-500/50"
-          initial={{ width: 0 }}
-          animate={{ width: `${progressPercentage}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-        >
-          {/* Shimmer effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-        </motion.div>
-      </div>
-
       {/* Scoreboard - Scan Type Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
         {scanTypeStats.map((stats, index) => {

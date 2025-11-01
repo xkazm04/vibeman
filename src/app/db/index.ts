@@ -15,11 +15,13 @@ import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
 import { featureRequestRepository } from './repositories/feature-request.repository';
 import { conversationRepository } from './repositories/conversation.repository';
+import { techDebtRepository } from './repositories/tech-debt.repository';
 
 // Export types
 export * from './models/types';
 export * from './models/feature-request.types';
 export * from './models/conversation.types';
+export * from './models/tech-debt.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -124,6 +126,15 @@ export const featureRequestDb = {
  */
 export const conversationDb = {
   ...conversationRepository,
+  close: closeDatabase
+};
+
+/**
+ * Technical Debt Database Operations
+ * Handles technical debt tracking and remediation
+ */
+export const techDebtDb = {
+  ...techDebtRepository,
   close: closeDatabase
 };
 

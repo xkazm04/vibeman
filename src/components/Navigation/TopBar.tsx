@@ -61,11 +61,6 @@ export default function TopBar() {
                         {item.label}
                       </span>
 
-                      {/* Keyboard shortcut hint - visible on hover */}
-                      <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-mono text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                        Ctrl+{index + 1}
-                      </span>
-
                       {/* Active indicator */}
                       {isActive && (
                         <motion.div

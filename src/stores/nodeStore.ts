@@ -95,6 +95,11 @@ export const useStore = (() => {
     return () => listeners.delete(listener);
   };
   
+  // Helper function to normalize paths for comparison
+  const normalizePath = (path: string): string => {
+    return path.replace(/\\/g, '/');
+  };
+
   // Helper function to get all child file nodes from a folder
   const getAllChildFiles = (node: TreeNode, fileStructure: TreeNode | null): string[] => {
     if (!fileStructure) return [];
@@ -104,7 +109,7 @@ export const useStore = (() => {
     const traverseNode = (currentNode: TreeNode) => {
       // Only include files with supported extensions
       if (currentNode.type === 'file' && isSupportedFile(currentNode.name)) {
-        childFiles.push(currentNode.id);
+        childFiles.push(currentNode.path);
       }
 
       // Recursively check children
@@ -275,7 +280,7 @@ export const useStore = (() => {
       })),
       
       // Select specific files by their paths
-      selectFilesByPaths: (filePaths: string[], fileStructure: TreeNode | null) => {
+      selectPaths: (filePaths: string[], fileStructure: TreeNode | null) => {
         if (!fileStructure || filePaths.length === 0) return;
         
         const nodeIdsToSelect = new Set<string>();

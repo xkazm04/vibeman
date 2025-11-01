@@ -37,7 +37,7 @@ export default function TreeNode({
   const { activeProject } = useActiveProjectStore();
   const [isExpanded, setIsExpanded] = useState(level < 2);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const nodePath = node.path || node.id;
+  const nodePath = node.path;
 
   // Construct absolute file path for code preview
   const absoluteFilePath = (() => {
