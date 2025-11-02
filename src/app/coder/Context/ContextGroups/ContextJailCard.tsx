@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { Code, Camera } from 'lucide-react';
 import ContextMenu from '../ContextMenu/ContextMenu';
 import { useTooltipStore } from '../../../../stores/tooltipStore';
 
@@ -66,6 +67,26 @@ const ContextJailCard = React.memo(({
     damping: 30
   }), [index]);
 
+  // Calculate days from last update
+  const daysFromUpdate = useMemo(() => {
+    if (!context.updatedAt) return null;
+    const now = new Date();
+    const updated = new Date(context.updatedAt);
+    const diffMs = now.getTime() - updated.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [context.updatedAt]);
+
+  // Calculate days from last test
+  const daysFromTest = useMemo(() => {
+    if (!context.testUpdated) return null;
+    const now = new Date();
+    const tested = new Date(context.testUpdated);
+    const diffMs = now.getTime() - tested.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [context.testUpdated]);
+
   return (
     <>
       <motion.div
@@ -80,11 +101,36 @@ const ContextJailCard = React.memo(({
         onContextMenu={handleRightClick}
       >
         {/* Jail Door Rectangle */}
-        <div 
+        <div
           className="relative h-full w-full overflow-hidden border-2 bg-gradient-to-br from-gray-900/40 via-transparent to-gray-800/40 backdrop-blur-sm group-hover:from-gray-800/60 group-hover:to-gray-700/60 transition-all duration-300"
           style={{ borderColor: `${group?.color}60` }}
         >
-          
+
+          {/* Time Indicators in Upper Left Corner */}
+          {(daysFromUpdate !== null || daysFromTest !== null) && (
+            <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5">
+              {/* Days from last update */}
+              {daysFromUpdate !== null && (
+                <div
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-semibold ${
+                    daysFromUpdate > 7 ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-700/50 text-gray-400'
+                  }`}
+                >
+                  <Code className="w-3 h-3" />
+                  <span>{daysFromUpdate}D</span>
+                </div>
+              )}
+
+              {/* Days from last test */}
+              {daysFromTest !== null && (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-semibold bg-teal-500/20 text-teal-400">
+                  <Camera className="w-3 h-3" />
+                  <span>{daysFromTest}D</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Vertical Bars */}
           <div className="absolute inset-0 flex">
             {Array.from({ length: 6 }).map((_, barIndex) => (

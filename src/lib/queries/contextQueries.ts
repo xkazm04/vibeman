@@ -24,6 +24,10 @@ export interface Context {
   // Context file configuration
   hasContextFile?: boolean;
   contextFilePath?: string;
+  // Preview and testing configuration
+  preview?: string;
+  testScenario?: string;
+  testUpdated?: string;
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
@@ -66,6 +70,9 @@ function dbContextToContext(dbContext: DbContext & { group_name?: string; group_
     filePaths: JSON.parse(dbContext.file_paths),
     hasContextFile: Boolean(dbContext.has_context_file),
     contextFilePath: dbContext.context_file_path || undefined,
+    preview: dbContext.preview || undefined,
+    testScenario: dbContext.test_scenario || undefined,
+    testUpdated: dbContext.test_updated || undefined,
     createdAt: new Date(dbContext.created_at),
     updatedAt: new Date(dbContext.updated_at),
     groupName: dbContext.group_name,

@@ -58,23 +58,18 @@ export async function POST(request: NextRequest) {
     // Get or create conversation
     let currentConversationId = conversationId;
     if (!currentConversationId) {
-      currentConversationId = uuidv4();
-      conversationDb.create({
-        id: currentConversationId,
-        project_id: projectId,
-        title: `Voice conversation - ${new Date().toLocaleString()}`,
-        started_at: new Date().toISOString(),
-        message_count: 0
+      const newConversation = conversationDb.createConversation({
+        projectId: projectId,
+        title: `Voice conversation - ${new Date().toLocaleString()}`
       });
+      currentConversationId = newConversation.id;
     }
 
     // Store user message
-    conversationDb.addMessage(currentConversationId, {
-      id: uuidv4(),
-      conversation_id: currentConversationId,
+    conversationDb.addMessage({
+      conversationId: currentConversationId,
       role: 'user',
-      content: message,
-      timestamp: new Date().toISOString()
+      content: message
     });
 
     // Call LangGraph API for knowledge-based response
@@ -109,13 +104,11 @@ export async function POST(request: NextRequest) {
     // Format response for voice (make it more conversational)
     const voiceResponse = formatForVoice(langGraphData.response);
 
-    // Store assistant message
-    conversationDb.addMessage(currentConversationId, {
-      id: uuidv4(),
-      conversation_id: currentConversationId,
+    // Store assistant message with metadata
+    conversationDb.addMessage({
+      conversationId: currentConversationId,
       role: 'assistant',
       content: voiceResponse,
-      timestamp: new Date().toISOString(),
       metadata: JSON.stringify({
         toolsUsed: langGraphData.toolsUsed,
         sources,
@@ -123,9 +116,6 @@ export async function POST(request: NextRequest) {
         nextSteps
       })
     });
-
-    // Update conversation message count
-    conversationDb.incrementMessageCount(currentConversationId);
 
     return NextResponse.json<AnnetteResponse>({
       success: true,

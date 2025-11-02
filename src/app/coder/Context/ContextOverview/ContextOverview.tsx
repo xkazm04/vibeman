@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, FileText, Calendar } from 'lucide-react';
 import { useTooltipStore } from '@/stores/tooltipStore';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
-import ContextPreviewManager from './ContextPreviewManager';
+import ContextPreviewManager from '@/app/features/Context/sub_ContextPreview/ContextPreviewManager';
 import AdvisorPanel from './AdvisorPanel';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
@@ -21,6 +21,7 @@ const ContextOverview = () => {
   const { activeProjectId } = useActiveProjectStore();
   const [mounted, setMounted] = useState(false);
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);
+  const [currentTestScenario, setCurrentTestScenario] = useState<string | null>(null);
   const [fileContents, setFileContents] = useState<Array<{ path: string; content: string }>>([]);
 
   useEffect(() => {
@@ -30,6 +31,7 @@ const ContextOverview = () => {
   useEffect(() => {
     if (context) {
       setCurrentPreview(context.preview || null);
+      setCurrentTestScenario(context.testScenario || null);
       // Load file contents for AI analysis
       loadFileContents();
     }
@@ -192,9 +194,13 @@ const ContextOverview = () => {
                   <ContextPreviewManager
                     contextId={context.id}
                     currentPreview={currentPreview}
+                    currentTestScenario={currentTestScenario}
                     contextName={context.name}
                     groupColor={groupColor}
-                    onPreviewUpdated={setCurrentPreview}
+                    onPreviewUpdated={(preview, testScenario) => {
+                      setCurrentPreview(preview);
+                      setCurrentTestScenario(testScenario);
+                    }}
                   />
 
                   {/* Neural Description with Markdown Viewer */}

@@ -62,6 +62,9 @@ export default function AnnettePanel() {
   const [theme, setTheme] = useState<AnnetteTheme>('midnight');
   const [message, setMessage] = useState('Systems ready - Click to activate voice');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [volume, setVolume] = useState(0.5);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -81,19 +84,48 @@ export default function AnnettePanel() {
 
     setMessage(text);
     setIsSpeaking(true);
+    setIsError(false);
+    setIsListening(false);
 
     try {
       const audioUrl = await textToSpeech(text);
       const audio = new Audio(audioUrl);
 
+      // Create AudioContext for volume analysis
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const source = audioContext.createMediaElementSource(audio);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+
+      // Update volume in real-time
+      const updateVolume = () => {
+        if (!audio.paused && !audio.ended) {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / bufferLength;
+          setVolume(average / 255); // Normalize to 0-1
+          requestAnimationFrame(updateVolume);
+        }
+      };
+      updateVolume();
+
       audio.onended = () => {
         setIsSpeaking(false);
+        setVolume(0.5);
         URL.revokeObjectURL(audioUrl);
+        audioContext.close();
       };
 
       audio.onerror = () => {
         setIsSpeaking(false);
+        setIsError(true);
+        setVolume(0.5);
         URL.revokeObjectURL(audioUrl);
+        audioContext.close();
       };
 
       setAudioElement(audio);
@@ -101,6 +133,8 @@ export default function AnnettePanel() {
     } catch (error) {
       console.error('[Annette] TTS error:', error);
       setIsSpeaking(false);
+      setIsError(true);
+      setVolume(0.5);
       // Check if it's an autoplay error
       if (error instanceof Error && error.name === 'NotAllowedError') {
         setMessage('Click to enable voice');
@@ -144,10 +178,13 @@ export default function AnnettePanel() {
   const sendToAnnette = useCallback(async (userMessage: string) => {
     if (!activeProject) {
       setMessage('No active project selected');
+      setIsError(true);
       return;
     }
 
     setIsProcessing(true);
+    setIsListening(true);
+    setIsError(false);
     setMessage('Processing your request...');
 
     try {
@@ -184,6 +221,7 @@ export default function AnnettePanel() {
         setNextSteps(data.nextSteps);
       }
 
+      setIsListening(false);
       // Display response and speak it
       await speakMessage(data.response);
     } catch (error) {
@@ -191,6 +229,8 @@ export default function AnnettePanel() {
       const errorMessage = error instanceof Error ? error.message : 'Communication error';
       setMessage(errorMessage);
       setIsSpeaking(false);
+      setIsListening(false);
+      setIsError(true);
     } finally {
       setIsProcessing(false);
     }
@@ -231,6 +271,9 @@ export default function AnnettePanel() {
               message={message}
               theme={theme}
               isSpeaking={isSpeaking}
+              isListening={isListening}
+              isError={isError}
+              volume={volume}
             />
           </div>
 

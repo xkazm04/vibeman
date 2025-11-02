@@ -39,6 +39,9 @@ export interface Context {
   contextFilePath?: string;
   // Preview image configuration
   preview?: string | null;
+  // Testing configuration
+  testScenario?: string | null;
+  testUpdated?: string | null;
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;

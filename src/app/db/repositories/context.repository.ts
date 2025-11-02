@@ -129,6 +129,8 @@ export const contextRepository = {
     has_context_file?: boolean;
     context_file_path?: string;
     preview?: string | null;
+    test_scenario?: string | null;
+    test_updated?: string | null;
   }): DbContext | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -164,6 +166,14 @@ export const contextRepository = {
     if (updates.preview !== undefined) {
       updateFields.push('preview = ?');
       values.push(updates.preview);
+    }
+    if (updates.test_scenario !== undefined) {
+      updateFields.push('test_scenario = ?');
+      values.push(updates.test_scenario);
+    }
+    if (updates.test_updated !== undefined) {
+      updateFields.push('test_updated = ?');
+      values.push(updates.test_updated);
     }
 
     if (updateFields.length === 0) {
