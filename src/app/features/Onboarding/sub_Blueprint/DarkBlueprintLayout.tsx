@@ -7,7 +7,6 @@ import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import BlueprintColumn from './components/BlueprintColumn';
 import DecisionPanel from './components/DecisionPanel';
 import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
-import { BLUEPRINT_COLUMNS } from './lib/blueprintConfig';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
@@ -16,7 +15,7 @@ import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShort
 
 export default function DarkBlueprint() {
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
-  const { startScan, updateScanProgress, completeScan, failScan, getScanStatus, getDaysAgo, loadScanEvents } = useBlueprintStore();
+  const { startScan, updateScanProgress, completeScan, failScan, getScanStatus, getDaysAgo, loadScanEvents, columns } = useBlueprintStore();
   const { setActiveModule, openControlPanel, closeBlueprint } = useOnboardingStore();
   const { currentDecision, addDecision } = useDecisionQueueStore();
   const { activeProject } = useActiveProjectStore();
@@ -27,7 +26,7 @@ export default function DarkBlueprint() {
 
     // Build event title map from config
     const eventTitles: Record<string, string> = {};
-    for (const column of BLUEPRINT_COLUMNS) {
+    for (const column of columns) {
       for (const button of column.buttons) {
         if (button.eventTitle) {
           eventTitles[button.id] = button.eventTitle;
@@ -36,7 +35,7 @@ export default function DarkBlueprint() {
     }
 
     loadScanEvents(activeProject.id, eventTitles);
-  }, [activeProject, loadScanEvents]);
+  }, [activeProject, loadScanEvents, columns]);
 
   const handleSelectScan = (scanId: string) => {
     // If already selected, deselect
@@ -48,7 +47,7 @@ export default function DarkBlueprint() {
     // Find button config
     let buttonConfig = null;
     let buttonLabel = scanId;
-    for (const column of BLUEPRINT_COLUMNS) {
+    for (const column of columns) {
       const button = column.buttons.find(b => b.id === scanId);
       if (button) {
         buttonConfig = button;
@@ -89,7 +88,7 @@ export default function DarkBlueprint() {
 
     // Find button config by scanning all columns
     let buttonConfig = null;
-    for (const column of BLUEPRINT_COLUMNS) {
+    for (const column of columns) {
       const button = column.buttons.find(b => b.id === scanId);
       if (button) {
         buttonConfig = button;
@@ -179,7 +178,7 @@ export default function DarkBlueprint() {
 
         // Reload scan events to update days ago
         const eventTitles: Record<string, string> = {};
-        for (const column of BLUEPRINT_COLUMNS) {
+        for (const column of columns) {
           for (const button of column.buttons) {
             if (button.eventTitle) {
               eventTitles[button.id] = button.eventTitle;
@@ -236,9 +235,9 @@ export default function DarkBlueprint() {
 
       {/* Main content area */}
       <div className="relative h-full min-w-[1200px] flex items-center justify-center p-20">
-        {/* 4-Column Grid Layout - Increased gap from 16 to 32 (100% increase) */}
+        {/* Dynamic Column Grid Layout - Renders columns from store configuration */}
         <div className="grid grid-cols-4 min-w-[1200px] gap-10 z-10">
-          {BLUEPRINT_COLUMNS.map((column, index) => (
+          {columns.map((column, index) => (
             <BlueprintColumn
               key={column.id}
               column={column}

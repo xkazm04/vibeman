@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { ContextGroup, useContextStore, CONTEXT_GROUP_COLORS } from '@/stores/contextStore';
+import { ContextGroup, useContextStore } from '@/stores/contextStore';
+import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
 import ModalHeader from './CG_modalHeader';
 import CreateGroupSection from './CG_createSection';
 import GroupListSection from './CG_section';

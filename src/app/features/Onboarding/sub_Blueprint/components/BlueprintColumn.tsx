@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import IlluminatedButton from './IlluminatedButton';
 import { ColumnConfig } from '../lib/blueprintConfig';
+import { ScanStatus } from '../store/blueprintStore';
 
 interface BlueprintColumnProps {
   column: ColumnConfig;
@@ -11,10 +12,7 @@ interface BlueprintColumnProps {
   onSelectScan: (scanId: string) => void;
   onScan: (scanId: string) => void;
   onNavigate: (module: 'ideas' | 'tinder' | 'tasker' | 'reflector') => void;
-  getScanStatus: (scanId: string) => {
-    isRunning: boolean;
-    progress: number;
-  };
+  getScanStatus: (scanId: string) => ScanStatus;
   getDaysAgo: (scanId: string) => number | null;
 }
 

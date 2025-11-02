@@ -1,20 +1,28 @@
 import Database from 'better-sqlite3';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const db = new Database('C:\\Users\\kazda\\kiro\\vibeman\\database\\goals.db');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-try {
-  const row = db.prepare('SELECT * FROM implementation_log ORDER BY created_at DESC LIMIT 1').get();
-  console.log('\n✓ Latest Implementation Log Entry:');
-  console.log('  ID:', row.id);
-  console.log('  Title:', row.title);
-  console.log('  Requirement:', row.requirement_name);
-  console.log('  Created:', row.created_at);
-  console.log('  Tested:', row.tested ? 'Yes' : 'No');
-  console.log('\n  Overview:');
-  console.log('  ', row.overview.substring(0, 200) + '...');
-} catch (error) {
-  console.error('✗ Error:', error.message);
-  process.exit(1);
-} finally {
-  db.close();
+const dbPath = join(__dirname, '..', 'database', 'goals.db');
+const db = new Database(dbPath);
+
+const stmt = db.prepare(`
+  SELECT id, requirement_name, title, created_at 
+  FROM implementation_log 
+  WHERE requirement_name = 'centralize-context-colors-in-constants'
+`);
+
+const log = stmt.get();
+if (log) {
+  console.log('✓ Implementation log verified:');
+  console.log('  ID:', log.id);
+  console.log('  Requirement:', log.requirement_name);
+  console.log('  Title:', log.title);
+  console.log('  Created:', log.created_at);
+} else {
+  console.log('✗ Implementation log not found');
 }
+
+db.close();

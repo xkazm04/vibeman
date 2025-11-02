@@ -1,4 +1,5 @@
 import { contextDb, contextGroupDb, DbContext, DbContextGroup } from '@/app/db'
+import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors'
 
 // Context Group Types
 export interface ContextGroup {
@@ -32,19 +33,6 @@ export interface Context {
   groupName?: string;
   groupColor?: string;
 }
-
-// Predefined colors for context groups (9 colors for 3x3 grid)
-export const CONTEXT_GROUP_COLORS = [
-  '#8B5CF6', // blue
-  '#06B6D4', // Cyan
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#3B82F6', // Blue
-  '#EC4899', // red
-  '#84CC16', // Lime
-  '#6366F1', // slate
-] as const;
 
 // Helper function to convert DB context group to app context group
 function dbContextGroupToContextGroup(dbGroup: DbContextGroup): ContextGroup {

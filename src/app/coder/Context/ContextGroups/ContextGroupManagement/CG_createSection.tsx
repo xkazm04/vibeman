@@ -3,7 +3,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Plus, Code, Database, Layers, Grid, Activity, Cpu, Zap, Settings } from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
-import { CONTEXT_GROUP_COLORS } from '@/stores/contextStore';
+import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
 
 interface CreateGroupSectionProps {
   newGroupName: string;

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { BLUEPRINT_COLUMNS, ColumnConfig } from '../lib/blueprintConfig';
 
 export interface ScanStatus {
   name: string;
@@ -13,6 +14,7 @@ interface BlueprintState {
   scans: Record<string, ScanStatus>;
   currentScan: string | null;
   scanProgress: number;
+  columns: ColumnConfig[]; // Column configuration array
 
   // Actions
   startScan: (scanName: string) => void;
@@ -22,6 +24,7 @@ interface BlueprintState {
   getScanStatus: (scanName: string) => ScanStatus;
   getDaysAgo: (scanName: string) => number | null;
   loadScanEvents: (projectId: string, eventTitles: Record<string, string>) => Promise<void>;
+  getColumns: () => ColumnConfig[];
 }
 
 const DEFAULT_SCANS: Record<string, ScanStatus> = {
@@ -41,6 +44,7 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
   scans: DEFAULT_SCANS,
   currentScan: null,
   scanProgress: 0,
+  columns: BLUEPRINT_COLUMNS, // Initialize with default column configuration
 
   startScan: (scanName: string) => {
     set((state) => ({
@@ -178,5 +182,10 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
     } catch (error) {
       console.error('[BlueprintStore] Error loading events:', error);
     }
+  },
+
+  getColumns: () => {
+    const { columns } = get();
+    return columns;
   },
 }));

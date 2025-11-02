@@ -109,12 +109,12 @@ export async function POST(request: NextRequest) {
       conversationId: currentConversationId,
       role: 'assistant',
       content: voiceResponse,
-      metadata: JSON.stringify({
+      metadata: {
         toolsUsed: langGraphData.toolsUsed,
         sources,
         insights,
         nextSteps
-      })
+      }
     });
 
     return NextResponse.json<AnnetteResponse>({
