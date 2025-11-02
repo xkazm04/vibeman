@@ -17,6 +17,7 @@ import { featureRequestRepository } from './repositories/feature-request.reposit
 import { conversationRepository } from './repositories/conversation.repository';
 import { techDebtRepository } from './repositories/tech-debt.repository';
 import { documentationRepository } from './repositories/documentation.repository';
+import { scanQueueRepository } from './repositories/scanQueue.repository';
 
 // Export types
 export * from './models/types';
@@ -145,6 +146,15 @@ export const techDebtDb = {
  */
 export const documentationDb = {
   ...documentationRepository,
+  close: closeDatabase
+};
+
+/**
+ * Scan Queue Database Operations
+ * Handles scan queue, progress tracking, notifications, and file watch config
+ */
+export const scanQueueDb = {
+  ...scanQueueRepository,
   close: closeDatabase
 };
 

@@ -284,6 +284,66 @@ export function initializeTables() {
     );
   `);
 
+  // Create scan_queue table for auto-queue & progress tracking
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS scan_queue (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      scan_type TEXT NOT NULL,
+      context_id TEXT,
+      trigger_type TEXT NOT NULL CHECK (trigger_type IN ('manual', 'git_push', 'file_change', 'scheduled')),
+      trigger_metadata TEXT, -- JSON metadata about trigger (e.g., file paths, commit hash)
+      status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
+      priority INTEGER DEFAULT 0, -- Higher priority = executed first
+      progress INTEGER DEFAULT 0, -- Progress percentage (0-100)
+      progress_message TEXT, -- Current progress status message
+      current_step TEXT, -- Current processing step
+      total_steps INTEGER, -- Total number of steps
+      scan_id TEXT, -- Reference to completed scan (once finished)
+      result_summary TEXT, -- Brief summary of scan results
+      error_message TEXT,
+      auto_merge_enabled INTEGER DEFAULT 0, -- Boolean flag for auto-merge
+      auto_merge_status TEXT, -- Status of auto-merge operation
+      started_at TEXT,
+      completed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL,
+      FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE SET NULL
+    );
+  `);
+
+  // Create scan_notifications table for completion notifications
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS scan_notifications (
+      id TEXT PRIMARY KEY,
+      queue_item_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      notification_type TEXT NOT NULL CHECK (notification_type IN ('scan_started', 'scan_completed', 'scan_failed', 'auto_merge_completed')),
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      data TEXT, -- JSON payload with additional notification data
+      read INTEGER DEFAULT 0, -- Boolean flag
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (queue_item_id) REFERENCES scan_queue(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create file_watch_config table for file watcher settings
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS file_watch_config (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      enabled INTEGER DEFAULT 1, -- Boolean flag
+      watch_patterns TEXT NOT NULL, -- JSON array of glob patterns to watch
+      ignore_patterns TEXT, -- JSON array of glob patterns to ignore
+      scan_types TEXT NOT NULL, -- JSON array of scan types to trigger
+      debounce_ms INTEGER DEFAULT 5000, -- Debounce time in milliseconds
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
   // Run migrations for existing databases
   runMigrations();
 
@@ -325,5 +385,12 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_documentation_project_id ON documentation(project_id);
     CREATE INDEX IF NOT EXISTS idx_documentation_section_type ON documentation(project_id, section_type);
     CREATE INDEX IF NOT EXISTS idx_documentation_updated_at ON documentation(project_id, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_scan_queue_project_id ON scan_queue(project_id);
+    CREATE INDEX IF NOT EXISTS idx_scan_queue_status ON scan_queue(project_id, status);
+    CREATE INDEX IF NOT EXISTS idx_scan_queue_priority ON scan_queue(status, priority DESC);
+    CREATE INDEX IF NOT EXISTS idx_scan_queue_created_at ON scan_queue(project_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_scan_notifications_queue_item ON scan_notifications(queue_item_id);
+    CREATE INDEX IF NOT EXISTS idx_scan_notifications_project ON scan_notifications(project_id, read);
+    CREATE INDEX IF NOT EXISTS idx_file_watch_config_project_id ON file_watch_config(project_id);
   `);
 }

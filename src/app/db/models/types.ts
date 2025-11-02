@@ -151,5 +151,64 @@ export interface DocSourceMetadata {
   apiEndpoints?: string[]; // API route paths
 }
 
+// Scan Queue types
+export interface DbScanQueueItem {
+  id: string;
+  project_id: string;
+  scan_type: string;
+  context_id: string | null;
+  trigger_type: 'manual' | 'git_push' | 'file_change' | 'scheduled';
+  trigger_metadata: string | null; // JSON string
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  priority: number;
+  progress: number; // 0-100
+  progress_message: string | null;
+  current_step: string | null;
+  total_steps: number | null;
+  scan_id: string | null;
+  result_summary: string | null;
+  error_message: string | null;
+  auto_merge_enabled: number; // Boolean flag (0 or 1)
+  auto_merge_status: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TriggerMetadata {
+  files?: string[]; // Files that triggered the scan
+  commitHash?: string; // Git commit hash
+  branch?: string; // Git branch
+  author?: string; // Commit author
+  [key: string]: any; // Allow additional metadata
+}
+
+// Scan Notification types
+export interface DbScanNotification {
+  id: string;
+  queue_item_id: string;
+  project_id: string;
+  notification_type: 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed';
+  title: string;
+  message: string;
+  data: string | null; // JSON string
+  read: number; // Boolean flag (0 or 1)
+  created_at: string;
+}
+
+// File Watch Config types
+export interface DbFileWatchConfig {
+  id: string;
+  project_id: string;
+  enabled: number; // Boolean flag (0 or 1)
+  watch_patterns: string; // JSON array of glob patterns
+  ignore_patterns: string | null; // JSON array of glob patterns
+  scan_types: string; // JSON array of scan types
+  debounce_ms: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Export standard category type for use in type annotations
 export type { IdeaCategory };
