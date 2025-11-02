@@ -8,7 +8,7 @@ export type OnboardingStep =
   | 'scan-ideas'
   | 'let-code';
 
-export type AppModule = 'coder' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs';
+export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor';
 
 interface OnboardingState {
   completedSteps: OnboardingStep[];

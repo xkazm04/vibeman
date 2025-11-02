@@ -1,12 +1,13 @@
 'use client';
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ControlPanelButton from './components/ControlPanelButton';
 import ControlPanel from './components/ControlPanel';
 import BlueprintModal from './components/BlueprintModal';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useOnboardingAutoComplete } from './lib/useOnboardingConditions';
+import { TOTAL_TASKS } from './sub_GettingStarted/lib/config';
 
 interface ControlPanelContextType {
   openBlueprint: () => void;
@@ -35,7 +36,34 @@ export default function ControlPanelProvider({ children }: { children: ReactNode
   useOnboardingAutoComplete();
 
   const completedTasks = completedSteps.length;
-  const totalTasks = 5;
+
+  // Global keyboard shortcut: Ctrl+B to toggle Blueprint
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input, textarea, or contenteditable element
+      const target = e.target as HTMLElement;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Ctrl+B to toggle Blueprint
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        if (isBlueprintOpen) {
+          closeBlueprint();
+        } else {
+          openBlueprint();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBlueprintOpen, openBlueprint, closeBlueprint]);
 
   return (
     <ControlPanelContext.Provider value={{ openBlueprint, closeBlueprint, isBlueprintOpen }}>
@@ -51,7 +79,7 @@ export default function ControlPanelProvider({ children }: { children: ReactNode
         <ControlPanelButton
           onClick={toggleControlPanel}
           tasksCompleted={completedTasks}
-          totalTasks={totalTasks}
+          totalTasks={TOTAL_TASKS}
           isOpen={isControlPanelOpen}
         />
       </motion.div>

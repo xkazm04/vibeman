@@ -118,7 +118,7 @@ export default function ReflectorPage() {
   }, [ideas]);
 
   // Update URL when filters change
-  const handleFilterChange = (newFilters: IdeaFilterState) => {
+  const handleFilterChange = React.useCallback((newFilters: IdeaFilterState) => {
     setFilters(newFilters);
 
     const params = new URLSearchParams();
@@ -143,10 +143,10 @@ export default function ReflectorPage() {
 
     const newUrl = params.toString() ? `?${params.toString()}` : '/reflector';
     router.push(newUrl, { scroll: false });
-  };
+  }, [router]);
 
   // Remove individual filter
-  const handleRemoveFilter = (filterType: keyof IdeaFilterState, value?: string) => {
+  const handleRemoveFilter = React.useCallback((filterType: keyof IdeaFilterState, value?: string) => {
     const newFilters = { ...filters };
 
     if (filterType === 'projectIds' && value) {
@@ -162,7 +162,7 @@ export default function ReflectorPage() {
     }
 
     handleFilterChange(newFilters);
-  };
+  }, [filters, handleFilterChange]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/10 to-gray-900">

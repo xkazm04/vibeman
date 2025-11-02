@@ -23,6 +23,7 @@ export default function IdeaDetailFeedback({
       </h3>
 
       <textarea
+        data-testid="idea-feedback-textarea"
         value={userFeedback}
         onChange={(e) => onFeedbackChange(e.target.value)}
         placeholder="Add your thoughts, comments, or rationale..."
@@ -38,6 +39,7 @@ export default function IdeaDetailFeedback({
         <div className="relative">
           <input
             type="checkbox"
+            data-testid="idea-feedback-pattern-checkbox"
             checked={userPattern}
             onChange={(e) => onPatternChange(e.target.checked)}
             className="sr-only"

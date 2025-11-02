@@ -149,7 +149,7 @@ export default function TaskItem({
 
       {/* Context Menu */}
       <ContextMenu
-        isVisible={contextMenu.isVisible}
+        isOpen={contextMenu.isVisible}
         position={contextMenu.position}
         onClose={contextMenu.hide}
         items={contextMenuItems}

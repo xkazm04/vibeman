@@ -1,20 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import CoderLayout from './coder/CoderLayout';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import IdeasLayout from './features/Ideas/IdeasLayout';
 import TinderLayout from './features/Tinder/TinderLayout';
 import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
 import ReflectorLayout from './features/Reflector/ReflectorLayout';
 import DocsPage from './docs/page';
+import RefactorPage from './refactor/page';
 import FrozenComponent from '../components/FrozenComponent';
 import LazyContentSection from '../components/Navigation/LazyContentSection';
+import { HorizontalContextBar } from './features/Context';
+import GoalsLayout from './features/Goals/GoalsLayout';
 
 export default function Home() {
   const [shouldFreezeComponents, setShouldFreezeComponents] = useState(false);
   const { activeModule } = useOnboardingStore();
+  const { activeProject } = useActiveProjectStore();
 
   const handleFreezeStateChange = (shouldFreeze: boolean) => {
     setShouldFreezeComponents(shouldFreeze);
@@ -28,9 +32,13 @@ export default function Home() {
   };
 
   const renderActiveModule = () => {
+    const projectId = activeProject?.id || null;
+
     switch (activeModule) {
       case 'coder':
-        return <CoderLayout key="coder" />;
+        return <GoalsLayout key="coder" projectId={projectId} />;
+      case 'contexts':
+        return <HorizontalContextBar key="contexts" />;
       case 'ideas':
         return <IdeasLayout key="ideas" />;
       case 'tinder':
@@ -41,8 +49,10 @@ export default function Home() {
         return <ReflectorLayout key="reflector" />;
       case 'docs':
         return <DocsPage key="docs" />;
+      case 'refactor':
+        return <RefactorPage key="refactor" />;
       default:
-        return <CoderLayout key="coder" />;
+        return <GoalsLayout key="coder" projectId={projectId} />;
     }
   };
 

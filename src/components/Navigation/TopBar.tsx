@@ -9,12 +9,14 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
-  { module: 'coder', label: 'Home' },
+  { module: 'coder', label: 'Project' },
+  { module: 'contexts', label: 'Contexts' },
   { module: 'ideas', label: 'Ideas' },
   { module: 'tinder', label: 'Tinder' },
   { module: 'tasker', label: 'Tasker' },
   { module: 'reflector', label: 'Reflector' },
   { module: 'docs', label: 'Docs' },
+  { module: 'refactor', label: 'Refactor' },
 ];
 
 export default function TopBar() {
@@ -51,6 +53,7 @@ export default function TopBar() {
                       onClick={() => setActiveModule(item.module)}
                       className="group relative px-4 py-2 text-sm font-light tracking-wide transition-all duration-300"
                       title={`${item.label} (Ctrl+${index + 1})`}
+                      data-testid={`nav-item-${item.module}`}
                     >
                       <span
                         className={`relative z-10 transition-all duration-300 ${

@@ -1,4 +1,5 @@
 import type { Requirement } from '@/app/Claude/lib/requirementApi';
+import type { BatchId } from './batchStorage';
 
 export interface ProjectRequirement {
   projectId: string;
@@ -7,6 +8,7 @@ export interface ProjectRequirement {
   requirementName: string;
   status: Requirement['status'];
   taskId?: string;
+  batchId?: BatchId | null; // Track which batch this requirement belongs to (up to 4 batches)
 }
 
 export interface TaskRunnerState {

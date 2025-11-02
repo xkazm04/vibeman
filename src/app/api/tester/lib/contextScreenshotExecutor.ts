@@ -9,7 +9,7 @@ import { join } from 'path';
 export interface ContextScenarioInput {
   contextId: string;
   contextName: string;
-  scenario: string;
+  scenario: string; // Can be JSON array or natural language text
   baseUrl: string;
 }
 
@@ -36,7 +36,7 @@ export async function executeContextScenario(
     // Create new page
     page = await browser.newPage();
 
-    // Parse scenario into steps
+    // Parse scenario into steps (handles both JSON array and natural language)
     const steps = parseScenario(input.scenario);
     console.log(`[ContextScreenshot] Parsed ${steps.length} steps from scenario`);
 
@@ -98,9 +98,33 @@ export async function executeContextScenario(
 
 /**
  * Parse scenario text into executable steps
+ * Handles both JSON array format and natural language text
  */
 function parseScenario(scenario: string): ScenarioStep[] {
   const steps: ScenarioStep[] = [];
+
+  // Try parsing as JSON first (new structured format)
+  try {
+    const parsed = JSON.parse(scenario);
+    if (Array.isArray(parsed)) {
+      console.log('[ContextScreenshot] Parsing JSON array format');
+      return parsed.map((step: any) => {
+        if (step.type === 'navigate') {
+          return { type: 'navigate', target: step.url };
+        } else if (step.type === 'wait') {
+          return { type: 'wait', value: step.delay?.toString() || '1000' };
+        } else if (step.type === 'click') {
+          return { type: 'click', target: step.selector };
+        }
+        return { type: 'wait', value: '1000' };
+      });
+    }
+  } catch (e) {
+    // Not JSON, fall through to natural language parsing
+    console.log('[ContextScreenshot] Parsing natural language format');
+  }
+
+  // Natural language parsing (legacy format)
   const lines = scenario.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
   for (const line of lines) {

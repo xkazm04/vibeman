@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextDb, testSelectorDb } from '@/app/db';
+import { projectDb } from '@/lib/project_database';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
@@ -10,7 +11,7 @@ import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { contextId, scanOnly = true } = body;
+    const { contextId, projectId, scanOnly = true } = body;
 
     if (!contextId) {
       return NextResponse.json(
@@ -18,6 +19,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'Project ID is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[SelectorsScan] Received projectId:', projectId);
+    console.log('[SelectorsScan] Received contextId:', contextId);
 
     // Get context details
     const context = contextDb.getContextById(contextId);
@@ -42,14 +53,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get project path from context (we need to fetch the project)
-    const { getDatabase } = await import('@/app/db/connection');
-    const db = getDatabase();
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(context.project_id) as any;
+    // Get project using projectDb connector
+    console.log('[SelectorsScan] Querying projects table for projectId:', projectId);
+    const project = projectDb.getProject(projectId);
+    console.log('[SelectorsScan] Project query result:', project);
 
     if (!project) {
+      // List all projects to debug
+      const allProjects = projectDb.getAllProjects();
+      console.log('[SelectorsScan] All projects in DB:', allProjects.map(p => ({ id: p.id, name: p.name })));
+
       return NextResponse.json(
-        { error: 'Project not found' },
+        {
+          error: 'Project not found',
+          receivedProjectId: projectId,
+          availableProjects: allProjects.map(p => ({ id: p.id, name: p.name }))
+        },
         { status: 404 }
       );
     }
@@ -112,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Claude Code requirement file
-    const requirementName = `selectors-${context.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+    const requirementName = `test-selectors-${context.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
     const requirementContent = buildRequirementContent(
       context.name,
       totalSelectors,

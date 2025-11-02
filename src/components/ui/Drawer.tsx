@@ -11,6 +11,7 @@ interface DrawerProps {
   side?: 'left' | 'right';
   maxWidth?: string;
   backgroundImage?: string | null;
+  transparentOverlay?: boolean; // Allow seeing the app behind
 }
 
 export default function Drawer({
@@ -20,6 +21,7 @@ export default function Drawer({
   side = 'left',
   maxWidth = 'max-w-md',
   backgroundImage = null,
+  transparentOverlay = false,
 }: DrawerProps) {
   const slideDirection = side === 'left' ? '-100%' : '100%';
   const borderClass = side === 'left' ? 'border-r-2' : 'border-l-2';
@@ -29,15 +31,17 @@ export default function Drawer({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-            onClick={onClose}
-          />
+          {/* Backdrop - Optional transparent mode */}
+          {!transparentOverlay && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              onClick={onClose}
+            />
+          )}
 
           {/* Drawer Panel */}
           <motion.div

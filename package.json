@@ -29,6 +29,7 @@
     "madge": "^8.0.0",
     "minimatch": "^10.0.3",
     "next": "16.0.0",
+    "node-fetch": "^3.3.2",
     "openai": "^5.10.2",
     "playwright-core": "^1.56.1",
     "react": "19.2.0",

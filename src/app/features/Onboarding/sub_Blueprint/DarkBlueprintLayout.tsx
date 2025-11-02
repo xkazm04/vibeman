@@ -1,27 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import BlueprintBackground from './components/BlueprintBackground';
 import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import BlueprintColumn from './components/BlueprintColumn';
 import DecisionPanel from './components/DecisionPanel';
 import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
 import ContextSelector from './components/ContextSelector';
+import { BadgeSidePanel } from './components/BadgeSidePanel';
+import { BadgeGallery } from './components/BadgeGallery';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useBadgeStore } from '@/stores/badgeStore';
 import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShortcuts';
 
 export default function DarkBlueprint() {
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [showContextSelector, setShowContextSelector] = useState(false);
   const [pendingScanId, setPendingScanId] = useState<string | null>(null);
-  const { startScan, updateScanProgress, completeScan, failScan, getScanStatus, getDaysAgo, loadScanEvents, columns } = useBlueprintStore();
+  const [showBadgeGallery, setShowBadgeGallery] = useState(false);
+  const { startScan, updateScanProgress, completeScan, failScan, getDaysAgo, loadScanEvents, columns } = useBlueprintStore();
   const { setActiveModule, openControlPanel, closeBlueprint } = useOnboardingStore();
-  const { currentDecision, addDecision } = useDecisionQueueStore();
+  const { currentDecision, addDecision, queue } = useDecisionQueueStore();
   const { activeProject } = useActiveProjectStore();
+  const { awardBadge, getProgress, earnedBadges } = useBadgeStore();
+
+  // Check if onboarding is complete (no more decisions and has some badges)
+  useEffect(() => {
+    if (!currentDecision && queue.length === 0 && earnedBadges.length >= 3) {
+      // Award the completion badge
+      awardBadge('blueprint-master');
+      // Show the gallery after a short delay
+      setTimeout(() => setShowBadgeGallery(true), 1000);
+    }
+  }, [currentDecision, queue.length, earnedBadges.length, awardBadge]);
 
   // Load scan events when active project changes
   useEffect(() => {
@@ -206,6 +221,24 @@ export default function DarkBlueprint() {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[Blueprint] ${scanId} scan error:`, error);
       failScan(errorMsg);
+
+      // Show error in decision panel
+      addDecision({
+        type: 'scan-error',
+        title: `${buttonConfig.label} Scan Failed`,
+        description: `An error occurred while scanning:\n\n${errorMsg}\n\nPlease check the console for more details.`,
+        count: 0,
+        severity: 'error',
+        projectId: activeProject?.id || '',
+        projectPath: activeProject?.path || '',
+        data: { scanId, error: errorMsg },
+        onAccept: async () => {
+          console.log('[Blueprint] Error acknowledged');
+        },
+        onReject: async () => {
+          console.log('[Blueprint] Error dismissed');
+        },
+      });
     }
   };
 
@@ -308,6 +341,21 @@ export default function DarkBlueprint() {
         />
       )}
 
+      {/* Badge Side Panel */}
+      <BadgeSidePanel />
+
+      {/* Badge Gallery - Full Screen Completion View */}
+      <AnimatePresence>
+        {showBadgeGallery && (
+          <BadgeGallery
+            onClose={() => {
+              setShowBadgeGallery(false);
+              closeBlueprint();
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Main content area */}
       <div className="relative h-full min-w-[1200px] flex items-center justify-center p-20">
         {/* Dynamic Column Grid Layout - Renders columns from store configuration */}
@@ -321,7 +369,6 @@ export default function DarkBlueprint() {
               onSelectScan={handleSelectScan}
               onScan={handleScan}
               onNavigate={handleNavigate}
-              getScanStatus={getScanStatus}
               getDaysAgo={getDaysAgo}
             />
           ))}

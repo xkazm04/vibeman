@@ -13,6 +13,7 @@ interface TooltipStore extends TooltipState {
   showTooltip: (context: Context, groupColor: string) => void;
   hideTooltip: () => void;
   toggleTooltip: (context: Context, groupColor: string) => void;
+  updateContext: (updatedContext: Context) => void;
 }
 
 export const useTooltipStore = create<TooltipStore>((set, get) => ({
@@ -37,7 +38,7 @@ export const useTooltipStore = create<TooltipStore>((set, get) => ({
 
   toggleTooltip: (context: Context, groupColor: string) => {
     const state = get();
-    
+
     // If same context is already visible, hide it
     if (state.isVisible && state.context?.id === context.id) {
       set({
@@ -50,6 +51,16 @@ export const useTooltipStore = create<TooltipStore>((set, get) => ({
         isVisible: true,
         context,
         groupColor,
+      });
+    }
+  },
+
+  updateContext: (updatedContext: Context) => {
+    const state = get();
+    // Only update if this is the currently visible context
+    if (state.context?.id === updatedContext.id) {
+      set({
+        context: updatedContext,
       });
     }
   },

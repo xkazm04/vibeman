@@ -107,6 +107,7 @@ const BufferColumn = React.memo(function BufferColumn({
             {/* Always show if there's a contextId and ideas */}
             {contextId && ideas.length > 0 && (
               <motion.button
+                data-testid="buffer-column-delete-all-button"
                 onClick={handleDeleteAll}
                 disabled={isDeleting}
                 className="p-1 hover:bg-red-500/20 rounded transition-colors disabled:opacity-50 cursor-pointer"

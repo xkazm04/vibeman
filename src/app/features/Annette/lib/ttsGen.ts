@@ -78,6 +78,6 @@ export async function playAudio(audioUrl: string): Promise<void> {
  * @returns Promise that resolves when audio finishes playing
  */
 export async function speakText(text: string): Promise<void> {
-  const audioUrl = await generateTextToSpeech(text);
+  const audioUrl = await voicebotTextToSpeech(text);
   await playAudio(audioUrl);
 }

@@ -1,11 +1,10 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, History, ChevronDown } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
-import ImplementationLogList from '@/app/features/TaskRunner/sub_TaskerLog/ImplementationLogList';
 import { loadRequirements, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
@@ -20,12 +19,6 @@ const TaskRunnerLayout = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [error, setError] = useState<string | undefined>();
-  const [showLogs, setShowLogs] = useState(false);
-
-  // Get the vibeman project ID for showing logs
-  // TODO: Make this dynamic based on selected project or current context
-  const vibemanProject = projects.find(p => p.name === 'vibeman');
-  const firstProjectId = vibemanProject?.id || (projects.length > 0 ? projects[0].id : undefined);
 
   const actions: TaskRunnerActions = {
     setRequirements,
@@ -231,66 +224,6 @@ const TaskRunnerLayout = () => {
             </div>
           )}
         </LazyContentSection>
-
-        {/* Implementation Logs Section */}
-        {firstProjectId && (
-          <LazyContentSection delay={0.4}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative"
-            >
-              {/* Ambient Background */}
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 via-purple-900/10 to-cyan-900/10 rounded-lg blur-xl" />
-
-              <div className="relative bg-gray-900/60 backdrop-blur-sm border border-gray-800/50 rounded-lg overflow-hidden">
-                {/* Header */}
-                <button
-                  onClick={() => setShowLogs(!showLogs)}
-                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-lg">
-                      <History className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div className="text-left">
-                      <h2 className="text-lg font-semibold text-white">
-                        Implementation Logs
-                      </h2>
-                      <p className="text-sm text-gray-500">
-                        Recent automated implementations by Claude Code
-                      </p>
-                    </div>
-                  </div>
-
-                  <motion.div
-                    animate={{ rotate: showLogs ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <ChevronDown className="w-5 h-5 text-gray-400" />
-                  </motion.div>
-                </button>
-
-                {/* Logs Content */}
-                <AnimatePresence>
-                  {showLogs && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="border-t border-gray-800/50 overflow-hidden"
-                    >
-                      <div className="p-6">
-                        <ImplementationLogList projectId={firstProjectId} limit={5} />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
-          </LazyContentSection>
-        )}
       </div>
     </div>
   );

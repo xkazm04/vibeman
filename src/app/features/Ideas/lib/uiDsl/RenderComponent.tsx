@@ -70,6 +70,7 @@ export function RenderComponent({
 
   return (
     <motion.div
+      data-testid={`idea-sticky-note-${data.id}`}
       className={baseClasses}
       initial={animation.initial}
       animate={animation.animate}

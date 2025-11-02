@@ -20,6 +20,7 @@ export default function ProjectRowSelection({
         Projects:
       </span>
       <motion.button
+        data-testid="project-filter-all-button"
         onClick={() => onSelectProject('all')}
         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
           selectedProjectId === 'all'
@@ -34,6 +35,7 @@ export default function ProjectRowSelection({
       {projects.map((project) => (
         <motion.button
           key={project.id}
+          data-testid={`project-filter-${project.id}`}
           onClick={() => onSelectProject(project.id)}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
             selectedProjectId === project.id

@@ -6,6 +6,7 @@ import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app
 import type { ProjectRequirement, TaskRunnerActions } from './types';
 import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
 import type { GitConfig } from '../sub_Git/useGitConfig';
+import { BatchStorage } from './batchStorage';
 
 /**
  * Check if the API is healthy and ready to accept requests
@@ -21,6 +22,39 @@ export async function checkApiHealth(): Promise<boolean> {
     console.warn('[TaskRunner] API health check failed:', error);
     return false;
   }
+}
+
+/**
+ * Update batch progress in localStorage after a task completes
+ */
+export function updateBatchProgress(reqId: string): void {
+  if (typeof window === 'undefined') return;
+
+  const currentState = BatchStorage.load();
+  if (!currentState) return;
+
+  // Check all batches and update the one that contains this requirement
+  const batchIds: Array<'batch1' | 'batch2' | 'batch3' | 'batch4'> = ['batch1', 'batch2', 'batch3', 'batch4'];
+  const updatedState = { ...currentState };
+
+  for (const batchId of batchIds) {
+    const batch = currentState[batchId];
+    if (batch && batch.requirementIds.includes(reqId)) {
+      updatedState[batchId] = {
+        ...batch,
+        completedCount: batch.completedCount + 1,
+      };
+
+      // Check if batch is complete
+      if (updatedState[batchId]!.completedCount >= batch.requirementIds.length) {
+        updatedState[batchId]!.status = 'completed';
+        console.log(`[TaskRunner] ${batchId} completed!`);
+      }
+    }
+  }
+
+  // Save updated state
+  BatchStorage.save(updatedState);
 }
 
 /**
@@ -263,6 +297,9 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
             // Delete requirement file after successful completion (and git operations if enabled)
             try {
               await deleteRequirement(req.projectPath, req.requirementName);
+
+              // Update batch progress in localStorage
+              updateBatchProgress(reqId);
 
               // Remove from requirements list
               setRequirements((prev) => prev.filter((r) => getRequirementId(r) !== reqId));

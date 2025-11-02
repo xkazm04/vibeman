@@ -59,7 +59,7 @@ export default function BufferView({
     return grouped;
   }, [localIdeas]);
 
-  const handleIdeaDelete = async (ideaId: string) => {
+  const handleIdeaDelete = React.useCallback(async (ideaId: string) => {
     // Optimistically update local state
     setLocalIdeas(prev => prev.filter(idea => idea.id !== ideaId));
 
@@ -74,9 +74,9 @@ export default function BufferView({
         setLocalIdeas(prev => [...prev, deletedIdea]);
       }
     }
-  };
+  }, [ideas, onIdeaDelete]);
 
-  const handleContextDelete = async (contextId: string) => {
+  const handleContextDelete = React.useCallback(async (contextId: string) => {
     // If parent provided a handler, use it
     if (onContextDelete) {
       await onContextDelete(contextId);
@@ -113,7 +113,17 @@ export default function BufferView({
       setLocalIdeas(prev => [...prev, ...contextIdeas]);
       alert('Failed to delete ideas. Please refresh the page.');
     }
-  };
+  }, [localIdeas, onContextDelete, getProject]);
+
+  // Memoize sorted context entries to avoid re-sorting on every render
+  // MUST be before conditional returns to maintain hook order
+  const sortedGroupedIdeas = React.useMemo(() => {
+    return Object.entries(localGroupedIdeas).map(([projectId, contexts]) => ({
+      projectId,
+      contexts: Object.entries(contexts)
+        .sort(([, ideasA], [, ideasB]) => ideasB.length - ideasA.length)
+    }));
+  }, [localGroupedIdeas]);
 
   if (loading) {
     return (
@@ -147,7 +157,7 @@ export default function BufferView({
   return (
     <div className="space-y-8">
       {/* Project Sections */}
-      {Object.entries(localGroupedIdeas).map(([projectId, contexts]) => (
+      {sortedGroupedIdeas.map(({ projectId, contexts }) => (
         <motion.div
           key={projectId}
           initial={{ opacity: 0, y: 20 }}
@@ -161,27 +171,25 @@ export default function BufferView({
               {getProjectName(projectId)}
             </h2>
             <span className="text-sm text-gray-500 font-mono">
-              ({Object.values(contexts).flat().length} ideas)
+              ({contexts.reduce((sum, [, ideas]) => sum + ideas.length, 0)} ideas)
             </span>
           </div>
 
           {/* Buffer Grid - 4 columns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <AnimatePresence mode="popLayout">
-              {Object.entries(contexts)
-                .sort(([, ideasA], [, ideasB]) => ideasB.length - ideasA.length)
-                .map(([contextId, contextIdeas]) => (
-                  <BufferColumn
-                    key={`${projectId}-${contextId}`}
-                    contextName={contextId === 'no-context' ? 'General' : getContextName(contextId)}
-                    contextId={contextId === 'no-context' ? null : contextId}
-                    projectName={getProjectName(projectId)}
-                    ideas={contextIdeas}
-                    onIdeaClick={onIdeaClick}
-                    onIdeaDelete={handleIdeaDelete}
-                    onContextDelete={handleContextDelete}
-                  />
-                ))}
+              {contexts.map(([contextId, contextIdeas]) => (
+                <BufferColumn
+                  key={`${projectId}-${contextId}`}
+                  contextName={contextId === 'no-context' ? 'General' : getContextName(contextId)}
+                  contextId={contextId === 'no-context' ? null : contextId}
+                  projectName={getProjectName(projectId)}
+                  ideas={contextIdeas}
+                  onIdeaClick={onIdeaClick}
+                  onIdeaDelete={handleIdeaDelete}
+                  onContextDelete={handleContextDelete}
+                />
+              ))}
             </AnimatePresence>
           </div>
         </motion.div>

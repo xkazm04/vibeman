@@ -165,6 +165,7 @@ export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) 
 
         {/* Goal Badge - Clickable */}
         <motion.button
+          data-testid="idea-meta-goal-button"
           onClick={handleGoalClick}
           className={`relative flex items-center gap-1.5 px-2 py-1 border rounded transition-colors ${
             goalTitle
@@ -188,6 +189,7 @@ export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) 
 
         {/* Context Badge - Clickable */}
         <motion.button
+          data-testid="idea-meta-context-button"
           onClick={handleContextClick}
           className={`relative flex items-center gap-1.5 px-2 py-1 border rounded transition-colors ${
             contextName

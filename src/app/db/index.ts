@@ -6,6 +6,7 @@
 import { getDatabase, closeDatabase } from './connection';
 import { initializeTables } from './schema';
 import { goalRepository } from './repositories/goal.repository';
+import { goalCandidateRepository } from './repositories/goal-candidate.repository';
 import { backlogRepository } from './repositories/backlog.repository';
 import { contextGroupRepository } from './repositories/context-group.repository';
 import { contextRepository } from './repositories/context.repository';
@@ -16,7 +17,6 @@ import { implementationLogRepository } from './repositories/implementation-log.r
 import { featureRequestRepository } from './repositories/feature-request.repository';
 import { conversationRepository } from './repositories/conversation.repository';
 import { techDebtRepository } from './repositories/tech-debt.repository';
-import { documentationRepository } from './repositories/documentation.repository';
 import { scanQueueRepository } from './repositories/scanQueue.repository';
 import { testSelectorRepository } from './repositories/test-selector.repository';
 import {
@@ -54,6 +54,15 @@ ensureInitialized();
  */
 export const goalDb = {
   ...goalRepository,
+  close: closeDatabase
+};
+
+/**
+ * Goal Candidate Database Operations
+ * Handles AI-generated goal suggestions
+ */
+export const goalCandidateDb = {
+  ...goalCandidateRepository,
   close: closeDatabase
 };
 
@@ -144,15 +153,6 @@ export const conversationDb = {
  */
 export const techDebtDb = {
   ...techDebtRepository,
-  close: closeDatabase
-};
-
-/**
- * Documentation Database Operations
- * Handles auto-generated project documentation
- */
-export const documentationDb = {
-  ...documentationRepository,
   close: closeDatabase
 };
 

@@ -100,6 +100,12 @@ export function useBlueprintKeyboardShortcuts({
 export function getBlueprintKeyboardShortcuts(): KeyboardShortcut[] {
   return [
     {
+      key: 'B',
+      ctrlKey: true,
+      description: 'Toggle Blueprint',
+      action: () => {},
+    },
+    {
       key: '1',
       ctrlKey: true,
       description: 'Run Vision Scan',

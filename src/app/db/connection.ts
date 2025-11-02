@@ -1,32 +1,29 @@
+/**
+ * Database Connection Module
+ * Provides backward-compatible interface using the new driver abstraction
+ *
+ * This module maintains the old API for compatibility while delegating
+ * to the new driver-based architecture underneath.
+ */
+
 import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-
-// Database path - store in the database directory
-const DB_PATH = path.join(process.cwd(), 'database', 'goals.db');
-
-// Ensure database directory exists
-const dbDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-// Singleton database instance
-let db: Database.Database | null = null;
+import { getConnection as getDriverConnection, closeDatabase as closeDriver } from './drivers';
 
 /**
  * Get or create database connection
- * Uses WAL mode for better concurrent access
+ *
+ * DEPRECATED: This returns a driver-agnostic connection object.
+ * For new code, consider using the driver abstraction directly.
+ *
+ * @returns Database connection (currently returns better-sqlite3 Database for compatibility)
  */
 export function getDatabase(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
+  const connection = getDriverConnection();
 
-    // Enable WAL mode for better concurrent access
-    db.pragma('journal_mode = WAL');
-  }
-
-  return db;
+  // For now, we return the underlying better-sqlite3 instance for compatibility
+  // This works because SqliteConnection wraps a Database.Database
+  // In the future, repositories should use the DbConnection interface instead
+  return (connection as any).db || connection;
 }
 
 /**
@@ -34,21 +31,8 @@ export function getDatabase(): Database.Database {
  * Should be called on app shutdown
  */
 export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
-  }
+  closeDriver();
 }
 
-// Cleanup handlers for graceful shutdown
-if (typeof process !== 'undefined') {
-  process.on('exit', closeDatabase);
-  process.on('SIGINT', () => {
-    closeDatabase();
-    process.exit(0);
-  });
-  process.on('SIGTERM', () => {
-    closeDatabase();
-    process.exit(0);
-  });
-}
+// Cleanup handlers are now managed in drivers/index.ts
+// This module just provides backward compatibility

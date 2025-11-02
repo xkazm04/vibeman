@@ -59,6 +59,7 @@ export default function IdeaDetailActions({
         {/* Delete Button */}
           <motion.button
             onClick={onDelete}
+            data-testid="idea-detail-delete-button"
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-xs font-medium transition-all disabled:opacity-50"
             whileHover={{ scale: 1.05 }}
@@ -72,6 +73,7 @@ export default function IdeaDetailActions({
         {idea.status !== 'rejected'  && (
           <motion.button
             onClick={handleReject}
+            data-testid="idea-detail-reject-button"
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 rounded-lg text-orange-300 text-xs font-medium transition-all disabled:opacity-50"
             whileHover={{ scale: 1.05 }}
@@ -89,6 +91,7 @@ export default function IdeaDetailActions({
         {idea.status !== 'accepted' && (
           <motion.button
             onClick={onAccept}
+            data-testid="idea-detail-accept-button"
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 rounded-lg text-green-300 text-xs font-medium transition-all disabled:opacity-50"
             whileHover={{ scale: 1.05 }}
@@ -103,6 +106,7 @@ export default function IdeaDetailActions({
         {idea.status === 'accepted' && (
           <motion.button
             onClick={onRegenerate}
+            data-testid="idea-detail-regenerate-button"
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-lg text-amber-300 text-xs font-medium transition-all disabled:opacity-50"
             whileHover={{ scale: 1.05 }}
@@ -116,6 +120,7 @@ export default function IdeaDetailActions({
         {/* Save Feedback Button */}
         <motion.button
           onClick={onSaveFeedback}
+          data-testid="idea-detail-save-feedback-button"
           disabled={saving}
           className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-lg text-xs font-medium transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50"
           whileHover={{ scale: 1.05 }}

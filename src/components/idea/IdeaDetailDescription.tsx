@@ -31,6 +31,7 @@ export default function IdeaDetailDescription({
         {!isEditing ? (
           <motion.button
             onClick={onEdit}
+            data-testid="idea-description-edit-button"
             className="p-1.5 hover:bg-gray-700/40 rounded transition-colors"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -41,6 +42,7 @@ export default function IdeaDetailDescription({
         ) : (
           <div className="flex items-center gap-2">
             <motion.button
+              data-testid="idea-description-save-button"
               onClick={onSave}
               disabled={saving}
               className="p-1.5 hover:bg-green-500/20 rounded transition-colors disabled:opacity-50"
@@ -52,6 +54,7 @@ export default function IdeaDetailDescription({
             </motion.button>
             <button
               onClick={onCancel}
+              data-testid="idea-description-cancel-button"
               className="text-xs text-gray-400 hover:text-white transition-colors"
             >
               Cancel
@@ -65,6 +68,7 @@ export default function IdeaDetailDescription({
         </p>
       ) : (
         <textarea
+          data-testid="idea-description-textarea"
           value={description}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Enter description..."

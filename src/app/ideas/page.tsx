@@ -74,65 +74,75 @@ export default function IdeasPage() {
     setLoading(false);
   };
 
-  const handleIdeaUpdate = async (updatedIdea: DbIdea) => {
-    setIdeas(ideas.map(idea => idea.id === updatedIdea.id ? updatedIdea : idea));
+  const handleIdeaUpdate = React.useCallback(async (updatedIdea: DbIdea) => {
+    setIdeas(prevIdeas => prevIdeas.map(idea => idea.id === updatedIdea.id ? updatedIdea : idea));
     setSelectedIdea(updatedIdea);
-  };
+  }, []);
 
-  const handleIdeaDelete = async (deletedIdeaId: string) => {
-    setIdeas(ideas.filter(idea => idea.id !== deletedIdeaId));
+  const handleIdeaDelete = React.useCallback(async (deletedIdeaId: string) => {
+    setIdeas(prevIdeas => prevIdeas.filter(idea => idea.id !== deletedIdeaId));
     setSelectedIdea(null);
-  };
+  }, []);
 
-  const handleQuickDelete = async (ideaId: string) => {
+  const handleQuickDelete = React.useCallback(async (ideaId: string) => {
     const success = await deleteIdea(ideaId);
     if (success) {
-      setIdeas(ideas.filter(idea => idea.id !== ideaId));
+      setIdeas(prevIdeas => prevIdeas.filter(idea => idea.id !== ideaId));
     }
-  };
+  }, []);
 
-  const handleContextDelete = async (contextId: string) => {
+  const handleContextDelete = React.useCallback(async (contextId: string) => {
     // Capture ideas to delete BEFORE optimistic update
-    const contextIdeas = ideas.filter(idea => idea.context_id === contextId);
-    const projectId = contextIdeas[0]?.project_id;
-    const project = projectId ? getProject(projectId) : null;
-    
-    // Optimistically update UI immediately
-    setIdeas(prevIdeas => prevIdeas.filter(idea => idea.context_id !== contextId));
-    
-    try {
-      const response = await fetch(
-        `/api/contexts/ideas?contextId=${encodeURIComponent(contextId)}${project?.path ? `&projectPath=${encodeURIComponent(project.path)}` : ''}`,
-        { method: 'DELETE' }
-      );
+    setIdeas(prevIdeas => {
+      const contextIdeas = prevIdeas.filter(idea => idea.context_id === contextId);
+      const projectId = contextIdeas[0]?.project_id;
+      const project = projectId ? getProject(projectId) : null;
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`Deleted ${data.deletedCount} idea(s) from context`);
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to delete context ideas:', errorData.error);
-        // Revert optimistic update on error
-        setIdeas(prevIdeas => [...prevIdeas, ...contextIdeas]);
-        alert(`Failed to delete ideas: ${errorData.error}`);
-      }
-    } catch (error) {
-      console.error('Error deleting context ideas:', error);
-      // Revert optimistic update on error
-      setIdeas(prevIdeas => [...prevIdeas, ...contextIdeas]);
-      alert('Failed to delete ideas. Please refresh the page.');
-    }
-  };
+      // Store for potential revert
+      const ideasToDelete = contextIdeas;
 
-  const handleIdeaClose = () => {
+      // Optimistically update UI immediately
+      const updatedIdeas = prevIdeas.filter(idea => idea.context_id !== contextId);
+
+      // Async deletion
+      (async () => {
+        try {
+          const response = await fetch(
+            `/api/contexts/ideas?contextId=${encodeURIComponent(contextId)}${project?.path ? `&projectPath=${encodeURIComponent(project.path)}` : ''}`,
+            { method: 'DELETE' }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`Deleted ${data.deletedCount} idea(s) from context`);
+          } else {
+            const errorData = await response.json();
+            console.error('Failed to delete context ideas:', errorData.error);
+            // Revert optimistic update on error
+            setIdeas(prev => [...prev, ...ideasToDelete]);
+            alert(`Failed to delete ideas: ${errorData.error}`);
+          }
+        } catch (error) {
+          console.error('Error deleting context ideas:', error);
+          // Revert optimistic update on error
+          setIdeas(prev => [...prev, ...ideasToDelete]);
+          alert('Failed to delete ideas. Please refresh the page.');
+        }
+      })();
+
+      return updatedIdeas;
+    });
+  }, [getProject]);
+
+  const handleIdeaClose = React.useCallback(() => {
     setSelectedIdea(null);
-  };
+  }, []);
 
-  const handleScanComplete = () => {
+  const handleScanComplete = React.useCallback(() => {
     loadIdeas();
-  };
+  }, []);
 
-  const handleProjectSelect = (projectId: string) => {
+  const handleProjectSelect = React.useCallback((projectId: string) => {
     // Update local filter state
     setFilterProject(projectId);
     setFilterContext(null); // Reset context filter when project changes
@@ -144,7 +154,7 @@ export default function IdeasPage() {
         setActiveProject(project);
       }
     }
-  };
+  }, [getProject, setActiveProject]);
 
   // Get selected project details
   const selectedProject = filterProject !== 'all' ? getProject(filterProject) : null;
@@ -167,6 +177,11 @@ export default function IdeasPage() {
   const getContextName = React.useCallback((contextId: string) => {
     return getContextNameFromMap(contextId, contextsMap);
   }, [contextsMap]);
+
+  // Memoize getProjectName callback to prevent re-creating on every render
+  const getProjectNameCallback = React.useCallback((projectId: string) => {
+    return getProjectName(projectId, projects);
+  }, [projects]);
 
   return (
     <ProcessingIdeaProvider>
@@ -205,7 +220,7 @@ export default function IdeasPage() {
               loading={loading}
               ideas={filteredIdeas}
               groupedIdeas={groupedIdeas}
-              getProjectName={(id) => getProjectName(id, projects)}
+              getProjectName={getProjectNameCallback}
               getContextName={getContextName}
               onIdeaClick={setSelectedIdea}
               onIdeaDelete={handleQuickDelete}

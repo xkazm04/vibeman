@@ -5,7 +5,7 @@ import { Loader2, History, ChevronDown } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
-import ImplementationLogList from '@/app/features/TaskRunner/sub_TaskerLog/ImplementationLogList';
+import ImplementationLogList from '@/app/features/Goals/sub_ImplementationLog/ImplementationLogList';
 import { loadRequirements, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';

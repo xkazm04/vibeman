@@ -56,6 +56,7 @@ export interface LibraryRow {
   projectCount: number;
   latestVersion: string | null; // Latest version among scanned projects
   registryVersion: string | null; // Latest version from npm/pypi registry
+  license: string | null; // License identifier (e.g., "MIT", "Apache-2.0")
 }
 
 // Package update types

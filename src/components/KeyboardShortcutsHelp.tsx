@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Keyboard } from 'lucide-react';
-import { getKeyboardShortcuts, formatShortcut } from '@/hooks/useGlobalKeyboardShortcuts';
+import { getBlueprintKeyboardShortcuts, formatShortcut } from '@/app/features/Onboarding/sub_Blueprint/hooks/useBlueprintKeyboardShortcuts';
 
 export default function KeyboardShortcutsHelp() {
   const [isOpen, setIsOpen] = useState(false);
-  const shortcuts = getKeyboardShortcuts();
+  const shortcuts = getBlueprintKeyboardShortcuts();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -1,12 +1,12 @@
 'use client';
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, Zap, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
-import QueueVisualization from './components/QueueVisualization';
-import TaskRunButton from './components/TaskRunButton';
+import DualBatchPanel from './components/DualBatchPanel';
+import { BatchStorage, type BatchState } from './lib/batchStorage';
 import { executeNextRequirement as executeTask } from './lib/taskExecutor';
-import { GitControl } from './sub_Git';
+import ConfigurationToolbar from './lib/ConfigurationToolbar';
 
 interface TaskRunnerHeaderProps {
   selectedCount: number;
@@ -51,6 +51,68 @@ export default function TaskRunnerHeader({
     }
   }, [isPaused]);
 
+  // Multi-batch state management (up to 4 batches)
+  const [batch1, setBatch1] = useState<BatchState | null>(null);
+  const [batch2, setBatch2] = useState<BatchState | null>(null);
+  const [batch3, setBatch3] = useState<BatchState | null>(null);
+  const [batch4, setBatch4] = useState<BatchState | null>(null);
+
+  // Recovery logic - restore batches from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const recovered = BatchStorage.load();
+    if (!recovered) return;
+
+    let hasRecovered = false;
+
+    // Define batch recovery function
+    const recoverBatch = (
+      batchData: BatchState | null,
+      batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4',
+      setBatch: (batch: BatchState) => void
+    ) => {
+      if (!batchData) return false;
+
+      console.log(`[TaskRunner] Recovering ${batchId}...`, batchData);
+      setBatch(batchData);
+
+      if (batchData.status === 'running') {
+        // Re-queue unfinished tasks
+        const remaining = batchData.requirementIds.slice(
+          batchData.completedCount
+        );
+        executionQueueRef.current = [...executionQueueRef.current, ...remaining];
+
+        // Mark requirements as queued
+        setRequirements(prev =>
+          prev.map(req => {
+            const reqId = getRequirementId(req);
+            if (remaining.includes(reqId)) {
+              return { ...req, status: 'queued' as const, batchId };
+            }
+            return req;
+          })
+        );
+        return true;
+      }
+      return false;
+    };
+
+    // Restore all batches
+    if (recoverBatch(recovered.batch1, 'batch1', setBatch1)) hasRecovered = true;
+    if (recoverBatch(recovered.batch2, 'batch2', setBatch2)) hasRecovered = true;
+    if (recoverBatch(recovered.batch3, 'batch3', setBatch3)) hasRecovered = true;
+    if (recoverBatch(recovered.batch4, 'batch4', setBatch4)) hasRecovered = true;
+
+    // Resume execution if batches were recovered
+    if (hasRecovered) {
+      console.log('[TaskRunner] Resuming batch execution after recovery');
+      setIsRunning(true);
+      setTimeout(() => executeNextRequirement(), 500);
+    }
+  }, []); // Run once on mount - eslint-disable-next-line react-hooks/exhaustive-deps
+
   // Wrapper for executeNextRequirement from taskExecutor
   const executeNextRequirement = useCallback(() => {
     executeTask({
@@ -82,6 +144,180 @@ export default function TaskRunnerHeader({
     }
   }, [requirements, isRunning, setIsRunning, setProcessedCount, executeNextRequirement, isPaused]);
 
+  // Batch Handler Functions
+  const handleCreateBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
+    const selectedReqIds = Array.from(selectedRequirements);
+    const batchNumber = batchId.replace('batch', '');
+    const batch = BatchStorage.createBatch(
+      `batch_${Date.now()}`,
+      `Batch ${batchNumber} - ${selectedReqIds.length} tasks`,
+      selectedReqIds
+    );
+
+    // Update the appropriate batch state
+    switch (batchId) {
+      case 'batch1':
+        setBatch1(batch);
+        break;
+      case 'batch2':
+        setBatch2(batch);
+        break;
+      case 'batch3':
+        setBatch3(batch);
+        break;
+      case 'batch4':
+        setBatch4(batch);
+        break;
+    }
+
+    // Update localStorage
+    const currentState = BatchStorage.load() || { batch1: null, batch2: null, batch3: null, batch4: null, activeBatch: null };
+    BatchStorage.save({
+      ...currentState,
+      [batchId]: batch,
+    });
+
+    // Clear selection
+    actions.setSelectedRequirements(new Set());
+
+    console.log(`[TaskRunner] Created ${batchId} with ${selectedReqIds.length} tasks`);
+  }, [selectedRequirements, actions]);
+
+  const handleStartBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
+    // Get the appropriate batch
+    let batch: BatchState | null = null;
+    switch (batchId) {
+      case 'batch1': batch = batch1; break;
+      case 'batch2': batch = batch2; break;
+      case 'batch3': batch = batch3; break;
+      case 'batch4': batch = batch4; break;
+    }
+
+    if (!batch) return;
+
+    console.log(`[TaskRunner] Starting ${batchId}`);
+
+    // Update batch status
+    const updatedBatch = {
+      ...batch,
+      status: 'running' as const,
+      startedAt: Date.now(),
+    };
+
+    // Update the appropriate state
+    switch (batchId) {
+      case 'batch1': setBatch1(updatedBatch); break;
+      case 'batch2': setBatch2(updatedBatch); break;
+      case 'batch3': setBatch3(updatedBatch); break;
+      case 'batch4': setBatch4(updatedBatch); break;
+    }
+
+    // Save to localStorage
+    BatchStorage.updateBatch(batchId, updatedBatch);
+
+    // Queue all requirements for this batch
+    const reqIds = batch.requirementIds;
+    executionQueueRef.current = [...executionQueueRef.current, ...reqIds];
+
+    // Mark requirements as queued
+    setRequirements(prev =>
+      prev.map(req => {
+        const reqId = getRequirementId(req);
+        if (reqIds.includes(reqId)) {
+          return { ...req, status: 'queued' as const, batchId };
+        }
+        return req;
+      })
+    );
+
+    // Start execution
+    setIsRunning(true);
+    executeNextRequirement();
+  }, [batch1, batch2, batch3, batch4, getRequirementId, setRequirements, setIsRunning, executeNextRequirement]);
+
+  const handlePauseBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
+    // Get the appropriate batch
+    let batch: BatchState | null = null;
+    switch (batchId) {
+      case 'batch1': batch = batch1; break;
+      case 'batch2': batch = batch2; break;
+      case 'batch3': batch = batch3; break;
+      case 'batch4': batch = batch4; break;
+    }
+
+    if (!batch) return;
+
+    console.log(`[TaskRunner] Pausing ${batchId}`);
+
+    const updatedBatch = { ...batch, status: 'paused' as const };
+
+    // Update the appropriate state
+    switch (batchId) {
+      case 'batch1': setBatch1(updatedBatch); break;
+      case 'batch2': setBatch2(updatedBatch); break;
+      case 'batch3': setBatch3(updatedBatch); break;
+      case 'batch4': setBatch4(updatedBatch); break;
+    }
+
+    BatchStorage.updateBatch(batchId, updatedBatch);
+    setIsPaused(true);
+  }, [batch1, batch2, batch3, batch4]);
+
+  const handleResumeBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
+    // Get the appropriate batch
+    let batch: BatchState | null = null;
+    switch (batchId) {
+      case 'batch1': batch = batch1; break;
+      case 'batch2': batch = batch2; break;
+      case 'batch3': batch = batch3; break;
+      case 'batch4': batch = batch4; break;
+    }
+
+    if (!batch) return;
+
+    console.log(`[TaskRunner] Resuming ${batchId}`);
+
+    const updatedBatch = { ...batch, status: 'running' as const };
+
+    // Update the appropriate state
+    switch (batchId) {
+      case 'batch1': setBatch1(updatedBatch); break;
+      case 'batch2': setBatch2(updatedBatch); break;
+      case 'batch3': setBatch3(updatedBatch); break;
+      case 'batch4': setBatch4(updatedBatch); break;
+    }
+
+    BatchStorage.updateBatch(batchId, updatedBatch);
+    setIsPaused(false);
+
+    // Resume execution
+    setTimeout(() => {
+      if (executionQueueRef.current.length > 0) {
+        executeNextRequirement();
+      }
+    }, 100);
+  }, [batch1, batch2, batch3, batch4, executeNextRequirement]);
+
+  const handleClearBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
+    console.log(`[TaskRunner] Clearing ${batchId}`);
+
+    // Update the appropriate state
+    switch (batchId) {
+      case 'batch1': setBatch1(null); break;
+      case 'batch2': setBatch2(null); break;
+      case 'batch3': setBatch3(null); break;
+      case 'batch4': setBatch4(null); break;
+    }
+
+    const currentState = BatchStorage.load();
+    if (currentState) {
+      BatchStorage.save({
+        ...currentState,
+        [batchId]: null,
+      });
+    }
+  }, []);
+
   const clearError = () => {
     setError(undefined);
   };
@@ -102,129 +338,50 @@ export default function TaskRunnerHeader({
     }, 100);
   };
 
-  // Filter requirements to show active queue items
-  const activeQueueItems = requirements.filter(
-    (r) =>
-      r.status === 'queued' ||
-      r.status === 'running' ||
-      r.status === 'completed' ||
-      r.status === 'failed' ||
-      r.status === 'session-limit'
-  );
-
   return (
-    <div className="relative space-y-4">
+    <div className="relative space-y-3">
       {/* Error Display */}
       {error && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-center justify-between"
+          className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <X className="w-5 h-5 text-red-400" />
-            <span className="text-red-400 font-medium">{error}</span>
+            <X className="w-4 h-4 text-red-400" />
+            <span className="text-red-400 text-sm font-medium">{error}</span>
           </div>
           <button
             onClick={clearError}
             className="text-red-400 hover:text-red-300 transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </motion.div>
       )}
 
-      {/* Queue Visualization */}
-      {activeQueueItems.length > 0 && (
-        <QueueVisualization
+      {/* Configuration Toolbar - Centered */}
+      <div className="flex items-center justify-center">
+        <ConfigurationToolbar />
+      </div>
+
+      {/* Multi-Batch Panel with integrated queues (up to 4 batches) */}
+      <div className="relative bg-gray-900/40 backdrop-blur-sm border border-gray-800/30 rounded-lg p-4">
+        <DualBatchPanel
+          batch1={batch1}
+          batch2={batch2}
+          batch3={batch3}
+          batch4={batch4}
+          onStartBatch={handleStartBatch}
+          onPauseBatch={handlePauseBatch}
+          onResumeBatch={handleResumeBatch}
+          onClearBatch={handleClearBatch}
+          onCreateBatch={handleCreateBatch}
+          selectedCount={selectedCount}
           requirements={requirements}
           getRequirementId={getRequirementId}
         />
-      )}
-
-      {/* Main Header */}
-      <div className="relative">
-        {/* Ambient Background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/10 via-blue-900/10 to-cyan-900/10 rounded-lg blur-xl" />
-
-        <div className="relative bg-gray-900/60 backdrop-blur-sm border border-gray-800/50 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            {/* Left: Title and Stats */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-purple-600/20 to-blue-600/20 rounded-lg">
-                  <Zap className="w-6 h-6 text-purple-400" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                    Task Runner
-                  </h1>
-                  <p className="text-sm text-gray-500">
-                    Batch execute Claude Code requirements
-                  </p>
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="flex items-center gap-4 ml-8">
-                {isRunning ? (
-                  <>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                      <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
-                      <span className="text-sm text-blue-400 font-medium">
-                        Processing {processedCount} / {selectedCount}
-                      </span>
-                    </div>
-                    {isPaused && (
-                      <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/30 rounded-lg"
-                      >
-                        <span className="text-sm text-orange-400 font-medium">
-                          Queue Paused
-                        </span>
-                      </motion.div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg">
-                    <span className="text-sm text-gray-400">
-                      <span className="text-emerald-400 font-semibold">{selectedCount}</span> selected
-                    </span>
-                    <span className="text-gray-600">•</span>
-                    <span className="text-sm text-gray-500">
-                      {totalCount} total
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Center: Batch Run Button */}
-            <div className="flex-1 flex justify-center">
-              <TaskRunButton
-                selectedRequirements={selectedRequirements}
-                isRunning={isRunning}
-                isPaused={isPaused}
-                executionQueueRef={executionQueueRef}
-                isExecutingRef={isExecutingRef}
-                requirements={requirements}
-                actions={actions}
-                getRequirementId={getRequirementId}
-                executeNextRequirement={executeNextRequirement}
-                onPause={handlePause}
-                onResume={handleResume}
-              />
-            </div>
-
-            {/* Right: Git Control */}
-            <div className="flex items-center justify-end">
-              <GitControl />
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

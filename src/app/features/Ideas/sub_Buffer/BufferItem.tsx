@@ -83,6 +83,7 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete }: B
   return (
     <>
       <motion.div
+        data-testid={`buffer-item-${idea.id}`}
         className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-colors ${getStatusClasses()} ${
           isProcessing ? 'ring-2 ring-yellow-500/50' : ''
         }`}

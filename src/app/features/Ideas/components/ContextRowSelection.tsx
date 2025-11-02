@@ -59,6 +59,7 @@ export default function ContextRowSelection({
         <div className="flex flex-wrap items-center gap-2 flex-1">
           {/* Full Project Button */}
           <motion.button
+            data-testid="context-filter-full-project"
             onClick={() => onSelectContext(null)}
             className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               !selectedContextId
@@ -107,6 +108,7 @@ export default function ContextRowSelection({
                   return (
                     <motion.button
                       key={context.id}
+                      data-testid={`context-filter-grouped-${context.id}`}
                       onClick={() => onSelectContext(context.id)}
                       className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         isSelected
@@ -146,6 +148,7 @@ export default function ContextRowSelection({
                 return (
                   <motion.button
                     key={context.id}
+                    data-testid={`context-filter-ungrouped-${context.id}`}
                     onClick={() => onSelectContext(context.id)}
                     className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       isSelected

@@ -76,32 +76,32 @@ const IdeasLayout = () => {
     setLoading(false);
   };
 
-  const handleIdeaUpdate = async (updatedIdea: DbIdea) => {
-    setIdeas(ideas.map(idea => idea.id === updatedIdea.id ? updatedIdea : idea));
+  const handleIdeaUpdate = React.useCallback(async (updatedIdea: DbIdea) => {
+    setIdeas(prevIdeas => prevIdeas.map(idea => idea.id === updatedIdea.id ? updatedIdea : idea));
     setSelectedIdea(updatedIdea);
-  };
+  }, []);
 
-  const handleIdeaDelete = async (deletedIdeaId: string) => {
-    setIdeas(ideas.filter(idea => idea.id !== deletedIdeaId));
+  const handleIdeaDelete = React.useCallback(async (deletedIdeaId: string) => {
+    setIdeas(prevIdeas => prevIdeas.filter(idea => idea.id !== deletedIdeaId));
     setSelectedIdea(null);
-  };
+  }, []);
 
-  const handleQuickDelete = async (ideaId: string) => {
+  const handleQuickDelete = React.useCallback(async (ideaId: string) => {
     const success = await deleteIdea(ideaId);
     if (success) {
-      setIdeas(ideas.filter(idea => idea.id !== ideaId));
+      setIdeas(prevIdeas => prevIdeas.filter(idea => idea.id !== ideaId));
     }
-  };
+  }, []);
 
-  const handleIdeaClose = () => {
+  const handleIdeaClose = React.useCallback(() => {
     setSelectedIdea(null);
-  };
+  }, []);
 
-  const handleScanComplete = () => {
+  const handleScanComplete = React.useCallback(() => {
     loadIdeas();
-  };
+  }, []);
 
-  const handleProjectSelect = (projectId: string) => {
+  const handleProjectSelect = React.useCallback((projectId: string) => {
     // Update local filter state
     setFilterProject(projectId);
     setFilterContext(null); // Reset context filter when project changes
@@ -113,7 +113,7 @@ const IdeasLayout = () => {
         setActiveProject(project);
       }
     }
-  };
+  }, [getProject, setActiveProject]);
 
   // Get selected project details
   const selectedProject = filterProject !== 'all' ? getProject(filterProject) : null;
@@ -136,6 +136,11 @@ const IdeasLayout = () => {
   const getContextName = React.useCallback((contextId: string) => {
     return getContextNameFromMap(contextId, contextsMap);
   }, [contextsMap]);
+
+  // Memoize getProjectName callback to prevent re-creating on every render
+  const getProjectNameCallback = React.useCallback((projectId: string) => {
+    return getProjectName(projectId, projects);
+  }, [projects]);
 
   // Toolbar actions
   const toolbarActions: ToolbarAction[] = React.useMemo(() => [
@@ -207,7 +212,7 @@ const IdeasLayout = () => {
               loading={loading}
               ideas={filteredIdeas}
               groupedIdeas={groupedIdeas}
-              getProjectName={(id) => getProjectName(id, projects)}
+              getProjectName={getProjectNameCallback}
               getContextName={getContextName}
               onIdeaClick={setSelectedIdea}
               onIdeaDelete={handleQuickDelete}

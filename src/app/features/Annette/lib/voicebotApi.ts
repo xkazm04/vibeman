@@ -4,6 +4,7 @@
  */
 
 import { SpeechToTextResponse, LLMResponse, ConversationMessage, LLMProvider } from './voicebotTypes';
+import { trackCommand, trackTTSPlayback } from './analyticsWrapper';
 
 /**
  * Convert speech to text using ElevenLabs STT
@@ -68,6 +69,8 @@ export async function getLLMResponse(
 
 /**
  * Convert text to speech using ElevenLabs TTS
+ * Note: This function does NOT include analytics tracking.
+ * Use trackTTSPlayback wrapper from analyticsWrapper.ts for analytics.
  */
 export async function textToSpeech(text: string): Promise<string> {
   const response = await fetch('/api/voicebot/text-to-speech', {
@@ -82,7 +85,7 @@ export async function textToSpeech(text: string): Promise<string> {
 
   const audioBlob = await response.blob();
   const audioUrl = URL.createObjectURL(audioBlob);
-  
+
   return audioUrl;
 }
 

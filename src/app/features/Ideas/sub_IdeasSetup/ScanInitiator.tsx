@@ -28,6 +28,7 @@ import BatchScanButton from './components/BatchScanButton';
 import ProgressBar from './ProgressBar';
 import ScanIdeaScoreboard from './components/ScanIdeaScoreboard';
 import ScanTypeSelector from './ScanTypeSelector';
+import VoicebotScanButton from '@/app/features/Annette/components/VoicebotScanButton';
 
 interface ScanInitiatorProps {
   onScanComplete: () => void;
@@ -336,6 +337,15 @@ export default function ScanInitiator({
               isScanning={scanState === 'scanning' && batchMode}
               contextsCount={projectContexts.length + 1}
               scanTypesCount={selectedScanTypes.length}
+            />
+          )}
+
+          {/* Voicebot Scan Briefing Button */}
+          {activeProject && (
+            <VoicebotScanButton
+              projectId={activeProject.id}
+              variant="quick"
+              disabled={!activeProject}
             />
           )}
         </div>

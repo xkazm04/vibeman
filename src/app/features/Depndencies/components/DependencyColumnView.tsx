@@ -6,11 +6,53 @@ import { AlertTriangle, Package, Download } from 'lucide-react';
 import { Project, ProjectDependency, LibraryRow, getLatestVersion, getVersionColor, getCellBackground, isPackageOutdated } from '../lib';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import BatchUpdateModalContent from './BatchUpdateModalContent';
+import LicenseComplianceBadge from '@/components/LicenseComplianceBadge';
 
 interface DependencyColumnViewProps {
   projects: Project[];
   dependencies: Record<string, ProjectDependency[]>;
   registryVersions?: Record<string, string | null>;
+}
+
+/**
+ * Mock function to get license for a package
+ * In a real implementation, this would fetch from npm/pypi API or a cached license database
+ */
+function getMockLicenseForPackage(packageName: string): string | null {
+  // Common packages with known licenses (for demo purposes)
+  const knownLicenses: Record<string, string> = {
+    'react': 'MIT',
+    'next': 'MIT',
+    'typescript': 'Apache-2.0',
+    'eslint': 'MIT',
+    'prettier': 'MIT',
+    'webpack': 'MIT',
+    'babel': 'MIT',
+    'lodash': 'MIT',
+    'express': 'MIT',
+    'axios': 'MIT',
+    'tailwindcss': 'MIT',
+    'framer-motion': 'MIT',
+    'lucide-react': 'ISC',
+    'zustand': 'MIT',
+    'better-sqlite3': 'MIT',
+    // Some examples of restricted licenses
+    'mysql': 'GPL-2.0',
+    'ghostscript': 'AGPL-3.0',
+    // Examples of proprietary
+    'oracle-client': 'Proprietary',
+  };
+
+  // Check if we have a known license
+  if (knownLicenses[packageName.toLowerCase()]) {
+    return knownLicenses[packageName.toLowerCase()];
+  }
+
+  // For unknown packages, randomly assign a license for demo
+  // In production, this would be fetched from an API
+  const randomLicenses = ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'ISC', 'GPL-3.0', null];
+  const randomIndex = packageName.length % randomLicenses.length;
+  return randomLicenses[randomIndex];
 }
 
 export default function DependencyColumnView({
@@ -29,6 +71,9 @@ export default function DependencyColumnView({
     Object.entries(dependencies).forEach(([projectId, deps]) => {
       deps.forEach((dep) => {
         if (!libraryMap.has(dep.dependency_name)) {
+          // Mock license data - in a real implementation, this would come from npm/pypi API
+          const mockLicense = getMockLicenseForPackage(dep.dependency_name);
+
           libraryMap.set(dep.dependency_name, {
             name: dep.dependency_name,
             type: dep.dependency_type,
@@ -36,7 +81,8 @@ export default function DependencyColumnView({
             isShared: false,
             projectCount: 0,
             latestVersion: null,
-            registryVersion: registryVersions?.[dep.dependency_name] || null
+            registryVersion: registryVersions?.[dep.dependency_name] || null,
+            license: mockLicense
           });
         }
 
@@ -161,8 +207,14 @@ export default function DependencyColumnView({
               <span>Library</span>
             </div>
 
-            {/* Latest (Registry) Column Header - LEFTMOST */}
-            <div className="w-40 px-4 py-3 border-r border-gray-700/50 text-center font-semibold text-blue-300 bg-gray-800/60 sticky left-64 z-20">
+            {/* License Column Header */}
+            <div className="w-44 px-4 py-3 border-r border-gray-700/50 text-center font-semibold text-cyan-300 bg-gray-800/60 sticky left-64 z-20">
+              <div>License</div>
+              <div className="text-sm text-gray-500 mt-1">Compliance</div>
+            </div>
+
+            {/* Latest (Registry) Column Header */}
+            <div className="w-40 px-4 py-3 border-r border-gray-700/50 text-center font-semibold text-blue-300 bg-gray-800/60 sticky left-[22rem] z-20">
               <div>Latest</div>
               <div className="text-sm text-gray-500 mt-1">Registry</div>
             </div>
@@ -207,8 +259,20 @@ export default function DependencyColumnView({
                   </div>
                 </div>
 
-                {/* Latest (Registry) Column Cell - LEFTMOST */}
-                <div className="w-40 px-4 py-3 border-r border-gray-700/50 text-center bg-blue-500/5 sticky left-64 backdrop-blur-sm z-10">
+                {/* License Column Cell */}
+                <div className="w-44 px-4 py-3 border-r border-gray-700/50 text-center bg-gray-800/20 sticky left-64 backdrop-blur-sm z-10">
+                  <div className="flex items-center justify-center">
+                    <LicenseComplianceBadge
+                      license={lib.license}
+                      size="sm"
+                      showIcon={true}
+                      showTooltip={true}
+                    />
+                  </div>
+                </div>
+
+                {/* Latest (Registry) Column Cell */}
+                <div className="w-40 px-4 py-3 border-r border-gray-700/50 text-center bg-blue-500/5 sticky left-[22rem] backdrop-blur-sm z-10">
                   {lib.registryVersion ? (
                     <div className="text-sm font-mono text-blue-300">
                       {lib.registryVersion}
@@ -277,24 +341,50 @@ export default function DependencyColumnView({
         </div>
 
         {/* Legend */}
-        <div className="mt-6 p-4 bg-gray-800/40 border border-gray-700/30 rounded-lg">
-          <h4 className="text-sm font-semibold text-gray-300 mb-3">Color Legend</h4>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-green-500/20 border border-green-500/40"></div>
-              <span className="text-gray-400">Up-to-date with Registry</span>
+        <div className="mt-6 p-4 bg-gray-800/40 border border-gray-700/30 rounded-lg space-y-4">
+          {/* Version Color Legend */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-300 mb-3">Version Status</h4>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-500/20 border border-green-500/40"></div>
+                <span className="text-gray-400">Up-to-date with Registry</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-red-500/20 border border-red-500/40"></div>
+                <span className="text-gray-400">Outdated (vs Registry) - Click to select</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gray-800/40 border border-gray-700/40"></div>
+                <span className="text-gray-400">Unique Library</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                <span className="text-gray-400">Shared Across Projects</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-red-500/20 border border-red-500/40"></div>
-              <span className="text-gray-400">Outdated (vs Registry) - Click to select</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gray-800/40 border border-gray-700/40"></div>
-              <span className="text-gray-400">Unique Library</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-400" />
-              <span className="text-gray-400">Shared Across Projects</span>
+          </div>
+
+          {/* License Compliance Legend */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-300 mb-3">License Compliance</h4>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-500/20 border border-green-500/40"></div>
+                <span className="text-gray-400">Open Source (MIT, Apache, BSD, etc.)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-yellow-500/20 border border-yellow-500/40"></div>
+                <span className="text-gray-400">Restricted (GPL, AGPL - requires review)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-red-500/20 border border-red-500/40"></div>
+                <span className="text-gray-400">Proprietary (non-OSS)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gray-500/20 border border-gray-500/40"></div>
+                <span className="text-gray-400">Unknown License</span>
+              </div>
             </div>
           </div>
         </div>

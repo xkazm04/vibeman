@@ -1,12 +1,15 @@
-import { getDatabase } from './connection';
+import { getConnection } from './drivers';
 import { runMigrations } from './migrations/index';
 
 /**
  * Initialize all database tables
  * Creates tables if they don't exist and runs migrations
+ *
+ * NOTE: This function is now called automatically by the driver factory.
+ * It uses the driver-agnostic connection interface.
  */
 export function initializeTables() {
-  const db = getDatabase();
+  const db = getConnection();
 
   // Create goals table
   db.exec(`
@@ -270,21 +273,6 @@ export function initializeTables() {
     );
   `);
 
-  // Create documentation table for Auto-Generated Docs Hub
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS documentation (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      section_type TEXT NOT NULL CHECK (section_type IN ('overview', 'architecture', 'api', 'database', 'components', 'custom')),
-      auto_generated INTEGER DEFAULT 1,
-      source_metadata TEXT,
-      last_sync_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
 
   // Create scan_queue table for auto-queue & progress tracking
   db.exec(`
@@ -398,9 +386,6 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_tech_debt_category ON tech_debt(category);
     CREATE INDEX IF NOT EXISTS idx_tech_debt_risk_score ON tech_debt(project_id, risk_score);
     CREATE INDEX IF NOT EXISTS idx_tech_debt_backlog_item ON tech_debt(backlog_item_id);
-    CREATE INDEX IF NOT EXISTS idx_documentation_project_id ON documentation(project_id);
-    CREATE INDEX IF NOT EXISTS idx_documentation_section_type ON documentation(project_id, section_type);
-    CREATE INDEX IF NOT EXISTS idx_documentation_updated_at ON documentation(project_id, updated_at);
     CREATE INDEX IF NOT EXISTS idx_scan_queue_project_id ON scan_queue(project_id);
     CREATE INDEX IF NOT EXISTS idx_scan_queue_status ON scan_queue(project_id, status);
     CREATE INDEX IF NOT EXISTS idx_scan_queue_priority ON scan_queue(status, priority DESC);

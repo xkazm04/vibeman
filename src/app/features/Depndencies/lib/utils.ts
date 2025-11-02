@@ -97,3 +97,144 @@ export function isPackageOutdated(
   // Use semantic version comparison instead of string comparison
   return compareVersions(currentVersion, latestVersion) < 0;
 }
+
+/**
+ * Common open-source software (OSS) licenses
+ */
+const OSS_LICENSES = [
+  'MIT',
+  'Apache-2.0',
+  'Apache',
+  'BSD-2-Clause',
+  'BSD-3-Clause',
+  'BSD',
+  'GPL-2.0',
+  'GPL-3.0',
+  'LGPL-2.1',
+  'LGPL-3.0',
+  'ISC',
+  'MPL-2.0',
+  'CC0-1.0',
+  'Unlicense',
+  'WTFPL',
+  '0BSD',
+  'Artistic-2.0',
+  'EPL-1.0',
+  'EPL-2.0',
+  'EUPL-1.2',
+  'AGPL-3.0',
+  'CC-BY-4.0',
+  'CC-BY-SA-4.0',
+  'Python-2.0',
+  'PSF',
+  'Zlib',
+  'BlueOak-1.0.0',
+];
+
+/**
+ * Licenses that may have restrictions or require careful review
+ */
+const RESTRICTED_LICENSES = [
+  'GPL', // Copyleft - may require derived works to be GPL
+  'AGPL', // Network copyleft
+  'SSPL', // Server Side Public License
+  'Commons Clause', // Not OSI-approved
+  'BSL', // Business Source License
+  'Elastic License', // Proprietary
+  'BUSL', // Business Source License
+];
+
+/**
+ * License compliance status
+ */
+export type LicenseStatus = 'oss' | 'restricted' | 'proprietary' | 'unknown';
+
+/**
+ * Evaluate if a license string is OSS-compliant
+ * Returns the compliance status of the license
+ */
+export function evaluateLicense(license: string | null | undefined): LicenseStatus {
+  if (!license || license.trim() === '' || license === 'UNLICENSED') {
+    return 'unknown';
+  }
+
+  const normalizedLicense = license.toUpperCase().trim();
+
+  // Check for proprietary indicators
+  if (
+    normalizedLicense.includes('PROPRIETARY') ||
+    normalizedLicense.includes('PRIVATE') ||
+    normalizedLicense.includes('ALL RIGHTS RESERVED')
+  ) {
+    return 'proprietary';
+  }
+
+  // Check for restricted licenses
+  for (const restricted of RESTRICTED_LICENSES) {
+    if (normalizedLicense.includes(restricted.toUpperCase())) {
+      return 'restricted';
+    }
+  }
+
+  // Check for OSS licenses
+  for (const oss of OSS_LICENSES) {
+    if (normalizedLicense.includes(oss.toUpperCase())) {
+      return 'oss';
+    }
+  }
+
+  // If we can't categorize it, mark as unknown
+  return 'unknown';
+}
+
+/**
+ * Get a human-readable description of the license status
+ */
+export function getLicenseStatusDescription(status: LicenseStatus): string {
+  switch (status) {
+    case 'oss':
+      return 'Open Source';
+    case 'restricted':
+      return 'Restricted';
+    case 'proprietary':
+      return 'Proprietary';
+    case 'unknown':
+      return 'Unknown License';
+  }
+}
+
+/**
+ * Get color classes for license status badge
+ */
+export function getLicenseStatusColor(status: LicenseStatus): {
+  text: string;
+  bg: string;
+  border: string;
+} {
+  switch (status) {
+    case 'oss':
+      return {
+        text: 'text-green-400',
+        bg: 'bg-green-500/10',
+        border: 'border-green-500/30',
+      };
+    case 'restricted':
+      return {
+        text: 'text-yellow-400',
+        bg: 'bg-yellow-500/10',
+        border: 'border-yellow-500/30',
+      };
+    case 'proprietary':
+      return {
+        text: 'text-red-400',
+        bg: 'bg-red-500/10',
+        border: 'border-red-500/30',
+      };
+    case 'unknown':
+      return {
+        text: 'text-gray-400',
+        bg: 'bg-gray-500/10',
+        border: 'border-gray-500/30',
+      };
+  }
+}

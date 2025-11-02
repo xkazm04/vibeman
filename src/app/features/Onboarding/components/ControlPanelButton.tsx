@@ -1,7 +1,14 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Gauge, ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { Caveat } from 'next/font/google';
+const caveat = Caveat({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+});
+
 
 interface ControlPanelButtonProps {
   onClick: () => void;
@@ -24,30 +31,15 @@ export default function ControlPanelButton({
       onClick={onClick}
       whileHover={{ scale: 1.05, x: isOpen ? -5 : 5 }}
       whileTap={{ scale: 0.95 }}
-      className="relative group"
+      className="relative group cursor-pointer"
     >
       {/* Button container */}
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 border border-cyan-500/30 hover:border-cyan-400/50 transition-all duration-300 backdrop-blur-md shadow-xl shadow-cyan-500/20">
-        {/* Icon with pulse animation */}
-        <div className="relative">
-          <Gauge className="w-5 h-5 text-cyan-400" />
-
-          {/* Progress indicator badge */}
-          {!isComplete && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full"
-            >
-              <div className="absolute inset-0 bg-orange-500 rounded-full animate-ping" />
-            </motion.div>
-          )}
-        </div>
 
         {/* Text */}
         <div className="flex flex-col items-start">
-          <span className="text-sm font-semibold text-cyan-100/90">
-            Blueprint
+          <span className={`${caveat.className} text-sm font-semibold text-cyan-100/90`}>
+            BLUEPRINT
           </span>
 
           {/* Progress indicator */}

@@ -60,20 +60,23 @@ export async function executeSelectorsScan(contextId: string): Promise<ScanResul
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contextId,
+        projectId: activeProject.id,
         scanOnly: true,
       }),
     });
 
+    const result = await response.json();
+
     if (!response.ok) {
+      console.error('[SelectorsScan] API returned error:', result);
       return {
         success: false,
-        error: 'Selectors scan request failed',
+        error: result.error || `API error: ${response.status}`,
       };
     }
 
-    const result = await response.json();
-
     if (!result.success) {
+      console.error('[SelectorsScan] Scan failed:', result);
       return {
         success: false,
         error: result.error || 'Selectors scan failed',
@@ -106,13 +109,33 @@ export async function executeSelectorsScan(contextId: string): Promise<ScanResul
  * Build decision data for selectors scan results
  */
 export function buildDecisionData(result: ScanResult): DecisionData | null {
-  if (!result.success || !result.data) {
-    return null;
-  }
-
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    return null;
+  }
+
+  // Handle error cases
+  if (!result.success) {
+    return {
+      type: 'selectors-scan-error',
+      title: 'Selectors Scan Failed',
+      description: `An error occurred while scanning for test selectors:\n\n${result.error || 'Unknown error'}\n\nPlease check the console for more details.`,
+      count: 0,
+      severity: 'error',
+      projectId: activeProject.id,
+      projectPath: activeProject.path,
+      data: { error: result.error },
+      onAccept: async () => {
+        console.log('[SelectorsScan] Error acknowledged');
+      },
+      onReject: async () => {
+        console.log('[SelectorsScan] Error dismissed');
+      },
+    };
+  }
+
+  if (!result.data) {
     return null;
   }
 
@@ -158,6 +181,7 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contextId,
+          projectId: activeProject.id,
           scanOnly: false,
         }),
       });

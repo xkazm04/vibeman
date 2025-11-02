@@ -35,6 +35,7 @@ export default function IdeaDetailHeader({
 
       <button
         onClick={onClose}
+        data-testid="idea-detail-close-button"
         className="p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors"
       >
         <X className="w-4 h-4 text-gray-400" />

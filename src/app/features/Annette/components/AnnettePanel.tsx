@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Moon, Eclipse, Lightbulb, FileText, Sparkles } from 'lucide-react';
-import NeonStatusDisplay from './NeonStatusDisplay';
+import StatusChip, { StatusChipState, StatusChipTheme } from '@/app/components/ui/StatusChip';
 import VoiceVisualizer from './VoiceVisualizer';
 import KnowledgeSourcesPanel from './KnowledgeSourcesPanel';
 import InsightsPanel from './InsightsPanel';
+import AnalyticsDashboard from './AnalyticsDashboard';
 import { textToSpeech } from '../lib/voicebotApi';
 import { KnowledgeSource } from '../lib/voicebotTypes';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { trackCommand } from '../lib/analyticsWrapper';
 
 export type AnnetteTheme = 'phantom' | 'midnight' | 'shadow';
 
@@ -72,6 +74,8 @@ export default function AnnettePanel() {
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [insights, setInsights] = useState<string[]>([]);
   const [nextSteps, setNextSteps] = useState<string[]>([]);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
   const { activeProject } = useActiveProjectStore();
   const themeConfig = THEME_CONFIGS[theme];
@@ -92,20 +96,24 @@ export default function AnnettePanel() {
       const audio = new Audio(audioUrl);
 
       // Create AudioContext for volume analysis
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const source = audioContext.createMediaElementSource(audio);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      const bufferLength = analyser.frequencyBinCount;
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const source = audioCtx.createMediaElementSource(audio);
+      const analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = 256;
+      const bufferLength = analyserNode.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
+      source.connect(analyserNode);
+      analyserNode.connect(audioCtx.destination);
+
+      // Store for VoiceVisualizer
+      setAudioContext(audioCtx);
+      setAnalyser(analyserNode);
 
       // Update volume in real-time
       const updateVolume = () => {
         if (!audio.paused && !audio.ended) {
-          analyser.getByteFrequencyData(dataArray);
+          analyserNode.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / bufferLength;
           setVolume(average / 255); // Normalize to 0-1
           requestAnimationFrame(updateVolume);
@@ -116,16 +124,20 @@ export default function AnnettePanel() {
       audio.onended = () => {
         setIsSpeaking(false);
         setVolume(0.5);
+        setAudioContext(null);
+        setAnalyser(null);
         URL.revokeObjectURL(audioUrl);
-        audioContext.close();
+        audioCtx.close();
       };
 
       audio.onerror = () => {
         setIsSpeaking(false);
         setIsError(true);
         setVolume(0.5);
+        setAudioContext(null);
+        setAnalyser(null);
         URL.revokeObjectURL(audioUrl);
-        audioContext.close();
+        audioCtx.close();
       };
 
       setAudioElement(audio);
@@ -238,15 +250,24 @@ export default function AnnettePanel() {
 
   // Test button handlers
   const handleTestIdeasCount = () => {
-    sendToAnnette('How many pending ideas does this project have?');
+    if (!activeProject) return;
+    trackCommand(activeProject.id, 'test_ideas_count', 'button_command', async () => {
+      await sendToAnnette('How many pending ideas does this project have?');
+    }).catch(err => console.warn('[Analytics] Failed to log:', err));
   };
 
   const handleTestDocsRetrieval = () => {
-    sendToAnnette('Can you retrieve the high-level documentation for this project?');
+    if (!activeProject) return;
+    trackCommand(activeProject.id, 'test_docs_retrieval', 'button_command', async () => {
+      await sendToAnnette('Can you retrieve the high-level documentation for this project?');
+    }).catch(err => console.warn('[Analytics] Failed to log:', err));
   };
 
   const handleTestSummarize = () => {
-    sendToAnnette('Please summarize the project vision for me.');
+    if (!activeProject) return;
+    trackCommand(activeProject.id, 'test_summarize', 'button_command', async () => {
+      await sendToAnnette('Please summarize the project vision for me.');
+    }).catch(err => console.warn('[Analytics] Failed to log:', err));
   };
 
   return (
@@ -265,15 +286,21 @@ export default function AnnettePanel() {
 
         {/* Content */}
         <div className="relative flex items-center justify-between px-4 py-3 gap-4">
-          {/* Left: Neon Status Display */}
+          {/* Left: Status Chip */}
           <div className="flex-1">
-            <NeonStatusDisplay
-              message={message}
-              theme={theme}
-              isSpeaking={isSpeaking}
-              isListening={isListening}
-              isError={isError}
-              volume={volume}
+            <StatusChip
+              status={
+                isError ? 'error' :
+                isSpeaking ? 'processing' :
+                isListening ? 'active' :
+                'idle'
+              }
+              label={message}
+              theme={theme as StatusChipTheme}
+              animated={true}
+              size="md"
+              intensity={volume}
+              className="w-full border-0 bg-transparent"
             />
           </div>
 
@@ -303,6 +330,8 @@ export default function AnnettePanel() {
                 <VoiceVisualizer
                   isActive={isSpeaking}
                   theme={theme}
+                  audioContext={audioContext || undefined}
+                  analyser={analyser || undefined}
                 />
               </div>
 
@@ -495,6 +524,11 @@ export default function AnnettePanel() {
           />
         )}
       </AnimatePresence>
+    
+      {/* Analytics Dashboard */}
+      {activeProject && (
+        <AnalyticsDashboard projectId={activeProject.id} />
+      )}
     </motion.div>
   );
 }

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { contextDb } from '@/app/db';
+import { projectDb } from '@/lib/project_database';
 import { connectToBrowser } from '../lib/browserbase';
 import { executeContextScenario } from '../lib/contextScreenshotExecutor';
 
@@ -122,9 +123,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get project details for base URL
-    const { getDatabase } = await import('@/app/db/connection');
-    const db = getDatabase();
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(context.project_id) as any;
+    const project = projectDb.getProject(context.project_id);
 
     if (!project) {
       return NextResponse.json(
@@ -170,13 +169,16 @@ export async function POST(request: NextRequest) {
     await browser.close();
     console.log('[Screenshot API] Browser closed');
 
-    // Update test_updated timestamp if successful
-    if (result.success) {
+    // Update test_updated timestamp and preview path if successful
+    if (result.success && result.screenshotPath) {
       const now = new Date().toISOString();
-      contextDb.updateContext(contextId, {
+      const updated = contextDb.updateContext(contextId, {
         test_updated: now,
+        preview: result.screenshotPath, // Update preview with screenshot path
       });
-      console.log(`[Screenshot API] ✅ Updated test_updated for context: ${context.name}`);
+      console.log(`[Screenshot API] ✅ Updated test_updated and preview for context: ${context.name}`);
+      console.log(`[Screenshot API] Updated context:`, updated);
+      console.log(`[Screenshot API] Preview path saved:`, result.screenshotPath);
     }
 
     // Return result

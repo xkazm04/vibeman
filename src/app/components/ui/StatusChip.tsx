@@ -255,9 +255,9 @@ export default function StatusChip({
         {label && (
           <motion.div
             key={label}
-            initial={animated ? { opacity: 0, x: -10 } : false}
+            initial={animated ? { opacity: 0, x: -10 } : undefined}
             animate={{ opacity: 1, x: 0 }}
-            exit={animated ? { opacity: 0, x: 10 } : false}
+            exit={animated ? { opacity: 0, x: 10 } : undefined}
             transition={{ duration: 0.2 }}
             className="relative z-10"
           >

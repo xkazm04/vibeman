@@ -9,28 +9,20 @@ export { default as SaveFileDialog } from './SaveFileDialog';
 export { default as UniversalSelect } from './UniversalSelect';
 export { default as AIErrorBoundary } from './AIErrorBoundary';
 export { default as AIErrorDisplay } from './AIErrorDisplay';
-export { default as GradientButton } from './GradientButton';
+export { default as GradientButton } from './buttons/GradientButton';
 export type {
   GradientButtonProps,
   GradientColorScheme,
   GradientDirection,
   OpacityLevel,
   CustomGradient,
-} from './GradientButton';
-export { default as AnimatedButton } from './AnimatedButton';
-export type { AnimatedButtonProps, ButtonVariant, ButtonSize } from './AnimatedButton';
+} from './buttons/GradientButton';
+export { default as AnimatedButton } from './buttons/AnimatedButton';
+export type { AnimatedButtonProps, ButtonVariant, ButtonSize } from './buttons/AnimatedButton';
 export { default as StyledCheckbox } from './StyledCheckbox';
 export type { StyledCheckboxProps } from './StyledCheckbox';
-export { default as IconButton } from './IconButton';
-export type { IconButtonProps, IconButtonColorScheme, IconButtonSize } from './IconButton';
-export { default as MotionButton } from './MotionButton';
-export type {
-  MotionButtonProps,
-  MotionButtonColorScheme,
-  MotionButtonSize,
-  MotionButtonVariant,
-  AnimationPreset,
-} from './MotionButton';
+export { default as IconButton } from './buttons/IconButton';
+export type { IconButtonProps, IconButtonColorScheme, IconButtonSize } from './buttons/IconButton';
 export { ModalTransition, ModalContent as ModalTransitionContent, modalVariants, modalTransitions } from './ModalTransition';
 export type { ModalVariant, ModalTransitionType } from './ModalTransition';
 export type {
@@ -41,3 +33,5 @@ export type {
 } from './ModalTransition.types';
 export { default as ModalTransitionDemo } from './ModalTransitionDemo';
 export { default as LoadingSpinner } from './LoadingSpinner';
+export { default as StatusChip } from '@/app/components/ui/StatusChip';
+export type { StatusChipState, StatusChipTheme, StatusChipSize } from '@/app/components/ui/StatusChip';

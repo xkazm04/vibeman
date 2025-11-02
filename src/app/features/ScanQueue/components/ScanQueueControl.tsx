@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pause, Settings, FileSearch } from 'lucide-react';
+import VoicebotScanButton from '@/app/features/Annette/components/VoicebotScanButton';
+import StatusChip from '@/app/components/ui/StatusChip';
 
 interface ScanQueueControlProps {
   projectId: string;
@@ -116,12 +118,19 @@ export function ScanQueueControl({ projectId, projectPath }: ScanQueueControlPro
         </span>
       </motion.button>
 
-      {/* Status Indicator */}
-      <div className="flex items-center gap-2 ml-auto">
-        <div className={`w-2 h-2 rounded-full ${workerRunning ? 'bg-green-500' : 'bg-gray-500'}`} />
-        <span className="text-xs text-gray-500">
-          {workerRunning ? 'Active' : 'Idle'}
-        </span>
+      {/* Voicebot Scan Briefing */}
+      <VoicebotScanButton projectId={projectId} variant="full" />
+
+      {/* Status Indicator - Using StatusChip */}
+      <div className="ml-auto">
+        <StatusChip
+          status={workerRunning ? 'active' : 'idle'}
+          label={workerRunning ? 'Queue Active' : 'Queue Idle'}
+          theme="default"
+          animated={true}
+          size="sm"
+          data-testid="scan-queue-status"
+        />
       </div>
     </div>
   );

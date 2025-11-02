@@ -1,11 +1,14 @@
-import { getDatabase } from '../connection';
+import { getConnection } from '../drivers';
 
 /**
  * Run all database migrations
  * Handles schema updates for existing databases
+ *
+ * NOTE: This function is now called automatically by the driver factory.
+ * It uses the driver-agnostic connection interface.
  */
 export function runMigrations() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     // Migration 1: Add token columns to scans table
@@ -41,6 +44,11 @@ export function runMigrations() {
     // Migration 11: Create security pipeline tables
     migrateSecurityPipelineTables();
 
+    // Migration 12: Create goal_candidates table
+    migrateGoalCandidatesTable();
+    // Migration 13: Create voicebot_analytics table
+    migrateVoicebotAnalyticsTable();
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -53,7 +61,7 @@ export function runMigrations() {
  * Add input_tokens and output_tokens columns to scans table
  */
 function migrateScansTokenColumns() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const tableInfo = db.prepare("PRAGMA table_info(scans)").all() as Array<{
@@ -90,7 +98,7 @@ function migrateScansTokenColumns() {
  * Update contexts table with new columns
  */
 function migrateContextsTable() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const tableInfo = db.prepare("PRAGMA table_info(contexts)").all() as Array<{
@@ -195,7 +203,7 @@ function migrateContextsTable() {
  * Update goals table with context_id support
  */
 function migrateGoalsTable() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const goalsTableInfo = db.prepare("PRAGMA table_info(goals)").all() as Array<{
@@ -345,7 +353,7 @@ function migrateGoalsTable() {
  * Add scan_type column to ideas table
  */
 function migrateIdeasScanType() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const tableInfo = db.prepare("PRAGMA table_info(ideas)").all() as Array<{
@@ -374,7 +382,7 @@ function migrateIdeasScanType() {
  * Add effort and impact columns to ideas table
  */
 function migrateIdeasEffortImpact() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const tableInfo = db.prepare("PRAGMA table_info(ideas)").all() as Array<{
@@ -411,7 +419,7 @@ function migrateIdeasEffortImpact() {
  * Add implemented_at column to ideas table
  */
 function migrateIdeasImplementedAt() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const tableInfo = db.prepare("PRAGMA table_info(ideas)").all() as Array<{
@@ -441,7 +449,7 @@ function migrateIdeasImplementedAt() {
  * This allows any string value for category instead of restricting to specific values
  */
 function migrateIdeasCategoryConstraint() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     // Test if we can insert a non-standard category value
@@ -554,7 +562,7 @@ function migrateIdeasCategoryConstraint() {
  * Add requirement_id and goal_id columns to ideas table
  */
 function migrateIdeasRequirementAndGoal() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const tableInfo = db.prepare("PRAGMA table_info(ideas)").all() as Array<{
@@ -591,7 +599,7 @@ function migrateIdeasRequirementAndGoal() {
  * Add test_scenario and test_updated columns to contexts table
  */
 function migrateContextsTestingColumns() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     const tableInfo = db.prepare("PRAGMA table_info(contexts)").all() as Array<{
@@ -628,7 +636,7 @@ function migrateContextsTestingColumns() {
  * Create test_selectors table if it doesn't exist
  */
 function migrateTestSelectorsTable() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     // Check if table exists
@@ -670,7 +678,7 @@ function migrateTestSelectorsTable() {
  * Create security pipeline tables
  */
 function migrateSecurityPipelineTables() {
-  const db = getDatabase();
+  const db = getConnection();
 
   try {
     // Check if security_scans table exists
@@ -786,5 +794,105 @@ function migrateSecurityPipelineTables() {
     }
   } catch (error) {
     console.error('Error creating security pipeline tables:', error);
+  }
+}
+
+/**
+ * Create goal_candidates table for AI-generated goal suggestions
+ */
+function migrateGoalCandidatesTable() {
+  const db = getConnection();
+
+  try {
+    const tableExists = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='goal_candidates'
+    `).get();
+
+    if (!tableExists) {
+      console.log('Creating goal_candidates table');
+      db.exec(`
+        CREATE TABLE goal_candidates (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          context_id TEXT,
+          title TEXT NOT NULL,
+          description TEXT,
+          reasoning TEXT,
+          priority_score INTEGER NOT NULL CHECK (priority_score >= 0 AND priority_score <= 100),
+          source TEXT NOT NULL,
+          source_metadata TEXT,
+          suggested_status TEXT NOT NULL DEFAULT 'open' CHECK (suggested_status IN ('open', 'in_progress', 'done', 'rejected', 'undecided')),
+          user_action TEXT CHECK (user_action IN ('accepted', 'rejected', 'tweaked', 'pending')),
+          goal_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL,
+          FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX idx_goal_candidates_project_id ON goal_candidates(project_id);
+        CREATE INDEX idx_goal_candidates_user_action ON goal_candidates(project_id, user_action);
+        CREATE INDEX idx_goal_candidates_priority_score ON goal_candidates(project_id, priority_score DESC);
+        CREATE INDEX idx_goal_candidates_created_at ON goal_candidates(project_id, created_at);
+      `);
+
+      console.log('goal_candidates table created successfully');
+    } else {
+      console.log('goal_candidates table already exists');
+    }
+  } catch (error) {
+    console.error('Error creating goal_candidates table:', error);
+  }
+}
+
+/**
+ * Create voicebot_analytics table for tracking command usage
+ */
+function migrateVoicebotAnalyticsTable() {
+  const db = getConnection();
+
+  try {
+    const tableExists = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='voicebot_analytics'
+    `).get();
+
+    if (!tableExists) {
+      console.log('Creating voicebot_analytics table');
+      db.exec(`
+        CREATE TABLE voicebot_analytics (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          command_name TEXT NOT NULL,
+          command_type TEXT NOT NULL CHECK (command_type IN ('button_command', 'voice_command', 'text_command')),
+          execution_time_ms INTEGER NOT NULL,
+          success INTEGER NOT NULL DEFAULT 1,
+          error_message TEXT,
+          stt_ms INTEGER,
+          llm_ms INTEGER,
+          tts_ms INTEGER,
+          total_ms INTEGER,
+          provider TEXT,
+          model TEXT,
+          tools_used TEXT,
+          timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX idx_voicebot_analytics_project_id ON voicebot_analytics(project_id);
+        CREATE INDEX idx_voicebot_analytics_command_name ON voicebot_analytics(project_id, command_name);
+        CREATE INDEX idx_voicebot_analytics_timestamp ON voicebot_analytics(project_id, timestamp);
+        CREATE INDEX idx_voicebot_analytics_success ON voicebot_analytics(project_id, success);
+      `);
+
+      console.log('voicebot_analytics table created successfully');
+    } else {
+      console.log('voicebot_analytics table already exists');
+    }
+  } catch (error) {
+    console.error('Error creating voicebot_analytics table:', error);
   }
 }

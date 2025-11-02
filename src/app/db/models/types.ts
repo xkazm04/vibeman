@@ -132,26 +132,6 @@ export interface DbImplementationLog {
   created_at: string;
 }
 
-// Documentation Hub types
-export interface DbDocumentation {
-  id: string;
-  project_id: string;
-  title: string;
-  content: string; // Markdown content
-  section_type: 'overview' | 'architecture' | 'api' | 'database' | 'components' | 'custom';
-  auto_generated: number; // Boolean flag (0 or 1)
-  source_metadata: string | null; // JSON string of source information
-  last_sync_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface DocSourceMetadata {
-  contexts?: string[]; // Context IDs
-  files?: string[]; // File paths
-  schemas?: string[]; // Database table names
-  apiEndpoints?: string[]; // API route paths
-}
 
 // Scan Queue types
 export interface DbScanQueueItem {
@@ -221,6 +201,33 @@ export interface DbTestSelector {
   filepath: string;
   created_at: string;
   updated_at: string;
+}
+
+// Goal Candidates types
+export interface DbGoalCandidate {
+  id: string;
+  project_id: string;
+  context_id: string | null;
+  title: string;
+  description: string | null;
+  reasoning: string | null;
+  priority_score: number; // 0-100
+  source: string; // 'repository_scan' | 'git_issues' | 'pull_requests' | 'tech_debt' | 'manual'
+  source_metadata: string | null; // JSON string with additional source info
+  suggested_status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+  user_action: 'accepted' | 'rejected' | 'tweaked' | 'pending' | null;
+  goal_id: string | null; // Reference to created goal if accepted
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoalCandidateSourceMetadata {
+  issueNumber?: number;
+  prNumber?: number;
+  commitHash?: string;
+  filePaths?: string[];
+  techDebtId?: string;
+  [key: string]: any;
 }
 
 // Export standard category type for use in type annotations

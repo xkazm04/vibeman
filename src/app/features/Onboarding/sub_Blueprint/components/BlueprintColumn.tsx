@@ -1,9 +1,7 @@
 'use client';
-
 import { motion } from 'framer-motion';
 import IlluminatedButton from './IlluminatedButton';
 import { ColumnConfig } from '../lib/blueprintConfig';
-import { ScanStatus } from '../store/blueprintStore';
 
 interface BlueprintColumnProps {
   column: ColumnConfig;
@@ -12,7 +10,6 @@ interface BlueprintColumnProps {
   onSelectScan: (scanId: string) => void;
   onScan: (scanId: string) => void;
   onNavigate: (module: 'ideas' | 'tinder' | 'tasker' | 'reflector') => void;
-  getScanStatus: (scanId: string) => ScanStatus;
   getDaysAgo: (scanId: string) => number | null;
 }
 
@@ -26,7 +23,6 @@ export default function BlueprintColumn({
   onSelectScan,
   onScan,
   onNavigate,
-  getScanStatus,
   getDaysAgo,
 }: BlueprintColumnProps) {
   // If column is reserved, show placeholder
@@ -98,10 +94,6 @@ export default function BlueprintColumn({
               size="md"
               disabled={button.action === 'scan' && !button.scanHandler}
               selected={button.id === selectedScanId}
-              hasError={getScanStatus(button.id).hasError}
-              glowing={!getScanStatus(button.id).isRunning && button.id === 'contexts'}
-              scanning={getScanStatus(button.id).isRunning}
-              progress={getScanStatus(button.id).progress}
               daysAgo={getDaysAgo(button.id)}
               showDaysAgo={!!button.scanHandler}
               redirectMode={button.action === 'navigate'}
