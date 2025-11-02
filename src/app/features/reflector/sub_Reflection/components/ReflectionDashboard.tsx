@@ -7,6 +7,7 @@ import FilterPanel from './FilterPanel';
 import ScanTypeCard from './ScanTypeCard';
 import AcceptanceChart from './AcceptanceChart';
 import EffortImpactMatrix from './EffortImpactMatrix';
+import KPISummaryCards from './KPISummaryCards';
 import { FilterState, ReflectionStats } from '../lib/types';
 import { fetchReflectionStats } from '../lib/statsApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
@@ -116,6 +117,9 @@ export default function ReflectionDashboard() {
         projects={projects}
         contexts={contexts}
       />
+
+      {/* KPI Summary Cards */}
+      <KPISummaryCards stats={stats} />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1">

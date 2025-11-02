@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Target } from 'lucide-react';
-import { DbGoal } from '@/app/db';
+import { Goal } from '@/types';
 import { useState, useEffect } from 'react';
 
 interface IdeaStats {
@@ -14,7 +14,7 @@ interface IdeaStats {
 }
 
 interface GoalRowProps {
-  goal: DbGoal;
+  goal: Goal;
   onClick: () => void;
   delay?: number;
 }
@@ -33,7 +33,7 @@ export default function GoalRow({ goal, onClick, delay = 0 }: GoalRowProps) {
     // Fetch ideas for this goal
     const fetchIdeas = async () => {
       try {
-        const response = await fetch(`/api/ideas?projectId=${goal.project_id}&goalId=${goal.id}`);
+        const response = await fetch(`/api/ideas?projectId=${goal.projectId}&goalId=${goal.id}`);
         if (response.ok) {
           const data = await response.json();
           const ideas = data.ideas || [];
@@ -57,7 +57,7 @@ export default function GoalRow({ goal, onClick, delay = 0 }: GoalRowProps) {
     };
 
     fetchIdeas();
-  }, [goal.project_id, goal.id]);
+  }, [goal.projectId, goal.id]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -8,7 +8,7 @@ import GoalsAddModal from './GoalsAddModal';
 import GoalsDetailModalContent from './GoalsDetailModalContent';
 import GoalsTitle from './GoalsTitle';
 import { Goal } from '../../../types';
-import { useGoals } from '../../../hooks/useGoals';
+import { useGoalContext } from '@/contexts/GoalContext';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useAnalysisStore } from '../../../stores/analysisStore';
 import { useProjectConfigStore } from '../../../stores/projectConfigStore';
@@ -20,7 +20,7 @@ import { findInProgressGoal, getNextOrder } from './lib';
 
 export default function GoalsLayout() {
   const { activeProject, fileStructure } = useActiveProjectStore();
-  const { goals, createGoal, updateGoal, fetchGoals } = useGoals(activeProject?.id || null);
+  const { goals, createGoal, updateGoal, fetchGoals } = useGoalContext();
   const { startAnalysis } = useAnalysisStore();
   const { getProject } = useProjectConfigStore();
   const { getSelectedFilePaths } = useStore();

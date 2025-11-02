@@ -9,6 +9,7 @@ import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import Drawer from '@/components/ui/Drawer';
 import GoalReviewer from '../sub_GoalDrawer/GoalReviewer';
+import { GoalProvider } from '@/contexts/GoalContext';
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -115,7 +116,9 @@ export default function BlueprintModal({ isOpen, onClose }: BlueprintModalProps)
               maxWidth="max-w-2xl"
               backgroundImage={null}
             >
-              <GoalReviewer projectId={activeProject.id} />
+              <GoalProvider projectId={activeProject.id}>
+                <GoalReviewer projectId={activeProject.id} />
+              </GoalProvider>
             </Drawer>
           )}
         </>

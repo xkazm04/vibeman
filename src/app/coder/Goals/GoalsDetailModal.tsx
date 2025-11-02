@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Target } from 'lucide-react';
 import { Goal } from '../../../types';
 import { UniversalModal } from '../../../components/UniversalModal';
-import { useGoals } from '../../../hooks/useGoals';
+import { useGoalContext } from '@/contexts/GoalContext';
 import GoalsDetailDescription from './GoalsDetailDescription';
 import GoalsDetailActions from './GoalsDetailActions';
 import { getStatusInfo } from './lib';
@@ -16,10 +16,10 @@ interface GoalsDetailModalProps {
   projectId: string | null;
 }
 
-export default function GoalsDetailModal({ 
-  goal, 
-  isOpen, 
-  onClose, 
+export default function GoalsDetailModal({
+  goal,
+  isOpen,
+  onClose,
   onSave,
   projectId
 }: GoalsDetailModalProps) {
@@ -27,8 +27,8 @@ export default function GoalsDetailModal({
   const [editedGoal, setEditedGoal] = useState<Goal | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  
-  const { deleteGoal } = useGoals(projectId);
+
+  const { deleteGoal } = useGoalContext();
 
   // Reset state when modal opens/closes or goal changes
   useEffect(() => {

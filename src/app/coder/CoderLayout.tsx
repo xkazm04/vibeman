@@ -4,6 +4,7 @@ import GoalsLayout from './Goals/GoalsLayout';
 import HorizontalContextBar from './Context/HorizontalContextBar';
 import { useStore } from '../../stores/nodeStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
+import { GoalProvider } from '@/contexts/GoalContext';
 
 const CoderLayout = () => {
   const { getSelectedFilePaths } = useStore();
@@ -17,7 +18,9 @@ const CoderLayout = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
       <div className="max-w-[95vw] mx-auto h-full">
         {/* Goals Layout - Thin bar at the top */}
-        <GoalsLayout />
+        <GoalProvider projectId={activeProject?.id || null}>
+          <GoalsLayout />
+        </GoalProvider>
 
         {/* Horizontal Context Bar - Flexible Height */}
         <div className="mb-8">

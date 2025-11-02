@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Caveat } from 'next/font/google';
 import { Target, Plus } from 'lucide-react';
-import { DbGoal } from '@/app/db';
+import { Goal } from '@/types';
+import { useGoalContext } from '@/contexts/GoalContext';
 import GoalRow from './GoalRow';
 import GoalsDetailModal from '@/app/coder/Goals/GoalsDetailModal';
 import GoalsAddModal from '@/app/coder/Goals/GoalsAddModal';
@@ -20,75 +21,29 @@ interface GoalReviewerProps {
 }
 
 export default function GoalReviewer({ projectId }: GoalReviewerProps) {
-  const [goals, setGoals] = useState<DbGoal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedGoal, setSelectedGoal] = useState<DbGoal | null>(null);
+  const { goals, loading, createGoal, updateGoal, fetchGoals } = useGoalContext();
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  useEffect(() => {
-    fetchGoals();
-  }, [projectId]);
-
-  const fetchGoals = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/goals?projectId=${projectId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setGoals(data.goals || []);
-      }
-    } catch (error) {
-      console.error('[GoalReviewer] Error fetching goals:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoalClick = (goal: DbGoal) => {
+  const handleGoalClick = (goal: Goal) => {
     setSelectedGoal(goal);
     setShowDetailModal(true);
   };
 
-  const handleGoalSave = async (goalId: string, updates: Partial<DbGoal>) => {
-    try {
-      const response = await fetch('/api/goals', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: goalId, ...updates }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Update local state
-        setGoals(prev => prev.map(g => g.id === goalId ? data.goal : g));
-        return data.goal;
-      }
-      return null;
-    } catch (error) {
-      console.error('[GoalReviewer] Error saving goal:', error);
-      return null;
-    }
+  const handleGoalSave = async (goalId: string, updates: Partial<Goal>) => {
+    const result = await updateGoal(goalId, updates);
+    return result;
   };
 
-  const handleAddGoal = async (newGoal: Omit<DbGoal, 'id' | 'order_index' | 'project_id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const response = await fetch('/api/goals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newGoal,
-          projectId,
-        }),
-      });
+  const handleAddGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
+    const result = await createGoal({
+      ...newGoal,
+      projectId,
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        setGoals(prev => [...prev, data.goal]);
-        setShowAddModal(false);
-      }
-    } catch (error) {
-      console.error('[GoalReviewer] Error adding goal:', error);
+    if (result) {
+      setShowAddModal(false);
     }
   };
 
