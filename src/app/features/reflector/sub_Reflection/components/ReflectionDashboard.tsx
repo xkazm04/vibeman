@@ -8,8 +8,9 @@ import ScanTypeCard from './ScanTypeCard';
 import AcceptanceChart from './AcceptanceChart';
 import EffortImpactMatrix from './EffortImpactMatrix';
 import KPISummaryCards from './KPISummaryCards';
-import { FilterState, ReflectionStats } from '../lib/types';
-import { fetchReflectionStats } from '../lib/statsApi';
+import ComparisonView from './ComparisonView';
+import { ComparisonFilterState, ReflectionStats, ComparisonStats } from '../lib/types';
+import { fetchReflectionStats, fetchComparisonStats } from '../lib/statsApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 
 interface Context {
@@ -20,12 +21,14 @@ interface Context {
 
 export default function ReflectionDashboard() {
   const [stats, setStats] = useState<ReflectionStats | null>(null);
+  const [comparisonStats, setComparisonStats] = useState<ComparisonStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contexts, setContexts] = useState<Context[]>([]);
-  const [filters, setFilters] = useState<FilterState>({
+  const [filters, setFilters] = useState<ComparisonFilterState>({
     projectId: null,
-    contextId: null
+    contextId: null,
+    comparisonMode: false
   });
 
   const { projects, initializeProjects } = useProjectConfigStore();
@@ -54,8 +57,20 @@ export default function ReflectionDashboard() {
     setError(null);
 
     try {
-      const data = await fetchReflectionStats(filters.projectId, filters.contextId);
-      setStats(data);
+      if (filters.comparisonMode && filters.period1 && filters.period2) {
+        const compData = await fetchComparisonStats(
+          filters.projectId,
+          filters.contextId,
+          filters.period1,
+          filters.period2
+        );
+        setComparisonStats(compData);
+        setStats(null);
+      } else {
+        const data = await fetchReflectionStats(filters.projectId, filters.contextId);
+        setStats(data);
+        setComparisonStats(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load statistics');
       console.error('Error loading stats:', err);
@@ -104,7 +119,7 @@ export default function ReflectionDashboard() {
     );
   }
 
-  if (!stats) {
+  if (!stats && !comparisonStats) {
     return null;
   }
 
@@ -118,38 +133,45 @@ export default function ReflectionDashboard() {
         contexts={contexts}
       />
 
-      {/* KPI Summary Cards */}
-      <KPISummaryCards stats={stats} />
+      {/* Comparison Mode */}
+      {filters.comparisonMode && comparisonStats ? (
+        <ComparisonView comparisonStats={comparisonStats} />
+      ) : stats ? (
+        <>
+          {/* KPI Summary Cards */}
+          <KPISummaryCards stats={stats} />
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1">
-        <AcceptanceChart scanTypeStats={stats.scanTypes} />
-      </div>
+          {/* Charts Row */}
+          <div className="grid grid-cols-1">
+            <AcceptanceChart scanTypeStats={stats.scanTypes} />
+          </div>
 
-      {/* Scan Type Cards Grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <h2 className="text-lg font-semibold text-gray-300 mb-4">
-          Specialist Performance
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...stats.scanTypes]
-            .sort((a, b) => b.total - a.total)
-            .map((scanTypeStat, index) => (
-              <ScanTypeCard
-                key={scanTypeStat.scanType}
-                stats={scanTypeStat}
-                index={index}
-              />
-            ))}
-        </div>
-      </motion.div>
+          {/* Scan Type Cards Grid */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2 className="text-lg font-semibold text-gray-300 mb-4">
+              Specialist Performance
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {[...stats.scanTypes]
+                .sort((a, b) => b.total - a.total)
+                .map((scanTypeStat, index) => (
+                  <ScanTypeCard
+                    key={scanTypeStat.scanType}
+                    stats={scanTypeStat}
+                    index={index}
+                  />
+                ))}
+            </div>
+          </motion.div>
 
-      {/* Effort vs Impact Matrix */}
-      <EffortImpactMatrix filters={filters} />
+          {/* Effort vs Impact Matrix */}
+          <EffortImpactMatrix filters={filters} />
+        </>
+      ) : null}
     </div>
   );
 }

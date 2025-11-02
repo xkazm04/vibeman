@@ -508,12 +508,16 @@ async function fixBuildErrorsInFile(
     
     // Create the build error fixer prompt
     const prompt = createBuildErrorFixerPrompt(filePath, fileContent, buildErrors);
-    
+
     // Initialize Ollama client
     const ollama = new OllamaClient();
-    
+
     console.log(`${logPrefix} Sending to LLM for error fixing...`);
-    const response = await ollama.generateCompletion(prompt);
+    const llmResponse = await ollama.generate({
+      prompt,
+      model: 'gpt-oss:20b'
+    });
+    const response = llmResponse.response || '';
     
     if (!response) {
       throw new Error('No response from LLM');

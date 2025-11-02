@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { List } from 'react-window';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useContextStore } from '@/stores/contextStore';
@@ -260,6 +261,59 @@ interface ContextSectionProps {
 
 function ContextSection({ context, index }: ContextSectionProps) {
   const contextColor = context.contextColor || '#6B7280';
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [listHeight, setListHeight] = useState(600);
+  const [itemsPerRow, setItemsPerRow] = useState(3);
+
+  // Calculate grid layout
+  useEffect(() => {
+    const updateLayout = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth - 32; // minus padding
+        // Responsive columns: 1 on mobile, 2 on tablet, 3 on desktop
+        let columns = 3;
+        if (width < 768) columns = 1;
+        else if (width < 1024) columns = 2;
+
+        setItemsPerRow(columns);
+
+        // Calculate height: show ~3 rows at a time, with a minimum of 400px
+        const rowCount = Math.ceil(context.ideas.length / columns);
+        const maxVisibleRows = 3;
+        const visibleRows = Math.min(rowCount, maxVisibleRows);
+        const calculatedHeight = Math.max(400, visibleRows * 200); // 200px per row
+        setListHeight(Math.min(calculatedHeight, 600)); // max 600px
+      }
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, [context.ideas.length]);
+
+  // Use threshold to decide virtualization
+  const shouldVirtualize = context.ideas.length > 20;
+
+  // Row component for virtualized list
+  const VirtualRow = ({ index: rowIndex }: { index: number }) => {
+    const startIdx = rowIndex * itemsPerRow;
+    const rowIdeas = context.ideas.slice(startIdx, startIdx + itemsPerRow);
+
+    return (
+      <div className="px-4 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {rowIdeas.map((idea, colIndex) => (
+            <IdeaCard
+              key={idea.id}
+              idea={idea}
+              index={startIdx + colIndex}
+              accentColor={contextColor}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <motion.div
@@ -292,16 +346,28 @@ function ContextSection({ context, index }: ContextSectionProps) {
         </div>
       </div>
 
-      {/* Ideas Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-        {context.ideas.map((idea, ideaIndex) => (
-          <IdeaCard
-            key={idea.id}
-            idea={idea}
-            index={ideaIndex}
-            accentColor={contextColor}
+      {/* Ideas Grid - Virtualized or Standard */}
+      <div ref={containerRef}>
+        {shouldVirtualize ? (
+          <List
+            rowComponent={VirtualRow}
+            rowCount={Math.ceil(context.ideas.length / itemsPerRow)}
+            rowHeight={200}
+            defaultHeight={listHeight}
+            overscanCount={2}
           />
-        ))}
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+            {context.ideas.map((idea, ideaIndex) => (
+              <IdeaCard
+                key={idea.id}
+                idea={idea}
+                index={ideaIndex}
+                accentColor={contextColor}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   );
