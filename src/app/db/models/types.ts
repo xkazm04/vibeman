@@ -125,5 +125,26 @@ export interface DbImplementationLog {
   created_at: string;
 }
 
+// Documentation Hub types
+export interface DbDocumentation {
+  id: string;
+  project_id: string;
+  title: string;
+  content: string; // Markdown content
+  section_type: 'overview' | 'architecture' | 'api' | 'database' | 'components' | 'custom';
+  auto_generated: number; // Boolean flag (0 or 1)
+  source_metadata: string | null; // JSON string of source information
+  last_sync_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocSourceMetadata {
+  contexts?: string[]; // Context IDs
+  files?: string[]; // File paths
+  schemas?: string[]; // Database table names
+  apiEndpoints?: string[]; // API route paths
+}
+
 // Export standard category type for use in type annotations
 export type { IdeaCategory };

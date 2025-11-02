@@ -14,6 +14,7 @@ const navigationItems: NavigationItem[] = [
   { module: 'tinder', label: 'Tinder' },
   { module: 'tasker', label: 'Tasker' },
   { module: 'reflector', label: 'Reflector' },
+  { module: 'docs', label: 'Docs' },
 ];
 
 export default function TopBar() {

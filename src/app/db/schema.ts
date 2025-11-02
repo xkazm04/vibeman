@@ -268,6 +268,22 @@ export function initializeTables() {
     );
   `);
 
+  // Create documentation table for Auto-Generated Docs Hub
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS documentation (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      section_type TEXT NOT NULL CHECK (section_type IN ('overview', 'architecture', 'api', 'database', 'components', 'custom')),
+      auto_generated INTEGER DEFAULT 1,
+      source_metadata TEXT,
+      last_sync_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
   // Run migrations for existing databases
   runMigrations();
 
@@ -306,5 +322,8 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_tech_debt_category ON tech_debt(category);
     CREATE INDEX IF NOT EXISTS idx_tech_debt_risk_score ON tech_debt(project_id, risk_score);
     CREATE INDEX IF NOT EXISTS idx_tech_debt_backlog_item ON tech_debt(backlog_item_id);
+    CREATE INDEX IF NOT EXISTS idx_documentation_project_id ON documentation(project_id);
+    CREATE INDEX IF NOT EXISTS idx_documentation_section_type ON documentation(project_id, section_type);
+    CREATE INDEX IF NOT EXISTS idx_documentation_updated_at ON documentation(project_id, updated_at);
   `);
 }

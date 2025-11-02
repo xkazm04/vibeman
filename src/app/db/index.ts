@@ -16,6 +16,7 @@ import { implementationLogRepository } from './repositories/implementation-log.r
 import { featureRequestRepository } from './repositories/feature-request.repository';
 import { conversationRepository } from './repositories/conversation.repository';
 import { techDebtRepository } from './repositories/tech-debt.repository';
+import { documentationRepository } from './repositories/documentation.repository';
 
 // Export types
 export * from './models/types';
@@ -135,6 +136,15 @@ export const conversationDb = {
  */
 export const techDebtDb = {
   ...techDebtRepository,
+  close: closeDatabase
+};
+
+/**
+ * Documentation Database Operations
+ * Handles auto-generated project documentation
+ */
+export const documentationDb = {
+  ...documentationRepository,
   close: closeDatabase
 };
 

@@ -8,6 +8,7 @@ import IdeasLayout from './features/Ideas/IdeasLayout';
 import TinderLayout from './features/Tinder/TinderLayout';
 import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
 import ReflectorLayout from './features/Reflector/ReflectorLayout';
+import DocsPage from './docs/page';
 import FrozenComponent from '../components/FrozenComponent';
 import LazyContentSection from '../components/Navigation/LazyContentSection';
 
@@ -38,6 +39,8 @@ export default function Home() {
         return <TaskRunnerLayout key="tasker" />;
       case 'reflector':
         return <ReflectorLayout key="reflector" />;
+      case 'docs':
+        return <DocsPage key="docs" />;
       default:
         return <CoderLayout key="coder" />;
     }
