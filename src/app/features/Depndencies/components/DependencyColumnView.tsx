@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, Package, Download } from 'lucide-react';
 import { Project, ProjectDependency, LibraryRow, getLatestVersion, getVersionColor, getCellBackground, isPackageOutdated } from '../lib';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
-import PackageUpdateModalContent from './PackageUpdateModalContent';
+import BatchUpdateModalContent from './BatchUpdateModalContent';
 
 interface DependencyColumnViewProps {
   projects: Project[];
@@ -104,14 +104,14 @@ export default function DependencyColumnView({
     if (selectedPackages.size > 0) {
       showModal(
         {
-          title: 'Generate Package Update Requirements',
+          title: 'Batch Update Dependencies',
           icon: Download,
           iconColor: 'text-yellow-400',
           iconBgColor: 'bg-yellow-500/20',
           maxWidth: 'max-w-2xl',
           maxHeight: 'max-h-[90vh]'
         },
-        <PackageUpdateModalContent
+        <BatchUpdateModalContent
           onClose={hideModal}
           selectedPackages={selectedPackages}
           projects={projects}

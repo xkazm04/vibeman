@@ -135,3 +135,20 @@ ${packageList}
     filePath: result.filePath
   };
 }
+
+/**
+ * Batch update multiple dependencies across projects
+ * This leverages the existing createPackageUpdateRequirement for each project
+ */
+export async function batchUpdateDependencies(
+  projectPath: string,
+  projectName: string,
+  packages: Array<{
+    name: string;
+    currentVersion: string | null;
+    targetVersion: string | null;
+  }>
+): Promise<{ success: boolean; filePath?: string; error?: string }> {
+  // Reuse the existing createPackageUpdateRequirement logic
+  return createPackageUpdateRequirement(projectPath, projectName, packages);
+}
