@@ -63,6 +63,8 @@ export interface DbContext {
   has_context_file: number; // Boolean flag (0 or 1)
   context_file_path: string | null;
   preview: string | null; // Preview image path
+  test_scenario: string | null; // Testing steps for automated screenshots
+  test_updated: string | null; // Last time screenshot was taken
   created_at: string;
   updated_at: string;
 }

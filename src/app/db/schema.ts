@@ -49,6 +49,8 @@ export function initializeTables() {
       has_context_file INTEGER DEFAULT 0, -- Boolean flag for context file existence
       context_file_path TEXT, -- Path to the context file
       preview TEXT, -- Optional preview image path (relative to public folder)
+      test_scenario TEXT, -- Testing steps for automated screenshots
+      test_updated TEXT, -- Last time screenshot was taken
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE SET NULL

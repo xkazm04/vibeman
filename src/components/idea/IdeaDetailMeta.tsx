@@ -166,13 +166,19 @@ export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) 
         {/* Goal Badge - Clickable */}
         <motion.button
           onClick={handleGoalClick}
-          className={`flex items-center gap-1.5 px-2 py-1 border rounded transition-colors ${
+          className={`relative flex items-center gap-1.5 px-2 py-1 border rounded transition-colors ${
             goalTitle
               ? 'bg-purple-900/20 border-purple-500/30 hover:bg-purple-900/30'
               : 'bg-gray-800/40 border-gray-600/40 hover:bg-gray-800/60 border-dashed'
           }`}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{
+            scale: 1.05,
+            boxShadow: goalTitle
+              ? '0 0 12px rgba(168, 85, 247, 0.4), 0 0 20px rgba(168, 85, 247, 0.2)'
+              : '0 0 8px rgba(107, 114, 128, 0.3)'
+          }}
           whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.2 }}
         >
           <Target className={`w-3 h-3 ${goalTitle ? 'text-purple-400' : 'text-gray-500'}`} />
           <span className={goalTitle ? 'text-purple-300 font-medium' : 'text-gray-500 italic'}>
@@ -183,13 +189,19 @@ export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) 
         {/* Context Badge - Clickable */}
         <motion.button
           onClick={handleContextClick}
-          className={`flex items-center gap-1.5 px-2 py-1 border rounded transition-colors ${
+          className={`relative flex items-center gap-1.5 px-2 py-1 border rounded transition-colors ${
             contextName
               ? 'bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30'
               : 'bg-gray-800/40 border-gray-600/40 hover:bg-gray-800/60 border-dashed'
           }`}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{
+            scale: 1.05,
+            boxShadow: contextName
+              ? '0 0 12px rgba(59, 130, 246, 0.4), 0 0 20px rgba(59, 130, 246, 0.2)'
+              : '0 0 8px rgba(107, 114, 128, 0.3)'
+          }}
           whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.2 }}
         >
           <Box className={`w-3 h-3 ${contextName ? 'text-blue-400' : 'text-gray-500'}`} />
           <span className={contextName ? 'text-blue-300 font-medium' : 'text-gray-500 italic'}>

@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { contextDb } from '@/app/db';
 
 /**
- * PATCH /api/contexts/preview - Update context preview image
+ * PATCH /api/contexts/preview - Update context preview image and test scenario
  */
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { contextId, preview } = body;
+    const { contextId, preview, testScenario } = body;
 
     if (!contextId) {
       return NextResponse.json(
@@ -17,16 +17,30 @@ export async function PATCH(request: NextRequest) {
     }
 
     // preview can be null to remove the preview, or a string path
-    if (preview !== null && typeof preview !== 'string') {
+    if (preview !== null && preview !== undefined && typeof preview !== 'string') {
       return NextResponse.json(
         { error: 'Preview must be a string path or null' },
         { status: 400 }
       );
     }
 
-    const updatedContext = contextDb.updateContext(contextId, {
-      preview: preview || null,
-    });
+    // testScenario can be null to remove it, or a string
+    if (testScenario !== null && testScenario !== undefined && typeof testScenario !== 'string') {
+      return NextResponse.json(
+        { error: 'Test scenario must be a string or null' },
+        { status: 400 }
+      );
+    }
+
+    const updateData: any = {};
+    if (preview !== undefined) {
+      updateData.preview = preview || null;
+    }
+    if (testScenario !== undefined) {
+      updateData.test_scenario = testScenario || null;
+    }
+
+    const updatedContext = contextDb.updateContext(contextId, updateData);
 
     if (!updatedContext) {
       return NextResponse.json(

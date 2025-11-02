@@ -5,7 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Moon, Eclipse, Lightbulb, FileText, Sparkles } from 'lucide-react';
 import NeonStatusDisplay from './NeonStatusDisplay';
 import VoiceVisualizer from './VoiceVisualizer';
+import KnowledgeSourcesPanel from './KnowledgeSourcesPanel';
+import InsightsPanel from './InsightsPanel';
 import { textToSpeech } from '../lib/voicebotApi';
+import { KnowledgeSource } from '../lib/voicebotTypes';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
 export type AnnetteTheme = 'phantom' | 'midnight' | 'shadow';
@@ -63,6 +66,9 @@ export default function AnnettePanel() {
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
+  const [insights, setInsights] = useState<string[]>([]);
+  const [nextSteps, setNextSteps] = useState<string[]>([]);
 
   const { activeProject } = useActiveProjectStore();
   const themeConfig = THEME_CONFIGS[theme];
@@ -165,6 +171,17 @@ export default function AnnettePanel() {
       // Update conversation ID
       if (data.conversationId) {
         setConversationId(data.conversationId);
+      }
+
+      // Update knowledge sources and insights
+      if (data.sources) {
+        setKnowledgeSources(data.sources);
+      }
+      if (data.insights) {
+        setInsights(data.insights);
+      }
+      if (data.nextSteps) {
+        setNextSteps(data.nextSteps);
       }
 
       // Display response and speak it
@@ -412,6 +429,29 @@ export default function AnnettePanel() {
           </div>
         </motion.div>
       )}
+
+      {/* Knowledge Sources Panel */}
+      <AnimatePresence>
+        {knowledgeSources.length > 0 && (
+          <KnowledgeSourcesPanel
+            sources={knowledgeSources}
+            onSourceClick={(source) => {
+              console.log('[Annette] Source clicked:', source);
+              // Future: Navigate to source or open detail modal
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Insights Panel */}
+      <AnimatePresence>
+        {(insights.length > 0 || nextSteps.length > 0) && (
+          <InsightsPanel
+            insights={insights}
+            nextSteps={nextSteps}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

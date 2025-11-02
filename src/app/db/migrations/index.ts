@@ -32,6 +32,9 @@ export function runMigrations() {
     // Migration 8: Add requirement_id and goal_id columns to ideas table
     migrateIdeasRequirementAndGoal();
 
+    // Migration 9: Add test_scenario and test_updated columns to contexts table
+    migrateContextsTestingColumns();
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -575,5 +578,42 @@ function migrateIdeasRequirementAndGoal() {
     }
   } catch (error) {
     console.error('Error migrating ideas table requirement_id and goal_id:', error);
+  }
+}
+
+/**
+ * Add test_scenario and test_updated columns to contexts table
+ */
+function migrateContextsTestingColumns() {
+  const db = getDatabase();
+
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(contexts)").all() as Array<{
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: any;
+      pk: number;
+    }>;
+
+    const hasTestScenario = tableInfo.some(col => col.name === 'test_scenario');
+    const hasTestUpdated = tableInfo.some(col => col.name === 'test_updated');
+
+    if (!hasTestScenario) {
+      console.log('Adding test_scenario column to contexts table');
+      db.exec(`ALTER TABLE contexts ADD COLUMN test_scenario TEXT`);
+    }
+
+    if (!hasTestUpdated) {
+      console.log('Adding test_updated column to contexts table');
+      db.exec(`ALTER TABLE contexts ADD COLUMN test_updated TEXT`);
+    }
+
+    if (hasTestScenario && hasTestUpdated) {
+      console.log('Contexts table already has testing columns');
+    }
+  } catch (error) {
+    console.error('Error migrating contexts table testing columns:', error);
   }
 }

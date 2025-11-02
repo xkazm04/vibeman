@@ -141,3 +141,38 @@ export const AVAILABLE_LLM_MODELS: Record<LLMProvider, Array<{ value: string; la
 import { EVALUATION_TEST_SENTENCES } from '../../../voicebot/lib/conversationEvaluation';
 export const CONVERSATION_TEST_SENTENCES = EVALUATION_TEST_SENTENCES;
 
+/**
+ * Knowledge context types for Annette
+ */
+export interface KnowledgeSource {
+  type: 'context' | 'goal' | 'backlog' | 'documentation' | 'idea';
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface KnowledgeInsight {
+  type: 'warning' | 'info' | 'success' | 'recommendation';
+  message: string;
+  actionable: boolean;
+  details?: string;
+}
+
+export interface AnnetteResponse {
+  userText: string;
+  assistantText: string;
+  audioUrl?: string;
+  sources?: KnowledgeSource[];
+  insights?: string[];
+  nextSteps?: string[];
+  toolsUsed?: Array<{
+    name: string;
+    description?: string;
+  }>;
+  timing?: {
+    llmMs: number;
+    ttsMs: number;
+    totalMs: number;
+  };
+}
+
