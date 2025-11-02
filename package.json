@@ -9,6 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
     "@modelcontextprotocol/sdk": "^1.15.0",
     "@monaco-editor/react": "^4.7.0",
     "@pinecone-database/pinecone": "^3.0.3",

@@ -7,6 +7,7 @@ import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import BlueprintColumn from './components/BlueprintColumn';
 import DecisionPanel from './components/DecisionPanel';
 import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
+import ContextSelector from './components/ContextSelector';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
@@ -15,6 +16,8 @@ import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShort
 
 export default function DarkBlueprint() {
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
+  const [showContextSelector, setShowContextSelector] = useState(false);
+  const [pendingScanId, setPendingScanId] = useState<string | null>(null);
   const { startScan, updateScanProgress, completeScan, failScan, getScanStatus, getDaysAgo, loadScanEvents, columns } = useBlueprintStore();
   const { setActiveModule, openControlPanel, closeBlueprint } = useOnboardingStore();
   const { currentDecision, addDecision } = useDecisionQueueStore();
@@ -64,7 +67,14 @@ export default function DarkBlueprint() {
     // Select the scan
     setSelectedScanId(scanId);
 
-    // Add pre-scan decision to queue
+    // If context is needed, show context selector
+    if (buttonConfig.contextNeeded) {
+      setPendingScanId(scanId);
+      setShowContextSelector(true);
+      return;
+    }
+
+    // Otherwise, add pre-scan decision to queue
     addDecision({
       type: 'pre-scan',
       title: `Execute ${buttonLabel} Scan?`,
@@ -83,8 +93,46 @@ export default function DarkBlueprint() {
     });
   };
 
-  const handleScan = async (scanId: string) => {
-    console.log(`[Blueprint] Initiating ${scanId} scan...`);
+  const handleContextSelect = (contextId: string, contextName: string) => {
+    setShowContextSelector(false);
+
+    if (!pendingScanId) return;
+
+    const scanId = pendingScanId;
+
+    // Find button config
+    let buttonLabel = scanId;
+    for (const column of columns) {
+      const button = column.buttons.find(b => b.id === scanId);
+      if (button) {
+        buttonLabel = button.label;
+        break;
+      }
+    }
+
+    // Add pre-scan decision with context info
+    addDecision({
+      type: 'pre-scan',
+      title: `Execute ${buttonLabel} Scan?`,
+      description: `Context: "${contextName}"\n\nClick Accept to start the ${buttonLabel.toLowerCase()} scan for this context.`,
+      severity: 'info',
+      data: { scanId, contextId },
+      onAccept: async () => {
+        console.log(`[Blueprint] User confirmed ${scanId} scan for context ${contextId}`);
+        setSelectedScanId(null); // Clear selection
+        setPendingScanId(null);
+        await handleScan(scanId, contextId); // Execute scan with contextId
+      },
+      onReject: async () => {
+        console.log(`[Blueprint] User cancelled ${scanId} scan`);
+        setSelectedScanId(null); // Clear selection
+        setPendingScanId(null);
+      },
+    });
+  };
+
+  const handleScan = async (scanId: string, contextId?: string) => {
+    console.log(`[Blueprint] Initiating ${scanId} scan${contextId ? ` for context ${contextId}` : ''}...`);
 
     // Find button config by scanning all columns
     let buttonConfig = null;
@@ -111,8 +159,22 @@ export default function DarkBlueprint() {
     startScan(scanId);
 
     try {
-      // Execute scan
-      const result = await buttonConfig.scanHandler.execute();
+      // Execute scan (with contextId if needed)
+      let result;
+      if (buttonConfig.contextNeeded && contextId) {
+        // For context-dependent scans, call with contextId
+        if (scanId === 'selectors') {
+          const { executeSelectorsScan } = await import('./lib/blueprintSelectorsScan');
+          result = await executeSelectorsScan(contextId);
+        } else if (scanId === 'photo') {
+          const { executePhotoScan } = await import('./lib/blueprintPhotoScan');
+          result = await executePhotoScan(contextId);
+        } else {
+          result = await buttonConfig.scanHandler.execute();
+        }
+      } else {
+        result = await buttonConfig.scanHandler.execute();
+      }
 
       // Handle failure
       if (!result.success) {
@@ -231,6 +293,19 @@ export default function DarkBlueprint() {
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-8">
           <DecisionPanel />
         </div>
+      )}
+
+      {/* Context Selector Modal */}
+      {showContextSelector && activeProject && (
+        <ContextSelector
+          projectId={activeProject.id}
+          onSelect={handleContextSelect}
+          onClose={() => {
+            setShowContextSelector(false);
+            setPendingScanId(null);
+            setSelectedScanId(null);
+          }}
+        />
       )}
 
       {/* Main content area */}

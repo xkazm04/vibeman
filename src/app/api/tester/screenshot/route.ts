@@ -1,21 +1,20 @@
 /**
  * Screenshot API endpoint
  * POST /api/tester/screenshot
- * Executes test scenarios and captures screenshots
+ * Executes test scenarios from context and captures screenshots
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getScenario, getAllScenarios } from '../scenarios';
+import { contextDb } from '@/app/db';
 import { connectToBrowser } from '../lib/browserbase';
-import { executeScenario, executeScenarios } from '../lib/screenshotExecutor';
+import { executeContextScenario } from '../lib/contextScreenshotExecutor';
 
 export const maxDuration = 60; // 60 seconds max execution time
 export const dynamic = 'force-dynamic';
 
 interface ScreenshotRequest {
-  scenarioId?: string;
-  scenarioIds?: string[];
-  executeAll?: boolean;
+  contextId: string;
+  scanOnly?: boolean; // Pre-scan mode to check if scenario exists
 }
 
 /**
@@ -68,114 +67,126 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: ScreenshotRequest = await request.json();
-    const { scenarioId, scenarioIds, executeAll } = body;
+    const { contextId, scanOnly = false } = body;
 
-    console.log('[Screenshot API] Request received:', body);
+    console.log('[Screenshot API] Request received:', { contextId, scanOnly });
 
     // Validate request
-    if (!scenarioId && !scenarioIds && !executeAll) {
+    if (!contextId) {
       return NextResponse.json(
-        { error: 'Must provide scenarioId, scenarioIds, or executeAll flag' },
+        { error: 'Context ID is required' },
         { status: 400 }
       );
     }
 
-    // Determine which scenarios to check
-    let scenariosToCheck: any[] = [];
-    if (executeAll) {
-      scenariosToCheck = getAllScenarios();
-    } else if (scenarioIds && scenarioIds.length > 0) {
-      scenariosToCheck = scenarioIds
-        .map((id) => getScenario(id))
-        .filter((s) => s !== null);
-    } else if (scenarioId) {
-      const scenario = getScenario(scenarioId);
-      if (scenario) scenariosToCheck = [scenario];
+    // Get context from database
+    const context = contextDb.getContextById(contextId);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Context not found' },
+        { status: 404 }
+      );
     }
 
-    // Check if any scenario uses localhost
-    const usesLocalhost = scenariosToCheck.some((s) => isLocalhostUrl(s.baseUrl));
-
-    // Pre-check: Verify server is accessible (for localhost URLs)
-    if (usesLocalhost && scenariosToCheck.length > 0) {
-      try {
-        await checkServerAccessibility(scenariosToCheck[0].baseUrl);
-      } catch (error) {
-        return NextResponse.json(
-          {
-            error: 'Server not accessible',
-            details: error instanceof Error ? error.message : 'Unknown error',
-            hint: 'Make sure your dev server is running on the correct port',
-          },
-          { status: 503 }
-        );
-      }
+    // Calculate days since last test
+    let daysAgo: number | null = null;
+    if (context.test_updated) {
+      const lastTest = new Date(context.test_updated);
+      const now = new Date();
+      const diffMs = now.getTime() - lastTest.getTime();
+      daysAgo = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     }
 
-    // Connect to browser (force local for localhost URLs)
-    browser = await connectToBrowser(usesLocalhost);
+    // Check if test scenario exists
+    if (!context.test_scenario || context.test_scenario.trim() === '') {
+      return NextResponse.json({
+        success: false,
+        error: 'No test scenario found',
+        contextId: context.id,
+        contextName: context.name,
+        hasScenario: false,
+        daysAgo: null,
+      });
+    }
+
+    // If scanOnly mode, return scenario info
+    if (scanOnly) {
+      return NextResponse.json({
+        success: true,
+        contextId: context.id,
+        contextName: context.name,
+        hasScenario: true,
+        scenario: context.test_scenario,
+        daysAgo,
+      });
+    }
+
+    // Get project details for base URL
+    const { getDatabase } = await import('@/app/db/connection');
+    const db = getDatabase();
+    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(context.project_id) as any;
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      );
+    }
+
+    // Construct base URL (assume localhost dev server)
+    const baseUrl = `http://localhost:${project.port || 3000}`;
+
+    // Pre-check: Verify server is accessible
+    try {
+      await checkServerAccessibility(baseUrl);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: 'Dev server not accessible',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          hint: `Make sure your dev server is running on port ${project.port || 3000}`,
+        },
+        { status: 503 }
+      );
+    }
+
+    // Connect to browser (force local for localhost)
+    browser = await connectToBrowser(true);
     console.log('[Screenshot API] Browser connected');
 
-    // Determine which scenarios to execute
-    let results;
-
-    if (executeAll) {
-      // Execute all scenarios
-      const scenarios = getAllScenarios();
-      console.log(`[Screenshot API] Executing all ${scenarios.length} scenarios`);
-      results = await executeScenarios(browser, scenarios);
-    } else if (scenarioIds && scenarioIds.length > 0) {
-      // Execute multiple specific scenarios
-      const scenarios = scenarioIds
-        .map((id) => getScenario(id))
-        .filter((s) => s !== null);
-
-      if (scenarios.length === 0) {
-        return NextResponse.json(
-          { error: 'No valid scenarios found' },
-          { status: 404 }
-        );
+    // Execute context scenario
+    console.log(`[Screenshot API] Executing scenario for context: ${context.name}`);
+    const result = await executeContextScenario(
+      browser,
+      {
+        contextId: context.id,
+        contextName: context.name,
+        scenario: context.test_scenario,
+        baseUrl,
       }
-
-      console.log(`[Screenshot API] Executing ${scenarios.length} scenarios`);
-      results = await executeScenarios(browser, scenarios as any);
-    } else if (scenarioId) {
-      // Execute single scenario
-      const scenario = getScenario(scenarioId);
-
-      if (!scenario) {
-        return NextResponse.json(
-          { error: `Scenario not found: ${scenarioId}` },
-          { status: 404 }
-        );
-      }
-
-      console.log(`[Screenshot API] Executing scenario: ${scenario.name}`);
-      const result = await executeScenario(browser, scenario);
-      results = [result];
-    } else {
-      return NextResponse.json(
-        { error: 'Invalid request parameters' },
-        { status: 400 }
-      );
-    }
+    );
 
     // Close browser
     await browser.close();
     console.log('[Screenshot API] Browser closed');
 
-    // Return results
-    const successCount = results.filter((r) => r.success).length;
-    const failureCount = results.length - successCount;
+    // Update test_updated timestamp if successful
+    if (result.success) {
+      const now = new Date().toISOString();
+      contextDb.updateContext(contextId, {
+        test_updated: now,
+      });
+      console.log(`[Screenshot API] ✅ Updated test_updated for context: ${context.name}`);
+    }
 
+    // Return result
     return NextResponse.json({
-      success: failureCount === 0,
-      summary: {
-        total: results.length,
-        successful: successCount,
-        failed: failureCount,
-      },
-      results,
+      success: result.success,
+      contextId: context.id,
+      contextName: context.name,
+      screenshotPath: result.screenshotPath,
+      error: result.error,
+      duration: result.duration,
     });
   } catch (error) {
     console.error('[Screenshot API] Error:', error);
@@ -200,26 +211,50 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET endpoint to list available scenarios
+ * GET endpoint to check screenshot status for a context
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const scenarios = getAllScenarios();
+    const { searchParams } = new URL(request.url);
+    const contextId = searchParams.get('contextId');
+
+    if (!contextId) {
+      return NextResponse.json(
+        { error: 'Context ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const context = contextDb.getContextById(contextId);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Context not found' },
+        { status: 404 }
+      );
+    }
+
+    // Calculate days since last test
+    let daysAgo: number | null = null;
+    if (context.test_updated) {
+      const lastTest = new Date(context.test_updated);
+      const now = new Date();
+      const diffMs = now.getTime() - lastTest.getTime();
+      daysAgo = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    }
 
     return NextResponse.json({
-      scenarios: scenarios.map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        actionCount: s.actions.length,
-      })),
+      contextId: context.id,
+      contextName: context.name,
+      hasScenario: !!(context.test_scenario && context.test_scenario.trim()),
+      testUpdated: context.test_updated,
+      daysAgo,
     });
   } catch (error) {
-    console.error('[Screenshot API] Error listing scenarios:', error);
+    console.error('[Screenshot API] Error:', error);
 
     return NextResponse.json(
       {
-        error: 'Failed to list scenarios',
+        error: 'Failed to get screenshot status',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }

@@ -38,6 +38,9 @@ export function runMigrations() {
     // Migration 10: Create test_selectors table
     migrateTestSelectorsTable();
 
+    // Migration 11: Create security pipeline tables
+    migrateSecurityPipelineTables();
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -660,5 +663,128 @@ function migrateTestSelectorsTable() {
     }
   } catch (error) {
     console.error('Error creating test_selectors table:', error);
+  }
+}
+
+/**
+ * Create security pipeline tables
+ */
+function migrateSecurityPipelineTables() {
+  const db = getDatabase();
+
+  try {
+    // Check if security_scans table exists
+    const scansTableExists = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='security_scans'
+    `).get();
+
+    if (!scansTableExists) {
+      console.log('Creating security_scans table');
+      db.exec(`
+        CREATE TABLE security_scans (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          scan_date TEXT NOT NULL,
+          total_vulnerabilities INTEGER NOT NULL,
+          critical_count INTEGER NOT NULL,
+          high_count INTEGER NOT NULL,
+          medium_count INTEGER NOT NULL,
+          low_count INTEGER NOT NULL,
+          scan_output TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN (
+            'pending', 'analyzing', 'patch_generated', 'pr_created',
+            'tests_running', 'tests_passed', 'tests_failed', 'merged', 'failed'
+          )),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX idx_security_scans_project_id ON security_scans(project_id);
+        CREATE INDEX idx_security_scans_scan_date ON security_scans(project_id, scan_date);
+        CREATE INDEX idx_security_scans_status ON security_scans(project_id, status);
+      `);
+
+      console.log('security_scans table created successfully');
+    }
+
+    // Check if security_patches table exists
+    const patchesTableExists = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='security_patches'
+    `).get();
+
+    if (!patchesTableExists) {
+      console.log('Creating security_patches table');
+      db.exec(`
+        CREATE TABLE security_patches (
+          id TEXT PRIMARY KEY,
+          scan_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          vulnerability_id TEXT NOT NULL,
+          package_name TEXT NOT NULL,
+          current_version TEXT NOT NULL,
+          fixed_version TEXT NOT NULL,
+          severity TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low')),
+          description TEXT NOT NULL,
+          ai_analysis TEXT,
+          patch_proposal TEXT,
+          patch_applied INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (scan_id) REFERENCES security_scans(id) ON DELETE CASCADE
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX idx_security_patches_scan_id ON security_patches(scan_id);
+        CREATE INDEX idx_security_patches_project_id ON security_patches(project_id);
+        CREATE INDEX idx_security_patches_severity ON security_patches(severity);
+      `);
+
+      console.log('security_patches table created successfully');
+    }
+
+    // Check if security_prs table exists
+    const prsTableExists = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='security_prs'
+    `).get();
+
+    if (!prsTableExists) {
+      console.log('Creating security_prs table');
+      db.exec(`
+        CREATE TABLE security_prs (
+          id TEXT PRIMARY KEY,
+          scan_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          pr_number INTEGER,
+          pr_url TEXT,
+          branch_name TEXT NOT NULL,
+          commit_sha TEXT,
+          test_status TEXT NOT NULL CHECK (test_status IN ('pending', 'running', 'passed', 'failed', 'cancelled')),
+          test_output TEXT,
+          merge_status TEXT NOT NULL CHECK (merge_status IN ('pending', 'merged', 'rejected', 'conflict')),
+          merge_error TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (scan_id) REFERENCES security_scans(id) ON DELETE CASCADE
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX idx_security_prs_scan_id ON security_prs(scan_id);
+        CREATE INDEX idx_security_prs_project_id ON security_prs(project_id);
+        CREATE INDEX idx_security_prs_test_status ON security_prs(test_status);
+        CREATE INDEX idx_security_prs_merge_status ON security_prs(merge_status);
+      `);
+
+      console.log('security_prs table created successfully');
+    }
+
+    if (scansTableExists && patchesTableExists && prsTableExists) {
+      console.log('Security pipeline tables already exist');
+    }
+  } catch (error) {
+    console.error('Error creating security pipeline tables:', error);
   }
 }

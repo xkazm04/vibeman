@@ -18,12 +18,19 @@ import { conversationRepository } from './repositories/conversation.repository';
 import { techDebtRepository } from './repositories/tech-debt.repository';
 import { documentationRepository } from './repositories/documentation.repository';
 import { scanQueueRepository } from './repositories/scanQueue.repository';
+import { testSelectorRepository } from './repositories/test-selector.repository';
+import {
+  securityScanRepository,
+  securityPatchRepository,
+  securityPrRepository
+} from './repositories/security-patch.repository';
 
 // Export types
 export * from './models/types';
 export * from './models/feature-request.types';
 export * from './models/conversation.types';
 export * from './models/tech-debt.types';
+export * from './models/security-patch.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -155,6 +162,42 @@ export const documentationDb = {
  */
 export const scanQueueDb = {
   ...scanQueueRepository,
+  close: closeDatabase
+};
+
+/**
+ * Test Selector Database Operations
+ * Handles test selectors for automated testing
+ */
+export const testSelectorDb = {
+  ...testSelectorRepository,
+  close: closeDatabase
+};
+
+/**
+ * Security Scan Database Operations
+ * Handles security vulnerability scans
+ */
+export const securityScanDb = {
+  ...securityScanRepository,
+  close: closeDatabase
+};
+
+/**
+ * Security Patch Database Operations
+ * Handles security patches and vulnerability fixes
+ */
+export const securityPatchDb = {
+  ...securityPatchRepository,
+  close: closeDatabase
+};
+
+/**
+ * Security PR Database Operations
+ * Handles pull requests for security patches
+ */
+export const securityPrDb = {
+  ...securityPrRepository,
   close: closeDatabase
 };
 

@@ -7,6 +7,7 @@ import ContextPreviewHeader from './ContextPreviewHeader';
 import ImagePathInput from './ImagePathInput';
 import PreviewDisplay from './PreviewDisplay';
 import TestScenarioEditor from './TestScenarioEditor';
+import TestSelectorsPanel from './TestSelectorsPanel';
 
 interface ContextPreviewManagerProps {
   contextId: string;
@@ -123,11 +124,19 @@ export default function ContextPreviewManager({
           onError={() => setImageError(true)}
         />
 
-        <TestScenarioEditor
-          value={testScenario}
-          onChange={setTestScenario}
-          groupColor={groupColor}
-        />
+        {/* Testing Section - Scenario Editor and Selectors Panel */}
+        <div className="grid grid-cols-2 gap-3">
+          <TestScenarioEditor
+            value={testScenario}
+            onChange={setTestScenario}
+            groupColor={groupColor}
+            contextId={contextId}
+          />
+          <TestSelectorsPanel
+            contextId={contextId}
+            groupColor={groupColor}
+          />
+        </div>
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-2">

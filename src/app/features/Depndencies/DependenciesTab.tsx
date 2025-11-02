@@ -7,8 +7,10 @@ import { Network } from 'lucide-react';
 import { ScanData, fetchScans, fetchScanData, ScanProvider } from './lib';
 import {
   ScanSetupBar,
-  DependencyColumnView
+  DependencyColumnView,
+  SecurityPipelineButton
 } from './components';
+import EmptyState from '@/app/components/ui/EmptyState';
 
 export default function DependenciesTab() {
   const [scanData, setScanData] = useState<ScanData | null>(null);
@@ -55,6 +57,21 @@ export default function DependenciesTab() {
   return (
     <ScanProvider onScanComplete={handleScanComplete}>
       <div className="space-y-6">
+        {/* Security Pipeline Button */}
+        {projects.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <SecurityPipelineButton
+              projectId={projects[0].id}
+              projectPath={projects[0].path}
+              projectType={projects[0].type as 'nextjs' | 'fastapi' | 'other'}
+            />
+          </motion.div>
+        )}
+
         {/* Horizontal Scan Setup Bar */}
         <ScanSetupBar projects={projects} />
 
@@ -105,17 +122,12 @@ export default function DependenciesTab() {
                 </div>
               </motion.div>
             ) : (
-              <motion.div
+              <EmptyState
                 key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center h-96 bg-gray-900/30 rounded-lg border-2 border-dashed border-gray-700/50"
-              >
-                <Network className="w-20 h-20 text-gray-600 mb-4" />
-                <p className="text-gray-400 text-lg mb-2">No scan selected</p>
-                <p className="text-gray-500 text-sm">Run a new scan or select from history to visualize dependencies</p>
-              </motion.div>
+                icon={Network}
+                headline="No scan selected"
+                subtext="Run a new scan or select from history to visualize dependencies"
+              />
             )}
           </AnimatePresence>
         </motion.div>

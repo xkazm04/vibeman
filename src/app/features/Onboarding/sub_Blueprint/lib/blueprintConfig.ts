@@ -9,6 +9,7 @@ import {
   Code,
   Bug,
   Camera,
+  Target,
   LucideIcon,
 } from 'lucide-react';
 import * as structureScan from './blueprintStructureScan';
@@ -16,6 +17,7 @@ import * as photoScan from './blueprintPhotoScan';
 import * as visionScan from './blueprintVisionScan';
 import * as contextsScan from './blueprintContextsScan';
 import * as buildScan from './blueprintBuildScan';
+import * as selectorsScan from './blueprintSelectorsScan';
 
 export interface ScanResult {
   success: boolean;
@@ -52,6 +54,7 @@ export interface ButtonConfig {
   target?: 'ideas' | 'tinder' | 'tasker' | 'reflector';
   scanHandler?: ScanHandler;
   eventTitle?: string; // Event title to track last scan execution
+  contextNeeded?: boolean; // If true, requires context selection before scan
 }
 
 export interface ColumnConfig {
@@ -191,9 +194,29 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
         color: 'pink',
         action: 'scan',
         eventTitle: 'Photo Scan Completed',
+        contextNeeded: true,
         scanHandler: {
           execute: photoScan.executePhotoScan,
           buildDecision: photoScan.buildDecisionData,
+        },
+      },
+      {
+        id: 'selectors',
+        label: 'Selectors',
+        icon: Target,
+        color: 'cyan',
+        action: 'scan',
+        eventTitle: 'Selectors Scan Completed',
+        contextNeeded: true,
+        scanHandler: {
+          execute: async () => {
+            // This will be called with contextId passed separately
+            return {
+              success: false,
+              error: 'Context ID is required for this scan',
+            };
+          },
+          buildDecision: selectorsScan.buildDecisionData,
         },
       },
     ],

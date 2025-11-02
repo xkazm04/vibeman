@@ -294,13 +294,13 @@ function ContextSection({ context, index }: ContextSectionProps) {
   // Use threshold to decide virtualization
   const shouldVirtualize = context.ideas.length > 20;
 
-  // Row component for virtualized list
-  const VirtualRow = ({ index: rowIndex }: { index: number }) => {
+  // Row component for virtualized list - matches react-window API
+  const VirtualRow = ({ index: rowIndex, style }: { index: number; style: React.CSSProperties }) => {
     const startIdx = rowIndex * itemsPerRow;
     const rowIdeas = context.ideas.slice(startIdx, startIdx + itemsPerRow);
 
     return (
-      <div className="px-4 pb-3">
+      <div style={style} className="px-4 pb-3">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {rowIdeas.map((idea, colIndex) => (
             <IdeaCard
@@ -355,6 +355,7 @@ function ContextSection({ context, index }: ContextSectionProps) {
             rowHeight={200}
             defaultHeight={listHeight}
             overscanCount={2}
+            rowProps={{}}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
