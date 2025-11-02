@@ -346,6 +346,20 @@ export function initializeTables() {
     );
   `);
 
+  // Create test_selectors table for testing automation
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS test_selectors (
+      id TEXT PRIMARY KEY,
+      context_id TEXT NOT NULL,
+      data_testid TEXT NOT NULL,
+      title TEXT NOT NULL, -- 1-4 words describing the interaction
+      filepath TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE CASCADE
+    );
+  `);
+
   // Run migrations for existing databases
   runMigrations();
 
@@ -394,5 +408,7 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_scan_notifications_queue_item ON scan_notifications(queue_item_id);
     CREATE INDEX IF NOT EXISTS idx_scan_notifications_project ON scan_notifications(project_id, read);
     CREATE INDEX IF NOT EXISTS idx_file_watch_config_project_id ON file_watch_config(project_id);
+    CREATE INDEX IF NOT EXISTS idx_test_selectors_context_id ON test_selectors(context_id);
+    CREATE INDEX IF NOT EXISTS idx_test_selectors_filepath ON test_selectors(filepath);
   `);
 }

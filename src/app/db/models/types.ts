@@ -212,5 +212,16 @@ export interface DbFileWatchConfig {
   updated_at: string;
 }
 
+// Test Selectors types
+export interface DbTestSelector {
+  id: string;
+  context_id: string;
+  data_testid: string;
+  title: string;
+  filepath: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Export standard category type for use in type annotations
 export type { IdeaCategory };

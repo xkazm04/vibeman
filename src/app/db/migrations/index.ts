@@ -35,6 +35,9 @@ export function runMigrations() {
     // Migration 9: Add test_scenario and test_updated columns to contexts table
     migrateContextsTestingColumns();
 
+    // Migration 10: Create test_selectors table
+    migrateTestSelectorsTable();
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running database migrations:', error);
@@ -615,5 +618,47 @@ function migrateContextsTestingColumns() {
     }
   } catch (error) {
     console.error('Error migrating contexts table testing columns:', error);
+  }
+}
+
+/**
+ * Create test_selectors table if it doesn't exist
+ */
+function migrateTestSelectorsTable() {
+  const db = getDatabase();
+
+  try {
+    // Check if table exists
+    const tableExists = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='test_selectors'
+    `).get();
+
+    if (!tableExists) {
+      console.log('Creating test_selectors table');
+      db.exec(`
+        CREATE TABLE test_selectors (
+          id TEXT PRIMARY KEY,
+          context_id TEXT NOT NULL,
+          data_testid TEXT NOT NULL,
+          title TEXT NOT NULL,
+          filepath TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Create indexes
+      db.exec(`
+        CREATE INDEX idx_test_selectors_context_id ON test_selectors(context_id);
+        CREATE INDEX idx_test_selectors_filepath ON test_selectors(filepath);
+      `);
+
+      console.log('test_selectors table created successfully');
+    } else {
+      console.log('test_selectors table already exists');
+    }
+  } catch (error) {
+    console.error('Error creating test_selectors table:', error);
   }
 }
