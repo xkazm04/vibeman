@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, scanDb, DbIdea } from '@/app/db';
+import { ideaDb, scanDb, DbIdea, DbIdeaWithColor } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
  * - status: Filter by status
  * - contextId: Filter by context
  * - limit: Limit number of results
+ * - withColors: Include context colors in response (default: true for better performance)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -20,26 +21,54 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const contextId = searchParams.get('contextId');
     const limit = searchParams.get('limit');
+    const withColors = searchParams.get('withColors') !== 'false'; // Default to true
 
-    let ideas: DbIdea[];
+    let ideas: DbIdea[] | DbIdeaWithColor[];
 
-    // Priority order: goalId > contextId > projectId > status > limit > all
-    if (goalId) {
-      ideas = ideaDb.getIdeasByGoal(goalId);
-      // If projectId is also specified, filter the results
-      if (projectId) {
-        ideas = ideas.filter(idea => idea.project_id === projectId);
+    // Use optimized JOIN queries when possible
+    if (withColors) {
+      // Priority order: goalId > contextId > projectId > status > limit > all
+      if (goalId) {
+        // For goalId, we still need to use the regular method and filter
+        ideas = ideaDb.getIdeasByGoal(goalId);
+        // If projectId is also specified, filter the results
+        if (projectId) {
+          ideas = ideas.filter(idea => idea.project_id === projectId);
+        }
+      } else if (contextId) {
+        // For contextId, use regular method (no color needed when filtering by context)
+        ideas = ideaDb.getIdeasByContext(contextId);
+      } else if (projectId) {
+        // Optimized: Get ideas by project with colors in one query
+        ideas = ideaDb.getIdeasByProjectWithColors(projectId);
+      } else if (status) {
+        // Optimized: Get ideas by status with colors in one query
+        ideas = ideaDb.getIdeasByStatusWithColors(status as any);
+      } else if (limit) {
+        // For limit, use regular method
+        ideas = ideaDb.getRecentIdeas(parseInt(limit, 10));
+      } else {
+        // Optimized: Get all ideas with colors in one query
+        ideas = ideaDb.getAllIdeasWithColors();
       }
-    } else if (contextId) {
-      ideas = ideaDb.getIdeasByContext(contextId);
-    } else if (projectId) {
-      ideas = ideaDb.getIdeasByProject(projectId);
-    } else if (status) {
-      ideas = ideaDb.getIdeasByStatus(status as any);
-    } else if (limit) {
-      ideas = ideaDb.getRecentIdeas(parseInt(limit, 10));
     } else {
-      ideas = ideaDb.getAllIdeas();
+      // Legacy mode: without colors (if needed)
+      if (goalId) {
+        ideas = ideaDb.getIdeasByGoal(goalId);
+        if (projectId) {
+          ideas = ideas.filter(idea => idea.project_id === projectId);
+        }
+      } else if (contextId) {
+        ideas = ideaDb.getIdeasByContext(contextId);
+      } else if (projectId) {
+        ideas = ideaDb.getIdeasByProject(projectId);
+      } else if (status) {
+        ideas = ideaDb.getIdeasByStatus(status as any);
+      } else if (limit) {
+        ideas = ideaDb.getRecentIdeas(parseInt(limit, 10));
+      } else {
+        ideas = ideaDb.getAllIdeas();
+      }
     }
 
     return NextResponse.json({ ideas });

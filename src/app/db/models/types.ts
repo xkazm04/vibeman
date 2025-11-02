@@ -114,6 +114,11 @@ export interface DbIdea {
   implemented_at: string | null; // Date when idea was implemented
 }
 
+// Enhanced idea type with context color (from JOIN query)
+export interface DbIdeaWithColor extends DbIdea {
+  context_color?: string | null;
+}
+
 // Implementation log types
 export interface DbImplementationLog {
   id: string;

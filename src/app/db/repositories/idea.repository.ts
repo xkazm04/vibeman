@@ -294,6 +294,61 @@ export const ideaRepository = {
   },
 
   /**
+   * Get ideas by status with context colors (optimized JOIN query)
+   * Returns ideas with their associated context group colors in a single query
+   */
+  getIdeasByStatusWithColors: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): Array<DbIdea & { context_color?: string | null }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT
+        ideas.*,
+        context_groups.color as context_color
+      FROM ideas
+      LEFT JOIN contexts ON ideas.context_id = contexts.id
+      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
+      WHERE ideas.status = ?
+      ORDER BY ideas.created_at DESC
+    `);
+    return stmt.all(status) as Array<DbIdea & { context_color?: string | null }>;
+  },
+
+  /**
+   * Get all ideas with context colors (optimized JOIN query)
+   * Returns all ideas with their associated context group colors in a single query
+   */
+  getAllIdeasWithColors: (): Array<DbIdea & { context_color?: string | null }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT
+        ideas.*,
+        context_groups.color as context_color
+      FROM ideas
+      LEFT JOIN contexts ON ideas.context_id = contexts.id
+      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
+      ORDER BY ideas.created_at DESC
+    `);
+    return stmt.all() as Array<DbIdea & { context_color?: string | null }>;
+  },
+
+  /**
+   * Get ideas by project with context colors (optimized JOIN query)
+   */
+  getIdeasByProjectWithColors: (projectId: string): Array<DbIdea & { context_color?: string | null }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT
+        ideas.*,
+        context_groups.color as context_color
+      FROM ideas
+      LEFT JOIN contexts ON ideas.context_id = contexts.id
+      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
+      WHERE ideas.project_id = ?
+      ORDER BY ideas.created_at DESC
+    `);
+    return stmt.all(projectId) as Array<DbIdea & { context_color?: string | null }>;
+  },
+
+  /**
    * Delete all ideas from the database
    * WARNING: This is destructive and cannot be undone
    */
