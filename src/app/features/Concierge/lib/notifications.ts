@@ -15,6 +15,27 @@ export interface NotificationPayload {
 }
 
 /**
+ * Get base URL for notification links
+ */
+function getBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
+
+/**
+ * Get request URL for notifications
+ */
+function getRequestUrl(requestId: string): string {
+  return `${getBaseUrl()}/concierge/requests/${requestId}`;
+}
+
+/**
+ * Build notification footer
+ */
+function buildNotificationFooter(): string {
+  return '\n---\nAI Code Concierge';
+}
+
+/**
  * Helper to log notification event
  */
 function logNotificationEvent(
@@ -32,6 +53,37 @@ function logNotificationEvent(
     agent: 'concierge',
     message: title,
   });
+}
+
+/**
+ * Create and send notification with logging
+ */
+async function sendNotificationWithLogging(
+  to: string[],
+  subject: string,
+  body: string,
+  request: DbFeatureRequest,
+  type: NotificationPayload['type'],
+  logTitle: string,
+  logMessage: string,
+  eventType: 'info' | 'success' | 'error' = 'info'
+): Promise<void> {
+  const fullBody = body.trim() + buildNotificationFooter();
+
+  await sendNotification({
+    to,
+    subject,
+    body: fullBody,
+    requestId: request.id,
+    type,
+  });
+
+  logNotificationEvent(
+    request.project_id,
+    logTitle,
+    logMessage,
+    eventType
+  );
 }
 
 /**
@@ -78,22 +130,14 @@ Priority: ${request.priority.toUpperCase()}
 Description:
 ${request.natural_language_description}
 
-View details: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/concierge/requests/${request.id}
+View details: ${getRequestUrl(request.id)}`;
 
----
-AI Code Concierge
-  `.trim();
-
-  await sendNotification({
-    to: developerEmails,
+  await sendNotificationWithLogging(
+    developerEmails,
     subject,
     body,
-    requestId: request.id,
-    type: 'new_request',
-  });
-
-  logNotificationEvent(
-    request.project_id,
+    request,
+    'new_request',
     'Notification Sent',
     `Notified ${developerEmails.length} developer(s) about new feature request`,
     'info'
@@ -117,25 +161,17 @@ Priority: ${request.priority.toUpperCase()}
 
 The generated code is ready for review and approval.
 
-View and approve: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/concierge/requests/${request.id}
+View and approve: ${getRequestUrl(request.id)}
 
 AI Analysis:
-${request.ai_analysis || 'No analysis available'}
+${request.ai_analysis || 'No analysis available'}`;
 
----
-AI Code Concierge
-  `.trim();
-
-  await sendNotification({
-    to: developerEmails,
+  await sendNotificationWithLogging(
+    developerEmails,
     subject,
     body,
-    requestId: request.id,
-    type: 'code_generated',
-  });
-
-  logNotificationEvent(
-    request.project_id,
+    request,
+    'code_generated',
     'Code Generation Notification Sent',
     `Notified ${developerEmails.length} developer(s) about generated code`,
     'success'
@@ -149,32 +185,28 @@ export async function notifyCodeCommitted(request: DbFeatureRequest): Promise<vo
   if (!request.requester_email) return;
 
   const subject = `Your Feature Request Has Been Implemented`;
+  const commitInfo = [
+    request.commit_url ? `View commit: ${request.commit_url}` : '',
+    request.commit_sha ? `Commit SHA: ${request.commit_sha}` : ''
+  ].filter(Boolean).join('\n');
+
   const body = `
 Good news! Your feature request has been implemented and committed to the repository.
 
 Request: ${request.natural_language_description}
 
-${request.commit_url ? `View commit: ${request.commit_url}` : ''}
-${request.commit_sha ? `Commit SHA: ${request.commit_sha}` : ''}
+${commitInfo}
 
 The code is now available in the repository and will be included in the next deployment.
 
-Thank you for using AI Code Concierge!
+Thank you for using AI Code Concierge!`;
 
----
-AI Code Concierge
-  `.trim();
-
-  await sendNotification({
-    to: [request.requester_email],
+  await sendNotificationWithLogging(
+    [request.requester_email],
     subject,
     body,
-    requestId: request.id,
-    type: 'committed',
-  });
-
-  logNotificationEvent(
-    request.project_id,
+    request,
+    'committed',
     'Commit Notification Sent',
     `Notified ${request.requester_name} about code commit`,
     'success'
@@ -195,22 +227,14 @@ Request: ${request.natural_language_description}
 
 Error: ${request.error_message || 'Unknown error'}
 
-A developer will review this request manually. You may be contacted for additional information.
+A developer will review this request manually. You may be contacted for additional information.`;
 
----
-AI Code Concierge
-  `.trim();
-
-  await sendNotification({
-    to: [request.requester_email],
+  await sendNotificationWithLogging(
+    [request.requester_email],
     subject,
     body,
-    requestId: request.id,
-    type: 'failed',
-  });
-
-  logNotificationEvent(
-    request.project_id,
+    request,
+    'failed',
     'Failure Notification Sent',
     `Notified ${request.requester_name} about request failure`,
     'error'

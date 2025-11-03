@@ -53,31 +53,35 @@ function buildContextInfo(existingContexts?: Array<{ name: string; description: 
 }
 
 /**
- * Build system prompt for code generation
+ * Build project information section for system prompt
  */
-function buildCodeGenerationSystemPrompt(
-  projectType: string | undefined,
-  projectPath: string,
-  contextInfo: string
-): string {
-  return `You are an expert software engineer assistant that helps translate business requirements into code implementations.
-
-Project Type: ${projectType || 'unknown'}
+function buildProjectInfoSection(projectType: string | undefined, projectPath: string, contextInfo: string): string {
+  return `Project Type: ${projectType || 'unknown'}
 Project Path: ${projectPath}
 
 Existing Code Contexts:
-${contextInfo}
+${contextInfo}`;
+}
 
-Your task is to analyze the feature request and generate:
+/**
+ * Build task description section for system prompt
+ */
+function buildTaskDescription(): string {
+  return `Your task is to analyze the feature request and generate:
 1. A detailed analysis of what needs to be implemented
 2. Code files that need to be created or modified
 3. Test files for the new functionality
 4. Documentation for the feature
 5. Confidence score (0-100) indicating how well you understand the requirement
 6. Estimated effort (trivial, small, medium, large, very large)
-7. Suggested contexts (which existing code areas this touches)
+7. Suggested contexts (which existing code areas this touches)`;
+}
 
-IMPORTANT GUIDELINES:
+/**
+ * Build guidelines section for system prompt
+ */
+function buildGuidelinesSection(): string {
+  return `IMPORTANT GUIDELINES:
 - Follow the project's existing patterns and conventions
 - Generate complete, production-ready code skeletons
 - Include proper TypeScript types and interfaces
@@ -87,9 +91,14 @@ IMPORTANT GUIDELINES:
 - Use path aliases like @/ for imports
 - Match the existing code style and architecture
 - Generate realistic test cases
-- Be conservative with confidence - only give high confidence if the requirement is crystal clear
+- Be conservative with confidence - only give high confidence if the requirement is crystal clear`;
+}
 
-Return your response as a valid JSON object with this structure:
+/**
+ * Build response format section for system prompt
+ */
+function buildResponseFormat(): string {
+  return `Return your response as a valid JSON object with this structure:
 {
   "analysis": "Detailed analysis of what needs to be implemented...",
   "generatedCode": [
@@ -113,6 +122,29 @@ Return your response as a valid JSON object with this structure:
   "estimatedEffort": "medium",
   "suggestedContexts": ["authentication", "api-routes"]
 }`;
+}
+
+/**
+ * Build system prompt for code generation
+ */
+function buildCodeGenerationSystemPrompt(
+  projectType: string | undefined,
+  projectPath: string,
+  contextInfo: string
+): string {
+  const sections = [
+    'You are an expert software engineer assistant that helps translate business requirements into code implementations.',
+    '',
+    buildProjectInfoSection(projectType, projectPath, contextInfo),
+    '',
+    buildTaskDescription(),
+    '',
+    buildGuidelinesSection(),
+    '',
+    buildResponseFormat()
+  ];
+
+  return sections.join('\n');
 }
 
 /**
