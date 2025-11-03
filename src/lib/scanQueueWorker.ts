@@ -16,6 +16,17 @@ interface WorkerConfig {
   provider: SupportedProvider;
 }
 
+type NotificationType = 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed';
+
+interface NotificationData {
+  scanType?: string;
+  contextId?: string | null;
+  ideaCount?: number;
+  scanId?: string | null;
+  error?: string;
+  autoAcceptedCount?: number;
+}
+
 class ScanQueueWorker {
   private isRunning = false;
   private pollTimer: NodeJS.Timeout | null = null;
@@ -27,11 +38,32 @@ class ScanQueueWorker {
   };
 
   /**
+   * Create a notification for a queue item
+   */
+  private createNotification(
+    queueItem: DbScanQueueItem,
+    notificationType: NotificationType,
+    title: string,
+    message: string,
+    data: NotificationData
+  ): void {
+    const notifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    scanQueueDb.createNotification({
+      id: notifId,
+      queue_item_id: queueItem.id,
+      project_id: queueItem.project_id,
+      notification_type: notificationType,
+      title,
+      message,
+      data
+    });
+  }
+
+  /**
    * Start the worker
    */
   start(config?: Partial<WorkerConfig>): void {
     if (this.isRunning) {
-      console.log('Scan queue worker is already running');
       return;
     }
 
@@ -41,7 +73,6 @@ class ScanQueueWorker {
     }
 
     this.isRunning = true;
-    console.log('Starting scan queue worker with config:', this.config);
 
     // Start polling
     this.poll();
@@ -61,8 +92,6 @@ class ScanQueueWorker {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
-
-    console.log('Scan queue worker stopped');
   }
 
   /**
@@ -70,7 +99,6 @@ class ScanQueueWorker {
    */
   updateConfig(config: Partial<WorkerConfig>): void {
     this.config = { ...this.config, ...config };
-    console.log('Scan queue worker config updated:', this.config);
   }
 
   /**
@@ -82,8 +110,8 @@ class ScanQueueWorker {
     }
 
     // Process queue
-    this.processQueue().catch(error => {
-      console.error('Error processing scan queue:', error);
+    this.processQueue().catch(() => {
+      // Error handled in processQueue
     });
 
     // Schedule next poll
@@ -117,7 +145,7 @@ class ScanQueueWorker {
       await this.processQueueItem(queueItem);
       this.currentlyProcessing.delete(queueItem.id);
     } catch (error) {
-      console.error('Error in processQueue:', error);
+      // Silent error - errors are handled in processQueueItem
     }
   }
 
@@ -125,27 +153,22 @@ class ScanQueueWorker {
    * Process a single queue item
    */
   private async processQueueItem(queueItem: DbScanQueueItem): Promise<void> {
-    console.log(`Processing queue item ${queueItem.id} (${queueItem.scan_type})`);
-
     try {
       // Update status to running
       scanQueueDb.updateStatus(queueItem.id, 'running');
       scanQueueDb.updateProgress(queueItem.id, 0, 'Starting scan...', 'initialize', 4);
 
       // Create notification for scan started
-      const startNotifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      scanQueueDb.createNotification({
-        id: startNotifId,
-        queue_item_id: queueItem.id,
-        project_id: queueItem.project_id,
-        notification_type: 'scan_started',
-        title: 'Scan started',
-        message: `${this.getScanTypeName(queueItem.scan_type)} scan is now running`,
-        data: {
+      this.createNotification(
+        queueItem,
+        'scan_started',
+        'Scan started',
+        `${this.getScanTypeName(queueItem.scan_type)} scan is now running`,
+        {
           scanType: queueItem.scan_type,
           contextId: queueItem.context_id
         }
-      });
+      );
 
       // Get project info (simplified - you'll need to get this from project store/db)
       const projectInfo = await this.getProjectInfo(queueItem.project_id);
@@ -195,49 +218,39 @@ class ScanQueueWorker {
       scanQueueDb.updateStatus(queueItem.id, 'completed');
 
       // Create completion notification
-      const completeNotifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      scanQueueDb.createNotification({
-        id: completeNotifId,
-        queue_item_id: queueItem.id,
-        project_id: queueItem.project_id,
-        notification_type: 'scan_completed',
-        title: 'Scan completed',
-        message: `${this.getScanTypeName(queueItem.scan_type)} scan generated ${ideaCount} ideas`,
-        data: {
+      this.createNotification(
+        queueItem,
+        'scan_completed',
+        'Scan completed',
+        `${this.getScanTypeName(queueItem.scan_type)} scan generated ${ideaCount} ideas`,
+        {
           scanType: queueItem.scan_type,
           ideaCount,
           scanId: latestScanId
         }
-      });
+      );
 
       // Handle auto-merge if enabled
       if (queueItem.auto_merge_enabled) {
         await this.handleAutoMerge(queueItem);
       }
-
-      console.log(`Queue item ${queueItem.id} completed successfully`);
     } catch (error) {
-      console.error(`Error processing queue item ${queueItem.id}:`, error);
-
       // Update status to failed
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       scanQueueDb.updateStatus(queueItem.id, 'failed', errorMessage);
       scanQueueDb.updateProgress(queueItem.id, 0, `Failed: ${errorMessage}`, 'error', 4);
 
       // Create failure notification
-      const failNotifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      scanQueueDb.createNotification({
-        id: failNotifId,
-        queue_item_id: queueItem.id,
-        project_id: queueItem.project_id,
-        notification_type: 'scan_failed',
-        title: 'Scan failed',
-        message: `${this.getScanTypeName(queueItem.scan_type)} scan failed: ${errorMessage}`,
-        data: {
+      this.createNotification(
+        queueItem,
+        'scan_failed',
+        'Scan failed',
+        `${this.getScanTypeName(queueItem.scan_type)} scan failed: ${errorMessage}`,
+        {
           scanType: queueItem.scan_type,
           error: errorMessage
         }
-      });
+      );
     }
   }
 
@@ -246,7 +259,6 @@ class ScanQueueWorker {
    */
   private async handleAutoMerge(queueItem: DbScanQueueItem): Promise<void> {
     try {
-      console.log(`Starting auto-merge for queue item ${queueItem.id}`);
       scanQueueDb.updateAutoMergeStatus(queueItem.id, 'in_progress');
 
       // Get all ideas from the scan
@@ -269,24 +281,18 @@ class ScanQueueWorker {
 
       // Create notification for auto-merge
       if (autoAcceptedCount > 0) {
-        const mergeNotifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        scanQueueDb.createNotification({
-          id: mergeNotifId,
-          queue_item_id: queueItem.id,
-          project_id: queueItem.project_id,
-          notification_type: 'auto_merge_completed',
-          title: 'Auto-merge completed',
-          message: `Auto-accepted ${autoAcceptedCount} high-impact, low-effort ideas`,
-          data: {
+        this.createNotification(
+          queueItem,
+          'auto_merge_completed',
+          'Auto-merge completed',
+          `Auto-accepted ${autoAcceptedCount} high-impact, low-effort ideas`,
+          {
             autoAcceptedCount,
             scanId: queueItem.scan_id
           }
-        });
+        );
       }
-
-      console.log(`Auto-merge completed for queue item ${queueItem.id}: ${autoAcceptedCount} ideas accepted`);
     } catch (error) {
-      console.error(`Auto-merge failed for queue item ${queueItem.id}:`, error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       scanQueueDb.updateAutoMergeStatus(queueItem.id, `failed: ${errorMessage}`);
     }

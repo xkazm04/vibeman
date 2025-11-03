@@ -98,35 +98,51 @@ export interface BuildErrorFixResult {
   updatedCode: string;
 }
 
-export function createBuildErrorFixerPrompt(
-  filePath: string, 
-  fileContent: string, 
-  buildErrors: BuildErrorForFix[]
-): string {
-  const fileExtension = filePath.split('.').pop() || '';
-  
-  // Format build errors for the prompt
-  const formattedErrors = buildErrors
-    .filter(error => error.file === filePath) // Only errors for this specific file
+function getFileExtension(filePath: string): string {
+  return filePath.split('.').pop() || '';
+}
+
+function formatBuildErrors(filePath: string, buildErrors: BuildErrorForFix[]): string {
+  const relevantErrors = buildErrors.filter(error => error.file === filePath);
+
+  if (relevantErrors.length === 0) {
+    return 'No build errors found for this file.';
+  }
+
+  return relevantErrors
     .map(error => {
-      const location = error.line && error.column ? `Line ${error.line}, Column ${error.column}` : 'Unknown location';
+      const location = error.line && error.column
+        ? `Line ${error.line}, Column ${error.column}`
+        : 'Unknown location';
       const rule = error.rule ? ` (${error.rule})` : '';
       return `- ${location}: ${error.message}${rule} [${error.type}/${error.severity}]`;
     })
     .join('\n');
+}
 
-  if (!formattedErrors) {
-    // No errors for this file
-    return BUILD_ERROR_FIXER_PROMPT
-      .replace('{{buildErrors}}', 'No build errors found for this file.')
-      .replace('{{filePath}}', filePath)
-      .replace('{{fileContent}}', fileContent)
-      .replace('{{fileExtension}}', fileExtension);
-  }
-
-  return BUILD_ERROR_FIXER_PROMPT
-    .replace('{{buildErrors}}', formattedErrors)
+function replacePromptPlaceholders(
+  template: string,
+  filePath: string,
+  fileContent: string,
+  buildErrors: string
+): string {
+  return template
+    .replace('{{buildErrors}}', buildErrors)
     .replace('{{filePath}}', filePath)
     .replace('{{fileContent}}', fileContent)
-    .replace('{{fileExtension}}', fileExtension);
+    .replace('{{fileExtension}}', getFileExtension(filePath));
+}
+
+export function createBuildErrorFixerPrompt(
+  filePath: string,
+  fileContent: string,
+  buildErrors: BuildErrorForFix[]
+): string {
+  const formattedErrors = formatBuildErrors(filePath, buildErrors);
+  return replacePromptPlaceholders(
+    BUILD_ERROR_FIXER_PROMPT,
+    filePath,
+    fileContent,
+    formattedErrors
+  );
 }

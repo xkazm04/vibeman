@@ -28,10 +28,24 @@ function getProjectDatabase(): Database.Database {
   return db;
 }
 
-function initializeProjectTables() {
+/**
+ * Attempt to add a column to the projects table if it doesn't exist
+ */
+function addColumnIfNotExists(columnDef: string): void {
   if (!db) return;
-  
-  // Create projects table with enhanced schema
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN ${columnDef};`);
+  } catch (error) {
+    // Column already exists, ignore error
+  }
+}
+
+/**
+ * Create the projects table schema
+ */
+function createProjectsTable(): void {
+  if (!db) return;
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
@@ -51,136 +65,119 @@ function initializeProjectTables() {
       FOREIGN KEY (related_project_id) REFERENCES projects(id)
     );
   `);
+}
 
-  // Add missing columns if they don't exist (for existing databases)
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN type TEXT DEFAULT 'other';`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
-  
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN related_project_id TEXT;`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
-  
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN git_repository TEXT;`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
-  
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN git_branch TEXT DEFAULT 'main';`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
-  
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN run_script TEXT DEFAULT 'npm run dev';`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
-  
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN allow_multiple_instances INTEGER DEFAULT 0;`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
-  
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN base_port INTEGER;`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
-  
-  try {
-    db.exec(`ALTER TABLE projects ADD COLUMN instance_of TEXT;`);
-  } catch (error) {
-    // Column already exists, ignore error
-  }
+/**
+ * Add any missing columns for backward compatibility
+ */
+function addMissingColumns(): void {
+  addColumnIfNotExists(`type TEXT DEFAULT 'other'`);
+  addColumnIfNotExists(`related_project_id TEXT`);
+  addColumnIfNotExists(`git_repository TEXT`);
+  addColumnIfNotExists(`git_branch TEXT DEFAULT 'main'`);
+  addColumnIfNotExists(`run_script TEXT DEFAULT 'npm run dev'`);
+  addColumnIfNotExists(`allow_multiple_instances INTEGER DEFAULT 0`);
+  addColumnIfNotExists(`base_port INTEGER`);
+  addColumnIfNotExists(`instance_of TEXT`);
+}
 
-  // Create indexes for better query performance
+/**
+ * Create database indexes
+ */
+function createIndexes(): void {
+  if (!db) return;
+
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path);
     CREATE INDEX IF NOT EXISTS idx_projects_port ON projects(port);
     CREATE INDEX IF NOT EXISTS idx_projects_instance_of ON projects(instance_of);
   `);
+}
 
-  // Add default projects if database is empty
+/**
+ * Seed database with default projects if empty
+ */
+function seedDefaultProjects(): void {
+  if (!db) return;
+
   const countStmt = db.prepare('SELECT COUNT(*) as count FROM projects');
   const result = countStmt.get() as { count: number };
-  
-  if (result.count === 0) {
-    console.log('Initializing database with default projects...');
-    
-    const insertStmt = db.prepare(`
-      INSERT INTO projects (
-        id, name, path, port, type, related_project_id, git_repository, git_branch, run_script,
-        allow_multiple_instances, base_port, instance_of, created_at, updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    const now = new Date().toISOString();
-    
-    // Add Vibeman project
+
+  if (result.count > 0) return;
+
+  const insertStmt = db.prepare(`
+    INSERT INTO projects (
+      id, name, path, port, type, related_project_id, git_repository, git_branch, run_script,
+      allow_multiple_instances, base_port, instance_of, created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const now = new Date().toISOString();
+
+  const defaultProjects = [
+    {
+      id: 'vibeman-main',
+      name: 'Vibeman',
+      path: '/workspace/vibeman',
+      port: 3000,
+      type: 'nextjs',
+      relatedProjectId: null,
+      gitRepo: 'https://github.com/user/vibeman.git',
+      runScript: 'npm run dev'
+    },
+    {
+      id: 'pikselplay-char-ui',
+      name: 'PikselPlay Char UI',
+      path: '/workspace/pikselplay/char-ui',
+      port: 3001,
+      type: 'nextjs',
+      relatedProjectId: 'pikselplay-char-service',
+      gitRepo: 'https://github.com/user/pikselplay.git',
+      runScript: 'npm run dev'
+    },
+    {
+      id: 'pikselplay-char-service',
+      name: 'PikselPlay Char Service',
+      path: '/workspace/pikselplay/char-service',
+      port: 8000,
+      type: 'fastapi',
+      relatedProjectId: 'pikselplay-char-ui',
+      gitRepo: 'https://github.com/user/pikselplay.git',
+      runScript: 'uvicorn main:app --reload --host 0.0.0.0 --port 8000'
+    }
+  ];
+
+  defaultProjects.forEach(project => {
     insertStmt.run(
-      'vibeman-main',
-      'Vibeman',
-      '/workspace/vibeman',
-      3000,
-      'nextjs',
-      null,
-      'https://github.com/user/vibeman.git',
+      project.id,
+      project.name,
+      project.path,
+      project.port,
+      project.type,
+      project.relatedProjectId,
+      project.gitRepo,
       'main',
-      'npm run dev',
+      project.runScript,
       0,
       null,
       null,
       now,
       now
     );
-    
-    // Add PikselPlay Char UI project
-    insertStmt.run(
-      'pikselplay-char-ui',
-      'PikselPlay Char UI',
-      '/workspace/pikselplay/char-ui',
-      3001,
-      'nextjs',
-      'pikselplay-char-service',
-      'https://github.com/user/pikselplay.git',
-      'main',
-      'npm run dev',
-      0,
-      null,
-      null,
-      now,
-      now
-    );
-    
-    // Add PikselPlay Char Service project
-    insertStmt.run(
-      'pikselplay-char-service',
-      'PikselPlay Char Service',
-      '/workspace/pikselplay/char-service',
-      8000,
-      'fastapi',
-      'pikselplay-char-ui',
-      'https://github.com/user/pikselplay.git',
-      'main',
-      'uvicorn main:app --reload --host 0.0.0.0 --port 8000',
-      0,
-      null,
-      null,
-      now,
-      now
-    );
-    
-    console.log('Default projects added successfully');
-  }
+  });
+}
+
+/**
+ * Initialize all database tables and schemas
+ */
+function initializeProjectTables() {
+  if (!db) return;
+
+  createProjectsTable();
+  addMissingColumns();
+  createIndexes();
+  seedDefaultProjects();
 }
 
 // Project database operations
@@ -296,10 +293,10 @@ export const projectDb = {
   }): DbProject | null => {
     const db = getProjectDatabase();
     const now = new Date().toISOString();
-    
+
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number)[] = [];
     
     if (updates.name !== undefined) {
       updateFields.push('name = ?');

@@ -28,7 +28,6 @@ export const useBadgeStore = create<BadgeStore>()(
       awardBadge: (badgeId: string) => {
         const badge = AVAILABLE_BADGES[badgeId];
         if (!badge) {
-          console.warn(`Badge with id "${badgeId}" not found`);
           return;
         }
 

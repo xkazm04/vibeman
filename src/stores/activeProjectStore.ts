@@ -162,7 +162,6 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
               }
             }
           } catch (error) {
-            console.error('Failed to load active project from localStorage:', error);
             localStorage.removeItem(ACTIVE_PROJECT_KEY);
           }
         },

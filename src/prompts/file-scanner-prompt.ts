@@ -54,9 +54,17 @@ File content:
 
 Analyze this file and provide your response in the exact JSON format specified above.`;
 
+function getFileExtension(filePath: string): string {
+  return filePath.split('.').pop() || '';
+}
+
+function getCurrentDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 export function createFileScannerPrompt(filePath: string, fileContent: string): string {
-  const fileExtension = filePath.split('.').pop() || '';
-  const currentDate = new Date().toISOString().split('T')[0];
+  const fileExtension = getFileExtension(filePath);
+  const currentDate = getCurrentDate();
 
   return FILE_SCANNER_PROMPT
     .replace('{{filePath}}', filePath)
