@@ -2,6 +2,18 @@ import React, { useState, useCallback } from 'react';
 import { formatDate } from '../utils/dateUtils';
 
 /**
+ * FilterButton component - Reusable filter button with active state
+ */
+const FilterButton = ({ value, currentFilter, onFilterChange, children }) => (
+  <button
+    onClick={() => onFilterChange(value)}
+    className={currentFilter === value ? 'active' : ''}
+  >
+    {children}
+  </button>
+);
+
+/**
  * TaskList component renders a list of tasks with filtering and sorting.
  * It allows toggling completion status and limits displayed items to a maximum.
  * Last updated: 2025-09-20
@@ -12,13 +24,13 @@ export default function TaskList({ tasks, onTaskUpdate }) {
 
   const filteredTasks = useCallback(() => {
     let filtered = tasks;
-    
+
     if (filter === 'completed') {
       filtered = tasks.filter(task => task.completed);
     } else if (filter === 'pending') {
       filtered = tasks.filter(task => !task.completed);
     }
-    
+
     return filtered.sort((a, b) => {
       if (sortBy === 'date') {
         return new Date(b.createdAt) - new Date(a.createdAt);
@@ -34,24 +46,15 @@ export default function TaskList({ tasks, onTaskUpdate }) {
   return (
     <div className="task-list">
       <div className="filters">
-        <button 
-          onClick={() => setFilter('all')}
-          className={filter === 'all' ? 'active' : ''}
-        >
+        <FilterButton value="all" currentFilter={filter} onFilterChange={setFilter}>
           All Tasks
-        </button>
-        <button 
-          onClick={() => setFilter('pending')}
-          className={filter === 'pending' ? 'active' : ''}
-        >
+        </FilterButton>
+        <FilterButton value="pending" currentFilter={filter} onFilterChange={setFilter}>
           Pending
-        </button>
-        <button 
-          onClick={() => setFilter('completed')}
-          className={filter === 'completed' ? 'active' : ''}
-        >
+        </FilterButton>
+        <FilterButton value="completed" currentFilter={filter} onFilterChange={setFilter}>
           Completed
-        </button>
+        </FilterButton>
       </div>
 
       <div className="sort-controls">
