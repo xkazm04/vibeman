@@ -1,13 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventDb } from '@/lib/eventDatabase';
 
+interface EventQueryParams {
+  projectId: string;
+  limit: number;
+  offset: number;
+  type?: string;
+}
+
+interface CreateEventBody {
+  project_id: string;
+  title: string;
+  description: string;
+  type: string;
+  agent?: string;
+  message?: string;
+}
+
+function createErrorResponse(message: string, status: number = 500) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: message
+    },
+    { status }
+  );
+}
+
+function parseEventQueryParams(searchParams: URLSearchParams): EventQueryParams {
+  return {
+    projectId: searchParams.get('projectId') || 'default',
+    limit: parseInt(searchParams.get('limit') || '50'),
+    offset: parseInt(searchParams.get('offset') || '0'),
+    type: searchParams.get('type') || undefined
+  };
+}
+
+function validateCreateEventBody(body: Partial<CreateEventBody>): string | null {
+  const { project_id, title, description, type } = body;
+
+  if (!project_id || !title || !description || !type) {
+    return 'Missing required fields: project_id, title, description, type';
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId') || 'default';
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const type = searchParams.get('type') || undefined;
+    const { projectId, limit, offset, type } = parseEventQueryParams(searchParams);
 
     // Get events from SQLite database
     const events = eventDb.getEventsByProject(projectId, {
@@ -22,31 +64,22 @@ export async function GET(request: NextRequest) {
       count: events.length
     });
   } catch (error) {
-    console.error('Failed to fetch events:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Unknown error'
     );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { project_id, title, description, type, agent, message } = body;
+    const body: CreateEventBody = await request.json();
 
-    if (!project_id || !title || !description || !type) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Missing required fields: project_id, title, description, type'
-        },
-        { status: 400 }
-      );
+    const validationError = validateCreateEventBody(body);
+    if (validationError) {
+      return createErrorResponse(validationError, 400);
     }
+
+    const { project_id, title, description, type, agent, message } = body;
 
     // Create event in SQLite database
     const event = eventDb.createEvent({
@@ -63,13 +96,8 @@ export async function POST(request: NextRequest) {
       event
     });
   } catch (error) {
-    console.error('Failed to create event:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Unknown error'
     );
   }
 }
@@ -80,26 +108,14 @@ export async function DELETE(request: NextRequest) {
     const eventId = searchParams.get('id');
 
     if (!eventId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Missing event ID'
-        },
-        { status: 400 }
-      );
+      return createErrorResponse('Missing event ID', 400);
     }
 
     // Delete event from SQLite database
     const deleted = eventDb.deleteEvent(eventId);
 
     if (!deleted) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Event not found'
-        },
-        { status: 404 }
-      );
+      return createErrorResponse('Event not found', 404);
     }
 
     return NextResponse.json({
@@ -107,13 +123,8 @@ export async function DELETE(request: NextRequest) {
       message: 'Event deleted successfully'
     });
   } catch (error) {
-    console.error('Failed to delete event:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Unknown error'
     );
   }
 }

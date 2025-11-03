@@ -6,6 +6,7 @@
 import { createSupabaseClient } from './client';
 import { getDatabase } from '@/app/db/connection';
 import { projectDb } from '@/lib/project_database';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface SyncResult {
   success: boolean;
@@ -35,18 +36,32 @@ const SYNC_ORDER = [
   'ideas',
   'backlog_items',
   'implementation_log'
-];
+] as const;
+
+const BATCH_SIZE = 1000;
+
+/**
+ * Logger for sync operations
+ */
+const logger = {
+  info: (message: string, ...args: unknown[]) => {
+    console.log(`[Sync] ${message}`, ...args);
+  },
+  error: (message: string, ...args: unknown[]) => {
+    console.error(`[Sync] ${message}`, ...args);
+  }
+};
 
 /**
  * Update sync metadata in Supabase
  */
 async function updateSyncMetadata(
-  supabase: any,
+  supabase: SupabaseClient,
   tableName: string,
   status: 'success' | 'failed' | 'in_progress',
   recordCount?: number,
   errorMessage?: string
-) {
+): Promise<void> {
   const metadata = {
     table_name: tableName,
     last_sync_at: new Date().toISOString(),
@@ -56,13 +71,12 @@ async function updateSyncMetadata(
     updated_at: new Date().toISOString()
   };
 
-  // Upsert the metadata
   const { error } = await supabase
     .from('sync_metadata')
     .upsert(metadata, { onConflict: 'table_name' });
 
   if (error) {
-    console.error(`[Sync] Failed to update metadata for ${tableName}:`, error);
+    logger.error(`Failed to update metadata for ${tableName}:`, error);
   }
 }
 

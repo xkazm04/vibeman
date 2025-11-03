@@ -5,7 +5,6 @@ export async function POST(request: NextRequest) {
   try {
     const { projectId = 'test-project' } = await request.json();
 
-    // Test the universal Ollama client
     const result = await ollamaClient.generate({
       prompt: 'Say "Hello from the universal Ollama client!" and explain what you are in one sentence.',
       projectId,
@@ -24,7 +23,6 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Test Ollama API error:', error);
     return NextResponse.json(
       {
         success: false,

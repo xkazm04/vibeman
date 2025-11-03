@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 

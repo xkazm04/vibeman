@@ -2,7 +2,7 @@
  * Helper function to parse AI JSON responses that may include ```json wrapper
  * Handles various edge cases like smart quotes, special dashes, and Unicode characters
  */
-export function parseAIJsonResponse(response: string): any {
+export function parseAIJsonResponse(response: string): Record<string, unknown> | unknown[] {
   // Normalize special characters that might cause JSON parsing issues
   const normalizeJson = (jsonStr: string): string => {
     return jsonStr
@@ -20,33 +20,23 @@ export function parseAIJsonResponse(response: string): any {
       .trim();
   };
 
-  const tryParse = (jsonStr: string): any => {
+  const tryParse = (jsonStr: string): Record<string, unknown> | unknown[] => {
     try {
       const normalized = normalizeJson(jsonStr);
-      console.log('Attempting to parse normalized JSON:', normalized.substring(0, 200) + '...');
       return JSON.parse(normalized);
     } catch (error) {
-      console.error('JSON parsing failed for:', jsonStr.substring(0, 200) + '...');
-      console.error('Parse error:', error);
       throw error;
     }
   };
 
-  console.log('parseAIJsonResponse called with response length:', response.length);
-  console.log('Response starts with:', response.substring(0, 50));
-
   // Check if response has ```json wrapper first
   if (response.includes('```json')) {
-    console.log('Found ```json marker, extracting...');
-
     // Find the start of JSON content after ```json
     const startIndex = response.indexOf('```json') + 7; // 7 = length of '```json'
     const endIndex = response.indexOf('```', startIndex);
 
     if (endIndex !== -1) {
       const jsonContent = response.substring(startIndex, endIndex).trim();
-      console.log('Extracted JSON content:', jsonContent.substring(0, 100) + '...');
-      console.log('JSON content length:', jsonContent.length);
       return tryParse(jsonContent);
     }
   }
@@ -55,24 +45,18 @@ export function parseAIJsonResponse(response: string): any {
   try {
     return tryParse(response);
   } catch (error) {
-    console.log('Direct parsing failed, trying to find JSON array...');
-
     // Try to extract JSON array using bracket counting (handles nested arrays/objects)
     const extracted = extractJsonArray(response);
     if (extracted) {
-      console.log('Found JSON array in response using bracket counting, extracting...');
       return tryParse(extracted);
     }
 
     // Fallback: try object extraction
     const extractedObj = extractJsonObject(response);
     if (extractedObj) {
-      console.log('Found JSON object in response using bracket counting, extracting...');
       return tryParse(extractedObj);
     }
 
-    // Log the full response for debugging
-    console.error('Failed to parse AI response:', response);
     throw new Error(`Failed to parse AI JSON response: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

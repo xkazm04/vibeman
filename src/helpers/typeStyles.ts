@@ -30,17 +30,17 @@ const baseAgentIcons = {
     artist: Palette
   };
 
-export const agentThemes = new Proxy(baseAgentThemes, {
-  get(target, prop) {
-    return target[prop as keyof typeof target] || target.developer;
-  }
-});
+// Helper function to create Proxy with fallback to developer
+function createProxyWithFallback<T extends object>(target: T, fallbackKey: keyof T) {
+  return new Proxy(target, {
+    get(obj, prop) {
+      return obj[prop as keyof T] || obj[fallbackKey];
+    }
+  });
+}
 
-export const agentIcons = new Proxy(baseAgentIcons, {
-  get(target, prop) {
-    return target[prop as keyof typeof target] || target.developer;
-  }
-});
+export const agentThemes = createProxyWithFallback(baseAgentThemes, 'developer');
+export const agentIcons = createProxyWithFallback(baseAgentIcons, 'developer');
 
 // Supported file extensions for selection and display
 export const SUPPORTED_FILE_EXTENSIONS = [

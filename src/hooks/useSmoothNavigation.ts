@@ -12,11 +12,11 @@ export function useSmoothNavigation() {
     if (pathname === href || isNavigating) return; // Don't navigate if already on the page or navigating
 
     setIsNavigating(true);
-    
+
     try {
       router.push(href);
     } catch (error) {
-      console.error('Navigation error:', error);
+      // Navigation error occurred
     } finally {
       // Reset loading state after a reasonable delay
       setTimeout(() => setIsNavigating(false), 500);

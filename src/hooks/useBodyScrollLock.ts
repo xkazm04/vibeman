@@ -1,6 +1,31 @@
 'use client';
 import { useEffect, useRef } from 'react';
 
+// Helper function to restore styles - reduces duplication
+const restoreStyles = (
+  body: HTMLElement,
+  html: HTMLElement,
+  bodyStyles: { [key: string]: string },
+  htmlStyles: { [key: string]: string },
+  scrollPosition: number
+) => {
+  body.style.position = bodyStyles.position || '';
+  body.style.top = bodyStyles.top || '';
+  body.style.left = bodyStyles.left || '';
+  body.style.right = bodyStyles.right || '';
+  body.style.width = bodyStyles.width || '';
+  body.style.overflow = bodyStyles.overflow || '';
+  html.style.overflow = htmlStyles.overflow || '';
+
+  // Remove touch move prevention
+  if ((body as any)._preventTouchMove) {
+    document.removeEventListener('touchmove', (body as any)._preventTouchMove);
+    delete (body as any)._preventTouchMove;
+  }
+
+  window.scrollTo(0, scrollPosition);
+};
+
 export const useBodyScrollLock = (isLocked: boolean) => {
   const scrollPosition = useRef<number>(0);
   const originalStyles = useRef<{
@@ -53,48 +78,25 @@ export const useBodyScrollLock = (isLocked: boolean) => {
       (body as any)._preventTouchMove = preventTouchMove;
     } else {
       // Restore original styles
-      const bodyStyles = originalStyles.current.body;
-      const htmlStyles = originalStyles.current.html;
-      
-      body.style.position = bodyStyles.position || '';
-      body.style.top = bodyStyles.top || '';
-      body.style.left = bodyStyles.left || '';
-      body.style.right = bodyStyles.right || '';
-      body.style.width = bodyStyles.width || '';
-      body.style.overflow = bodyStyles.overflow || '';
-      html.style.overflow = htmlStyles.overflow || '';
-      
-      // Remove touch move prevention
-      if ((body as any)._preventTouchMove) {
-        document.removeEventListener('touchmove', (body as any)._preventTouchMove);
-        delete (body as any)._preventTouchMove;
-      }
-      
-      // Restore scroll position
-      window.scrollTo(0, scrollPosition.current);
+      restoreStyles(
+        body,
+        html,
+        originalStyles.current.body,
+        originalStyles.current.html,
+        scrollPosition.current
+      );
     }
 
     // Cleanup function
     return () => {
       if (isLocked) {
-        const bodyStyles = originalStyles.current.body;
-        const htmlStyles = originalStyles.current.html;
-        
-        body.style.position = bodyStyles.position || '';
-        body.style.top = bodyStyles.top || '';
-        body.style.left = bodyStyles.left || '';
-        body.style.right = bodyStyles.right || '';
-        body.style.width = bodyStyles.width || '';
-        body.style.overflow = bodyStyles.overflow || '';
-        html.style.overflow = htmlStyles.overflow || '';
-        
-        // Remove touch move prevention
-        if ((body as any)._preventTouchMove) {
-          document.removeEventListener('touchmove', (body as any)._preventTouchMove);
-          delete (body as any)._preventTouchMove;
-        }
-        
-        window.scrollTo(0, scrollPosition.current);
+        restoreStyles(
+          body,
+          html,
+          originalStyles.current.body,
+          originalStyles.current.html,
+          scrollPosition.current
+        );
       }
     };
   }, [isLocked]);

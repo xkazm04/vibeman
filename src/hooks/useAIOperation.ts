@@ -91,7 +91,9 @@ export function useAIOperation<T = unknown>(options: AIOperationOptions = {}) {
 
   const retry = useCallback(async (): Promise<T | null> => {
     if (!lastOperation) {
-      console.warn('No operation to retry');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('No operation to retry');
+      }
       return null;
     }
     return execute(lastOperation);

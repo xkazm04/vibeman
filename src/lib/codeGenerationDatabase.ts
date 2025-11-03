@@ -155,7 +155,7 @@ export const codeGenerationDb = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: Array<string | number> = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
@@ -243,7 +243,7 @@ export const codeGenerationDb = {
     const now = new Date().toISOString();
 
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: Array<string> = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');

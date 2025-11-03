@@ -1,6 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
+export interface ImpactedFile {
+  path: string;
+  change: string;
+}
+
 interface BacklogItem {
   id: string;
   title: string;
@@ -9,7 +14,8 @@ interface BacklogItem {
   timestamp: Date;
   agent: 'developer' | 'mastermind' | 'tester' | 'artist';
   type: 'proposal' | 'custom';
-  impactedFiles?: any[];
+  impactedFiles?: ImpactedFile[];
+  steps?: string[];
 }
 
 interface BacklogResponse {
@@ -36,13 +42,16 @@ interface ApiBacklogItem {
   rejected_at: string | null;
 }
 
+interface ApiResponse {
+  backlogItems: ApiBacklogItem[];
+}
+
 // Parse impacted files from JSON string
-const parseImpactedFilesFromDb = (impactedFilesJson: string | null): any[] => {
+const parseImpactedFilesFromDb = (impactedFilesJson: string | null): ImpactedFile[] => {
   if (!impactedFilesJson) return [];
   try {
     return JSON.parse(impactedFilesJson);
   } catch (error) {
-    console.error('Error parsing impacted files:', error);
     return [];
   }
 };
@@ -69,12 +78,12 @@ const fetchBacklogItems = async (projectId: string): Promise<BacklogResponse> =>
       'Cache-Control': 'no-cache'
     }
   });
-  
+
   if (!response.ok) {
     throw new Error('Failed to fetch backlog items');
   }
-  
-  const data = await response.json();
+
+  const data: ApiResponse = await response.json();
   const convertedItems = data.backlogItems.map(convertApiItemToAppType);
   
   // Separate proposals and custom items
@@ -117,10 +126,10 @@ export const useBacklogQuery = (projectId: string | null) => {
   const updateItemOptimistically = useCallback((itemId: string, updates: Partial<BacklogItem>) => {
     if (!projectId) return;
 
-    queryClient.setQueryData(['backlog', projectId], (oldData: BacklogResponse | undefined) => {
+    queryClient.setQueryData<BacklogResponse>(['backlog', projectId], (oldData) => {
       if (!oldData) return oldData;
 
-      const updateItem = (item: BacklogItem) => 
+      const updateItem = (item: BacklogItem) =>
         item.id === itemId ? { ...item, ...updates } : item;
 
       return {
@@ -133,8 +142,8 @@ export const useBacklogQuery = (projectId: string | null) => {
 
   // Server update function
   const updateItemOnServer = useCallback(async (itemId: string, updates: Partial<BacklogItem>) => {
-    const requestBody: any = { id: itemId };
-    
+    const requestBody: Partial<BacklogItem> & { id: string } = { id: itemId };
+
     if ('status' in updates) requestBody.status = updates.status;
     if ('title' in updates) requestBody.title = updates.title;
     if ('description' in updates) requestBody.description = updates.description;
@@ -172,7 +181,7 @@ export const useBacklogQuery = (projectId: string | null) => {
   const removeItemOptimistically = useCallback((itemId: string) => {
     if (!projectId) return;
 
-    queryClient.setQueryData(['backlog', projectId], (oldData: BacklogResponse | undefined) => {
+    queryClient.setQueryData<BacklogResponse>(['backlog', projectId], (oldData) => {
       if (!oldData) return oldData;
 
       return {

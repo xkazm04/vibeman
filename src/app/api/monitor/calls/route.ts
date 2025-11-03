@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { monitorServiceDb } from '@/lib/monitorServiceDb';
 
+function handleError(errorMessage: string, statusCode = 500) {
+  return NextResponse.json(
+    { success: false, error: errorMessage },
+    { status: statusCode }
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -9,7 +16,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
 
     let calls;
-    
+
     if (status && (status === 'active' || status === 'completed' || status === 'failed' || status === 'abandoned')) {
       calls = await monitorServiceDb.getCallsByStatus(status);
     } else if (startDate && endDate) {
@@ -23,18 +30,14 @@ export async function GET(request: NextRequest) {
       calls
     });
   } catch (error) {
-    console.error('GET /api/monitor/calls error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch calls' },
-      { status: 500 }
-    );
+    return handleError('Failed to fetch calls');
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     const call = await monitorServiceDb.createCall({
       callId: body.callId,
       userId: body.userId,
@@ -50,11 +53,7 @@ export async function POST(request: NextRequest) {
       call
     });
   } catch (error) {
-    console.error('POST /api/monitor/calls error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create call' },
-      { status: 500 }
-    );
+    return handleError('Failed to create call');
   }
 }
 
@@ -64,19 +63,13 @@ export async function PATCH(request: NextRequest) {
     const { callId, ...updates } = body;
 
     if (!callId) {
-      return NextResponse.json(
-        { success: false, error: 'callId is required' },
-        { status: 400 }
-      );
+      return handleError('callId is required', 400);
     }
 
     const call = await monitorServiceDb.updateCall(callId, updates);
 
     if (!call) {
-      return NextResponse.json(
-        { success: false, error: 'Call not found' },
-        { status: 404 }
-      );
+      return handleError('Call not found', 404);
     }
 
     return NextResponse.json({
@@ -84,11 +77,7 @@ export async function PATCH(request: NextRequest) {
       call
     });
   } catch (error) {
-    console.error('PATCH /api/monitor/calls error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to update call' },
-      { status: 500 }
-    );
+    return handleError('Failed to update call');
   }
 }
 
@@ -98,10 +87,7 @@ export async function DELETE(request: NextRequest) {
     const callId = searchParams.get('callId');
 
     if (!callId) {
-      return NextResponse.json(
-        { success: false, error: 'callId is required' },
-        { status: 400 }
-      );
+      return handleError('callId is required', 400);
     }
 
     const deleted = await monitorServiceDb.deleteCall(callId);
@@ -111,10 +97,6 @@ export async function DELETE(request: NextRequest) {
       message: deleted ? 'Call deleted' : 'Call not found'
     });
   } catch (error) {
-    console.error('DELETE /api/monitor/calls error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete call' },
-      { status: 500 }
-    );
+    return handleError('Failed to delete call');
   }
 }

@@ -3,6 +3,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm';
 
+function validatePrompt(prompt?: string) {
+  if (!prompt || prompt.trim().length === 0) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Prompt is required and cannot be empty'
+      },
+      { status: 400 }
+    );
+  }
+  return null;
+}
+
+function createErrorResponse(error: string | unknown, statusCode = 500) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: typeof error === 'string' ? error : (error instanceof Error ? error.message : 'Unknown error')
+    },
+    { status: statusCode }
+  );
+}
+
+function createSuccessResponse(data: any) {
+  return NextResponse.json({
+    success: true,
+    response: data.response,
+    model: data.model,
+    usage: data.usage,
+    metadata: data.metadata
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -15,20 +48,12 @@ export async function POST(request: NextRequest) {
       projectId,
       taskType,
       taskDescription,
-      provider = 'ollama' // Default to ollama for internal API
+      provider = 'ollama'
     } = body;
 
-    if (!prompt || prompt.trim().length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Prompt is required and cannot be empty'
-        },
-        { status: 400 }
-      );
-    }
+    const validationError = validatePrompt(prompt);
+    if (validationError) return validationError;
 
-    // Use the LLM manager to generate response
     const response = await llmManager.generate({
       prompt,
       model,
@@ -42,31 +67,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: response.error || 'Generation failed'
-        },
-        { status: 500 }
-      );
+      return createErrorResponse(response.error || 'Generation failed');
     }
 
-    return NextResponse.json({
-      success: true,
-      response: response.response,
-      model: response.model,
-      usage: response.usage,
-      metadata: response.metadata
-    });
+    return createSuccessResponse(response);
 
   } catch (error) {
-    console.error('Internal LLM API error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error);
   }
 }

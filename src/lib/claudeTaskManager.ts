@@ -27,11 +27,8 @@ export class ClaudeTaskManager {
     };
     
     const taskPath = await this.fileSystem.createClaudeTask(task);
-    
+
     // Let the file watcher handle execution
-    console.log('✅ Task created for file watcher:', taskPath);
-    console.log('🔍 Monitor progress with: ./scripts/claude-watcher.sh status');
-    
     return taskPath;
 }
 
@@ -66,19 +63,16 @@ Please start by examining the codebase and then implement the changes step by st
     try {
       // Option 1: Direct Claude Code execution
       const command = `cd "${this.projectRoot}" && claude -p "$(cat ${taskPath.replace(this.projectRoot, '.')})" --output-format json`;
-      
-      console.log(`Triggering Claude Code with task: ${taskPath}`);
-      
+
       // Execute in background
-      execAsync(command).then(({ stdout, stderr }) => {
-        console.log('Claude Code output:', stdout);
-        if (stderr) console.error('Claude Code errors:', stderr);
-      }).catch(error => {
-        console.error('Claude Code execution failed:', error);
+      execAsync(command).then(() => {
+        // Task triggered successfully
+      }).catch(() => {
+        // Task execution failed
       });
-      
-    } catch (error) {
-      console.error('Failed to trigger Claude Code:', error);
+
+    } catch {
+      // Failed to trigger Claude Code
     }
   }
 
@@ -88,13 +82,11 @@ Please start by examining the codebase and then implement the changes step by st
 
   async processCompletedTasks(): Promise<void> {
     const completedTasks = await this.checkTaskStatus();
-    
+
     for (const task of completedTasks) {
-      console.log(`Processing completed task: ${task.requirementId}`);
-      
       // Update requirement status in your database/state
       // Send notifications, update UI, etc.
-      
+
       // Clean up task files
       await this.fileSystem.cleanupTask(task.requirementId);
     }

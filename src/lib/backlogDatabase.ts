@@ -109,7 +109,7 @@ export const backlogDb = {
     steps?: string[];
     status: 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'undecided';
     type: 'feature' | 'optimization';
-    impacted_files?: any[];
+    impacted_files?: Record<string, unknown>[];
   }): DbBacklogItem => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -148,14 +148,14 @@ export const backlogDb = {
     title?: string;
     description?: string;
     steps?: string[];
-    impacted_files?: any[];
+    impacted_files?: Record<string, unknown>[];
   }): DbBacklogItem | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: Array<string | null> = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');

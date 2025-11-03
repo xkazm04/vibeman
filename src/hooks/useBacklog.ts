@@ -13,8 +13,8 @@ interface ApiBacklogItem {
   steps?: string[] | string | null; // Can be array, string, or null
   status: 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'undecided';
   type: 'proposal' | 'custom';
-  impacted_files?: any[]; // Parsed by API
-  impactedFiles?: any[]; // Alternative field name
+  impacted_files?: ImpactedFile[]; // Parsed by API
+  impactedFiles?: ImpactedFile[]; // Alternative field name
   created_at: string;
   updated_at: string;
   accepted_at: string | null;
@@ -22,30 +22,24 @@ interface ApiBacklogItem {
 }
 
 // Parse impacted files from various formats
-const parseImpactedFilesFromDb = (impactedFilesData: any): ImpactedFile[] => {
+const parseImpactedFilesFromDb = (impactedFilesData: unknown): ImpactedFile[] => {
   if (!impactedFilesData) return [];
-  
+
   // Handle case where it's already an array
   if (Array.isArray(impactedFilesData)) {
     return impactedFilesData;
   }
-  
+
   // Handle case where it's a JSON string
   if (typeof impactedFilesData === 'string') {
     try {
       const parsed = JSON.parse(impactedFilesData);
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-      console.error('Error parsing impacted files JSON:', error);
       return [];
     }
   }
-  
-  // Handle case where it's an object (shouldn't happen but just in case)
-  if (typeof impactedFilesData === 'object') {
-    return [];
-  }
-  
+
   return [];
 };
 
@@ -61,7 +55,6 @@ const convertDbBacklogItemToAppType = (apiItem: ApiBacklogItem): BacklogProposal
         const parsed = JSON.parse(apiItem.steps);
         steps = Array.isArray(parsed) ? parsed : undefined;
       } catch (error) {
-        console.warn('Failed to parse steps JSON:', error);
         steps = [apiItem.steps]; // Treat as single step
       }
     }
@@ -85,8 +78,8 @@ const convertDbBacklogItemToAppType = (apiItem: ApiBacklogItem): BacklogProposal
     } as CustomBacklogItem;
   }
 
-  // Map agent from API response or derive from type
-  const agent = apiItem.agent || (apiItem.type === 'optimization' ? 'mastermind' : 'developer');
+  // Map agent from API response or use default
+  const agent = apiItem.agent || 'developer';
   
   return {
     ...baseItem,
@@ -141,7 +134,6 @@ export const useBacklog = (projectId: string | null) => {
       setCustomBacklogItems(customItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch backlog items');
-      console.error('Error fetching backlog items:', err);
     } finally {
       setLoading(false);
     }
@@ -191,18 +183,17 @@ export const useBacklog = (projectId: string | null) => {
       return newItem;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create backlog item');
-      console.error('Error creating backlog item:', err);
       return null;
     }
   }, [projectId]);
 
   const updateBacklogItem = useCallback(async (
-    itemId: string, 
+    itemId: string,
     updates: Partial<BacklogProposal> | Partial<CustomBacklogItem>
   ) => {
     try {
-      const requestBody: any = { id: itemId };
-      
+      const requestBody: Record<string, unknown> = { id: itemId };
+
       if ('status' in updates) requestBody.status = updates.status;
       if ('title' in updates) requestBody.title = updates.title;
       if ('description' in updates) requestBody.description = updates.description;
@@ -241,7 +232,6 @@ export const useBacklog = (projectId: string | null) => {
       return updatedItem;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update backlog item');
-      console.error('Error updating backlog item:', err);
       return null;
     }
   }, []);
@@ -263,7 +253,6 @@ export const useBacklog = (projectId: string | null) => {
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete backlog item');
-      console.error('Error deleting backlog item:', err);
       return false;
     }
   }, []);

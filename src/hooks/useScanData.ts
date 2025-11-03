@@ -216,7 +216,6 @@ export function useScanData(
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch scans';
       setError(errorMessage);
       setLoading(false);
-      console.error('[useScanData] Error fetching scans:', err);
     }
   }, []);
 

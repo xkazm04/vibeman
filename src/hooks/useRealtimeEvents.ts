@@ -49,7 +49,7 @@ export function useRealtimeEvents(options?: {
   const { activeProject } = useActiveProjectStore();
   const { isActive } = useAnalysisStore();
   const { sessionId, flowId, limit = 50, autoRefresh = false, refreshInterval = 5000 } = options || {};
-  const realtimeChannelRef = useRef<any>(null);
+  const realtimeChannelRef = useRef<NodeJS.Timeout | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use project ID as a filter mechanism

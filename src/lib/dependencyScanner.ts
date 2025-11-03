@@ -238,8 +238,8 @@ async function scanDirectory(dir: string, extensions: string[], rootPath: string
         }
       }
     }
-  } catch (error) {
-    console.error(`Error scanning directory ${dir}:`, error);
+  } catch (_error) {
+    // Error scanning directory - silently continue
   }
 
   return files;
@@ -377,7 +377,7 @@ export function analyzeSharedDependencies(scanResults: DependencyScanResult[]): 
   for (const [name, projectsMap] of Array.from(dependencyMap.entries())) {
     if (projectsMap.size > 1) {
       const projects = Array.from(projectsMap.values());
-      const versions = new Set(projects.map((p: any) => p.version));
+      const versions = new Set<string>(projects.map((p) => p.version));
       const versionConflicts = versions.size > 1;
 
       // Determine priority
@@ -398,8 +398,8 @@ export function analyzeSharedDependencies(scanResults: DependencyScanResult[]): 
 
       sharedDependencies.push({
         name,
-        type: (projects[0] as any).projectId.includes('python') ? 'python' : 'npm',
-        projects: projects as any,
+        type: projects[0].projectId.includes('python') ? 'python' : 'npm',
+        projects: projects.map(p => ({ id: p.projectId, name: p.projectName, version: p.version })),
         versionConflicts,
         refactoringOpportunity,
         priority
@@ -513,15 +513,15 @@ export async function scanMultipleProjects(projectIds: string[]): Promise<{
   for (const projectId of projectIds) {
     const project = projects.find(p => p.id === projectId);
     if (!project) {
-      console.warn(`Project not found: ${projectId}`);
+      // Project not found - skip
       continue;
     }
 
     try {
       const result = await scanProjectDependencies(project.path, project.id);
       scanResults.push(result);
-    } catch (error) {
-      console.error(`Error scanning project ${project.name}:`, error);
+    } catch (_error) {
+      // Error scanning project - skip and continue
     }
   }
 

@@ -2,9 +2,16 @@ import { CopilotTask } from '@/types/copilot';
 
 export class CopilotIntegration {
   private n8nWebhookUrl: string;
-  
+
   constructor(webhookUrl: string) {
     this.n8nWebhookUrl = webhookUrl;
+  }
+
+  private handleError(error: unknown): { success: false; error: string } {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 
   async createCopilotTask(task: CopilotTask): Promise<{
@@ -34,11 +41,7 @@ export class CopilotIntegration {
         issueUrl: result.taskMetadata?.trackingUrl,
       };
     } catch (error) {
-      console.error('Failed to create Copilot task:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return this.handleError(error);
     }
   }
 
