@@ -63,16 +63,13 @@ const ContextOverview = () => {
               return { path: filePath, content: data.content || '' };
             }
           } catch (error) {
-            console.error(`Failed to load file ${filePath}:`, error);
           }
           return null;
         })
       );
 
       setFileContents(contents.filter((c): c is { path: string; content: string } => c !== null));
-    } catch (error) {
-      console.error('Error loading file contents:', error);
-      setFileContents([]);
+    } catch (error) {      setFileContents([]);
     }
   };
 
@@ -91,9 +88,7 @@ const ContextOverview = () => {
           setCurrentTestScenario(data.context.testScenario || null);
         }
       }
-    } catch (error) {
-      console.error('Failed to refresh context:', error);
-    }
+    } catch (error) {    }
   };
 
   if (!context || !mounted) return null;

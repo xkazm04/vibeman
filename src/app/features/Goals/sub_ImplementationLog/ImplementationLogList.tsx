@@ -10,6 +10,42 @@ interface ImplementationLogListProps {
   limit?: number;
 }
 
+
+// Helper component for status badge
+const StatusBadge = ({ untestedCount, logsLength }: { untestedCount: number; logsLength: number }) => {
+  if (untestedCount > 0) {
+    return (
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg"
+      >
+        <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+        <span className="text-xs font-medium text-amber-400">
+          {untestedCount} Untested
+        </span>
+      </motion.div>
+    );
+  }
+
+  if (logsLength > 0) {
+    return (
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg"
+      >
+        <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+        <span className="text-xs font-medium text-green-400">
+          All Tested
+        </span>
+      </motion.div>
+    );
+  }
+
+  return null;
+};
+
 export default function ImplementationLogList({
   projectId,
   limit = 10,
@@ -35,9 +71,7 @@ export default function ImplementationLogList({
 
         const data = await response.json();
         setLogs(data.logs || []);
-      } catch (err) {
-        console.error('Error fetching implementation logs:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
+      } catch (err) {        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setIsLoading(false);
       }
@@ -66,9 +100,7 @@ export default function ImplementationLogList({
           log.id === logId ? { ...log, tested: tested ? 1 : 0 } : log
         )
       );
-    } catch (err) {
-      console.error('Error updating log:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update log');
+    } catch (err) {      setError(err instanceof Error ? err.message : 'Failed to update log');
     }
   };
 

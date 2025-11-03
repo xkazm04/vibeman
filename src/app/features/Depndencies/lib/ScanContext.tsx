@@ -188,8 +188,6 @@ export function ScanProvider({ children, onScanComplete }: ScanProviderProps) {
       if (options.onError && error instanceof Error) {
         options.onError(error);
       }
-
-      console.error('Scan failed:', error);
     } finally {
       setScanning(false);
 

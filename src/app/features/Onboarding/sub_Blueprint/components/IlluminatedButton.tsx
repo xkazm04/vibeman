@@ -86,7 +86,7 @@ const colorMap = {
     shine: 'from-indigo-400/30',
   },
   gray: {
-    bg: 'from-gray-700/20 to-gray-600/20',
+    bg: 'from-gray-500/50 to-gray-600/20',
     border: 'border-gray-600/30',
     text: 'text-gray-500',
     glow: 'shadow-gray-700/30',
@@ -149,7 +149,7 @@ export default function IlluminatedButton({
 
         {/* Glass shine effect */}
         <div
-          className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.shine} via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300`}
+          className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.shine} via-transparent to-transparent opacity-60 group-hover:opacity-60 transition-opacity duration-300`}
         />
 
         {/* Icon */}
