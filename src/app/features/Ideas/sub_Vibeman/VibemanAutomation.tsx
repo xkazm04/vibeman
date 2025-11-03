@@ -35,7 +35,6 @@ export default function VibemanAutomation({
    */
   const startAutomationCycle = useCallback(async () => {
     if (!isRunningRef.current) {
-      console.log('[Vibeman] Automation stopped by user');
       return;
     }
 
@@ -66,7 +65,6 @@ export default function VibemanAutomation({
 
       setIsProcessing(false);
     } catch (error) {
-      console.error('[Vibeman] Automation error:', error);
       setFailureCount(prev => prev + 1);
       setStatus('error');
       setMessage(error instanceof Error ? error.message : 'Unknown error occurred');
@@ -81,14 +79,12 @@ export default function VibemanAutomation({
   const handleToggle = () => {
     if (isRunning) {
       // Stop automation
-      console.log('[Vibeman] Stopping automation...');
       setIsRunning(false);
       setStatus('idle');
       setMessage('Stopped');
       currentTaskIdRef.current = null;
     } else {
       // Start automation
-      console.log('[Vibeman] Starting automation...');
       setIsRunning(true);
       setStatus('idle');
       setMessage('Starting...');

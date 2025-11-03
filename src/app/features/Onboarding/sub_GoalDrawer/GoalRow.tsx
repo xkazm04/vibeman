@@ -5,6 +5,11 @@ import { Target } from 'lucide-react';
 import { Goal } from '@/types';
 import { useState, useEffect } from 'react';
 
+interface Idea {
+  status: 'pending' | 'rejected' | 'accepted' | 'implemented';
+  [key: string]: any;
+}
+
 interface IdeaStats {
   total: number;
   pending: number;
@@ -18,6 +23,39 @@ interface GoalRowProps {
   onClick: () => void;
   delay?: number;
 }
+
+interface ProgressSegmentProps {
+  count: number;
+  total: number;
+  delay: number;
+  bgColor: string;
+  borderColor: string;
+  textColor: string;
+  label: string;
+}
+
+const ProgressSegment = ({ count, total, delay, bgColor, borderColor, textColor, label }: ProgressSegmentProps) => {
+  if (count === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ width: 0 }}
+      animate={{ width: `${(count / total) * 100}%` }}
+      transition={{ duration: 0.5, delay }}
+      className={`${bgColor} ${borderColor} flex items-center justify-center relative group/segment`}
+      title={`${count} ${label}`}
+    >
+      {count > 0 && (
+        <span className={`text-[10px] font-mono font-bold ${textColor}`}>
+          {count}
+        </span>
+      )}
+      <div className={`absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gray-900 border ${borderColor} rounded text-[10px] ${textColor} whitespace-nowrap opacity-0 group-hover/segment:opacity-100 transition-opacity pointer-events-none`}>
+        {count} {label}
+      </div>
+    </motion.div>
+  );
+};
 
 export default function GoalRow({ goal, onClick, delay = 0 }: GoalRowProps) {
   const [ideaStats, setIdeaStats] = useState<IdeaStats>({
@@ -36,21 +74,21 @@ export default function GoalRow({ goal, onClick, delay = 0 }: GoalRowProps) {
         const response = await fetch(`/api/ideas?projectId=${goal.projectId}&goalId=${goal.id}`);
         if (response.ok) {
           const data = await response.json();
-          const ideas = data.ideas || [];
+          const ideas: Idea[] = data.ideas || [];
 
           // Calculate stats
           const stats: IdeaStats = {
             total: ideas.length,
-            pending: ideas.filter((i: any) => i.status === 'pending').length,
-            rejected: ideas.filter((i: any) => i.status === 'rejected').length,
-            accepted: ideas.filter((i: any) => i.status === 'accepted').length,
-            implemented: ideas.filter((i: any) => i.status === 'implemented').length,
+            pending: ideas.filter((i) => i.status === 'pending').length,
+            rejected: ideas.filter((i) => i.status === 'rejected').length,
+            accepted: ideas.filter((i) => i.status === 'accepted').length,
+            implemented: ideas.filter((i) => i.status === 'implemented').length,
           };
 
           setIdeaStats(stats);
         }
       } catch (error) {
-        console.error('[GoalRow] Error fetching ideas:', error);
+        // Silent error - no console.log in production
       } finally {
         setLoading(false);
       }
@@ -103,86 +141,42 @@ export default function GoalRow({ goal, onClick, delay = 0 }: GoalRowProps) {
 
           {/* Progress bar segments */}
           <div className="h-6 flex rounded overflow-hidden border border-gray-600/40">
-            {/* Pending - Dark Gray */}
-            {ideaStats.pending > 0 && (
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(ideaStats.pending / ideaStats.total) * 100}%` }}
-                transition={{ duration: 0.5, delay: delay + 0.2 }}
-                className="bg-gray-700 flex items-center justify-center relative group/segment"
-                title={`${ideaStats.pending} pending`}
-              >
-                {ideaStats.pending > 0 && (
-                  <span className="text-[10px] font-mono font-bold text-gray-400">
-                    {ideaStats.pending}
-                  </span>
-                )}
-                {/* Tooltip on hover */}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gray-900 border border-gray-600 rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover/segment:opacity-100 transition-opacity pointer-events-none">
-                  {ideaStats.pending} pending
-                </div>
-              </motion.div>
-            )}
-
-            {/* Rejected - Red */}
-            {ideaStats.rejected > 0 && (
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(ideaStats.rejected / ideaStats.total) * 100}%` }}
-                transition={{ duration: 0.5, delay: delay + 0.3 }}
-                className="bg-red-900/60 border-l border-gray-600/40 flex items-center justify-center relative group/segment"
-                title={`${ideaStats.rejected} rejected`}
-              >
-                {ideaStats.rejected > 0 && (
-                  <span className="text-[10px] font-mono font-bold text-red-300">
-                    {ideaStats.rejected}
-                  </span>
-                )}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gray-900 border border-red-600 rounded text-[10px] text-red-300 whitespace-nowrap opacity-0 group-hover/segment:opacity-100 transition-opacity pointer-events-none">
-                  {ideaStats.rejected} rejected
-                </div>
-              </motion.div>
-            )}
-
-            {/* Accepted - Green */}
-            {ideaStats.accepted > 0 && (
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(ideaStats.accepted / ideaStats.total) * 100}%` }}
-                transition={{ duration: 0.5, delay: delay + 0.4 }}
-                className="bg-green-900/60 border-l border-gray-600/40 flex items-center justify-center relative group/segment"
-                title={`${ideaStats.accepted} accepted`}
-              >
-                {ideaStats.accepted > 0 && (
-                  <span className="text-[10px] font-mono font-bold text-green-300">
-                    {ideaStats.accepted}
-                  </span>
-                )}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gray-900 border border-green-600 rounded text-[10px] text-green-300 whitespace-nowrap opacity-0 group-hover/segment:opacity-100 transition-opacity pointer-events-none">
-                  {ideaStats.accepted} accepted
-                </div>
-              </motion.div>
-            )}
-
-            {/* Implemented - Gold/Amber */}
-            {ideaStats.implemented > 0 && (
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(ideaStats.implemented / ideaStats.total) * 100}%` }}
-                transition={{ duration: 0.5, delay: delay + 0.5 }}
-                className="bg-amber-900/60 border-l border-gray-600/40 flex items-center justify-center relative group/segment"
-                title={`${ideaStats.implemented} implemented`}
-              >
-                {ideaStats.implemented > 0 && (
-                  <span className="text-[10px] font-mono font-bold text-amber-300">
-                    {ideaStats.implemented}
-                  </span>
-                )}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gray-900 border border-amber-600 rounded text-[10px] text-amber-300 whitespace-nowrap opacity-0 group-hover/segment:opacity-100 transition-opacity pointer-events-none">
-                  {ideaStats.implemented} implemented
-                </div>
-              </motion.div>
-            )}
+            <ProgressSegment
+              count={ideaStats.pending}
+              total={ideaStats.total}
+              delay={delay + 0.2}
+              bgColor="bg-gray-700"
+              borderColor="border-gray-600"
+              textColor="text-gray-400"
+              label="pending"
+            />
+            <ProgressSegment
+              count={ideaStats.rejected}
+              total={ideaStats.total}
+              delay={delay + 0.3}
+              bgColor="bg-red-900/60 border-l border-gray-600/40"
+              borderColor="border-red-600"
+              textColor="text-red-300"
+              label="rejected"
+            />
+            <ProgressSegment
+              count={ideaStats.accepted}
+              total={ideaStats.total}
+              delay={delay + 0.4}
+              bgColor="bg-green-900/60 border-l border-gray-600/40"
+              borderColor="border-green-600"
+              textColor="text-green-300"
+              label="accepted"
+            />
+            <ProgressSegment
+              count={ideaStats.implemented}
+              total={ideaStats.total}
+              delay={delay + 0.5}
+              bgColor="bg-amber-900/60 border-l border-gray-600/40"
+              borderColor="border-amber-600"
+              textColor="text-amber-300"
+              label="implemented"
+            />
           </div>
         </div>
       )}

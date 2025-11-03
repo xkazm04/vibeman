@@ -76,7 +76,6 @@ export default function DarkBlueprint() {
     }
 
     if (!buttonConfig) {
-      console.error(`[Blueprint] No button config found for: ${scanId}`);
       return;
     }
 
@@ -98,12 +97,10 @@ export default function DarkBlueprint() {
       severity: 'info',
       data: { scanId },
       onAccept: async () => {
-        console.log(`[Blueprint] User confirmed ${scanId} scan`);
         setSelectedScanId(null); // Clear selection
         await handleScan(scanId); // Execute scan
       },
       onReject: async () => {
-        console.log(`[Blueprint] User cancelled ${scanId} scan`);
         setSelectedScanId(null); // Clear selection
       },
     });
@@ -134,13 +131,11 @@ export default function DarkBlueprint() {
       severity: 'info',
       data: { scanId, contextId },
       onAccept: async () => {
-        console.log(`[Blueprint] User confirmed ${scanId} scan for context ${contextId}`);
         setSelectedScanId(null); // Clear selection
         setPendingScanId(null);
         await handleScan(scanId, contextId); // Execute scan with contextId
       },
       onReject: async () => {
-        console.log(`[Blueprint] User cancelled ${scanId} scan`);
         setSelectedScanId(null); // Clear selection
         setPendingScanId(null);
       },
@@ -148,8 +143,6 @@ export default function DarkBlueprint() {
   };
 
   const handleScan = async (scanId: string, contextId?: string) => {
-    console.log(`[Blueprint] Initiating ${scanId} scan${contextId ? ` for context ${contextId}` : ''}...`);
-
     // Find button config by scanning all columns
     let buttonConfig = null;
     for (const column of columns) {
@@ -161,13 +154,11 @@ export default function DarkBlueprint() {
     }
 
     if (!buttonConfig) {
-      console.error(`[Blueprint] No button config found for scan: ${scanId}`);
       return;
     }
 
     // Check if scan handler is defined
     if (!buttonConfig.scanHandler) {
-      console.warn(`[Blueprint] Scan handler not implemented for: ${scanId}`);
       return;
     }
 
@@ -198,7 +189,6 @@ export default function DarkBlueprint() {
         // Handle failure
         if (!result.success) {
           const errorMsg = result.error || 'Scan failed';
-          console.error(`[Blueprint] ${scanId} scan failed:`, errorMsg);
           failScan(errorMsg);
           return;
         }
@@ -216,14 +206,10 @@ export default function DarkBlueprint() {
 
         // If decision data exists, add to queue
         if (decisionData) {
-          console.log(`[Blueprint] Adding decision to queue for ${scanId}`);
           addDecision(decisionData);
-        } else {
-          console.log(`[Blueprint] ${scanId} scan completed - no decision needed`);
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Blueprint] ${scanId} scan error:`, error);
         failScan(errorMsg);
 
         // Show error in decision panel
@@ -237,10 +223,10 @@ export default function DarkBlueprint() {
           projectPath: activeProject?.path || '',
           data: { scanId, error: errorMsg },
           onAccept: async () => {
-            console.log('[Blueprint] Error acknowledged');
+            // Error acknowledged
           },
           onReject: async () => {
-            console.log('[Blueprint] Error dismissed');
+            // Error dismissed
           },
         });
       }
@@ -253,8 +239,6 @@ export default function DarkBlueprint() {
     if (!activeProject) return;
 
     try {
-      console.log(`[Blueprint] Creating event: ${eventTitle}`);
-
       const response = await fetch('/api/blueprint/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -269,15 +253,12 @@ export default function DarkBlueprint() {
       });
 
       if (!response.ok) {
-        console.error('[Blueprint] Failed to create event');
         return;
       }
 
       const result = await response.json();
 
       if (result.success) {
-        console.log(`[Blueprint] ✅ Event created: ${eventTitle}`);
-
         // Reload scan events to update days ago
         const eventTitles: Record<string, string> = {};
         for (const column of columns) {
@@ -290,12 +271,11 @@ export default function DarkBlueprint() {
         await loadScanEvents(activeProject.id, eventTitles);
       }
     } catch (error) {
-      console.error('[Blueprint] Error creating event:', error);
+      // Silent error handling
     }
   };
 
   const handleNavigate = (module: 'ideas' | 'tinder' | 'tasker' | 'reflector') => {
-    console.log(`[Blueprint] Navigating to ${module}...`);
     setActiveModule(module);
     closeBlueprint();
     openControlPanel();

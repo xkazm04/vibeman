@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { ScanType, SCAN_TYPES } from './lib/ScanTypeConfig';
