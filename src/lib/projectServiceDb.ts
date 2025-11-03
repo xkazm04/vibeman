@@ -122,13 +122,13 @@ class ProjectServiceDb {
       if (updates.path !== undefined) updateData.path = updates.path;
       if (updates.port !== undefined) updateData.port = updates.port;
       if (updates.type !== undefined) updateData.type = updates.type;
-      if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId || undefined;
+      if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId || null;
       if (updates.runScript !== undefined) updateData.run_script = updates.runScript;
       if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances;
       if (updates.basePort !== undefined) updateData.base_port = updates.basePort;
       if (updates.git !== undefined) {
-        updateData.git_repository = updates.git?.repository || undefined;
-        updateData.git_branch = updates.git?.branch || undefined;
+        updateData.git_repository = updates.git?.repository || null;
+        updateData.git_branch = updates.git?.branch || null;
       }
       
       const result = projectDb.updateProject(projectId, updateData);
