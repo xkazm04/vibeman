@@ -31,7 +31,6 @@ const ProposalPanel = React.memo(({ isVisible }: ProposalPanelProps) => {
     // Prevent any backdrop clicks from closing the panel
     // The panel should only be closed via the ProjectManager close button
     e.stopPropagation();
-    console.log('ProposalPanel backdrop clicked - prevented from closing');
   };
 
   return (

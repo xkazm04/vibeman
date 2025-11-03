@@ -9,8 +9,8 @@ import {
   StatCard,
   WizardActions,
 } from '@/components/ui/wizard';
-import { motion } from 'framer-motion';
 import { useMemo } from 'react';
+import { BreakdownCard } from './BreakdownCard';
 
 export default function ResultsStep() {
   const { opportunities, selectedOpportunities, closeWizard, resetWizard } = useRefactorStore();
@@ -116,82 +116,42 @@ export default function ResultsStep() {
       {/* Breakdown Cards */}
       <div className="grid grid-cols-2 gap-4">
         {/* Category Breakdown */}
-        <CyberCard>
-          <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-cyan-400" />
-            By Category
-          </h4>
-          <div className="space-y-2">
-            {Object.entries(summary.categoryCounts)
-              .sort(([,a], [,b]) => b - a)
-              .map(([category, count]) => {
-                const percentage = (count / selectedOpps.length) * 100;
-                return (
-                  <motion.div
-                    key={category}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="space-y-1"
-                  >
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-300 capitalize">{category.replace('-', ' ')}</span>
-                      <span className="text-white font-medium">{count}</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percentage}%` }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
-                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
-                      />
-                    </div>
-                  </motion.div>
-                );
-              })}
-          </div>
-        </CyberCard>
+        <BreakdownCard
+          title="By Category"
+          icon={TrendingUp}
+          iconColor="text-cyan-400"
+          items={Object.entries(summary.categoryCounts)
+            .sort(([,a], [,b]) => b - a)
+            .map(([category, count]) => ({
+              label: category.replace('-', ' '),
+              count,
+              percentage: (count / selectedOpps.length) * 100,
+              colorGradient: 'from-cyan-500 to-blue-500',
+            }))}
+        />
 
         {/* Severity Breakdown */}
-        <CyberCard>
-          <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-orange-400" />
-            By Severity
-          </h4>
-          <div className="space-y-2">
-            {Object.entries(summary.severityCounts)
-              .sort(([,a], [,b]) => b - a)
-              .map(([severity, count]) => {
-                const percentage = (count / selectedOpps.length) * 100;
-                const colorMap: Record<string, string> = {
-                  critical: 'from-red-500 to-orange-500',
-                  high: 'from-orange-500 to-yellow-500',
-                  medium: 'from-yellow-500 to-blue-500',
-                  low: 'from-blue-500 to-cyan-500',
-                };
-                return (
-                  <motion.div
-                    key={severity}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="space-y-1"
-                  >
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-300 capitalize">{severity}</span>
-                      <span className="text-white font-medium">{count}</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percentage}%` }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
-                        className={`h-full bg-gradient-to-r ${colorMap[severity]} rounded-full`}
-                      />
-                    </div>
-                  </motion.div>
-                );
-              })}
-          </div>
-        </CyberCard>
+        <BreakdownCard
+          title="By Severity"
+          icon={AlertCircle}
+          iconColor="text-orange-400"
+          items={Object.entries(summary.severityCounts)
+            .sort(([,a], [,b]) => b - a)
+            .map(([severity, count]) => {
+              const colorMap: Record<string, string> = {
+                critical: 'from-red-500 to-orange-500',
+                high: 'from-orange-500 to-yellow-500',
+                medium: 'from-yellow-500 to-blue-500',
+                low: 'from-blue-500 to-cyan-500',
+              };
+              return {
+                label: severity,
+                count,
+                percentage: (count / selectedOpps.length) * 100,
+                colorGradient: colorMap[severity] || 'from-gray-500 to-gray-600',
+              };
+            })}
+        />
       </div>
 
       {/* Next Steps */}
