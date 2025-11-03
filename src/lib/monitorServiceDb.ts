@@ -5,6 +5,29 @@
 
 import { monitorDb, DbCall, DbMessage, DbPattern, DbMessageClass } from '@/lib/monitor_database';
 
+// Logger helpers for consistent logging
+function log(message: string, data?: unknown): void {
+  if (process.env.NODE_ENV === 'development') {
+    if (data !== undefined) {
+      console.log(`[MonitorServiceDb] ${message}`, data);
+    } else {
+      console.log(`[MonitorServiceDb] ${message}`);
+    }
+  }
+}
+
+function logError(message: string, error?: unknown): void {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(`[MonitorServiceDb] ${message}`, error);
+  }
+}
+
+function logWarn(message: string, data?: unknown): void {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`[MonitorServiceDb] ${message}`, data);
+  }
+}
+
 // Type definitions for service layer
 export interface Call {
   callId: string;
@@ -146,7 +169,7 @@ class MonitorServiceDb {
       const dbCalls = monitorDb.getAllCalls();
       return dbCalls.map(dbCallToCall);
     } catch (error) {
-      console.error('MonitorServiceDb: Error getting all calls:', error);
+      logError('Error getting all calls:', error);
       return [];
     }
   }
@@ -156,7 +179,7 @@ class MonitorServiceDb {
       const dbCall = monitorDb.getCall(callId);
       return dbCall ? dbCallToCall(dbCall) : null;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting call ${callId}:`, error);
+      logError(`Error getting call ${callId}:`, error);
       return null;
     }
   }
@@ -166,7 +189,7 @@ class MonitorServiceDb {
       const dbCalls = monitorDb.getCallsByStatus(status);
       return dbCalls.map(dbCallToCall);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting calls by status ${status}:`, error);
+      logError(`Error getting calls by status ${status}:`, error);
       return [];
     }
   }
@@ -176,7 +199,7 @@ class MonitorServiceDb {
       const dbCalls = monitorDb.getCallsByDateRange(startDate, endDate);
       return dbCalls.map(dbCallToCall);
     } catch (error) {
-      console.error('MonitorServiceDb: Error getting calls by date range:', error);
+      logError('Error getting calls by date range:', error);
       return [];
     }
   }
@@ -201,10 +224,10 @@ class MonitorServiceDb {
         metadata: call.metadata
       });
       
-      console.log(`MonitorServiceDb: Created call ${call.callId}`);
+      log(`Created call ${call.callId}`);
       return dbCallToCall(dbCall);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error creating call ${call.callId}:`, error);
+      logError(`Error creating call ${call.callId}:`, error);
       throw error;
     }
   }
@@ -230,14 +253,14 @@ class MonitorServiceDb {
       });
       
       if (!dbCall) {
-        console.warn(`MonitorServiceDb: Call ${callId} not found for update`);
+        logWarn(`Call ${callId} not found for update`);
         return null;
       }
       
-      console.log(`MonitorServiceDb: Updated call ${callId}`);
+      log(`Updated call ${callId}`);
       return dbCallToCall(dbCall);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error updating call ${callId}:`, error);
+      logError(`Error updating call ${callId}:`, error);
       throw error;
     }
   }
@@ -250,11 +273,11 @@ class MonitorServiceDb {
       // Delete the call (CASCADE will delete messages)
       const success = monitorDb.deleteCall(callId);
       if (success) {
-        console.log(`MonitorServiceDb: Deleted call ${callId} and related data`);
+        log(`Deleted call ${callId} and related data`);
       }
       return success;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error deleting call ${callId}:`, error);
+      logError(`Error deleting call ${callId}:`, error);
       return false;
     }
   }
@@ -266,7 +289,7 @@ class MonitorServiceDb {
       const dbMessages = monitorDb.getCallMessages(callId);
       return dbMessages.map(dbMessageToMessage);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting messages for call ${callId}:`, error);
+      logError(`Error getting messages for call ${callId}:`, error);
       return [];
     }
   }
@@ -276,7 +299,7 @@ class MonitorServiceDb {
       const dbMessage = monitorDb.getMessage(messageId);
       return dbMessage ? dbMessageToMessage(dbMessage) : null;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting message ${messageId}:`, error);
+      logError(`Error getting message ${messageId}:`, error);
       return null;
     }
   }
@@ -305,7 +328,7 @@ class MonitorServiceDb {
       
       return dbMessageToMessage(dbMessage);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error creating message ${message.messageId}:`, error);
+      logError(`Error creating message ${message.messageId}:`, error);
       throw error;
     }
   }
@@ -314,7 +337,7 @@ class MonitorServiceDb {
     try {
       return monitorDb.deleteMessage(messageId);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error deleting message ${messageId}:`, error);
+      logError(`Error deleting message ${messageId}:`, error);
       return false;
     }
   }
@@ -332,7 +355,7 @@ class MonitorServiceDb {
       });
       return dbMessage ? dbMessageToMessage(dbMessage) : null;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error updating message evaluation ${messageId}:`, error);
+      logError(`Error updating message evaluation ${messageId}:`, error);
       return null;
     }
   }
@@ -344,7 +367,7 @@ class MonitorServiceDb {
       const dbClasses = monitorDb.getAllMessageClasses();
       return dbClasses.map(dbMessageClassToMessageClass);
     } catch (error) {
-      console.error('MonitorServiceDb: Error getting all message classes:', error);
+      logError('Error getting all message classes:', error);
       return [];
     }
   }
@@ -354,7 +377,7 @@ class MonitorServiceDb {
       const dbClass = monitorDb.getMessageClassByName(className);
       return dbClass ? dbMessageClassToMessageClass(dbClass) : null;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting message class ${className}:`, error);
+      logError(`Error getting message class ${className}:`, error);
       return null;
     }
   }
@@ -372,7 +395,7 @@ class MonitorServiceDb {
       });
       return dbMessageClassToMessageClass(dbClass);
     } catch (error) {
-      console.error('MonitorServiceDb: Error creating message class:', error);
+      logError('Error creating message class:', error);
       throw error;
     }
   }
@@ -381,7 +404,7 @@ class MonitorServiceDb {
     try {
       return monitorDb.incrementMessageClassFrequency(className);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error incrementing message class frequency ${className}:`, error);
+      logError(`Error incrementing message class frequency ${className}:`, error);
       return false;
     }
   }
@@ -393,7 +416,7 @@ class MonitorServiceDb {
       const dbPatterns = monitorDb.getAllPatterns();
       return dbPatterns.map(dbPatternToPattern);
     } catch (error) {
-      console.error('MonitorServiceDb: Error getting all patterns:', error);
+      logError('Error getting all patterns:', error);
       return [];
     }
   }
@@ -403,7 +426,7 @@ class MonitorServiceDb {
       const dbPatterns = monitorDb.getPatternsByType(patternType);
       return dbPatterns.map(dbPatternToPattern);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting patterns by type ${patternType}:`, error);
+      logError(`Error getting patterns by type ${patternType}:`, error);
       return [];
     }
   }
@@ -413,7 +436,7 @@ class MonitorServiceDb {
       const dbPattern = monitorDb.getPattern(patternId);
       return dbPattern ? dbPatternToPattern(dbPattern) : null;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting pattern ${patternId}:`, error);
+      logError(`Error getting pattern ${patternId}:`, error);
       return null;
     }
   }
@@ -438,10 +461,10 @@ class MonitorServiceDb {
         metadata: pattern.metadata
       });
       
-      console.log(`MonitorServiceDb: Created pattern ${pattern.patternId}`);
+      log(`Created pattern ${pattern.patternId}`);
       return dbPatternToPattern(dbPattern);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error creating pattern ${pattern.patternId}:`, error);
+      logError(`Error creating pattern ${pattern.patternId}:`, error);
       throw error;
     }
   }
@@ -451,7 +474,7 @@ class MonitorServiceDb {
       const dbPattern = monitorDb.updatePatternFrequency(patternId, frequency);
       return dbPattern ? dbPatternToPattern(dbPattern) : null;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error updating pattern frequency ${patternId}:`, error);
+      logError(`Error updating pattern frequency ${patternId}:`, error);
       return null;
     }
   }
@@ -460,11 +483,11 @@ class MonitorServiceDb {
     try {
       const success = monitorDb.deletePattern(patternId);
       if (success) {
-        console.log(`MonitorServiceDb: Deleted pattern ${patternId}`);
+        log(`Deleted pattern ${patternId}`);
       }
       return success;
     } catch (error) {
-      console.error(`MonitorServiceDb: Error deleting pattern ${patternId}:`, error);
+      logError(`Error deleting pattern ${patternId}:`, error);
       return false;
     }
   }
@@ -475,7 +498,7 @@ class MonitorServiceDb {
     try {
       return monitorDb.getCallStatistics();
     } catch (error) {
-      console.error('MonitorServiceDb: Error getting call statistics:', error);
+      logError('Error getting call statistics:', error);
       return {
         total: 0,
         completed: 0,
@@ -491,7 +514,7 @@ class MonitorServiceDb {
     try {
       return monitorDb.getMessageCount(callId);
     } catch (error) {
-      console.error(`MonitorServiceDb: Error getting message count for call ${callId}:`, error);
+      logError(`Error getting message count for call ${callId}:`, error);
       return 0;
     }
   }

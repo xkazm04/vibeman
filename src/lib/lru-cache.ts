@@ -13,7 +13,7 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
-export class LRUCache<T = any> {
+export class LRUCache<T = unknown> {
   private cache: Map<string, CacheEntry<T>>;
   private maxSize: number;
   private ttl?: number;
@@ -60,8 +60,10 @@ export class LRUCache<T = any> {
 
     // Evict oldest entry if cache is full
     if (this.cache.size >= this.maxSize) {
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      const firstKey = this.cache.keys().next().value as string;
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
     }
 
     this.cache.set(key, {
@@ -122,6 +124,6 @@ export class LRUCache<T = any> {
 /**
  * Generate a cache key from function name and arguments
  */
-export function generateCacheKey(prefix: string, ...args: any[]): string {
+export function generateCacheKey(prefix: string, ...args: Array<string | number | boolean | null | undefined>): string {
   return `${prefix}:${JSON.stringify(args)}`;
 }

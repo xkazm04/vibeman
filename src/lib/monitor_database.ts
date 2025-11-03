@@ -7,6 +7,23 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
+// Logger helpers
+function log(message: string, data?: unknown): void {
+  if (process.env.NODE_ENV === 'development') {
+    if (data !== undefined) {
+      console.log(`[MonitorDB] ${message}`, data);
+    } else {
+      console.log(`[MonitorDB] ${message}`);
+    }
+  }
+}
+
+function logError(message: string, error?: unknown): void {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(`[MonitorDB] ${message}`, error);
+  }
+}
+
 // Database path - store in the database directory
 const DB_PATH = path.join(process.cwd(), 'database', 'monitor.db');
 
@@ -24,9 +41,9 @@ function getMonitorDatabase(): Database.Database {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     initializeMonitorTables();
-    console.log('Monitor database initialized:', DB_PATH);
+    log('Database initialized', DB_PATH);
   }
-  
+
   return db;
 }
 
@@ -109,7 +126,7 @@ function initializeMonitorTables() {
     CREATE INDEX IF NOT EXISTS idx_message_classes_name ON message_classes(class_name);
   `);
 
-  console.log('Monitor database tables initialized');
+  log('Tables initialized');
 }
 
 // Database operation types
@@ -562,7 +579,7 @@ export const monitorDb = {
             }
           }
         } catch (error) {
-          console.error(`Error processing pattern ${pattern.pattern_id}:`, error);
+          logError(`Error processing pattern ${pattern.pattern_id}`, error);
         }
       }
     }
@@ -619,7 +636,7 @@ export const monitorDb = {
     if (db) {
       db.close();
       db = null;
-      console.log('Monitor database connection closed');
+      log('Database connection closed');
     }
   }
 };

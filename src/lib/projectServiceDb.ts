@@ -49,7 +49,7 @@ class ProjectServiceDb {
       const dbProjects = projectDb.getAllProjects();
       return dbProjects.map(dbProjectToProject);
     } catch (error) {
-      console.error('ProjectServiceDb: Error getting all projects:', error);
+      handleError('Error getting all projects', error);
       return [];
     }
   }
@@ -59,7 +59,7 @@ class ProjectServiceDb {
       const dbProject = projectDb.getProject(projectId);
       return dbProject ? dbProjectToProject(dbProject) : undefined;
     } catch (error) {
-      console.error(`ProjectServiceDb: Error getting project ${projectId}:`, error);
+      handleError(`Error getting project ${projectId}`, error);
       return undefined;
     }
   }
@@ -92,10 +92,8 @@ class ProjectServiceDb {
         base_port: project.basePort,
         instance_of: project.instanceOf
       });
-      
-      console.log(`ProjectServiceDb: Added project ${project.name} (${project.id})`);
     } catch (error) {
-      console.error(`ProjectServiceDb: Error adding project ${project.name}:`, error);
+      handleError(`Error adding project ${project.name}`, error);
       throw error;
     }
   }
@@ -124,23 +122,21 @@ class ProjectServiceDb {
       if (updates.path !== undefined) updateData.path = updates.path;
       if (updates.port !== undefined) updateData.port = updates.port;
       if (updates.type !== undefined) updateData.type = updates.type;
-      if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId;
+      if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId || undefined;
       if (updates.runScript !== undefined) updateData.run_script = updates.runScript;
-      if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances ? 1 : 0;
+      if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances;
       if (updates.basePort !== undefined) updateData.base_port = updates.basePort;
       if (updates.git !== undefined) {
-        updateData.git_repository = updates.git?.repository || null;
-        updateData.git_branch = updates.git?.branch || null;
+        updateData.git_repository = updates.git?.repository || undefined;
+        updateData.git_branch = updates.git?.branch || undefined;
       }
       
       const result = projectDb.updateProject(projectId, updateData);
       if (!result) {
         throw new Error('Project not found');
       }
-      
-      console.log(`ProjectServiceDb: Updated project ${projectId}`);
     } catch (error) {
-      console.error(`ProjectServiceDb: Error updating project ${projectId}:`, error);
+      handleError(`Error updating project ${projectId}`, error);
       throw error;
     }
   }
@@ -151,10 +147,8 @@ class ProjectServiceDb {
       if (!success) {
         throw new Error('Project not found');
       }
-      
-      console.log(`ProjectServiceDb: Removed project ${projectId}`);
     } catch (error) {
-      console.error(`ProjectServiceDb: Error removing project ${projectId}:`, error);
+      handleError(`Error removing project ${projectId}`, error);
       throw error;
     }
   }
@@ -166,10 +160,8 @@ class ProjectServiceDb {
       for (const project of projects) {
         projectDb.deleteProject(project.id);
       }
-      
-      console.log('ProjectServiceDb: Reset to defaults (empty database)');
     } catch (error) {
-      console.error('ProjectServiceDb: Error resetting to defaults:', error);
+      handleError('Error resetting to defaults', error);
       throw error;
     }
   }
@@ -197,7 +189,7 @@ class ProjectServiceDb {
       await this.addProject(newInstance);
       return newInstance;
     } catch (error) {
-      console.error(`ProjectServiceDb: Error creating project instance for ${baseProjectId}:`, error);
+      handleError(`Error creating project instance for ${baseProjectId}`, error);
       return null;
     }
   }
@@ -207,7 +199,7 @@ class ProjectServiceDb {
       const dbProjects = projectDb.getProjectInstances(baseProjectId);
       return dbProjects.map(dbProjectToProject);
     } catch (error) {
-      console.error(`ProjectServiceDb: Error getting project instances for ${baseProjectId}:`, error);
+      handleError(`Error getting project instances for ${baseProjectId}`, error);
       return [];
     }
   }
@@ -216,16 +208,16 @@ class ProjectServiceDb {
     try {
       return projectDb.isPortAvailable(port, excludeProjectId);
     } catch (error) {
-      console.error(`ProjectServiceDb: Error checking port availability for ${port}:`, error);
+      handleError(`Error checking port availability for ${port}`, error);
       return false;
     }
   }
-  
+
   async isPathAvailable(path: string, excludeProjectId?: string): Promise<boolean> {
     try {
       return projectDb.isPathAvailable(path, excludeProjectId);
     } catch (error) {
-      console.error(`ProjectServiceDb: Error checking path availability for ${path}:`, error);
+      handleError(`Error checking path availability for ${path}`, error);
       return false;
     }
   }

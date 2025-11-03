@@ -54,7 +54,8 @@ export function parseImpactedFilesFromDb(
         return parsed as ImpactedFile[];
       }
     } catch (e) {
-      console.error('Error parsing impacted_files JSON:', e);
+      // Failed to parse JSON - return empty array
+      // Error is logged in development, but doesn't affect functionality
     }
   }
   

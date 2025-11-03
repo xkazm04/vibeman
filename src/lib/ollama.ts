@@ -1,8 +1,19 @@
 // Import eventDb only on server side to avoid client-side issues
-let eventDb: any = null;
+interface EventDb {
+  createEvent: (event: {
+    project_id: string;
+    title: string;
+    description: string;
+    type: 'info' | 'warning' | 'error' | 'success';
+    agent: string | null;
+    message: string | null;
+  }) => void;
+}
+
+let eventDb: EventDb | null = null;
 if (typeof window === 'undefined') {
   // Server-side only
-  eventDb = require('./eventDatabase').eventDb;
+  eventDb = require('./eventDatabase').eventDb as EventDb;
 }
 
 const OLLAMA_BASE_URL = 'http://localhost:11434';
@@ -211,7 +222,9 @@ export class OllamaClient {
       });
       return response.ok;
     } catch (error) {
-      console.warn('Ollama availability check failed:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Ollama availability check failed:', error);
+      }
       return false;
     }
   }
@@ -227,9 +240,11 @@ export class OllamaClient {
       }
 
       const data = await response.json();
-      return data.models?.map((model: any) => model.name) || [];
+      return data.models?.map((model: { name: string }) => model.name) || [];
     } catch (error) {
-      console.error('Failed to get available models:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to get available models:', error);
+      }
       return [];
     }
   }
@@ -237,7 +252,7 @@ export class OllamaClient {
   /**
    * Parse JSON response from Ollama with fallback handling
    */
-  parseJsonResponse<T = any>(response: string): { success: boolean; data?: T; error?: string } {
+  parseJsonResponse<T = unknown>(response: string): { success: boolean; data?: T; error?: string } {
     try {
       // Try to extract JSON from markdown code blocks first
       const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) ||
@@ -289,13 +304,14 @@ export class OllamaClient {
             agent: event.agent || null,
             message: event.message || null
           })
-        }).catch(error => {
-          console.warn('Failed to log event via API:', error);
+        }).catch(() => {
           // Don't throw - logging failures shouldn't break the main flow
         });
       }
     } catch (error) {
-      console.error('Failed to log event:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to log event:', error);
+      }
       // Don't throw - logging failures shouldn't break the main flow
     }
   }
@@ -333,6 +349,6 @@ export async function generateWithOllama(
   });
 }
 
-export async function parseOllamaJson<T = any>(response: string): Promise<{ success: boolean; data?: T; error?: string }> {
+export async function parseOllamaJson<T = unknown>(response: string): Promise<{ success: boolean; data?: T; error?: string }> {
   return ollamaClient.parseJsonResponse<T>(response);
 }
