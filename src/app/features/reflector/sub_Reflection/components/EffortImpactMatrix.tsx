@@ -67,7 +67,7 @@ export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps)
       const result = await response.json();
       setData(result);
     } catch (error) {
-      console.error('Error loading effort-impact data:', error);
+      // Error silently handled
     } finally {
       setLoading(false);
     }

@@ -4,7 +4,22 @@
  */
 
 import { ComponentDescriptor } from './types';
-import { getCategoryConfig } from '../ideaConfig';
+
+/**
+ * Common animation configurations
+ */
+const commonAnimations = {
+  badgeEntry: {
+    initial: { scale: 0, rotate: -180 },
+    animate: { scale: 1, rotate: 0 },
+    transition: { duration: 0.5, delay: 0.2 },
+  },
+  listItemFade: {
+    initial: { opacity: 0, x: -10 },
+    animate: { opacity: 1, x: 0 },
+    whileHover: { x: 2 },
+  },
+};
 
 /**
  * Sticky note card descriptor
@@ -19,11 +34,7 @@ export const stickyNoteDescriptor: ComponentDescriptor = {
       type: 'badge',
       badges: [{ type: 'category', style: 'minimal' }],
       className: 'text-2xl',
-      animation: {
-        initial: { scale: 0, rotate: -180 },
-        animate: { scale: 1, rotate: 0 },
-        transition: { duration: 0.5, delay: 0.2 },
-      },
+      animation: commonAnimations.badgeEntry,
     },
 
     header: {
@@ -94,11 +105,7 @@ export const bufferItemDescriptor: ComponentDescriptor = {
     },
   },
 
-  animation: {
-    initial: { opacity: 0, x: -10 },
-    animate: { opacity: 1, x: 0 },
-    whileHover: { x: 2 },
-  },
+  animation: commonAnimations.listItemFade,
 
   interactive: {
     onClick: true,

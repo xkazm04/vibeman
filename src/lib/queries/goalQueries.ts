@@ -19,7 +19,9 @@ interface DbGoal {
   updated_at: string;
 }
 
-// Convert database goal to app Goal type
+/**
+ * Convert database goal to app Goal type
+ */
 const convertDbGoalToGoal = (dbGoal: DbGoal): Goal => ({
   id: dbGoal.id,
   projectId: dbGoal.project_id,
@@ -32,17 +34,66 @@ const convertDbGoalToGoal = (dbGoal: DbGoal): Goal => ({
   updated_at: dbGoal.updated_at,
 });
 
+/**
+ * Create cache-busting URL
+ */
+function createNoCacheUrl(url: string): string {
+  return `${url}&_t=${Date.now()}`;
+}
+
+/**
+ * Execute fetch with cache bypass
+ */
+async function fetchNoCache(url: string): Promise<Response> {
+  return fetch(createNoCacheUrl(url), {
+    cache: 'no-cache',
+    headers: {
+      'Cache-Control': 'no-cache'
+    }
+  });
+}
+
+/**
+ * Execute POST request with JSON body
+ */
+async function postJSON(url: string, body: unknown): Promise<Response> {
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Execute PUT request with JSON body
+ */
+async function putJSON(url: string, body: unknown): Promise<Response> {
+  return fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Execute DELETE request
+ */
+async function deleteRequest(url: string): Promise<Response> {
+  return fetch(url, {
+    method: 'DELETE',
+  });
+}
+
 // API Functions
 export const goalApi = {
   // Fetch goals for a project
   fetchGoals: async (projectId: string): Promise<Goal[]> => {
-    const response = await fetch(`/api/goals?projectId=${encodeURIComponent(projectId)}&_t=${Date.now()}`, {
-      cache: 'no-cache',
-      headers: {
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
+    const response = await fetchNoCache(`/api/goals?projectId=${encodeURIComponent(projectId)}`);
+
     if (!response.ok) {
       throw new Error('Failed to fetch goals');
     }
@@ -53,13 +104,8 @@ export const goalApi = {
 
   // Fetch a single goal by ID
   fetchGoalById: async (goalId: string): Promise<Goal> => {
-    const response = await fetch(`/api/goals?id=${encodeURIComponent(goalId)}&_t=${Date.now()}`, {
-      cache: 'no-cache',
-      headers: {
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
+    const response = await fetchNoCache(`/api/goals?id=${encodeURIComponent(goalId)}`);
+
     if (!response.ok) {
       throw new Error('Failed to fetch goal');
     }
@@ -77,19 +123,13 @@ export const goalApi = {
     orderIndex?: number;
     contextId?: string;
   }): Promise<Goal> => {
-    const response = await fetch('/api/goals', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        projectId: params.projectId,
-        title: params.title,
-        description: params.description,
-        status: params.status || 'open',
-        orderIndex: params.orderIndex,
-        contextId: params.contextId
-      }),
+    const response = await postJSON('/api/goals', {
+      projectId: params.projectId,
+      title: params.title,
+      description: params.description,
+      status: params.status || 'open',
+      orderIndex: params.orderIndex,
+      contextId: params.contextId
     });
 
     if (!response.ok) {
@@ -109,19 +149,13 @@ export const goalApi = {
     orderIndex?: number;
     contextId?: string;
   }): Promise<Goal> => {
-    const response = await fetch('/api/goals', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: params.id,
-        title: params.title,
-        description: params.description,
-        status: params.status,
-        orderIndex: params.orderIndex,
-        contextId: params.contextId
-      }),
+    const response = await putJSON('/api/goals', {
+      id: params.id,
+      title: params.title,
+      description: params.description,
+      status: params.status,
+      orderIndex: params.orderIndex,
+      contextId: params.contextId
     });
 
     if (!response.ok) {
@@ -134,12 +168,10 @@ export const goalApi = {
 
   // Delete a goal
   deleteGoal: async (goalId: string): Promise<void> => {
-    const response = await fetch(`/api/goals?id=${encodeURIComponent(goalId)}`, {
-      method: 'DELETE',
-    });
+    const response = await deleteRequest(`/api/goals?id=${encodeURIComponent(goalId)}`);
 
     if (!response.ok) {
       throw new Error('Failed to delete goal');
     }
   },
-}; 
+};

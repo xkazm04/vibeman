@@ -14,40 +14,69 @@ if (!fs.existsSync(dbDir)) {
 // Initialize database connection
 let db: Database.Database | null = null;
 
+/**
+ * Logger utility for background task database
+ */
+const logger = {
+  info: (message: string, ...args: unknown[]) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[BGTaskDB] ${message}`, ...args);
+    }
+  },
+  warn: (message: string, ...args: unknown[]) => {
+    console.warn(`[BGTaskDB] ${message}`, ...args);
+  },
+  error: (message: string, ...args: unknown[]) => {
+    console.error(`[BGTaskDB] ${message}`, ...args);
+  }
+};
+
 function getBackgroundTaskDatabase(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH);
-    
-    // Enable WAL mode for better concurrent access
     db.pragma('journal_mode = WAL');
-    
-    // Initialize tables
     initializeBackgroundTaskTables();
   }
-  
+
   return db;
 }
 
-function initializeBackgroundTaskTables() {
-  if (!db) return;
-  
-  // Check if we need to recreate the table with updated schema
+/**
+ * Check if table needs schema update
+ */
+function needsSchemaUpdate(): boolean {
+  if (!db) return false;
+
   try {
-    // Check if the table exists and has the correct constraint
-    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='background_tasks'").get() as any;
-    
-    if (tableInfo && !tableInfo.sql.includes('coding_task')) {
-      console.log('Recreating background_tasks table with updated schema...');
-      
-      // Drop the existing table (since you're okay with starting from zero)
-      db.exec('DROP TABLE IF EXISTS background_tasks');
-      console.log('Dropped existing background_tasks table');
+    interface TableInfo {
+      sql: string;
     }
+
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='background_tasks'").get() as TableInfo | undefined;
+    return Boolean(tableInfo && !tableInfo.sql.includes('coding_task'));
   } catch (error) {
-    console.warn('Error checking table schema:', error);
+    logger.warn('Error checking table schema:', error);
+    return false;
   }
-  
-  // Create background_tasks table with correct schema
+}
+
+/**
+ * Recreate background tasks table with updated schema
+ */
+function recreateBackgroundTasksTable(): void {
+  if (!db) return;
+
+  logger.info('Recreating background_tasks table with updated schema...');
+  db.exec('DROP TABLE IF EXISTS background_tasks');
+  logger.info('Dropped existing background_tasks table');
+}
+
+/**
+ * Create background tasks table
+ */
+function createBackgroundTasksTable(): void {
+  if (!db) return;
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS background_tasks (
       id TEXT PRIMARY KEY,
@@ -60,16 +89,26 @@ function initializeBackgroundTaskTables() {
       retry_count INTEGER NOT NULL DEFAULT 0,
       max_retries INTEGER NOT NULL DEFAULT 3,
       error_message TEXT,
-      result_data TEXT, -- JSON string of task results
-      task_data TEXT, -- JSON string of task-specific data
+      result_data TEXT,
+      task_data TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       started_at TEXT,
       completed_at TEXT
     );
   `);
-  
-  console.log('Background tasks table initialized with coding_task support');
+
+  logger.info('Background tasks table initialized with coding_task support');
+}
+
+function initializeBackgroundTaskTables() {
+  if (!db) return;
+
+  if (needsSchemaUpdate()) {
+    recreateBackgroundTasksTable();
+  }
+
+  createBackgroundTasksTable();
 
   // Create task_queue_settings table for queue configuration
   db.exec(`
@@ -129,51 +168,72 @@ export interface DbTaskQueueSettings {
   updated_at: string;
 }
 
+/**
+ * Execute a query and return multiple tasks
+ */
+function executeTasksQuery(
+  query: string,
+  ...params: (string | number)[]
+): DbBackgroundTask[] {
+  const db = getBackgroundTaskDatabase();
+  const stmt = db.prepare(query);
+  return stmt.all(...params) as DbBackgroundTask[];
+}
+
+/**
+ * Execute a query and return a single task
+ */
+function executeTaskQuery(
+  query: string,
+  ...params: (string | number)[]
+): DbBackgroundTask | null {
+  const db = getBackgroundTaskDatabase();
+  const stmt = db.prepare(query);
+  return stmt.get(...params) as DbBackgroundTask | null;
+}
+
 export const backgroundTaskDb = {
   // Get all background tasks
   getAllTasks: (limit: number = 100): DbBackgroundTask[] => {
-    const db = getBackgroundTaskDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM background_tasks 
-      ORDER BY priority DESC, created_at ASC
-      LIMIT ?
-    `);
-    return stmt.all(limit) as DbBackgroundTask[];
+    return executeTasksQuery(
+      `SELECT * FROM background_tasks
+       ORDER BY priority DESC, created_at ASC
+       LIMIT ?`,
+      limit
+    );
   },
 
   // Get tasks by status
   getTasksByStatus: (status: string, limit: number = 100): DbBackgroundTask[] => {
-    const db = getBackgroundTaskDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM background_tasks 
-      WHERE status = ?
-      ORDER BY priority DESC, created_at ASC
-      LIMIT ?
-    `);
-    return stmt.all(status, limit) as DbBackgroundTask[];
+    return executeTasksQuery(
+      `SELECT * FROM background_tasks
+       WHERE status = ?
+       ORDER BY priority DESC, created_at ASC
+       LIMIT ?`,
+      status,
+      limit
+    );
   },
 
   // Get pending tasks for processing (ordered by priority and creation time)
   getPendingTasks: (limit: number = 10): DbBackgroundTask[] => {
-    const db = getBackgroundTaskDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM background_tasks 
-      WHERE status = 'pending'
-      ORDER BY priority DESC, created_at ASC
-      LIMIT ?
-    `);
-    return stmt.all(limit) as DbBackgroundTask[];
+    return executeTasksQuery(
+      `SELECT * FROM background_tasks
+       WHERE status = 'pending'
+       ORDER BY priority DESC, created_at ASC
+       LIMIT ?`,
+      limit
+    );
   },
 
   // Get tasks by project
   getTasksByProject: (projectId: string): DbBackgroundTask[] => {
-    const db = getBackgroundTaskDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM background_tasks 
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(projectId) as DbBackgroundTask[];
+    return executeTasksQuery(
+      `SELECT * FROM background_tasks
+       WHERE project_id = ?
+       ORDER BY created_at DESC`,
+      projectId
+    );
   },
 
   // Create a new background task
@@ -210,27 +270,26 @@ export const backgroundTaskDb = {
       now,
       now
     );
-    
+
     // Return the created task
-    const selectStmt = db.prepare('SELECT * FROM background_tasks WHERE id = ?');
-    return selectStmt.get(task.id) as DbBackgroundTask;
+    return executeTaskQuery('SELECT * FROM background_tasks WHERE id = ?', task.id)!;
   },
 
   // Update task status and related fields
   updateTask: (id: string, updates: {
     status?: 'pending' | 'processing' | 'completed' | 'error' | 'cancelled';
     error_message?: string | null;
-    result_data?: any;
+    result_data?: Record<string, unknown>;
     retry_count?: number;
     started_at?: string | null;
     completed_at?: string | null;
   }): DbBackgroundTask | null => {
     const db = getBackgroundTaskDatabase();
     const now = new Date().toISOString();
-    
+
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
     
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
@@ -259,29 +318,27 @@ export const backgroundTaskDb = {
     
     if (updateFields.length === 0) {
       // No updates to make
-      const selectStmt = db.prepare('SELECT * FROM background_tasks WHERE id = ?');
-      return selectStmt.get(id) as DbBackgroundTask | null;
+      return executeTaskQuery('SELECT * FROM background_tasks WHERE id = ?', id);
     }
-    
+
     updateFields.push('updated_at = ?');
     values.push(now);
     values.push(id);
-    
+
     const stmt = db.prepare(`
-      UPDATE background_tasks 
-      SET ${updateFields.join(', ')} 
+      UPDATE background_tasks
+      SET ${updateFields.join(', ')}
       WHERE id = ?
     `);
-    
+
     const result = stmt.run(...values);
-    
+
     if (result.changes === 0) {
       return null; // Task not found
     }
-    
+
     // Return the updated task
-    const selectStmt = db.prepare('SELECT * FROM background_tasks WHERE id = ?');
-    return selectStmt.get(id) as DbBackgroundTask;
+    return executeTaskQuery('SELECT * FROM background_tasks WHERE id = ?', id);
   },
 
   // Delete a task
@@ -302,15 +359,14 @@ export const backgroundTaskDb = {
 
   // Retry a failed task (reset status to pending and increment retry count)
   retryTask: (id: string): DbBackgroundTask | null => {
-    const db = getBackgroundTaskDatabase();
-    const task = db.prepare('SELECT * FROM background_tasks WHERE id = ?').get(id) as DbBackgroundTask;
-    
+    const task = executeTaskQuery('SELECT * FROM background_tasks WHERE id = ?', id);
+
     if (!task) return null;
-    
+
     if (task.retry_count >= task.max_retries) {
       throw new Error('Task has exceeded maximum retry attempts');
     }
-    
+
     return backgroundTaskDb.updateTask(id, {
       status: 'pending',
       retry_count: task.retry_count + 1,
@@ -336,10 +392,10 @@ export const backgroundTaskDb = {
   }): DbTaskQueueSettings => {
     const db = getBackgroundTaskDatabase();
     const now = new Date().toISOString();
-    
+
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number)[] = [];
     
     if (updates.is_active !== undefined) {
       updateFields.push('is_active = ?');

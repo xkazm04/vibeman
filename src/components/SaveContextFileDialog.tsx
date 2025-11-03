@@ -12,6 +12,14 @@ interface SaveContextFileDialogProps {
   defaultFileName?: string;
 }
 
+const generateDefaultFileName = (contextName: string): string => {
+  return `${contextName.toLowerCase().replace(/\s+/g, '_')}_context.md`;
+};
+
+const ensureMarkdownExtension = (fileName: string): string => {
+  return fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+};
+
 export default function SaveContextFileDialog({
   isOpen,
   onClose,
@@ -21,7 +29,7 @@ export default function SaveContextFileDialog({
 }: SaveContextFileDialogProps) {
   const { activeProject } = useActiveProjectStore();
   const [selectedFolder, setSelectedFolder] = useState<string>('context');
-  const [fileName, setFileName] = useState(defaultFileName || `${contextName.toLowerCase().replace(/\s+/g, '_')}_context.md`);
+  const [fileName, setFileName] = useState(defaultFileName || generateDefaultFileName(contextName));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +45,7 @@ export default function SaveContextFileDialog({
     }
 
     // Ensure the file name ends with .md
-    const finalFileName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+    const finalFileName = ensureMarkdownExtension(fileName);
 
     setSaving(true);
     setError(null);
@@ -55,7 +63,7 @@ export default function SaveContextFileDialog({
   const handleClose = () => {
     if (!saving) {
       setSelectedFolder('');
-      setFileName(defaultFileName || `${contextName.toLowerCase().replace(/\s+/g, '_')}_context.md`);
+      setFileName(defaultFileName || generateDefaultFileName(contextName));
       setError(null);
       onClose();
     }
@@ -130,7 +138,7 @@ export default function SaveContextFileDialog({
                 />
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                File will be saved as: <span className="font-mono text-cyan-400">{fileName.endsWith('.md') ? fileName : `${fileName}.md`}</span>
+                File will be saved as: <span className="font-mono text-cyan-400">{ensureMarkdownExtension(fileName)}</span>
               </p>
             </div>
 
@@ -158,7 +166,7 @@ export default function SaveContextFileDialog({
               <div className="text-sm text-gray-500">
                 {selectedFolder ? (
                   <span>
-                    Saving to: <span className="font-mono text-cyan-400">{selectedFolder}/{fileName.endsWith('.md') ? fileName : `${fileName}.md`}</span>
+                    Saving to: <span className="font-mono text-cyan-400">{selectedFolder}/{ensureMarkdownExtension(fileName)}</span>
                   </span>
                 ) : (
                   <span>Select a folder to continue</span>

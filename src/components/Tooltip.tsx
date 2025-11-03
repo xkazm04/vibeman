@@ -6,6 +6,150 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Calendar, Cpu, Zap, Database, X } from 'lucide-react';
 import { useTooltipStore } from '../stores/tooltipStore';
 
+// Floating particles component
+const FloatingParticles: React.FC<{ groupColor: string; glowOpacity: number }> = ({ groupColor }) => (
+  <>
+    {Array.from({ length: 3 }).map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute w-1 h-1 rounded-full"
+        style={{
+          backgroundColor: `${groupColor}60`,
+          left: `${20 + i * 25}%`,
+          top: `${15 + i * 20}%`,
+        }}
+        animate={{
+          y: [0, -8, 0],
+          opacity: [0, 1, 0],
+          scale: [0, 1, 0],
+        }}
+        transition={{
+          duration: 2 + Math.random() * 2,
+          repeat: Infinity,
+          delay: i * 0.4,
+        }}
+      />
+    ))}
+  </>
+);
+
+// Neural header component
+const TooltipHeader: React.FC<{ context: any; groupColor: string }> = ({ context, groupColor }) => (
+  <div className="flex items-center space-x-4 mb-5">
+    <motion.div
+      className="p-3 rounded-xl backdrop-blur-sm border"
+      style={{
+        backgroundColor: `${groupColor}20`,
+        borderColor: `${groupColor}40`
+      }}
+      animate={{
+        boxShadow: [`0 0 0 ${groupColor}00`, `0 0 20px ${groupColor}40`, `0 0 0 ${groupColor}00`]
+      }}
+      transition={{ duration: 2, repeat: Infinity }}
+    >
+      <Cpu className="w-5 h-5" style={{ color: groupColor }} />
+    </motion.div>
+    <div className="flex-1">
+      <motion.h4
+        className="text-xl font-bold font-mono bg-gradient-to-r bg-clip-text text-transparent"
+        style={{
+          backgroundImage: `linear-gradient(to right, ${groupColor}, ${groupColor}80)`
+        }}
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {context.name}
+      </motion.h4>
+      <motion.div
+        className="flex items-center space-x-4 mt-2 text-sm text-gray-400 font-mono"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <div className="flex items-center space-x-1">
+          <FileText className="w-4 h-4" style={{ color: groupColor }} />
+          <span>{context.filePaths?.length || 0} neural links</span>
+        </div>
+        <div className="flex items-center space-x-1">
+          <Calendar className="w-4 h-4" style={{ color: groupColor }} />
+          <span>{context.createdAt ? new Date(context.createdAt).toLocaleDateString() : 'Unknown'}</span>
+        </div>
+      </motion.div>
+    </div>
+  </div>
+);
+
+// Neural description component
+const TooltipDescription: React.FC<{ description: string; groupColor: string }> = ({ description, groupColor }) => (
+  <motion.div
+    className="mb-5 p-3 rounded-xl bg-gradient-to-r from-gray-800/40 to-gray-700/40 backdrop-blur-sm border border-gray-600/30"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.3 }}
+  >
+    <div className="flex items-center space-x-2 mb-2">
+      <Database className="w-4 h-4" style={{ color: groupColor }} />
+      <p className="text-sm font-medium text-gray-300 font-mono">Neural Description:</p>
+    </div>
+    <p className="text-sm text-gray-400 leading-relaxed font-mono">{description}</p>
+  </motion.div>
+);
+
+// File paths list component
+const TooltipFilesList: React.FC<{ filePaths: string[]; groupColor: string }> = ({ filePaths, groupColor }) => (
+  <motion.div
+    className="border-t border-gray-600/30 pt-4"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.4 }}
+  >
+    <div className="flex items-center space-x-2 mb-3">
+      <Zap className="w-4 h-4" style={{ color: groupColor }} />
+      <p className="text-sm font-medium text-gray-300 font-mono">Data Matrix:</p>
+    </div>
+    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+      {filePaths.length > 0 ? (
+        filePaths.map((path, index) => (
+          <motion.div
+            key={index}
+            className="flex items-center space-x-3 p-2 rounded-lg bg-gray-800/30 backdrop-blur-sm border border-gray-700/20 hover:border-gray-600/40 transition-colors"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 + index * 0.05 }}
+          >
+            <motion.div
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: groupColor }}
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.6, 1, 0.6]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                delay: index * 0.2
+              }}
+            />
+            <div className="text-sm text-gray-300 font-mono truncate flex-1" title={path}>
+              {path}
+            </div>
+          </motion.div>
+        ))
+      ) : (
+        <motion.div
+          className="text-center py-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <p className="text-sm text-gray-500 font-mono">No neural links detected</p>
+        </motion.div>
+      )}
+    </div>
+  </motion.div>
+);
+
 const GlobalTooltip = () => {
   const {
     isVisible,
@@ -89,141 +233,19 @@ const GlobalTooltip = () => {
               />
 
               {/* Floating Particles */}
-              {Array.from({ length: 3 }).map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1 h-1 rounded-full"
-                  style={{
-                    backgroundColor: `${groupColor}60`,
-                    left: `${20 + i * 25}%`,
-                    top: `${15 + i * 20}%`,
-                  }}
-                  animate={{
-                    y: [0, -8, 0],
-                    opacity: [0, 1, 0],
-                    scale: [0, 1, 0],
-                  }}
-                  transition={{
-                    duration: 2 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: i * 0.4,
-                  }}
-                />
-              ))}
+              <FloatingParticles groupColor={groupColor} glowOpacity={1} />
 
               <div className="relative">
                 {/* Neural Header */}
-                <div className="flex items-center space-x-4 mb-5">
-                  <motion.div
-                    className="p-3 rounded-xl backdrop-blur-sm border"
-                    style={{
-                      backgroundColor: `${groupColor}20`,
-                      borderColor: `${groupColor}40`
-                    }}
-                    animate={{
-                      boxShadow: [`0 0 0 ${groupColor}00`, `0 0 20px ${groupColor}40`, `0 0 0 ${groupColor}00`]
-                    }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <Cpu className="w-5 h-5" style={{ color: groupColor }} />
-                  </motion.div>
-                  <div className="flex-1">
-                    <motion.h4
-                      className="text-xl font-bold font-mono bg-gradient-to-r bg-clip-text text-transparent"
-                      style={{
-                        backgroundImage: `linear-gradient(to right, ${groupColor}, ${groupColor}80)`
-                      }}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                    >
-                      {context.name}
-                    </motion.h4>
-                    <motion.div
-                      className="flex items-center space-x-4 mt-2 text-sm text-gray-400 font-mono"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <FileText className="w-4 h-4" style={{ color: groupColor }} />
-                        <span>{context.filePaths?.length || 0} neural links</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" style={{ color: groupColor }} />
-                        <span>{context.createdAt ? new Date(context.createdAt).toLocaleDateString() : 'Unknown'}</span>
-                      </div>
-                    </motion.div>
-                  </div>
-                </div>
+                <TooltipHeader context={context} groupColor={groupColor} />
 
                 {/* Neural Description */}
                 {context.description && (
-                  <motion.div
-                    className="mb-5 p-3 rounded-xl bg-gradient-to-r from-gray-800/40 to-gray-700/40 backdrop-blur-sm border border-gray-600/30"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Database className="w-4 h-4" style={{ color: groupColor }} />
-                      <p className="text-sm font-medium text-gray-300 font-mono">Neural Description:</p>
-                    </div>
-                    <p className="text-sm text-gray-400 leading-relaxed font-mono">{context.description}</p>
-                  </motion.div>
+                  <TooltipDescription description={context.description} groupColor={groupColor} />
                 )}
 
                 {/* Neural Data Matrix */}
-                <motion.div
-                  className="border-t border-gray-600/30 pt-4"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Zap className="w-4 h-4" style={{ color: groupColor }} />
-                    <p className="text-sm font-medium text-gray-300 font-mono">Data Matrix:</p>
-                  </div>
-                  <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-                    {(context.filePaths || []).map((path, index) => (
-                      <motion.div
-                        key={index}
-                        className="flex items-center space-x-3 p-2 rounded-lg bg-gray-800/30 backdrop-blur-sm border border-gray-700/20 hover:border-gray-600/40 transition-colors"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 + index * 0.05 }}
-                      >
-                        <motion.div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: groupColor }}
-                          animate={{
-                            scale: [1, 1.2, 1],
-                            opacity: [0.6, 1, 0.6]
-                          }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            delay: index * 0.2
-                          }}
-                        />
-                        <div className="text-sm text-gray-300 font-mono truncate flex-1" title={path}>
-                          {path}
-                        </div>
-                      </motion.div>
-                    ))}
-
-                    {(!context.filePaths || context.filePaths.length === 0) && (
-                      <motion.div
-                        className="text-center py-4"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                      >
-                        <p className="text-sm text-gray-500 font-mono">No neural links detected</p>
-                      </motion.div>
-                    )}
-                  </div>
-                </motion.div>
+                <TooltipFilesList filePaths={context.filePaths || []} groupColor={groupColor} />
               </div>
 
               {/* Corner Reinforcements */}

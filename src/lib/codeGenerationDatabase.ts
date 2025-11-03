@@ -28,11 +28,8 @@ function getDatabase(): Database.Database {
   return db;
 }
 
-function initializeTables() {
-  if (!db) return;
-
-  // Create code_generation_sessions table
-  db.exec(`
+function createSessionsTable(database: Database.Database) {
+  database.exec(`
     CREATE TABLE IF NOT EXISTS code_generation_sessions (
       id TEXT PRIMARY KEY,
       task_id TEXT NOT NULL,
@@ -49,13 +46,14 @@ function initializeTables() {
 
   // Add project_path column if it doesn't exist (for existing databases)
   try {
-    db.exec(`ALTER TABLE code_generation_sessions ADD COLUMN project_path TEXT;`);
-  } catch (error) {
+    database.exec(`ALTER TABLE code_generation_sessions ADD COLUMN project_path TEXT;`);
+  } catch {
     // Column already exists, ignore error
   }
+}
 
-  // Create generated_files table
-  db.exec(`
+function createGeneratedFilesTable(database: Database.Database) {
+  database.exec(`
     CREATE TABLE IF NOT EXISTS generated_files (
       id TEXT PRIMARY KEY,
       session_id TEXT NOT NULL,
@@ -69,9 +67,10 @@ function initializeTables() {
       FOREIGN KEY (session_id) REFERENCES code_generation_sessions(id) ON DELETE CASCADE
     );
   `);
+}
 
-  // Create indexes for better query performance
-  db.exec(`
+function createDatabaseIndexes(database: Database.Database) {
+  database.exec(`
     CREATE INDEX IF NOT EXISTS idx_code_sessions_task_id ON code_generation_sessions(task_id);
     CREATE INDEX IF NOT EXISTS idx_code_sessions_project_id ON code_generation_sessions(project_id);
     CREATE INDEX IF NOT EXISTS idx_code_sessions_status ON code_generation_sessions(status);
@@ -79,6 +78,14 @@ function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_generated_files_status ON generated_files(status);
     CREATE INDEX IF NOT EXISTS idx_generated_files_filepath ON generated_files(filepath);
   `);
+}
+
+function initializeTables() {
+  if (!db) return;
+
+  createSessionsTable(db);
+  createGeneratedFilesTable(db);
+  createDatabaseIndexes(db);
 }
 
 // Database interfaces
@@ -105,6 +112,16 @@ export interface DbGeneratedFile {
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
   applied_at: string | null;
+}
+
+// Helper function to get a record by ID
+function getRecordById<T>(
+  db: Database.Database,
+  tableName: string,
+  id: string
+): T | null {
+  const stmt = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`);
+  return stmt.get(id) as T | null;
 }
 
 // Code generation database operations
@@ -139,13 +156,12 @@ export const codeGenerationDb = {
     );
 
     // Return the created session
-    const selectStmt = db.prepare('SELECT * FROM code_generation_sessions WHERE id = ?');
-    return selectStmt.get(session.id) as DbCodeGenerationSession;
+    return getRecordById<DbCodeGenerationSession>(db, 'code_generation_sessions', session.id)!;
   },
 
   // Update session status
   updateSession: (sessionId: string, updates: {
-    status?: 'pending' | 'in_progress' | 'completed' | 'failed';
+    status?: DbCodeGenerationSession['status'];
     completed_at?: string;
     error_message?: string;
     processed_files?: number;
@@ -155,7 +171,7 @@ export const codeGenerationDb = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: Array<string | number> = [];
+    const values: (string | number)[] = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
@@ -176,15 +192,14 @@ export const codeGenerationDb = {
     }
 
     if (updateFields.length === 0) {
-      const selectStmt = db.prepare('SELECT * FROM code_generation_sessions WHERE id = ?');
-      return selectStmt.get(sessionId) as DbCodeGenerationSession | null;
+      return getRecordById<DbCodeGenerationSession>(db, 'code_generation_sessions', sessionId);
     }
 
     values.push(sessionId);
 
     const stmt = db.prepare(`
-      UPDATE code_generation_sessions 
-      SET ${updateFields.join(', ')} 
+      UPDATE code_generation_sessions
+      SET ${updateFields.join(', ')}
       WHERE id = ?
     `);
 
@@ -195,8 +210,7 @@ export const codeGenerationDb = {
     }
 
     // Return the updated session
-    const selectStmt = db.prepare('SELECT * FROM code_generation_sessions WHERE id = ?');
-    return selectStmt.get(sessionId) as DbCodeGenerationSession;
+    return getRecordById<DbCodeGenerationSession>(db, 'code_generation_sessions', sessionId);
   },
 
   // Create a generated file record
@@ -230,20 +244,19 @@ export const codeGenerationDb = {
     );
 
     // Return the created file
-    const selectStmt = db.prepare('SELECT * FROM generated_files WHERE id = ?');
-    return selectStmt.get(file.id) as DbGeneratedFile;
+    return getRecordById<DbGeneratedFile>(db, 'generated_files', file.id)!;
   },
 
   // Update generated file status
   updateGeneratedFile: (fileId: string, updates: {
-    status?: 'pending' | 'accepted' | 'rejected';
+    status?: DbGeneratedFile['status'];
     applied_at?: string;
   }): DbGeneratedFile | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const updateFields: string[] = [];
-    const values: Array<string> = [];
+    const values: string[] = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
@@ -256,15 +269,14 @@ export const codeGenerationDb = {
     }
 
     if (updateFields.length === 0) {
-      const selectStmt = db.prepare('SELECT * FROM generated_files WHERE id = ?');
-      return selectStmt.get(fileId) as DbGeneratedFile | null;
+      return getRecordById<DbGeneratedFile>(db, 'generated_files', fileId);
     }
 
     values.push(fileId);
 
     const stmt = db.prepare(`
-      UPDATE generated_files 
-      SET ${updateFields.join(', ')} 
+      UPDATE generated_files
+      SET ${updateFields.join(', ')}
       WHERE id = ?
     `);
 
@@ -275,15 +287,13 @@ export const codeGenerationDb = {
     }
 
     // Return the updated file
-    const selectStmt = db.prepare('SELECT * FROM generated_files WHERE id = ?');
-    return selectStmt.get(fileId) as DbGeneratedFile;
+    return getRecordById<DbGeneratedFile>(db, 'generated_files', fileId);
   },
 
   // Get session by ID
   getSession: (sessionId: string): DbCodeGenerationSession | null => {
     const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM code_generation_sessions WHERE id = ?');
-    return stmt.get(sessionId) as DbCodeGenerationSession | null;
+    return getRecordById<DbCodeGenerationSession>(db, 'code_generation_sessions', sessionId);
   },
 
   // Get sessions by task ID
@@ -357,8 +367,7 @@ export const codeGenerationDb = {
   // Get generated file by ID
   getGeneratedFileById: (fileId: string): DbGeneratedFile | null => {
     const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM generated_files WHERE id = ?');
-    return stmt.get(fileId) as DbGeneratedFile | null;
+    return getRecordById<DbGeneratedFile>(db, 'generated_files', fileId);
   },
 
   // Close database connection (for cleanup)

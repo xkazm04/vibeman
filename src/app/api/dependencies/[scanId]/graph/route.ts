@@ -7,6 +7,40 @@ import {
 } from '@/lib/dependency_database';
 import { projectDb } from '@/lib/project_database';
 
+interface GraphNode {
+  id: string;
+  name: string;
+  type: 'project' | 'dependency';
+  projectType?: string;
+  path?: string;
+  dependencyCount?: number;
+  dependencyType?: string;
+  projectCount?: number;
+  versionConflicts?: boolean;
+  priority?: string | null;
+  refactoringOpportunity?: string | null;
+  group: number;
+  size: number;
+  color: string;
+}
+
+interface GraphLink {
+  source: string;
+  target: string;
+  value: number;
+  type: string;
+  version?: string | null;
+  label?: string;
+  color: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  type: string;
+  path: string;
+}
+
 /**
  * GET /api/dependencies/[scanId]/graph
  * Get graph visualization data for a dependency scan
@@ -29,14 +63,13 @@ export async function GET(
     }
 
     // Parse project IDs
-    const projectIds = JSON.parse(scan.project_ids);
+    const projectIds = JSON.parse(scan.project_ids) as string[];
 
     // Get project details
     const allProjects = projectDb.getAllProjects();
-    const projects = projectIds.map((id: string) => {
-      const project = allProjects.find(p => p.id === id);
-      return project;
-    }).filter((p: any): p is NonNullable<typeof p> => Boolean(p));
+    const projects = projectIds
+      .map((id: string) => allProjects.find(p => p.id === id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p));
 
     // Get shared dependencies and relationships
     const sharedDependencies = sharedDependencyDb.getSharedDependenciesByScan(scanId);
@@ -44,11 +77,11 @@ export async function GET(
     const projectDependencies = projectDependencyDb.getDependenciesByScan(scanId);
 
     // Build graph nodes
-    const nodes: any[] = [];
+    const nodes: GraphNode[] = [];
     const nodeMap = new Map<string, number>();
 
     // Add project nodes
-    projects.forEach((project: any, index: number) => {
+    projects.forEach((project, index: number) => {
       const nodeId = `project-${project.id}`;
       nodeMap.set(nodeId, nodes.length);
 
@@ -74,7 +107,7 @@ export async function GET(
       if (!nodeMap.has(nodeId)) {
         nodeMap.set(nodeId, nodes.length);
 
-        const projectIdsArray = JSON.parse(dep.project_ids);
+        const projectIdsArray = JSON.parse(dep.project_ids) as string[];
         const versionConflicts = dep.version_conflicts ? JSON.parse(dep.version_conflicts) : null;
 
         nodes.push({
@@ -94,12 +127,12 @@ export async function GET(
     });
 
     // Build graph links
-    const links: any[] = [];
+    const links: GraphLink[] = [];
 
     // Add links from projects to shared dependencies
     sharedDependencies.forEach((dep) => {
       const depNodeId = `dep-${dep.dependency_name}`;
-      const projectIdsArray = JSON.parse(dep.project_ids);
+      const projectIdsArray = JSON.parse(dep.project_ids) as string[];
       const versionConflicts = dep.version_conflicts ? JSON.parse(dep.version_conflicts) : null;
 
       projectIdsArray.forEach((projectId: string) => {
@@ -136,16 +169,7 @@ export async function GET(
     });
 
     // Calculate statistics
-    const stats = {
-      totalProjects: projects.length,
-      totalSharedDependencies: sharedDependencies.length,
-      totalRelationships: relationships.length,
-      versionConflicts: sharedDependencies.filter(d =>
-        d.version_conflicts && JSON.parse(d.version_conflicts)
-      ).length,
-      criticalDependencies: sharedDependencies.filter(d => d.priority === 'critical').length,
-      highPriorityDependencies: sharedDependencies.filter(d => d.priority === 'high').length
-    };
+    const stats = calculateStatistics(projects, sharedDependencies, relationships);
 
     return NextResponse.json({
       nodes,
@@ -159,12 +183,31 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error generating graph data:', error);
     return NextResponse.json(
       { error: 'Failed to generate graph data', details: (error as Error).message },
       { status: 500 }
     );
   }
+}
+
+/**
+ * Calculate statistics for the dependency graph
+ */
+function calculateStatistics(
+  projects: Project[],
+  sharedDependencies: ReturnType<typeof sharedDependencyDb.getSharedDependenciesByScan>,
+  relationships: ReturnType<typeof dependencyRelationshipDb.getRelationshipsByScan>
+) {
+  return {
+    totalProjects: projects.length,
+    totalSharedDependencies: sharedDependencies.length,
+    totalRelationships: relationships.length,
+    versionConflicts: sharedDependencies.filter(d =>
+      d.version_conflicts && JSON.parse(d.version_conflicts)
+    ).length,
+    criticalDependencies: sharedDependencies.filter(d => d.priority === 'critical').length,
+    highPriorityDependencies: sharedDependencies.filter(d => d.priority === 'high').length
+  };
 }
 
 /**

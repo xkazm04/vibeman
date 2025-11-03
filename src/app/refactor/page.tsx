@@ -7,7 +7,7 @@ import RefactorWizardLayout from '../features/RefactorWizard/RefactorWizardLayou
 import { Sparkles, Zap, TrendingUp, Shield } from 'lucide-react';
 
 export default function RefactorPage() {
-  const { openWizard, isWizardOpen } = useRefactorStore();
+  const { openWizard } = useRefactorStore();
 
   return (
     <div className="min-h-screen pt-24 px-6 pb-12">

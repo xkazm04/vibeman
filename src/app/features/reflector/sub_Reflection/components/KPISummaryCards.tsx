@@ -12,7 +12,7 @@ interface KPISummaryCardsProps {
 interface KPICardData {
   label: string;
   value: string | number;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   color: string;
   borderColor: string;
   bgGradient: string;

@@ -38,9 +38,7 @@ export default function Runner() {
     const initProjects = async () => {
       try {
         await initializeProjects();
-      } catch (error) {
-        console.error('Runner: Failed to initialize projects:', error);
-      }
+      } catch (error) {      }
     };
 
     initProjects();
@@ -52,11 +50,7 @@ export default function Runner() {
     let intervalId: NodeJS.Timeout;
 
     const fetchWithCheck = async () => {
-      if (isMounted) {
-        console.log('Runner: Fetching statuses...');
-        await fetchStatuses();
-        console.log('Runner: Statuses fetched');
-      }
+      if (isMounted) {        await fetchStatuses();      }
     };
 
     fetchWithCheck();
@@ -103,9 +97,7 @@ export default function Runner() {
     try {
       await forceRefresh();
       await initializeProjects();
-    } catch (error) {
-      console.error('Emergency refresh failed:', error);
-    }
+    } catch (error) {    }
   };
 
   const handleToggleServer = async (projectId: string) => {
@@ -118,9 +110,7 @@ export default function Runner() {
       } else {
         await startServer(projectId);
       }
-    } catch (error) {
-      console.error('Failed to toggle server:', error);
-    }
+    } catch (error) {    }
   };
 
   return (

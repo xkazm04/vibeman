@@ -3,6 +3,55 @@ import { ideaDb, goalDb, contextDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
 
+interface AcceptIdeaRequest {
+  ideaId: string;
+  projectPath: string;
+}
+
+/**
+ * Validate request body
+ */
+function validateRequest(body: unknown): body is AcceptIdeaRequest {
+  const req = body as AcceptIdeaRequest;
+  return typeof req.ideaId === 'string' && req.ideaId.length > 0 &&
+         typeof req.projectPath === 'string' && req.projectPath.length > 0;
+}
+
+/**
+ * Generate requirement file name from idea
+ */
+function generateRequirementName(ideaId: string, title: string): string {
+  const sanitizedTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .substring(0, 30);
+  return `idea-${ideaId.substring(0, 8)}-${sanitizedTitle}`;
+}
+
+/**
+ * Fetch associated goal and context for an idea
+ */
+function fetchAssociatedData(goalId: string | null, contextId: string | null) {
+  const goal = goalId ? goalDb.getGoalById(goalId) : null;
+  const context = contextId ? contextDb.getContextById(contextId) : null;
+  return { goal, context };
+}
+
+/**
+ * Create requirement file and handle errors
+ */
+function createRequirementFile(
+  projectPath: string,
+  requirementName: string,
+  content: string
+): void {
+  const createResult = createRequirement(projectPath, requirementName, content, true);
+
+  if (!createResult.success) {
+    throw new Error(createResult.error || 'Failed to create requirement');
+  }
+}
+
 /**
  * POST /api/ideas/tinder/accept
  * Accept an idea and generate requirement file
@@ -10,18 +59,17 @@ import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ideaId, projectPath } = body;
 
-    if (!ideaId || !projectPath) {
+    if (!validateRequest(body)) {
       return NextResponse.json(
         { error: 'ideaId and projectPath are required' },
         { status: 400 }
       );
     }
 
-    console.log('[Tinder Accept] Processing idea:', ideaId);
+    const { ideaId, projectPath } = body;
 
-    // 1. Get the idea
+    // Get the idea
     const idea = ideaDb.getIdeaById(ideaId);
     if (!idea) {
       return NextResponse.json(
@@ -30,46 +78,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Update idea status to accepted
+    // Update idea status to accepted
     ideaDb.updateIdea(ideaId, { status: 'accepted' });
-    console.log('[Tinder Accept] Updated idea status to accepted');
 
-    // 3. Generate requirement file name
-    const requirementName = `idea-${ideaId.substring(0, 8)}-${idea.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .substring(0, 30)}`;
+    // Generate requirement file name
+    const requirementName = generateRequirementName(ideaId, idea.title);
 
-    console.log('[Tinder Accept] Creating requirement:', requirementName);
+    // Fetch goal and context if they exist
+    const { goal, context } = fetchAssociatedData(idea.goal_id, idea.context_id);
 
-    // 4. Fetch goal and context if they exist
-    const goal = idea.goal_id ? goalDb.getGoalById(idea.goal_id) : null;
-    const context = idea.context_id ? contextDb.getContextById(idea.context_id) : null;
-
-    console.log('[Tinder Accept] Associated goal:', goal?.title || 'none');
-    console.log('[Tinder Accept] Associated context:', context?.name || 'none');
-
-    // 5. Build requirement content using unified builder
+    // Build requirement content using unified builder
     const content = buildRequirementFromIdea({
       idea,
       goal,
       context,
     });
 
-    // 6. Create requirement file (overwrite if exists)
-    const createResult = createRequirement(projectPath, requirementName, content, true);
-
-    if (!createResult.success) {
+    // Create requirement file (overwrite if exists)
+    try {
+      createRequirementFile(projectPath, requirementName, content);
+    } catch (error) {
       // Rollback status change
       ideaDb.updateIdea(ideaId, { status: 'pending' });
-      throw new Error(createResult.error || 'Failed to create requirement');
+      throw error;
     }
 
-    console.log('[Tinder Accept] Requirement created successfully');
-
-    // 7. Update idea with requirement_id (the requirement file name)
+    // Update idea with requirement_id (the requirement file name)
     ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
-    console.log('[Tinder Accept] Updated idea with requirement_id:', requirementName);
 
     return NextResponse.json({
       success: true,
@@ -77,7 +112,6 @@ export async function POST(request: NextRequest) {
       message: 'Idea accepted and requirement file created',
     });
   } catch (error) {
-    console.error('[Tinder Accept] Error:', error);
     return NextResponse.json(
       {
         error: 'Failed to accept idea',

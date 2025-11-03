@@ -76,6 +76,16 @@ export interface DbBacklogItem {
   rejected_at: string | null;
 }
 
+// Helper function to get a record by ID
+function getRecordById<T>(
+  db: Database.Database,
+  tableName: string,
+  id: string
+): T | null {
+  const stmt = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`);
+  return stmt.get(id) as T | null;
+}
+
 export const backlogDb = {
   // Get all backlog items for a project (excluding rejected)
   getBacklogItemsByProject: (projectId: string): DbBacklogItem[] => {
@@ -107,9 +117,9 @@ export const backlogDb = {
     title: string;
     description: string;
     steps?: string[];
-    status: 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'undecided';
-    type: 'feature' | 'optimization';
-    impacted_files?: Record<string, unknown>[];
+    status: DbBacklogItem['status'];
+    type: DbBacklogItem['type'];
+    impacted_files?: Array<{ path: string; reason: string; [key: string]: unknown }>;
   }): DbBacklogItem => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -137,25 +147,24 @@ export const backlogDb = {
     );
 
     // Return the created item
-    const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
-    return selectStmt.get(item.id) as DbBacklogItem;
+    return getRecordById<DbBacklogItem>(db, 'backlog_items', item.id)!;
   },
 
   // Update a backlog item
   updateBacklogItem: (id: string, updates: {
-    status?: 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'undecided';
+    status?: DbBacklogItem['status'];
     goal_id?: string | null;
     title?: string;
     description?: string;
     steps?: string[];
-    impacted_files?: Record<string, unknown>[];
+    impacted_files?: Array<{ path: string; reason: string; [key: string]: unknown }>;
   }): DbBacklogItem | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: Array<string | null> = [];
+    const values: (string | null)[] = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
@@ -193,8 +202,7 @@ export const backlogDb = {
 
     if (updateFields.length === 0) {
       // No updates to make
-      const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
-      return selectStmt.get(id) as DbBacklogItem | null;
+      return getRecordById<DbBacklogItem>(db, 'backlog_items', id);
     }
 
     updateFields.push('updated_at = ?');
@@ -202,8 +210,8 @@ export const backlogDb = {
     values.push(id);
 
     const stmt = db.prepare(`
-      UPDATE backlog_items 
-      SET ${updateFields.join(', ')} 
+      UPDATE backlog_items
+      SET ${updateFields.join(', ')}
       WHERE id = ?
     `);
 
@@ -214,8 +222,7 @@ export const backlogDb = {
     }
 
     // Return the updated item
-    const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
-    return selectStmt.get(id) as DbBacklogItem;
+    return getRecordById<DbBacklogItem>(db, 'backlog_items', id);
   },
 
   // Delete a backlog item
@@ -238,7 +245,7 @@ export const backlogDb = {
   },
 
   // Get backlog items by type
-  getBacklogItemsByType: (projectId: string, type: 'feature' | 'optimization'): DbBacklogItem[] => {
+  getBacklogItemsByType: (projectId: string, type: DbBacklogItem['type']): DbBacklogItem[] => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM backlog_items 
@@ -251,8 +258,7 @@ export const backlogDb = {
   // Get backlog item by ID
   getBacklogItemById: (id: string): DbBacklogItem | null => {
     const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
-    return stmt.get(id) as DbBacklogItem | null;
+    return getRecordById<DbBacklogItem>(db, 'backlog_items', id);
   },
 
   // Close database connection (for cleanup)

@@ -22,18 +22,56 @@ export interface ContextDescriptionRequest {
 }
 
 /**
+ * Common headers for JSON requests
+ */
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+/**
+ * Helper to make POST request
+ */
+async function postRequest<T>(url: string, data: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Request to ${url} failed`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Helper to make PATCH request
+ */
+async function patchRequest<T>(url: string, data: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Request to ${url} failed`);
+  }
+
+  return response.json();
+}
+
+/**
  * Generate context documentation file in background
  */
 export async function generateContextBackground(
   request: ContextGenerationRequest
 ): Promise<{ success: boolean; error?: string }> {
-  const response = await fetch('/api/kiro/generate-context', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  const result = await response.json();
+  const result = await postRequest<{ success: boolean; error?: string }>(
+    '/api/kiro/generate-context',
+    request
+  );
 
   if (!result.success) {
     throw new Error(result.error || 'Failed to generate context');
@@ -48,18 +86,7 @@ export async function generateContextBackground(
 export async function generateContextDescription(
   request: ContextDescriptionRequest
 ): Promise<{ description: string; fileStructure: string }> {
-  const response = await fetch('/api/contexts/generate-description', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to generate description');
-  }
-
-  return response.json();
+  return postRequest('/api/contexts/generate-description', request);
 }
 
 /**
@@ -72,16 +99,7 @@ export async function createContext(data: {
   description: string;
   filePaths: string[];
 }): Promise<void> {
-  const response = await fetch('/api/contexts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create context');
-  }
+  await postRequest('/api/contexts', data);
 }
 
 /**
@@ -96,14 +114,5 @@ export async function updateContext(
     groupId?: string;
   }
 ): Promise<void> {
-  const response = await fetch(`/api/contexts/${contextId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to update context');
-  }
+  await patchRequest(`/api/contexts/${contextId}`, updates);
 }

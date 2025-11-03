@@ -1,11 +1,37 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Save, RotateCcw, SplitSquareHorizontal, GitCompareArrows, WrapText, Eye, EyeOff, Wand2 } from 'lucide-react';
+import { X, Save, RotateCcw, SplitSquareHorizontal, GitCompareArrows, WrapText, Eye, EyeOff, Wand2, LucideIcon } from 'lucide-react';
 import MonacoEditor from './MonacoEditor';
 import MonacoDiffEditor from './MonacoDiffEditor';
 import FileTab from './FileTab';
 import { getLanguageFromFilename, isBinaryFile } from './editorUtils';
 import { loadFileContent } from './fileApi';
+
+interface ToolbarButtonProps {
+  onClick: () => void;
+  disabled?: boolean;
+  icon: LucideIcon;
+  label: string;
+  className?: string;
+  title?: string;
+  active?: boolean;
+}
+
+function ToolbarButton({ onClick, disabled, icon: Icon, label, className = '', title, active }: ToolbarButtonProps) {
+  const baseClasses = 'px-2 py-1 rounded text-sm flex items-center gap-2 disabled:opacity-50';
+  const activeClasses = active ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700';
+
+  return (
+    <button
+      className={`${baseClasses} ${activeClasses} ${className}`}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      <Icon className="w-4 h-4" /> {label}
+    </button>
+  );
+}
 
 interface FileContent {
   path: string;
@@ -73,14 +99,15 @@ export default function MultiFileEditor({
             loading: false,
             dirty: false,
           };
-        } catch (e: any) {
+        } catch (e) {
+          const error = e as Error;
           entries[path] = {
             path,
             content: '',
             originalContent: '',
             language: 'plaintext',
             loading: false,
-            error: e?.message || 'Failed to load',
+            error: error?.message || 'Failed to load',
             dirty: false,
           };
         }
@@ -119,8 +146,9 @@ export default function MultiFileEditor({
       setFileContent(active, (p) => ({ ...p, originalContent: p.content, dirty: false }));
       setStatus('Saved');
       setTimeout(() => setStatus(''), 1200);
-    } catch (e: any) {
-      setStatus(e?.message || 'Save failed');
+    } catch (e) {
+      const error = e as Error;
+      setStatus(error?.message || 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -223,58 +251,54 @@ export default function MultiFileEditor({
             >
               <Save className="w-4 h-4" /> Save
             </button>
-            <button
-              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2 disabled:opacity-50"
-              onClick={handleRevert} disabled={!activeFile?.dirty}
+            <ToolbarButton
+              onClick={handleRevert}
+              disabled={!activeFile?.dirty}
+              icon={RotateCcw}
+              label="Revert"
               title="Revert to original"
-            >
-              <RotateCcw className="w-4 h-4" /> Revert
-            </button>
+            />
             <div className="mx-2 h-5 w-px bg-gray-700" />
-            <button
-              className={`px-2 py-1 rounded text-sm flex items-center gap-2 ${compare ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'}`}
+            <ToolbarButton
               onClick={() => canCompare && setCompare(v => !v)}
               disabled={!canCompare}
+              icon={GitCompareArrows}
+              label="Compare"
               title="Toggle Compare (Ctrl+D)"
-            >
-              <GitCompareArrows className="w-4 h-4" /> Compare
-            </button>
+              active={compare}
+            />
             {compare && (
-              <button
-                className={`px-2 py-1 rounded text-sm flex items-center gap-2 ${inlineDiff ? 'bg-gray-700' : 'bg-gray-800 hover:bg-gray-700'} text-gray-200`}
+              <ToolbarButton
                 onClick={() => setInlineDiff(v => !v)}
+                icon={SplitSquareHorizontal}
+                label={inlineDiff ? 'Inline' : 'Side-by-side'}
                 title={inlineDiff ? 'Side-by-side diff' : 'Inline diff'}
-              >
-                <SplitSquareHorizontal className="w-4 h-4" /> {inlineDiff ? 'Inline' : 'Side-by-side'}
-              </button>
+                active={inlineDiff}
+              />
             )}
             <div className="mx-2 h-5 w-px bg-gray-700" />
-            <button
-              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2"
+            <ToolbarButton
               onClick={() => setWordWrap(w => (w === 'on' ? 'off' : 'on'))}
+              icon={WrapText}
+              label={`Wrap: ${wordWrap}`}
               title="Toggle word wrap (Alt+Z)"
-            >
-              <WrapText className="w-4 h-4" /> Wrap: {wordWrap}
-            </button>
-            <button
-              className="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2"
+            />
+            <ToolbarButton
               onClick={() => setMinimap(m => !m)}
+              icon={minimap ? Eye : EyeOff}
+              label="Minimap"
               title="Toggle minimap"
-            >
-              {minimap ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} Minimap
-            </button>
-            <button
-              className="ml-auto px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm flex items-center gap-2"
+            />
+            <ToolbarButton
               onClick={() => {
-                // Format using Monaco action if available via DOM event bridge
-                // Users can also use Shift+Alt+F in most setups
                 setStatus('Formatting…');
                 setTimeout(() => setStatus(''), 1000);
               }}
+              icon={Wand2}
+              label="Format"
               title="Format (Shift+Alt+F)"
-            >
-              <Wand2 className="w-4 h-4" /> Format
-            </button>
+              className="ml-auto"
+            />
           </div>
 
           {/* Editor content */}
@@ -301,7 +325,7 @@ export default function MultiFileEditor({
                 onChange={onChangeActive}
                 language={activeFile.language}
                 theme="vs-dark"
-                options={editorOptions as any}
+                options={editorOptions}
                 readOnly={readOnly}
                 className="h-full"
               />

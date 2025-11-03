@@ -39,6 +39,20 @@ export interface BuildScanCallbacks extends ScanProgressCallbacks {
   onBuildStatsUpdate?: (stats: BuildScanStats) => void;
 }
 
+/**
+ * Logger utility for build error scanner
+ */
+const logger = {
+  info: (message: string, ...args: unknown[]) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[BuildScanner] ${message}`, ...args);
+    }
+  },
+  error: (message: string, ...args: unknown[]) => {
+    console.error(`[BuildScanner] ${message}`, ...args);
+  }
+};
+
 export class BuildErrorScanner {
   private callbacks: BuildScanCallbacks;
   private isAborted: boolean = false;
@@ -48,93 +62,116 @@ export class BuildErrorScanner {
   }
 
   public abort(): void {
-    console.log('Client: Build scan aborted by user');
+    logger.info('Build scan aborted by user');
     this.isAborted = true;
   }
 
   async performBuildScan(customCommand?: string, projectPath?: string): Promise<BuildScanResult | null> {
     try {
       this.isAborted = false;
-      console.log('Starting build error scan from client...');
+      logger.info('Starting build error scan...');
 
-      // Phase 1: Detecting build command
       this.callbacks.onPhaseChange?.('calculating');
       this.callbacks.onProgress(10);
 
-      let buildCommand = customCommand;
-      if (!buildCommand) {
-        const commandResponse = await fetch('/api/file-fixer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            action: 'detect-build-command',
-            projectPath 
-          })
-        });
-
-        if (!commandResponse.ok) {
-          throw new Error('Failed to detect build command');
-        }
-
-        const commandResult = await commandResponse.json();
-        buildCommand = commandResult.buildCommand;
-      }
+      const buildCommand = await this.resolveBuildCommand(customCommand, projectPath);
 
       if (this.isAborted) return null;
 
-      console.log(`Client: Using build command: ${buildCommand}`);
-      console.log(`Client: Project path: ${projectPath || 'current directory'}`);
+      logger.info(`Using build command: ${buildCommand}`);
+      logger.info(`Project path: ${projectPath || 'current directory'}`);
       this.callbacks.onBuildStart?.(buildCommand);
       this.callbacks.onProgress(25);
 
-      // Phase 2: Running build scan
       this.callbacks.onPhaseChange?.('scanning');
       this.callbacks.onCurrentFile('Running build command...');
       this.callbacks.onProgress(50);
 
-      const scanResponse = await fetch('/api/file-fixer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'run-build-scan',
-          buildCommand,
-          projectPath 
-        })
-      });
+      const result = await this.runBuildScan(buildCommand, projectPath);
 
       if (this.isAborted) return null;
 
-      if (!scanResponse.ok) {
-        throw new Error('Failed to run build scan');
+      if (result) {
+        this.processBuildResults(result);
       }
-
-      const result: BuildScanResult = await scanResponse.json();
-      
-      console.log(`Client: Build scan completed - ${result.totalErrors} errors, ${result.totalWarnings} warnings`);
-      
-      // Update progress and stats
-      this.callbacks.onProgress(100);
-      this.callbacks.onPhaseChange?.('complete');
-      this.callbacks.onBuildComplete?.(result);
-
-      // Calculate and update stats
-      const stats = this.calculateStats(result);
-      this.callbacks.onBuildStatsUpdate?.(stats);
 
       return result;
 
     } catch (error) {
       if (!this.isAborted) {
-        console.error('Client: Build scan error:', error);
+        logger.error('Build scan error:', error);
         this.callbacks.onPhaseChange?.('complete');
       }
       return null;
     }
   }
 
+  /**
+   * Resolve build command (detect or use custom)
+   */
+  private async resolveBuildCommand(customCommand?: string, projectPath?: string): Promise<string> {
+    if (customCommand) {
+      return customCommand;
+    }
+
+    const response = await fetch('/api/file-fixer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'detect-build-command',
+        projectPath
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to detect build command');
+    }
+
+    const commandResult = await response.json();
+    return commandResult.buildCommand;
+  }
+
+  /**
+   * Run build scan via API
+   */
+  private async runBuildScan(buildCommand: string, projectPath?: string): Promise<BuildScanResult | null> {
+    const scanResponse = await fetch('/api/file-fixer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'run-build-scan',
+        buildCommand,
+        projectPath
+      })
+    });
+
+    if (!scanResponse.ok) {
+      throw new Error('Failed to run build scan');
+    }
+
+    return await scanResponse.json();
+  }
+
+  /**
+   * Process and report build results
+   */
+  private processBuildResults(result: BuildScanResult): void {
+    logger.info(`Build scan completed - ${result.totalErrors} errors, ${result.totalWarnings} warnings`);
+
+    this.callbacks.onProgress(100);
+    this.callbacks.onPhaseChange?.('complete');
+    this.callbacks.onBuildComplete?.(result);
+
+    const stats = this.calculateStats(result);
+    this.callbacks.onBuildStatsUpdate?.(stats);
+  }
+
+  /**
+   * Calculate statistics from build results
+   */
   private calculateStats(result: BuildScanResult): BuildScanStats {
     const allIssues = [...result.errors, ...result.warnings];
-    
+
     return {
       totalErrors: result.totalErrors,
       totalWarnings: result.totalWarnings,

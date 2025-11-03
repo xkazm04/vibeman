@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants, Transition } from 'framer-motion';
 
 /**
  * Predefined animation variants for modal transitions
@@ -143,7 +143,7 @@ interface ModalTransitionProps {
     modal?: Variants;
   };
   /** Custom transition config (overrides predefined transitions) */
-  customTransition?: any;
+  customTransition?: Transition;
 }
 
 /**

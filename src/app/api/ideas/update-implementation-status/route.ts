@@ -17,20 +17,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[Update Implementation Status] Looking for idea with requirement_id:', requirementName);
-
     // Find idea by requirement_id
     const idea = ideaDb.getIdeaByRequirementId(requirementName);
 
     if (!idea) {
-      console.log('[Update Implementation Status] No idea found with requirement_id:', requirementName);
       return NextResponse.json({
         updated: false,
         message: 'No idea found with this requirement_id',
       });
     }
-
-    console.log('[Update Implementation Status] Found idea:', idea.id, 'Current status:', idea.status);
 
     // Update idea status to 'implemented'
     const updatedIdea = ideaDb.updateIdea(idea.id, { status: 'implemented' });
@@ -39,15 +34,12 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to update idea status');
     }
 
-    console.log('[Update Implementation Status] Successfully updated idea to implemented:', idea.id);
-
     return NextResponse.json({
       updated: true,
       ideaId: idea.id,
       message: 'Idea status updated to implemented',
     });
   } catch (error) {
-    console.error('[Update Implementation Status] Error:', error);
     return NextResponse.json(
       {
         error: 'Failed to update idea status',

@@ -28,7 +28,6 @@ export class ClaudeTaskManager {
     
     const taskPath = await this.fileSystem.createClaudeTask(task);
 
-    // Let the file watcher handle execution
     return taskPath;
 }
 
@@ -61,16 +60,13 @@ Please start by examining the codebase and then implement the changes step by st
 
   private async triggerClaudeCode(taskPath: string): Promise<void> {
     try {
-      // Option 1: Direct Claude Code execution
       const command = `cd "${this.projectRoot}" && claude -p "$(cat ${taskPath.replace(this.projectRoot, '.')})" --output-format json`;
 
-      // Execute in background
       execAsync(command).then(() => {
         // Task triggered successfully
       }).catch(() => {
         // Task execution failed
       });
-
     } catch {
       // Failed to trigger Claude Code
     }
@@ -84,10 +80,6 @@ Please start by examining the codebase and then implement the changes step by st
     const completedTasks = await this.checkTaskStatus();
 
     for (const task of completedTasks) {
-      // Update requirement status in your database/state
-      // Send notifications, update UI, etc.
-
-      // Clean up task files
       await this.fileSystem.cleanupTask(task.requirementId);
     }
   }

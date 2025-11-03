@@ -9,15 +9,15 @@ import { Database, FileText, RefreshCw, Settings, Zap, Download } from 'lucide-r
  */
 export function BasicToolbarExample() {
   const handleDbSync = () => {
-    console.log('Syncing database...');
+    // Sync database
   };
 
   const handleViewDocs = () => {
-    console.log('Opening documentation...');
+    // Open documentation
   };
 
   const handleRefresh = () => {
-    console.log('Refreshing...');
+    // Refresh
   };
 
   const actions: ToolbarAction[] = [
@@ -62,7 +62,7 @@ export function CustomActionsExample() {
       icon: Settings,
       label: 'Settings',
       onClick: () => {
-        console.log('Opening settings...');
+        // Open settings
       },
       colorScheme: 'purple',
       tooltip: 'Configure project settings',
@@ -71,7 +71,7 @@ export function CustomActionsExample() {
       icon: Zap,
       label: 'Quick actions',
       onClick: () => {
-        console.log('Running quick actions...');
+        // Run quick actions
       },
       colorScheme: 'orange',
       tooltip: 'Execute quick actions',
@@ -80,7 +80,7 @@ export function CustomActionsExample() {
       icon: Download,
       label: 'Export',
       onClick: () => {
-        console.log('Exporting data...');
+        // Export data
       },
       colorScheme: 'green',
       tooltip: 'Export project data',
@@ -98,13 +98,17 @@ export function MinimalToolbarExample() {
     {
       icon: RefreshCw,
       label: 'Refresh',
-      onClick: () => console.log('Refreshing...'),
+      onClick: () => {
+        // Refresh
+      },
       colorScheme: 'green',
     },
     {
       icon: Settings,
       label: 'Settings',
-      onClick: () => console.log('Settings...'),
+      onClick: () => {
+        // Open settings
+      },
       colorScheme: 'slate',
     },
   ];
@@ -136,7 +140,9 @@ export function StateManagementExample() {
     {
       icon: Download,
       label: 'Download',
-      onClick: () => console.log('Downloading...'),
+      onClick: () => {
+        // Download
+      },
       colorScheme: 'green',
       disabled: isOffline,
       tooltip: isOffline ? 'Offline - download disabled' : 'Download data',

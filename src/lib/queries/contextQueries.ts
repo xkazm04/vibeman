@@ -34,6 +34,30 @@ export interface Context {
   groupColor?: string;
 }
 
+/**
+ * Logger for context operations
+ */
+const logger = {
+  error: (message: string, ...args: unknown[]) => {
+    console.error(`[ContextQueries] ${message}`, ...args);
+  }
+};
+
+/**
+ * Safe error wrapper for async operations
+ */
+async function handleAsyncOperation<T>(
+  operation: () => Promise<T>,
+  errorMessage: string
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    logger.error(errorMessage, error);
+    throw new Error(errorMessage);
+  }
+}
+
 // Helper function to convert DB context group to app context group
 function dbContextGroupToContextGroup(dbGroup: DbContextGroup): ContextGroup {
   return {
@@ -72,13 +96,13 @@ function dbContextToContext(dbContext: DbContext & { group_name?: string; group_
 export const contextGroupQueries = {
   // Get all context groups for a project
   getGroupsByProject: async (projectId: string): Promise<ContextGroup[]> => {
-    try {
-      const dbGroups = contextGroupDb.getGroupsByProject(projectId);
-      return dbGroups.map(dbContextGroupToContextGroup);
-    } catch (error) {
-      console.error('Failed to get context groups:', error);
-      throw new Error('Failed to fetch context groups');
-    }
+    return handleAsyncOperation(
+      async () => {
+        const dbGroups = contextGroupDb.getGroupsByProject(projectId);
+        return dbGroups.map(dbContextGroupToContextGroup);
+      },
+      'Failed to fetch context groups'
+    );
   },
 
   // Create a new context group
@@ -96,7 +120,7 @@ export const contextGroupQueries = {
 
       // Get the next position
       const maxPosition = contextGroupDb.getMaxPosition(data.projectId);
-      
+
       // Auto-assign color if not provided
       const color = data.color || CONTEXT_GROUP_COLORS[groupCount % CONTEXT_GROUP_COLORS.length];
 
@@ -111,7 +135,7 @@ export const contextGroupQueries = {
       const dbGroup = contextGroupDb.createGroup(groupData);
       return dbContextGroupToContextGroup(dbGroup);
     } catch (error) {
-      console.error('Failed to create context group:', error);
+      logger.error('Failed to create context group:', error);
       throw error;
     }
   },
@@ -122,23 +146,21 @@ export const contextGroupQueries = {
     color?: string;
     position?: number;
   }): Promise<ContextGroup | null> => {
-    try {
-      const dbGroup = contextGroupDb.updateGroup(groupId, updates);
-      return dbGroup ? dbContextGroupToContextGroup(dbGroup) : null;
-    } catch (error) {
-      console.error('Failed to update context group:', error);
-      throw new Error('Failed to update context group');
-    }
+    return handleAsyncOperation(
+      async () => {
+        const dbGroup = contextGroupDb.updateGroup(groupId, updates);
+        return dbGroup ? dbContextGroupToContextGroup(dbGroup) : null;
+      },
+      'Failed to update context group'
+    );
   },
 
   // Delete a context group
   deleteGroup: async (groupId: string): Promise<boolean> => {
-    try {
-      return contextGroupDb.deleteGroup(groupId);
-    } catch (error) {
-      console.error('Failed to delete context group:', error);
-      throw new Error('Failed to delete context group');
-    }
+    return handleAsyncOperation(
+      async () => contextGroupDb.deleteGroup(groupId),
+      'Failed to delete context group'
+    );
   },
 
   // Get group count for a project
@@ -146,7 +168,7 @@ export const contextGroupQueries = {
     try {
       return contextGroupDb.getGroupCount(projectId);
     } catch (error) {
-      console.error('Failed to get group count:', error);
+      logger.error('Failed to get group count:', error);
       return 0;
     }
   },
@@ -156,24 +178,24 @@ export const contextGroupQueries = {
 export const contextQueries = {
   // Get all contexts for a project
   getContextsByProject: async (projectId: string): Promise<Context[]> => {
-    try {
-      const dbContexts = contextDb.getContextsByProject(projectId);
-      return dbContexts.map(dbContextToContext);
-    } catch (error) {
-      console.error('Failed to get contexts:', error);
-      throw new Error('Failed to fetch contexts');
-    }
+    return handleAsyncOperation(
+      async () => {
+        const dbContexts = contextDb.getContextsByProject(projectId);
+        return dbContexts.map(dbContextToContext);
+      },
+      'Failed to fetch contexts'
+    );
   },
 
   // Get contexts by group
   getContextsByGroup: async (groupId: string): Promise<Context[]> => {
-    try {
-      const dbContexts = contextDb.getContextsByGroup(groupId);
-      return dbContexts.map(dbContextToContext);
-    } catch (error) {
-      console.error('Failed to get contexts by group:', error);
-      throw new Error('Failed to fetch contexts');
-    }
+    return handleAsyncOperation(
+      async () => {
+        const dbContexts = contextDb.getContextsByGroup(groupId);
+        return dbContexts.map(dbContextToContext);
+      },
+      'Failed to fetch contexts'
+    );
   },
 
   // Create a new context
@@ -184,22 +206,22 @@ export const contextQueries = {
     description?: string;
     filePaths: string[];
   }): Promise<Context> => {
-    try {
-      const contextData = {
-        id: `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        project_id: data.projectId,
-        group_id: data.groupId,
-        name: data.name,
-        description: data.description,
-        file_paths: data.filePaths,
-      };
+    return handleAsyncOperation(
+      async () => {
+        const contextData = {
+          id: `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          project_id: data.projectId,
+          group_id: data.groupId,
+          name: data.name,
+          description: data.description,
+          file_paths: data.filePaths,
+        };
 
-      const dbContext = contextDb.createContext(contextData);
-      return dbContextToContext(dbContext);
-    } catch (error) {
-      console.error('Failed to create context:', error);
-      throw new Error('Failed to create context');
-    }
+        const dbContext = contextDb.createContext(contextData);
+        return dbContextToContext(dbContext);
+      },
+      'Failed to create context'
+    );
   },
 
   // Update a context
@@ -209,41 +231,39 @@ export const contextQueries = {
     filePaths?: string[];
     groupId?: string;
   }): Promise<Context | null> => {
-    try {
-      const updateData = {
-        name: updates.name,
-        description: updates.description,
-        file_paths: updates.filePaths,
-        group_id: updates.groupId,
-      };
+    return handleAsyncOperation(
+      async () => {
+        const updateData = {
+          name: updates.name,
+          description: updates.description,
+          file_paths: updates.filePaths,
+          group_id: updates.groupId,
+        };
 
-      const dbContext = contextDb.updateContext(contextId, updateData);
-      return dbContext ? dbContextToContext(dbContext) : null;
-    } catch (error) {
-      console.error('Failed to update context:', error);
-      throw new Error('Failed to update context');
-    }
+        const dbContext = contextDb.updateContext(contextId, updateData);
+        return dbContext ? dbContextToContext(dbContext) : null;
+      },
+      'Failed to update context'
+    );
   },
 
   // Delete a context
   deleteContext: async (contextId: string): Promise<boolean> => {
-    try {
-      return contextDb.deleteContext(contextId);
-    } catch (error) {
-      console.error('Failed to delete context:', error);
-      throw new Error('Failed to delete context');
-    }
+    return handleAsyncOperation(
+      async () => contextDb.deleteContext(contextId),
+      'Failed to delete context'
+    );
   },
 
   // Move context to different group
   moveContextToGroup: async (contextId: string, newGroupId: string): Promise<Context | null> => {
-    try {
-      const dbContext = contextDb.moveContextToGroup(contextId, newGroupId);
-      return dbContext ? dbContextToContext(dbContext) : null;
-    } catch (error) {
-      console.error('Failed to move context:', error);
-      throw new Error('Failed to move context');
-    }
+    return handleAsyncOperation(
+      async () => {
+        const dbContext = contextDb.moveContextToGroup(contextId, newGroupId);
+        return dbContext ? dbContextToContext(dbContext) : null;
+      },
+      'Failed to move context'
+    );
   },
 
   // Get context count for a group
@@ -251,7 +271,7 @@ export const contextQueries = {
     try {
       return contextDb.getContextCountByGroup(groupId);
     } catch (error) {
-      console.error('Failed to get context count:', error);
+      logger.error('Failed to get context count:', error);
       return 0;
     }
   },
@@ -264,17 +284,17 @@ export const contextOperations = {
     groups: ContextGroup[];
     contexts: Context[];
   }> => {
-    try {
-      const [groups, contexts] = await Promise.all([
-        contextGroupQueries.getGroupsByProject(projectId),
-        contextQueries.getContextsByProject(projectId),
-      ]);
+    return handleAsyncOperation(
+      async () => {
+        const [groups, contexts] = await Promise.all([
+          contextGroupQueries.getGroupsByProject(projectId),
+          contextQueries.getContextsByProject(projectId),
+        ]);
 
-      return { groups, contexts };
-    } catch (error) {
-      console.error('Failed to get project context data:', error);
-      throw new Error('Failed to fetch project context data');
-    }
+        return { groups, contexts };
+      },
+      'Failed to fetch project context data'
+    );
   },
 
   // Create a context with automatic group creation if needed
@@ -324,7 +344,7 @@ export const contextOperations = {
 
       return { group, context };
     } catch (error) {
-      console.error('Failed to create context with group:', error);
+      logger.error('Failed to create context with group:', error);
       throw error;
     }
   },

@@ -9,16 +9,15 @@ export function useSmoothNavigation() {
   const [isNavigating, setIsNavigating] = useState(false);
 
   const navigateTo = useCallback((href: string) => {
-    if (pathname === href || isNavigating) return; // Don't navigate if already on the page or navigating
+    if (pathname === href || isNavigating) return;
 
     setIsNavigating(true);
 
     try {
       router.push(href);
-    } catch (error) {
+    } catch (_error) {
       // Navigation error occurred
     } finally {
-      // Reset loading state after a reasonable delay
       setTimeout(() => setIsNavigating(false), 500);
     }
   }, [router, pathname, isNavigating]);

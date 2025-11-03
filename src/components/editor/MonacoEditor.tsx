@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Editor, { OnMount, OnChange } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
+import { defineVibemanTheme, clearErrorMarkers, setupMarkerClearer } from './editorTheme';
 
 interface MonacoEditorProps {
   value: string;
@@ -77,21 +78,17 @@ export default function MonacoEditor({
     editorRef.current = editor;
     setIsEditorReady(true);
 
-    // Configure Monaco themes and languages
-    configureMonaco(monacoInstance);
+    // Configure Monaco themes
+    defineVibemanTheme(monacoInstance);
+    if (theme === 'vs-dark') {
+      monacoInstance.editor.setTheme('vibeman-dark');
+    }
 
     // Disable error markers and diagnostics
     const model = editor.getModel();
     if (model) {
-      // Disable all diagnostics for this model
-      monacoInstance.editor.setModelMarkers(model, 'typescript', []);
-      monacoInstance.editor.setModelMarkers(model, 'javascript', []);
-      
-      // Listen for marker changes and clear them
-      const disposable = monacoInstance.editor.onDidChangeMarkers(() => {
-        monacoInstance.editor.setModelMarkers(model, 'typescript', []);
-        monacoInstance.editor.setModelMarkers(model, 'javascript', []);
-      });
+      clearErrorMarkers(monacoInstance, model);
+      setupMarkerClearer(monacoInstance, model);
     }
 
     // Focus the editor
@@ -106,41 +103,6 @@ export default function MonacoEditor({
   const handleEditorChange: OnChange = (value) => {
     if (onChange && value !== undefined) {
       onChange(value);
-    }
-  };
-
-  // Configure Monaco with custom themes and language features
-  const configureMonaco = (monacoInstance: typeof monaco) => {
-    // Define custom dark theme
-    monacoInstance.editor.defineTheme('vibeman-dark', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-        { token: 'keyword', foreground: '569CD6' },
-        { token: 'string', foreground: 'CE9178' },
-        { token: 'number', foreground: 'B5CEA8' },
-        { token: 'type', foreground: '4EC9B0' },
-        { token: 'class', foreground: '4EC9B0' },
-        { token: 'function', foreground: 'DCDCAA' },
-        { token: 'variable', foreground: '9CDCFE' },
-      ],
-      colors: {
-        'editor.background': '#1e1e1e',
-        'editor.foreground': '#d4d4d4',
-        'editor.lineHighlightBackground': '#2d2d30',
-        'editor.selectionBackground': '#264f78',
-        'editor.inactiveSelectionBackground': '#3a3d41',
-        'editorCursor.foreground': '#aeafad',
-        'editorWhitespace.foreground': '#404040',
-        'editorIndentGuide.background': '#404040',
-        'editorIndentGuide.activeBackground': '#707070',
-      },
-    });
-
-    // Set the custom theme as default
-    if (theme === 'vs-dark') {
-      monacoInstance.editor.setTheme('vibeman-dark');
     }
   };
 

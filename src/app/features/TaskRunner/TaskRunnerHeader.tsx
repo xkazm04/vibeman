@@ -138,34 +138,57 @@ export default function TaskRunnerHeader({
 
   // Wrapper for executeNextRequirement from taskExecutor
   const executeNextRequirement = useCallback(() => {
+    // Build batch states map from current batch objects
+    const batchStates = new Map<string, 'idle' | 'running' | 'paused' | 'completed'>();
+    if (batch1) batchStates.set('batch1', batch1.status);
+    if (batch2) batchStates.set('batch2', batch2.status);
+    if (batch3) batchStates.set('batch3', batch3.status);
+    if (batch4) batchStates.set('batch4', batch4.status);
+
     executeTask({
       executionQueueRef,
       isExecutingRef,
       isPaused,
+      batchStates,
       requirements,
       actions,
       getRequirementId,
       executeNextRequirement: () => executeNextRequirement(),
     });
-  }, [requirements, getRequirementId, actions, isPaused]);
+  }, [requirements, getRequirementId, actions, isPaused, batch1, batch2, batch3, batch4]);
 
-  // Auto-process queue - execute next requirement when current finishes
+  // Auto-process queue - allow parallel execution from different batches
   useEffect(() => {
-    const runningReq = requirements.find((r) => r.status === 'running');
+    // Find all currently running batches
+    const runningBatchIds = new Set(
+      requirements
+        .filter(r => r.status === 'running' && r.batchId)
+        .map(r => r.batchId!)
+    );
 
-    if (!runningReq && executionQueueRef.current.length > 0 && !isExecutingRef.current && !isPaused) {
-      const nextReqId = executionQueueRef.current[0];
-      console.log(`[TaskRunner] Auto-processing next requirement: ${nextReqId}`);
-      executeNextRequirement();
+    // Try to start requirements from batches that aren't currently running
+    if (executionQueueRef.current.length > 0 && !isExecutingRef.current) {
+      // Find the next requirement from a batch that's not currently executing
+      const nextReqId = executionQueueRef.current.find(reqId => {
+        const req = requirements.find(r => getRequirementId(r) === reqId);
+        // Start this requirement if its batch isn't already running something
+        return req && req.batchId && !runningBatchIds.has(req.batchId);
+      });
+
+      if (nextReqId) {
+        console.log(`[TaskRunner] Auto-processing next requirement from idle batch: ${nextReqId}`);
+        executeNextRequirement();
+      }
     }
 
     // Check if all queued items are done
+    const runningReq = requirements.find((r) => r.status === 'running');
     if (isRunning && executionQueueRef.current.length === 0 && !runningReq) {
       console.log('[TaskRunner] All requirements completed');
       setIsRunning(false);
       setProcessedCount(0);
     }
-  }, [requirements, isRunning, setIsRunning, setProcessedCount, executeNextRequirement, isPaused]);
+  }, [requirements, isRunning, setIsRunning, setProcessedCount, executeNextRequirement, getRequirementId]);
 
   // Batch Handler Functions
   const handleCreateBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
@@ -283,7 +306,7 @@ export default function TaskRunnerHeader({
     }
 
     BatchStorage.updateBatch(batchId, updatedBatch);
-    setIsPaused(true);
+    // Don't set global isPaused - each batch is independent
   }, [batch1, batch2, batch3, batch4]);
 
   const handleResumeBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
@@ -311,9 +334,9 @@ export default function TaskRunnerHeader({
     }
 
     BatchStorage.updateBatch(batchId, updatedBatch);
-    setIsPaused(false);
+    // Don't set global isPaused - each batch is independent
 
-    // Resume execution
+    // Resume execution - the executor will check batch states
     setTimeout(() => {
       if (executionQueueRef.current.length > 0) {
         executeNextRequirement();
@@ -323,6 +346,33 @@ export default function TaskRunnerHeader({
 
   const handleClearBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
     console.log(`[TaskRunner] Clearing ${batchId}`);
+
+    // Get the batch to clear
+    let batch: BatchState | null = null;
+    switch (batchId) {
+      case 'batch1': batch = batch1; break;
+      case 'batch2': batch = batch2; break;
+      case 'batch3': batch = batch3; break;
+      case 'batch4': batch = batch4; break;
+    }
+
+    if (batch) {
+      // Remove batch requirements from execution queue
+      executionQueueRef.current = executionQueueRef.current.filter(
+        reqId => !batch!.requirementIds.includes(reqId)
+      );
+
+      // Reset requirements status to idle and clear batchId
+      setRequirements(prev =>
+        prev.map(req => {
+          const reqId = getRequirementId(req);
+          if (batch!.requirementIds.includes(reqId)) {
+            return { ...req, status: 'idle' as const, batchId: undefined };
+          }
+          return req;
+        })
+      );
+    }
 
     // Update the appropriate state
     switch (batchId) {
@@ -339,7 +389,7 @@ export default function TaskRunnerHeader({
         [batchId]: null,
       });
     }
-  }, []);
+  }, [batch1, batch2, batch3, batch4, getRequirementId, setRequirements]);
 
   const clearError = () => {
     setError(undefined);

@@ -232,15 +232,13 @@ export default function WebSocketVoiceSolution() {
 
         ws.onerror = () => {
           // Silently handle WebSocket errors - we'll use POST instead
-          console.log('WebSocket not available, using POST endpoint');
         };
 
         ws.onclose = () => {
-          console.log('WebSocket closed');
+          // Connection closed
         };
       } catch {
         // WebSocket connection failed, but that's okay - we use POST
-        console.log('WebSocket creation failed, using POST endpoint');
       }
 
       // Start session using POST endpoint

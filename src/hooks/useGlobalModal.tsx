@@ -15,6 +15,22 @@ interface ModalOptions {
   backdropBlur?: boolean;
 }
 
+interface ModalShellSectionConfig {
+  enabled: boolean;
+  previewMode?: 'edit' | 'preview';
+  markdownContent?: string;
+  hasContent?: boolean;
+  [key: string]: unknown;
+}
+
+interface DynamicModalShellProps {
+  header: ModalShellSectionConfig;
+  content: ModalShellSectionConfig;
+  footer: ModalShellSectionConfig;
+  customContent?: ReactNode;
+  isTopMost?: boolean;
+}
+
 export const useGlobalModal = () => {
   const { showModal, hideModal, isModalOpen } = useModal();
 
@@ -82,12 +98,12 @@ export const useGlobalModal = () => {
     markdown: string,
     options?: Partial<ModalOptions> & { previewMode?: 'edit' | 'preview' }
   ) => {
-    const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as any;
+    const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as React.ComponentType<DynamicModalShellProps>;
     const content = (
       <DynamicModalShell
-        header={{ enabled: false } as any}
-        content={{ enabled: true, previewMode: options?.previewMode || 'preview', markdownContent: markdown, hasContent: true } as any}
-        footer={{ enabled: false } as any}
+        header={{ enabled: false }}
+        content={{ enabled: true, previewMode: options?.previewMode || 'preview', markdownContent: markdown, hasContent: true }}
+        footer={{ enabled: false }}
       />
     );
 
@@ -103,14 +119,14 @@ export const useGlobalModal = () => {
   const showShellModal = (
     config: ModalOptions,
     shell: {
-      header?: any;
-      content?: any;
-      footer?: any;
+      header?: ModalShellSectionConfig;
+      content?: ModalShellSectionConfig;
+      footer?: ModalShellSectionConfig;
       customContent?: React.ReactNode;
       isTopMost?: boolean;
     }
   ) => {
-    const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as any;
+    const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as React.ComponentType<DynamicModalShellProps>;
     const content = (
       <DynamicModalShell
         header={shell.header ? { enabled: true, ...shell.header } : { enabled: false }}

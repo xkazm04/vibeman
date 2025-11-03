@@ -1,11 +1,16 @@
 'use client';
-import React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import { AIErrorDisplay } from '@/components/ui';
 import IdeaDetailMeta from './IdeaDetailMeta';
 import IdeaDetailDescription from './IdeaDetailDescription';
 import IdeaDetailFeedback from './IdeaDetailFeedback';
+
+interface RequirementError {
+  message: string;
+  code?: string;
+  details?: unknown;
+}
 
 interface IdeaDetailContentProps {
   idea: DbIdea;
@@ -20,11 +25,28 @@ interface IdeaDetailContentProps {
   handleSaveDescription: () => void;
   handleCancelDescription: () => void;
   saving: boolean;
-  requirementError: any;
+  requirementError: RequirementError | null;
   retryRequirementGen: () => void;
   showAIError: boolean;
   setShowAIError: (value: boolean) => void;
   onUpdate: (updates: Partial<DbIdea>) => Promise<void>;
+}
+
+interface ReasoningSectionProps {
+  reasoning: string;
+}
+
+function ReasoningSection({ reasoning }: ReasoningSectionProps) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">
+        LLM Reasoning
+      </h3>
+      <p className="text-xs text-gray-300 leading-relaxed italic">
+        {reasoning}
+      </p>
+    </div>
+  );
 }
 
 export default function IdeaDetailContent({
@@ -76,16 +98,7 @@ export default function IdeaDetailContent({
       />
 
       {/* Reasoning */}
-      {idea.reasoning && (
-        <div>
-          <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">
-            LLM Reasoning
-          </h3>
-          <p className="text-xs text-gray-300 leading-relaxed italic">
-            {idea.reasoning}
-          </p>
-        </div>
-      )}
+      {idea.reasoning && <ReasoningSection reasoning={idea.reasoning} />}
 
       {/* User Feedback Section */}
       <IdeaDetailFeedback

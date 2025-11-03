@@ -21,6 +21,26 @@ body {
   min-height: 100vh;
 }
 
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 2px;
+  border-radius: 50px;
+}
+
+::-webkit-scrollbar-track {
+  background: #00102a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #f7ffac;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00167a;
+}
+
+
 /* Universal Custom Scrollbar */
 * {
   scrollbar-width: thin;
@@ -48,25 +68,6 @@ body {
   width: 6px;
 }
 
-/* Neural scrollbar for Annette interface */
-.neural-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.neural-scrollbar::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.5);
-  border-radius: 4px;
-}
-
-.neural-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, rgba(0, 255, 255, 0.4), rgba(99, 102, 241, 0.4));
-  border-radius: 4px;
-  border: 1px solid rgba(0, 255, 255, 0.2);
-}
-
-.neural-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, rgba(0, 255, 255, 0.6), rgba(99, 102, 241, 0.6));
-}
 
 .custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.2);
@@ -83,29 +84,6 @@ body {
   background: rgba(148, 163, 184, 0.5);
 }
 
-/* Apply to all elements with scrollbars */
-*::-webkit-scrollbar {
-  width: 2px;
-}
-
-*::-webkit-scrollbar-track {
-  background: rgba(12, 27, 62, 0.2);
-  border-radius: 4px;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 4px;
-  border: 1px solid rgba(51, 65, 85, 0.2);
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(8, 26, 50, 0.5);
-}
-
-*::-webkit-scrollbar-corner {
-  background: rgba(15, 23, 42, 0.2);
-}
 
 /* Ensure scrollbars appear on common overflow elements */
 html, body {

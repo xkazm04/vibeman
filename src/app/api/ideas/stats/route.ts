@@ -109,7 +109,6 @@ export async function GET(request: NextRequest) {
       contexts
     });
   } catch (error) {
-    console.error('Error fetching idea stats:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch stats' },
       { status: 500 }

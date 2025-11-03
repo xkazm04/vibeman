@@ -3,6 +3,31 @@
  */
 
 /**
+ * Helper to format file list
+ */
+function formatFileList(fileContents: Array<{ path: string; content: string }>): string {
+  return fileContents.map((f) => `- ${f.path}`).join('\n');
+}
+
+/**
+ * Helper to format file contents with delimiters
+ */
+function formatFileContents(fileContents: Array<{ path: string; content: string }>): string {
+  return fileContents.map((f) => `\n=== ${f.path} ===\n${f.content}`).join('\n');
+}
+
+/**
+ * Helper to build common file section
+ */
+function buildFileSection(fileContents: Array<{ path: string; content: string }>): string {
+  return `Files:
+${formatFileList(fileContents)}
+
+File Contents:
+${formatFileContents(fileContents)}`;
+}
+
+/**
  * Build comprehensive context documentation prompt
  */
 export function buildContextDocumentationPrompt(params: {
@@ -17,10 +42,10 @@ export function buildContextDocumentationPrompt(params: {
 Context Description: ${description}
 
 Files included in this context:
-${fileContents.map((f) => `- ${f.path}`).join('\n')}
+${formatFileList(fileContents)}
 
 File Contents:
-${fileContents.map((f) => `\n=== ${f.path} ===\n${f.content}`).join('\n')}
+${formatFileContents(fileContents)}
 
 Create detailed documentation covering:
 1. Overview and purpose of this context
@@ -43,11 +68,7 @@ export function buildDescriptionGenerationPrompt(params: {
 
   return `You are analyzing a collection of code files to generate a comprehensive context description in clean Markdown format.
 
-Files:
-${fileContents.map((f) => `- ${f.path}`).join('\n')}
-
-File Contents:
-${fileContents.map((f) => `\n=== ${f.path} ===\n${f.content}`).join('\n')}
+${buildFileSection(fileContents)}
 
 Generate a well-structured Markdown document with the following sections:
 

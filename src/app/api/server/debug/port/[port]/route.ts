@@ -18,17 +18,13 @@ export async function GET(
       );
     }
 
-    console.log(`Checking port ${port}...`);
-    
     const command = process.platform === 'win32'
       ? `netstat -ano | findstr :${port}`
       : `lsof -i :${port}`;
-    
+
     try {
       const { stdout, stderr } = await execAsync(command);
       const inUse = stdout.trim().length > 0;
-      
-      console.log(`Port ${port} check result:`, { inUse, stdout: stdout.trim() });
       
       return NextResponse.json({
         port,
@@ -38,7 +34,6 @@ export async function GET(
         error: stderr.trim() || null
       });
     } catch (cmdError) {
-      console.log(`Port ${port} check failed:`, cmdError);
       return NextResponse.json({
         port,
         inUse: false,
@@ -48,7 +43,6 @@ export async function GET(
       });
     }
   } catch (error) {
-    console.error('Port check API error:', error);
     return NextResponse.json(
       { error: 'Port check failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

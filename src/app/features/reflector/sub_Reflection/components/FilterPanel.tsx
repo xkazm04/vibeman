@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, GitCompare } from 'lucide-react';
 import { ComparisonFilterState } from '../lib/types';

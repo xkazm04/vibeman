@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { ScanTypeStats } from '../lib/types';
@@ -76,7 +75,7 @@ export default function AcceptanceChart({ scanTypeStats }: AcceptanceChartProps)
               }}
               labelStyle={{ color: '#e5e7eb', fontWeight: 600 }}
               itemStyle={{ color: '#d1d5db' }}
-              formatter={(value: number, name: string, props: any) => [
+              formatter={(value: number, name: string, props: { payload: { total: number } }) => [
                 `${value}% (${props.payload.total} ideas)`,
                 'Acceptance Ratio'
               ]}

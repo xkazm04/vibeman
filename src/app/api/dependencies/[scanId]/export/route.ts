@@ -8,6 +8,102 @@ import {
 } from '@/lib/dependency_database';
 import { projectDb } from '@/lib/project_database';
 
+interface ProjectSummary {
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+}
+
+interface ExportData {
+  scan: {
+    id: string;
+    scan_name: string;
+    scan_date: string;
+    total_dependencies: number;
+    shared_dependencies: number;
+    duplicate_code_instances: number;
+    project_ids: string[];
+  };
+  projects: ProjectSummary[];
+  projectDependencies: ReturnType<typeof projectDependencyDb.getDependenciesByScan>;
+  sharedDependencies: Array<{
+    dependency_name: string;
+    dependency_type: string;
+    priority: string | null;
+    refactoring_opportunity: string | null;
+    project_ids: string[];
+    version_conflicts: Record<string, string> | null;
+  }>;
+  codeDuplicates: Array<{
+    pattern_type: string;
+    code_snippet: string;
+    estimated_savings: string | null;
+    refactoring_suggestion: string | null;
+    occurrences: Array<{
+      project_id: string;
+      file_path: string;
+      line_start: number;
+      line_end: number;
+    }>;
+  }>;
+  relationships: ReturnType<typeof dependencyRelationshipDb.getRelationshipsByScan>;
+}
+
+/**
+ * Extract project summaries from project IDs
+ */
+function extractProjectSummaries(projectIds: string[]): ProjectSummary[] {
+  const allProjects = projectDb.getAllProjects();
+  return projectIds
+    .map((id: string) => {
+      const project = allProjects.find(p => p.id === id);
+      return project ? {
+        id: project.id,
+        name: project.name,
+        path: project.path,
+        type: project.type
+      } : null;
+    })
+    .filter((p): p is ProjectSummary => p !== null);
+}
+
+/**
+ * Gather all scan data for export
+ */
+function gatherScanData(scanId: string, scan: ReturnType<typeof dependencyScanDb.getScanById>): ExportData {
+  if (!scan) {
+    throw new Error('Scan not found');
+  }
+
+  const projectIds = JSON.parse(scan.project_ids) as string[];
+  const projects = extractProjectSummaries(projectIds);
+
+  const projectDependencies = projectDependencyDb.getDependenciesByScan(scanId);
+  const sharedDependencies = sharedDependencyDb.getSharedDependenciesByScan(scanId);
+  const codeDuplicates = codeDuplicateDb.getDuplicatesByScan(scanId);
+  const relationships = dependencyRelationshipDb.getRelationshipsByScan(scanId);
+
+  return {
+    scan: {
+      ...scan,
+      project_ids: projectIds
+    },
+    projects,
+    projectDependencies,
+    sharedDependencies: sharedDependencies.map(dep => ({
+      ...dep,
+      project_ids: JSON.parse(dep.project_ids),
+      version_conflicts: dep.version_conflicts ? JSON.parse(dep.version_conflicts) : null
+    })),
+    codeDuplicates: codeDuplicates.map(dup => ({
+      ...dup,
+      occurrences: JSON.parse(dup.occurrences)
+    })),
+    relationships
+  };
+}
+
 /**
  * GET /api/dependencies/[scanId]/export
  * Export dependency scan data in various formats
@@ -31,41 +127,7 @@ export async function GET(
     }
 
     // Gather all scan data
-    const projectIds = JSON.parse(scan.project_ids);
-    const allProjects = projectDb.getAllProjects();
-    const projects = projectIds.map((id: string) => {
-      const project = allProjects.find(p => p.id === id);
-      return project ? {
-        id: project.id,
-        name: project.name,
-        path: project.path,
-        type: project.type
-      } : null;
-    }).filter(Boolean);
-
-    const projectDependencies = projectDependencyDb.getDependenciesByScan(scanId);
-    const sharedDependencies = sharedDependencyDb.getSharedDependenciesByScan(scanId);
-    const codeDuplicates = codeDuplicateDb.getDuplicatesByScan(scanId);
-    const relationships = dependencyRelationshipDb.getRelationshipsByScan(scanId);
-
-    const data = {
-      scan: {
-        ...scan,
-        project_ids: projectIds
-      },
-      projects,
-      projectDependencies,
-      sharedDependencies: sharedDependencies.map(dep => ({
-        ...dep,
-        project_ids: JSON.parse(dep.project_ids),
-        version_conflicts: dep.version_conflicts ? JSON.parse(dep.version_conflicts) : null
-      })),
-      codeDuplicates: codeDuplicates.map(dup => ({
-        ...dup,
-        occurrences: JSON.parse(dup.occurrences)
-      })),
-      relationships
-    };
+    const data = gatherScanData(scanId, scan);
 
     if (format === 'csv') {
       // Export as CSV
@@ -95,7 +157,6 @@ export async function GET(
       });
     }
   } catch (error) {
-    console.error('Error exporting scan:', error);
     return NextResponse.json(
       { error: 'Failed to export scan', details: (error as Error).message },
       { status: 500 }
@@ -106,7 +167,7 @@ export async function GET(
 /**
  * Generate CSV export
  */
-function generateCSV(data: any): string {
+function generateCSV(data: ExportData): string {
   const lines: string[] = [];
 
   // Scan summary
@@ -144,7 +205,7 @@ function generateCSV(data: any): string {
 /**
  * Generate Markdown export
  */
-function generateMarkdown(data: any): string {
+function generateMarkdown(data: ExportData): string {
   const lines: string[] = [];
 
   // Title
@@ -213,7 +274,7 @@ function generateMarkdown(data: any): string {
       lines.push('');
       lines.push('**Locations:**');
       for (const occ of dup.occurrences) {
-        const project = data.projects.find((p: any) => p.id === occ.project_id);
+        const project = data.projects.find((p: ProjectSummary) => p.id === occ.project_id);
         lines.push(`- ${project?.name || occ.project_id}: \`${occ.file_path}\` (lines ${occ.line_start}-${occ.line_end})`);
       }
       lines.push('');
@@ -232,8 +293,8 @@ function generateMarkdown(data: any): string {
   lines.push('## Recommendations');
   lines.push('');
 
-  const criticalShared = data.sharedDependencies.filter((d: any) => d.priority === 'critical');
-  const highShared = data.sharedDependencies.filter((d: any) => d.priority === 'high');
+  const criticalShared = data.sharedDependencies.filter(d => d.priority === 'critical');
+  const highShared = data.sharedDependencies.filter(d => d.priority === 'high');
 
   if (criticalShared.length > 0 || highShared.length > 0) {
     lines.push('### High Priority');

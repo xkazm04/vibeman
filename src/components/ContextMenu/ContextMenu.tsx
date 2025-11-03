@@ -5,6 +5,62 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 
+interface BackgroundEffectsProps {
+  itemCount: number;
+}
+
+function BackgroundEffects({ itemCount }: BackgroundEffectsProps) {
+  return (
+    <>
+      {/* Neural Background Effects */}
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5 rounded-2xl" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-2xl" />
+
+      {/* Animated Grid Pattern */}
+      <motion.div
+        className="absolute inset-0 opacity-5 rounded-2xl"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)
+          `,
+          backgroundSize: '8px 8px',
+        }}
+        animate={{
+          backgroundPosition: ['0px 0px', '8px 8px'],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: 'linear',
+        }}
+      />
+
+      {/* Floating Particles */}
+      {Array.from({ length: Math.min(3, itemCount) }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
+          style={{
+            left: `${20 + i * 30}%`,
+            top: `${20 + i * 20}%`,
+          }}
+          animate={{
+            y: [0, -10, 0],
+            opacity: [0, 1, 0],
+            scale: [0, 1, 0],
+          }}
+          transition={{
+            duration: 2 + Math.random() * 2,
+            repeat: Infinity,
+            delay: i * 0.5,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 export interface ContextMenuItem {
   id: string;
   label: string;
@@ -23,11 +79,13 @@ export interface ContextMenuItem {
 }
 
 interface ContextMenuProps {
-  isVisible: boolean;
+  isVisible?: boolean;
+  isOpen?: boolean; // Backward compatibility alias for isVisible
   position: { x: number; y: number };
   onClose: () => void;
   items: ContextMenuItem[];
   className?: string;
+  variant?: string; // Optional variant prop for backward compatibility
 }
 
 const defaultHoverColors = {
@@ -46,12 +104,16 @@ const dangerHoverColors = {
 
 export default function ContextMenu({
   isVisible,
+  isOpen,
   position,
   onClose,
   items,
   className = '',
 }: ContextMenuProps) {
   const [mounted, setMounted] = useState(false);
+
+  // Support both isVisible and isOpen for backward compatibility
+  const visible = isVisible ?? isOpen ?? false;
 
   useEffect(() => {
     setMounted(true);
@@ -71,7 +133,7 @@ export default function ContextMenu({
 
   const menuContent = (
     <AnimatePresence>
-      {isVisible && (
+      {visible && (
         <>
           {/* Backdrop - Subtle overlay without blur */}
           <div
@@ -94,51 +156,7 @@ export default function ContextMenu({
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(99, 102, 241, 0.2)',
             }}
           >
-            {/* Neural Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5 rounded-2xl" />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-2xl" />
-
-            {/* Animated Grid Pattern */}
-            <motion.div
-              className="absolute inset-0 opacity-5 rounded-2xl"
-              style={{
-                backgroundImage: `
-                  linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)
-                `,
-                backgroundSize: '8px 8px',
-              }}
-              animate={{
-                backgroundPosition: ['0px 0px', '8px 8px'],
-              }}
-              transition={{
-                duration: 8,
-                repeat: Infinity,
-                ease: 'linear',
-              }}
-            />
-
-            {/* Floating Particles */}
-            {Array.from({ length: 3 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
-                style={{
-                  left: `${20 + i * 30}%`,
-                  top: `${20 + i * 20}%`,
-                }}
-                animate={{
-                  y: [0, -10, 0],
-                  opacity: [0, 1, 0],
-                  scale: [0, 1, 0],
-                }}
-                transition={{
-                  duration: 2 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: i * 0.5,
-                }}
-              />
-            ))}
+            <BackgroundEffects itemCount={items.length} />
 
             <div className="relative space-y-1">
               {items.map((item) => {

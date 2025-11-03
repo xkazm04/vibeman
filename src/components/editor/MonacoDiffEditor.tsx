@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { DiffEditor } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
+import { defineVibemanTheme, clearErrorMarkers, setupMarkerClearer } from './editorTheme';
 
 type Theme = 'vs-dark' | 'light' | 'vs' | 'vibeman-dark';
 
@@ -18,42 +19,6 @@ export interface MonacoDiffEditorProps {
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor, monacoApi: typeof monaco) => void;
   className?: string;
   loading?: React.ReactNode;
-}
-
-function ensureVibemanTheme(m: typeof monaco, pickedTheme?: Theme) {
-  if ((m as any).__vibemanThemeDefined) {
-    if (pickedTheme === 'vs-dark') m.editor.setTheme('vibeman-dark');
-    return;
-  }
-  m.editor.defineTheme('vibeman-dark', {
-    base: 'vs-dark',
-    inherit: true,
-    rules: [
-      { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-      { token: 'keyword', foreground: '569CD6' },
-      { token: 'string', foreground: 'CE9178' },
-      { token: 'number', foreground: 'B5CEA8' },
-      { token: 'type', foreground: '4EC9B0' },
-      { token: 'class', foreground: '4EC9B0' },
-      { token: 'function', foreground: 'DCDCAA' },
-      { token: 'variable', foreground: '9CDCFE' },
-    ],
-    colors: {
-      'editor.background': '#1e1e1e',
-      'editor.foreground': '#d4d4d4',
-      'editor.lineHighlightBackground': '#2d2d30',
-      'editor.selectionBackground': '#264f78',
-      'editor.inactiveSelectionBackground': '#3a3d41',
-      'editorCursor.foreground': '#aeafad',
-      'editorWhitespace.foreground': '#404040',
-      'editorIndentGuide.background': '#404040',
-      'editorIndentGuide.activeBackground': '#707070',
-      'diffEditor.insertedTextBackground': '#2b5a2b55',
-      'diffEditor.removedTextBackground': '#7a2b2b55',
-    },
-  });
-  (m as any).__vibemanThemeDefined = true;
-  if (pickedTheme === 'vs-dark') m.editor.setTheme('vibeman-dark');
 }
 
 export default function MonacoDiffEditor({
@@ -83,26 +48,24 @@ export default function MonacoDiffEditor({
 
   const handleMount = (editor: monaco.editor.IStandaloneDiffEditor, monacoApi: typeof monaco) => {
     editorRef.current = editor;
-    ensureVibemanTheme(monacoApi, theme);
+
+    // Configure theme
+    defineVibemanTheme(monacoApi);
+    if (theme === 'vs-dark') {
+      monacoApi.editor.setTheme('vibeman-dark');
+    }
 
     // Disable error markers for both editors
     const originalModel = editor.getOriginalEditor().getModel();
     const modifiedModel = editor.getModifiedEditor().getModel();
-    
+
     if (originalModel) {
-      monacoApi.editor.setModelMarkers(originalModel, 'typescript', []);
-      monacoApi.editor.setModelMarkers(originalModel, 'javascript', []);
+      clearErrorMarkers(monacoApi, originalModel);
     }
-    
+
     if (modifiedModel) {
-      monacoApi.editor.setModelMarkers(modifiedModel, 'typescript', []);
-      monacoApi.editor.setModelMarkers(modifiedModel, 'javascript', []);
-      
-      // Listen for marker changes and clear them
-      const disposable = monacoApi.editor.onDidChangeMarkers(() => {
-        monacoApi.editor.setModelMarkers(modifiedModel, 'typescript', []);
-        monacoApi.editor.setModelMarkers(modifiedModel, 'javascript', []);
-      });
+      clearErrorMarkers(monacoApi, modifiedModel);
+      const disposable = setupMarkerClearer(monacoApi, modifiedModel);
       disposersRef.current.push(disposable);
     }
 

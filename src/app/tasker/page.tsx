@@ -45,9 +45,7 @@ export default function TaskRunnerPage() {
     const loadAllRequirements = async () => {
       // CRITICAL: Don't reload requirements while a batch is running
       // This would wipe out status information for queued/running tasks
-      if (isRunning) {
-        console.log('[TaskRunner] Skipping requirements reload - batch execution in progress');
-        return;
+      if (isRunning) {        return;
       }
 
       setIsLoading(true);
@@ -70,9 +68,7 @@ export default function TaskRunnerPage() {
               status: 'idle',
             });
           });
-        } catch (error) {
-          console.error(`Failed to load requirements for ${project.name}:`, error);
-        }
+        } catch (error) {        }
       }
 
       setRequirements(allRequirements);
@@ -160,9 +156,7 @@ export default function TaskRunnerPage() {
           return newSet;
         });
       }
-    } catch (error) {
-      console.error('Failed to delete requirement:', error);
-    }
+    } catch (error) {    }
   };
 
   if (isLoading) {

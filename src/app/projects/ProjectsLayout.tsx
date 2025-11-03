@@ -30,9 +30,7 @@ export default function ProjectsLayout() {
   };
 
   // Handle project updated - no need to refresh, optimistic updates handle it
-  const handleProjectUpdated = () => {
-    console.log('[ProjectsLayout] Project updated via optimistic update');
-  };
+  const handleProjectUpdated = () => {  };
 
   return (
     <>

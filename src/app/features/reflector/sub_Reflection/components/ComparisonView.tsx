@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -155,7 +154,7 @@ export default function ComparisonView({ comparisonStats }: ComparisonViewProps)
                     }}
                     labelStyle={{ color: '#e5e7eb', fontWeight: 600 }}
                     itemStyle={{ color: '#d1d5db' }}
-                    formatter={(value: number, name: string, props: any) => [
+                    formatter={(value: number, name: string, props: { payload: { total: number } }) => [
                       `${value}% (${props.payload.total} ideas)`,
                       'Acceptance'
                     ]}
@@ -211,7 +210,7 @@ export default function ComparisonView({ comparisonStats }: ComparisonViewProps)
                     }}
                     labelStyle={{ color: '#e5e7eb', fontWeight: 600 }}
                     itemStyle={{ color: '#d1d5db' }}
-                    formatter={(value: number, name: string, props: any) => [
+                    formatter={(value: number, name: string, props: { payload: { total: number } }) => [
                       `${value}% (${props.payload.total} ideas)`,
                       'Acceptance'
                     ]}

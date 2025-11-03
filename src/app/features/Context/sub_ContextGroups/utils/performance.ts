@@ -1,32 +1,34 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
 
+/**
+ * Layout configuration type
+ */
+export interface LayoutConfig {
+  gridCols: string;
+  cellHeight: string;
+  fontSize: string;
+  showDividers: boolean;
+}
+
+/**
+ * Helper function to create layout config
+ */
+function createLayoutConfig(
+  gridCols: string,
+  cellHeight: string,
+  fontSize: string,
+  showDividers: boolean
+): LayoutConfig {
+  return { gridCols, cellHeight, fontSize, showDividers };
+}
+
 // Utility for memoizing expensive calculations
 export const useMemoizedLayoutConfig = (contextCount: number) => {
   return useMemo(() => {
-    if (contextCount === 1) return {
-      gridCols: 'grid-cols-1',
-      cellHeight: 'h-64',
-      fontSize: 'text-4xl',
-      showDividers: false
-    };
-    if (contextCount === 2) return {
-      gridCols: 'grid-cols-2',
-      cellHeight: 'h-64',
-      fontSize: 'text-2xl',
-      showDividers: true
-    };
-    if (contextCount <= 4) return {
-      gridCols: 'grid-cols-2',
-      cellHeight: 'h-32',
-      fontSize: 'text-lg',
-      showDividers: true
-    };
-    return {
-      gridCols: 'grid-cols-3',
-      cellHeight: 'h-28',
-      fontSize: 'text-base',
-      showDividers: true
-    };
+    if (contextCount === 1) return createLayoutConfig('grid-cols-1', 'h-64', 'text-4xl', false);
+    if (contextCount === 2) return createLayoutConfig('grid-cols-2', 'h-64', 'text-2xl', true);
+    if (contextCount <= 4) return createLayoutConfig('grid-cols-2', 'h-32', 'text-lg', true);
+    return createLayoutConfig('grid-cols-3', 'h-28', 'text-base', true);
   }, [contextCount]);
 };
 
@@ -47,8 +49,13 @@ export const createTransitionConfig = (index: number, delay: number = 0.1) => ({
   damping: 30
 });
 
+/**
+ * Callback function type
+ */
+type CallbackFunction = (...args: unknown[]) => unknown;
+
 // Debounced callback utility
-export const useDebounceCallback = <T extends (...args: any[]) => any>(
+export const useDebounceCallback = <T extends CallbackFunction>(
   callback: T,
   delay: number
 ): T => {
@@ -62,7 +69,7 @@ export const useDebounceCallback = <T extends (...args: any[]) => any>(
 };
 
 // Throttled callback utility
-export const useThrottleCallback = <T extends (...args: any[]) => any>(
+export const useThrottleCallback = <T extends CallbackFunction>(
   callback: T,
   delay: number
 ): T => {

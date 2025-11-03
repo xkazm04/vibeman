@@ -34,7 +34,7 @@ export class CopilotIntegration {
       }
 
       const result = await response.json();
-      
+
       return {
         success: true,
         issueNumber: result.taskMetadata?.issueNumber,

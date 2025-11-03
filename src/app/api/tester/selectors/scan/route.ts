@@ -6,6 +6,16 @@ import { join } from 'path';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 
 /**
+ * Helper to create error response
+ */
+function errorResponse(message: string, status: number, details?: unknown) {
+  return NextResponse.json(
+    { error: message, ...(details && { details }) },
+    { status }
+  );
+}
+
+/**
  * POST /api/tester/selectors/scan - Scan context files for data-testid and create requirement files
  */
 export async function POST(request: NextRequest) {
@@ -14,29 +24,17 @@ export async function POST(request: NextRequest) {
     const { contextId, projectId, scanOnly = true } = body;
 
     if (!contextId) {
-      return NextResponse.json(
-        { error: 'Context ID is required' },
-        { status: 400 }
-      );
+      return errorResponse('Context ID is required', 400);
     }
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: 'Project ID is required' },
-        { status: 400 }
-      );
+      return errorResponse('Project ID is required', 400);
     }
-
-    console.log('[SelectorsScan] Received projectId:', projectId);
-    console.log('[SelectorsScan] Received contextId:', contextId);
 
     // Get context details
     const context = contextDb.getContextById(contextId);
     if (!context) {
-      return NextResponse.json(
-        { error: 'Context not found' },
-        { status: 404 }
-      );
+      return errorResponse('Context not found', 404);
     }
 
     // Get existing selectors from DB
@@ -47,30 +45,20 @@ export async function POST(request: NextRequest) {
     const filePaths = JSON.parse(context.file_paths);
 
     if (filePaths.length === 0) {
-      return NextResponse.json(
-        { error: 'Context has no files' },
-        { status: 400 }
-      );
+      return errorResponse('Context has no files', 400);
     }
 
     // Get project using projectDb connector
-    console.log('[SelectorsScan] Querying projects table for projectId:', projectId);
     const project = projectDb.getProject(projectId);
-    console.log('[SelectorsScan] Project query result:', project);
 
     if (!project) {
       // List all projects to debug
       const allProjects = projectDb.getAllProjects();
-      console.log('[SelectorsScan] All projects in DB:', allProjects.map(p => ({ id: p.id, name: p.name })));
 
-      return NextResponse.json(
-        {
-          error: 'Project not found',
-          receivedProjectId: projectId,
-          availableProjects: allProjects.map(p => ({ id: p.id, name: p.name }))
-        },
-        { status: 404 }
-      );
+      return errorResponse('Project not found', 404, {
+        receivedProjectId: projectId,
+        availableProjects: allProjects.map(p => ({ id: p.id, name: p.name }))
+      });
     }
 
     const projectPath = project.path;
@@ -114,8 +102,6 @@ export async function POST(request: NextRequest) {
     const isDbOutdated = totalSelectors !== dbCount ||
                          ![...allTestidsInCode].every(tid => dbTestids.has(tid));
 
-    console.log(`[SelectorsScan] Found ${totalSelectors} in code vs ${dbCount} in DB (outdated: ${isDbOutdated})`);
-
     // If scanOnly, return results
     if (scanOnly) {
       return NextResponse.json({
@@ -144,13 +130,8 @@ export async function POST(request: NextRequest) {
     const result = createRequirement(projectPath, requirementName, requirementContent);
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || 'Failed to create requirement file' },
-        { status: 500 }
-      );
+      return errorResponse(result.error || 'Failed to create requirement file', 500);
     }
-
-    console.log(`[SelectorsScan] ✅ Created requirement file: ${result.filePath}`);
 
     return NextResponse.json({
       success: true,
@@ -161,13 +142,10 @@ export async function POST(request: NextRequest) {
       requirementFile: result.filePath,
     });
   } catch (error) {
-    console.error('Failed to scan for selectors:', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to scan for selectors',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+    return errorResponse(
+      'Failed to scan for selectors',
+      500,
+      error instanceof Error ? error.message : 'Unknown error'
     );
   }
 }

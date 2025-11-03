@@ -14,6 +14,11 @@ interface SaveFileDialogProps {
   fileExtension?: string;
 }
 
+// Helper to get final file name with extension
+function getFinalFileName(fileName: string, extension: string): string {
+  return fileName.endsWith(extension) ? fileName : `${fileName}${extension}`;
+}
+
 export default function SaveFileDialog({
   isOpen,
   onClose,
@@ -29,6 +34,8 @@ export default function SaveFileDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const finalFileName = getFinalFileName(fileName, fileExtension);
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
@@ -43,9 +50,6 @@ export default function SaveFileDialog({
       setError('Please enter a file name');
       return;
     }
-
-    // Ensure the file name ends with the correct extension
-    const finalFileName = fileName.endsWith(fileExtension) ? fileName : `${fileName}${fileExtension}`;
 
     setSaving(true);
     setError(null);
@@ -151,7 +155,7 @@ export default function SaveFileDialog({
                 />
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                File will be saved as: <span className="font-mono text-cyan-400">{fileName.endsWith(fileExtension) ? fileName : `${fileName}${fileExtension}`}</span>
+                File will be saved as: <span className="font-mono text-cyan-400">{finalFileName}</span>
               </p>
             </form>
 
@@ -179,7 +183,7 @@ export default function SaveFileDialog({
               <div className="text-sm text-gray-500">
                 {selectedFolder ? (
                   <span>
-                    Saving to: <span className="font-mono text-cyan-400">{selectedFolder}/{fileName.endsWith(fileExtension) ? fileName : `${fileName}${fileExtension}`}</span>
+                    Saving to: <span className="font-mono text-cyan-400">{selectedFolder}/{finalFileName}</span>
                   </span>
                 ) : (
                   <span>Select a folder to continue</span>

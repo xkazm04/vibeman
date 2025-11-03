@@ -11,31 +11,27 @@ export interface RequirementBuilderOptions {
   context?: DbContext | null;
 }
 
+type EffortLevel = 'Low' | 'Medium' | 'High' | 'Unknown';
+type ImpactLevel = 'Low' | 'Medium' | 'High' | 'Unknown';
+
 /**
- * Build requirement file content from an idea
- * Includes goal reference, context info, and skills recommendations
+ * Get effort label from numeric value
  */
-export function buildRequirementFromIdea(options: RequirementBuilderOptions): string {
-  const { idea, goal, context } = options;
+function getEffortLabel(effort: number | null): EffortLevel {
+  if (effort === 1) return 'Low';
+  if (effort === 2) return 'Medium';
+  if (effort === 3) return 'High';
+  return 'Unknown';
+}
 
-  const effortLabel = idea.effort === 1 ? 'Low' : idea.effort === 2 ? 'Medium' : idea.effort === 3 ? 'High' : 'Unknown';
-  const impactLabel = idea.impact === 1 ? 'Low' : idea.impact === 2 ? 'Medium' : idea.impact === 3 ? 'High' : 'Unknown';
-
-  // Build sections
-  const metadataSection = buildMetadataSection(idea, effortLabel, impactLabel);
-  const descriptionSection = buildDescriptionSection(idea);
-  const contextSection = context ? buildContextSection(context) : '';
-  const skillsSection = buildSkillsSection(idea);
-  const notesSection = buildNotesSection(goal);
-
-  return `# ${idea.title}
-
-${metadataSection}
-
-${descriptionSection}
-${contextSection}
-${skillsSection}
-${notesSection}`;
+/**
+ * Get impact label from numeric value
+ */
+function getImpactLabel(impact: number | null): ImpactLevel {
+  if (impact === 1) return 'Low';
+  if (impact === 2) return 'Medium';
+  if (impact === 3) return 'High';
+  return 'Unknown';
 }
 
 /**
@@ -64,17 +60,23 @@ function buildDescriptionSection(idea: DbIdea): string {
 }
 
 /**
- * Build context section if context exists
- * Provides architectural guidance and file references
+ * Parse file paths from context
  */
-function buildContextSection(context: DbContext): string {
+function parseContextFilePaths(context: DbContext): string[] {
   const filePaths = typeof context.file_paths === 'string'
     ? JSON.parse(context.file_paths)
     : context.file_paths;
 
-  const filesList = Array.isArray(filePaths)
-    ? filePaths.map(fp => `- \`${fp}\``).join('\n')
-    : '';
+  return Array.isArray(filePaths) ? filePaths : [];
+}
+
+/**
+ * Build context section if context exists
+ * Provides architectural guidance and file references
+ */
+function buildContextSection(context: DbContext): string {
+  const filePaths = parseContextFilePaths(context);
+  const filesList = filePaths.map(fp => `- \`${fp}\``).join('\n');
 
   return `
 ## Context
@@ -83,11 +85,24 @@ function buildContextSection(context: DbContext): string {
 
 ### Context: ${context.name}
 
-${context.description ? `**Description**: ${context.description}\n` : ''}
-**Related Files**:
+${context.description ? `**Description**: ${context.description}\n` : ''}**Related Files**:
 ${filesList}
 
 **Post-Implementation**: After completing this requirement, evaluate if the context description or file paths need updates. Use the appropriate API/DB query to update the context if architectural changes were made.`;
+}
+
+/**
+ * Check if idea is UI-related based on category or keywords
+ */
+function isUIRelatedIdea(idea: DbIdea): boolean {
+  const uiKeywords = ['ui', 'interface', 'component', 'design'];
+
+  return idea.category === 'ui' ||
+    uiKeywords.some(keyword =>
+      idea.title.toLowerCase().includes(keyword) ||
+      idea.description?.toLowerCase().includes(keyword) ||
+      false
+    );
 }
 
 /**
@@ -96,22 +111,10 @@ ${filesList}
 function buildSkillsSection(idea: DbIdea): string {
   const skills: string[] = [];
 
-  // Check if UI-related based on category or keywords
-  const isUIRelated =
-    idea.category === 'ui' ||
-    idea.title.toLowerCase().includes('ui') ||
-    idea.title.toLowerCase().includes('interface') ||
-    idea.title.toLowerCase().includes('component') ||
-    idea.title.toLowerCase().includes('design') ||
-    idea.description?.toLowerCase().includes('interface') ||
-    idea.description?.toLowerCase().includes('component') ||
-    idea.description?.toLowerCase().includes('design');
-
-  if (isUIRelated) {
+  if (isUIRelatedIdea(idea)) {
     skills.push('- **compact-ui-design**: Use `.claude/skills/compact-ui-design.md` for high-quality UI design references and patterns');
   }
 
-  // If no specific skills, provide general guidance
   if (skills.length === 0) {
     return `
 ## Recommended Skills
@@ -142,4 +145,30 @@ This requirement was generated from an AI-evaluated project idea. No specific go
 This requirement was created to fulfill a goal: **${goal.title}**
 
 ${goal.description ? `**Goal Description**: ${goal.description}` : ''}`;
+}
+
+/**
+ * Build requirement file content from an idea
+ * Includes goal reference, context info, and skills recommendations
+ */
+export function buildRequirementFromIdea(options: RequirementBuilderOptions): string {
+  const { idea, goal, context } = options;
+
+  const effortLabel = getEffortLabel(idea.effort);
+  const impactLabel = getImpactLabel(idea.impact);
+
+  const metadataSection = buildMetadataSection(idea, effortLabel, impactLabel);
+  const descriptionSection = buildDescriptionSection(idea);
+  const contextSection = context ? buildContextSection(context) : '';
+  const skillsSection = buildSkillsSection(idea);
+  const notesSection = buildNotesSection(goal);
+
+  return `# ${idea.title}
+
+${metadataSection}
+
+${descriptionSection}
+${contextSection}
+${skillsSection}
+${notesSection}`;
 }

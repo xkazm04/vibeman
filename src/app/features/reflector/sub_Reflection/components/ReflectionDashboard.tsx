@@ -73,7 +73,6 @@ export default function ReflectionDashboard() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load statistics');
-      console.error('Error loading stats:', err);
     } finally {
       setLoading(false);
     }
@@ -88,7 +87,7 @@ export default function ReflectionDashboard() {
 
       const data = await response.json();
       if (data.success && data.data.contexts) {
-        const mappedContexts = data.data.contexts.map((ctx: any) => ({
+        const mappedContexts = data.data.contexts.map((ctx: { id: string; name: string; project_id: string }) => ({
           id: ctx.id,
           name: ctx.name,
           project_id: ctx.project_id
@@ -96,7 +95,6 @@ export default function ReflectionDashboard() {
         setContexts(mappedContexts);
       }
     } catch (err) {
-      console.error('Error loading contexts:', err);
       setContexts([]);
     }
   };

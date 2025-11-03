@@ -117,6 +117,44 @@ class ScanDataCache {
 const globalCache = new ScanDataCache();
 
 /**
+ * Build query params for the API request
+ */
+function buildScanQueryParams(
+  projectId: string,
+  scanType: string | undefined,
+  offset: number,
+  limit: number
+): URLSearchParams {
+  const params = new URLSearchParams({
+    projectId,
+    limit: limit.toString(),
+    offset: offset.toString()
+  });
+
+  if (scanType) {
+    params.set('scanType', scanType);
+  }
+
+  return params;
+}
+
+/**
+ * Fetch scan data from the API
+ */
+async function fetchScansFromAPI(
+  params: URLSearchParams
+): Promise<{ scans: DbScan[]; pagination: CacheEntry['pagination'] }> {
+  const response = await fetch(`/api/scans?${params.toString()}`);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch scans');
+  }
+
+  return await response.json();
+}
+
+/**
  * Hook for fetching scan data with pagination, caching, and error handling
  *
  * @param filters - Filter configuration (projectId is required)
@@ -176,28 +214,10 @@ export function useScanData(
         }
       }
 
-      // Build query params
-      const params = new URLSearchParams({
-        projectId: fetchProjectId,
-        limit: fetchLimit.toString(),
-        offset: fetchOffset.toString()
-      });
+      // Build query params and fetch from API
+      const params = buildScanQueryParams(fetchProjectId, fetchScanType, fetchOffset, fetchLimit);
+      const data = await fetchScansFromAPI(params);
 
-      if (fetchScanType) {
-        params.set('scanType', fetchScanType);
-      }
-
-      // Fetch from API
-      const response = await fetch(`/api/scans?${params.toString()}`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch scans');
-      }
-
-      const data = await response.json();
-
-      // Update state
       setScans(data.scans);
       setPagination(data.pagination);
 

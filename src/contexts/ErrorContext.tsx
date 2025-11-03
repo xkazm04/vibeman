@@ -55,14 +55,6 @@ export function ErrorProvider({
     (error: unknown, context?: string): ClassifiedError => {
       const classified = ErrorClassifier.classify(error);
 
-      // Log to console in development
-      if (process.env.NODE_ENV === 'development') {
-        console.error(
-          `[ErrorClassifier]${context ? ` [${context}]` : ''} ${ErrorClassifier.formatForLogging(error)}`
-        );
-        console.error('Original error:', error);
-      }
-
       // Update error state
       setErrorState({
         error: classified,
@@ -98,6 +90,52 @@ export function ErrorProvider({
     }));
   }, []);
 
+  const calculateBackoffDelay = (baseDelay: number, attempt: number): number => {
+    return baseDelay * Math.pow(1.5, attempt - 1);
+  };
+
+  const shouldAttemptRetry = (classified: ClassifiedError, attempt: number, maxAttempts: number): boolean => {
+    return classified.shouldRetry && attempt < maxAttempts;
+  };
+
+  const executeOperationWithRetry = async <T,>(
+    operation: () => Promise<T>,
+    attempt: number,
+    maxAttempts: number,
+    context?: string
+  ): Promise<T> => {
+    try {
+      const result = await operation();
+
+      // Clear error on success after retry
+      if (attempt > 0) {
+        clearError();
+      }
+
+      return result;
+    } catch (error) {
+      const classified = ErrorClassifier.classify(error);
+
+      if (!shouldAttemptRetry(classified, attempt + 1, maxAttempts)) {
+        handleError(error, context);
+        throw error;
+      }
+
+      // Update retry count
+      setErrorState(prev => ({
+        ...prev,
+        retryCount: attempt + 1,
+      }));
+
+      // Wait before retrying (with exponential backoff)
+      const delay = classified.retryDelay || 1000;
+      const backoffDelay = calculateBackoffDelay(delay, attempt + 1);
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+
+      throw error; // Re-throw to continue retry loop
+    }
+  };
+
   const executeWithRetry = useCallback(
     async <T,>(
       operation: () => Promise<T>,
@@ -106,48 +144,16 @@ export function ErrorProvider({
     ): Promise<T> => {
       const maxAttempts = customMaxRetries ?? maxRetries;
       let lastError: unknown;
-      let attempt = 0;
 
-      while (attempt < maxAttempts) {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-          const result = await operation();
-
-          // Clear error on success
-          if (attempt > 0) {
-            clearError();
-          }
-
-          return result;
+          return await executeOperationWithRetry(operation, attempt, maxAttempts, context);
         } catch (error) {
           lastError = error;
-          attempt++;
-
-          const classified = ErrorClassifier.classify(error);
-
-          // Log retry attempt
-          if (process.env.NODE_ENV === 'development') {
-            console.warn(
-              `[ErrorClassifier]${context ? ` [${context}]` : ''} Retry ${attempt}/${maxAttempts} after error:`,
-              classified.userMessage
-            );
+          // Continue to next iteration if not last attempt
+          if (attempt < maxAttempts - 1) {
+            continue;
           }
-
-          // Check if we should retry
-          if (!classified.shouldRetry || attempt >= maxAttempts) {
-            handleError(error, context);
-            throw error;
-          }
-
-          // Update retry count
-          setErrorState(prev => ({
-            ...prev,
-            retryCount: attempt,
-          }));
-
-          // Wait before retrying (with backoff)
-          const delay = classified.retryDelay || 1000;
-          const backoffDelay = delay * Math.pow(1.5, attempt - 1);
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
         }
       }
 

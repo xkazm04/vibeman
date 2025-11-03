@@ -7,6 +7,9 @@ import { createSupabaseClient } from './client';
 import { getDatabase } from '@/app/db/connection';
 import { projectDb } from '@/lib/project_database';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createLogger } from '@/lib/utils/logger';
+
+const logger = createLogger('Sync');
 
 export interface SyncResult {
   success: boolean;
@@ -22,6 +25,21 @@ export interface SyncSummary {
   totalRecords: number;
   failedTables: string[];
 }
+
+interface SyncMetadata {
+  table_name: string;
+  last_sync_at: string;
+  record_count: number;
+  sync_status: 'success' | 'failed' | 'in_progress';
+  error_message: string | null;
+  updated_at: string;
+}
+
+interface TableRecord {
+  [key: string]: unknown;
+}
+
+type SyncStatus = 'success' | 'failed' | 'in_progress';
 
 /**
  * Tables to sync in order (respecting foreign key dependencies)
@@ -41,16 +59,18 @@ const SYNC_ORDER = [
 const BATCH_SIZE = 1000;
 
 /**
- * Logger for sync operations
+ * Get error message from unknown error type
  */
-const logger = {
-  info: (message: string, ...args: unknown[]) => {
-    console.log(`[Sync] ${message}`, ...args);
-  },
-  error: (message: string, ...args: unknown[]) => {
-    console.error(`[Sync] ${message}`, ...args);
-  }
-};
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
+/**
+ * Get current ISO timestamp
+ */
+function getCurrentTimestamp(): string {
+  return new Date().toISOString();
+}
 
 /**
  * Update sync metadata in Supabase
@@ -58,17 +78,17 @@ const logger = {
 async function updateSyncMetadata(
   supabase: SupabaseClient,
   tableName: string,
-  status: 'success' | 'failed' | 'in_progress',
+  status: SyncStatus,
   recordCount?: number,
   errorMessage?: string
 ): Promise<void> {
-  const metadata = {
+  const metadata: SyncMetadata = {
     table_name: tableName,
-    last_sync_at: new Date().toISOString(),
+    last_sync_at: getCurrentTimestamp(),
     record_count: recordCount || 0,
     sync_status: status,
     error_message: errorMessage || null,
-    updated_at: new Date().toISOString()
+    updated_at: getCurrentTimestamp()
   };
 
   const { error } = await supabase
@@ -81,84 +101,192 @@ async function updateSyncMetadata(
 }
 
 /**
+ * Fetch records from SQLite for a given table
+ */
+function fetchRecordsFromSQLite(tableName: string): TableRecord[] {
+  if (tableName === 'projects') {
+    return projectDb.getAllProjects();
+  }
+
+  const db = getDatabase();
+  const stmt = db.prepare(`SELECT * FROM ${tableName}`);
+  return stmt.all() as TableRecord[];
+}
+
+/**
+ * Clear all existing records in Supabase table
+ */
+async function clearSupabaseTable(
+  supabase: SupabaseClient,
+  tableName: string
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from(tableName)
+    .delete()
+    .neq('id', ''); // Delete all records
+
+  if (deleteError) {
+    throw new Error(`Failed to clear existing data: ${deleteError.message}`);
+  }
+}
+
+/**
+ * Insert records in batches to Supabase
+ */
+async function insertRecordsInBatches(
+  supabase: SupabaseClient,
+  tableName: string,
+  records: TableRecord[]
+): Promise<number> {
+  let totalInserted = 0;
+
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+
+    const { error: insertError } = await supabase
+      .from(tableName)
+      .insert(batch);
+
+    if (insertError) {
+      throw new Error(`Failed to insert batch: ${insertError.message}`);
+    }
+
+    totalInserted += batch.length;
+    logger.info(`Inserted ${totalInserted}/${records.length} records for ${tableName}`);
+  }
+
+  return totalInserted;
+}
+
+/**
+ * Create a success sync result
+ */
+function createSuccessResult(tableName: string, recordCount: number): SyncResult {
+  return {
+    success: true,
+    tableName,
+    recordCount
+  };
+}
+
+/**
+ * Create a failed sync result
+ */
+function createFailedResult(tableName: string, errorMessage: string): SyncResult {
+  return {
+    success: false,
+    tableName,
+    error: errorMessage
+  };
+}
+
+/**
+ * Handle empty table sync
+ */
+async function handleEmptyTable(
+  supabase: SupabaseClient,
+  tableName: string
+): Promise<SyncResult> {
+  await updateSyncMetadata(supabase, tableName, 'success', 0);
+  return createSuccessResult(tableName, 0);
+}
+
+/**
+ * Sync table data to Supabase
+ */
+async function syncTableData(
+  supabase: SupabaseClient,
+  tableName: string,
+  records: TableRecord[]
+): Promise<number> {
+  await clearSupabaseTable(supabase, tableName);
+  return await insertRecordsInBatches(supabase, tableName, records);
+}
+
+/**
  * Sync a single table from SQLite to Supabase
  */
-async function syncTable(supabase: any, tableName: string): Promise<SyncResult> {
+async function syncTable(supabase: SupabaseClient, tableName: string): Promise<SyncResult> {
   try {
-    console.log(`[Sync] Starting sync for table: ${tableName}`);
+    logger.info(`Starting sync for table: ${tableName}`);
     await updateSyncMetadata(supabase, tableName, 'in_progress');
 
-    // Get data from SQLite
-    let records: any[] = [];
-
-    if (tableName === 'projects') {
-      records = projectDb.getAllProjects();
-    } else {
-      const db = getDatabase();
-      const stmt = db.prepare(`SELECT * FROM ${tableName}`);
-      records = stmt.all();
-    }
-
-    console.log(`[Sync] Found ${records.length} records in ${tableName}`);
+    const records = fetchRecordsFromSQLite(tableName);
+    logger.info(`Found ${records.length} records in ${tableName}`);
 
     if (records.length === 0) {
-      await updateSyncMetadata(supabase, tableName, 'success', 0);
-      return {
-        success: true,
-        tableName,
-        recordCount: 0
-      };
+      return await handleEmptyTable(supabase, tableName);
     }
 
-    // Delete all existing records in Supabase for this table (replace mode)
-    const { error: deleteError } = await supabase
-      .from(tableName)
-      .delete()
-      .neq('id', ''); // Delete all records
-
-    if (deleteError) {
-      throw new Error(`Failed to clear existing data: ${deleteError.message}`);
-    }
-
-    // Insert all records in batches (Supabase has a limit on batch size)
-    const BATCH_SIZE = 1000;
-    let totalInserted = 0;
-
-    for (let i = 0; i < records.length; i += BATCH_SIZE) {
-      const batch = records.slice(i, i + BATCH_SIZE);
-
-      const { error: insertError } = await supabase
-        .from(tableName)
-        .insert(batch);
-
-      if (insertError) {
-        throw new Error(`Failed to insert batch: ${insertError.message}`);
-      }
-
-      totalInserted += batch.length;
-      console.log(`[Sync] Inserted ${totalInserted}/${records.length} records for ${tableName}`);
-    }
-
+    const totalInserted = await syncTableData(supabase, tableName, records);
     await updateSyncMetadata(supabase, tableName, 'success', totalInserted);
 
-    return {
-      success: true,
-      tableName,
-      recordCount: totalInserted
-    };
+    return createSuccessResult(tableName, totalInserted);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[Sync] Error syncing table ${tableName}:`, errorMessage);
-
+    const errorMessage = getErrorMessage(error);
+    logger.error(`Error syncing table ${tableName}:`, errorMessage);
     await updateSyncMetadata(supabase, tableName, 'failed', 0, errorMessage);
-
-    return {
-      success: false,
-      tableName,
-      error: errorMessage
-    };
+    return createFailedResult(tableName, errorMessage);
   }
+}
+
+/**
+ * Process sync results and determine if should continue
+ */
+function shouldContinueSync(result: SyncResult, stopOnError: boolean): boolean {
+  if (result.success) {
+    return true;
+  }
+  if (stopOnError) {
+    logger.error(`Stopping sync due to error in ${result.tableName}`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Calculate sync summary statistics
+ */
+function calculateSyncSummary(
+  results: SyncResult[],
+  timestamp: string
+): { totalRecords: number; failedTables: string[]; allSuccess: boolean } {
+  let totalRecords = 0;
+  const failedTables: string[] = [];
+
+  for (const result of results) {
+    if (result.success) {
+      totalRecords += result.recordCount || 0;
+    } else {
+      failedTables.push(result.tableName);
+    }
+  }
+
+  return {
+    totalRecords,
+    failedTables,
+    allSuccess: failedTables.length === 0
+  };
+}
+
+/**
+ * Create sync summary object
+ */
+function createSyncSummary(
+  results: SyncResult[],
+  timestamp: string,
+  totalRecords: number,
+  failedTables: string[],
+  allSuccess: boolean
+): SyncSummary {
+  return {
+    success: allSuccess,
+    timestamp,
+    results,
+    totalRecords,
+    failedTables
+  };
 }
 
 /**
@@ -166,52 +294,34 @@ async function syncTable(supabase: any, tableName: string): Promise<SyncResult> 
  * @param stopOnError - If true, stop syncing on first error. If false, continue with remaining tables.
  */
 export async function syncAllTables(stopOnError: boolean = false): Promise<SyncSummary> {
-  const timestamp = new Date().toISOString();
+  const timestamp = getCurrentTimestamp();
   const results: SyncResult[] = [];
-  let totalRecords = 0;
 
   try {
-    console.log('[Sync] Starting database sync to Supabase...');
+    logger.info('Starting database sync to Supabase...');
     const supabase = createSupabaseClient();
 
-    // Sync each table in order
     for (const tableName of SYNC_ORDER) {
       const result = await syncTable(supabase, tableName);
       results.push(result);
 
-      if (result.success) {
-        totalRecords += result.recordCount || 0;
-      } else if (stopOnError) {
-        // Stop syncing if we encounter an error and stopOnError is true
-        console.error(`[Sync] Stopping sync due to error in ${tableName}`);
+      if (!shouldContinueSync(result, stopOnError)) {
         break;
       }
     }
 
-    const failedTables = results.filter(r => !r.success).map(r => r.tableName);
-    const allSuccess = failedTables.length === 0;
+    const { totalRecords, failedTables, allSuccess } = calculateSyncSummary(results, timestamp);
+    logger.info(`Sync completed. Total records: ${totalRecords}, Failed tables: ${failedTables.length}`);
 
-    console.log(`[Sync] Sync completed. Total records: ${totalRecords}, Failed tables: ${failedTables.length}`);
-
-    return {
-      success: allSuccess,
-      timestamp,
-      results,
-      totalRecords,
-      failedTables
-    };
+    return createSyncSummary(results, timestamp, totalRecords, failedTables, allSuccess);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Sync] Fatal error during sync:', errorMessage);
+    const errorMessage = getErrorMessage(error);
+    logger.error('Fatal error during sync:', errorMessage);
 
-    return {
-      success: false,
-      timestamp,
-      results,
-      totalRecords,
-      failedTables: SYNC_ORDER.filter(table => !results.find(r => r.tableName === table && r.success))
-    };
+    const failedTables = SYNC_ORDER.filter(table => !results.find(r => r.tableName === table && r.success));
+
+    return createSyncSummary(results, timestamp, 0, failedTables, false);
   }
 }
 
@@ -247,8 +357,8 @@ export async function getSyncStatus(): Promise<{
     };
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Sync] Error getting sync status:', errorMessage);
+    const errorMessage = getErrorMessage(error);
+    logger.error('Error getting sync status:', errorMessage);
 
     return {
       success: false,

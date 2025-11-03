@@ -10,6 +10,35 @@ interface ProcessInfo {
   command?: string;
 }
 
+/**
+ * Get port check command for current platform
+ */
+function getPortCheckCommand(port: number): string {
+  return process.platform === 'win32'
+    ? `netstat -ano | findstr :${port}`
+    : `lsof -i :${port}`;
+}
+
+/**
+ * Get process command lookup command for current platform
+ */
+function getProcessCommandLookup(pid: number): string {
+  return process.platform === 'win32'
+    ? `wmic process where processid=${pid} get commandline /format:list`
+    : `ps -p ${pid} -o command=`;
+}
+
+/**
+ * Extract command from command lookup output
+ */
+function extractCommand(output: string, platform: string): string {
+  if (platform === 'win32') {
+    const match = output.match(/CommandLine=(.+)/);
+    return match ? match[1].trim() : '';
+  }
+  return output.trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { ports } = await request.json();
@@ -44,65 +73,68 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Try to get process command for PID
+ */
+async function tryGetProcessCommand(pid: number): Promise<string> {
+  try {
+    const { stdout } = await execAsync(getProcessCommandLookup(pid));
+    return extractCommand(stdout, process.platform);
+  } catch {
+    // Ignore command lookup errors
+    return '';
+  }
+}
+
+/**
+ * Parse Windows netstat output
+ */
+async function parseWindowsNetstat(stdout: string, port: number): Promise<ProcessInfo | null> {
+  const lines = stdout.trim().split('\n');
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length >= 5 && parts[1].includes(`:${port}`)) {
+      const pid = parseInt(parts[4]);
+      if (!isNaN(pid)) {
+        const command = await tryGetProcessCommand(pid);
+        return { port, pid, command };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Parse Unix lsof output
+ */
+async function parseUnixLsof(stdout: string, port: number): Promise<ProcessInfo | null> {
+  const lines = stdout.trim().split('\n');
+  if (lines.length > 0) {
+    const firstLine = lines[0];
+    const parts = firstLine.split(/\s+/);
+    if (parts.length >= 2) {
+      const pid = parseInt(parts[1]);
+      if (!isNaN(pid)) {
+        const command = await tryGetProcessCommand(pid);
+        return { port, pid, command };
+      }
+    }
+  }
+  return null;
+}
+
 async function getProcessOnPort(port: number): Promise<ProcessInfo | null> {
   try {
-    const command = process.platform === 'win32'
-      ? `netstat -ano | findstr :${port}`
-      : `lsof -i :${port}`;
-      
+    const command = getPortCheckCommand(port);
     const { stdout } = await execAsync(command);
-    
+
     if (process.platform === 'win32') {
-      // Parse Windows netstat output
-      const lines = stdout.trim().split('\n');
-      for (const line of lines) {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length >= 5 && parts[1].includes(`:${port}`)) {
-          const pid = parseInt(parts[4]);
-          if (!isNaN(pid)) {
-            // Try to get process command
-            let command = '';
-            try {
-              const { stdout: cmdOutput } = await execAsync(`wmic process where processid=${pid} get commandline /format:list`);
-              const cmdMatch = cmdOutput.match(/CommandLine=(.+)/);
-              if (cmdMatch) {
-                command = cmdMatch[1].trim();
-              }
-            } catch {
-              // Ignore command lookup errors
-            }
-            
-            return { port, pid, command };
-          }
-        }
-      }
+      return parseWindowsNetstat(stdout, port);
     } else {
-      // Parse Unix lsof output
-      const lines = stdout.trim().split('\n');
-      if (lines.length > 0) {
-        const firstLine = lines[0];
-        const parts = firstLine.split(/\s+/);
-        if (parts.length >= 2) {
-          const pid = parseInt(parts[1]);
-          if (!isNaN(pid)) {
-            // Try to get process command
-            let command = '';
-            try {
-              const { stdout: cmdOutput } = await execAsync(`ps -p ${pid} -o command=`);
-              command = cmdOutput.trim();
-            } catch {
-              // Ignore command lookup errors
-            }
-            
-            return { port, pid, command };
-          }
-        }
-      }
+      return parseUnixLsof(stdout, port);
     }
   } catch (error) {
     // Port not in use or command failed
     return null;
   }
-  
-  return null;
 } 

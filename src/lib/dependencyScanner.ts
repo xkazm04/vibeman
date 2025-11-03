@@ -239,7 +239,7 @@ async function scanDirectory(dir: string, extensions: string[], rootPath: string
       }
     }
   } catch (_error) {
-    // Error scanning directory - silently continue
+    // Silently continue on error
   }
 
   return files;
@@ -377,7 +377,7 @@ export function analyzeSharedDependencies(scanResults: DependencyScanResult[]): 
   for (const [name, projectsMap] of Array.from(dependencyMap.entries())) {
     if (projectsMap.size > 1) {
       const projects = Array.from(projectsMap.values());
-      const versions = new Set<string>(projects.map((p) => p.version));
+      const versions = new Set(projects.map((p) => p.version));
       const versionConflicts = versions.size > 1;
 
       // Determine priority
@@ -513,7 +513,6 @@ export async function scanMultipleProjects(projectIds: string[]): Promise<{
   for (const projectId of projectIds) {
     const project = projects.find(p => p.id === projectId);
     if (!project) {
-      // Project not found - skip
       continue;
     }
 
@@ -521,7 +520,7 @@ export async function scanMultipleProjects(projectIds: string[]): Promise<{
       const result = await scanProjectDependencies(project.path, project.id);
       scanResults.push(result);
     } catch (_error) {
-      // Error scanning project - skip and continue
+      // Skip and continue on error
     }
   }
 

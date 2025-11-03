@@ -15,115 +15,74 @@ export interface StatusConfig {
   icon: typeof CheckCircle;
 }
 
-
-export const getStatusInfo = (status: Goal['status']) => {
-  switch (status) {
-    case 'done':
-      return {
-        text: 'Completed',
-        color: 'text-green-400',
-        bgColor: 'bg-green-500/20',
-        borderColor: 'border-green-500/30',
-        icon: CheckCircle
-      };
-    case 'in_progress':
-      return {
-        text: 'In Progress',
-        color: 'text-yellow-400',
-        bgColor: 'bg-yellow-500/20',
-        borderColor: 'border-yellow-500/30',
-        icon: Clock
-      };
-    case 'open':
-      return {
-        text: 'Open',
-        color: 'text-blue-400',
-        bgColor: 'bg-blue-500/20',
-        borderColor: 'border-blue-500/30',
-        icon: Circle
-      };
-    case 'undecided':
-      return {
-        text: 'Undecided',
-        color: 'text-blue-400',
-        bgColor: 'bg-blue-500/20',
-        borderColor: 'border-blue-500/30',
-        icon: Circle
-      };
-    case 'rejected':
-      return {
-        text: 'Rejected',
-        color: 'text-red-400',
-        bgColor: 'bg-red-500/20',
-        borderColor: 'border-red-500/30',
-        icon: Circle
-      };
-    default:
-      return {
-        text: 'Unknown',
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-500/20',
-        borderColor: 'border-gray-500/30',
-        icon: Circle
-      };
-  }
-};
+/**
+ * Helper to create status configuration object
+ */
+function createStatusConfig(
+  text: string,
+  baseColor: string,
+  icon: typeof CheckCircle,
+  options?: { gradient?: string; textColor?: string; glow?: string }
+): StatusConfig {
+  return {
+    text,
+    color: `text-${baseColor}-400`,
+    bgColor: `bg-${baseColor}-500/20`,
+    borderColor: `border-${baseColor}-500/30`,
+    icon,
+    ...options,
+  };
+}
 
 /**
  * Status configurations for goal statuses
  * Provides consistent styling across the application
  */
 export const STATUS_CONFIGS: Record<Goal['status'], StatusConfig> = {
-  done: {
-    text: 'Completed',
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/20',
-    borderColor: 'border-green-500/30',
+  done: createStatusConfig('Completed', 'green', CheckCircle, {
     gradient: 'from-emerald-400/20 to-green-500/20',
     textColor: 'text-emerald-300',
     glow: 'shadow-emerald-500/20',
-    icon: CheckCircle
-  },
-  in_progress: {
-    text: 'In Progress',
-    color: 'text-yellow-400',
-    bgColor: 'bg-yellow-500/20',
-    borderColor: 'border-yellow-500/30',
+  }),
+  in_progress: createStatusConfig('In Progress', 'yellow', Clock, {
     gradient: 'from-amber-400/20 to-yellow-500/20',
     textColor: 'text-amber-300',
     glow: 'shadow-amber-500/20',
-    icon: Clock
-  },
-  open: {
-    text: 'Open',
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/20',
-    borderColor: 'border-blue-500/30',
+  }),
+  open: createStatusConfig('Open', 'blue', Circle, {
     gradient: 'from-blue-400/20 to-cyan-500/20',
     textColor: 'text-blue-300',
     glow: 'shadow-blue-500/20',
-    icon: Circle
-  },
-  undecided: {
-    text: 'Under Review',
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/20',
-    borderColor: 'border-blue-500/30',
+  }),
+  undecided: createStatusConfig('Under Review', 'blue', AlertCircle, {
     gradient: 'from-blue-400/20 to-violet-500/20',
     textColor: 'text-blue-300',
     glow: 'shadow-blue-500/20',
-    icon: AlertCircle
-  },
-  rejected: {
-    text: 'Archived',
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/20',
-    borderColor: 'border-red-500/30',
+  }),
+  rejected: createStatusConfig('Archived', 'red', XCircle, {
     gradient: 'from-red-400/20 to-rose-500/20',
     textColor: 'text-red-300',
     glow: 'shadow-red-500/20',
-    icon: XCircle
+  }),
+};
+
+/**
+ * Get simplified status info (for backward compatibility)
+ * Returns basic status information without extended styling
+ */
+export const getStatusInfo = (status: Goal['status']) => {
+  const config = STATUS_CONFIGS[status];
+  if (!config) {
+    return createStatusConfig('Unknown', 'gray', Circle);
   }
+
+  return {
+    text: config.text,
+    color: config.color,
+    bgColor: config.bgColor,
+    borderColor: config.borderColor,
+    icon: config.icon,
+  };
 };
 
 /**

@@ -73,26 +73,39 @@ export function validateGoalData(goal: Partial<Goal>): boolean {
 }
 
 /**
+ * Format configuration presets for date display
+ */
+const DATE_FORMAT_OPTIONS = {
+  long: {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  } as const,
+  short: {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  } as const,
+};
+
+/**
+ * Normalize date to Date object
+ * @param date - Date string or Date object
+ * @returns Date object
+ */
+function normalizeDate(date: string | Date): Date {
+  return typeof date === 'string' ? new Date(date) : date;
+}
+
+/**
  * Format date for display
  * @param date - Date string or Date object
  * @param format - Date format ('short' | 'long')
  * @returns Formatted date string
  */
 export function formatDate(date: string | Date, format: 'short' | 'long' = 'short'): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  if (format === 'long') {
-    return dateObj.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  }
-  
-  return dateObj.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
+  const dateObj = normalizeDate(date);
+  const options = DATE_FORMAT_OPTIONS[format];
+  return dateObj.toLocaleDateString('en-US', options);
 }

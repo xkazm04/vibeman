@@ -62,8 +62,6 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
       setFolderTree(structure);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to load folder structure:', error);
-      
       // Fallback to a basic structure with context folder
       const fallbackStructure: FolderNode[] = [
         {

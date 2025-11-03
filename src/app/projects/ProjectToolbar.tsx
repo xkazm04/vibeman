@@ -48,10 +48,8 @@ export default function ProjectToolbar() {
         const data = await response.json();
         setProjects(data.projects || []);
       } else {
-        console.error('Failed to fetch projects');
       }
     } catch (error) {
-      console.error('Error fetching projects:', error);
     } finally {
       setLoadingProjects(false);
     }

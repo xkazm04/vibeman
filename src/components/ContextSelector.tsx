@@ -30,6 +30,45 @@ interface ContextSelectorProps {
   showFullProjectButton?: boolean;
 }
 
+// Helper component for context button
+interface ContextButtonProps {
+  context?: Context;
+  isSelected: boolean;
+  onClick: () => void;
+  disabled: boolean;
+  label: string;
+  backgroundColor?: string;
+}
+
+function ContextButton({
+  context,
+  isSelected,
+  onClick,
+  disabled,
+  label,
+  backgroundColor
+}: ContextButtonProps) {
+  const baseClasses = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0';
+  const selectedClasses = isSelected
+    ? 'text-cyan-300 border border-cyan-500/40'
+    : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300';
+
+  return (
+    <motion.button
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClasses} ${selectedClasses}`}
+      style={{
+        backgroundColor: isSelected && backgroundColor ? `${backgroundColor}20` : undefined,
+      }}
+      whileHover={{ scale: disabled ? 1 : 1.02 }}
+      whileTap={{ scale: disabled ? 1 : 0.98 }}
+    >
+      {label}
+    </motion.button>
+  );
+}
+
 export default function ContextSelector({
   contexts,
   contextGroups = [],
@@ -73,19 +112,12 @@ export default function ContextSelector({
       <div className="flex flex-wrap gap-2">
         {/* Full Project Button */}
         {showFullProjectButton && (
-          <motion.button
+          <ContextButton
+            isSelected={!selectedContext}
             onClick={() => onSelectContext(null)}
             disabled={disabled}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
-              !selectedContext
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
-            }`}
-            whileHover={{ scale: disabled ? 1 : 1.02 }}
-            whileTap={{ scale: disabled ? 1 : 0.98 }}
-          >
-            Full Project
-          </motion.button>
+            label="Full Project"
+          />
         )}
 
         {/* Grouped Contexts with Colored Dividers */}
@@ -103,25 +135,15 @@ export default function ContextSelector({
 
               {/* Group Contexts */}
               {groupContexts.map((context) => (
-                <motion.button
+                <ContextButton
                   key={context.id}
+                  context={context}
+                  isSelected={selectedContext?.id === context.id}
                   onClick={() => onSelectContext(context.id)}
                   disabled={disabled}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
-                    selectedContext?.id === context.id
-                      ? 'text-cyan-300 border border-cyan-500/40'
-                      : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
-                  }`}
-                  style={{
-                    backgroundColor: selectedContext?.id === context.id
-                      ? `${group.color}20`
-                      : undefined,
-                  }}
-                  whileHover={{ scale: disabled ? 1 : 1.02 }}
-                  whileTap={{ scale: disabled ? 1 : 0.98 }}
-                >
-                  {context.name}
-                </motion.button>
+                  label={context.name}
+                  backgroundColor={group.color}
+                />
               ))}
             </React.Fragment>
           );
@@ -134,20 +156,14 @@ export default function ContextSelector({
               <div className="w-px h-8 self-center bg-gray-600" />
             )}
             {groupedContexts.ungrouped.map((context) => (
-              <motion.button
+              <ContextButton
                 key={context.id}
+                context={context}
+                isSelected={selectedContext?.id === context.id}
                 onClick={() => onSelectContext(context.id)}
                 disabled={disabled}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
-                  selectedContext?.id === context.id
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                    : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
-                }`}
-                whileHover={{ scale: disabled ? 1 : 1.02 }}
-                whileTap={{ scale: disabled ? 1 : 0.98 }}
-              >
-                {context.name}
-              </motion.button>
+                label={context.name}
+              />
             ))}
           </>
         )}

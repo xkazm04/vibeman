@@ -4,6 +4,9 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { createLogger } from '@/lib/utils/logger';
+
+const logger = createLogger('Supabase');
 
 export interface SupabaseConfig {
   url: string;
@@ -28,7 +31,7 @@ export function getSupabaseConfig(): SupabaseConfig | null {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceRoleKey) {
-    console.warn('[Supabase] Missing configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+    logger.warn('Missing configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
     return null;
   }
 
@@ -58,6 +61,23 @@ export function createSupabaseClient() {
 }
 
 /**
+ * Create a connection test error result
+ */
+function createConnectionError(errorMessage: string): { success: false; error: string } {
+  return {
+    success: false,
+    error: errorMessage
+  };
+}
+
+/**
+ * Check if error indicates missing tables
+ */
+function isMissingTablesError(errorCode?: string): boolean {
+  return errorCode === '42P01';
+}
+
+/**
  * Test the Supabase connection
  */
 export async function testSupabaseConnection(): Promise<{ success: boolean; error?: string }> {
@@ -65,10 +85,7 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; erro
     const config = getSupabaseConfig();
 
     if (!config) {
-      return {
-        success: false,
-        error: 'Supabase is not configured. Please set environment variables.'
-      };
+      return createConnectionError('Supabase is not configured. Please set environment variables.');
     }
 
     const supabase = createSupabaseClient();
@@ -77,25 +94,18 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; erro
     const { error } = await supabase.from('sync_metadata').select('id').limit(1);
 
     if (error) {
-      // If sync_metadata doesn't exist, try to create it
-      if (error.code === '42P01') {
-        return {
-          success: false,
-          error: 'Tables not found. Please run the Supabase schema migration first.'
-        };
+      // If sync_metadata doesn't exist, return specific error
+      if (isMissingTablesError(error.code)) {
+        return createConnectionError('Tables not found. Please run the Supabase schema migration first.');
       }
 
-      return {
-        success: false,
-        error: error.message
-      };
+      return createConnectionError(error.message);
     }
 
     return { success: true };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    return createConnectionError(
+      error instanceof Error ? error.message : 'Unknown error'
+    );
   }
 }

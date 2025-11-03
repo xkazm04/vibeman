@@ -2,8 +2,33 @@
 
 import React, { Component, ReactNode } from 'react';
 import { ErrorClassifier, ClassifiedError, RecoveryAction } from '@/lib/errorClassifier';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+interface ErrorActionButtonProps {
+  onClick: () => void;
+  icon: LucideIcon;
+  label: string;
+  variant?: 'primary' | 'secondary';
+}
+
+function ErrorActionButton({ onClick, icon: Icon, label, variant = 'secondary' }: ErrorActionButtonProps) {
+  const className = variant === 'primary'
+    ? 'flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-lg font-medium transition-all shadow-lg'
+    : 'flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all';
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className={className}
+    >
+      <Icon className="w-4 h-4" />
+      {label}
+    </motion.button>
+  );
+}
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -39,10 +64,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error details
-    console.error('ErrorBoundary caught error:', error);
-    console.error('Error info:', errorInfo);
-
     // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
@@ -161,39 +182,29 @@ function DefaultErrorFallback({ error, onReset }: DefaultErrorFallbackProps) {
 
           {/* Recovery Actions */}
           <div className="flex flex-wrap gap-3 justify-center">
-            {error.recoveryActions.includes(RecoveryAction.RETRY) ||
-             error.recoveryActions.includes(RecoveryAction.RETRY_WITH_BACKOFF) ||
-             error.recoveryActions.includes(RecoveryAction.REFRESH) ? (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+            {(error.recoveryActions.includes(RecoveryAction.RETRY) ||
+              error.recoveryActions.includes(RecoveryAction.RETRY_WITH_BACKOFF) ||
+              error.recoveryActions.includes(RecoveryAction.REFRESH)) && (
+              <ErrorActionButton
                 onClick={() => handleAction(RecoveryAction.RETRY)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-lg font-medium transition-all shadow-lg"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Try Again
-              </motion.button>
-            ) : null}
+                icon={RefreshCw}
+                label="Try Again"
+                variant="primary"
+              />
+            )}
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <ErrorActionButton
               onClick={() => window.location.href = '/'}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all"
-            >
-              <Home className="w-4 h-4" />
-              Go Home
-            </motion.button>
+              icon={Home}
+              label="Go Home"
+            />
 
             {error.recoveryActions.includes(RecoveryAction.CONTACT_SUPPORT) && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <ErrorActionButton
                 onClick={() => handleAction(RecoveryAction.CONTACT_SUPPORT)}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all"
-              >
-                Contact Support
-              </motion.button>
+                icon={AlertTriangle}
+                label="Contact Support"
+              />
             )}
           </div>
 

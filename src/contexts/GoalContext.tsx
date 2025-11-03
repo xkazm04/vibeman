@@ -120,7 +120,6 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
       const goal = await goalApi.fetchGoalById(goalId);
       return goal;
     } catch (error) {
-      console.error('Error fetching goal by ID:', error);
       return null;
     }
   }, []);
@@ -140,7 +139,6 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
       });
       return result;
     } catch (error) {
-      console.error('Error creating goal:', error);
       return null;
     }
   }, [projectId, createGoalMutation]);
@@ -158,7 +156,6 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
       });
       return result;
     } catch (error) {
-      console.error('Error updating goal:', error);
       return null;
     }
   }, [updateGoalMutation]);
@@ -169,7 +166,6 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
       await deleteGoalMutation.mutateAsync(goalId);
       return true;
     } catch (error) {
-      console.error('Error deleting goal:', error);
       return false;
     }
   }, [deleteGoalMutation]);
@@ -184,7 +180,7 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
 
       await Promise.all(updatePromises);
     } catch (error) {
-      console.error('Error reordering goals:', error);
+      // Silently fail - errors are handled by individual updateGoal calls
     }
   }, [updateGoal]);
 
@@ -245,7 +241,7 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
 export function useGoalContext(): GoalContextState {
   const context = useContext(GoalContext);
 
-  if (context === defaultContextValue) {
+  if (context === defaultContextValue && process.env.NODE_ENV === 'development') {
     console.warn('useGoalContext must be used within a GoalProvider');
   }
 

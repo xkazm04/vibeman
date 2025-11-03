@@ -27,7 +27,7 @@ import {
 
 export function BasicButton() {
   return (
-    <MotionButton onClick={() => console.log('clicked')}>
+    <MotionButton onClick={() => {/* Handle click */}}>
       Click me
     </MotionButton>
   );
@@ -39,7 +39,7 @@ export function ButtonWithIcon() {
       icon={Trash2}
       colorScheme="red"
       variant="outline"
-      onClick={() => console.log('delete')}
+      onClick={() => {/* Handle delete */}}
     >
       Delete
     </MotionButton>
@@ -53,7 +53,7 @@ export function IconOnlyButton() {
       iconOnly
       colorScheme="green"
       aria-label="Add item"
-      onClick={() => console.log('add')}
+      onClick={() => {/* Handle add */}}
     />
   );
 }
@@ -199,7 +199,7 @@ export function ActionButtonsRow() {
         colorScheme="green"
         variant="outline"
         size="sm"
-        onClick={() => console.log('accept')}
+        onClick={() => {/* Handle accept */}}
       >
         Accept
       </MotionButton>
@@ -209,7 +209,7 @@ export function ActionButtonsRow() {
         colorScheme="red"
         variant="outline"
         size="sm"
-        onClick={() => console.log('reject')}
+        onClick={() => {/* Handle reject */}}
       >
         Reject
       </MotionButton>
@@ -225,14 +225,14 @@ export function IconOnlyActionGroup() {
         iconOnly
         aria-label="Edit"
         size="sm"
-        onClick={() => console.log('edit')}
+        onClick={() => {/* Handle edit */}}
       />
       <MotionButton
         icon={Copy}
         iconOnly
         aria-label="Copy"
         size="sm"
-        onClick={() => console.log('copy')}
+        onClick={() => {/* Handle copy */}}
       />
       <MotionButton
         icon={Trash2}
@@ -240,7 +240,7 @@ export function IconOnlyActionGroup() {
         colorScheme="red"
         aria-label="Delete"
         size="sm"
-        onClick={() => console.log('delete')}
+        onClick={() => {/* Handle delete */}}
       />
     </div>
   );
@@ -279,7 +279,7 @@ export function TinderStyleButtons() {
         animationPreset="bounce"
         aria-label="Reject"
         className="w-16 h-16 rounded-full border-2 shadow-lg shadow-red-500/20"
-        onClick={() => console.log('reject')}
+        onClick={() => {/* Handle reject */}}
       />
 
       <MotionButton
@@ -291,7 +291,7 @@ export function TinderStyleButtons() {
         animationPreset="bounce"
         aria-label="Delete"
         className="w-14 h-14 rounded-full border-2 shadow-lg shadow-gray-500/20"
-        onClick={() => console.log('delete')}
+        onClick={() => {/* Handle delete */}}
       />
 
       <MotionButton
@@ -303,7 +303,7 @@ export function TinderStyleButtons() {
         animationPreset="bounce"
         aria-label="Accept"
         className="w-16 h-16 rounded-full border-2 shadow-lg shadow-green-500/20"
-        onClick={() => console.log('accept')}
+        onClick={() => {/* Handle accept */}}
       />
     </div>
   );
@@ -345,7 +345,7 @@ export function BeforeMigration() {
       {/* This is the old pattern - DO NOT USE */}
       {/*
       <motion.button
-        onClick={() => console.log('click')}
+        onClick={() => {/* Handle click */}}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-xs"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -366,7 +366,7 @@ export function AfterMigration() {
       colorScheme="red"
       variant="outline"
       size="sm"
-      onClick={() => console.log('click')}
+      onClick={() => {/* Handle click */}}
     >
       Delete
     </MotionButton>

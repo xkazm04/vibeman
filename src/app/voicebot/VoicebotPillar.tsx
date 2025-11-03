@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Loader2, MessageSquare, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Loader2, MessageSquare, Volume2, LucideIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TypewriterMessage from './components/TypewriterMessage';
 
@@ -10,6 +10,98 @@ interface VoicebotPillarProps {
 }
 
 type VoicebotState = 'idle' | 'listening' | 'processing_stt' | 'processing_ai' | 'processing_tts' | 'playing' | 'error';
+
+interface StateConfig {
+  icon: LucideIcon;
+  color: string;
+  hoverColor: string;
+  pulseColor: string;
+  description: string;
+}
+
+function getStateConfiguration(state: VoicebotState): StateConfig {
+  const configs: Record<VoicebotState, StateConfig> = {
+    listening: {
+      icon: Mic,
+      color: 'text-green-400 border-green-600/50 bg-green-600/10',
+      hoverColor: 'hover:bg-red-600/20 hover:text-red-400 hover:border-red-600/50',
+      pulseColor: 'shadow-green-500/30',
+      description: 'Listening... (click to stop)'
+    },
+    processing_stt: {
+      icon: Loader2,
+      color: 'text-blue-400 border-blue-600/50 bg-blue-600/10',
+      hoverColor: 'hover:bg-blue-600/20',
+      pulseColor: 'shadow-blue-500/30',
+      description: 'Converting speech...'
+    },
+    processing_ai: {
+      icon: MessageSquare,
+      color: 'text-blue-400 border-blue-600/50 bg-blue-600/10',
+      hoverColor: 'hover:bg-blue-600/20',
+      pulseColor: 'shadow-blue-500/30',
+      description: 'Thinking...'
+    },
+    processing_tts: {
+      icon: Loader2,
+      color: 'text-orange-400 border-orange-600/50 bg-orange-600/10',
+      hoverColor: 'hover:bg-orange-600/20',
+      pulseColor: 'shadow-orange-500/30',
+      description: 'Generating speech...'
+    },
+    playing: {
+      icon: Volume2,
+      color: 'text-cyan-400 border-cyan-600/50 bg-cyan-600/10',
+      hoverColor: 'hover:bg-cyan-600/20',
+      pulseColor: 'shadow-cyan-500/30',
+      description: 'Speaking...'
+    },
+    error: {
+      icon: MicOff,
+      color: 'text-red-400 border-red-600/50 bg-red-600/10',
+      hoverColor: 'hover:bg-red-600/20',
+      pulseColor: 'shadow-red-500/30',
+      description: 'Error - Click to retry'
+    },
+    idle: {
+      icon: MicOff,
+      color: 'text-gray-400 border-gray-600/50 bg-gray-600/5',
+      hoverColor: 'hover:bg-blue-600/20 hover:text-blue-400 hover:border-blue-600/50',
+      pulseColor: '',
+      description: 'Click to start voice chat'
+    }
+  };
+
+  return configs[state];
+}
+
+function getButtonAnimation(state: VoicebotState, audioLevel: number) {
+  if (state === 'listening') {
+    return {
+      scale: [1, 1 + audioLevel * 0.4, 1],
+      transition: { duration: 0.1 }
+    };
+  }
+  if (state === 'processing_stt' || state === 'processing_tts') {
+    return {
+      rotate: 360,
+      transition: { duration: 2, repeat: Infinity, ease: "linear" as const }
+    };
+  }
+  if (state === 'processing_ai') {
+    return {
+      scale: [1, 1.1, 1],
+      transition: { duration: 1, repeat: Infinity }
+    };
+  }
+  if (state === 'playing') {
+    return {
+      scale: [1, 1.05, 1],
+      transition: { duration: 0.5, repeat: Infinity }
+    };
+  }
+  return {};
+}
 
 export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps) {
   const [state, setState] = useState<VoicebotState>('idle');
@@ -123,9 +215,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
       };
 
       mediaRecorderRef.current.start();
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      setState('error');
+    } catch (error) {      setState('error');
     }
   };
 
@@ -167,9 +257,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
           setState('playing');
         }
       }
-    } catch (error) {
-      console.error('Error processing audio:', error);
-      setState('error');
+    } catch (error) {      setState('error');
       // Auto-reset error state after 3 seconds
       setTimeout(() => setState('idle'), 3000);
     }
@@ -190,9 +278,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
 
       const data = await response.json();
       return data.text;
-    } catch (error) {
-      console.error('Speech-to-text error:', error);
-      return null;
+    } catch (error) {      return null;
     }
   };
 
@@ -213,9 +299,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
 
       const data = await response.json();
       return data.response;
-    } catch (error) {
-      console.error('Ollama error:', error);
-      throw error;
+    } catch (error) {      throw error;
     }
   };
 
@@ -239,9 +323,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
       };
 
       await audio.play();
-    } catch (error) {
-      console.error('Text-to-speech error:', error);
-      setState('idle'); // Reset on error
+    } catch (error) {      setState('idle'); // Reset on error
     }
   };
 
@@ -257,68 +339,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
     }
   };
 
-  const getStateConfig = () => {
-    switch (state) {
-      case 'listening':
-        return {
-          icon: Mic,
-          color: 'text-green-400 border-green-600/50 bg-green-600/10',
-          hoverColor: 'hover:bg-red-600/20 hover:text-red-400 hover:border-red-600/50',
-          pulseColor: 'shadow-green-500/30',
-          description: 'Listening... (click to stop)'
-        };
-      case 'processing_stt':
-        return {
-          icon: Loader2,
-          color: 'text-blue-400 border-blue-600/50 bg-blue-600/10',
-          hoverColor: 'hover:bg-blue-600/20',
-          pulseColor: 'shadow-blue-500/30',
-          description: 'Converting speech...'
-        };
-      case 'processing_ai':
-        return {
-          icon: MessageSquare,
-          color: 'text-blue-400 border-blue-600/50 bg-blue-600/10',
-          hoverColor: 'hover:bg-blue-600/20',
-          pulseColor: 'shadow-blue-500/30',
-          description: 'Thinking...'
-        };
-      case 'processing_tts':
-        return {
-          icon: Loader2,
-          color: 'text-orange-400 border-orange-600/50 bg-orange-600/10',
-          hoverColor: 'hover:bg-orange-600/20',
-          pulseColor: 'shadow-orange-500/30',
-          description: 'Generating speech...'
-        };
-      case 'playing':
-        return {
-          icon: Volume2,
-          color: 'text-cyan-400 border-cyan-600/50 bg-cyan-600/10',
-          hoverColor: 'hover:bg-cyan-600/20',
-          pulseColor: 'shadow-cyan-500/30',
-          description: 'Speaking...'
-        };
-      case 'error':
-        return {
-          icon: MicOff,
-          color: 'text-red-400 border-red-600/50 bg-red-600/10',
-          hoverColor: 'hover:bg-red-600/20',
-          pulseColor: 'shadow-red-500/30',
-          description: 'Error - Click to retry'
-        };
-      default:
-        return {
-          icon: MicOff,
-          color: 'text-gray-400 border-gray-600/50 bg-gray-600/5',
-          hoverColor: 'hover:bg-blue-600/20 hover:text-blue-400 hover:border-blue-600/50',
-          pulseColor: '',
-          description: 'Click to start voice chat'
-        };
-    }
-  };
-
-  const stateConfig = getStateConfig();
+  const stateConfig = getStateConfiguration(state);
   const IconComponent = stateConfig.icon;
 
   return (
@@ -353,21 +374,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
           `}
           whileHover={!disabled && (state === 'idle' || state === 'listening' || state === 'error') ? { scale: 1.05 } : {}}
           whileTap={!disabled && (state === 'idle' || state === 'listening' || state === 'error') ? { scale: 0.95 } : {}}
-          animate={
-            state === 'listening' ? {
-              scale: [1, 1 + audioLevel * 0.4, 1],
-              transition: { duration: 0.1 }
-            } : state === 'processing_stt' || state === 'processing_tts' ? {
-              rotate: 360,
-              transition: { duration: 2, repeat: Infinity, ease: "linear" }
-            } : state === 'processing_ai' ? {
-              scale: [1, 1.1, 1],
-              transition: { duration: 1, repeat: Infinity }
-            } : state === 'playing' ? {
-              scale: [1, 1.05, 1],
-              transition: { duration: 0.5, repeat: Infinity }
-            } : {}
-          }
+          animate={getButtonAnimation(state, audioLevel)}
         >
           <div className="flex items-center justify-center w-full h-full">
             <IconComponent size={28} />

@@ -63,9 +63,7 @@ export default function VoicebotPage() {
           }
           setLoadingContexts(false);
         })
-        .catch((error) => {
-          console.error('Failed to fetch contexts:', error);
-          setAvailableContexts([]);
+        .catch((error) => {          setAvailableContexts([]);
           setLoadingContexts(false);
         });
     } else {

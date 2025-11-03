@@ -67,7 +67,8 @@ const executingRequirements = new Set<string>();
 export interface TaskExecutorConfig {
   executionQueueRef: React.MutableRefObject<string[]>;
   isExecutingRef: React.MutableRefObject<boolean>;
-  isPaused: boolean;
+  isPaused: boolean; // Global pause (kept for backwards compatibility)
+  batchStates?: Map<string, 'idle' | 'running' | 'paused' | 'completed'>; // Per-batch pause states
   requirements: ProjectRequirement[];
   actions: TaskRunnerActions;
   getRequirementId: (req: ProjectRequirement) => string;
@@ -83,6 +84,7 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
     executionQueueRef,
     isExecutingRef,
     isPaused,
+    batchStates,
     requirements,
     actions,
     getRequirementId,
@@ -91,22 +93,53 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
 
   const { setRequirements, setSelectedRequirements, setProcessedCount, setError, setIsRunning } = actions;
 
-  if (executionQueueRef.current.length === 0 || isPaused) return;
+  if (executionQueueRef.current.length === 0) return;
 
-  // Find next requirement that isn't already executing
+  // Find which batches are currently executing
+  const runningBatchIds = new Set<string>();
+  requirements.forEach(req => {
+    if (req.status === 'running' && req.batchId) {
+      runningBatchIds.add(req.batchId);
+    }
+  });
+
+  // Find next requirement that:
+  // 1. Isn't already executing
+  // 2. Batch isn't paused
+  // 3. Batch doesn't have another requirement running (one requirement per batch at a time)
   let reqId: string | null = null;
   let reqIndex = -1;
 
   for (let i = 0; i < executionQueueRef.current.length; i++) {
     const candidateId = executionQueueRef.current[i];
-    if (!executingRequirements.has(candidateId)) {
-      reqId = candidateId;
-      reqIndex = i;
-      break;
+
+    // Skip if already executing
+    if (executingRequirements.has(candidateId)) continue;
+
+    const candidateReq = requirements.find((r) => getRequirementId(r) === candidateId);
+    if (!candidateReq) continue;
+
+    // Check if this requirement's batch is paused
+    if (candidateReq.batchId && batchStates) {
+      const batchStatus = batchStates.get(candidateReq.batchId);
+      if (batchStatus === 'paused') {
+        // Skip this requirement - its batch is paused
+        continue;
+      }
+
+      // Skip if this batch already has a requirement running
+      if (runningBatchIds.has(candidateReq.batchId)) {
+        continue;
+      }
     }
+
+    // Found a valid requirement to execute
+    reqId = candidateId;
+    reqIndex = i;
+    break;
   }
 
-  // All queued requirements are already executing
+  // All queued requirements are either executing, paused, or their batch is busy
   if (!reqId || reqIndex === -1) return;
 
   const req = requirements.find((r) => getRequirementId(r) === reqId);
@@ -255,8 +288,13 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
               executingRequirements.delete(reqId);
 
               // Trigger next task execution if queue has more items
-              if (executionQueueRef.current.length > 0 && !isPaused) {
-                setTimeout(() => recursiveExecute(), 100);
+              // Try multiple times to start tasks from different batches in parallel
+              if (executionQueueRef.current.length > 0) {
+                setTimeout(() => {
+                  recursiveExecute();
+                  // Try again to potentially start another batch
+                  setTimeout(() => recursiveExecute(), 50);
+                }, 100);
               }
             }
           } else if (task.status === 'failed') {
@@ -264,8 +302,13 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
             executingRequirements.delete(reqId);
 
             // Continue with next task if queue has more items
-            if (executionQueueRef.current.length > 0 && !isPaused) {
-              setTimeout(() => recursiveExecute(), 2000);
+            // Try multiple times to start tasks from different batches in parallel
+            if (executionQueueRef.current.length > 0) {
+              setTimeout(() => {
+                recursiveExecute();
+                // Try again to potentially start another batch
+                setTimeout(() => recursiveExecute(), 50);
+              }, 2000);
             }
 
             const errorMessage = task.error || 'Unknown error';
@@ -306,8 +349,13 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
           setError(`Task monitoring failed after ${MAX_POLL_ERRORS} attempts: ${req.requirementName}\nLast error: ${pollErr instanceof Error ? pollErr.message : 'Unknown error'}`);
 
           // Continue with next task if queue has more items
-          if (executionQueueRef.current.length > 0 && !isPaused) {
-            setTimeout(() => recursiveExecute(), 3000);
+          // Try multiple times to start tasks from different batches in parallel
+          if (executionQueueRef.current.length > 0) {
+            setTimeout(() => {
+              recursiveExecute();
+              // Try again to potentially start another batch
+              setTimeout(() => recursiveExecute(), 50);
+            }, 3000);
           }
         }
       }
@@ -332,8 +380,13 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
     );
 
     // Continue with next task if queue has more items
-    if (executionQueueRef.current.length > 0 && !isPaused) {
-      setTimeout(() => recursiveExecute(), 3000);
+    // Try multiple times to start tasks from different batches in parallel
+    if (executionQueueRef.current.length > 0) {
+      setTimeout(() => {
+        recursiveExecute();
+        // Try again to potentially start another batch
+        setTimeout(() => recursiveExecute(), 50);
+      }, 3000);
     }
   }
 }

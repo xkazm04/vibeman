@@ -4,60 +4,117 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+interface KillProcessRequest {
+  pid: number;
+  port?: number;
+}
+
+/**
+ * Get platform-specific kill command
+ */
+function getKillCommand(pid: number): string {
+  return process.platform === 'win32'
+    ? `taskkill /PID ${pid} /T /F`
+    : `kill -KILL ${pid}`;
+}
+
+/**
+ * Get platform-specific port check command
+ */
+function getPortCheckCommand(port: number): string {
+  return process.platform === 'win32'
+    ? `netstat -ano | findstr :${port}`
+    : `lsof -i :${port}`;
+}
+
+/**
+ * Validate request body
+ */
+function validateRequest(body: unknown): body is KillProcessRequest {
+  const req = body as KillProcessRequest;
+  return req.pid && typeof req.pid === 'number';
+}
+
+/**
+ * Kill the specified process
+ */
+async function killProcess(pid: number): Promise<void> {
+  const command = getKillCommand(pid);
+  await execAsync(command);
+}
+
+/**
+ * Check if a port is still in use
+ */
+async function isPortInUse(port: number): Promise<boolean> {
+  try {
+    const command = getPortCheckCommand(port);
+    const { stdout } = await execAsync(command);
+    return stdout.trim().length > 0;
+  } catch {
+    // Command failed, assume port is free
+    return false;
+  }
+}
+
+/**
+ * Verify the process was successfully killed
+ */
+async function verifyProcessKilled(pid: number, port?: number): Promise<{ success: boolean; error?: string }> {
+  // Wait a moment for the process to terminate
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  // If no port specified, assume success
+  if (!port) {
+    return { success: true };
+  }
+
+  // Check if the port is still in use
+  const stillRunning = await isPortInUse(port);
+
+  if (stillRunning) {
+    return {
+      success: false,
+      error: 'Process may still be running'
+    };
+  }
+
+  return { success: true };
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { pid, port } = await request.json();
-    
-    if (!pid || typeof pid !== 'number') {
+    const body = await request.json();
+
+    if (!validateRequest(body)) {
       return NextResponse.json(
         { error: 'Invalid PID' },
         { status: 400 }
       );
     }
 
-    console.log(`[EMERGENCY KILL] Attempting to kill process PID ${pid} on port ${port}`);
+    const { pid, port } = body;
 
     try {
       // Kill the process
-      if (process.platform === 'win32') {
-        await execAsync(`taskkill /PID ${pid} /T /F`);
-      } else {
-        await execAsync(`kill -KILL ${pid}`);
-      }
+      await killProcess(pid);
 
-      // Wait a moment and verify the process is gone
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if the port is still in use
-      let stillRunning = false;
-      try {
-        const command = process.platform === 'win32'
-          ? `netstat -ano | findstr :${port}`
-          : `lsof -i :${port}`;
-          
-        const { stdout } = await execAsync(command);
-        stillRunning = stdout.trim().length > 0;
-      } catch {
-        // Command failed, assume process is dead
-        stillRunning = false;
-      }
+      // Verify the kill was successful
+      const verification = await verifyProcessKilled(pid, port);
 
-      if (stillRunning) {
-        console.log(`[EMERGENCY KILL] Process ${pid} might still be running on port ${port}`);
+      if (!verification.success) {
         return NextResponse.json({
           success: false,
-          error: 'Process may still be running'
+          error: verification.error
         });
       }
 
-      console.log(`[EMERGENCY KILL] Successfully killed process ${pid}`);
       return NextResponse.json({
         success: true,
         message: `Process ${pid} killed successfully`
       });
 
     } catch (killError) {
-      console.error(`[EMERGENCY KILL] Failed to kill process ${pid}:`, killError);
       return NextResponse.json({
         success: false,
         error: `Failed to kill process: ${killError instanceof Error ? killError.message : 'Unknown error'}`
@@ -65,7 +122,6 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Kill process API error:', error);
     return NextResponse.json(
       { error: 'Failed to kill process' },
       { status: 500 }

@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { Trophy, Calendar, Network, BarChart3 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useContextStore } from '@/stores/contextStore';
 import TotalViewFilters from '@/app/features/reflector/components/TotalViewFilters';
 import TotalViewDashboard from '@/app/features/reflector/components/TotalViewDashboard';
 import ActiveFiltersDisplay from '@/app/features/reflector/components/ActiveFiltersDisplay';
@@ -58,9 +57,7 @@ export default function ReflectorPage() {
         const data = await response.json();
         setIdeas(data.ideas || []);
       }
-    } catch (error) {
-      console.error('Error loading implemented ideas:', error);
-    } finally {
+    } catch (error) {    } finally {
       setLoading(false);
     }
   };
