@@ -15,6 +15,23 @@ export interface IdeaFilterState {
   searchQuery: string;
 }
 
+/**
+ * Check if date is within range
+ */
+function isDateInRange(date: Date | null, start: Date | null, end: Date | null): boolean {
+  if (!date) return false;
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
+}
+
+/**
+ * Check if text matches search query
+ */
+function matchesSearchQuery(text: string | null | undefined, query: string): boolean {
+  return text?.toLowerCase().includes(query) || false;
+}
+
 export interface FilteredIdeaGroup {
   date: string;
   ideas: DbIdea[];
@@ -54,12 +71,7 @@ export function applyFilters(
     // Filter by date range
     if (filters.dateRange.start || filters.dateRange.end) {
       const implementedDate = idea.implemented_at ? new Date(idea.implemented_at) : null;
-      if (!implementedDate) return false;
-
-      if (filters.dateRange.start && implementedDate < filters.dateRange.start) {
-        return false;
-      }
-      if (filters.dateRange.end && implementedDate > filters.dateRange.end) {
+      if (!isDateInRange(implementedDate, filters.dateRange.start, filters.dateRange.end)) {
         return false;
       }
     }
@@ -67,9 +79,9 @@ export function applyFilters(
     // Filter by search query
     if (filters.searchQuery.trim()) {
       const query = filters.searchQuery.toLowerCase().trim();
-      const matchesTitle = idea.title.toLowerCase().includes(query);
-      const matchesDescription = idea.description?.toLowerCase().includes(query) || false;
-      const matchesReasoning = idea.reasoning?.toLowerCase().includes(query) || false;
+      const matchesTitle = matchesSearchQuery(idea.title, query);
+      const matchesDescription = matchesSearchQuery(idea.description, query);
+      const matchesReasoning = matchesSearchQuery(idea.reasoning, query);
 
       if (!matchesTitle && !matchesDescription && !matchesReasoning) {
         return false;

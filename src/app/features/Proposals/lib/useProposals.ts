@@ -2,6 +2,13 @@ import { useState, useCallback, useMemo } from 'react';
 import { Proposal, ProposalState } from '../types';
 
 /**
+ * Simulate processing with delay
+ */
+const simulateProcessing = (delayMs: number): Promise<void> => {
+  return new Promise(resolve => setTimeout(resolve, delayMs));
+};
+
+/**
  * Custom hook for managing proposal state with carousel functionality
  */
 export const useProposals = () => {
@@ -63,41 +70,26 @@ export const useProposals = () => {
     }
   }, [currentIndex, mockProposals.length]);
 
-  const acceptProposal = useCallback(async () => {
+  const processProposal = useCallback(async (delayMs: number) => {
     if (!currentProposal) return;
 
     setIsProcessing(true);
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await simulateProcessing(delayMs);
     setIsProcessing(false);
     moveToNextProposal();
   }, [currentProposal, moveToNextProposal]);
+
+  const acceptProposal = useCallback(async () => {
+    await processProposal(1000);
+  }, [processProposal]);
 
   const acceptWithCode = useCallback(async () => {
-    if (!currentProposal) return;
-
-    setIsProcessing(true);
-    
-    // Simulate processing delay for code generation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsProcessing(false);
-    moveToNextProposal();
-  }, [currentProposal, moveToNextProposal]);
+    await processProposal(1500);
+  }, [processProposal]);
 
   const declineProposal = useCallback(async () => {
-    if (!currentProposal) return;
-
-    setIsProcessing(true);
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsProcessing(false);
-    moveToNextProposal();
-  }, [currentProposal, moveToNextProposal]);
+    await processProposal(1000);
+  }, [processProposal]);
 
   const proposalState: ProposalState = {
     currentProposal,

@@ -2,6 +2,31 @@ import { generateWithLLM } from '@/lib/llm';
 import type { RefactorOpportunity, RefactorAction, RefactorScript } from '@/stores/refactorStore';
 import { v4 as uuidv4 } from 'uuid';
 
+type LLMProvider = 'gemini' | 'openai' | 'anthropic' | 'ollama';
+
+interface ParsedAction {
+  type?: string;
+  file?: string;
+  oldContent?: string;
+  newContent?: string;
+  lineStart?: number;
+  lineEnd?: number;
+  description?: string;
+}
+
+/**
+ * Call LLM with typed provider
+ */
+async function callLLM(prompt: string, provider: string, model: string, temperature: number, maxTokens: number) {
+  return generateWithLLM({
+    prompt,
+    provider: provider as LLMProvider,
+    model,
+    temperature,
+    maxTokens,
+  });
+}
+
 /**
  * Generates executable refactor scripts from opportunities
  */
@@ -13,13 +38,7 @@ export async function generateRefactorScript(
   const prompt = buildScriptGenerationPrompt(opportunities);
 
   try {
-    const response = await generateWithLLM({
-      prompt,
-      provider: provider as any,
-      model,
-      temperature: 0.2,
-      maxTokens: 8000,
-    });
+    const response = await callLLM(prompt, provider, model, 0.2, 8000);
 
     const actions = parseScriptResponse(response.text);
 
@@ -49,17 +68,10 @@ export async function generateSingleOpportunityScript(
   const prompt = buildSingleOpportunityPrompt(opportunity, fileContents);
 
   try {
-    const response = await generateWithLLM({
-      prompt,
-      provider: provider as any,
-      model,
-      temperature: 0.1,
-      maxTokens: 4000,
-    });
+    const response = await callLLM(prompt, provider, model, 0.1, 4000);
 
     return parseScriptResponse(response.text);
   } catch (error) {
-    console.error('Failed to generate script for opportunity:', error);
     return [];
   }
 }
@@ -164,13 +176,12 @@ function parseScriptResponse(response: string): RefactorAction[] {
     // Extract JSON from response
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.error('No JSON found in script response');
       return [];
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed: ParsedAction[] = JSON.parse(jsonMatch[0]);
 
-    return parsed.map((item: any) => ({
+    return parsed.map((item) => ({
       id: uuidv4(),
       type: item.type || 'replace',
       file: item.file || '',
@@ -181,7 +192,6 @@ function parseScriptResponse(response: string): RefactorAction[] {
       description: item.description || 'Refactor action',
     }));
   } catch (error) {
-    console.error('Failed to parse script response:', error);
     return [];
   }
 }

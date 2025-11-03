@@ -27,6 +27,31 @@ export interface HierarchicalIdeaStructure {
 }
 
 /**
+ * Create lookup maps for efficient access
+ */
+function createLookupMaps<T extends { id: string }>(items: T[]): Map<string, T> {
+  return new Map(items.map(item => [item.id, item]));
+}
+
+/**
+ * Sort ideas by implemented date (descending)
+ */
+function sortIdeasByImplementedDate(ideas: GroupedIdea[]): GroupedIdea[] {
+  return ideas.sort((a, b) => {
+    const dateA = a.implemented_at ? new Date(a.implemented_at).getTime() : 0;
+    const dateB = b.implemented_at ? new Date(b.implemented_at).getTime() : 0;
+    return dateB - dateA;
+  });
+}
+
+/**
+ * Sort by count (descending)
+ */
+function sortByCount<T extends { count: number }>(items: T[]): T[] {
+  return items.sort((a, b) => b.count - a.count);
+}
+
+/**
  * Groups ideas by project, then by context within each project
  * @param ideas Array of ideas to group
  * @param projects Array of projects for metadata lookup
@@ -38,8 +63,8 @@ export function groupIdeasByProjectAndContext(
   contexts: Array<{ id: string; name: string; groupColor?: string }> = []
 ): HierarchicalIdeaStructure {
   // Create lookup maps for efficient access
-  const projectMap = new Map(projects.map(p => [p.id, p]));
-  const contextMap = new Map(contexts.map(c => [c.id, c]));
+  const projectMap = createLookupMaps(projects);
+  const contextMap = createLookupMaps(contexts);
 
   // Group ideas by project first
   const projectGroups = new Map<string, Map<string | null, GroupedIdea[]>>();
@@ -85,34 +110,23 @@ export function groupIdeasByProjectAndContext(
         contextId,
         contextName: contextInfo?.name || 'Uncategorized',
         contextColor: contextInfo?.groupColor,
-        ideas: ideas.sort((a, b) => {
-          // Sort by implemented_at (newest first)
-          const dateA = a.implemented_at ? new Date(a.implemented_at).getTime() : 0;
-          const dateB = b.implemented_at ? new Date(b.implemented_at).getTime() : 0;
-          return dateB - dateA;
-        }),
+        ideas: sortIdeasByImplementedDate(ideas),
         count: ideas.length,
       });
 
       totalProjectIdeas += ideas.length;
     });
 
-    // Sort contexts by idea count (descending)
-    contextsArray.sort((a, b) => b.count - a.count);
-
     projectsArray.push({
       projectId,
       projectName: projectMap.get(projectId)?.name || 'Unknown Project',
-      contexts: contextsArray,
+      contexts: sortByCount(contextsArray),
       totalIdeas: totalProjectIdeas,
     });
   });
 
-  // Sort projects by total idea count (descending)
-  projectsArray.sort((a, b) => b.totalIdeas - a.totalIdeas);
-
   return {
-    projects: projectsArray,
+    projects: projectsArray.sort((a, b) => b.totalIdeas - a.totalIdeas),
     totalIdeas: ideas.length,
   };
 }

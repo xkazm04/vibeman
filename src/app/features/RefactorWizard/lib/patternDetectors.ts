@@ -10,10 +10,17 @@ function escapeRegex(str: string): string {
 }
 
 /**
+ * Split content into lines
+ */
+function splitLines(content: string): string[] {
+  return content.split('\n');
+}
+
+/**
  * Detects duplicated code patterns (3+ consecutive similar lines)
  */
 export function detectDuplication(content: string): number[] {
-  const lines = content.split('\n');
+  const lines = splitLines(content);
   const patterns: Map<string, number[]> = new Map();
   const duplicates: number[] = [];
 
@@ -36,7 +43,7 @@ export function detectDuplication(content: string): number[] {
  * Detects long functions (>50 lines)
  */
 export function detectLongFunctions(content: string): number[] {
-  const lines = content.split('\n');
+  const lines = splitLines(content);
   const longFunctions: number[] = [];
   let functionStart = -1;
   let braceCount = 0;
@@ -71,7 +78,7 @@ export function detectLongFunctions(content: string): number[] {
  * Detects console.log statements
  */
 export function detectConsoleStatements(content: string): number[] {
-  const lines = content.split('\n');
+  const lines = splitLines(content);
   const consoleLines: number[] = [];
 
   lines.forEach((line, index) => {
@@ -87,7 +94,7 @@ export function detectConsoleStatements(content: string): number[] {
  * Detects 'any' type usage
  */
 export function detectAnyTypes(content: string): number[] {
-  const lines = content.split('\n');
+  const lines = splitLines(content);
   const anyLines: number[] = [];
 
   lines.forEach((line, index) => {
@@ -104,7 +111,7 @@ export function detectAnyTypes(content: string): number[] {
  * Note: This is a simple heuristic and may produce false positives
  */
 export function detectUnusedImports(content: string): number[] {
-  const lines = content.split('\n');
+  const lines = splitLines(content);
   const importLines: number[] = [];
 
   // Simple heuristic: detect import statements

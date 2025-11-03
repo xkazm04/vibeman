@@ -2,6 +2,8 @@
  * Shared types for RefactorWizard
  */
 
+import type { RefactorOpportunity } from '@/stores/refactorStore';
+
 export interface FileAnalysis {
   path: string;
   content: string;
@@ -10,7 +12,7 @@ export interface FileAnalysis {
 }
 
 export interface AnalysisResult {
-  opportunities: any[]; // Using any to avoid circular dependency with refactorStore
+  opportunities: RefactorOpportunity[];
   summary: {
     totalFiles: number;
     totalLines: number;

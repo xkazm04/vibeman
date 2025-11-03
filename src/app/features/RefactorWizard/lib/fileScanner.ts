@@ -56,7 +56,7 @@ export async function scanProjectFiles(projectPath: string): Promise<FileAnalysi
           lines,
         });
       } catch (error) {
-        console.error(`Error reading file ${filePath}:`, error);
+        // Skip files that can't be read
       }
     }
   }

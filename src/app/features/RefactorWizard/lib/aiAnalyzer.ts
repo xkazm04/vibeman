@@ -2,6 +2,21 @@ import { generateWithLLM } from '@/lib/llm';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 import type { FileAnalysis } from './types';
 
+type LLMProvider = 'gemini' | 'openai' | 'anthropic' | 'ollama';
+
+interface AIOpportunityData {
+  title?: string;
+  description?: string;
+  category?: string;
+  severity?: string;
+  impact?: string;
+  effort?: string;
+  files?: string[];
+  suggestedFix?: string;
+  autoFixAvailable?: boolean;
+  estimatedTime?: string;
+}
+
 /**
  * AI-powered code analysis
  */
@@ -51,25 +66,22 @@ function parseAIResponse(response: string, files: FileAnalysis[]): RefactorOppor
   try {
     // Validate input
     if (!response || typeof response !== 'string') {
-      console.error('Invalid AI response: not a string or empty');
       return [];
     }
 
     // Extract JSON from response
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.warn('No JSON array found in AI response. Response preview:', response.slice(0, 200));
       return [];
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed: AIOpportunityData[] = JSON.parse(jsonMatch[0]);
 
     if (!Array.isArray(parsed)) {
-      console.error('Parsed AI response is not an array');
       return [];
     }
 
-    return parsed.map((item: any, index: number) => ({
+    return parsed.map((item, index: number) => ({
       id: `ai-${Date.now()}-${index}`,
       title: item.title || 'Untitled opportunity',
       description: item.description || '',
@@ -83,9 +95,19 @@ function parseAIResponse(response: string, files: FileAnalysis[]): RefactorOppor
       estimatedTime: item.estimatedTime,
     }));
   } catch (error) {
-    console.error('Failed to parse AI response:', error);
     return [];
   }
+}
+
+/**
+ * Create file batches for analysis
+ */
+function createFileBatches(files: FileAnalysis[], batchSize: number = 5): FileAnalysis[][] {
+  const batches: FileAnalysis[][] = [];
+  for (let i = 0; i < files.length; i += batchSize) {
+    batches.push(files.slice(i, i + batchSize));
+  }
+  return batches;
 }
 
 /**
@@ -99,11 +121,7 @@ export async function analyzeWithAI(
   const opportunities: RefactorOpportunity[] = [];
 
   // Batch files for analysis (don't send too much at once)
-  const batchSize = 5;
-  const batches = [];
-  for (let i = 0; i < files.length; i += batchSize) {
-    batches.push(files.slice(i, i + batchSize));
-  }
+  const batches = createFileBatches(files, 5);
 
   for (const batch of batches) {
     const prompt = buildAnalysisPrompt(batch);
@@ -111,7 +129,7 @@ export async function analyzeWithAI(
     try {
       const response = await generateWithLLM({
         prompt,
-        provider: provider as any,
+        provider: provider as LLMProvider,
         model,
         temperature: 0.3,
         maxTokens: 4000,
@@ -119,14 +137,12 @@ export async function analyzeWithAI(
 
       // Validate response before parsing
       if (!response || !response.text) {
-        console.error('AI analysis returned empty or invalid response');
         continue;
       }
 
       const aiOpportunities = parseAIResponse(response.text, batch);
       opportunities.push(...aiOpportunities);
     } catch (error) {
-      console.error('AI analysis error for batch:', error);
       // Continue with next batch instead of failing completely
     }
   }

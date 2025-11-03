@@ -75,6 +75,33 @@ export interface GroupedIdeas {
 }
 
 /**
+ * Create context lookup map
+ */
+function createContextMap(contexts: Context[]): Map<string, Context> {
+  const contextMap = new Map<string, Context>();
+  contexts.forEach(ctx => contextMap.set(ctx.id, ctx));
+  return contextMap;
+}
+
+/**
+ * Calculate status distribution for ideas
+ */
+function calculateStatusDistribution(ideas: DbIdea[]) {
+  const statusDistribution = {
+    pending: 0,
+    accepted: 0,
+    rejected: 0,
+    implemented: 0,
+  };
+
+  ideas.forEach(idea => {
+    statusDistribution[idea.status]++;
+  });
+
+  return statusDistribution;
+}
+
+/**
  * Fetch all ideas and enrich with project and context metadata
  */
 export function getAllIdeasWithMetadata(
@@ -88,23 +115,12 @@ export function getAllIdeasWithMetadata(
     const projectStore = useProjectConfigStore.getState();
 
     // Create context lookup map for O(1) access
-    const contextMap = new Map<string, Context>();
-    contexts.forEach(ctx => contextMap.set(ctx.id, ctx));
+    const contextMap = createContextMap(contexts);
 
     // Enrich each idea with metadata
     const enrichedIdeas: IdeaWithMetadata[] = ideas.map(idea => {
       const project = projectStore.getProject(idea.project_id);
       const context = idea.context_id ? contextMap.get(idea.context_id) : null;
-
-      // Log warning if project not found
-      if (!project) {
-        console.warn(`[ideaAggregationService] Project not found for idea ${idea.id}: project_id=${idea.project_id}`);
-      }
-
-      // Log warning if context_id is set but context not found
-      if (idea.context_id && !context) {
-        console.warn(`[ideaAggregationService] Context not found for idea ${idea.id}: context_id=${idea.context_id}`);
-      }
 
       return {
         ...idea,
@@ -116,9 +132,58 @@ export function getAllIdeasWithMetadata(
 
     return enrichedIdeas;
   } catch (error) {
-    console.error('[ideaAggregationService] Error fetching ideas with metadata:', error);
     return [];
   }
+}
+
+/**
+ * Group ideas by project ID
+ */
+function groupIdeasByProject(ideas: DbIdea[]): Map<string, DbIdea[]> {
+  const projectIdeasMap = new Map<string, DbIdea[]>();
+  ideas.forEach(idea => {
+    if (!projectIdeasMap.has(idea.project_id)) {
+      projectIdeasMap.set(idea.project_id, []);
+    }
+    projectIdeasMap.get(idea.project_id)!.push(idea);
+  });
+  return projectIdeasMap;
+}
+
+/**
+ * Calculate date range for ideas
+ */
+function calculateDateRange(ideas: DbIdea[]) {
+  const dates = ideas
+    .map(idea => new Date(idea.created_at).getTime())
+    .filter(time => !isNaN(time));
+
+  return {
+    earliest: dates.length > 0 ? new Date(Math.min(...dates)).toISOString() : null,
+    latest: dates.length > 0 ? new Date(Math.max(...dates)).toISOString() : null,
+  };
+}
+
+/**
+ * Calculate average metrics for ideas
+ */
+function calculateAverageMetrics(ideas: DbIdea[]) {
+  const effortValues = ideas
+    .map(idea => idea.effort)
+    .filter((effort): effort is number => effort !== null);
+
+  const impactValues = ideas
+    .map(idea => idea.impact)
+    .filter((impact): impact is number => impact !== null);
+
+  return {
+    effort: effortValues.length > 0
+      ? effortValues.reduce((sum, val) => sum + val, 0) / effortValues.length
+      : null,
+    impact: impactValues.length > 0
+      ? impactValues.reduce((sum, val) => sum + val, 0) / impactValues.length
+      : null,
+  };
 }
 
 /**
@@ -134,74 +199,43 @@ export function getProjectStats(): ProjectStats[] {
     const projects = projectStore.getAllProjects();
 
     // Group ideas by project
-    const projectIdeasMap = new Map<string, DbIdea[]>();
-    ideas.forEach(idea => {
-      if (!projectIdeasMap.has(idea.project_id)) {
-        projectIdeasMap.set(idea.project_id, []);
-      }
-      projectIdeasMap.get(idea.project_id)!.push(idea);
-    });
+    const projectIdeasMap = groupIdeasByProject(ideas);
 
     // Calculate stats for each project
     const stats: ProjectStats[] = projects.map(project => {
       const projectIdeas = projectIdeasMap.get(project.id) || [];
 
-      // Status distribution
-      const statusDistribution = {
-        pending: 0,
-        accepted: 0,
-        rejected: 0,
-        implemented: 0,
-      };
-
-      projectIdeas.forEach(idea => {
-        statusDistribution[idea.status]++;
-      });
-
-      // Date range
-      const dates = projectIdeas
-        .map(idea => new Date(idea.created_at).getTime())
-        .filter(time => !isNaN(time));
-
-      const dateRange = {
-        earliest: dates.length > 0 ? new Date(Math.min(...dates)).toISOString() : null,
-        latest: dates.length > 0 ? new Date(Math.max(...dates)).toISOString() : null,
-      };
-
-      // Average scan metrics
-      const effortValues = projectIdeas
-        .map(idea => idea.effort)
-        .filter((effort): effort is number => effort !== null);
-
-      const impactValues = projectIdeas
-        .map(idea => idea.impact)
-        .filter((impact): impact is number => impact !== null);
-
-      const averageScanMetrics = {
-        effort: effortValues.length > 0
-          ? effortValues.reduce((sum, val) => sum + val, 0) / effortValues.length
-          : null,
-        impact: impactValues.length > 0
-          ? impactValues.reduce((sum, val) => sum + val, 0) / impactValues.length
-          : null,
-      };
-
       return {
         projectId: project.id,
         projectName: project.name,
         totalIdeas: projectIdeas.length,
-        statusDistribution,
-        dateRange,
-        averageScanMetrics,
+        statusDistribution: calculateStatusDistribution(projectIdeas),
+        dateRange: calculateDateRange(projectIdeas),
+        averageScanMetrics: calculateAverageMetrics(projectIdeas),
       };
     });
 
     // Sort by total ideas descending
     return stats.sort((a, b) => b.totalIdeas - a.totalIdeas);
   } catch (error) {
-    console.error('[ideaAggregationService] Error calculating project stats:', error);
     return [];
   }
+}
+
+/**
+ * Group ideas by context ID
+ */
+function groupIdeasByContext(ideas: DbIdea[]): Map<string, DbIdea[]> {
+  const contextIdeasMap = new Map<string, DbIdea[]>();
+  ideas.forEach(idea => {
+    if (idea.context_id) {
+      if (!contextIdeasMap.has(idea.context_id)) {
+        contextIdeasMap.set(idea.context_id, []);
+      }
+      contextIdeasMap.get(idea.context_id)!.push(idea);
+    }
+  });
+  return contextIdeasMap;
 }
 
 /**
@@ -216,19 +250,10 @@ export function getContextStats(contexts: Context[]): ContextStats[] {
     const projectStore = useProjectConfigStore.getState();
 
     // Create context map for O(1) lookup
-    const contextMap = new Map<string, Context>();
-    contexts.forEach(ctx => contextMap.set(ctx.id, ctx));
+    const contextMap = createContextMap(contexts);
 
     // Group ideas by context
-    const contextIdeasMap = new Map<string, DbIdea[]>();
-    ideas.forEach(idea => {
-      if (idea.context_id) {
-        if (!contextIdeasMap.has(idea.context_id)) {
-          contextIdeasMap.set(idea.context_id, []);
-        }
-        contextIdeasMap.get(idea.context_id)!.push(idea);
-      }
-    });
+    const contextIdeasMap = groupIdeasByContext(ideas);
 
     // Calculate stats for each context
     const stats: ContextStats[] = [];
@@ -236,25 +261,12 @@ export function getContextStats(contexts: Context[]): ContextStats[] {
     contextIdeasMap.forEach((contextIdeas, contextId) => {
       const context = contextMap.get(contextId);
 
-      // Skip if context not found (log warning)
+      // Skip if context not found
       if (!context) {
-        console.warn(`[ideaAggregationService] Context not found for contextId=${contextId}, skipping stats`);
         return;
       }
 
       const project = projectStore.getProject(context.projectId);
-
-      // Status distribution
-      const statusDistribution = {
-        pending: 0,
-        accepted: 0,
-        rejected: 0,
-        implemented: 0,
-      };
-
-      contextIdeas.forEach(idea => {
-        statusDistribution[idea.status]++;
-      });
 
       stats.push({
         contextId,
@@ -263,16 +275,24 @@ export function getContextStats(contexts: Context[]): ContextStats[] {
         projectId: context.projectId,
         projectName: project?.name || 'Unknown Project',
         ideaCount: contextIdeas.length,
-        statusDistribution,
+        statusDistribution: calculateStatusDistribution(contextIdeas),
       });
     });
 
     // Sort by idea count descending
     return stats.sort((a, b) => b.ideaCount - a.ideaCount);
   } catch (error) {
-    console.error('[ideaAggregationService] Error calculating context stats:', error);
     return [];
   }
+}
+
+/**
+ * Sort ideas by creation date (descending)
+ */
+function sortIdeasByDate(ideas: IdeaWithMetadata[]): IdeaWithMetadata[] {
+  return ideas.sort((a, b) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 }
 
 /**
@@ -290,8 +310,7 @@ export function getIdeasGroupedByProjectAndContext(
     const projects = projectStore.getAllProjects();
 
     // Create context map for O(1) lookup
-    const contextMap = new Map<string, Context>();
-    contexts.forEach(ctx => contextMap.set(ctx.id, ctx));
+    const contextMap = createContextMap(contexts);
 
     // Group by project
     const grouped: GroupedIdeas[] = projects.map(project => {
@@ -318,9 +337,7 @@ export function getIdeasGroupedByProjectAndContext(
           contextId,
           contextName: context?.name || (contextId ? 'Unknown Context' : 'No Context'),
           contextColor: context?.groupColor,
-          ideas: ideas.sort((a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          ),
+          ideas: sortIdeasByDate(ideas),
           count: ideas.length,
         };
       });
@@ -341,7 +358,6 @@ export function getIdeasGroupedByProjectAndContext(
       .filter(group => group.totalIdeas > 0)
       .sort((a, b) => b.totalIdeas - a.totalIdeas);
   } catch (error) {
-    console.error('[ideaAggregationService] Error grouping ideas:', error);
     return [];
   }
 }
@@ -378,18 +394,6 @@ export function getOverallStats(contexts: Context[]): OverallStats {
     const projectStats = getProjectStats();
     const contextStats = getContextStats(contexts);
 
-    // Status distribution
-    const statusDistribution = {
-      pending: 0,
-      accepted: 0,
-      rejected: 0,
-      implemented: 0,
-    };
-
-    ideas.forEach(idea => {
-      statusDistribution[idea.status]++;
-    });
-
     // Top 3 projects
     const topProjects = projectStats
       .slice(0, 3)
@@ -418,12 +422,11 @@ export function getOverallStats(contexts: Context[]): OverallStats {
       totalIdeas: ideas.length,
       totalProjects: projectStats.filter(s => s.totalIdeas > 0).length,
       totalContexts: uniqueContextIds.size,
-      statusDistribution,
+      statusDistribution: calculateStatusDistribution(ideas),
       topProjects,
       topContexts,
     };
   } catch (error) {
-    console.error('[ideaAggregationService] Error calculating overall stats:', error);
     return {
       totalIdeas: 0,
       totalProjects: 0,
