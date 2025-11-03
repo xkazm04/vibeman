@@ -1,12 +1,23 @@
 import { LogEntry, ConfirmationState, LangGraphResponse } from './typesAnnette';
 
+export interface ProjectContext {
+  name?: string;
+  path?: string;
+  [key: string]: unknown;
+}
+
+export interface ToolUsage {
+  name: string;
+  [key: string]: unknown;
+}
+
 /**
  * Sends a message to the LangGraph orchestrator API
  */
 export async function sendToLangGraph(
   message: string,
   projectId: string,
-  projectContext: any
+  projectContext: ProjectContext
 ): Promise<LangGraphResponse> {
   const response = await fetch('/api/annette/langgraph', {
     method: 'POST',
@@ -30,7 +41,7 @@ export async function sendToLangGraph(
  */
 export function processLangGraphResponse(
   result: LangGraphResponse,
-  addLog: (type: LogEntry['type'], message: string, data?: any) => void
+  addLog: (type: LogEntry['type'], message: string, data?: unknown) => void
 ): void {
   if (result.userIntent) {
     addLog('system', `User Intent: ${result.userIntent}`);
@@ -42,7 +53,7 @@ export function processLangGraphResponse(
     addLog('system', `Analysis: ${result.analysis}`);
   }
   if (result.toolsUsed && result.toolsUsed.length > 0) {
-    result.toolsUsed.forEach((tool: any) => {
+    result.toolsUsed.forEach((tool: ToolUsage) => {
       addLog('tool', `Tool used: ${tool.name}`, tool);
     });
   }
@@ -54,7 +65,7 @@ export function processLangGraphResponse(
 export function createConfirmationState(
   result: LangGraphResponse,
   originalMessage: string,
-  projectContext: any
+  projectContext: ProjectContext
 ): ConfirmationState {
   return {
     isWaiting: true,

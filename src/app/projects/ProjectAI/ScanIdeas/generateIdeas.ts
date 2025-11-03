@@ -6,6 +6,7 @@ import { buildIdeaGenerationPrompt } from './lib/promptBuilder';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { parseAIJsonResponse } from '@/lib/aiJsonParser';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/lib/logger';
 
 
 export interface IdeaGenerationOptions {
@@ -49,27 +50,27 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       codebaseFiles = []
     } = options;
 
-    console.log(`[generateIdeas] Starting idea generation for project: ${projectName}`);
+    logger.info('Starting idea generation', { projectName });
 
     // Fetch valid goal IDs for validation later
     const validGoalIds = new Set(
       goalDb.getGoalsByProject(projectId).map(g => g.id)
     );
-    console.log(`[generateIdeas] Found ${validGoalIds.size} valid goal IDs for validation`);
+    logger.info('Found valid goal IDs for validation', { count: validGoalIds.size });
 
     // 1. Read AI documentation
-    console.log('[generateIdeas] Reading AI documentation...');
+    logger.info('Reading AI documentation');
     const aiDocsContent = await readAIDocs(projectPath);
 
     // Log AI documentation character length
     const aiDocsLength = aiDocsContent ? aiDocsContent.length : 0;
-    console.log(`[generateIdeas] AI documentation loaded: ${aiDocsLength} characters`);
+    logger.info('AI documentation loaded', { characterCount: aiDocsLength });
 
     // 2. Get context information if provided
     let context = null;
     let contextFilesCount = 0;
     if (contextId) {
-      console.log(`[generateIdeas] Fetching context: ${contextId}`);
+      logger.info('Fetching context', { contextId });
       context = contextDb.getContextById(contextId);
 
       // Count context files
@@ -78,20 +79,20 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           const filePaths = JSON.parse(context.file_paths);
           contextFilesCount = Array.isArray(filePaths) ? filePaths.length : 0;
         } catch (error) {
-          console.error('[generateIdeas] Error parsing context file paths:', error);
+          logger.error('Error parsing context file paths', { error });
         }
       }
-      console.log(`[generateIdeas] Context files loaded: ${contextFilesCount} files`);
+      logger.info('Context files loaded', { fileCount: contextFilesCount });
     }
 
     // 3. Get existing ideas to prevent duplicates
-    console.log('[generateIdeas] Fetching existing ideas...');
+    logger.info('Fetching existing ideas');
     const existingIdeas = contextId
       ? ideaDb.getIdeasByContext(contextId)
       : ideaDb.getIdeasByProject(projectId);
 
     // 4. Build prompt using specialized prompt builder
-    console.log(`[generateIdeas] Building prompt with scan type: ${scanType}...`);
+    logger.info('Building prompt', { scanType });
     const promptResult = buildIdeaGenerationPrompt(scanType, {
       projectId,
       projectName,
@@ -102,12 +103,11 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     });
 
     const prompt = promptResult.fullPrompt;
-    console.log('[generateIdeas] Sending prompt to LLM...');
-    console.log(`[generateIdeas] Prompt length: ${prompt.length} characters`);
+    logger.info('Sending prompt to LLM', { promptLength: prompt.length });
 
     // 6. Generate ideas using LLM with config from standardized template
     const selectedProvider = (provider as any) || DefaultProviderStorage.getDefaultProvider();
-    console.log(`[generateIdeas] Using provider: ${selectedProvider}`);
+    logger.info('Using LLM provider', { provider: selectedProvider });
 
     const result = await generateWithLLM(prompt, {
       provider: selectedProvider,
@@ -122,7 +122,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       throw new Error(result.error || 'Failed to generate ideas');
     }
 
-    console.log('[generateIdeas] LLM response received');
+    logger.info('LLM response received');
 
     // 7. Parse JSON response using robust parser
     let parsedIdeas: GeneratedIdea[];
@@ -131,11 +131,11 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
 
       // Validate that we got an array
       if (!Array.isArray(parsedIdeas)) {
-        console.error('[generateIdeas] Parsed result is not an array:', typeof parsedIdeas);
+        logger.error('Parsed result is not an array', { type: typeof parsedIdeas });
         throw new Error('Expected JSON array, got ' + typeof parsedIdeas);
       }
 
-      console.log(`[generateIdeas] Successfully parsed ${parsedIdeas.length} ideas`);
+      logger.info('Successfully parsed ideas', { count: parsedIdeas.length });
 
       // Log validation summary
       const validIdeas = parsedIdeas.filter(idea =>
@@ -143,11 +143,10 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       );
       const invalidIdeas = parsedIdeas.length - validIdeas.length;
       if (invalidIdeas > 0) {
-        console.warn(`[generateIdeas] ${invalidIdeas} idea(s) will be skipped due to missing required fields`);
+        logger.warn('Ideas will be skipped due to missing required fields', { count: invalidIdeas });
       }
     } catch (parseError) {
-      console.error('[generateIdeas] Failed to parse LLM response:', parseError);
-      console.error('[generateIdeas] Raw response:', result.response);
+      logger.error('Failed to parse LLM response', { error: parseError, rawResponse: result.response });
       throw new Error('Failed to parse LLM response as JSON: ' + (parseError instanceof Error ? parseError.message : 'Unknown error'));
     }
 
@@ -156,7 +155,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     const scanCategory = contextId ? 'context_analysis' : 'project_analysis';
     const scanSummary = `Generated ${parsedIdeas.length} ideas for ${projectName}${contextId ? ` - Context: ${contextId}` : ''}`;
 
-    console.log('[generateIdeas] Creating scan record...');
+    logger.info('Creating scan record');
     scanDb.createScan({
       id: scanId,
       project_id: projectId,
@@ -167,12 +166,12 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     });
 
     // 9. Save ideas to database
-    console.log('[generateIdeas] Saving ideas to database...');
+    logger.info('Saving ideas to database');
     const savedIdeas = parsedIdeas
       .filter(idea => {
         // Skip ideas without required fields
         if (!idea.title || typeof idea.title !== 'string' || idea.title.trim() === '') {
-          console.warn('[generateIdeas] Skipping idea without valid title:', idea);
+          logger.warn('Skipping idea without valid title', { idea });
           return false;
         }
         return true;
@@ -200,7 +199,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           }
           const num = typeof value === 'number' ? value : parseInt(value, 10);
           if (isNaN(num) || num < 1 || num > 3) {
-            console.warn(`[generateIdeas] Invalid effort/impact value: ${value}, defaulting to 1`);
+            logger.warn('Invalid effort/impact value, defaulting to 1', { value });
             return 1; // Force to 1 if invalid
           }
           return num;
@@ -215,7 +214,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           if (validGoalIds.has(idea.goal_id)) {
             validatedGoalId = idea.goal_id;
           } else {
-            console.warn(`[generateIdeas] Invalid goal_id "${idea.goal_id}" for idea "${title}". Setting to null.`);
+            logger.warn('Invalid goal_id for idea, setting to null', { goalId: idea.goal_id, title });
             validatedGoalId = null;
           }
         }
@@ -223,7 +222,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
         // Validate context_id if provided (might be passed incorrectly)
         let validatedContextId: string | null = contextId || null;
         if (validatedContextId && validatedContextId !== contextId) {
-          console.warn(`[generateIdeas] Context ID mismatch detected, using provided contextId: ${contextId}`);
+          logger.warn('Context ID mismatch detected, using provided contextId', { contextId });
           validatedContextId = contextId || null;
         }
 
@@ -244,7 +243,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
         });
       });
 
-    console.log(`[generateIdeas] Successfully saved ${savedIdeas.length} ideas`);
+    logger.info('Successfully saved ideas', { count: savedIdeas.length });
 
     return {
       success: true,
@@ -253,7 +252,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     };
 
   } catch (error) {
-    console.error('[generateIdeas] Error:', error);
+    logger.error('Idea generation error', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'

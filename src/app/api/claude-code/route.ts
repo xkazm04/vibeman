@@ -10,12 +10,10 @@ import {
   deleteRequirement,
   readClaudeSettings,
   updateClaudeSettings,
-  executeRequirement,
 } from '@/app/Claude/lib/claudeCodeManager';
-import {
-  createProjectSnapshot,
-  autoUpdateContexts,
-} from '@/app/Claude/lib/contextAutoUpdate';
+import { validateRequired, successResponse, errorResponse, handleOperationResult } from './helpers';
+import { getTaskStatus } from './taskStatusHandler';
+import { queueExecution, executeSync } from './executionHandlers';
 
 /**
  * GET - Check Claude folder status or list requirements
@@ -26,17 +24,13 @@ export async function GET(request: NextRequest) {
     const projectPath = searchParams.get('projectPath');
     const action = searchParams.get('action');
 
-    if (!projectPath) {
-      return NextResponse.json(
-        { error: 'Project path is required' },
-        { status: 400 }
-      );
-    }
+    const validationError = validateRequired({ projectPath }, ['projectPath']);
+    if (validationError) return validationError;
 
     // Check Claude folder status
     if (action === 'status') {
-      const exists = claudeFolderExists(projectPath);
-      const initStatus = isClaudeFolderInitialized(projectPath);
+      const exists = claudeFolderExists(projectPath!);
+      const initStatus = isClaudeFolderInitialized(projectPath!);
 
       return NextResponse.json({
         exists,
@@ -47,28 +41,21 @@ export async function GET(request: NextRequest) {
 
     // List requirements
     if (action === 'list-requirements') {
-      const result = listRequirements(projectPath);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to list requirements' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ requirements: result.requirements });
+      const result = listRequirements(projectPath!);
+      return handleOperationResult(
+        result,
+        'Requirements listed successfully',
+        'Failed to list requirements'
+      );
     }
 
     // Read requirement
     if (action === 'read-requirement') {
       const requirementName = searchParams.get('name');
-      if (!requirementName) {
-        return NextResponse.json(
-          { error: 'Requirement name is required' },
-          { status: 400 }
-        );
-      }
+      const nameError = validateRequired({ name: requirementName }, ['name']);
+      if (nameError) return nameError;
 
-      const result = readRequirement(projectPath, requirementName);
+      const result = readRequirement(projectPath!, requirementName!);
       if (!result.success) {
         return NextResponse.json(
           { error: result.error || 'Failed to read requirement' },
@@ -81,15 +68,12 @@ export async function GET(request: NextRequest) {
 
     // Read settings
     if (action === 'read-settings') {
-      const result = readClaudeSettings(projectPath);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to read settings' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ settings: result.settings });
+      const result = readClaudeSettings(projectPath!);
+      return handleOperationResult(
+        result,
+        'Settings read successfully',
+        'Failed to read settings'
+      );
     }
 
     return NextResponse.json(
@@ -97,14 +81,7 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error in GET /api/claude-code:', error);
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Error in GET /api/claude-code');
   }
 }
 
@@ -116,287 +93,67 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { projectPath, action, projectName, requirementName, content, settings } = body;
 
-    // LOG INCOMING REQUEST
-    console.log('[API Backend] 📨 POST /api/claude-code received:', {
-      action,
-      requirementName,
-      timestamp: new Date().toISOString(),
-    });
-
     // Actions that don't require projectPath
     const noProjectPathActions = ['get-task-status'];
 
     if (!projectPath && !noProjectPathActions.includes(action)) {
-      return NextResponse.json(
-        { error: 'Project path is required' },
-        { status: 400 }
-      );
+      return validateRequired({ projectPath }, ['projectPath']);
     }
 
     // Initialize Claude folder
     if (action === 'initialize') {
       const result = initializeClaudeFolder(projectPath, projectName);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to initialize Claude folder' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Claude folder initialized successfully',
-        structure: result.structure,
-      });
+      return handleOperationResult(
+        result,
+        'Claude folder initialized successfully',
+        'Failed to initialize Claude folder'
+      );
     }
 
     // Create requirement
     if (action === 'create-requirement') {
-      if (!requirementName || !content) {
-        return NextResponse.json(
-          { error: 'Requirement name and content are required' },
-          { status: 400 }
-        );
-      }
+      const validationError = validateRequired({ requirementName, content }, ['requirementName', 'content']);
+      if (validationError) return validationError;
 
       const result = createRequirement(projectPath, requirementName, content);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to create requirement' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Requirement created successfully',
-        filePath: result.filePath,
-      });
+      return handleOperationResult(
+        result,
+        'Requirement created successfully',
+        'Failed to create requirement'
+      );
     }
 
     // Execute requirement (async mode - queued execution)
     if (action === 'execute-requirement-async') {
       const { projectId } = body;
+      const validationError = validateRequired({ requirementName }, ['requirementName']);
+      if (validationError) return validationError;
 
-      if (!requirementName) {
-        return NextResponse.json(
-          { error: 'Requirement name is required' },
-          { status: 400 }
-        );
-      }
-
-      const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-      const taskId = executionQueue.addTask(projectPath, requirementName, projectId);
-
-      return NextResponse.json({
-        success: true,
-        message: 'Requirement queued for execution',
-        taskId,
-        mode: 'async',
-      });
+      return queueExecution(projectPath, requirementName, projectId);
     }
 
     // Execute requirement (sync mode - blocking, legacy)
     if (action === 'execute-requirement') {
       const { projectId, async } = body;
-
-      if (!requirementName) {
-        return NextResponse.json(
-          { error: 'Requirement name is required' },
-          { status: 400 }
-        );
-      }
+      const validationError = validateRequired({ requirementName }, ['requirementName']);
+      if (validationError) return validationError;
 
       // If async mode requested, delegate to async handler
       if (async === true) {
-        console.log('[API Backend] 🚀 CREATING NEW TASK:', {
-          requirementName,
-          projectId,
-          mode: 'async',
-        });
-
-        const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-        const taskId = executionQueue.addTask(projectPath, requirementName, projectId);
-
-        console.log('[API Backend] ✅ Task queued successfully:', { taskId });
-
-        return NextResponse.json({
-          success: true,
-          message: 'Requirement queued for execution',
-          taskId,
-          mode: 'async',
-        });
+        return queueExecution(projectPath, requirementName, projectId);
       }
 
       // Synchronous execution (blocking)
-      // Create snapshot before execution for context auto-update
-      const beforeSnapshot = projectId ? createProjectSnapshot(projectPath) : null;
-
-      const result = await executeRequirement(projectPath, requirementName);
-      if (!result.success) {
-        return NextResponse.json(
-          {
-            error: result.error || 'Failed to execute requirement',
-            sessionLimitReached: result.sessionLimitReached || false,
-            logFilePath: result.logFilePath,
-          },
-          { status: result.sessionLimitReached ? 429 : 500 }
-        );
-      }
-
-      // Auto-update contexts after successful execution
-      let contextUpdateResults = null;
-      if (projectId && beforeSnapshot) {
-        try {
-          console.log('Starting context auto-update...');
-          contextUpdateResults = await autoUpdateContexts(projectId, projectPath, beforeSnapshot);
-          console.log('Context auto-update completed:', contextUpdateResults);
-        } catch (error) {
-          console.error('Context auto-update failed:', error);
-          // Don't fail the whole request if context update fails
-        }
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Requirement executed successfully',
-        output: result.output,
-        logFilePath: result.logFilePath,
-        contextUpdates: contextUpdateResults,
-        mode: 'sync',
-      });
+      return executeSync(projectPath, requirementName, projectId);
     }
 
     // Get execution task status
     if (action === 'get-task-status') {
       const { taskId } = body;
+      const validationError = validateRequired({ taskId }, ['taskId']);
+      if (validationError) return validationError;
 
-      if (!taskId) {
-        return NextResponse.json(
-          { error: 'Task ID is required' },
-          { status: 400 }
-        );
-      }
-
-      const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-      let task = executionQueue.getTask(taskId);
-
-      // If task not found in memory, check if log file exists
-      if (!task) {
-        try {
-          const fs = await import('fs');
-          const path = await import('path');
-          const { getLogsDirectory } = await import('@/app/Claude/lib/claudeCodeManager');
-
-          // Try to find the project path by checking all projects
-          const { projectDb } = await import('@/lib/project_database');
-          const projects = projectDb.getAllProjects();
-
-          let logFound = false;
-          let latestLogPath: string | undefined;
-
-          for (const project of projects) {
-            const logsDir = getLogsDirectory(project.path);
-            try {
-              if (fs.existsSync(logsDir)) {
-                const logFiles = fs.readdirSync(logsDir);
-                // Find log files that start with the taskId
-                const matchingLogs = logFiles
-                  .filter((f: string) => f.startsWith(taskId) && f.endsWith('.log'))
-                  .map((f: string) => path.join(logsDir, f));
-
-                if (matchingLogs.length > 0) {
-                  // Get the most recent log file
-                  latestLogPath = matchingLogs[matchingLogs.length - 1];
-                  logFound = true;
-
-                  // Check if process has exited
-                  const logContent = fs.readFileSync(latestLogPath, 'utf-8');
-                  const hasExited = logContent.includes('Process exited with code');
-
-                  // Extract requirement name from log filename if possible
-                  const logFileName = path.basename(latestLogPath, '.log');
-                  const requirementName = logFileName.replace(taskId + '-', '') || 'unknown';
-
-                  // Reconstruct task object from log file
-                  if (hasExited) {
-                    const exitCode = logContent.match(/Process exited with code:\s*(\d+)/)?.[1];
-                    task = {
-                      id: taskId,
-                      projectPath: project.path,
-                      requirementName,
-                      projectId: project.id,
-                      status: exitCode === '0' ? 'completed' : 'failed',
-                      progress: [],
-                      error: exitCode !== '0' ? 'Execution failed' : undefined,
-                      output: exitCode === '0' ? 'Execution completed' : undefined,
-                      logFilePath: latestLogPath,
-                    };
-                  } else {
-                    // Still running
-                    task = {
-                      id: taskId,
-                      projectPath: project.path,
-                      requirementName,
-                      projectId: project.id,
-                      status: 'running',
-                      progress: [],
-                      logFilePath: latestLogPath,
-                    };
-                  }
-
-                  console.log('[API Backend] 🔍 Task reconstructed from log file:', {
-                    taskId,
-                    status: task.status,
-                    logPath: latestLogPath,
-                  });
-                  break;
-                }
-              }
-            } catch (err) {
-              // Skip projects where we can't access the logs directory
-              console.warn('[API Backend] Could not access logs for project:', project.name, err);
-              continue;
-            }
-          }
-
-          if (!logFound) {
-            console.error('[API Backend] ❌ Task not found in memory or logs:', { taskId });
-            return NextResponse.json(
-              { error: 'Task not found' },
-              { status: 404 }
-            );
-          }
-        } catch (fallbackError) {
-          console.error('[API Backend] ❌ Error during log file fallback:', fallbackError);
-          // If fallback fails, return task not found
-          return NextResponse.json(
-            { error: 'Task not found', details: fallbackError instanceof Error ? fallbackError.message : 'Unknown error' },
-            { status: 404 }
-          );
-        }
-      }
-
-      // Final check - if task still not found, return error
-      if (!task) {
-        console.error('[API Backend] ❌ Task could not be found or reconstructed:', { taskId });
-        return NextResponse.json(
-          { error: 'Task not found' },
-          { status: 404 }
-        );
-      }
-
-      // Log detailed task status for debugging
-      console.log('[API Backend] 📊 Task status:', {
-        taskId,
-        status: task.status,
-        hasError: !!task.error,
-        error: task.error,
-        hasOutput: !!task.output,
-        progressLines: task.progress?.length || 0,
-      });
-
-      return NextResponse.json({ task });
+      return getTaskStatus(taskId);
     }
 
     // List all execution tasks for a project
@@ -412,44 +169,28 @@ export async function POST(request: NextRequest) {
       const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
       executionQueue.clearOldTasks();
 
-      return NextResponse.json({
-        success: true,
-        message: 'Old tasks cleared',
-      });
+      return successResponse({}, 'Old tasks cleared');
     }
 
     // Update settings
     if (action === 'update-settings') {
-      if (!settings) {
-        return NextResponse.json(
-          { error: 'Settings data is required' },
-          { status: 400 }
-        );
-      }
+      const validationError = validateRequired({ settings }, ['settings']);
+      if (validationError) return validationError;
 
       const result = updateClaudeSettings(projectPath, settings);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to update settings' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Settings updated successfully',
-      });
+      return handleOperationResult(
+        result,
+        'Settings updated successfully',
+        'Failed to update settings'
+      );
     }
 
-  } catch (error) {
-    console.error('Error in POST /api/claude-code:', error);
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+      { error: 'Invalid action parameter' },
+      { status: 400 }
     );
+  } catch (error) {
+    return errorResponse(error, 'Error in POST /api/claude-code');
   }
 }
 
@@ -461,34 +202,17 @@ export async function DELETE(request: NextRequest) {
     const body = await request.json();
     const { projectPath, requirementName } = body;
 
-    if (!projectPath || !requirementName) {
-      return NextResponse.json(
-        { error: 'Project path and requirement name are required' },
-        { status: 400 }
-      );
-    }
+    const validationError = validateRequired({ projectPath, requirementName }, ['projectPath', 'requirementName']);
+    if (validationError) return validationError;
 
     const result = deleteRequirement(projectPath, requirementName);
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || 'Failed to delete requirement' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Requirement deleted successfully',
-    });
-  } catch (error) {
-    console.error('Error in DELETE /api/claude-code:', error);
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+    return handleOperationResult(
+      result,
+      'Requirement deleted successfully',
+      'Failed to delete requirement'
     );
+  } catch (error) {
+    return errorResponse(error, 'Error in DELETE /api/claude-code');
   }
 }
 
@@ -500,34 +224,20 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { projectPath, action, requirementName, content } = body;
 
-    if (!projectPath) {
-      return NextResponse.json(
-        { error: 'Project path is required' },
-        { status: 400 }
-      );
-    }
+    const validationError = validateRequired({ projectPath }, ['projectPath']);
+    if (validationError) return validationError;
 
     // Update requirement
     if (action === 'update-requirement') {
-      if (!requirementName || !content) {
-        return NextResponse.json(
-          { error: 'Requirement name and content are required' },
-          { status: 400 }
-        );
-      }
+      const contentError = validateRequired({ requirementName, content }, ['requirementName', 'content']);
+      if (contentError) return contentError;
 
       const result = updateRequirement(projectPath, requirementName, content);
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Failed to update requirement' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Requirement updated successfully',
-      });
+      return handleOperationResult(
+        result,
+        'Requirement updated successfully',
+        'Failed to update requirement'
+      );
     }
 
     return NextResponse.json(
@@ -535,13 +245,6 @@ export async function PUT(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error in PUT /api/claude-code:', error);
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Error in PUT /api/claude-code');
   }
 }

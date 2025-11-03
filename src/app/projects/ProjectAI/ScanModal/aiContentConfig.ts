@@ -1,11 +1,11 @@
-import { FileText, ScanLine } from 'lucide-react';
+import { FileText, ScanLine, LucideIcon } from 'lucide-react';
 
 export interface AIContentCard {
   id: string;
   title: string;
   description: string;
   bulletPoints?: string[];
-  icon: any;
+  icon: LucideIcon;
   gradient: string;
   borderColor: string;
   hoverGradient: string;

@@ -1,4 +1,5 @@
 import { Project } from '@/types';
+import { logger } from '@/lib/logger';
 
 // Fetch projects directly from API
 export const fetchProjectsDirectly = async (): Promise<Project[]> => {
@@ -8,10 +9,10 @@ export const fetchProjectsDirectly = async (): Promise<Project[]> => {
       const data = await response.json();
       return data.projects || [];
     } else {
-      console.error('Failed to fetch projects: HTTP', response.status);
+      logger.error('Failed to fetch projects', { status: response.status });
     }
   } catch (error) {
-    console.error('Failed to fetch projects:', error);
+    logger.error('Failed to fetch projects', { error });
   }
   return [];
 };
@@ -31,11 +32,11 @@ export const deleteProject = async (projectId: string): Promise<boolean> => {
       const data = await response.json();
       return data.success;
     } else {
-      console.error('Failed to delete project: HTTP', response.status);
+      logger.error('Failed to delete project', { status: response.status, projectId });
       return false;
     }
   } catch (error) {
-    console.error('Failed to delete project:', error);
+    logger.error('Failed to delete project', { error, projectId });
     return false;
   }
 };
