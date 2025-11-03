@@ -15,7 +15,7 @@ interface ActiveProjectStore {
   isLoading: boolean;
   error: string | null;
   showPreview: boolean;
-  
+
   // Actions
   setActiveProject: (project: Project) => void;
   setActiveContext: (context: Context | null) => void;
@@ -23,6 +23,7 @@ interface ActiveProjectStore {
   loadProjectFileStructure: (projectId: string) => Promise<void>;
   refreshFileStructure: () => Promise<void>;
   clearError: () => void;
+  _setAndLoadProject: (project: Project) => void;
   initializeWithFirstProject: () => void;
   setShowPreview: (show: boolean) => void;
   togglePreview: () => void;
@@ -114,14 +115,20 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
           set({ error: null });
         },
         
+        // Helper to set and load a project
+        _setAndLoadProject: (project: Project) => {
+          get().setActiveProject(project);
+          get().loadProjectFileStructure(project.id);
+        },
+
         // Initialize with first project from config
         initializeWithFirstProject: () => {
           const { activeProject } = get();
           if (activeProject) return; // Already initialized
-          
+
           // First try to load from localStorage
           get().loadFromLocalStorage();
-          
+
           // If still no active project, load first available project
           const currentActiveProject = get().activeProject;
           if (!currentActiveProject) {
@@ -129,11 +136,9 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
             setTimeout(() => {
               const projectConfigStore = useProjectConfigStore.getState();
               const projects = projectConfigStore.getAllProjects();
-              
+
               if (projects.length > 0) {
-                const firstProject = projects[0];
-                get().setActiveProject(firstProject); // This will also save to localStorage
-                get().loadProjectFileStructure(firstProject.id);
+                get()._setAndLoadProject(projects[0]);
               }
             }, 500);
           }
@@ -162,6 +167,7 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
               }
             }
           } catch (error) {
+            // Clear invalid data from localStorage
             localStorage.removeItem(ACTIVE_PROJECT_KEY);
           }
         },

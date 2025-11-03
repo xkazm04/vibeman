@@ -88,7 +88,6 @@ export function useRealtimeEvents(options?: {
 
       return (result.events || []).map(transformDbEvent);
     } catch (error) {
-      console.error('Error in fetchEvents:', error);
       throw error;
     }
   };

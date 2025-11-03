@@ -180,6 +180,54 @@ function initializeProjectTables() {
   seedDefaultProjects();
 }
 
+/**
+ * Helper function to add a field to update query
+ */
+function addUpdateField(
+  fieldName: string,
+  value: string | number | boolean | undefined,
+  updateFields: string[],
+  values: (string | number)[],
+  transform?: (val: string | number | boolean) => string | number
+): void {
+  if (value !== undefined) {
+    updateFields.push(`${fieldName} = ?`);
+    values.push(transform ? transform(value) : value as string | number);
+  }
+}
+
+/**
+ * Helper function to build dynamic update query
+ */
+function buildUpdateQuery(updates: {
+  name?: string;
+  path?: string;
+  port?: number;
+  type?: string;
+  related_project_id?: string;
+  git_repository?: string;
+  git_branch?: string;
+  run_script?: string;
+  allow_multiple_instances?: boolean;
+  base_port?: number;
+}): { updateFields: string[]; values: (string | number)[] } {
+  const updateFields: string[] = [];
+  const values: (string | number)[] = [];
+
+  addUpdateField('name', updates.name, updateFields, values);
+  addUpdateField('path', updates.path, updateFields, values);
+  addUpdateField('port', updates.port, updateFields, values);
+  addUpdateField('type', updates.type, updateFields, values);
+  addUpdateField('related_project_id', updates.related_project_id, updateFields, values);
+  addUpdateField('git_repository', updates.git_repository, updateFields, values);
+  addUpdateField('git_branch', updates.git_branch, updateFields, values);
+  addUpdateField('run_script', updates.run_script, updateFields, values);
+  addUpdateField('allow_multiple_instances', updates.allow_multiple_instances, updateFields, values, (val) => val ? 1 : 0);
+  addUpdateField('base_port', updates.base_port, updateFields, values);
+
+  return { updateFields, values };
+}
+
 // Project database operations
 export interface DbProject {
   id: string;
@@ -294,73 +342,31 @@ export const projectDb = {
     const db = getProjectDatabase();
     const now = new Date().toISOString();
 
-    // Build dynamic update query
-    const updateFields: string[] = [];
-    const values: (string | number)[] = [];
-    
-    if (updates.name !== undefined) {
-      updateFields.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.path !== undefined) {
-      updateFields.push('path = ?');
-      values.push(updates.path);
-    }
-    if (updates.port !== undefined) {
-      updateFields.push('port = ?');
-      values.push(updates.port);
-    }
-    if (updates.type !== undefined) {
-      updateFields.push('type = ?');
-      values.push(updates.type);
-    }
-    if (updates.related_project_id !== undefined) {
-      updateFields.push('related_project_id = ?');
-      values.push(updates.related_project_id);
-    }
-    if (updates.git_repository !== undefined) {
-      updateFields.push('git_repository = ?');
-      values.push(updates.git_repository);
-    }
-    if (updates.git_branch !== undefined) {
-      updateFields.push('git_branch = ?');
-      values.push(updates.git_branch);
-    }
-    if (updates.run_script !== undefined) {
-      updateFields.push('run_script = ?');
-      values.push(updates.run_script);
-    }
-    if (updates.allow_multiple_instances !== undefined) {
-      updateFields.push('allow_multiple_instances = ?');
-      values.push(updates.allow_multiple_instances ? 1 : 0);
-    }
-    if (updates.base_port !== undefined) {
-      updateFields.push('base_port = ?');
-      values.push(updates.base_port);
-    }
-    
+    // Build dynamic update query using helper
+    const { updateFields, values } = buildUpdateQuery(updates);
+
     if (updateFields.length === 0) {
       // No updates to make
       const selectStmt = db.prepare('SELECT * FROM projects WHERE id = ?');
       return selectStmt.get(id) as DbProject | null;
     }
-    
+
     updateFields.push('updated_at = ?');
     values.push(now);
     values.push(id);
-    
+
     const stmt = db.prepare(`
-      UPDATE projects 
-      SET ${updateFields.join(', ')} 
+      UPDATE projects
+      SET ${updateFields.join(', ')}
       WHERE id = ?
     `);
-    
+
     const result = stmt.run(...values);
-    
+
     if (result.changes === 0) {
       return null; // Project not found
     }
-    
+
     // Return the updated project
     const selectStmt = db.prepare('SELECT * FROM projects WHERE id = ?');
     return selectStmt.get(id) as DbProject;
