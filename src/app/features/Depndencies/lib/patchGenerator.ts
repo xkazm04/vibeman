@@ -30,8 +30,8 @@ export async function generatePatchProposals(
       const proposal = await generateSinglePatchProposal(client, vuln, projectPath);
       proposals.push(proposal);
     } catch (error) {
-      console.error(`Failed to generate patch for ${vuln.packageName}:`, error);
-      // Continue with other vulnerabilities
+      // Log error and continue with other vulnerabilities
+      // TODO: Integrate with proper logging service
       proposals.push({
         vulnerabilityId: vuln.id,
         analysis: `Failed to generate AI analysis: ${error}`,

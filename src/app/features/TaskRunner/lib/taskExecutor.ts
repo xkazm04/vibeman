@@ -191,12 +191,10 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
     // Poll for status using the requirement name as task ID
     let pollErrorCount = 0;
     const MAX_POLL_ERRORS = 15;
-    let consecutiveSuccesses = 0;
-    let currentPollInterval = 5000; // Start with slow polling (5s)
-    const FAST_POLL_INTERVAL = 2000; // Speed up to 2s after successes
+    const POLL_INTERVAL = 10000; // Poll every 10 seconds
 
     // Wait before starting to poll to give Next.js time to settle
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     let pollIntervalId: NodeJS.Timeout;
 
@@ -204,16 +202,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
       try {
         const task = await getTaskStatus(req.requirementName);
 
-        // Reset error count on successful poll and track consecutive successes
+        // Reset error count on successful poll
         pollErrorCount = 0;
-        consecutiveSuccesses++;
-
-        // Adaptive polling: speed up after 3 successful polls
-        if (consecutiveSuccesses >= 3 && currentPollInterval > FAST_POLL_INTERVAL) {
-          currentPollInterval = FAST_POLL_INTERVAL;
-          clearInterval(pollIntervalId);
-          pollIntervalId = setInterval(pollStatus, currentPollInterval);
-        }
 
         setRequirements((prev) =>
           prev.map((r) =>
@@ -298,13 +288,6 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
       } catch (pollErr) {
         pollErrorCount++;
 
-        // Slow down polling on errors
-        if (currentPollInterval < 5000) {
-          currentPollInterval = 5000;
-          clearInterval(pollIntervalId);
-          pollIntervalId = setInterval(pollStatus, currentPollInterval);
-        }
-
         // If too many consecutive errors, stop polling and mark as failed
         if (pollErrorCount >= MAX_POLL_ERRORS) {
           clearInterval(pollIntervalId);
@@ -330,8 +313,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
       }
     };
 
-    // Start polling with initial slow interval
-    pollIntervalId = setInterval(pollStatus, currentPollInterval);
+    // Start polling with 10-second interval
+    pollIntervalId = setInterval(pollStatus, POLL_INTERVAL);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 

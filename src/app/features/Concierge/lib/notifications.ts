@@ -15,6 +15,26 @@ export interface NotificationPayload {
 }
 
 /**
+ * Helper to log notification event
+ */
+function logNotificationEvent(
+  projectId: string,
+  title: string,
+  description: string,
+  eventType: 'info' | 'success' | 'error' = 'info'
+) {
+  eventDb.createEvent({
+    id: uuidv4(),
+    project_id: projectId,
+    title,
+    description,
+    type: eventType,
+    agent: 'concierge',
+    message: title,
+  });
+}
+
+/**
  * Send notification about a feature request
  */
 export async function sendNotification(payload: NotificationPayload): Promise<boolean> {
@@ -32,20 +52,12 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
       });
     }
 
-    // In a real implementation, you would integrate with an email service
-    // For now, we'll just log the notification and mark as sent
-    console.log('📧 Notification:', {
-      to,
-      subject,
-      body: body.substring(0, 100) + '...',
-    });
-
     // TODO: Integrate with email service (SendGrid, AWS SES, etc.)
     // await emailService.send({ to, subject, body });
 
     return true;
   } catch (error) {
-    console.error('Error sending notification:', error);
+    // TODO: Integrate with proper logging service
     return false;
   }
 }
@@ -80,16 +92,12 @@ AI Code Concierge
     type: 'new_request',
   });
 
-  // Log event
-  eventDb.createEvent({
-    id: uuidv4(),
-    project_id: request.project_id,
-    title: 'Notification Sent',
-    description: `Notified ${developerEmails.length} developer(s) about new feature request`,
-    type: 'info',
-    agent: 'concierge',
-    message: 'New request notification sent',
-  });
+  logNotificationEvent(
+    request.project_id,
+    'Notification Sent',
+    `Notified ${developerEmails.length} developer(s) about new feature request`,
+    'info'
+  );
 }
 
 /**
@@ -126,16 +134,12 @@ AI Code Concierge
     type: 'code_generated',
   });
 
-  // Log event
-  eventDb.createEvent({
-    id: uuidv4(),
-    project_id: request.project_id,
-    title: 'Code Generation Notification Sent',
-    description: `Notified ${developerEmails.length} developer(s) about generated code`,
-    type: 'success',
-    agent: 'concierge',
-    message: 'Code generation notification sent',
-  });
+  logNotificationEvent(
+    request.project_id,
+    'Code Generation Notification Sent',
+    `Notified ${developerEmails.length} developer(s) about generated code`,
+    'success'
+  );
 }
 
 /**
@@ -169,16 +173,12 @@ AI Code Concierge
     type: 'committed',
   });
 
-  // Log event
-  eventDb.createEvent({
-    id: uuidv4(),
-    project_id: request.project_id,
-    title: 'Commit Notification Sent',
-    description: `Notified ${request.requester_name} about code commit`,
-    type: 'success',
-    agent: 'concierge',
-    message: 'Code commit notification sent',
-  });
+  logNotificationEvent(
+    request.project_id,
+    'Commit Notification Sent',
+    `Notified ${request.requester_name} about code commit`,
+    'success'
+  );
 }
 
 /**
@@ -209,16 +209,12 @@ AI Code Concierge
     type: 'failed',
   });
 
-  // Log event
-  eventDb.createEvent({
-    id: uuidv4(),
-    project_id: request.project_id,
-    title: 'Failure Notification Sent',
-    description: `Notified ${request.requester_name} about request failure`,
-    type: 'error',
-    agent: 'concierge',
-    message: 'Failure notification sent',
-  });
+  logNotificationEvent(
+    request.project_id,
+    'Failure Notification Sent',
+    `Notified ${request.requester_name} about request failure`,
+    'error'
+  );
 }
 
 /**
@@ -231,12 +227,10 @@ export async function processPendingNotifications(): Promise<void> {
   for (const notification of pending) {
     try {
       // TODO: Actually send the email using an email service
-      console.log('Processing notification:', notification.id);
-
       // Mark as sent
       featureRequestDb.updateNotification(notification.id, 'sent');
     } catch (error) {
-      console.error('Error processing notification:', error);
+      // TODO: Integrate with proper logging service
       featureRequestDb.updateNotification(
         notification.id,
         'failed',

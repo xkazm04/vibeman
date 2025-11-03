@@ -29,19 +29,17 @@ export async function initializeProjectsSequence(
   initializeWithFirstProject: () => void
 ): Promise<void> {
   await initializeProjects();
-  
+
   const projects = getAllProjects();
-  console.log('Available projects:', projects);
-  
+
   if (projects.length > 0) {
-    console.log('Loading structure for project:', projects[0]);
     try {
-      const data = await fetchProjectStructure(projects[0].path);
-      console.log('Structure data loaded:', data);
+      await fetchProjectStructure(projects[0].path);
     } catch (error) {
-      console.error('Structure API error:', error);
+      // TODO: Integrate with proper logging service
+      // Silent fail - structure will be loaded on demand
     }
   }
-  
+
   initializeWithFirstProject();
 }

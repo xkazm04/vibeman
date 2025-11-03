@@ -119,11 +119,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
           timeout: 30000 // 30 second timeout per command
         });
 
-        // Combine stdout and stderr for output
-        const output = (stdout.trim() + (stderr.trim() ? '\n' + stderr.trim() : '')).trim();
+        // Filter out harmless stderr messages
+        const harmlessPatterns = [
+          /LF will be replaced by CRLF/i,              // Line ending warnings (Windows)
+          /CRLF will be replaced by LF/i,              // Line ending warnings (Unix)
+          /can't open file.*git.*hook/i,               // Missing git hooks (optional)
+          /warning: in the working copy/i,             // Generic working copy warnings
+        ];
 
-        // Check if stderr contains actual errors vs warnings
-        const hasWarnings = stderr && !stderr.includes('fatal') && !stderr.includes('error:');
+        const filteredStderr = stderr
+          .split('\n')
+          .filter(line => {
+            // Keep line if it doesn't match any harmless pattern
+            return !harmlessPatterns.some(pattern => pattern.test(line));
+          })
+          .join('\n')
+          .trim();
+
+        // Combine stdout and filtered stderr for output
+        const output = (stdout.trim() + (filteredStderr ? '\n' + filteredStderr : '')).trim();
+
+        // Check if filtered stderr contains actual errors
+        const hasRealWarnings = filteredStderr && !filteredStderr.includes('fatal') && !filteredStderr.includes('error:');
 
         results.push({
           command: processedCommand,
@@ -131,8 +148,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
           output: output || 'Command executed successfully'
         });
 
-        if (hasWarnings) {
-          console.log(`[GitOperation] Success with warnings: ${processedCommand}`, { stdout, stderr });
+        if (hasRealWarnings) {
+          console.log(`[GitOperation] Success with warnings: ${processedCommand}`, { stdout, stderr: filteredStderr });
         } else {
           console.log(`[GitOperation] Success: ${processedCommand}`, output);
         }

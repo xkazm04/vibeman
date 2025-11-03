@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+/**
+ * Helper to modify URL search params and navigate
+ */
+function updateUrlParam(router: ReturnType<typeof useRouter>, key: string, value: string | null) {
+  const currentUrl = new URL(window.location.href);
+
+  if (value !== null) {
+    currentUrl.searchParams.set(key, value);
+  } else {
+    currentUrl.searchParams.delete(key);
+  }
+
+  router.push(currentUrl.toString(), { scroll: false });
+}
+
 export const useContextDetail = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,15 +35,11 @@ export const useContextDetail = () => {
   }, [searchParams]);
 
   const openGroupDetail = (groupId: string) => {
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set('groupDetail', groupId);
-    router.push(currentUrl.toString(), { scroll: false });
+    updateUrlParam(router, 'groupDetail', groupId);
   };
 
   const closeGroupDetail = () => {
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.delete('groupDetail');
-    router.push(currentUrl.toString(), { scroll: false });
+    updateUrlParam(router, 'groupDetail', null);
   };
 
   return {

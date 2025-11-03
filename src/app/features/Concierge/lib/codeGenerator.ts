@@ -30,19 +30,37 @@ export interface CodeGenerationResult {
 }
 
 /**
- * Generate code from natural language description
+ * Interface for parsed code entry during validation
  */
-export async function generateCodeFromDescription(
-  request: CodeGenerationRequest
-): Promise<CodeGenerationResult> {
-  const { projectId, naturalLanguageDescription, projectPath, projectType, existingContexts } = request;
+interface ParsedCodeEntry {
+  file_path: string;
+  content: string;
+  action: string;
+  description: string;
+}
 
-  // Build context information
-  const contextInfo = existingContexts
-    ?.map(ctx => `- ${ctx.name}: ${ctx.description || 'No description'}\n  Files: ${ctx.filePaths.join(', ')}`)
-    .join('\n') || 'No existing contexts available';
+/**
+ * Build context information string for prompt
+ */
+function buildContextInfo(existingContexts?: Array<{ name: string; description: string; filePaths: string[] }>): string {
+  if (!existingContexts || existingContexts.length === 0) {
+    return 'No existing contexts available';
+  }
 
-  const systemPrompt = `You are an expert software engineer assistant that helps translate business requirements into code implementations.
+  return existingContexts
+    .map(ctx => `- ${ctx.name}: ${ctx.description || 'No description'}\n  Files: ${ctx.filePaths.join(', ')}`)
+    .join('\n');
+}
+
+/**
+ * Build system prompt for code generation
+ */
+function buildCodeGenerationSystemPrompt(
+  projectType: string | undefined,
+  projectPath: string,
+  contextInfo: string
+): string {
+  return `You are an expert software engineer assistant that helps translate business requirements into code implementations.
 
 Project Type: ${projectType || 'unknown'}
 Project Path: ${projectPath}
@@ -95,6 +113,18 @@ Return your response as a valid JSON object with this structure:
   "estimatedEffort": "medium",
   "suggestedContexts": ["authentication", "api-routes"]
 }`;
+}
+
+/**
+ * Generate code from natural language description
+ */
+export async function generateCodeFromDescription(
+  request: CodeGenerationRequest
+): Promise<CodeGenerationResult> {
+  const { projectId, naturalLanguageDescription, projectPath, projectType, existingContexts } = request;
+
+  const contextInfo = buildContextInfo(existingContexts);
+  const systemPrompt = buildCodeGenerationSystemPrompt(projectType, projectPath, contextInfo);
 
   const userPrompt = `Feature Request:
 
@@ -114,7 +144,7 @@ Please analyze this request and generate the necessary code, tests, and document
     const result = parseCodeGenerationResponse(response);
     return result;
   } catch (error) {
-    console.error('Error generating code:', error);
+    // TODO: Integrate with proper logging service
     throw new Error(`Code generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -144,7 +174,7 @@ function parseCodeGenerationResponse(response: string): CodeGenerationResult {
     }
 
     // Validate each generated code file
-    parsed.generatedCode.forEach((code: any, index: number) => {
+    parsed.generatedCode.forEach((code: ParsedCodeEntry, index: number) => {
       if (!code.file_path || !code.content || !code.action || !code.description) {
         throw new Error(`Invalid code entry at index ${index}`);
       }
@@ -164,8 +194,7 @@ function parseCodeGenerationResponse(response: string): CodeGenerationResult {
       suggestedContexts: Array.isArray(parsed.suggestedContexts) ? parsed.suggestedContexts : [],
     };
   } catch (error) {
-    console.error('Error parsing code generation response:', error);
-    console.error('Response:', response);
+    // TODO: Integrate with proper logging service
     throw new Error(`Failed to parse code generation response: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -182,7 +211,7 @@ export async function loadProjectContexts(projectId: string) {
       filePaths: JSON.parse(ctx.file_paths),
     }));
   } catch (error) {
-    console.error('Error loading project contexts:', error);
+    // TODO: Integrate with proper logging service
     return [];
   }
 }
