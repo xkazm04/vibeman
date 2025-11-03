@@ -15,6 +15,42 @@ interface FileTreeSelectorProps {
   projectPath?: string;
 }
 
+// Helper functions extracted from component
+const findNodeInTree = (root: TreeNodeType, targetPath: string): TreeNodeType | null => {
+  const currentPath = root.path;
+  if (normalizePath(currentPath) === normalizePath(targetPath)) {
+    return root;
+  }
+
+  if (root.children) {
+    for (const child of root.children) {
+      const found = findNodeInTree(child, targetPath);
+      if (found) return found;
+    }
+  }
+
+  return null;
+};
+
+const collectChildFilesFromNode = (node: TreeNodeType): string[] => {
+  const filePaths: string[] = [];
+
+  const collect = (n: TreeNodeType) => {
+    if (n.type === 'file') {
+      filePaths.push(normalizePath(n.path));
+    }
+    if (n.children) {
+      n.children.forEach(collect);
+    }
+  };
+
+  if (node.children) {
+    node.children.forEach(collect);
+  }
+
+  return filePaths;
+};
+
 export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
   fileStructure,
   selectedPaths,
@@ -31,48 +67,31 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
   // Filter tree based on search query
   const filteredStructure = useMemo(() => {
     if (!fileStructure || !searchQuery.trim()) return fileStructure;
-    
+
     const filterNode = (node: TreeNodeType): TreeNodeType | null => {
       const nodePath = node.path;
       const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            nodePath.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const filteredChildren = node.children?.map(filterNode).filter(Boolean) as TreeNodeType[] || [];
-      
+
       if (matchesSearch || filteredChildren.length > 0) {
         return {
           ...node,
           children: filteredChildren
         };
       }
-      
+
       return null;
     };
-    
+
     return filterNode(fileStructure);
   }, [fileStructure, searchQuery]);
 
   const handleNodeToggle = (nodePath: string) => {
     if (!fileStructure) return;
 
-    // Find the node in the tree
-    const findNode = (node: TreeNodeType, targetPath: string): TreeNodeType | null => {
-      const currentPath = node.path;
-      if (normalizePath(currentPath) === normalizePath(targetPath)) {
-        return node;
-      }
-
-      if (node.children) {
-        for (const child of node.children) {
-          const found = findNode(child, targetPath);
-          if (found) return found;
-        }
-      }
-
-      return null;
-    };
-
-    const node = findNode(fileStructure, nodePath);
+    const node = findNodeInTree(fileStructure, nodePath);
 
     if (!node) {
       // Fallback: if node not found, just toggle the path
@@ -82,22 +101,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
 
     if (node.type === 'folder') {
       // For folders, collect all child file paths
-      const childFilePaths: string[] = [];
-
-      const collectChildFiles = (n: TreeNodeType) => {
-        if (n.type === 'file') {
-          const filePath = n.path;
-          childFilePaths.push(normalizePath(filePath));
-        }
-
-        if (n.children) {
-          n.children.forEach(collectChildFiles);
-        }
-      };
-
-      if (node.children) {
-        node.children.forEach(collectChildFiles);
-      }
+      const childFilePaths = collectChildFilesFromNode(node);
 
       // Check if all child files are already selected
       const allSelected = childFilePaths.every(path =>
@@ -161,11 +165,9 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
             onPathToggle(relPath);
           }
         });
-      } else {
-        console.error('Failed to analyze dependencies:', data.error);
       }
     } catch (error) {
-      console.error('Error analyzing dependencies:', error);
+      // Dependency analysis failed - silent failure as this is a convenience feature
     } finally {
       setIsAnalyzing(false);
     }

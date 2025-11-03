@@ -55,7 +55,6 @@ export default function VoicebotScanButton({
       }
 
       const briefingText = data.text;
-      console.log('[VoicebotScanButton] Briefing text:', briefingText);
 
       // Convert to speech
       setState('loading');
@@ -73,8 +72,7 @@ export default function VoicebotScanButton({
         setTimeout(() => setState('idle'), 2000);
       };
 
-      audio.onerror = (error) => {
-        console.error('[VoicebotScanButton] Audio playback error:', error);
+      audio.onerror = () => {
         setState('error');
         setErrorMessage('Audio playback failed');
         URL.revokeObjectURL(audioUrl);
@@ -85,7 +83,6 @@ export default function VoicebotScanButton({
       await audio.play();
 
     } catch (error) {
-      console.error('[VoicebotScanButton] Briefing error:', error);
       setState('error');
       setErrorMessage(error instanceof Error ? error.message : 'Failed to generate briefing');
       setTimeout(() => setState('idle'), 3000);

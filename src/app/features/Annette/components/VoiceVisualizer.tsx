@@ -43,6 +43,45 @@ const THEME_GRADIENTS = {
   },
 };
 
+// Helper function to convert hex color to RGB object
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16),
+  } : { r: 0, g: 0, b: 0 };
+};
+
+// Helper to interpolate between two hex colors
+const interpolateColor = (color1: string, color2: string, t: number): string => {
+  const c1 = hexToRgb(color1);
+  const c2 = hexToRgb(color2);
+
+  const r = Math.round(c1.r + (c2.r - c1.r) * t);
+  const g = Math.round(c1.g + (c2.g - c1.g) * t);
+  const b = Math.round(c1.b + (c2.b - c1.b) * t);
+
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+// Calculate color based on amplitude (0-1)
+const getColorForAmplitude = (amplitude: number, colors: typeof THEME_GRADIENTS.phantom): string => {
+  if (amplitude < 0.33) {
+    // Low amplitude - interpolate between low and mid
+    const t = amplitude / 0.33;
+    return interpolateColor(colors.low, colors.mid, t);
+  } else if (amplitude < 0.66) {
+    // Mid amplitude - interpolate between mid and high
+    const t = (amplitude - 0.33) / 0.33;
+    return interpolateColor(colors.mid, colors.high, t);
+  } else {
+    // High amplitude - stay at high color with intensity
+    const t = (amplitude - 0.66) / 0.34;
+    return interpolateColor(colors.high, '#ffffff', t * 0.3);
+  }
+};
+
 export default function VoiceVisualizer({
   isActive,
   theme,
@@ -60,44 +99,6 @@ export default function VoiceVisualizer({
   const barCount = 32; // More bars for smoother gradient
   const barWidth = 3;
   const barGap = 1;
-
-  // Calculate color based on amplitude (0-1)
-  const getColorForAmplitude = (amplitude: number): string => {
-    if (amplitude < 0.33) {
-      // Low amplitude - interpolate between low and mid
-      const t = amplitude / 0.33;
-      return interpolateColor(colors.low, colors.mid, t);
-    } else if (amplitude < 0.66) {
-      // Mid amplitude - interpolate between mid and high
-      const t = (amplitude - 0.33) / 0.33;
-      return interpolateColor(colors.mid, colors.high, t);
-    } else {
-      // High amplitude - stay at high color with intensity
-      const t = (amplitude - 0.66) / 0.34;
-      return interpolateColor(colors.high, '#ffffff', t * 0.3);
-    }
-  };
-
-  // Helper to interpolate between two hex colors
-  const interpolateColor = (color1: string, color2: string, t: number): string => {
-    const c1 = hexToRgb(color1);
-    const c2 = hexToRgb(color2);
-
-    const r = Math.round(c1.r + (c2.r - c1.r) * t);
-    const g = Math.round(c1.g + (c2.g - c1.g) * t);
-    const b = Math.round(c1.b + (c2.b - c1.b) * t);
-
-    return `rgb(${r}, ${g}, ${b})`;
-  };
-
-  const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16),
-    } : { r: 0, g: 0, b: 0 };
-  };
 
   // Draw waveform
   const drawWaveform = (dataArray: Uint8Array, bufferLength: number) => {
@@ -127,7 +128,7 @@ export default function VoiceVisualizer({
       const y = height - barHeight;
 
       // Get color based on amplitude
-      const color = getColorForAmplitude(amplitude);
+      const color = getColorForAmplitude(amplitude, colors);
 
       // Draw bar with gradient
       const gradient = ctx.createLinearGradient(x, y, x, height);

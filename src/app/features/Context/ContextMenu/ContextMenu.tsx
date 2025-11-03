@@ -17,6 +17,42 @@ interface ContextMenuProps {
   availableGroups: ContextGroup[];
 }
 
+// Extracted component for menu button
+interface MenuButtonProps {
+  onClick: () => void;
+  icon: React.ElementType;
+  iconColor: string;
+  label: string;
+  gradientFrom: string;
+  gradientTo: string;
+  borderColor: string;
+}
+
+const MenuButton: React.FC<MenuButtonProps> = ({
+  onClick,
+  icon: Icon,
+  iconColor,
+  label,
+  gradientFrom,
+  gradientTo,
+  borderColor,
+}) => (
+  <motion.button
+    onClick={onClick}
+    className={`w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r ${gradientFrom} ${gradientTo} hover:text-cyan-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent ${borderColor} backdrop-blur-sm`}
+    whileHover={{ x: 6, scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+  >
+    <motion.div
+      whileHover={{ rotate: 15 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Icon className={`w-4 h-4 ${iconColor}`} />
+    </motion.div>
+    <span className="font-mono font-medium">{label}</span>
+  </motion.button>
+);
+
 export default function ContextMenu({ context, isVisible, position, onClose, availableGroups }: ContextMenuProps) {
   const { removeContext, selectedContextIds, toggleContextSelection, setSelectedContext } = useContextStore();
   const { clearSelection } = useStore();
@@ -67,7 +103,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
         try {
           await removeContext(context.id);
         } catch (error) {
-          console.error('Failed to delete context:', error);
+          // Context deletion failed - error handled by store
         }
         break;
       case 'open':
@@ -95,7 +131,6 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
   const handleFileSave = async (filePath: string, content: string) => {
     // TODO: Implement actual file saving logic
     // This would typically make an API call to save the file
-    console.log('Saving file:', filePath, 'with content length:', content.length);
 
     // Mock API call
     return new Promise<void>((resolve, reject) => {
@@ -185,50 +220,35 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
             ))}
             
             <div className="relative space-y-1">
-              <motion.button
+              <MenuButton
                 onClick={() => handleAction('open')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 hover:text-cyan-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-cyan-500/30 backdrop-blur-sm"
-                whileHover={{ x: 6, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <motion.div
-                  whileHover={{ rotate: 15 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <FolderOpen className="w-4 h-4 text-cyan-400" />
-                </motion.div>
-                <span className="font-mono font-medium">Open Neural Files</span>
-              </motion.button>
+                icon={FolderOpen}
+                iconColor="text-cyan-400"
+                label="Open Neural Files"
+                gradientFrom="hover:from-cyan-500/10"
+                gradientTo="hover:to-blue-500/10"
+                borderColor="hover:border-cyan-500/30"
+              />
 
-              <motion.button
+              <MenuButton
                 onClick={() => handleAction('copy')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-slate-500/10 hover:to-blue-500/10 hover:text-slate-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-slate-500/30 backdrop-blur-sm"
-                whileHover={{ x: 6, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <motion.div
-                  whileHover={{ rotate: 15 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Copy className="w-4 h-4 text-slate-400" />
-                </motion.div>
-                <span className="font-mono font-medium">Clone Context</span>
-              </motion.button>
+                icon={Copy}
+                iconColor="text-slate-400"
+                label="Clone Context"
+                gradientFrom="hover:from-slate-500/10"
+                gradientTo="hover:to-blue-500/10"
+                borderColor="hover:border-slate-500/30"
+              />
 
-              <motion.button
+              <MenuButton
                 onClick={() => handleAction('select')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-pink-500/10 hover:text-blue-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-blue-500/30 backdrop-blur-sm"
-                whileHover={{ x: 6, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <motion.div
-                  whileHover={{ rotate: 15 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <MousePointer className="w-4 h-4 text-blue-400" />
-                </motion.div>
-                <span className="font-mono font-medium">Select</span>
-              </motion.button>
+                icon={MousePointer}
+                iconColor="text-blue-400"
+                label="Select"
+                gradientFrom="hover:from-blue-500/10"
+                gradientTo="hover:to-pink-500/10"
+                borderColor="hover:border-blue-500/30"
+              />
 
               <motion.button
                 onClick={() => handleAction('toggleForBacklog')}
@@ -251,35 +271,25 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
                 </span>
               </motion.button>
 
-              <motion.button
+              <MenuButton
                 onClick={() => handleAction('contextFile')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-cyan-500/10 hover:text-blue-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-blue-500/30 backdrop-blur-sm"
-                whileHover={{ x: 6, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <motion.div
-                  whileHover={{ rotate: 15 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <FileText className="w-4 h-4 text-blue-400" />
-                </motion.div>
-                <span className="font-mono font-medium">Context Matrix</span>
-              </motion.button>
+                icon={FileText}
+                iconColor="text-blue-400"
+                label="Context Matrix"
+                gradientFrom="hover:from-blue-500/10"
+                gradientTo="hover:to-cyan-500/10"
+                borderColor="hover:border-blue-500/30"
+              />
 
-              <motion.button
+              <MenuButton
                 onClick={() => handleAction('edit')}
-                className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-orange-500/10 hover:text-yellow-300 flex items-center space-x-3 transition-all duration-300 rounded-xl mx-1 border border-transparent hover:border-yellow-500/30 backdrop-blur-sm"
-                whileHover={{ x: 6, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <motion.div
-                  whileHover={{ rotate: 15 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Edit className="w-4 h-4 text-yellow-400" />
-                </motion.div>
-                <span className="font-mono font-medium">Modify Node</span>
-              </motion.button>
+                icon={Edit}
+                iconColor="text-yellow-400"
+                label="Modify Node"
+                gradientFrom="hover:from-yellow-500/10"
+                gradientTo="hover:to-orange-500/10"
+                borderColor="hover:border-yellow-500/30"
+              />
 
               {/* Neural Divider */}
               <div className="relative my-3 mx-2">

@@ -38,7 +38,7 @@ export default function ConciergeInterface({
         setRecentRequests(data.data.slice(0, 5));
       }
     } catch (error) {
-      console.error('Error loading recent requests:', error);
+      // Failed to load recent requests - silent failure
     }
   };
 
@@ -99,7 +99,6 @@ export default function ConciergeInterface({
       setDescription('');
       loadRecentRequests();
     } catch (error) {
-      console.error('Error submitting request:', error);
       alert('Failed to submit request. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -126,8 +125,7 @@ export default function ConciergeInterface({
       setCurrentRequest(null);
       loadRecentRequests();
     } catch (error) {
-      console.error('Error committing code:', error);
-      alert('Failed to commit code. Please check console for details.');
+      alert('Failed to commit code. Please try again.');
     }
   };
 
@@ -145,7 +143,7 @@ export default function ConciergeInterface({
       setCurrentRequest(null);
       loadRecentRequests();
     } catch (error) {
-      console.error('Error rejecting request:', error);
+      // Failed to reject request - silent failure
     }
   };
 
