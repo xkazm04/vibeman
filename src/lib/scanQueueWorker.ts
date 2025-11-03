@@ -38,6 +38,13 @@ class ScanQueueWorker {
   };
 
   /**
+   * Generate a unique notification ID
+   */
+  private generateNotificationId(): string {
+    return `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
    * Create a notification for a queue item
    */
   private createNotification(
@@ -47,9 +54,8 @@ class ScanQueueWorker {
     message: string,
     data: NotificationData
   ): void {
-    const notifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     scanQueueDb.createNotification({
-      id: notifId,
+      id: this.generateNotificationId(),
       queue_item_id: queueItem.id,
       project_id: queueItem.project_id,
       notification_type: notificationType,
@@ -299,25 +305,28 @@ class ScanQueueWorker {
   }
 
   /**
+   * Scan type display names mapping
+   */
+  private readonly SCAN_TYPE_NAMES: Readonly<Record<string, string>> = {
+    zen_architect: 'Zen Architect',
+    bug_hunter: 'Bug Hunter',
+    perf_optimizer: 'Performance Optimizer',
+    security_protector: 'Security Protector',
+    insight_synth: 'Insight Synthesizer',
+    ambiguity_guardian: 'Ambiguity Guardian',
+    business_visionary: 'Business Visionary',
+    ui_perfectionist: 'UI Perfectionist',
+    feature_scout: 'Feature Scout',
+    onboarding_optimizer: 'Onboarding Optimizer',
+    ai_integration_scout: 'AI Integration Scout',
+    delight_designer: 'Delight Designer'
+  };
+
+  /**
    * Get human-readable scan type name
    */
   private getScanTypeName(scanType: string): string {
-    const names: Record<string, string> = {
-      zen_architect: 'Zen Architect',
-      bug_hunter: 'Bug Hunter',
-      perf_optimizer: 'Performance Optimizer',
-      security_protector: 'Security Protector',
-      insight_synth: 'Insight Synthesizer',
-      ambiguity_guardian: 'Ambiguity Guardian',
-      business_visionary: 'Business Visionary',
-      ui_perfectionist: 'UI Perfectionist',
-      feature_scout: 'Feature Scout',
-      onboarding_optimizer: 'Onboarding Optimizer',
-      ai_integration_scout: 'AI Integration Scout',
-      delight_designer: 'Delight Designer'
-    };
-
-    return names[scanType] || scanType;
+    return this.SCAN_TYPE_NAMES[scanType] || scanType;
   }
 
   /**

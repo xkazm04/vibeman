@@ -68,30 +68,78 @@ function createProjectsTable(): void {
 }
 
 /**
+ * Column definitions for backward compatibility
+ */
+const MIGRATION_COLUMNS = [
+  `type TEXT DEFAULT 'other'`,
+  `related_project_id TEXT`,
+  `git_repository TEXT`,
+  `git_branch TEXT DEFAULT 'main'`,
+  `run_script TEXT DEFAULT 'npm run dev'`,
+  `allow_multiple_instances INTEGER DEFAULT 0`,
+  `base_port INTEGER`,
+  `instance_of TEXT`
+] as const;
+
+/**
  * Add any missing columns for backward compatibility
  */
 function addMissingColumns(): void {
-  addColumnIfNotExists(`type TEXT DEFAULT 'other'`);
-  addColumnIfNotExists(`related_project_id TEXT`);
-  addColumnIfNotExists(`git_repository TEXT`);
-  addColumnIfNotExists(`git_branch TEXT DEFAULT 'main'`);
-  addColumnIfNotExists(`run_script TEXT DEFAULT 'npm run dev'`);
-  addColumnIfNotExists(`allow_multiple_instances INTEGER DEFAULT 0`);
-  addColumnIfNotExists(`base_port INTEGER`);
-  addColumnIfNotExists(`instance_of TEXT`);
+  MIGRATION_COLUMNS.forEach(columnDef => addColumnIfNotExists(columnDef));
 }
+
+/**
+ * Index definitions for query optimization
+ */
+const INDEX_DEFINITIONS = [
+  'CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)',
+  'CREATE INDEX IF NOT EXISTS idx_projects_port ON projects(port)',
+  'CREATE INDEX IF NOT EXISTS idx_projects_instance_of ON projects(instance_of)'
+] as const;
 
 /**
  * Create database indexes
  */
 function createIndexes(): void {
   if (!db) return;
+  const database = db; // Capture for closure
+  INDEX_DEFINITIONS.forEach(indexDef => database.exec(indexDef));
+}
 
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path);
-    CREATE INDEX IF NOT EXISTS idx_projects_port ON projects(port);
-    CREATE INDEX IF NOT EXISTS idx_projects_instance_of ON projects(instance_of);
-  `);
+/**
+ * Default project template
+ */
+interface DefaultProjectTemplate {
+  id: string;
+  name: string;
+  path: string;
+  port: number;
+  type: string;
+  relatedProjectId: string | null;
+  gitRepo: string;
+  runScript: string;
+}
+
+/**
+ * Convert template to database row format
+ */
+function templateToDbRow(template: DefaultProjectTemplate, now: string): unknown[] {
+  return [
+    template.id,
+    template.name,
+    template.path,
+    template.port,
+    template.type,
+    template.relatedProjectId,
+    template.gitRepo,
+    'main',
+    template.runScript,
+    0,
+    null,
+    null,
+    now,
+    now
+  ];
 }
 
 /**
@@ -115,7 +163,7 @@ function seedDefaultProjects(): void {
 
   const now = new Date().toISOString();
 
-  const defaultProjects = [
+  const defaultProjects: DefaultProjectTemplate[] = [
     {
       id: 'vibeman-main',
       name: 'Vibeman',
@@ -149,22 +197,7 @@ function seedDefaultProjects(): void {
   ];
 
   defaultProjects.forEach(project => {
-    insertStmt.run(
-      project.id,
-      project.name,
-      project.path,
-      project.port,
-      project.type,
-      project.relatedProjectId,
-      project.gitRepo,
-      'main',
-      project.runScript,
-      0,
-      null,
-      null,
-      now,
-      now
-    );
+    insertStmt.run(...templateToDbRow(project, now));
   });
 }
 
