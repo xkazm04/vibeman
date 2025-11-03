@@ -9,6 +9,14 @@ export interface Scan {
   duplicate_code_instances: number;
 }
 
+export interface SharedDependency {
+  dependency_name: string;
+  projects: Array<{
+    project_id: string;
+    version: string | null;
+  }>;
+}
+
 export interface ScanData {
   scan: {
     id: string;
@@ -18,7 +26,7 @@ export interface ScanData {
   };
   projects: Project[];
   dependencies: Record<string, ProjectDependency[]>;
-  sharedDependencies: any[];
+  sharedDependencies: SharedDependency[];
   registryVersions?: Record<string, string | null>; // packageName -> registry version
   stats?: ScanStats;
 }

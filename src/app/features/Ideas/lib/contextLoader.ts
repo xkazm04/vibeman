@@ -17,7 +17,6 @@ export async function fetchContextsForProject(projectId: string): Promise<Contex
     }
     return [];
   } catch (error) {
-    console.error(`Error fetching contexts for project ${projectId}:`, error);
     return [];
   }
 }

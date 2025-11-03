@@ -45,7 +45,7 @@ export function useOnboardingAutoComplete() {
           completeStep('generate-docs');
         }
       } catch (error) {
-        console.error('Error checking high.md:', error);
+        // Silently fail - file check is non-critical
       }
     };
 
@@ -68,7 +68,7 @@ export function useOnboardingAutoComplete() {
           }
         }
       } catch (error) {
-        console.error('Error checking contexts:', error);
+        // Silently fail - context check is non-critical
       }
     };
 
@@ -92,7 +92,7 @@ export function useOnboardingAutoComplete() {
 
           // Also check for implemented ideas (Step 5)
           const implemented = data.ideas.filter(
-            (idea: any) => idea.status === 'implemented'
+            (idea: { status: string }) => idea.status === 'implemented'
           );
           const hasImpl = implemented.length > 0;
           setHasImplementedIdeas(hasImpl);
@@ -102,7 +102,7 @@ export function useOnboardingAutoComplete() {
           }
         }
       } catch (error) {
-        console.error('Error checking ideas:', error);
+        // Silently fail - idea check is non-critical
       }
     };
 

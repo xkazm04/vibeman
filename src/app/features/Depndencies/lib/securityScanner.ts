@@ -1,6 +1,33 @@
 import { spawn } from 'child_process';
 import { VulnerabilityInfo } from '@/app/db/models/security-patch.types';
 
+interface VulnVia {
+  source?: number | string;
+  severity?: string;
+  title?: string;
+  url?: string;
+}
+
+interface VulnData {
+  via?: Array<VulnVia | string>;
+  range?: string;
+  fixAvailable?: {
+    version?: string;
+  };
+}
+
+interface PipDependency {
+  name: string;
+  version: string;
+  vulns?: Array<{
+    id?: string;
+    severity?: string;
+    description?: string;
+    url?: string;
+    fix_versions?: string[];
+  }>;
+}
+
 export interface SecurityScanResult {
   totalVulnerabilities: number;
   criticalCount: number;
@@ -8,7 +35,7 @@ export interface SecurityScanResult {
   mediumCount: number;
   lowCount: number;
   vulnerabilities: VulnerabilityInfo[];
-  rawOutput: any;
+  rawOutput: Record<string, unknown>;
 }
 
 /**
@@ -43,9 +70,9 @@ export async function runNpmAudit(projectPath: string): Promise<SecurityScanResu
 
         // Extract vulnerability details from npm audit v2 format
         if (auditData.vulnerabilities) {
-          Object.entries(auditData.vulnerabilities).forEach(([pkgName, vulnData]: [string, any]) => {
+          Object.entries(auditData.vulnerabilities).forEach(([pkgName, vulnData]: [string, VulnData]) => {
             if (vulnData.via && Array.isArray(vulnData.via)) {
-              vulnData.via.forEach((via: any) => {
+              vulnData.via.forEach((via: VulnVia) => {
                 if (typeof via === 'object' && via.source) {
                   vulnerabilities.push({
                     id: via.source.toString(),
@@ -116,8 +143,8 @@ export async function runPipAudit(projectPath: string): Promise<SecurityScanResu
 
         // Extract vulnerability details from pip-audit format
         if (auditData.dependencies) {
-          auditData.dependencies.forEach((dep: any) => {
-            dep.vulns?.forEach((vuln: any) => {
+          auditData.dependencies.forEach((dep: PipDependency) => {
+            dep.vulns?.forEach((vuln) => {
               const severity = (vuln.severity?.toLowerCase() || 'medium') as 'critical' | 'high' | 'medium' | 'low';
 
               if (severity === 'critical') criticalCount++;

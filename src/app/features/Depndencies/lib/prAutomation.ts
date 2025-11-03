@@ -2,6 +2,11 @@ import { spawn } from 'child_process';
 import { VulnerabilityInfo } from '@/app/db/models/security-patch.types';
 import { PatchProposal } from './patchGenerator';
 
+interface StatusCheck {
+  state?: string;
+  conclusion?: string;
+}
+
 export interface PrCreationResult {
   success: boolean;
   branchName: string;
@@ -245,7 +250,7 @@ export async function mergePrIfTestsPass(
 
     // Check if all checks passed
     const allPassed = checks.every(
-      (check: any) => check.state === 'SUCCESS' || check.conclusion === 'SUCCESS'
+      (check: StatusCheck) => check.state === 'SUCCESS' || check.conclusion === 'SUCCESS'
     );
 
     if (!allPassed) {

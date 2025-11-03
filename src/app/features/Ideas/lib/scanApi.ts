@@ -32,7 +32,6 @@ export async function gatherCodebaseFiles(
     });
 
     if (!response.ok) {
-      console.error('Failed to fetch project files');
       return [];
     }
 
@@ -40,7 +39,6 @@ export async function gatherCodebaseFiles(
     return data.files || [];
 
   } catch (error) {
-    console.error('Error gathering codebase files:', error);
     return [];
   }
 }
