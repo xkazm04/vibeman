@@ -25,29 +25,17 @@ const BufferColumn = React.memo(function BufferColumn({
   onContextDelete,
 }: BufferColumnProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  console.log('BufferColumn render:', {
-    contextName,
-    contextId,
-    hasOnContextDelete: !!onContextDelete,
-    onContextDeleteType: typeof onContextDelete
-  });
 
   const handleDeleteAll = async () => {
-    console.log('handleDeleteAll called', { contextId, hasHandler: !!onContextDelete, isDeleting });
-    
     if (!contextId) {
-      console.log('No contextId, returning');
       return;
     }
-    
+
     if (!onContextDelete) {
-      console.log('No onContextDelete handler, returning');
       return;
     }
-    
+
     if (isDeleting) {
-      console.log('Already deleting, returning');
       return;
     }
     
@@ -61,7 +49,6 @@ const BufferColumn = React.memo(function BufferColumn({
     try {
       await onContextDelete(contextId);
     } catch (error) {
-      console.error('Error deleting context ideas:', error);
       alert('Failed to delete ideas');
     } finally {
       setIsDeleting(false);

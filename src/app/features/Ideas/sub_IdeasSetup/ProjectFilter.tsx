@@ -48,7 +48,7 @@ export default function ProjectFilter({
         setContextGroups(data.data.groups || []);
       }
     } catch (error) {
-      console.error('Error fetching contexts:', error);
+      // Error fetching contexts
     } finally {
       setLoading(false);
     }

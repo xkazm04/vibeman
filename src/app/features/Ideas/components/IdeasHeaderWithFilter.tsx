@@ -62,7 +62,7 @@ export default function IdeasHeaderWithFilter({
         setContextGroups(data.data.groups || []);
       }
     } catch (error) {
-      console.error('Error fetching contexts:', error);
+      // Error fetching contexts
     } finally {
       setLoading(false);
     }

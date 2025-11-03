@@ -67,7 +67,6 @@ export default function BufferView({
     try {
       await onIdeaDelete(ideaId);
     } catch (error) {
-      console.error('Error deleting idea:', error);
       // Revert on error - find the idea from the original ideas prop
       const deletedIdea = ideas.find(idea => idea.id === ideaId);
       if (deletedIdea) {
@@ -99,16 +98,13 @@ export default function BufferView({
 
       if (response.ok) {
         const data = await response.json();
-        console.log(`Deleted ${data.deletedCount} idea(s) from context`);
       } else {
         const errorData = await response.json();
-        console.error('Failed to delete context ideas:', errorData.error);
         // Revert on error
         setLocalIdeas(prev => [...prev, ...contextIdeas]);
         alert(`Failed to delete ideas: ${errorData.error}`);
       }
     } catch (error) {
-      console.error('Error deleting context ideas:', error);
       // Revert on error
       setLocalIdeas(prev => [...prev, ...contextIdeas]);
       alert('Failed to delete ideas. Please refresh the page.');

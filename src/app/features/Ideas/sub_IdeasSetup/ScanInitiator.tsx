@@ -86,7 +86,6 @@ export default function ScanInitiator({
     // Initialize queue with all selected scan types
     const queue = initializeScanQueue(selectedScanTypes);
 
-    console.log('[ScanInitiator] Initializing queue with', queue.length, 'scans');
     setScanQueue(queue);
     setContextQueue([]);
     setBatchMode(false);
@@ -114,8 +113,6 @@ export default function ScanInitiator({
     // Initialize context queue with all contexts + full project × all scan types
     const queue = initializeContextQueue(projectContexts, selectedScanTypes);
 
-    console.log('[ScanInitiator] Initializing batch context queue with', queue.length, 'scans',
-      `(${projectContexts.length + 1} contexts × ${selectedScanTypes.length} scan types)`);
     setContextQueue(queue);
     setScanQueue([]);
     setBatchMode(true);
@@ -155,7 +152,6 @@ export default function ScanInitiator({
 
       const currentScan = updatedQueue[pendingIndex];
       const config = getScanTypeConfig(currentScan.scanType);
-      console.log('[ScanInitiator] Starting scan:', currentScan.scanType);
       setMessage(`${config?.emoji} Scanning: ${config?.label}...`);
 
       try {
@@ -169,8 +165,6 @@ export default function ScanInitiator({
           contextFilePaths: selectedContext?.filePaths
         });
 
-        console.log('[ScanInitiator] Scan completed:', currentScan.scanType, 'Ideas:', ideaCount);
-
         updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
           status: 'completed',
           ideaCount
@@ -180,8 +174,6 @@ export default function ScanInitiator({
         onScanComplete();
 
       } catch (error) {
-        console.error('Scan error:', error);
-
         updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
           status: 'failed',
           error: error instanceof Error ? error.message : 'Scan failed'
@@ -226,7 +218,6 @@ export default function ScanInitiator({
       const currentContext = updatedQueue[pendingIndex];
       const scanConfig = getScanTypeConfig(currentContext.scanType);
 
-      console.log('[ScanInitiator] Starting batch scan:', currentContext.contextName, '-', currentContext.scanType);
       setMessage(`${scanConfig?.emoji || '📂'} ${currentContext.contextName} - ${scanConfig?.label}...`);
 
       try {
@@ -244,8 +235,6 @@ export default function ScanInitiator({
           contextFilePaths: contextData?.filePaths
         });
 
-        console.log('[ScanInitiator] Batch scan completed:', currentContext.contextName, currentContext.scanType, 'Ideas:', ideaCount);
-
         updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
           status: 'completed',
           ideaCount
@@ -255,8 +244,6 @@ export default function ScanInitiator({
         onScanComplete();
 
       } catch (error) {
-        console.error('Batch scan error:', error);
-
         updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
           status: 'failed',
           error: error instanceof Error ? error.message : 'Batch scan failed'

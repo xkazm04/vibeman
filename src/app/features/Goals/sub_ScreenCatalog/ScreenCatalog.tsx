@@ -49,7 +49,6 @@ export default function ScreenCatalog({ projectId }: ScreenCatalogProps) {
           setContextGroups(data.data.groups || []);
         }
       } catch (error) {
-        console.error('[ScreenCatalog] Error fetching contexts:', error);
         setContexts([]);
         setContextGroups([]);
       } finally {
