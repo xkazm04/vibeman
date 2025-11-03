@@ -15,7 +15,6 @@ export async function GET() {
       patterns
     });
   } catch (error) {
-    console.error('GET /api/monitor/patterns error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch patterns' },
       { status: 500 }

@@ -64,37 +64,13 @@ const FILE_EXTENSIONS: Record<string, string> = {
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 
 function shouldIgnore(name: string): boolean {
-  // Debug log for "Backlog" specifically - check which pattern matches
-  if (name.toLowerCase().includes('backlog')) {
-    console.log(`🔍 Checking "${name}":`);
-    IGNORED_PATTERNS.forEach(pattern => {
-      if (pattern.includes('*')) {
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-        if (regex.test(name)) {
-          console.log(`   ❌ MATCHED by pattern: "${pattern}" (regex)`);
-        }
-      } else if (name === pattern) {
-        console.log(`   ❌ MATCHED by pattern: "${pattern}" (exact match)`);
-      } else if (name.startsWith(pattern)) {
-        console.log(`   ❌ MATCHED by pattern: "${pattern}" (startsWith)`);
-      }
-    });
-  }
-  
-  // Log to debug what's being checked
-  const ignored = IGNORED_PATTERNS.some(pattern => {
+  return IGNORED_PATTERNS.some(pattern => {
     if (pattern.includes('*')) {
       const regex = new RegExp(pattern.replace(/\*/g, '.*'));
       return regex.test(name);
     }
     return name === pattern || name.startsWith(pattern);
   });
-  
-  if (name.toLowerCase().includes('backlog')) {
-    console.log(`   Result: ${ignored ? 'IGNORED' : 'INCLUDED'}`);
-  }
-  
-  return ignored;
 }
 
 function getFileDescription(fileName: string): string {
@@ -172,45 +148,22 @@ async function scanDirectory(dirPath: string, basePath: string): Promise<TreeNod
   try {
     const stats = await fs.stat(dirPath);
     const name = path.basename(dirPath);
-    
-    // Debug: Log the full path being scanned
     const relativePath = path.relative(basePath, dirPath);
-    if (relativePath.toLowerCase().includes('backlog')) {
-      console.log(`🔍 Scanning path: ${dirPath}`);
-      console.log(`   Relative: ${relativePath}`);
-      console.log(`   Name: ${name}`);
-    }
-    
+
     if (shouldIgnore(name)) {
-      if (name.toLowerCase().includes('backlog')) {
-        console.log(`   ❌ IGNORED by shouldIgnore`);
-      }
       return null;
     }
-    
+
     if (stats.isDirectory()) {
       const entries = await fs.readdir(dirPath);
-      
-      // Debug log for Backlog folder - before processing
-      if (name.toLowerCase().includes('backlog')) {
-        console.log(`📁 Reading folder "${name}"`);
-        console.log(`   Raw entries:`, entries);
-      }
-      
       const children: TreeNode[] = [];
-      
+
       for (const entry of entries) {
         const entryPath = path.join(dirPath, entry);
         const childNode = await scanDirectory(entryPath, basePath);
         if (childNode) {
           children.push(childNode);
         }
-      }
-      
-      // Debug log for Backlog folder - after processing
-      if (name.toLowerCase().includes('backlog')) {
-        console.log(`📁 Folder "${name}": ${children.length} children found after filtering`);
-        console.log(`   Valid children:`, children.map(c => c.name));
       }
       
       // Sort children: folders first, then files, both alphabetically
@@ -266,8 +219,7 @@ async function scanDirectory(dirPath: string, basePath: string): Promise<TreeNod
         path: relativePath,
       };
     }
-  } catch (error) {
-    console.error(`Error scanning ${dirPath}:`, error);
+  } catch {
     return null;
   }
 }
@@ -310,9 +262,8 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Project structure scan error:', error);
     return NextResponse.json(
-      { 
+      {
         error: error instanceof Error ? error.message : 'Failed to scan project structure'
       },
       { status: 500 }

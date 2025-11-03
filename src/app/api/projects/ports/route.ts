@@ -7,7 +7,6 @@ export async function GET() {
     const usedPorts = projectDb.getUsedPorts();
     return NextResponse.json({ usedPorts });
   } catch (error) {
-    console.error('Ports API GET error:', error);
     return NextResponse.json(
       { error: 'Failed to get used ports' },
       { status: 500 }

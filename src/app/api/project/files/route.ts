@@ -21,45 +21,48 @@ export async function POST(request: NextRequest) {
     let files: Array<{ path: string; content: string; type: string }> = [];
 
     if (filePaths && Array.isArray(filePaths) && filePaths.length > 0) {
-      // Read specific files provided
-      console.log(`[API] Reading ${filePaths.length} specific files...`);
-
-      for (const filePath of filePaths.slice(0, limit)) {
-        try {
-          const fullPath = join(projectPath, filePath);
-          const content = await readFile(fullPath, 'utf-8');
-          const ext = extname(filePath).slice(1);
-
-          files.push({
-            path: filePath,
-            content,
-            type: getFileType(ext)
-          });
-        } catch (error) {
-          console.error(`Failed to read file: ${filePath}`, error);
-          // Continue with other files
-        }
-      }
-
+      files = await readSpecificFiles(projectPath, filePaths, limit);
     } else {
-      // Discover and read main implementation files
-      console.log('[API] Discovering main implementation files...');
-
-      const discoveredFiles = await discoverMainFiles(projectPath, limit);
-      files = discoveredFiles;
+      files = await discoverMainFiles(projectPath, limit);
     }
-
-    console.log(`[API] Returning ${files.length} files for analysis`);
 
     return NextResponse.json({ files });
 
   } catch (error) {
-    console.error('[API] Error fetching project files:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch files' },
       { status: 500 }
     );
   }
+}
+
+/**
+ * Read specific files provided by the caller
+ */
+async function readSpecificFiles(
+  projectPath: string,
+  filePaths: string[],
+  limit: number
+): Promise<Array<{ path: string; content: string; type: string }>> {
+  const files: Array<{ path: string; content: string; type: string }> = [];
+
+  for (const filePath of filePaths.slice(0, limit)) {
+    try {
+      const fullPath = join(projectPath, filePath);
+      const content = await readFile(fullPath, 'utf-8');
+      const ext = extname(filePath).slice(1);
+
+      files.push({
+        path: filePath,
+        content,
+        type: getFileType(ext)
+      });
+    } catch {
+      // Continue with other files
+    }
+  }
+
+  return files;
 }
 
 /**
@@ -105,14 +108,14 @@ async function discoverMainFiles(
                   type: getFileType(ext.slice(1))
                 });
               }
-            } catch (readError) {
-              console.error(`Failed to read file: ${fullPath}`, readError);
+            } catch {
+              // Continue with other files
             }
           }
         }
       }
-    } catch (error) {
-      console.error(`Failed to read directory: ${dir}`, error);
+    } catch {
+      // Silently skip directories we can't read
     }
   }
 

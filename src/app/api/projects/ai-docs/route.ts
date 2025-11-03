@@ -22,9 +22,8 @@ async function gatherCodebaseResources(projectPath: string, projectId?: string) 
         description: ctx.description || '',
         file_paths: JSON.parse(ctx.file_paths)
       }));
-      console.log(`[AI Docs] Found ${contexts.length} contexts for project`);
-    } catch (error) {
-      console.error('[AI Docs] Error fetching contexts:', error);
+    } catch {
+      // Continue without contexts
     }
   }
 
@@ -72,8 +71,8 @@ async function gatherCodebaseResources(projectPath: string, projectId?: string) 
         configFiles.push(file);
       }
     }
-  } catch (error) {
-    console.error('Error gathering config files:', error);
+  } catch {
+    // Continue without config files
   }
 
   // Gather documentation files from project root
@@ -85,8 +84,8 @@ async function gatherCodebaseResources(projectPath: string, projectId?: string) 
         documentationFiles.push(file);
       }
     }
-  } catch (error) {
-    console.error('Error gathering documentation files:', error);
+  } catch {
+    // Continue without documentation files
   }
 
   // Gather main implementation files with prioritization
@@ -140,8 +139,6 @@ async function gatherCodebaseResources(projectPath: string, projectId?: string) 
   // Remove priority field before adding to mainFiles
   mainFiles.push(...topFiles.map(({ priority, ...file }) => file));
 
-  console.log(`[AI Docs] Gathered resources: ${configFiles.length} config, ${mainFiles.length} code (from ${allFiles.length} total), ${documentationFiles.length} docs, ${contexts.length} contexts`);
-
   return { configFiles, mainFiles, documentationFiles, contexts };
 }
 
@@ -188,12 +185,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[AI Docs] Starting documentation generation for: ${projectName}`);
-    console.log(`[AI Docs] Project path: ${projectPath}`);
-    if (projectId) {
-      console.log(`[AI Docs] Project ID: ${projectId}`);
-    }
-
     // Gather codebase resources (including contexts if projectId is provided)
     const { configFiles, mainFiles, documentationFiles, contexts } = await gatherCodebaseResources(projectPath, projectId);
 
@@ -204,18 +195,13 @@ export async function POST(request: NextRequest) {
         configFiles,
         mainFiles,
         documentationFiles,
-        contexts // Add contexts to codebase
+        contexts
       },
       stats: {
         ...(analysis?.stats || {}),
         technologies: analysis?.stats?.technologies || []
       }
     };
-
-    console.log(`[AI Docs] Calling generateAIReview with ${configFiles.length + mainFiles.length + documentationFiles.length} files and ${contexts.length} contexts`);
-    if (vision) {
-      console.log(`[AI Docs] User vision provided: ${vision.substring(0, 100)}...`);
-    }
 
     const aiReview = await generateAIReview(projectName, enrichedAnalysis, projectId, provider, vision);
 
@@ -225,7 +211,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('AI docs generation error:', error);
     return NextResponse.json(
       {
         success: false,

@@ -10,7 +10,6 @@ export async function GET() {
       statistics: stats
     });
   } catch (error) {
-    console.error('GET /api/monitor/statistics error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch statistics' },
       { status: 500 }

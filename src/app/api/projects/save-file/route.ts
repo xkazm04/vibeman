@@ -35,11 +35,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('File save error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to save file' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to save file'
       },
       { status: 500 }
     );

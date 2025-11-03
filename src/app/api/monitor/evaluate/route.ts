@@ -116,28 +116,20 @@ export async function POST(request: NextRequest) {
 
         const evaluation: EvaluationResult = JSON.parse(jsonMatch[0]);
 
-        // Check if we need to create a new class
-        if (evaluation.classDescription) {
-          const existingClass = await monitorServiceDb.getMessageClassByName(evaluation.evalClass);
-          
-          if (!existingClass) {
-            // Create new class
-            await monitorServiceDb.createMessageClass({
-              classId: generateClassId(),
-              className: evaluation.evalClass,
-              description: evaluation.classDescription
-            });
-            newClasses.add(evaluation.evalClass);
-          } else {
-            // Increment existing class frequency
-            await monitorServiceDb.incrementMessageClassFrequency(evaluation.evalClass);
-          }
-        } else {
+        // Handle message class creation or update
+        const existingClass = await monitorServiceDb.getMessageClassByName(evaluation.evalClass);
+
+        if (!existingClass && evaluation.classDescription) {
+          // Create new class
+          await monitorServiceDb.createMessageClass({
+            classId: generateClassId(),
+            className: evaluation.evalClass,
+            description: evaluation.classDescription
+          });
+          newClasses.add(evaluation.evalClass);
+        } else if (existingClass) {
           // Increment existing class frequency
-          const existingClass = await monitorServiceDb.getMessageClassByName(evaluation.evalClass);
-          if (existingClass) {
-            await monitorServiceDb.incrementMessageClassFrequency(evaluation.evalClass);
-          }
+          await monitorServiceDb.incrementMessageClassFrequency(evaluation.evalClass);
         }
 
         // Update message with evaluation

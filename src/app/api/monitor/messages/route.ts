@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       messages
     });
   } catch (error) {
-    console.error('GET /api/monitor/messages error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch messages' },
       { status: 500 }
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     const message = await monitorServiceDb.createMessage({
       messageId: body.messageId,
       callId: body.callId,
@@ -48,7 +47,6 @@ export async function POST(request: NextRequest) {
       message
     });
   } catch (error) {
-    console.error('POST /api/monitor/messages error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create message' },
       { status: 500 }
