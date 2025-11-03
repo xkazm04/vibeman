@@ -1,7 +1,7 @@
 import { getEnforcedStructure } from '../structureTemplates';
 import { scanWithEnforcedStructure } from './violationDetector';
 import { generateAndSaveRequirements, previewRequirements } from './requirementGenerator';
-import { logStructureScanSuccess, logStructureScanError, logStructureScanAccepted, logStructureScanRejected } from './eventLogger';
+import { logStructureScanError, logStructureScanAccepted, logStructureScanRejected } from './eventLogger';
 import type { StructureViolation } from '../violationRequirementTemplate';
 
 /**
@@ -24,6 +24,36 @@ export interface SaveResult {
 }
 
 /**
+ * Helper to extract error message
+ */
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
+/**
+ * Helper to create error ScanResult
+ */
+function createErrorScanResult(error: unknown): ScanResult {
+  return {
+    success: false,
+    violations: [],
+    violationCount: 0,
+    error: getErrorMessage(error),
+  };
+}
+
+/**
+ * Helper to create error SaveResult
+ */
+function createErrorSaveResult(error: unknown): SaveResult {
+  return {
+    success: false,
+    requirementFiles: [],
+    error: getErrorMessage(error),
+  };
+}
+
+/**
  * Step 1: Analyze project structure and detect violations
  * Returns violations for user decision
  */
@@ -32,8 +62,6 @@ export async function analyzeStructure(
   projectType: 'nextjs' | 'fastapi'
 ): Promise<ScanResult> {
   try {
-    console.log('[ScanOrchestrator] 🎯 Starting structure analysis...');
-
     // Get enforced structure rules for project type
     const enforcedStructure = getEnforcedStructure(projectType);
 
@@ -44,8 +72,6 @@ export async function analyzeStructure(
     // Scan for violations
     const violations = await scanWithEnforcedStructure(projectPath, enforcedStructure);
 
-    console.log(`[ScanOrchestrator] ✅ Analysis complete: ${violations.length} violations found`);
-
     return {
       success: true,
       violations,
@@ -55,14 +81,7 @@ export async function analyzeStructure(
         : `Found ${violations.length} structure violations`,
     };
   } catch (error) {
-    console.error('[ScanOrchestrator] ❌ Analysis failed:', error);
-
-    return {
-      success: false,
-      violations: [],
-      violationCount: 0,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    return createErrorScanResult(error);
   }
 }
 
@@ -76,8 +95,6 @@ export async function saveRequirements(
   projectId: string
 ): Promise<SaveResult> {
   try {
-    console.log('[ScanOrchestrator] 💾 Saving requirements...');
-
     const result = await generateAndSaveRequirements(violations, projectPath, projectId);
 
     if (result.success) {
@@ -88,21 +105,12 @@ export async function saveRequirements(
         requirementFilesCreated: result.requirementFiles.length,
         requirementFiles: result.requirementFiles,
       });
-
-      console.log('[ScanOrchestrator] ✅ Requirements saved successfully');
     }
 
     return result;
   } catch (error) {
-    console.error('[ScanOrchestrator] ❌ Save failed:', error);
-
-    logStructureScanError(projectId, error instanceof Error ? error.message : 'Unknown error');
-
-    return {
-      success: false,
-      requirementFiles: [],
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    logStructureScanError(projectId, getErrorMessage(error));
+    return createErrorSaveResult(error);
   }
 }
 
@@ -111,7 +119,6 @@ export async function saveRequirements(
  */
 export function logRejection(projectId: string, violationCount: number): void {
   logStructureScanRejected(projectId, violationCount);
-  console.log('[ScanOrchestrator] ℹ️  User rejected structure scan requirements');
 }
 
 /**

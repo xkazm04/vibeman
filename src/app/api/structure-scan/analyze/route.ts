@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('[StructureScan] API error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

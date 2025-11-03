@@ -8,6 +8,27 @@ import { minimatch } from 'minimatch';
  */
 
 /**
+ * Check if an entry should be ignored based on patterns
+ */
+function shouldIgnoreEntry(relativePath: string, ignorePatterns: string[]): boolean {
+  return ignorePatterns.some(pattern => minimatch(relativePath, pattern, { dot: true }));
+}
+
+/**
+ * Normalize path to use forward slashes
+ */
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/');
+}
+
+/**
+ * Build relative path for an entry
+ */
+function buildRelativePath(relativePath: string, entryName: string): string {
+  return relativePath ? `${relativePath}/${entryName}` : entryName;
+}
+
+/**
  * Recursively get all files in a directory
  */
 export async function getAllFiles(
@@ -21,25 +42,19 @@ export async function getAllFiles(
       const entries = await fs.readdir(currentPath, { withFileTypes: true });
 
       for (const entry of entries) {
-        const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+        const entryRelPath = buildRelativePath(relativePath, entry.name);
         const entryFullPath = path.join(currentPath, entry.name);
 
-        // Check if should ignore
-        const shouldIgnore = ignorePatterns.some(pattern =>
-          minimatch(entryRelPath, pattern, { dot: true })
-        );
-
-        if (shouldIgnore) continue;
+        if (shouldIgnoreEntry(entryRelPath, ignorePatterns)) continue;
 
         if (entry.isDirectory()) {
           await scan(entryFullPath, entryRelPath);
         } else if (entry.isFile()) {
-          // Use forward slashes for consistency
-          files.push(entryRelPath.replace(/\\/g, '/'));
+          files.push(normalizePath(entryRelPath));
         }
       }
     } catch (error) {
-      console.error(`[FileScanner] Error scanning ${currentPath}:`, error);
+      // Silently skip directories that can't be read
     }
   }
 
@@ -61,18 +76,12 @@ export async function getProjectDirectories(
       const entries = await fs.readdir(currentPath, { withFileTypes: true });
 
       for (const entry of entries) {
-        const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+        const entryRelPath = buildRelativePath(relativePath, entry.name);
         const entryFullPath = path.join(currentPath, entry.name);
 
-        // Check if should ignore
-        const shouldIgnore = ignorePatterns.some(pattern =>
-          minimatch(entryRelPath, pattern, { dot: true })
-        );
+        if (shouldIgnoreEntry(entryRelPath, ignorePatterns)) continue;
 
-        if (shouldIgnore) continue;
-
-        // Store this item
-        const normalizedPath = entryRelPath.replace(/\\/g, '/');
+        const normalizedPath = normalizePath(entryRelPath);
         items.set(normalizedPath, {
           isDirectory: entry.isDirectory(),
           relativePath: normalizedPath,
@@ -83,7 +92,7 @@ export async function getProjectDirectories(
         }
       }
     } catch (error) {
-      console.error(`[FileScanner] Error scanning ${currentPath}:`, error);
+      // Silently skip directories that can't be read
     }
   }
 

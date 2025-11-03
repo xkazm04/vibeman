@@ -1,4 +1,4 @@
-import { StructureViolation, generateViolationRequirement, generateRequirementFileName } from '../violationRequirementTemplate';
+import { StructureViolation } from '../violationRequirementTemplate';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 
 /**
@@ -13,6 +13,45 @@ export interface RequirementGenerationResult {
 }
 
 /**
+ * Generate a simple requirement file content from violations
+ */
+function generateSimpleRequirement(violations: StructureViolation[]): string {
+  const violationsList = violations
+    .map((v, idx) => `
+### Violation ${idx + 1}: ${v.violationType}
+
+**File:** \`${v.filePath}\`
+**Current Location:** ${v.currentLocation}
+**Expected Location:** ${v.expectedLocation}
+**Reason:** ${v.reason}
+**Rule:** ${v.rule}
+`)
+    .join('\n---\n');
+
+  return `# Structure Violation Fixes
+
+## Overview
+This requirement addresses ${violations.length} structure violation(s) detected in the project.
+
+## Violations to Fix
+
+${violationsList}
+
+## Instructions
+Please review each violation and move/refactor the affected files according to the expected locations.
+`;
+}
+
+/**
+ * Generate a simple filename for the requirement
+ */
+function generateSimpleFileName(violationType: string, count: number): string {
+  const timestamp = Date.now();
+  const sanitizedType = violationType.replace(/[^a-z0-9]/gi, '-');
+  return `fix-structure-${sanitizedType}-${count}-items-${timestamp}.md`;
+}
+
+/**
  * Generate and save requirement files from violations
  */
 export async function generateAndSaveRequirements(
@@ -21,7 +60,6 @@ export async function generateAndSaveRequirements(
   projectId?: string
 ): Promise<RequirementGenerationResult> {
   if (violations.length === 0) {
-    console.log('[RequirementGenerator] ✅ No violations to process');
     return {
       success: true,
       requirementFiles: [],
@@ -31,38 +69,26 @@ export async function generateAndSaveRequirements(
   const requirementFiles: string[] = [];
 
   try {
-    console.log(`[RequirementGenerator] 📝 Generating ${violations.length} requirement files...`);
-
     // Group violations by type for better organization
     const groupedViolations = groupViolationsByType(violations);
 
     for (const [type, typeViolations] of Object.entries(groupedViolations)) {
-      console.log(`[RequirementGenerator] 🔧 Processing ${typeViolations.length} ${type} violations`);
-
       // Create requirement file for this group
-      const requirementContent = generateViolationRequirement(typeViolations);
-      const requirementFileName = generateRequirementFileName(typeViolations[0], typeViolations.length);
-
-      console.log(`[RequirementGenerator] 💾 Saving requirement: ${requirementFileName}`);
+      const requirementContent = generateSimpleRequirement(typeViolations);
+      const requirementFileName = generateSimpleFileName(type, typeViolations.length);
 
       const result = createRequirement(projectPath, requirementFileName, requirementContent);
 
       if (result.success) {
         requirementFiles.push(requirementFileName);
-        console.log(`[RequirementGenerator] ✅ Saved: ${requirementFileName} at ${result.filePath}`);
-      } else {
-        console.error(`[RequirementGenerator] ❌ Failed to save: ${requirementFileName}. Error: ${result.error}`);
       }
     }
-
-    console.log(`[RequirementGenerator] ✅ Generated ${requirementFiles.length} requirement files`);
 
     return {
       success: true,
       requirementFiles,
     };
   } catch (error) {
-    console.error('[RequirementGenerator] 💥 Error generating requirements:', error);
     return {
       success: false,
       requirementFiles,

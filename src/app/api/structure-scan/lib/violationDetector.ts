@@ -111,27 +111,16 @@ function getSuggestedLocation(itemPath: string, itemName: string, parentPath: st
 }
 
 /**
- * Scan using enforced structure rules
+ * Check if project has src/ folder and add violation if missing
  */
-export async function scanWithEnforcedStructure(
-  projectPath: string,
-  enforcedStructure: EnforcedStructure
-): Promise<StructureViolation[]> {
-  const violations: StructureViolation[] = [];
-
-  console.log('[ViolationDetector] 🔍 Using enforced structure validation');
-
-  // Get all items (files and directories) in the project
-  const items = await getProjectDirectories(projectPath, getDefaultIgnorePatterns());
-
-  console.log(`[ViolationDetector] 📁 Found ${items.size} items (files + folders)`);
-
-  // Check if project has src/ folder
+function checkForMissingSrcFolder(
+  items: Map<string, { isDirectory: boolean; relativePath: string }>,
+  enforcedStructure: EnforcedStructure,
+  violations: StructureViolation[]
+): void {
   const hasSrcFolder = Array.from(items.keys()).some(path => path.startsWith('src/') || path === 'src');
-  console.log(`[ViolationDetector] 📂 Project has src/ folder: ${hasSrcFolder}`);
 
   if (!hasSrcFolder && enforcedStructure.directoryRules[0]?.path === 'src') {
-    console.log('[ViolationDetector] ⚠️  WARNING: Enforced structure expects src/ folder but project does not have one!');
     violations.push({
       filePath: 'project-root',
       violationType: 'missing-structure',
@@ -141,81 +130,121 @@ export async function scanWithEnforcedStructure(
       rule: 'Root structure',
     });
   }
+}
 
-  // Check each item against directory rules
-  let checkedCount = 0;
-  let skippedCount = 0;
-  let noRuleCount = 0;
+/**
+ * Check if an item is in a standard location
+ */
+function isInStandardLocation(itemPath: string): boolean {
+  const firstLevelFolder = itemPath.split('/')[0];
+  const standardFolders = ['src', 'public', 'node_modules', '.next', '.git', 'dist', 'build'];
+  const standardHiddenFolders = ['.next', '.git', '.vscode', '.idea', '.claude'];
 
-  for (const [itemPath, itemInfo] of items.entries()) {
-    const parts = itemPath.split('/');
-    const itemName = parts[parts.length - 1];
-    const parentPath = parts.slice(0, -1).join('/');
+  const isStandard = standardFolders.includes(firstLevelFolder);
+  const isHidden = firstLevelFolder.startsWith('.');
+  const isStandardHidden = isHidden && standardHiddenFolders.includes(firstLevelFolder);
 
-    // Skip root-level items (no parent)
-    if (!parentPath) {
-      skippedCount++;
-      continue;
-    }
+  return isStandard || (isHidden && isStandardHidden);
+}
 
-    // Find the applicable directory rule for the parent path
-    const applicableRule = findApplicableRule(parentPath, enforcedStructure.directoryRules);
+/**
+ * Create a violation for non-standard location
+ */
+function createNonStandardLocationViolation(itemPath: string): StructureViolation {
+  const firstLevelFolder = itemPath.split('/')[0];
+  const isHidden = firstLevelFolder.startsWith('.');
 
-    if (!applicableRule) {
-      noRuleCount++;
+  return {
+    filePath: itemPath,
+    violationType: 'anti-pattern',
+    currentLocation: itemPath,
+    expectedLocation: 'Move to src/ or remove',
+    reason: `Item is in "${firstLevelFolder}/" which is not a standard Next.js folder. Expected structure has code in src/ folder. ${isHidden ? '(Non-standard hidden folder)' : ''}`,
+    rule: 'Project root structure',
+  };
+}
 
-      if (noRuleCount <= 5) {
-        console.log(`[ViolationDetector] ℹ️  No rule found for parent: ${parentPath} (item: ${itemName})`);
-      }
+/**
+ * Create a violation for disallowed item
+ */
+function createDisallowedItemViolation(
+  itemPath: string,
+  itemName: string,
+  parentPath: string,
+  isDirectory: boolean,
+  applicableRule: DirectoryRule
+): StructureViolation {
+  const suggestedLocation = getSuggestedLocation(itemPath, itemName, parentPath);
 
-      // Check if it's in an unexpected location
-      const firstLevelFolder = itemPath.split('/')[0];
-      const standardFolders = ['src', 'public', 'node_modules', '.next', '.git', 'dist', 'build'];
-      const standardHiddenFolders = ['.next', '.git', '.vscode', '.idea', '.claude'];
+  return {
+    filePath: itemPath,
+    violationType: applicableRule.strictMode ? 'misplaced' : 'anti-pattern',
+    currentLocation: itemPath,
+    expectedLocation: suggestedLocation,
+    reason: `${isDirectory ? 'Folder' : 'File'} "${itemName}" is not allowed in ${parentPath}/. ${applicableRule.strictMode ? 'This directory has strict rules.' : 'This violates project structure conventions.'}`,
+    rule: applicableRule.path,
+  };
+}
 
-      const isStandard = standardFolders.includes(firstLevelFolder);
-      const isHidden = firstLevelFolder.startsWith('.');
-      const isStandardHidden = isHidden && standardHiddenFolders.includes(firstLevelFolder);
+/**
+ * Process an individual item and check for violations
+ */
+function processItem(
+  itemPath: string,
+  itemInfo: { isDirectory: boolean; relativePath: string },
+  enforcedStructure: EnforcedStructure,
+  violations: StructureViolation[]
+): { checked: boolean; skipped: boolean; noRule: boolean } {
+  const parts = itemPath.split('/');
+  const itemName = parts[parts.length - 1];
+  const parentPath = parts.slice(0, -1).join('/');
 
-      if (!isStandard && !(isHidden && isStandardHidden)) {
-        violations.push({
-          filePath: itemPath,
-          violationType: 'anti-pattern',
-          currentLocation: itemPath,
-          expectedLocation: 'Move to src/ or remove',
-          reason: `Item is in "${firstLevelFolder}/" which is not a standard Next.js folder. Expected structure has code in src/ folder. ${isHidden ? '(Non-standard hidden folder)' : ''}`,
-          rule: 'Project root structure',
-        });
-      }
-
-      continue;
-    }
-
-    checkedCount++;
-
-    // Check if this item is allowed
-    const result = isAllowedInDirectory(itemName, itemInfo.isDirectory, applicableRule);
-
-    if (!result.allowed) {
-      const suggestedLocation = getSuggestedLocation(itemPath, itemName, parentPath);
-
-      violations.push({
-        filePath: itemPath,
-        violationType: applicableRule.strictMode ? 'disallowed-file' : 'anti-pattern',
-        currentLocation: itemPath,
-        expectedLocation: suggestedLocation,
-        reason: `${itemInfo.isDirectory ? 'Folder' : 'File'} "${itemName}" is not allowed in ${parentPath}/. ${applicableRule.strictMode ? 'This directory has strict rules.' : 'This violates project structure conventions.'}`,
-        rule: applicableRule.path,
-      });
-
-      if (checkedCount <= 10) {
-        console.log(`[ViolationDetector] ❌ Violation: ${itemName} in ${parentPath} (not allowed)`);
-      }
-    }
+  // Skip root-level items (no parent)
+  if (!parentPath) {
+    return { checked: false, skipped: true, noRule: false };
   }
 
-  console.log(`[ViolationDetector] ✅ Scan complete: ${violations.length} violations found`);
-  console.log(`[ViolationDetector] 📊 Stats: ${checkedCount} checked, ${skippedCount} skipped, ${noRuleCount} no-rule`);
+  // Find the applicable directory rule for the parent path
+  const applicableRule = findApplicableRule(parentPath, enforcedStructure.directoryRules);
+
+  if (!applicableRule) {
+    // Check if it's in an unexpected location
+    if (!isInStandardLocation(itemPath)) {
+      violations.push(createNonStandardLocationViolation(itemPath));
+    }
+
+    return { checked: false, skipped: false, noRule: true };
+  }
+
+  // Check if this item is allowed
+  const result = isAllowedInDirectory(itemName, itemInfo.isDirectory, applicableRule);
+
+  if (!result.allowed) {
+    violations.push(createDisallowedItemViolation(itemPath, itemName, parentPath, itemInfo.isDirectory, applicableRule));
+  }
+
+  return { checked: true, skipped: false, noRule: false };
+}
+
+/**
+ * Scan using enforced structure rules
+ */
+export async function scanWithEnforcedStructure(
+  projectPath: string,
+  enforcedStructure: EnforcedStructure
+): Promise<StructureViolation[]> {
+  const violations: StructureViolation[] = [];
+
+  // Get all items (files and directories) in the project
+  const items = await getProjectDirectories(projectPath, getDefaultIgnorePatterns());
+
+  // Check if project has src/ folder
+  checkForMissingSrcFolder(items, enforcedStructure, violations);
+
+  // Check each item against directory rules
+  Array.from(items.entries()).forEach(([itemPath, itemInfo]) => {
+    processItem(itemPath, itemInfo, enforcedStructure, violations);
+  });
 
   return violations;
 }

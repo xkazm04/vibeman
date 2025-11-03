@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeStructure, saveRequirements, logRejection } from '../lib/scanOrchestrator';
+import { analyzeStructure } from '../lib/scanOrchestrator';
 import type { StructureViolation } from '../violationRequirementTemplate';
 
 /**
@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[StructureScan] 🎯 Triggering scan for project: ${projectName || projectId}`);
-
     // Analyze structure
     const result = await analyzeStructure(projectPath, projectType);
 
@@ -56,7 +54,6 @@ export async function POST(request: NextRequest) {
       projectName,
     });
   } catch (error) {
-    console.error('[StructureScan] Trigger API error:', error);
     return NextResponse.json(
       {
         success: false,

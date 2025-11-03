@@ -14,95 +14,82 @@ export interface StructureScanEvent {
 }
 
 /**
- * Log a successful structure scan event
+ * Helper function to safely log an event to the database
  */
-export function logStructureScanSuccess(event: StructureScanEvent): void {
+function safelyLogEvent(
+  projectId: string,
+  title: string,
+  description: string,
+  type: 'success' | 'error' | 'warning' | 'info',
+  message: string
+): void {
   try {
     const eventId = uuidv4();
 
     eventDb.createEvent({
       id: eventId,
-      project_id: event.projectId,
-      title: 'Structure Scan Completed',
-      description: `Found ${event.violationsFound} structure violations and created ${event.requirementFilesCreated} requirement files`,
-      type: event.violationsFound > 0 ? 'warning' : 'success',
+      project_id: projectId,
+      title,
+      description,
+      type,
       agent: 'structure-scanner',
-      message: event.requirementFiles.length > 0
-        ? `Requirements: ${event.requirementFiles.join(', ')}`
-        : 'No violations found - project structure is compliant',
+      message,
     });
-
-    console.log('[EventLogger] ✅ Structure scan event logged');
   } catch (error) {
-    console.error('[EventLogger] ❌ Failed to log event:', error);
+    // Silently fail - logging errors should not break the application
   }
+}
+
+/**
+ * Log a successful structure scan event
+ */
+export function logStructureScanSuccess(event: StructureScanEvent): void {
+  safelyLogEvent(
+    event.projectId,
+    'Structure Scan Completed',
+    `Found ${event.violationsFound} structure violations and created ${event.requirementFilesCreated} requirement files`,
+    event.violationsFound > 0 ? 'warning' : 'success',
+    event.requirementFiles.length > 0
+      ? `Requirements: ${event.requirementFiles.join(', ')}`
+      : 'No violations found - project structure is compliant'
+  );
 }
 
 /**
  * Log a structure scan error event
  */
 export function logStructureScanError(projectId: string, error: string): void {
-  try {
-    const eventId = uuidv4();
-
-    eventDb.createEvent({
-      id: eventId,
-      project_id: projectId,
-      title: 'Structure Scan Failed',
-      description: `Structure scan encountered an error: ${error}`,
-      type: 'error',
-      agent: 'structure-scanner',
-      message: error,
-    });
-
-    console.log('[EventLogger] ⚠️  Structure scan error event logged');
-  } catch (err) {
-    console.error('[EventLogger] ❌ Failed to log error event:', err);
-  }
+  safelyLogEvent(
+    projectId,
+    'Structure Scan Failed',
+    `Structure scan encountered an error: ${error}`,
+    'error',
+    error
+  );
 }
 
 /**
  * Log when user accepts structure scan requirements
  */
 export function logStructureScanAccepted(event: StructureScanEvent): void {
-  try {
-    const eventId = uuidv4();
-
-    eventDb.createEvent({
-      id: eventId,
-      project_id: event.projectId,
-      title: 'Structure Requirements Accepted',
-      description: `User accepted ${event.requirementFilesCreated} structure requirement files`,
-      type: 'success',
-      agent: 'structure-scanner',
-      message: `Created: ${event.requirementFiles.join(', ')}`,
-    });
-
-    console.log('[EventLogger] ✅ Acceptance event logged');
-  } catch (error) {
-    console.error('[EventLogger] ❌ Failed to log acceptance event:', error);
-  }
+  safelyLogEvent(
+    event.projectId,
+    'Structure Requirements Accepted',
+    `User accepted ${event.requirementFilesCreated} structure requirement files`,
+    'success',
+    `Created: ${event.requirementFiles.join(', ')}`
+  );
 }
 
 /**
  * Log when user rejects structure scan requirements
  */
 export function logStructureScanRejected(projectId: string, violationsCount: number): void {
-  try {
-    const eventId = uuidv4();
-
-    eventDb.createEvent({
-      id: eventId,
-      project_id: projectId,
-      title: 'Structure Requirements Rejected',
-      description: `User rejected ${violationsCount} structure violations`,
-      type: 'info',
-      agent: 'structure-scanner',
-      message: 'Requirements not created',
-    });
-
-    console.log('[EventLogger] ℹ️  Rejection event logged');
-  } catch (error) {
-    console.error('[EventLogger] ❌ Failed to log rejection event:', error);
-  }
+  safelyLogEvent(
+    projectId,
+    'Structure Requirements Rejected',
+    `User rejected ${violationsCount} structure violations`,
+    'info',
+    'Requirements not created'
+  );
 }
