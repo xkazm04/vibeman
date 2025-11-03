@@ -53,8 +53,8 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
           }
           setLoadingContexts(false);
         })
-        .catch((error) => {
-          console.error('Failed to fetch contexts:', error);
+        .catch(() => {
+          // Failed to fetch contexts - silently handle error
           setAvailableContexts([]);
           setLoadingContexts(false);
         });

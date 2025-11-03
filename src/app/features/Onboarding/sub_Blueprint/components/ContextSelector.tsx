@@ -42,7 +42,7 @@ export default function ContextSelector({
         setContexts(sortedContexts);
       }
     } catch (error) {
-      console.error('Failed to load contexts:', error);
+      // Failed to load contexts - silently handle error
     } finally {
       setIsLoading(false);
     }
