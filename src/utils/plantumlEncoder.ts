@@ -80,18 +80,13 @@ export function testPlantUMLUrl(url: string): Promise<boolean> {
  */
 export async function findBestPlantUMLEncoding(content: string): Promise<PlantUMLEncodingResult | null> {
   const methods = getPlantUMLEncodingMethods(content);
-  
+
   for (const method of methods) {
-    console.log(`Testing PlantUML encoding: ${method.method}`);
     const success = await testPlantUMLUrl(method.url);
     if (success) {
-      console.log(`✅ PlantUML encoding successful: ${method.method}`);
       return { ...method, success: true };
-    } else {
-      console.log(`❌ PlantUML encoding failed: ${method.method}`);
     }
   }
-  
-  console.log('❌ All PlantUML encoding methods failed');
+
   return null;
 }

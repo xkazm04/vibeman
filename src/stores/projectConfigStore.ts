@@ -35,11 +35,9 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
             const data = await response.json();
             set({ projects: data.projects || [] });
             return data.projects || [];
-          } else {
-            console.error('Failed to sync with server: HTTP', response.status);
           }
         } catch (error) {
-          console.error('Failed to sync with server:', error);
+          // Error syncing with server
         }
         set({ projects: [] });
         return [];
@@ -54,8 +52,6 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
         try {
           await get().syncWithServer();
           set({ initialized: true });
-        } catch (error) {
-          console.error('Failed to initialize projects:', error);
         } finally {
           set({ loading: false });
         }
@@ -82,7 +78,6 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
             throw new Error(error.error || 'Failed to update project');
           }
         } catch (error) {
-          console.error('Failed to update project:', error);
           throw error;
         }
       },
@@ -106,7 +101,6 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
             throw new Error(error.error || 'Failed to add project');
           }
         } catch (error) {
-          console.error('Failed to add project:', error);
           throw error;
         }
       },
@@ -130,7 +124,6 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
             throw new Error(error.error || 'Failed to remove project');
           }
         } catch (error) {
-          console.error('Failed to remove project:', error);
           throw error;
         }
       },
@@ -141,7 +134,6 @@ export const useProjectConfigStore = create<ProjectConfigStore>()(
           // This would need a separate API endpoint
           await get().syncWithServer();
         } catch (error) {
-          console.error('Failed to reset to defaults:', error);
           throw error;
         }
       },

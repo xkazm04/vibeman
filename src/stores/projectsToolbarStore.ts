@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { Project } from '@/types';
+import type { DbGoal } from '@/app/db/models/types';
 
 interface ProjectsToolbarState {
   // Modal states
@@ -11,8 +13,8 @@ interface ProjectsToolbarState {
   showClaudeCode: boolean;
 
   // Selected items
-  selectedGoal: any | null;
-  selectedProject: any | null;
+  selectedGoal: DbGoal | null;
+  selectedProject: Project | null;
 
   // Actions
   setShowSettings: (show: boolean) => void;
@@ -22,8 +24,8 @@ interface ProjectsToolbarState {
   setShowAddGoal: (show: boolean) => void;
   setShowAIReview: (show: boolean) => void;
   setShowClaudeCode: (show: boolean) => void;
-  setSelectedGoal: (goal: any | null) => void;
-  setSelectedProject: (project: any | null) => void;
+  setSelectedGoal: (goal: DbGoal | null) => void;
+  setSelectedProject: (project: Project | null) => void;
 
   // Reset all modals
   closeAllModals: () => void;

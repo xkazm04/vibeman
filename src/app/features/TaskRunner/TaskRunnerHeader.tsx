@@ -75,6 +75,14 @@ export default function TaskRunnerHeader({
       if (!batchData) return false;
 
       console.log(`[TaskRunner] Recovering ${batchId}...`, batchData);
+
+      // Don't recover completed batches
+      if (batchData.status === 'completed') {
+        console.log(`[TaskRunner] Skipping recovery of completed ${batchId}`);
+        setBatch(batchData);
+        return false;
+      }
+
       setBatch(batchData);
 
       if (batchData.status === 'running') {
@@ -82,13 +90,28 @@ export default function TaskRunnerHeader({
         const remaining = batchData.requirementIds.slice(
           batchData.completedCount
         );
-        executionQueueRef.current = [...executionQueueRef.current, ...remaining];
+
+        // Filter to only include requirements that actually exist
+        const existingRemaining = remaining.filter(reqId =>
+          requirements.some(req => getRequirementId(req) === reqId)
+        );
+
+        // If no actual requirements remain, mark batch as completed
+        if (existingRemaining.length === 0) {
+          console.log(`[TaskRunner] No remaining requirements for ${batchId}, marking as completed`);
+          const completedBatch = { ...batchData, status: 'completed' as const };
+          setBatch(completedBatch);
+          BatchStorage.updateBatch(batchId, completedBatch);
+          return false;
+        }
+
+        executionQueueRef.current = [...executionQueueRef.current, ...existingRemaining];
 
         // Mark requirements as queued
         setRequirements(prev =>
           prev.map(req => {
             const reqId = getRequirementId(req);
-            if (remaining.includes(reqId)) {
+            if (existingRemaining.includes(reqId)) {
               return { ...req, status: 'queued' as const, batchId };
             }
             return req;

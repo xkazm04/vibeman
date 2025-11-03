@@ -31,7 +31,8 @@ const TaskRunnerLayout = () => {
   // Initialize projects on mount
   useEffect(() => {
     initializeProjects();
-  }, [initializeProjects]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load requirements from all projects
   useEffect(() => {

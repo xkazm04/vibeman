@@ -12,7 +12,7 @@ export interface DecisionItem {
   projectId: string;
   projectPath: string;
   projectType?: 'nextjs' | 'fastapi';
-  data?: any; // Type-specific data to complete the action
+  data?: Record<string, unknown>; // Type-specific data to complete the action
   onAccept: () => Promise<void>;
   onReject?: () => Promise<void>; // Optional - some decisions are info-only
   createdAt: number;
@@ -79,19 +79,16 @@ export const useDecisionQueueStore = create<DecisionQueueState>((set, get) => ({
    * Executes onAccept callback and moves to next decision
    */
   acceptDecision: async () => {
-    const { currentDecision, queue } = get();
+    const { currentDecision } = get();
 
     if (!currentDecision) {
-      console.warn('[DecisionQueue] No decision to accept');
       return;
     }
 
     set({ isProcessing: true });
 
     try {
-      console.log(`[DecisionQueue] Accepting decision: ${currentDecision.title}`);
       await currentDecision.onAccept();
-      console.log(`[DecisionQueue] Decision accepted successfully`);
 
       // Remove from queue and move to next
       set((state) => {
@@ -105,7 +102,6 @@ export const useDecisionQueueStore = create<DecisionQueueState>((set, get) => ({
         };
       });
     } catch (error) {
-      console.error('[DecisionQueue] Error accepting decision:', error);
       set({ isProcessing: false });
       throw error;
     }
@@ -119,21 +115,16 @@ export const useDecisionQueueStore = create<DecisionQueueState>((set, get) => ({
     const { currentDecision } = get();
 
     if (!currentDecision) {
-      console.warn('[DecisionQueue] No decision to reject');
       return;
     }
 
     set({ isProcessing: true });
 
     try {
-      console.log(`[DecisionQueue] Rejecting decision: ${currentDecision.title}`);
-
       // Only call onReject if it's defined
       if (currentDecision.onReject) {
         await currentDecision.onReject();
       }
-
-      console.log(`[DecisionQueue] Decision rejected successfully`);
 
       // Remove from queue and move to next
       set((state) => {
@@ -147,7 +138,6 @@ export const useDecisionQueueStore = create<DecisionQueueState>((set, get) => ({
         };
       });
     } catch (error) {
-      console.error('[DecisionQueue] Error rejecting decision:', error);
       set({ isProcessing: false });
       throw error;
     }
