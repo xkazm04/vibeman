@@ -107,7 +107,6 @@ export function useRealtimeEvents(options?: {
     }
     
     pollingIntervalRef.current = setInterval(() => {
-      console.log('Polling for new events');
       queryClient.invalidateQueries({ queryKey: eventKeys.all });
       queryClient.refetchQueries({ queryKey });
     }, refreshInterval);

@@ -1,6 +1,15 @@
 import { Project } from '@/types';
 import { projectDb, DbProject } from './project_database';
 
+// Helper function to handle errors consistently
+function handleError(context: string, error: unknown): void {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  // In production, this could integrate with a logging service
+  if (process.env.NODE_ENV === 'development') {
+    console.error(`[ProjectServiceDb] ${context}:`, error);
+  }
+}
+
 // Convert DbProject to Project type
 function dbProjectToProject(dbProject: DbProject): Project {
   return {
@@ -109,19 +118,19 @@ class ProjectServiceDb {
       }
       
       // Prepare update data
-      const updateData: any = {};
-      
+      const updateData: Partial<DbProject> = {};
+
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.path !== undefined) updateData.path = updates.path;
       if (updates.port !== undefined) updateData.port = updates.port;
       if (updates.type !== undefined) updateData.type = updates.type;
       if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId;
       if (updates.runScript !== undefined) updateData.run_script = updates.runScript;
-      if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances;
+      if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances ? 1 : 0;
       if (updates.basePort !== undefined) updateData.base_port = updates.basePort;
       if (updates.git !== undefined) {
-        updateData.git_repository = updates.git?.repository;
-        updateData.git_branch = updates.git?.branch;
+        updateData.git_repository = updates.git?.repository || null;
+        updateData.git_branch = updates.git?.branch || null;
       }
       
       const result = projectDb.updateProject(projectId, updateData);

@@ -14,14 +14,17 @@ interface ProviderAvailability {
   refetch: () => void;
 }
 
+// Default provider configuration
+const DEFAULT_PROVIDER_CONFIG: Record<SupportedProvider, boolean> = {
+  ollama: true,
+  openai: true,
+  anthropic: true,
+  gemini: true,
+  internal: false
+};
+
 export function useProviderAvailability(): ProviderAvailability {
-  const [configured, setConfigured] = useState<Record<SupportedProvider, boolean>>({
-    ollama: true, // Default to true to avoid flickering
-    openai: true,
-    anthropic: true,
-    gemini: true,
-    internal: false
-  });
+  const [configured, setConfigured] = useState<Record<SupportedProvider, boolean>>(DEFAULT_PROVIDER_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,17 +47,8 @@ export function useProviderAvailability(): ProviderAvailability {
         throw new Error(data.error || 'Unknown error');
       }
     } catch (err) {
-      console.error('Error checking provider availability:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
-
-      // On error, default to showing all providers except internal
-      setConfigured({
-        ollama: true,
-        openai: true,
-        anthropic: true,
-        gemini: true,
-        internal: false
-      });
+      setConfigured(DEFAULT_PROVIDER_CONFIG);
     } finally {
       setIsLoading(false);
     }

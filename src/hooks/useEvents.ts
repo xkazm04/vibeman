@@ -13,6 +13,15 @@ export interface ClientEvent {
   created_at: string;
 }
 
+export interface CreateEventPayload {
+  project_id: string;
+  title: string;
+  description: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
+  agent?: string;
+  message?: string;
+}
+
 interface UseEventsOptions {
   projectId?: string;
   limit?: number;
@@ -20,6 +29,22 @@ interface UseEventsOptions {
   type?: string;
   autoRefresh?: boolean;
   refreshInterval?: number;
+}
+
+// Helper function for creating events - reduces duplication
+async function createEventRequest(event: CreateEventPayload) {
+  const response = await fetch('/api/kiro/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(event)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to create event: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 // Query key factory
@@ -82,29 +107,8 @@ export function useEvents(options: UseEventsOptions = {}) {
 
   // Create event mutation
   const createEventMutation = useMutation({
-    mutationFn: async (event: {
-      project_id: string;
-      title: string;
-      description: string;
-      type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
-      agent?: string;
-      message?: string;
-    }) => {
-      const response = await fetch('/api/kiro/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(event)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to create event: ${response.status}`);
-      }
-
-      return response.json();
-    },
+    mutationFn: createEventRequest,
     onSuccess: () => {
-      // Invalidate and refetch events
       queryClient.invalidateQueries({ queryKey: eventKeys.byProject(projectId) });
     }
   });
@@ -182,33 +186,12 @@ export function useEvents(options: UseEventsOptions = {}) {
 // Convenience hook for creating events
 export function useCreateEvent() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (event: {
-      project_id: string;
-      title: string;
-      description: string;
-      type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
-      agent?: string;
-      message?: string;
-    }) => {
-      const response = await fetch('/api/kiro/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(event)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to create event: ${response.status}`);
-      }
-
-      return response.json();
-    },
+    mutationFn: createEventRequest,
     onSuccess: (data, variables) => {
-      // Invalidate events for the project
-      queryClient.invalidateQueries({ 
-        queryKey: eventKeys.byProject(variables.project_id) 
+      queryClient.invalidateQueries({
+        queryKey: eventKeys.byProject(variables.project_id)
       });
     }
   });

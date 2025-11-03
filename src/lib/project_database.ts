@@ -228,6 +228,29 @@ function buildUpdateQuery(updates: {
   return { updateFields, values };
 }
 
+/**
+ * Helper function to check field availability
+ */
+function checkFieldAvailability(
+  field: string,
+  value: string | number,
+  excludeProjectId?: string
+): boolean {
+  const db = getProjectDatabase();
+  let stmt;
+  let result;
+
+  if (excludeProjectId) {
+    stmt = db.prepare(`SELECT COUNT(*) as count FROM projects WHERE ${field} = ? AND id != ?`);
+    result = stmt.get(value, excludeProjectId) as { count: number };
+  } else {
+    stmt = db.prepare(`SELECT COUNT(*) as count FROM projects WHERE ${field} = ?`);
+    result = stmt.get(value) as { count: number };
+  }
+
+  return result.count === 0;
+}
+
 // Project database operations
 export interface DbProject {
   id: string;
@@ -393,36 +416,12 @@ export const projectDb = {
 
   // Check if port is available
   isPortAvailable: (port: number, excludeProjectId?: string): boolean => {
-    const db = getProjectDatabase();
-    let stmt;
-    let result;
-    
-    if (excludeProjectId) {
-      stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE port = ? AND id != ?');
-      result = stmt.get(port, excludeProjectId) as { count: number };
-    } else {
-      stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE port = ?');
-      result = stmt.get(port) as { count: number };
-    }
-    
-    return result.count === 0;
+    return checkFieldAvailability('port', port, excludeProjectId);
   },
 
   // Check if path is available
   isPathAvailable: (path: string, excludeProjectId?: string): boolean => {
-    const db = getProjectDatabase();
-    let stmt;
-    let result;
-    
-    if (excludeProjectId) {
-      stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE path = ? AND id != ?');
-      result = stmt.get(path, excludeProjectId) as { count: number };
-    } else {
-      stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE path = ?');
-      result = stmt.get(path) as { count: number };
-    }
-    
-    return result.count === 0;
+    return checkFieldAvailability('path', path, excludeProjectId);
   },
 
   // Get next available port starting from a base port
