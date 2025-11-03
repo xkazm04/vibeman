@@ -2,46 +2,65 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FileSystemInterface } from '../../../../lib/fileSystemInterface';
 import { ClaudeTaskManager } from '../../../../lib/claudeTaskManager';
 import { DevelopmentRequirement } from '../../../../types/development';
+import { createErrorResponse } from '../../../../lib/api-helpers';
+
+interface CreateRequirementParams {
+  projectPath: string;
+  title: string;
+  description: string;
+  priority?: 'low' | 'medium' | 'high';
+  files?: string[];
+  estimatedComplexity?: number;
+}
+
+function createRequirement(params: CreateRequirementParams): DevelopmentRequirement {
+  const {
+    projectPath,
+    title,
+    description,
+    priority = 'medium',
+    files = [],
+    estimatedComplexity = 5
+  } = params;
+
+  return {
+    id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    projectPath,
+    title,
+    description,
+    priority,
+    status: 'pending',
+    files,
+    estimatedComplexity,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+}
+
+async function submitRequirementToClaudeCode(
+  requirement: DevelopmentRequirement
+): Promise<string> {
+  const fileSystem = new FileSystemInterface(requirement.projectPath);
+  await fileSystem.initialize();
+
+  const taskManager = new ClaudeTaskManager(fileSystem, requirement.projectPath);
+  return await taskManager.submitRequirement(requirement);
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { 
-      projectPath, 
-      title, 
-      description, 
-      priority = 'medium', 
-      files = [],
-      estimatedComplexity = 5 
-    } = await request.json();
+    const params = await request.json();
 
     // Validate required fields
-    if (!projectPath || !title || !description) {
-      return NextResponse.json({ 
-        message: 'Missing required fields: projectPath, title, description' 
-      }, { status: 400 });
+    if (!params.projectPath || !params.title || !params.description) {
+      return createErrorResponse(
+        'Missing required fields: projectPath, title, description',
+        400
+      );
     }
 
-    // Create requirement
-    const requirement: DevelopmentRequirement = {
-      id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      projectPath,
-      title,
-      description,
-      priority,
-      status: 'pending',
-      files,
-      estimatedComplexity,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    // Initialize file system interface
-    const fileSystem = new FileSystemInterface(projectPath);
-    await fileSystem.initialize();
-
-    // Submit to Claude
-    const taskManager = new ClaudeTaskManager(fileSystem, projectPath);
-    const taskPath = await taskManager.submitRequirement(requirement);
+    const requirement = createRequirement(params);
+    const taskPath = await submitRequirementToClaudeCode(requirement);
 
     return NextResponse.json({
       success: true,
@@ -51,11 +70,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error creating requirement:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to create requirement',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Failed to create requirement',
+      500
+    );
   }
 } 

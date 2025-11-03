@@ -1,5 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { codeGenerationDb } from '../../../../lib/codeGenerationDatabase';
+import { createErrorResponse, notFoundResponse } from '../../../../lib/api-helpers';
+
+async function declineSession(sessionId: string) {
+  // Get all files in the session
+  const sessionFiles = codeGenerationDb.getGeneratedFilesBySession(sessionId);
+
+  if (sessionFiles.length === 0) {
+    return null;
+  }
+
+  // Update all pending files in the session to rejected
+  for (const file of sessionFiles) {
+    if (file.status === 'pending') {
+      codeGenerationDb.updateGeneratedFile(file.id, {
+        status: 'rejected'
+      });
+    }
+  }
+
+  // Update session status to failed
+  const updatedSession = codeGenerationDb.updateSession(sessionId, {
+    status: 'failed',
+    error_message: 'Session declined by user'
+  });
+
+  return { updatedSession, rejectedCount: sessionFiles.length };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,58 +34,30 @@ export async function POST(request: NextRequest) {
     const { sessionId } = body;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Session ID is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Session ID is required', 400);
     }
 
-    // Get all files in the session
-    const sessionFiles = codeGenerationDb.getGeneratedFilesBySession(sessionId);
-    
-    if (sessionFiles.length === 0) {
-      return NextResponse.json(
-        { error: 'Session not found or has no files' },
-        { status: 404 }
-      );
+    const result = await declineSession(sessionId);
+
+    if (!result) {
+      return notFoundResponse('Session');
     }
 
-    // Update all pending files in the session to rejected
-    for (const file of sessionFiles) {
-      if (file.status === 'pending') {
-        codeGenerationDb.updateGeneratedFile(file.id, {
-          status: 'rejected'
-        });
-      }
+    if (!result.updatedSession) {
+      return createErrorResponse('Failed to update session', 500);
     }
-
-    // Update session status to failed
-    const updatedSession = codeGenerationDb.updateSession(sessionId, {
-      status: 'failed',
-      error_message: 'Session declined by user'
-    });
-
-    if (!updatedSession) {
-      return NextResponse.json(
-        { error: 'Failed to update session' },
-        { status: 500 }
-      );
-    }
-
-    console.log(`Declined session: ${sessionId} with ${sessionFiles.length} files`);
 
     return NextResponse.json({
       success: true,
       message: 'Session declined successfully',
-      session: updatedSession,
-      rejectedFiles: sessionFiles.length
+      session: result.updatedSession,
+      rejectedFiles: result.rejectedCount
     });
 
   } catch (error) {
-    console.error('Failed to decline session:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }

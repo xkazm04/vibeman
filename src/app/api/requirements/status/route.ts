@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FileSystemInterface } from '../../../../lib/fileSystemInterface';
 import { ClaudeTaskManager } from '../../../../lib/claudeTaskManager';
+import { createErrorResponse } from '../../../../lib/api-helpers';
+
+async function getCompletedTasks(projectPath: string) {
+  const fileSystem = new FileSystemInterface(projectPath);
+  const taskManager = new ClaudeTaskManager(fileSystem, projectPath);
+  return await taskManager.checkTaskStatus();
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,15 +15,10 @@ export async function GET(request: NextRequest) {
     const projectPath = searchParams.get('projectPath');
 
     if (!projectPath) {
-      return NextResponse.json({ 
-        message: 'Project path is required' 
-      }, { status: 400 });
+      return createErrorResponse('Project path is required', 400);
     }
 
-    const fileSystem = new FileSystemInterface(projectPath);
-    const taskManager = new ClaudeTaskManager(fileSystem, projectPath);
-
-    const completedTasks = await taskManager.checkTaskStatus();
+    const completedTasks = await getCompletedTasks(projectPath);
 
     return NextResponse.json({
       success: true,
@@ -25,11 +27,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error checking status:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to check status',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Failed to check status',
+      500
+    );
   }
 } 

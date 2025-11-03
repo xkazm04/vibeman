@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { codeGenerationDb } from '../../../../lib/codeGenerationDatabase';
+import { createErrorResponse, notFoundResponse } from '../../../../lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,10 +8,7 @@ export async function POST(request: NextRequest) {
     const { fileId } = body;
 
     if (!fileId) {
-      return NextResponse.json(
-        { error: 'File ID is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('File ID is required', 400);
     }
 
     // Update file status to rejected
@@ -19,13 +17,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (!updatedFile) {
-      return NextResponse.json(
-        { error: 'File not found' },
-        { status: 404 }
-      );
+      return notFoundResponse('File');
     }
-
-    console.log(`Rejected file: ${updatedFile.filepath}`);
 
     return NextResponse.json({
       success: true,
@@ -34,10 +27,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Failed to reject file:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }

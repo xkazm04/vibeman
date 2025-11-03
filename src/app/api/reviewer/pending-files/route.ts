@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { codeGenerationDb } from '../../../../lib/codeGenerationDatabase';
+import { createErrorResponse } from '../../../../lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,10 +8,7 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: 'Project ID is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Project ID is required', 400);
     }
 
     const pendingFiles = codeGenerationDb.getPendingFilesByProject(projectId);
@@ -20,10 +18,9 @@ export async function GET(request: NextRequest) {
       files: pendingFiles
     });
   } catch (error) {
-    console.error('Failed to get pending files:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }
