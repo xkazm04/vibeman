@@ -23,6 +23,14 @@ interface TestStep {
   label?: string;
 }
 
+interface ParsedTestStep {
+  type: 'navigate' | 'wait' | 'click';
+  url?: string;
+  delay?: number;
+  selector?: string;
+}
+
+
 export default function TestScenarioEditor({
   value,
   onChange,
@@ -45,7 +53,7 @@ export default function TestScenarioEditor({
       try {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) {
-          const loadedSteps: TestStep[] = parsed.map((step: any, index: number) => ({
+          const loadedSteps: TestStep[] = parsed.map((step: ParsedTestStep, index: number) => ({
             id: `step-${index}`,
             type: step.type,
             editable: step.type === 'click',
@@ -113,7 +121,6 @@ export default function TestScenarioEditor({
   // Handle selectedTestId from TestSelectorsPanel
   useEffect(() => {
     if (selectedTestId && focusedStepId) {
-      console.log('[TestScenarioEditor] Auto-filling step:', focusedStepId, 'with testId:', selectedTestId);
       // Auto-fill the focused step with the selected test id
       updateStepValue(focusedStepId, selectedTestId);
       onTestIdConsumed?.();

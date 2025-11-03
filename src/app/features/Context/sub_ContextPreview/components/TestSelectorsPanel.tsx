@@ -43,8 +43,8 @@ export default function TestSelectorsPanel({
         const data = await response.json();
         setSelectors(data.data || []);
       }
-    } catch (error) {
-      console.error('Failed to load test selectors:', error);
+    } catch {
+      // Silently handle error
     } finally {
       setIsLoading(false);
     }
@@ -63,8 +63,8 @@ export default function TestSelectorsPanel({
       setCopiedId(selectorId);
       // Clear copied state after 2 seconds
       setTimeout(() => setCopiedId(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
+    } catch {
+      // Silently handle clipboard error
     }
   };
 

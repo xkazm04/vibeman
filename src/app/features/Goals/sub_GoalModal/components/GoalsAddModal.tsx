@@ -72,8 +72,7 @@ export default function GoalsAddModal({ isOpen, onClose, onSubmit, projectPath, 
           // API returns { success, data: { contexts: [...], groups: [...] } }
           setContexts(data?.data?.contexts || []);
         })
-        .catch(err => {
-          console.error('Error fetching contexts:', err);
+        .catch(() => {
           setContexts([]);
         })
         .finally(() => {

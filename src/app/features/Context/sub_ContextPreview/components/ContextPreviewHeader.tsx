@@ -42,8 +42,8 @@ export default function ContextPreviewHeader({
       }
 
       onPreviewUpdated(null, null);
-    } catch (err) {
-      console.error('Failed to remove preview:', err);
+    } catch {
+      // Silently handle error
     } finally {
       setRemoving(false);
     }

@@ -63,7 +63,6 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
       const data = await response.json();
       setCandidates(data.candidates || []);
     } catch (err) {
-      console.error('Error loading candidates:', err);
       setError(err instanceof Error ? err.message : 'Failed to load candidates');
     } finally {
       setLoading(false);
@@ -96,9 +95,7 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
 
       // Reload candidates
       await loadCandidates();
-    } catch (err) {
-      console.error('Error generating candidates:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate candidates');
+    } catch (err) {      setError(err instanceof Error ? err.message : 'Failed to generate candidates');
     } finally {
       setGenerating(false);
     }
@@ -129,7 +126,6 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
         onGoalCreated();
       }
     } catch (err) {
-      console.error('Error accepting candidate:', err);
       setError(err instanceof Error ? err.message : 'Failed to accept candidate');
     } finally {
       setProcessingIds(prev => {
@@ -161,7 +157,6 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
       // Remove from list
       setCandidates(prev => prev.filter(c => c.id !== candidateId));
     } catch (err) {
-      console.error('Error rejecting candidate:', err);
       setError(err instanceof Error ? err.message : 'Failed to reject candidate');
     } finally {
       setProcessingIds(prev => {
@@ -208,7 +203,6 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
         onGoalCreated();
       }
     } catch (err) {
-      console.error('Error saving edits:', err);
       setError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
       setProcessingIds(prev => {
