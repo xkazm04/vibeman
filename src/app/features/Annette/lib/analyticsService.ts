@@ -22,8 +22,7 @@ export async function logCommandExecution(
       throw new Error('Failed to log command execution');
     }
   } catch (error) {
-    console.error('[Analytics] Failed to log command execution:', error);
-    // Don't throw - analytics should be non-blocking
+    // Analytics logging failed - non-blocking, silently continue
   }
 }
 
@@ -61,8 +60,7 @@ export async function getAnalyticsSummary(
 
     return await response.json();
   } catch (error) {
-    console.error('[Analytics] Failed to fetch analytics summary:', error);
-    // Return empty summary on error
+    // Analytics fetch failed - return empty summary
     return {
       totalCommands: 0,
       successRate: 0,

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       await fs.mkdir(docsDir, { recursive: true });
       await fs.mkdir(unusedDir, { recursive: true });
     } catch (error) {
-      console.error('[SaveReport] Failed to create directories:', error);
+      // Directory creation failed
       return NextResponse.json(
         { success: false, error: 'Failed to create output directory' },
         { status: 500 }
@@ -52,15 +52,13 @@ export async function POST(request: NextRequest) {
     // Write file
     await fs.writeFile(filePath, markdown, 'utf-8');
 
-    console.log(`[SaveReport] ✅ Report saved to: ${filePath}`);
-
     return NextResponse.json({
       success: true,
       filePath: filePath,
       relativePath: path.join('docs', 'unused', filename),
     });
   } catch (error) {
-    console.error('[SaveReport] Error:', error);
+    // Report saving failed
     return NextResponse.json(
       {
         success: false,

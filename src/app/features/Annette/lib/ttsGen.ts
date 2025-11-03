@@ -19,7 +19,7 @@ export async function generateTextToSpeech(
   text: string,
   logId?: string,
   updateLog?: (id: string, updates: { audioUrl?: string; ttsCompleted?: boolean }) => void,
-  addLog?: (type: LogType, message: string, data?: any) => void
+  addLog?: (type: LogType, message: string, data?: Record<string, unknown>) => void
 ): Promise<void> {
   try {
     if (addLog) {

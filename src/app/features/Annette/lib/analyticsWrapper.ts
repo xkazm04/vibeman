@@ -43,8 +43,8 @@ export async function trackCommand<T>(
       success,
       errorMessage,
       metadata,
-    }).catch(err => {
-      console.warn('[Analytics] Failed to log command (non-blocking):', err);
+    }).catch(() => {
+      // Analytics logging failed - non-blocking, silently continue
     });
   }
 }
@@ -84,8 +84,8 @@ export async function trackTTSPlayback(
         ttsMs,
         totalMs: ttsMs,
       },
-    }).catch(err => {
-      console.warn('[Analytics] Failed to log TTS (non-blocking):', err);
+    }).catch(() => {
+      // TTS analytics logging failed - non-blocking, silently continue
     });
   }
 }

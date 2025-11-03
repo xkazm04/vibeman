@@ -4,7 +4,7 @@
  * Retrieves and formats project data for conversational responses
  */
 
-import { goalDb, contextDb, contextGroupDb, backlogDb, ideaDb, documentationDb, implementationLogDb } from '@/app/db';
+import { goalDb, contextDb, contextGroupDb, backlogDb, ideaDb, implementationLogDb } from '@/app/db';
 
 export interface KnowledgeSummary {
   projectId: string;
@@ -72,13 +72,12 @@ export interface ProjectInsight {
 export async function getProjectKnowledgeSummary(projectId: string): Promise<KnowledgeSummary> {
   try {
     // Fetch all data in parallel
-    const [goals, contexts, contextGroups, backlogItems, ideas, docs] = await Promise.all([
+    const [goals, contexts, contextGroups, backlogItems, ideas] = await Promise.all([
       goalDb.getByProject(projectId),
       contextDb.getByProject(projectId),
       contextGroupDb.getByProject(projectId),
       backlogDb.getByProject(projectId),
-      ideaDb.getByProject(projectId),
-      documentationDb.getByProject(projectId)
+      ideaDb.getByProject(projectId)
     ]);
 
     // Calculate statistics
@@ -105,8 +104,8 @@ export async function getProjectKnowledgeSummary(projectId: string): Promise<Kno
         approved: ideas.filter(i => i.status === 'approved').length
       },
       documentation: {
-        available: docs.length > 0,
-        sections: docs.length
+        available: false,
+        sections: 0
       }
     };
 
@@ -147,7 +146,7 @@ export async function getProjectKnowledgeSummary(projectId: string): Promise<Kno
       recommendations
     };
   } catch (error) {
-    console.error('[Knowledge Query] Error getting summary:', error);
+    // Knowledge query failed - error will be handled by caller
     throw error;
   }
 }
@@ -179,7 +178,7 @@ export async function getContextOverviews(projectId: string, limit = 5): Promise
       };
     });
   } catch (error) {
-    console.error('[Knowledge Query] Error getting context overviews:', error);
+    // Context overview query failed - error will be handled by caller
     throw error;
   }
 }
@@ -210,7 +209,7 @@ export async function getGoalOverviews(projectId: string, statusFilter?: string,
       completionDate: goal.status === 'done' ? goal.updated_at : undefined
     }));
   } catch (error) {
-    console.error('[Knowledge Query] Error getting goal overviews:', error);
+    // Goal overview query failed - error will be handled by caller
     throw error;
   }
 }
@@ -286,7 +285,7 @@ export async function getProjectInsights(projectId: string): Promise<ProjectInsi
 
     return insights;
   } catch (error) {
-    console.error('[Knowledge Query] Error getting insights:', error);
+    // Project insights query failed - error will be handled by caller
     throw error;
   }
 }
@@ -369,7 +368,7 @@ export async function quickSearch(projectId: string, query: string): Promise<{
       }))
     };
   } catch (error) {
-    console.error('[Knowledge Query] Error in quick search:', error);
+    // Quick search query failed - error will be handled by caller
     throw error;
   }
 }
@@ -429,7 +428,7 @@ export async function getRecentActivity(projectId: string, limit = 5): Promise<A
 
     return activities.slice(0, limit);
   } catch (error) {
-    console.error('[Knowledge Query] Error getting recent activity:', error);
+    // Recent activity query failed - error will be handled by caller
     throw error;
   }
 }

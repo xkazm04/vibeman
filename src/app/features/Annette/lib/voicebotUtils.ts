@@ -108,7 +108,7 @@ export async function playAudio(audioUrl: string): Promise<void> {
     const audio = new Audio(audioUrl);
     await audio.play();
   } catch (error) {
-    console.error('Failed to play audio:', error);
+    // Audio playback failed - error will be handled by caller
     throw error;
   }
 }
@@ -122,7 +122,7 @@ export async function getUserMediaStream(
   try {
     return await navigator.mediaDevices.getUserMedia({ audio: config });
   } catch (error) {
-    console.error('Failed to access microphone:', error);
+    // Microphone access failed - provide user-friendly error message
     throw new Error('Microphone access denied or unavailable');
   }
 }
