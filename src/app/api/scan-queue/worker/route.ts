@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
     const status = scanQueueWorker.getStatus();
     return NextResponse.json({ status });
   } catch (error) {
-    console.error('Error getting worker status:', error);
     return NextResponse.json(
       { error: 'Failed to get worker status', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -58,7 +57,6 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error('Error controlling worker:', error);
     return NextResponse.json(
       { error: 'Failed to control worker', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

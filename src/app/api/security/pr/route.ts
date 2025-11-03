@@ -139,7 +139,6 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (error) {
-        console.error('Test/merge automation failed:', error);
         securityPrDb.updateTestStatus(prId, 'failed', {
           error: error instanceof Error ? error.message : String(error)
         });
@@ -160,7 +159,6 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('PR creation error:', error);
     return NextResponse.json(
       {
         error: 'Failed to create security PR',

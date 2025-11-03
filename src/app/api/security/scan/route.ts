@@ -71,7 +71,6 @@ export async function POST(request: NextRequest) {
         // Update scan status
         securityScanDb.updateStatus(scanId, 'patch_generated');
       } catch (error) {
-        console.error('Failed to generate patch proposals:', error);
         securityScanDb.updateStatus(scanId, 'failed');
       }
     })();
@@ -90,7 +89,6 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Security scan error:', error);
     return NextResponse.json(
       {
         error: 'Failed to run security scan',
@@ -121,7 +119,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ scans });
   } catch (error) {
-    console.error('Failed to fetch security scans:', error);
     return NextResponse.json(
       {
         error: 'Failed to fetch security scans',

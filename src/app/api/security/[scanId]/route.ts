@@ -28,7 +28,6 @@ export async function GET(
       patches
     });
   } catch (error) {
-    console.error('Failed to fetch security scan:', error);
     return NextResponse.json(
       {
         error: 'Failed to fetch security scan',

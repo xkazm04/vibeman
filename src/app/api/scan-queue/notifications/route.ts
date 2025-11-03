@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ notifications });
   } catch (error) {
-    console.error('Error fetching notifications:', error);
     return NextResponse.json(
       { error: 'Failed to fetch notifications', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -57,7 +56,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Error marking notifications as read:', error);
     return NextResponse.json(
       { error: 'Failed to mark notifications as read', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -88,7 +86,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting notification:', error);
     return NextResponse.json(
       { error: 'Failed to delete notification', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

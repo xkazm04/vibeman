@@ -25,7 +25,6 @@ export async function GET(
 
     return NextResponse.json({ queueItem });
   } catch (error) {
-    console.error('Error fetching queue item:', error);
     return NextResponse.json(
       { error: 'Failed to fetch queue item', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -70,7 +69,6 @@ export async function PATCH(
 
     return NextResponse.json({ queueItem });
   } catch (error) {
-    console.error('Error updating queue item:', error);
     return NextResponse.json(
       { error: 'Failed to update queue item', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -96,7 +94,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, queueItem });
   } catch (error) {
-    console.error('Error cancelling queue item:', error);
     return NextResponse.json(
       { error: 'Failed to cancel queue item', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

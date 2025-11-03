@@ -3,14 +3,12 @@ import { processManager } from '@/lib/processManager';
 
 export async function GET() {
   try {
-    console.log('=== DEBUG API CALLED ===');
-    
     // Force initialization
     await processManager.initialize();
-    
+
     // Get all statuses
     const statuses = await processManager.getAllStatuses();
-    
+
     // Return detailed debug info
     const debugInfo = {
       processCount: Object.keys(statuses).length,
@@ -24,12 +22,9 @@ export async function GET() {
       })),
       statuses
     };
-    
-    console.log('=== DEBUG INFO ===', debugInfo);
-    
+
     return NextResponse.json(debugInfo);
   } catch (error) {
-    console.error('Debug API error:', error);
     return NextResponse.json(
       { error: 'Debug failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
