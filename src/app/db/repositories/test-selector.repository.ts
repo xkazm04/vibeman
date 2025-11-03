@@ -78,7 +78,7 @@ export const testSelectorRepository = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: Array<string | null> = [];
 
     if (updates.data_testid !== undefined) {
       updateFields.push('data_testid = ?');

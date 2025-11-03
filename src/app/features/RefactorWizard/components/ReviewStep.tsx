@@ -49,7 +49,6 @@ export default function ReviewStep() {
     filterSeverity,
     setFilterCategory,
     setFilterSeverity,
-    generateScript,
     setCurrentStep,
   } = useRefactorStore();
 
@@ -61,12 +60,12 @@ export default function ReviewStep() {
     });
   }, [opportunities, filterCategory, filterSeverity]);
 
-  const handleNext = async () => {
+  const handleContinue = () => {
     if (selectedOpportunities.size === 0) {
       alert('Please select at least one opportunity');
       return;
     }
-    await generateScript();
+    setCurrentStep('execute');
   };
 
   return (
@@ -242,12 +241,12 @@ export default function ReviewStep() {
         </button>
 
         <button
-          onClick={handleNext}
+          onClick={handleContinue}
           disabled={selectedOpportunities.size === 0}
           className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none flex items-center space-x-2"
-          data-testid="generate-refactor-script"
+          data-testid="continue-to-execute"
         >
-          <span>Generate Script</span>
+          <span>Continue</span>
           <ArrowRight className="w-5 h-5" />
         </button>
       </div>

@@ -16,29 +16,7 @@ export type RefactorOpportunity = {
   estimatedTime?: string;
 };
 
-export type RefactorScript = {
-  id: string;
-  title: string;
-  description: string;
-  opportunities: string[]; // IDs of related opportunities
-  actions: RefactorAction[];
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  progress: number;
-  error?: string;
-};
-
-export type RefactorAction = {
-  id: string;
-  type: 'replace' | 'insert' | 'delete' | 'rename' | 'extract' | 'move';
-  file: string;
-  oldContent?: string;
-  newContent?: string;
-  lineStart?: number;
-  lineEnd?: number;
-  description: string;
-};
-
-export type AnalysisStatus = 'idle' | 'scanning' | 'analyzing' | 'generating' | 'completed' | 'error';
+export type AnalysisStatus = 'idle' | 'scanning' | 'analyzing' | 'completed' | 'error';
 
 interface RefactorState {
   // Analysis state
@@ -52,13 +30,9 @@ interface RefactorState {
   filterCategory: RefactorOpportunity['category'] | 'all';
   filterSeverity: RefactorOpportunity['severity'] | 'all';
 
-  // Scripts
-  scripts: RefactorScript[];
-  activeScriptId: string | null;
-
   // UI state
   isWizardOpen: boolean;
-  currentStep: 'scan' | 'review' | 'configure' | 'execute' | 'results';
+  currentStep: 'scan' | 'review' | 'execute' | 'results';
 
   // Actions
   startAnalysis: (projectId: string, projectPath: string) => Promise<void>;
@@ -70,11 +44,6 @@ interface RefactorState {
   clearSelection: () => void;
   setFilterCategory: (category: RefactorOpportunity['category'] | 'all') => void;
   setFilterSeverity: (severity: RefactorOpportunity['severity'] | 'all') => void;
-
-  generateScript: () => Promise<void>;
-  executeScript: (scriptId: string) => Promise<void>;
-  setActiveScript: (scriptId: string | null) => void;
-  updateScriptProgress: (scriptId: string, progress: number, status: RefactorScript['status']) => void;
 
   openWizard: () => void;
   closeWizard: () => void;
@@ -93,8 +62,6 @@ export const useRefactorStore = create<RefactorState>()(
       selectedOpportunities: new Set(),
       filterCategory: 'all',
       filterSeverity: 'all',
-      scripts: [],
-      activeScriptId: null,
       isWizardOpen: false,
       currentStep: 'scan',
 
@@ -178,109 +145,6 @@ export const useRefactorStore = create<RefactorState>()(
         set({ filterSeverity: severity });
       },
 
-      generateScript: async () => {
-        const { selectedOpportunities, opportunities } = get();
-        const selectedOps = opportunities.filter(o => selectedOpportunities.has(o.id));
-
-        if (selectedOps.length === 0) {
-          set({ analysisError: 'No opportunities selected' });
-          return;
-        }
-
-        set({ analysisStatus: 'generating', analysisProgress: 0 });
-
-        try {
-          const response = await fetch('/api/refactor/generate-script', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ opportunities: selectedOps }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Script generation failed');
-          }
-
-          const data = await response.json();
-          const newScript: RefactorScript = {
-            ...data.script,
-            status: 'pending',
-            progress: 0,
-          };
-
-          set(state => ({
-            scripts: [...state.scripts, newScript],
-            activeScriptId: newScript.id,
-            analysisStatus: 'completed',
-            currentStep: 'execute',
-          }));
-        } catch (error) {
-          set({
-            analysisStatus: 'error',
-            analysisError: error instanceof Error ? error.message : 'Unknown error',
-          });
-        }
-      },
-
-      executeScript: async (scriptId: string) => {
-        const script = get().scripts.find(s => s.id === scriptId);
-        if (!script) return;
-
-        set(state => ({
-          scripts: state.scripts.map(s =>
-            s.id === scriptId ? { ...s, status: 'running', progress: 0 } : s
-          ),
-        }));
-
-        try {
-          const response = await fetch('/api/refactor/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scriptId, actions: script.actions }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Execution failed');
-          }
-
-          const data = await response.json();
-
-          set(state => ({
-            scripts: state.scripts.map(s =>
-              s.id === scriptId
-                ? { ...s, status: 'completed', progress: 100 }
-                : s
-            ),
-            currentStep: 'results',
-          }));
-        } catch (error) {
-          set(state => ({
-            scripts: state.scripts.map(s =>
-              s.id === scriptId
-                ? {
-                    ...s,
-                    status: 'failed',
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                  }
-                : s
-            ),
-          }));
-        }
-      },
-
-      setActiveScript: (scriptId: string | null) => {
-        set({ activeScriptId: scriptId });
-      },
-
-      updateScriptProgress: (scriptId: string, progress: number, status: RefactorScript['status']) => {
-        set(state => ({
-          scripts: state.scripts.map(s =>
-            s.id === scriptId ? { ...s, progress, status } : s
-          ),
-        }));
-      },
-
       openWizard: () => {
         set({ isWizardOpen: true });
       },
@@ -299,7 +163,6 @@ export const useRefactorStore = create<RefactorState>()(
           analysisProgress: 0,
           analysisError: null,
           selectedOpportunities: new Set(),
-          activeScriptId: null,
           currentStep: 'scan',
         });
       },
@@ -308,7 +171,6 @@ export const useRefactorStore = create<RefactorState>()(
       name: 'refactor-wizard-storage',
       partialize: (state) => ({
         opportunities: state.opportunities,
-        scripts: state.scripts,
       }),
     }
   )

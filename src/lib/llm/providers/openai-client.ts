@@ -228,7 +228,7 @@ export class OpenAIClient extends BaseLLMClient {
 
       return response.ok;
     } catch (error) {
-      console.warn('OpenAI availability check failed:', error);
+      // Silent fail for availability check
       return false;
     }
   }
@@ -250,12 +250,20 @@ export class OpenAIClient extends BaseLLMClient {
       }
 
       const data = await response.json();
+
+      interface OpenAIModel {
+        id: string;
+        object: string;
+        created: number;
+        owned_by: string;
+      }
+
       return data.data
-        ?.filter((model: any) => model.id.includes('gpt'))
-        ?.map((model: any) => model.id)
+        ?.filter((model: OpenAIModel) => model.id.includes('gpt'))
+        ?.map((model: OpenAIModel) => model.id)
         ?.sort() || [];
     } catch (error) {
-      console.error('Failed to get OpenAI models:', error);
+      // Silent fail for model fetching
       return [];
     }
   }

@@ -249,7 +249,7 @@ export class GeminiClient extends BaseLLMClient {
 
       return response.ok;
     } catch (error) {
-      console.warn('Gemini availability check failed:', error);
+      // Silent fail for availability check
       return false;
     }
   }
@@ -268,12 +268,21 @@ export class GeminiClient extends BaseLLMClient {
       }
 
       const data = await response.json();
+
+      interface GeminiModelInfo {
+        name: string;
+        baseModelId?: string;
+        version?: string;
+        displayName?: string;
+        description?: string;
+        supportedGenerationMethods?: string[];
+      }
+
       return data.models
-        ?.filter((model: any) => model.name.includes('gemini') && model.supportedGenerationMethods?.includes('generateContent'))
-        ?.map((model: any) => model.name.replace('models/', ''))
+        ?.filter((model: GeminiModelInfo) => model.name.includes('gemini') && model.supportedGenerationMethods?.includes('generateContent'))
+        ?.map((model: GeminiModelInfo) => model.name.replace('models/', ''))
         ?.sort() || [];
     } catch (error) {
-      console.error('Failed to get Gemini models:', error);
       // Return known models as fallback
       return [
         'gemini-1.5-pro',

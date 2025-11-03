@@ -17,7 +17,7 @@ export const goalCandidateRepository = {
       WHERE project_id = ?
     `;
 
-    const params: any[] = [projectId];
+    const params: (string | number)[] = [projectId];
 
     if (userAction) {
       query += ` AND user_action = ?`;
@@ -166,7 +166,7 @@ export const goalCandidateRepository = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.title !== undefined) {
       updateFields.push('title = ?');
@@ -241,7 +241,7 @@ export const goalCandidateRepository = {
     const db = getDatabase();
 
     let query = 'DELETE FROM goal_candidates WHERE project_id = ?';
-    const params: any[] = [projectId];
+    const params: (string | number)[] = [projectId];
 
     if (userAction) {
       query += ' AND user_action = ?';

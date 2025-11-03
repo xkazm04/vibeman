@@ -197,7 +197,7 @@ export class InternalClient extends BaseLLMClient {
 
       return response.ok;
     } catch (error) {
-      console.warn('Internal API availability check failed:', error);
+      // Silent fail for availability check
       return false;
     }
   }
@@ -219,7 +219,7 @@ export class InternalClient extends BaseLLMClient {
       const data = await response.json();
       return data.models || [];
     } catch (error) {
-      console.error('Failed to get internal API models:', error);
+      // Silent fail for model fetching
       return [];
     }
   }

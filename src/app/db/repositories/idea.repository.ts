@@ -224,7 +224,7 @@ export const ideaRepository = {
     }
     const num = typeof value === 'number' ? value : parseInt(String(value), 10);
     if (isNaN(num) || num < 1 || num > 3) {
-      console.warn(`[ideaRepository] Invalid effort/impact value: ${value}, defaulting to 1`);
+      // console.warn(`[ideaRepository] Invalid effort/impact value: ${value}, defaulting to 1`);
       return 1; // Default to 1 if invalid
     }
     return num;
@@ -249,7 +249,7 @@ export const ideaRepository = {
     const now = new Date().toISOString();
 
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');

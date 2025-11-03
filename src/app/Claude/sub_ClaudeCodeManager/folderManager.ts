@@ -51,9 +51,7 @@ export function claudeFolderExists(projectPath: string): boolean {
 
   try {
     return fs.existsSync(claudePath) && fs.statSync(claudePath).isDirectory();
-  } catch (error) {
-    console.error('Error checking .claude folder:', error);
-    return false;
+  } catch (error) {    return false;
   }
 }
 
@@ -162,9 +160,7 @@ Document your coding standards, naming conventions, and best practices.
     }
 
     return { success: true, structure };
-  } catch (error) {
-    console.error('Error initializing .claude folder:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -214,9 +210,7 @@ export function createRequirement(
     fs.writeFileSync(filePath, content, 'utf-8');
 
     return { success: true, filePath };
-  } catch (error) {
-    console.error('Error creating requirement:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -244,9 +238,7 @@ export function readRequirement(
 
     const content = fs.readFileSync(filePath, 'utf-8');
     return { success: true, content };
-  } catch (error) {
-    console.error('Error reading requirement:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -275,9 +267,7 @@ export function updateRequirement(
 
     fs.writeFileSync(filePath, content, 'utf-8');
     return { success: true };
-  } catch (error) {
-    console.error('Error updating requirement:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -305,9 +295,7 @@ export function listRequirements(projectPath: string): {
       .map((file) => file.replace(/\.md$/, ''));
 
     return { success: true, requirements };
-  } catch (error) {
-    console.error('Error listing requirements:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -335,9 +323,7 @@ export function deleteRequirement(
 
     fs.unlinkSync(filePath);
     return { success: true };
-  } catch (error) {
-    console.error('Error deleting requirement:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -377,9 +363,7 @@ export function updateClaudeSettings(
     );
 
     return { success: true };
-  } catch (error) {
-    console.error('Error updating Claude settings:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -405,9 +389,7 @@ export function readClaudeSettings(projectPath: string): {
     const settings = JSON.parse(content);
 
     return { success: true, settings };
-  } catch (error) {
-    console.error('Error reading Claude settings:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -439,9 +421,7 @@ export function createContextScanRequirement(
 
     // Create the requirement using existing createRequirement function
     return createRequirement(projectPath, fileName.replace('.md', ''), requirementContent);
-  } catch (error) {
-    console.error('Error creating context scan requirement:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -471,16 +451,11 @@ export function createStructureRulesFile(
 
     // Write the structure rules file
     fs.writeFileSync(rulesFilePath, rulesContent, 'utf-8');
-
-    console.log('[ClaudeCodeManager] Structure rules file created:', rulesFilePath);
-
     return {
       success: true,
       filePath: rulesFilePath,
     };
-  } catch (error) {
-    console.error('Error creating structure rules file:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };

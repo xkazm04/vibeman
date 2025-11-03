@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Save, AlertCircle } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '@/stores/contextStore';
@@ -59,8 +59,7 @@ export default function ContextEditModal({
     if (activeProject) {
       loadProjectFileStructure(activeProject.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once when modal opens
+  }, [activeProject, loadProjectFileStructure]); // Reload when activeProject becomes available
 
   // Reset form when context changes
   useEffect(() => {

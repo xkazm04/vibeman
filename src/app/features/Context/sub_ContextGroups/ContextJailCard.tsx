@@ -115,7 +115,7 @@ const ContextJailCard = React.memo(({
                   }`}
                 >
                   <Code className="w-3 h-3" />
-                  <span>{daysFromUpdate}D</span>
+                  <span>{daysFromUpdate}</span>
                 </div>
               )}
 

@@ -91,7 +91,7 @@ export const implementationLogRepository = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number)[] = [];
 
     if (updates.tested !== undefined) {
       updateFields.push('tested = ?');

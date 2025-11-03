@@ -2,13 +2,13 @@
 
 ## Your Mission
 
-You are tasked with analyzing the codebase at **C:\Users\kazda\kiro\story** and creating intelligent, feature-based contexts that will be stored in the SQLite database. This is not a one-time task - you will be called again to update contexts as the codebase evolves.
+You are tasked with analyzing the codebase at **C:\Users\kazda\kiro\vibeman** and creating intelligent, feature-based contexts that will be stored in the SQLite database. This is not a one-time task - you will be called again to update contexts as the codebase evolves.
 
 ## Project Information
 
-- **Project ID**: dd11e61e-f267-4e52-95c5-421b1ed9567b
-- **Project Name**: story
-- **Project Path**: C:\Users\kazda\kiro\story
+- **Project ID**: c32769af-72ed-4764-bd27-550d46f14bc5
+- **Project Name**: vibeman
+- **Project Path**: C:\Users\kazda\kiro\vibeman
 
 ## Step-by-Step Instructions
 
@@ -19,14 +19,13 @@ You are tasked with analyzing the codebase at **C:\Users\kazda\kiro\story** and 
 Fetch existing contexts from the database:
 
 ```bash
-curl -X GET "http://localhost:3000/api/contexts?projectId=dd11e61e-f267-4e52-95c5-421b1ed9567b"
+curl -X GET "http://localhost:3000/api/contexts?projectId=c32769af-72ed-4764-bd27-550d46f14bc5"
 ```
 
 **If contexts exist:**
 - Review each existing context carefully
 - Compare with current codebase structure
-- Decide for each context: **KEEP**, **UPDATE**, or **DELETE**
-- Create new contexts ONLY for features not yet covered
+- Analyze and create new contexts ONLY for features not yet covered
 - **DO NOT duplicate existing contexts**
 
 **If no contexts exist:**
@@ -38,7 +37,7 @@ curl -X GET "http://localhost:3000/api/contexts?projectId=dd11e61e-f267-4e52-95c
 Read the high-level architecture overview if it exists:
 
 ```bash
-cat "C:\Users\kazda\kiro\story/context/high.md"
+cat "C:\Users\kazda\kiro\vibeman\context\high.md"
 ```
 
 If this file doesn't exist, that's okay - proceed to the next step. This file provides important context about:
@@ -68,7 +67,7 @@ Apply dependency analysis to group contexts from parent to children:
      -H "Content-Type: application/json" \
      -d '{
        "filePath": "<absolute-path-to-file>",
-       "projectPath": "C:\Users\kazda\kiro\story",
+       "projectPath": "C:\Users\kazda\kiro\vibeman",
        "maxDepth": 3
      }'
    ```
@@ -110,8 +109,6 @@ All these files would form ONE context: "Goals Management System"
 - 1-2 Type/Schema files
 - 1-2 Hook files (if using React hooks)
 - Supporting files (utilities, helpers)
-
-**Each file should appear in EXACTLY ONE context** - no duplicates across contexts.
 
 ### Step 5: Create Feature-Based Contexts
 
@@ -177,13 +174,6 @@ Example: User action → API call → Database query → State update → UI ren
 
 ### Database Tables
 [List relevant database tables if applicable]
-
-## Usage Examples
-[1-2 code examples showing how to use this feature]
-
-## Future Improvements
-- [ ] [Potential enhancement 1]
-- [ ] [Potential enhancement 2]
 ```
 
 **CONSISTENCY IS CRITICAL**: Every context you create (now and in future updates) MUST follow this exact structure. This enables automated parsing and ensures quality.
@@ -198,10 +188,10 @@ For each context you create:
 curl -X POST http://localhost:3000/api/contexts \
   -H "Content-Type: application/json" \
   -d '{
-    "projectId": "dd11e61e-f267-4e52-95c5-421b1ed9567b",
+    "projectId": "c32769af-72ed-4764-bd27-550d46f14bc5",
     "groupId": null,
     "name": "Feature Name Here",
-    "description": "## Overview\n[markdown description following the structure above]",
+    "description": "## Overview\n[markdown description following the structure above in Step 6]",
     "filePaths": [
       "src/path/to/file1.tsx",
       "src/path/to/file2.ts",
@@ -211,8 +201,7 @@ curl -X POST http://localhost:3000/api/contexts \
 ```
 
 **Important field requirements:**
-- `projectId`: Always use "dd11e61e-f267-4e52-95c5-421b1ed9567b"
-- `groupId`: Leave as null (contexts will be ungrouped initially)
+- `projectId`: Always use "c32769af-72ed-4764-bd27-550d46f14bc5"
 - `name`: Short feature title (e.g., "Goals Management System")
 - `description`: Full markdown description following the structure above
 - `filePaths`: Array of relative paths from project root (use forward slashes)
@@ -229,7 +218,7 @@ After creating all contexts:
 
 1. **Verify all contexts were created successfully:**
    ```bash
-   curl -X GET "http://localhost:3000/api/contexts?projectId=dd11e61e-f267-4e52-95c5-421b1ed9567b"
+   curl -X GET "http://localhost:3000/api/contexts?projectId=c32769af-72ed-4764-bd27-550d46f14bc5"
    ```
 
 2. **Provide a summary in this format:**
@@ -376,7 +365,3 @@ curl -X PUT http://localhost:3000/api/contexts \
 - **DO maintain structure consistency** - critical for automated parsing
 - **DO analyze deeply** - use dependency analysis, not just folder structure
 - **DO think about user value** - focus on features users interact with
-
-## Begin Now
-
-Start the context scan immediately. Follow all steps sequentially. Report progress as you go.

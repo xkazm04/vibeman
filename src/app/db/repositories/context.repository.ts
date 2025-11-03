@@ -137,7 +137,7 @@ export const contextRepository = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.name !== undefined) {
       updateFields.push('name = ?');

@@ -8,7 +8,8 @@ import BlueprintColumn from './components/BlueprintColumn';
 import DecisionPanel from './components/DecisionPanel';
 import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
 import ContextSelector from './components/ContextSelector';
-import { BadgeSidePanel } from './components/BadgeSidePanel';
+import ScanProgressBars from './components/ScanProgressBars';
+import { TaskProgressPanel } from './components/TaskProgressPanel';
 import { BadgeGallery } from './components/BadgeGallery';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -173,73 +174,79 @@ export default function DarkBlueprint() {
     // Start scan
     startScan(scanId);
 
-    try {
-      // Execute scan (with contextId if needed)
-      let result;
-      if (buttonConfig.contextNeeded && contextId) {
-        // For context-dependent scans, call with contextId
-        if (scanId === 'selectors') {
-          const { executeSelectorsScan } = await import('./lib/blueprintSelectorsScan');
-          result = await executeSelectorsScan(contextId);
-        } else if (scanId === 'photo') {
-          const { executePhotoScan } = await import('./lib/blueprintPhotoScan');
-          result = await executePhotoScan(contextId);
+    // Execute scan in background (non-blocking)
+    // This allows user to continue working and multiple scans to run concurrently
+    (async () => {
+      try {
+        // Execute scan (with contextId if needed)
+        let result;
+        if (buttonConfig.contextNeeded && contextId) {
+          // For context-dependent scans, call with contextId
+          if (scanId === 'selectors') {
+            const { executeSelectorsScan } = await import('./lib/blueprintSelectorsScan');
+            result = await executeSelectorsScan(contextId);
+          } else if (scanId === 'photo') {
+            const { executePhotoScan } = await import('./lib/blueprintPhotoScan');
+            result = await executePhotoScan(contextId);
+          } else {
+            result = await buttonConfig.scanHandler.execute();
+          }
         } else {
           result = await buttonConfig.scanHandler.execute();
         }
-      } else {
-        result = await buttonConfig.scanHandler.execute();
-      }
 
-      // Handle failure
-      if (!result.success) {
-        const errorMsg = result.error || 'Scan failed';
-        console.error(`[Blueprint] ${scanId} scan failed:`, errorMsg);
+        // Handle failure
+        if (!result.success) {
+          const errorMsg = result.error || 'Scan failed';
+          console.error(`[Blueprint] ${scanId} scan failed:`, errorMsg);
+          failScan(errorMsg);
+          return;
+        }
+
+        // Mark as complete
+        completeScan();
+
+        // Create event for successful scan
+        if (buttonConfig.eventTitle && activeProject) {
+          await createScanEvent(buttonConfig.eventTitle, scanId);
+        }
+
+        // Build decision data
+        const decisionData = buttonConfig.scanHandler.buildDecision(result);
+
+        // If decision data exists, add to queue
+        if (decisionData) {
+          console.log(`[Blueprint] Adding decision to queue for ${scanId}`);
+          addDecision(decisionData);
+        } else {
+          console.log(`[Blueprint] ${scanId} scan completed - no decision needed`);
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[Blueprint] ${scanId} scan error:`, error);
         failScan(errorMsg);
-        return;
+
+        // Show error in decision panel
+        addDecision({
+          type: 'scan-error',
+          title: `${buttonConfig.label} Scan Failed`,
+          description: `An error occurred while scanning:\n\n${errorMsg}\n\nPlease check the console for more details.`,
+          count: 0,
+          severity: 'error',
+          projectId: activeProject?.id || '',
+          projectPath: activeProject?.path || '',
+          data: { scanId, error: errorMsg },
+          onAccept: async () => {
+            console.log('[Blueprint] Error acknowledged');
+          },
+          onReject: async () => {
+            console.log('[Blueprint] Error dismissed');
+          },
+        });
       }
+    })();
 
-      // Mark as complete
-      completeScan();
-
-      // Create event for successful scan
-      if (buttonConfig.eventTitle && activeProject) {
-        await createScanEvent(buttonConfig.eventTitle, scanId);
-      }
-
-      // Build decision data
-      const decisionData = buttonConfig.scanHandler.buildDecision(result);
-
-      // If decision data exists, add to queue
-      if (decisionData) {
-        console.log(`[Blueprint] Adding decision to queue for ${scanId}`);
-        addDecision(decisionData);
-      } else {
-        console.log(`[Blueprint] ${scanId} scan completed - no decision needed`);
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[Blueprint] ${scanId} scan error:`, error);
-      failScan(errorMsg);
-
-      // Show error in decision panel
-      addDecision({
-        type: 'scan-error',
-        title: `${buttonConfig.label} Scan Failed`,
-        description: `An error occurred while scanning:\n\n${errorMsg}\n\nPlease check the console for more details.`,
-        count: 0,
-        severity: 'error',
-        projectId: activeProject?.id || '',
-        projectPath: activeProject?.path || '',
-        data: { scanId, error: errorMsg },
-        onAccept: async () => {
-          console.log('[Blueprint] Error acknowledged');
-        },
-        onReject: async () => {
-          console.log('[Blueprint] Error dismissed');
-        },
-      });
-    }
+    // Return immediately - scan runs in background
   };
 
   const createScanEvent = async (eventTitle: string, scanId: string) => {
@@ -321,6 +328,9 @@ export default function DarkBlueprint() {
       {/* Keyboard shortcuts help */}
       <BlueprintKeyboardShortcuts />
 
+      {/* Scan Progress Bars - Top of screen */}
+      <ScanProgressBars />
+
       {/* Decision Panel - Top Center */}
       {currentDecision && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-8">
@@ -341,8 +351,8 @@ export default function DarkBlueprint() {
         />
       )}
 
-      {/* Badge Side Panel */}
-      <BadgeSidePanel />
+      {/* Task Progress Panel */}
+      <TaskProgressPanel />
 
       {/* Badge Gallery - Full Screen Completion View */}
       <AnimatePresence>

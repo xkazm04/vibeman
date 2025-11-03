@@ -25,11 +25,11 @@ class PostgresConnection implements DbConnection {
     throw new Error('PostgreSQL driver not yet implemented');
   }
 
-  prepare<T = any>(sql: string): DbStatement<T> {
+  prepare<T = Record<string, unknown>>(sql: string): DbStatement<T> {
     throw new Error('PostgreSQL driver not yet implemented');
   }
 
-  pragma(pragma: string, options?: { simple?: boolean }): any {
+  pragma(pragma: string, options?: { simple?: boolean }): Record<string, unknown> | string | number | boolean {
     // PostgreSQL doesn't have pragma - this would map to SET commands
     throw new Error('PostgreSQL driver not yet implemented');
   }
@@ -47,24 +47,24 @@ class PostgresConnection implements DbConnection {
  * PostgreSQL statement wrapper (stub)
  * TODO: Implement using node-postgres prepared statements
  */
-class PostgresStatement<T = any> implements DbStatement<T> {
-  constructor(private sql: string, private client: any) {
+class PostgresStatement<T = Record<string, unknown>> implements DbStatement<T> {
+  constructor(private sql: string, private client: Record<string, unknown>) {
     throw new Error('PostgreSQL driver not yet implemented');
   }
 
-  get(...params: any[]): T | undefined {
+  get(...params: Array<string | number | boolean | null>): T | undefined {
     throw new Error('PostgreSQL driver not yet implemented');
   }
 
-  all(...params: any[]): T[] {
+  all(...params: Array<string | number | boolean | null>): T[] {
     throw new Error('PostgreSQL driver not yet implemented');
   }
 
-  run(...params: any[]): DbRunResult {
+  run(...params: Array<string | number | boolean | null>): DbRunResult {
     throw new Error('PostgreSQL driver not yet implemented');
   }
 
-  iterate(...params: any[]): IterableIterator<T> {
+  iterate(...params: Array<string | number | boolean | null>): IterableIterator<T> {
     throw new Error('PostgreSQL driver not yet implemented');
   }
 }

@@ -1,13 +1,20 @@
 import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 import { buildHighLevelDocsPrompt } from './lib/promptBuilder';
 
+interface ProjectAnalysis {
+  fileStructure?: unknown;
+  codeMetrics?: unknown;
+  dependencies?: unknown;
+  [key: string]: unknown;
+}
+
 // Generate AI documentation review
-export async function generateAIReview(projectName: string, analysis: any, projectId?: string, provider?: string, userVision?: string): Promise<string> {
+export async function generateAIReview(projectName: string, analysis: ProjectAnalysis, projectId?: string, provider?: string, userVision?: string): Promise<string> {
   // Use the standardized high-level docs prompt
   const promptResult = buildHighLevelDocsPrompt(projectName, analysis, userVision);
   const prompt = promptResult.fullPrompt;
   const result = await generateWithLLM(prompt, {
-    provider: (provider as any) || DefaultProviderStorage.getDefaultProvider(),
+    provider: (provider as "gemini" | "openai" | "anthropic" | "ollama") || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'ai_review',
     taskDescription: `Generate AI review for ${projectName}`,

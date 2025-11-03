@@ -2,6 +2,15 @@ import { getDatabase } from '../connection';
 import { DbContextGroup } from '../models/types';
 
 /**
+ * Helper function to get a context group by ID
+ */
+function getGroupById(id: string): DbContextGroup | null {
+  const db = getDatabase();
+  const stmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
+  return stmt.get(id) as DbContextGroup | null;
+}
+
+/**
  * Context Group Repository
  * Handles all database operations for context groups
  */
@@ -48,8 +57,7 @@ export const contextGroupRepository = {
     );
 
     // Return the created group
-    const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
-    return selectStmt.get(group.id) as DbContextGroup;
+    return getGroupById(group.id)!;
   },
 
   /**
@@ -65,7 +73,7 @@ export const contextGroupRepository = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: Array<string | number> = [];
 
     if (updates.name !== undefined) {
       updateFields.push('name = ?');
@@ -82,8 +90,7 @@ export const contextGroupRepository = {
 
     if (updateFields.length === 0) {
       // No updates to make
-      const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
-      return selectStmt.get(id) as DbContextGroup | null;
+      return getGroupById(id);
     }
 
     updateFields.push('updated_at = ?');
@@ -103,8 +110,7 @@ export const contextGroupRepository = {
     }
 
     // Return the updated group
-    const selectStmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
-    return selectStmt.get(id) as DbContextGroup;
+    return getGroupById(id);
   },
 
   /**

@@ -38,13 +38,6 @@ export async function executeRequirementAsync(
   projectId?: string
 ): Promise<{ success: boolean; taskId: string }> {
   try {
-    console.log('[API] 🚀 CREATING NEW TASK:', {
-      action: 'execute-requirement',
-      requirementName,
-      projectId,
-      async: true,
-    });
-
     const response = await fetch('/api/claude-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,24 +53,15 @@ export async function executeRequirementAsync(
     // Check if response is JSON
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('[API] ❌ Non-JSON response received:', text.substring(0, 200));
-      throw new Error(`Server returned non-JSON response (${response.status}). This may be a temporary Next.js build error - will retry.`);
+      const text = await response.text();      throw new Error(`Server returned non-JSON response (${response.status}). This may be a temporary Next.js build error - will retry.`);
     }
 
     const data = await response.json();
 
-    if (!response.ok) {
-      console.error('[API] ❌ Task creation failed:', data.error);
-      throw new Error(data.error || 'Failed to queue execution');
-    }
-
-    console.log('[API] ✅ Task created successfully:', { taskId: data.taskId });
-    return data;
+    if (!response.ok) {      throw new Error(data.error || 'Failed to queue execution');
+    }    return data;
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      console.error('[API] ❌ JSON parse error - server may have returned HTML error page');
-      throw new Error('Server error - received invalid response format. This may be a temporary Next.js build error - will retry.');
+    if (error instanceof SyntaxError) {      throw new Error('Server error - received invalid response format. This may be a temporary Next.js build error - will retry.');
     }
     throw error;
   }
@@ -101,24 +85,15 @@ export async function getTaskStatus(taskId: string): Promise<any> {
     // Check if response is JSON
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('[API] ❌ Non-JSON response received:', text.substring(0, 200));
-      throw new Error(`Server returned non-JSON response (${response.status})`);
+      const text = await response.text();      throw new Error(`Server returned non-JSON response (${response.status})`);
     }
 
     const data = await response.json();
 
-    if (!response.ok) {
-      console.error('[API] ❌ Status poll failed:', data.error);
-      throw new Error(data.error || 'Failed to get task status');
-    }
-
-    console.log('[API] 🔍 get-task-status:', { status: data.task?.status });
-    return data.task;
+    if (!response.ok) {      throw new Error(data.error || 'Failed to get task status');
+    }    return data.task;
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      console.error('[API] ❌ JSON parse error - server may have returned HTML error page');
-      throw new Error('Server error - received invalid response format');
+    if (error instanceof SyntaxError) {      throw new Error('Server error - received invalid response format');
     }
     throw error;
   }
@@ -169,15 +144,13 @@ export async function executeRequirement(
   const data = await response.json();
 
   if (!response.ok) {
-    const error: any = new Error(data.error || 'Execution failed');
+    const error = new Error(data.error || 'Execution failed') as Error & { sessionLimitReached?: boolean };
     error.sessionLimitReached = data.sessionLimitReached || false;
     throw error;
   }
 
   // Log context update results if available
-  if (data.contextUpdates && data.contextUpdates.length > 0) {
-    console.log('Context auto-updates:', data.contextUpdates);
-  }
+  if (data.contextUpdates && data.contextUpdates.length > 0) {  }
 
   return data;
 }
@@ -306,8 +279,6 @@ export async function hasContextScanRequirement(projectPath: string): Promise<bo
   try {
     const requirements = await loadRequirements(projectPath);
     return requirements.includes('scan-contexts');
-  } catch (err) {
-    console.error('Error checking for context scan requirement:', err);
-    return false;
+  } catch (err) {    return false;
   }
 }

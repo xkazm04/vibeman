@@ -4,6 +4,7 @@
  */
 
 import { executeRequirement } from './claudeCodeManager';
+import { logger } from '@/lib/logger';
 
 export interface ExecutionTask {
   id: string;
@@ -25,6 +26,13 @@ class ClaudeExecutionQueue {
   private isProcessing = false;
 
   /**
+   * Helper: Create a progress log entry
+   */
+  private createProgressEntry(message: string): string {
+    return `[${new Date().toISOString()}] ${message}`;
+  }
+
+  /**
    * Add a new task to the queue
    */
   addTask(
@@ -36,7 +44,7 @@ class ClaudeExecutionQueue {
     // This ensures the task ID matches what the frontend expects
     const taskId = requirementName;
 
-    console.log('[ExecutionQueue] ➕ Adding task to queue:', {
+    logger.info('Adding task to execution queue', {
       taskId,
       projectPath,
       requirementName,
@@ -54,7 +62,7 @@ class ClaudeExecutionQueue {
     };
 
     this.tasks.set(taskId, task);
-    console.log('[ExecutionQueue] ✓ Task added, starting processing...');
+    logger.debug('Task added, starting processing...');
     this.processQueue();
     return taskId;
   }
@@ -101,11 +109,48 @@ class ClaudeExecutionQueue {
   }
 
   /**
+   * Helper: Update task status on completion
+   */
+  private handleTaskSuccess(task: ExecutionTask, output?: string, logFilePath?: string): void {
+    task.status = 'completed';
+    task.output = output;
+    task.logFilePath = logFilePath;
+    task.endTime = new Date();
+    task.progress.push(this.createProgressEntry('✓ Execution completed successfully'));
+    logger.info('Task completed successfully', { taskId: task.id });
+  }
+
+  /**
+   * Helper: Update task status on session limit
+   */
+  private handleTaskSessionLimit(task: ExecutionTask, error?: string, logFilePath?: string): void {
+    task.status = 'session-limit';
+    task.error = error;
+    task.sessionLimitReached = true;
+    task.logFilePath = logFilePath;
+    task.endTime = new Date();
+    task.progress.push(this.createProgressEntry('✗ Session limit reached'));
+    logger.warn('Task hit session limit', { taskId: task.id });
+  }
+
+  /**
+   * Helper: Update task status on failure
+   */
+  private handleTaskFailure(task: ExecutionTask, error: string, logFilePath?: string): void {
+    task.status = 'failed';
+    task.error = error;
+    task.logFilePath = logFilePath;
+    task.endTime = new Date();
+    task.progress.push(this.createProgressEntry('✗ Execution failed'));
+    logger.error('Task failed', { taskId: task.id, error });
+  }
+
+  /**
    * Process the queue (non-blocking)
    */
   private async processQueue(): Promise<void> {
     if (this.isProcessing) {
-      console.log('[ExecutionQueue] ⏸️ Already processing, skipping...');
+      logger.debug('Already processing queue, skipping...');
       return; // Already processing
     }
 
@@ -114,14 +159,14 @@ class ClaudeExecutionQueue {
     );
 
     if (!pendingTask) {
-      console.log('[ExecutionQueue] ✓ No pending tasks in queue');
+      logger.debug('No pending tasks in queue');
       return; // No pending tasks
     }
 
     this.isProcessing = true;
     const task = pendingTask;
 
-    console.log('[ExecutionQueue] 🚀 Starting task execution:', {
+    logger.info('Starting task execution', {
       taskId: task.id,
       requirementName: task.requirementName,
       projectPath: task.projectPath,
@@ -130,10 +175,10 @@ class ClaudeExecutionQueue {
     // Update task to running
     task.status = 'running';
     task.startTime = new Date();
-    task.progress.push(`[${new Date().toISOString()}] Execution started`);
+    task.progress.push(this.createProgressEntry('Execution started'));
 
     try {
-      console.log('[ExecutionQueue] 📞 Calling executeRequirement...');
+      logger.debug('Calling executeRequirement...', { taskId: task.id });
 
       // Execute in background (non-blocking)
       const result = await executeRequirement(
@@ -142,11 +187,12 @@ class ClaudeExecutionQueue {
         task.projectId, // Pass project ID as 3rd parameter
         (progressMsg: string) => {
           // Capture progress messages
-          task.progress.push(`[${new Date().toISOString()}] ${progressMsg}`);
+          task.progress.push(this.createProgressEntry(progressMsg));
         }
       );
 
-      console.log('[ExecutionQueue] 📨 Received execution result:', {
+      logger.debug('Received execution result', {
+        taskId: task.id,
         success: result.success,
         hasError: !!result.error,
         hasOutput: !!result.output,
@@ -155,37 +201,23 @@ class ClaudeExecutionQueue {
       });
 
       // Update task with results
-      task.endTime = new Date();
-      task.logFilePath = result.logFilePath;
-
       if (result.success) {
-        task.status = 'completed';
-        task.output = result.output;
-        task.progress.push(`[${new Date().toISOString()}] ✓ Execution completed successfully`);
-        console.log('[ExecutionQueue] ✅ Task completed successfully:', task.id);
+        this.handleTaskSuccess(task, result.output, result.logFilePath);
       } else if (result.sessionLimitReached) {
-        task.status = 'session-limit';
-        task.error = result.error;
-        task.sessionLimitReached = true;
-        task.progress.push(`[${new Date().toISOString()}] ✗ Session limit reached`);
-        console.log('[ExecutionQueue] 🚫 Task hit session limit:', task.id);
+        this.handleTaskSessionLimit(task, result.error, result.logFilePath);
       } else {
-        task.status = 'failed';
-        task.error = result.error;
-        task.progress.push(`[${new Date().toISOString()}] ✗ Execution failed`);
-        console.error('[ExecutionQueue] ❌ Task failed:', {
-          taskId: task.id,
-          error: task.error,
-        });
+        this.handleTaskFailure(task, result.error || 'Unknown error', result.logFilePath);
       }
     } catch (error) {
-      task.status = 'failed';
-      task.error = error instanceof Error ? error.message : 'Unknown error';
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      task.error = errorMsg;
       task.endTime = new Date();
-      task.progress.push(`[${new Date().toISOString()}] ✗ Execution error: ${task.error}`);
-      console.error('[ExecutionQueue] ❌ Exception during task execution:', {
+      task.progress.push(this.createProgressEntry(`✗ Execution error: ${errorMsg}`));
+      this.handleTaskFailure(task, errorMsg);
+
+      logger.error('Exception during task execution', {
         taskId: task.id,
-        error: task.error,
+        error: errorMsg,
         stack: error instanceof Error ? error.stack : undefined,
       });
     } finally {
@@ -197,11 +229,11 @@ class ClaudeExecutionQueue {
         task.status = 'failed';
         task.error = 'Execution did not complete properly';
         task.endTime = new Date();
-        task.progress.push(`[${new Date().toISOString()}] ✗ Task stuck in running state, marked as failed`);
-        console.error('[ExecutionQueue] ⚠️ Task stuck in running state, marked as failed:', task.id);
+        task.progress.push(this.createProgressEntry('✗ Task stuck in running state, marked as failed'));
+        logger.error('Task stuck in running state, marked as failed', { taskId: task.id });
       }
 
-      console.log('[ExecutionQueue] 📊 Task final state:', {
+      logger.debug('Task final state', {
         taskId: task.id,
         status: task.status,
         duration: task.endTime && task.startTime
@@ -211,7 +243,7 @@ class ClaudeExecutionQueue {
     }
 
     // Continue processing queue
-    console.log('[ExecutionQueue] ⏭️ Scheduling next task processing...');
+    logger.debug('Scheduling next task processing...');
     setImmediate(() => this.processQueue());
   }
 }

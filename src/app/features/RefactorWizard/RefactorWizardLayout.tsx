@@ -5,7 +5,6 @@ import { useRefactorStore } from '@/stores/refactorStore';
 import { X, Sparkles } from 'lucide-react';
 import ScanStep from './components/ScanStep';
 import ReviewStep from './components/ReviewStep';
-import ConfigureStep from './components/ConfigureStep';
 import ExecuteStep from './components/ExecuteStep';
 import ResultsStep from './components/ResultsStep';
 import WizardProgress from './components/WizardProgress';
@@ -77,7 +76,6 @@ export default function RefactorWizardLayout() {
                 <AnimatePresence mode="wait">
                   {currentStep === 'scan' && <ScanStep key="scan" />}
                   {currentStep === 'review' && <ReviewStep key="review" />}
-                  {currentStep === 'configure' && <ConfigureStep key="configure" />}
                   {currentStep === 'execute' && <ExecuteStep key="execute" />}
                   {currentStep === 'results' && <ResultsStep key="results" />}
                 </AnimatePresence>

@@ -14,7 +14,7 @@ export interface DecisionItem {
   projectType?: 'nextjs' | 'fastapi';
   data?: any; // Type-specific data to complete the action
   onAccept: () => Promise<void>;
-  onReject: () => Promise<void>;
+  onReject?: () => Promise<void>; // Optional - some decisions are info-only
   createdAt: number;
 }
 
@@ -113,7 +113,7 @@ export const useDecisionQueueStore = create<DecisionQueueState>((set, get) => ({
 
   /**
    * Reject the current decision
-   * Executes onReject callback and moves to next decision
+   * Executes onReject callback (if provided) and moves to next decision
    */
   rejectDecision: async () => {
     const { currentDecision } = get();
@@ -127,7 +127,12 @@ export const useDecisionQueueStore = create<DecisionQueueState>((set, get) => ({
 
     try {
       console.log(`[DecisionQueue] Rejecting decision: ${currentDecision.title}`);
-      await currentDecision.onReject();
+
+      // Only call onReject if it's defined
+      if (currentDecision.onReject) {
+        await currentDecision.onReject();
+      }
+
       console.log(`[DecisionQueue] Decision rejected successfully`);
 
       // Remove from queue and move to next

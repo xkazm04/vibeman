@@ -28,7 +28,7 @@ import { POLLING_PRESETS } from './presets';
  * const { data } = usePollingTask(logPoller.fetcher, logPoller.config);
  * ```
  */
-export function createLogRefreshPoller<T = any>(
+export function createLogRefreshPoller<T = unknown>(
   endpoint: string,
   options?: Partial<LogRefreshConfig>
 ): { config: PollingConfig; fetcher: () => Promise<T> } {
@@ -48,7 +48,6 @@ export function createLogRefreshPoller<T = any>(
     interval: configOptions.interval ?? 2000, // Default 2 seconds for logs
     maxRetries: configOptions.maxRetries ?? 2, // Fewer retries for logs
     onError: (error, retryCount) => {
-      console.warn(`[LogRefresh] Poll failed (attempt ${retryCount}):`, error.message);
       if (configOptions.onError) {
         configOptions.onError(error, retryCount);
       }
@@ -91,7 +90,7 @@ export function createLogRefreshPoller<T = any>(
  * const { data } = usePollingTask(statusPoller.fetcher, statusPoller.config);
  * ```
  */
-export function createStatusCheckPoller<T = any>(
+export function createStatusCheckPoller<T = unknown>(
   endpoint: string,
   options?: Partial<StatusCheckConfig>
 ): { config: PollingConfig; fetcher: () => Promise<T> } {
@@ -117,17 +116,21 @@ export function createStatusCheckPoller<T = any>(
       }
 
       // Stop if status matches expected
-      if (stopOnMatch && expectedStatus.length > 0 && result?.status) {
-        return !expectedStatus.includes(result.status);
+      if (stopOnMatch && expectedStatus.length > 0) {
+        const resultWithStatus = result as { status?: string };
+        if (resultWithStatus?.status) {
+          return !expectedStatus.includes(resultWithStatus.status);
+        }
       }
 
       return true;
     },
     onSuccess: (result) => {
-      // Alert on status change
-      if (alertOnChange && result?.status && result.status !== previousStatus) {
-        console.info(`[StatusCheck] Status changed: ${previousStatus} -> ${result.status}`);
-        previousStatus = result.status;
+      if (alertOnChange) {
+        const resultWithStatus = result as { status?: string };
+        if (resultWithStatus?.status && resultWithStatus.status !== previousStatus) {
+          previousStatus = resultWithStatus.status;
+        }
       }
 
       if (configOptions.onSuccess) {
@@ -173,7 +176,7 @@ export function createStatusCheckPoller<T = any>(
  * const { data } = usePollingTask(healthPoller.fetcher, healthPoller.config);
  * ```
  */
-export function createHealthMonitorPoller<T = any>(
+export function createHealthMonitorPoller<T = unknown>(
   endpoints: string | string[],
   options?: Partial<HealthMonitorConfig>
 ): { config: PollingConfig; fetcher: () => Promise<T> } {
@@ -196,22 +199,25 @@ export function createHealthMonitorPoller<T = any>(
     interval: configOptions.interval ?? 30000, // Default 30 seconds
     onSuccess: (result) => {
       // Calculate health status
-      const failureRate = (result.failedChecks / result.totalChecks) * 100;
-      let currentHealth: 'healthy' | 'warning' | 'critical';
+      const healthResult = result as { failedChecks?: number; totalChecks?: number };
+      if (healthResult.failedChecks !== undefined && healthResult.totalChecks !== undefined) {
+        const failureRate = (healthResult.failedChecks / healthResult.totalChecks) * 100;
+        let currentHealth: 'healthy' | 'warning' | 'critical';
 
-      if (failureRate >= criticalThreshold) {
-        currentHealth = 'critical';
-      } else if (failureRate >= warningThreshold) {
-        currentHealth = 'warning';
-      } else {
-        currentHealth = 'healthy';
-      }
+        if (failureRate >= criticalThreshold) {
+          currentHealth = 'critical';
+        } else if (failureRate >= warningThreshold) {
+          currentHealth = 'warning';
+        } else {
+          currentHealth = 'healthy';
+        }
 
-      // Notify on health change
-      if (currentHealth !== previousHealth && onHealthChange) {
-        onHealthChange(currentHealth);
+        // Notify on health change
+        if (currentHealth !== previousHealth && onHealthChange) {
+          onHealthChange(currentHealth);
+        }
+        previousHealth = currentHealth;
       }
-      previousHealth = currentHealth;
 
       if (configOptions.onSuccess) {
         configOptions.onSuccess(result);
@@ -298,7 +304,7 @@ export function createCustomPoller<T>(
  * const { data } = usePollingTask(fileWatcher.fetcher, fileWatcher.config);
  * ```
  */
-export function createFileWatchPoller<T = any>(
+export function createFileWatchPoller<T = unknown>(
   endpoint: string,
   options?: {
     onChangeDetected?: (data: T) => void;
@@ -314,10 +320,11 @@ export function createFileWatchPoller<T = any>(
     ...configOptions,
     interval: configOptions.interval ?? 5000,
     onSuccess: (result) => {
-      const currentModified = result?.lastModified || result?.timestamp || Date.now();
+      const fileResult = result as { lastModified?: number; timestamp?: number };
+      const currentModified = fileResult?.lastModified || fileResult?.timestamp || Date.now();
 
       if (lastModified !== null && currentModified > lastModified && onChangeDetected) {
-        onChangeDetected(result);
+        onChangeDetected(result as T);
       }
 
       lastModified = currentModified;
@@ -355,12 +362,12 @@ export function createFileWatchPoller<T = any>(
  * const { data } = usePollingTask(metricsPoller.fetcher, metricsPoller.config);
  * ```
  */
-export function createRealTimePoller<T = any>(
+export function createRealTimePoller<T = unknown>(
   endpoint: string,
   options?: { bufferSize?: number } & Partial<PollingConfig>
 ): { config: PollingConfig; fetcher: () => Promise<T> } {
   const { bufferSize = 100, ...configOptions } = options || {};
-  const dataBuffer: T[] = [];
+  const dataBuffer: unknown[] = [];
 
   const baseConfig = POLLING_PRESETS.realtime;
 
@@ -370,7 +377,7 @@ export function createRealTimePoller<T = any>(
     interval: configOptions.interval ?? 1000, // Default 1 second
     onSuccess: (result) => {
       // Maintain a buffer of recent data
-      dataBuffer.push(result);
+      dataBuffer.push(result as unknown);
       if (dataBuffer.length > bufferSize) {
         dataBuffer.shift();
       }

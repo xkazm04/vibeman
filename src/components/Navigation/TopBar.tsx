@@ -16,7 +16,7 @@ const navigationItems: NavigationItem[] = [
   { module: 'tasker', label: 'Tasker' },
   { module: 'reflector', label: 'Reflector' },
   { module: 'docs', label: 'Docs' },
-  { module: 'refactor', label: 'Refactor' },
+  { module: 'refactor', label: 'Wizzard' },
 ];
 
 export default function TopBar() {

@@ -6,24 +6,31 @@
 import { MonitorCall, MonitorMessage } from './monitorTypes';
 
 /**
+ * Generate unique ID with a given prefix
+ */
+function generateUniqueId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
  * Generate unique ID for call
  */
 export function generateCallId(): string {
-  return `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return generateUniqueId('call');
 }
 
 /**
  * Generate unique ID for message
  */
 export function generateMessageId(): string {
-  return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return generateUniqueId('msg');
 }
 
 /**
  * Generate unique ID for pattern
  */
 export function generatePatternId(): string {
-  return `pattern_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return generateUniqueId('pattern');
 }
 
 /**
@@ -180,6 +187,6 @@ export function setMonitoringEnabled(enabled: boolean): void {
   try {
     localStorage.setItem('voicebot_monitoring_enabled', enabled.toString());
   } catch (error) {
-    console.error('Failed to save monitoring preference:', error);
+    // Silently fail - localStorage errors are not critical for monitoring preference
   }
 }

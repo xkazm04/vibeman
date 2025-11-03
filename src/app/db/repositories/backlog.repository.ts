@@ -1,5 +1,14 @@
 import { getDatabase } from '../connection';
-import { DbBacklogItem } from '../models/types';
+import { DbBacklogItem, ImpactedFile } from '../models/types';
+
+/**
+ * Helper function to get a backlog item by ID
+ */
+function getBacklogItemById(id: string): DbBacklogItem | null {
+  const db = getDatabase();
+  const stmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
+  return stmt.get(id) as DbBacklogItem | null;
+}
 
 /**
  * Backlog Repository
@@ -31,7 +40,7 @@ export const backlogRepository = {
     description: string;
     status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
     type: 'proposal' | 'custom';
-    impacted_files?: any[];
+    impacted_files?: ImpactedFile[];
   }): DbBacklogItem => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -59,8 +68,7 @@ export const backlogRepository = {
     );
 
     // Return the created item
-    const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
-    return selectStmt.get(item.id) as DbBacklogItem;
+    return getBacklogItemById(item.id)!;
   },
 
   /**
@@ -71,14 +79,14 @@ export const backlogRepository = {
     goal_id?: string | null;
     title?: string;
     description?: string;
-    impacted_files?: any[];
+    impacted_files?: ImpactedFile[];
   }): DbBacklogItem | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: Array<string | null> = [];
 
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
@@ -112,8 +120,7 @@ export const backlogRepository = {
 
     if (updateFields.length === 0) {
       // No updates to make
-      const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
-      return selectStmt.get(id) as DbBacklogItem | null;
+      return getBacklogItemById(id);
     }
 
     updateFields.push('updated_at = ?');
@@ -133,8 +140,7 @@ export const backlogRepository = {
     }
 
     // Return the updated item
-    const selectStmt = db.prepare('SELECT * FROM backlog_items WHERE id = ?');
-    return selectStmt.get(id) as DbBacklogItem;
+    return getBacklogItemById(id);
   },
 
   /**

@@ -23,13 +23,13 @@ export interface DbConnection {
    * Prepare a SQL statement for execution
    * Returns a prepared statement that can be executed multiple times
    */
-  prepare<T = any>(sql: string): DbStatement<T>;
+  prepare<T = Record<string, unknown>>(sql: string): DbStatement<T>;
 
   /**
    * Execute a pragma statement (SQLite-specific)
    * For PostgreSQL, this may be mapped to equivalent configuration commands
    */
-  pragma(pragma: string, options?: { simple?: boolean }): any;
+  pragma(pragma: string, options?: { simple?: boolean }): Record<string, unknown> | string | number | boolean;
 
   /**
    * Close the database connection
@@ -45,27 +45,27 @@ export interface DbConnection {
 /**
  * Prepared statement interface
  */
-export interface DbStatement<T = any> {
+export interface DbStatement<T = Record<string, unknown>> {
   /**
    * Execute the statement and return a single row
    */
-  get(...params: any[]): T | undefined;
+  get(...params: Array<string | number | boolean | null>): T | undefined;
 
   /**
    * Execute the statement and return all rows
    */
-  all(...params: any[]): T[];
+  all(...params: Array<string | number | boolean | null>): T[];
 
   /**
    * Execute the statement without returning results
    * Returns information about the execution (e.g., changes count, last insert ID)
    */
-  run(...params: any[]): DbRunResult;
+  run(...params: Array<string | number | boolean | null>): DbRunResult;
 
   /**
    * Create an iterator for the statement results
    */
-  iterate(...params: any[]): IterableIterator<T>;
+  iterate(...params: Array<string | number | boolean | null>): IterableIterator<T>;
 }
 
 /**

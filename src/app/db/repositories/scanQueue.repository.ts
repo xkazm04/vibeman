@@ -80,7 +80,7 @@ export const scanQueueRepository = {
     scan_type: string;
     context_id?: string | null;
     trigger_type: DbScanQueueItem['trigger_type'];
-    trigger_metadata?: any;
+    trigger_metadata?: Record<string, unknown>;
     priority?: number;
     auto_merge_enabled?: boolean;
   }): DbScanQueueItem => {
@@ -120,7 +120,7 @@ export const scanQueueRepository = {
     const now = new Date().toISOString();
 
     let updateFields = 'status = ?, updated_at = ?';
-    const params: any[] = [status, now];
+    const params: (string | number)[] = [status, now];
 
     if (status === 'running') {
       updateFields += ', started_at = ?';
@@ -274,7 +274,7 @@ export const scanQueueRepository = {
     notification_type: DbScanNotification['notification_type'];
     title: string;
     message: string;
-    data?: any;
+    data?: Record<string, unknown>;
   }): DbScanNotification => {
     const db = getDatabase();
     const now = new Date().toISOString();

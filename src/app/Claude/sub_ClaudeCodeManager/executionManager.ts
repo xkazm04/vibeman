@@ -51,9 +51,7 @@ export async function executeRequirement(
       if (!streamClosed) {
         try {
           logStream.write(logLine);
-        } catch (err) {
-          console.error('Failed to write to log stream:', err);
-        }
+        } catch (err) {        }
       }
 
       if (onProgress) {
@@ -237,20 +235,19 @@ export async function executeRequirement(
           clearTimeout(timeoutHandle);
         });
 
-      } catch (execError: any) {
-        logMessage(`[EXCEPTION] ${execError.message}`);
+      } catch (execError: unknown) {
+        const errorMessage = execError instanceof Error ? execError.message : String(execError);
+        logMessage(`[EXCEPTION] ${errorMessage}`);
         closeLogStream();
 
         resolve({
           success: false,
-          error: `Execution exception: ${execError.message}`,
+          error: `Execution exception: ${execError instanceof Error ? execError.message : String(execError)}`,
           logFilePath,
         });
       }
     });
-  } catch (error) {
-    console.error('Error executing requirement:', error);
-    return {
+  } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       logFilePath,

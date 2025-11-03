@@ -30,9 +30,7 @@ export async function loadRequirements(
       status: 'idle' as const,
     }));
     setRequirements(reqs);
-  } catch (err) {
-    console.error('Error loading requirements:', err);
-  } finally {
+  } catch (err) {  } finally {
     setIsLoading(false);
   }
 }
@@ -57,9 +55,7 @@ export async function deleteRequirement(
       setRequirements(requirements.filter((r) => r.name !== name));
     }
     return success;
-  } catch (err) {
-    console.error('Error deleting requirement:', err);
-    return false;
+  } catch (err) {    return false;
   }
 }
 
@@ -76,12 +72,7 @@ export async function generateRequirements(
   try {
     await apiGenerateRequirements(projectPath, projectId);
     await onComplete();
-  } catch (err) {
-    console.error(
-      'Error generating requirements:',
-      err instanceof Error ? err.message : 'Failed to generate requirements'
-    );
-  } finally {
+  } catch (err) {  } finally {
     setIsGenerating(false);
   }
 }

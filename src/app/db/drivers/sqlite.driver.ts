@@ -28,12 +28,12 @@ class SqliteConnection implements DbConnection {
     this.db.exec(sql);
   }
 
-  prepare<T = any>(sql: string): DbStatement<T> {
+  prepare<T = Record<string, unknown>>(sql: string): DbStatement<T> {
     const stmt = this.db.prepare(sql);
     return new SqliteStatement<T>(stmt);
   }
 
-  pragma(pragma: string, options?: { simple?: boolean }): any {
+  pragma(pragma: string, options?: { simple?: boolean }): Record<string, unknown> | string | number | boolean {
     return this.db.pragma(pragma, options);
   }
 
@@ -51,18 +51,18 @@ class SqliteConnection implements DbConnection {
  * SQLite statement wrapper
  * Wraps better-sqlite3 Statement to match DbStatement interface
  */
-class SqliteStatement<T = any> implements DbStatement<T> {
+class SqliteStatement<T = Record<string, unknown>> implements DbStatement<T> {
   constructor(private stmt: Database.Statement) {}
 
-  get(...params: any[]): T | undefined {
+  get(...params: Array<string | number | boolean | null>): T | undefined {
     return this.stmt.get(...params) as T | undefined;
   }
 
-  all(...params: any[]): T[] {
+  all(...params: Array<string | number | boolean | null>): T[] {
     return this.stmt.all(...params) as T[];
   }
 
-  run(...params: any[]): DbRunResult {
+  run(...params: Array<string | number | boolean | null>): DbRunResult {
     const result = this.stmt.run(...params);
     return {
       changes: result.changes,
@@ -70,7 +70,7 @@ class SqliteStatement<T = any> implements DbStatement<T> {
     };
   }
 
-  iterate(...params: any[]): IterableIterator<T> {
+  iterate(...params: Array<string | number | boolean | null>): IterableIterator<T> {
     return this.stmt.iterate(...params) as IterableIterator<T>;
   }
 }

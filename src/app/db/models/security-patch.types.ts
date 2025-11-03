@@ -60,7 +60,7 @@ export interface SecurityScan {
   highCount: number;
   mediumCount: number;
   lowCount: number;
-  scanOutput: any; // Parsed JSON
+  scanOutput: Record<string, unknown>; // Parsed JSON
   status: DbSecurityScan['status'];
   createdAt: Date;
   updatedAt: Date;
@@ -92,7 +92,7 @@ export interface SecurityPr {
   branchName: string;
   commitSha: string | null;
   testStatus: DbSecurityPr['test_status'];
-  testOutput: any | null; // Parsed JSON
+  testOutput: Record<string, unknown> | null; // Parsed JSON
   mergeStatus: DbSecurityPr['merge_status'];
   mergeError: string | null;
   createdAt: Date;

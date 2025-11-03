@@ -8,6 +8,89 @@ import type {
 } from '../models/tech-debt.types';
 
 /**
+ * Helper function to build update fields and values for tech debt updates
+ */
+function buildUpdateFieldsAndValues(
+  updates: {
+    status?: TechDebtStatus;
+    severity?: TechDebtSeverity;
+    risk_score?: number;
+    estimated_effort_hours?: number | null;
+    remediation_plan?: Record<string, unknown> | null;
+    remediation_steps?: Array<Record<string, unknown>> | null;
+    estimated_completion_date?: string | null;
+    backlog_item_id?: string | null;
+    goal_id?: string | null;
+    dismissal_reason?: string | null;
+  },
+  now: string
+): { updateFields: string[]; values: Array<string | number | null> } {
+  const updateFields: string[] = [];
+  const values: Array<string | number | null> = [];
+
+  if (updates.status !== undefined) {
+    updateFields.push('status = ?');
+    values.push(updates.status);
+
+    // Set resolved_at or dismissed_at based on status
+    if (updates.status === 'resolved') {
+      updateFields.push('resolved_at = ?');
+      values.push(now);
+    } else if (updates.status === 'dismissed') {
+      updateFields.push('dismissed_at = ?');
+      values.push(now);
+    }
+  }
+
+  if (updates.severity !== undefined) {
+    updateFields.push('severity = ?');
+    values.push(updates.severity);
+  }
+
+  if (updates.risk_score !== undefined) {
+    updateFields.push('risk_score = ?');
+    values.push(updates.risk_score);
+  }
+
+  if (updates.estimated_effort_hours !== undefined) {
+    updateFields.push('estimated_effort_hours = ?');
+    values.push(updates.estimated_effort_hours);
+  }
+
+  if (updates.remediation_plan !== undefined) {
+    updateFields.push('remediation_plan = ?');
+    values.push(updates.remediation_plan ? JSON.stringify(updates.remediation_plan) : null);
+  }
+
+  if (updates.remediation_steps !== undefined) {
+    updateFields.push('remediation_steps = ?');
+    values.push(updates.remediation_steps ? JSON.stringify(updates.remediation_steps) : null);
+  }
+
+  if (updates.estimated_completion_date !== undefined) {
+    updateFields.push('estimated_completion_date = ?');
+    values.push(updates.estimated_completion_date);
+  }
+
+  if (updates.backlog_item_id !== undefined) {
+    updateFields.push('backlog_item_id = ?');
+    values.push(updates.backlog_item_id);
+  }
+
+  if (updates.goal_id !== undefined) {
+    updateFields.push('goal_id = ?');
+    values.push(updates.goal_id);
+  }
+
+  if (updates.dismissal_reason !== undefined) {
+    updateFields.push('dismissal_reason = ?');
+    values.push(updates.dismissal_reason);
+  }
+
+  return { updateFields, values };
+}
+
+/**
  * Technical Debt Repository
  * Handles all database operations for technical debt items
  */
@@ -25,7 +108,7 @@ export const techDebtRepository = {
   ): DbTechDebt[] => {
     const db = getDatabase();
     let query = `SELECT * FROM tech_debt WHERE project_id = ?`;
-    const params: any[] = [projectId];
+    const params: Array<string | TechDebtStatus | TechDebtSeverity | TechDebtCategory> = [projectId];
 
     if (filters?.status && filters.status.length > 0) {
       const placeholders = filters.status.map(() => '?').join(',');
@@ -73,15 +156,15 @@ export const techDebtRepository = {
     severity: TechDebtSeverity;
     risk_score: number;
     estimated_effort_hours?: number | null;
-    impact_scope?: any[] | null;
+    impact_scope?: Array<Record<string, unknown>> | null;
     technical_impact?: string | null;
     business_impact?: string | null;
     detected_by: 'automated_scan' | 'manual_entry' | 'ai_analysis';
-    detection_details?: any | null;
+    detection_details?: Record<string, unknown> | null;
     file_paths?: string[] | null;
     status?: TechDebtStatus;
-    remediation_plan?: any | null;
-    remediation_steps?: any[] | null;
+    remediation_plan?: Record<string, unknown> | null;
+    remediation_steps?: Array<Record<string, unknown>> | null;
     estimated_completion_date?: string | null;
     backlog_item_id?: string | null;
     goal_id?: string | null;
@@ -141,8 +224,8 @@ export const techDebtRepository = {
       severity?: TechDebtSeverity;
       risk_score?: number;
       estimated_effort_hours?: number | null;
-      remediation_plan?: any | null;
-      remediation_steps?: any[] | null;
+      remediation_plan?: Record<string, unknown> | null;
+      remediation_steps?: Array<Record<string, unknown>> | null;
       estimated_completion_date?: string | null;
       backlog_item_id?: string | null;
       goal_id?: string | null;
@@ -152,67 +235,7 @@ export const techDebtRepository = {
     const db = getDatabase();
     const now = new Date().toISOString();
 
-    const updateFields: string[] = [];
-    const values: any[] = [];
-
-    if (updates.status !== undefined) {
-      updateFields.push('status = ?');
-      values.push(updates.status);
-
-      // Set resolved_at or dismissed_at based on status
-      if (updates.status === 'resolved') {
-        updateFields.push('resolved_at = ?');
-        values.push(now);
-      } else if (updates.status === 'dismissed') {
-        updateFields.push('dismissed_at = ?');
-        values.push(now);
-      }
-    }
-
-    if (updates.severity !== undefined) {
-      updateFields.push('severity = ?');
-      values.push(updates.severity);
-    }
-
-    if (updates.risk_score !== undefined) {
-      updateFields.push('risk_score = ?');
-      values.push(updates.risk_score);
-    }
-
-    if (updates.estimated_effort_hours !== undefined) {
-      updateFields.push('estimated_effort_hours = ?');
-      values.push(updates.estimated_effort_hours);
-    }
-
-    if (updates.remediation_plan !== undefined) {
-      updateFields.push('remediation_plan = ?');
-      values.push(updates.remediation_plan ? JSON.stringify(updates.remediation_plan) : null);
-    }
-
-    if (updates.remediation_steps !== undefined) {
-      updateFields.push('remediation_steps = ?');
-      values.push(updates.remediation_steps ? JSON.stringify(updates.remediation_steps) : null);
-    }
-
-    if (updates.estimated_completion_date !== undefined) {
-      updateFields.push('estimated_completion_date = ?');
-      values.push(updates.estimated_completion_date);
-    }
-
-    if (updates.backlog_item_id !== undefined) {
-      updateFields.push('backlog_item_id = ?');
-      values.push(updates.backlog_item_id);
-    }
-
-    if (updates.goal_id !== undefined) {
-      updateFields.push('goal_id = ?');
-      values.push(updates.goal_id);
-    }
-
-    if (updates.dismissal_reason !== undefined) {
-      updateFields.push('dismissal_reason = ?');
-      values.push(updates.dismissal_reason);
-    }
+    const { updateFields, values } = buildUpdateFieldsAndValues(updates, now);
 
     if (updateFields.length === 0) {
       const selectStmt = db.prepare('SELECT * FROM tech_debt WHERE id = ?');

@@ -84,7 +84,7 @@ export const goalRepository = {
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.title !== undefined) {
       updateFields.push('title = ?');

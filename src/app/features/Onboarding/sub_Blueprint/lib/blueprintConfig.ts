@@ -10,6 +10,7 @@ import {
   Bug,
   Camera,
   Target,
+  Trash2,
   LucideIcon,
 } from 'lucide-react';
 import * as structureScan from './blueprintStructureScan';
@@ -18,6 +19,7 @@ import * as visionScan from './blueprintVisionScan';
 import * as contextsScan from './blueprintContextsScan';
 import * as buildScan from './blueprintBuildScan';
 import * as selectorsScan from './blueprintSelectorsScan';
+import * as unusedScan from './blueprintUnusedScan';
 
 export interface ScanResult {
   success: boolean;
@@ -37,7 +39,7 @@ export interface DecisionData {
   projectType?: string;
   data?: any;
   onAccept: () => Promise<void>;
-  onReject: () => Promise<void>;
+  onReject?: () => Promise<void>; // Optional - some decisions are info-only
 }
 
 export interface ScanHandler {
@@ -129,6 +131,18 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
         scanHandler: {
           execute: buildScan.executeBuildScan,
           buildDecision: buildScan.buildDecisionData,
+        },
+      },
+      {
+        id: 'unused',
+        label: 'Unused',
+        icon: Trash2,
+        color: 'red',
+        action: 'scan',
+        eventTitle: 'Unused Code Scan Completed',
+        scanHandler: {
+          execute: unusedScan.executeUnusedScan,
+          buildDecision: unusedScan.buildDecisionData,
         },
       },
       {

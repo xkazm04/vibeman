@@ -83,8 +83,8 @@ export function getDbDriver(): DbDriver {
     try {
       driverInstance.initializeTables();
     } catch (error) {
-      console.error('Error initializing database tables:', error);
-      throw error;
+      // Re-throw error to be handled by caller
+      throw new Error(`Failed to initialize database tables: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

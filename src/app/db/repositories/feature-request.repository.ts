@@ -92,7 +92,7 @@ export const featureRequestRepository = {
     const now = new Date().toISOString();
 
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     Object.entries(updates).forEach(([key, value]) => {
       if (key !== 'id' && key !== 'created_at') {

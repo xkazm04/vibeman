@@ -312,7 +312,7 @@ export const securityPrRepository = {
   /**
    * Update test status
    */
-  updateTestStatus(id: string, testStatus: DbSecurityPr['test_status'], testOutput?: any): void {
+  updateTestStatus(id: string, testStatus: DbSecurityPr['test_status'], testOutput?: Record<string, unknown>): void {
     const db = getDatabase();
     const stmt = db.prepare(`
       UPDATE security_prs

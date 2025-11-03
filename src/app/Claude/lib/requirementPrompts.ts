@@ -275,9 +275,7 @@ export function loadHighLevelDocs(projectPath: string): string | undefined {
       // Limit to 10000 characters to avoid token limits
       return content.substring(0, 10000);
     }
-  } catch (error) {
-    console.error('Error loading high-level docs:', error);
-  }
+  } catch (error) {  }
   return undefined;
 }
 

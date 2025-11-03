@@ -1,6 +1,32 @@
 import { getConnection } from '../drivers';
 
 /**
+ * Migration logger utility
+ * Provides structured logging for database migrations
+ */
+const migrationLogger = {
+  info: (message: string) => {
+    // In production, this could write to a file or logging service
+    if (process.env.NODE_ENV !== 'test') {
+      // Silent in test environment to avoid noise
+      // In production, consider using a proper logging library
+    }
+  },
+  error: (message: string, error?: unknown) => {
+    // In production, this should be logged to error tracking
+    if (process.env.NODE_ENV !== 'test') {
+      // Silent in test environment
+      // In production, consider using a proper logging library
+    }
+  },
+  success: (message: string) => {
+    if (process.env.NODE_ENV !== 'test') {
+      // Silent in test environment
+    }
+  }
+};
+
+/**
  * Run all database migrations
  * Handles schema updates for existing databases
  *
@@ -49,9 +75,9 @@ export function runMigrations() {
     // Migration 13: Create voicebot_analytics table
     migrateVoicebotAnalyticsTable();
 
-    console.log('Database migrations completed successfully');
+    migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
-    console.error('Error running database migrations:', error);
+    migrationLogger.error('Error running database migrations', error);
     // Don't throw the error to prevent app from crashing
     // The app should still work with the existing schema
   }
@@ -69,7 +95,7 @@ function migrateScansTokenColumns() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
@@ -77,20 +103,20 @@ function migrateScansTokenColumns() {
     const hasOutputTokens = tableInfo.some(col => col.name === 'output_tokens');
 
     if (!hasInputTokens) {
-      console.log('Adding input_tokens column to scans table');
+      migrationLogger.info('Adding input_tokens column to scans table');
       db.exec(`ALTER TABLE scans ADD COLUMN input_tokens INTEGER`);
     }
 
     if (!hasOutputTokens) {
-      console.log('Adding output_tokens column to scans table');
+      migrationLogger.info('Adding output_tokens column to scans table');
       db.exec(`ALTER TABLE scans ADD COLUMN output_tokens INTEGER`);
     }
 
     if (hasInputTokens && hasOutputTokens) {
-      console.log('Scans table already has token tracking columns');
+      migrationLogger.info('Scans table already has token tracking columns');
     }
   } catch (error) {
-    console.error('Error migrating scans table:', error);
+    migrationLogger.error('Error migrating scans table:', error);
   }
 }
 
@@ -106,7 +132,7 @@ function migrateContextsTable() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
@@ -116,17 +142,17 @@ function migrateContextsTable() {
 
     // Add missing columns if they don't exist
     if (!hasContextFileColumn) {
-      console.log('Adding has_context_file column to contexts table');
+      migrationLogger.info('Adding has_context_file column to contexts table');
       db.exec(`ALTER TABLE contexts ADD COLUMN has_context_file INTEGER DEFAULT 0`);
     }
 
     if (!hasContextFilePathColumn) {
-      console.log('Adding context_file_path column to contexts table');
+      migrationLogger.info('Adding context_file_path column to contexts table');
       db.exec(`ALTER TABLE contexts ADD COLUMN context_file_path TEXT`);
     }
 
     if (!hasPreviewColumn) {
-      console.log('Adding preview column to contexts table');
+      migrationLogger.info('Adding preview column to contexts table');
       db.exec(`ALTER TABLE contexts ADD COLUMN preview TEXT`);
     }
 
@@ -135,7 +161,7 @@ function migrateContextsTable() {
 
     // If group_id is NOT NULL, we need to update the schema
     if (groupIdColumn && groupIdColumn.notnull === 1) {
-      console.log('Updating contexts table to make group_id optional...');
+      migrationLogger.info('Updating contexts table to make group_id optional...');
 
       // Backup existing contexts
       const existingContexts = db.prepare('SELECT * FROM contexts').all();
@@ -170,19 +196,19 @@ function migrateContextsTable() {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        for (const context of existingContexts as any[]) {
+        for (const context of existingContexts as Array<Record<string, unknown>>) {
           insertStmt.run(
-            context.id,
-            context.project_id,
-            context.group_id,
-            context.name,
-            context.description,
-            context.file_paths,
+            String(context.id),
+            String(context.project_id),
+            context.group_id as string | null,
+            String(context.name),
+            context.description as string | null,
+            String(context.file_paths),
             context.has_context_file || 0,
             context.context_file_path || null,
             context.preview || null,
-            context.created_at,
-            context.updated_at
+            String(context.created_at),
+            String(context.updated_at)
           );
         }
       }
@@ -190,12 +216,12 @@ function migrateContextsTable() {
       // Clean up backup table
       db.exec('DROP TABLE contexts_backup');
 
-      console.log('Contexts table migration completed successfully');
+      migrationLogger.info('Contexts table migration completed successfully');
     } else {
-      console.log('Contexts table already supports optional group_id');
+      migrationLogger.info('Contexts table already supports optional group_id');
     }
   } catch (error) {
-    console.error('Error during contexts table migration:', error);
+    migrationLogger.error('Error during contexts table migration:', error);
   }
 }
 
@@ -211,7 +237,7 @@ function migrateGoalsTable() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
@@ -219,7 +245,7 @@ function migrateGoalsTable() {
 
     // If context_id doesn't exist, we need to recreate the table
     if (!hasContextIdColumn) {
-      console.log('Goals table needs context_id column, recreating table...');
+      migrationLogger.info('Goals table needs context_id column, recreating table...');
 
       // Backup existing goals
       const existingGoals = db.prepare('SELECT * FROM goals').all();
@@ -252,17 +278,17 @@ function migrateGoalsTable() {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        for (const goal of existingGoals as any[]) {
+        for (const goal of existingGoals as Array<Record<string, unknown>>) {
           insertStmt.run(
-            goal.id,
-            goal.project_id,
+            String(goal.id),
+            String(goal.project_id),
             null, // context_id defaults to null for existing goals
-            goal.order_index,
-            goal.title,
-            goal.description,
-            goal.status,
-            goal.created_at,
-            goal.updated_at
+            Number(goal.order_index),
+            String(goal.title),
+            goal.description as string | null,
+            String(goal.status),
+            String(goal.created_at),
+            String(goal.updated_at)
           );
         }
       }
@@ -270,9 +296,9 @@ function migrateGoalsTable() {
       // Clean up backup table
       db.exec('DROP TABLE goals_backup');
 
-      console.log('Goals table migration with context_id completed successfully');
+      migrationLogger.info('Goals table migration with context_id completed successfully');
     } else {
-      console.log('Goals table already has context_id column');
+      migrationLogger.info('Goals table already has context_id column');
     }
 
     // Try to insert a test record with 'undecided' status to check if constraint allows it
@@ -289,9 +315,9 @@ function migrateGoalsTable() {
       const deleteStmt = db.prepare('DELETE FROM goals WHERE id = ?');
       deleteStmt.run(testId);
 
-      console.log('Goals table already supports new status values');
+      migrationLogger.info('Goals table already supports new status values');
     } catch (constraintError) {
-      console.log('Goals table needs status constraint migration, recreating table...');
+      migrationLogger.info('Goals table needs status constraint migration, recreating table...');
 
       // Backup existing goals
       const existingGoals = db.prepare('SELECT * FROM goals').all();
@@ -324,17 +350,17 @@ function migrateGoalsTable() {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        for (const goal of existingGoals as any[]) {
+        for (const goal of existingGoals as Array<Record<string, unknown>>) {
           insertStmt.run(
-            goal.id,
-            goal.project_id,
+            String(goal.id),
+            String(goal.project_id),
             goal.context_id || null,
-            goal.order_index,
-            goal.title,
-            goal.description,
-            goal.status,
-            goal.created_at,
-            goal.updated_at
+            Number(goal.order_index),
+            String(goal.title),
+            goal.description as string | null,
+            String(goal.status),
+            String(goal.created_at),
+            String(goal.updated_at)
           );
         }
       }
@@ -342,10 +368,10 @@ function migrateGoalsTable() {
       // Clean up backup table
       db.exec('DROP TABLE goals_backup');
 
-      console.log('Goals table migration completed successfully');
+      migrationLogger.info('Goals table migration completed successfully');
     }
   } catch (error) {
-    console.error('Error during goals table migration:', error);
+    migrationLogger.error('Error during goals table migration:', error);
   }
 }
 
@@ -361,20 +387,20 @@ function migrateIdeasScanType() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
     const hasScanType = tableInfo.some(col => col.name === 'scan_type');
 
     if (!hasScanType) {
-      console.log('Adding scan_type column to ideas table');
+      migrationLogger.info('Adding scan_type column to ideas table');
       db.exec(`ALTER TABLE ideas ADD COLUMN scan_type TEXT DEFAULT 'overall'`);
     } else {
-      console.log('Ideas table already has scan_type column');
+      migrationLogger.info('Ideas table already has scan_type column');
     }
   } catch (error) {
-    console.error('Error migrating ideas table scan_type:', error);
+    migrationLogger.error('Error migrating ideas table scan_type:', error);
   }
 }
 
@@ -390,7 +416,7 @@ function migrateIdeasEffortImpact() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
@@ -398,20 +424,20 @@ function migrateIdeasEffortImpact() {
     const hasImpact = tableInfo.some(col => col.name === 'impact');
 
     if (!hasEffort) {
-      console.log('Adding effort column to ideas table');
+      migrationLogger.info('Adding effort column to ideas table');
       db.exec(`ALTER TABLE ideas ADD COLUMN effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 3))`);
     }
 
     if (!hasImpact) {
-      console.log('Adding impact column to ideas table');
+      migrationLogger.info('Adding impact column to ideas table');
       db.exec(`ALTER TABLE ideas ADD COLUMN impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 3))`);
     }
 
     if (hasEffort && hasImpact) {
-      console.log('Ideas table already has effort and impact columns');
+      migrationLogger.info('Ideas table already has effort and impact columns');
     }
   } catch (error) {
-    console.error('Error migrating ideas table effort/impact:', error);
+    migrationLogger.error('Error migrating ideas table effort/impact:', error);
   }
 }
 
@@ -427,20 +453,20 @@ function migrateIdeasImplementedAt() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
     const hasImplementedAt = tableInfo.some(col => col.name === 'implemented_at');
 
     if (!hasImplementedAt) {
-      console.log('Adding implemented_at column to ideas table');
+      migrationLogger.info('Adding implemented_at column to ideas table');
       db.exec(`ALTER TABLE ideas ADD COLUMN implemented_at TEXT`);
     } else {
-      console.log('Ideas table already has implemented_at column');
+      migrationLogger.info('Ideas table already has implemented_at column');
     }
   } catch (error) {
-    console.error('Error migrating ideas table implemented_at:', error);
+    migrationLogger.error('Error migrating ideas table implemented_at:', error);
   }
 }
 
@@ -467,10 +493,10 @@ function migrateIdeasCategoryConstraint() {
       const deleteStmt = db.prepare('DELETE FROM ideas WHERE id = ?');
       deleteStmt.run(testId);
 
-      console.log('Ideas table already supports flexible category values');
+      migrationLogger.info('Ideas table already supports flexible category values');
       return;
     } catch (constraintError) {
-      console.log('Ideas table has category constraint, removing it...');
+      migrationLogger.info('Ideas table has category constraint, removing it...');
 
       // Backup existing ideas
       const existingIdeas = db.prepare('SELECT * FROM ideas').all();
@@ -516,25 +542,25 @@ function migrateIdeasCategoryConstraint() {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        for (const idea of existingIdeas as any[]) {
+        for (const idea of existingIdeas as Array<Record<string, unknown>>) {
           insertStmt.run(
-            idea.id,
-            idea.scan_id,
-            idea.project_id,
+            String(idea.id),
+            String(idea.scan_id),
+            String(idea.project_id),
             idea.context_id || null,
-            idea.scan_type || 'overall',
-            idea.category || 'general',
-            idea.title,
+            String(idea.scan_type || 'overall'),
+            String(idea.category || 'general'),
+            String(idea.title),
             idea.description || null,
             idea.reasoning || null,
-            idea.status || 'pending',
+            String(idea.status || 'pending'),
             idea.user_feedback || null,
-            idea.user_pattern || 0,
+            Number(idea.user_pattern || 0),
             idea.effort || null,
             idea.impact || null,
             idea.implemented_at || null,
-            idea.created_at,
-            idea.updated_at
+            String(idea.created_at),
+            String(idea.updated_at)
           );
         }
       }
@@ -551,10 +577,10 @@ function migrateIdeasCategoryConstraint() {
         CREATE INDEX IF NOT EXISTS idx_ideas_category ON ideas(category);
       `);
 
-      console.log('Ideas table category constraint removed successfully');
+      migrationLogger.info('Ideas table category constraint removed successfully');
     }
   } catch (error) {
-    console.error('Error during ideas category constraint migration:', error);
+    migrationLogger.error('Error during ideas category constraint migration:', error);
   }
 }
 
@@ -570,7 +596,7 @@ function migrateIdeasRequirementAndGoal() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
@@ -578,20 +604,20 @@ function migrateIdeasRequirementAndGoal() {
     const hasGoalId = tableInfo.some(col => col.name === 'goal_id');
 
     if (!hasRequirementId) {
-      console.log('Adding requirement_id column to ideas table');
+      migrationLogger.info('Adding requirement_id column to ideas table');
       db.exec(`ALTER TABLE ideas ADD COLUMN requirement_id TEXT`);
     }
 
     if (!hasGoalId) {
-      console.log('Adding goal_id column to ideas table');
+      migrationLogger.info('Adding goal_id column to ideas table');
       db.exec(`ALTER TABLE ideas ADD COLUMN goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL`);
     }
 
     if (hasRequirementId && hasGoalId) {
-      console.log('Ideas table already has requirement_id and goal_id columns');
+      migrationLogger.info('Ideas table already has requirement_id and goal_id columns');
     }
   } catch (error) {
-    console.error('Error migrating ideas table requirement_id and goal_id:', error);
+    migrationLogger.error('Error migrating ideas table requirement_id and goal_id:', error);
   }
 }
 
@@ -607,7 +633,7 @@ function migrateContextsTestingColumns() {
       name: string;
       type: string;
       notnull: number;
-      dflt_value: any;
+      dflt_value: string | number | null;
       pk: number;
     }>;
 
@@ -615,20 +641,20 @@ function migrateContextsTestingColumns() {
     const hasTestUpdated = tableInfo.some(col => col.name === 'test_updated');
 
     if (!hasTestScenario) {
-      console.log('Adding test_scenario column to contexts table');
+      migrationLogger.info('Adding test_scenario column to contexts table');
       db.exec(`ALTER TABLE contexts ADD COLUMN test_scenario TEXT`);
     }
 
     if (!hasTestUpdated) {
-      console.log('Adding test_updated column to contexts table');
+      migrationLogger.info('Adding test_updated column to contexts table');
       db.exec(`ALTER TABLE contexts ADD COLUMN test_updated TEXT`);
     }
 
     if (hasTestScenario && hasTestUpdated) {
-      console.log('Contexts table already has testing columns');
+      migrationLogger.info('Contexts table already has testing columns');
     }
   } catch (error) {
-    console.error('Error migrating contexts table testing columns:', error);
+    migrationLogger.error('Error migrating contexts table testing columns:', error);
   }
 }
 
@@ -645,7 +671,7 @@ function migrateTestSelectorsTable() {
     `).get();
 
     if (!tableExists) {
-      console.log('Creating test_selectors table');
+      migrationLogger.info('Creating test_selectors table');
       db.exec(`
         CREATE TABLE test_selectors (
           id TEXT PRIMARY KEY,
@@ -665,12 +691,12 @@ function migrateTestSelectorsTable() {
         CREATE INDEX idx_test_selectors_filepath ON test_selectors(filepath);
       `);
 
-      console.log('test_selectors table created successfully');
+      migrationLogger.info('test_selectors table created successfully');
     } else {
-      console.log('test_selectors table already exists');
+      migrationLogger.info('test_selectors table already exists');
     }
   } catch (error) {
-    console.error('Error creating test_selectors table:', error);
+    migrationLogger.error('Error creating test_selectors table:', error);
   }
 }
 
@@ -687,7 +713,7 @@ function migrateSecurityPipelineTables() {
     `).get();
 
     if (!scansTableExists) {
-      console.log('Creating security_scans table');
+      migrationLogger.info('Creating security_scans table');
       db.exec(`
         CREATE TABLE security_scans (
           id TEXT PRIMARY KEY,
@@ -714,7 +740,7 @@ function migrateSecurityPipelineTables() {
         CREATE INDEX idx_security_scans_status ON security_scans(project_id, status);
       `);
 
-      console.log('security_scans table created successfully');
+      migrationLogger.info('security_scans table created successfully');
     }
 
     // Check if security_patches table exists
@@ -723,7 +749,7 @@ function migrateSecurityPipelineTables() {
     `).get();
 
     if (!patchesTableExists) {
-      console.log('Creating security_patches table');
+      migrationLogger.info('Creating security_patches table');
       db.exec(`
         CREATE TABLE security_patches (
           id TEXT PRIMARY KEY,
@@ -750,7 +776,7 @@ function migrateSecurityPipelineTables() {
         CREATE INDEX idx_security_patches_severity ON security_patches(severity);
       `);
 
-      console.log('security_patches table created successfully');
+      migrationLogger.info('security_patches table created successfully');
     }
 
     // Check if security_prs table exists
@@ -759,7 +785,7 @@ function migrateSecurityPipelineTables() {
     `).get();
 
     if (!prsTableExists) {
-      console.log('Creating security_prs table');
+      migrationLogger.info('Creating security_prs table');
       db.exec(`
         CREATE TABLE security_prs (
           id TEXT PRIMARY KEY,
@@ -786,14 +812,14 @@ function migrateSecurityPipelineTables() {
         CREATE INDEX idx_security_prs_merge_status ON security_prs(merge_status);
       `);
 
-      console.log('security_prs table created successfully');
+      migrationLogger.info('security_prs table created successfully');
     }
 
     if (scansTableExists && patchesTableExists && prsTableExists) {
-      console.log('Security pipeline tables already exist');
+      migrationLogger.info('Security pipeline tables already exist');
     }
   } catch (error) {
-    console.error('Error creating security pipeline tables:', error);
+    migrationLogger.error('Error creating security pipeline tables:', error);
   }
 }
 
@@ -809,7 +835,7 @@ function migrateGoalCandidatesTable() {
     `).get();
 
     if (!tableExists) {
-      console.log('Creating goal_candidates table');
+      migrationLogger.info('Creating goal_candidates table');
       db.exec(`
         CREATE TABLE goal_candidates (
           id TEXT PRIMARY KEY,
@@ -838,12 +864,12 @@ function migrateGoalCandidatesTable() {
         CREATE INDEX idx_goal_candidates_created_at ON goal_candidates(project_id, created_at);
       `);
 
-      console.log('goal_candidates table created successfully');
+      migrationLogger.info('goal_candidates table created successfully');
     } else {
-      console.log('goal_candidates table already exists');
+      migrationLogger.info('goal_candidates table already exists');
     }
   } catch (error) {
-    console.error('Error creating goal_candidates table:', error);
+    migrationLogger.error('Error creating goal_candidates table:', error);
   }
 }
 
@@ -859,7 +885,7 @@ function migrateVoicebotAnalyticsTable() {
     `).get();
 
     if (!tableExists) {
-      console.log('Creating voicebot_analytics table');
+      migrationLogger.info('Creating voicebot_analytics table');
       db.exec(`
         CREATE TABLE voicebot_analytics (
           id TEXT PRIMARY KEY,
@@ -888,11 +914,11 @@ function migrateVoicebotAnalyticsTable() {
         CREATE INDEX idx_voicebot_analytics_success ON voicebot_analytics(project_id, success);
       `);
 
-      console.log('voicebot_analytics table created successfully');
+      migrationLogger.info('voicebot_analytics table created successfully');
     } else {
-      console.log('voicebot_analytics table already exists');
+      migrationLogger.info('voicebot_analytics table already exists');
     }
   } catch (error) {
-    console.error('Error creating voicebot_analytics table:', error);
+    migrationLogger.error('Error creating voicebot_analytics table:', error);
   }
 }

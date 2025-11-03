@@ -7,9 +7,8 @@ import { Check } from 'lucide-react';
 const steps = [
   { id: 'scan', label: 'Scan' },
   { id: 'review', label: 'Review' },
-  { id: 'configure', label: 'Configure' },
-  { id: 'execute', label: 'Execute' },
-  { id: 'results', label: 'Results' },
+  { id: 'execute', label: 'Create' },
+  { id: 'results', label: 'Summary' },
 ] as const;
 
 export default function WizardProgress() {

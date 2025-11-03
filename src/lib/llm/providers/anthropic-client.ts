@@ -140,7 +140,6 @@ export class AnthropicClient extends BaseLLMClient {
           errorMessage = `Anthropic service overloaded: ${errorMessage}. The API is temporarily unavailable`;
         }
 
-        console.error(`[Anthropic] API Error: ${errorMessage}`);
         throw new Error(errorMessage);
       }
 
@@ -231,7 +230,6 @@ export class AnthropicClient extends BaseLLMClient {
   async checkAvailability(): Promise<boolean> {
     try {
       if (!this.apiKey) {
-        console.warn('[Anthropic] No API key configured');
         return false;
       }
 
@@ -251,15 +249,9 @@ export class AnthropicClient extends BaseLLMClient {
         10000 // 10 second timeout for availability check
       );
 
-      if (testResponse.ok) {
-        console.log('[Anthropic] Availability check passed');
-        return true;
-      } else {
-        console.warn('[Anthropic] Availability check failed:', testResponse.status, testResponse.statusText);
-        return false;
-      }
+      return testResponse.ok;
     } catch (error) {
-      console.warn('[Anthropic] Availability check error:', error instanceof Error ? error.message : error);
+      // Silent fail for availability check
       return false;
     }
   }

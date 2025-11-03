@@ -1,110 +1,114 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { useRefactorStore } from '@/stores/refactorStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { Scan, Sparkles, Zap, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
+import {
+  WizardStepContainer,
+  WizardHeader,
+  CyberCard,
+  ProgressBar,
+} from '@/components/ui/wizard';
+import { motion } from 'framer-motion';
 
 export default function ScanStep() {
   const { startAnalysis, analysisStatus, analysisProgress, analysisError } = useRefactorStore();
-  const { activeProjectId, activeProjectPath } = useActiveProjectStore();
+  const activeProject = useActiveProjectStore(state => state.activeProject);
   const [useAI, setUseAI] = useState(true);
 
   const handleStartScan = async () => {
-    if (!activeProjectId || !activeProjectPath) {
+    if (!activeProject?.id || !activeProject?.path) {
       alert('Please select a project first');
       return;
     }
 
-    await startAnalysis(activeProjectId, activeProjectPath);
+    await startAnalysis(activeProject.id, activeProject.path);
   };
 
   const isScanning = analysisStatus === 'scanning' || analysisStatus === 'analyzing';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
-    >
+    <WizardStepContainer>
       {/* Header */}
-      <div className="text-center">
-        <h3 className="text-xl font-light text-white mb-2">Project Analysis</h3>
-        <p className="text-gray-400 text-sm">
-          Scan your codebase to discover refactoring opportunities
-        </p>
-      </div>
+      <WizardHeader
+        title="Project Analysis"
+        description="Scan your codebase to discover refactoring opportunities"
+      />
 
-      {/* Options */}
-      <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl p-6">
+      {/* Options Card */}
+      <CyberCard>
         <div className="space-y-4">
           {/* Project Info */}
           <div>
             <label className="text-sm font-medium text-gray-300 mb-2 block">
               Project to Analyze
             </label>
-            <div className="bg-black/30 border border-cyan-500/20 rounded-lg p-4">
+            <CyberCard variant="dark" className="!p-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-lg flex items-center justify-center border border-cyan-500/30">
                   <Scan className="w-5 h-5 text-cyan-400" />
                 </div>
-                <div>
-                  <p className="text-white font-medium">
-                    {activeProjectId || 'No project selected'}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">
+                    {activeProject?.name || 'No project selected'}
                   </p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    {activeProjectPath || 'Please select a project'}
+                  <p className="text-gray-400 text-xs mt-1 truncate">
+                    {activeProject?.path || 'Please select a project'}
                   </p>
                 </div>
               </div>
-            </div>
+            </CyberCard>
           </div>
 
           {/* AI Toggle */}
-          <div>
-            <label className="flex items-center justify-between p-4 bg-black/30 border border-white/10 rounded-lg cursor-pointer hover:bg-black/40 transition-all duration-200">
-              <div className="flex items-center space-x-3">
+          <label className="flex items-center justify-between p-4 bg-black/30 border border-white/10 rounded-lg cursor-pointer hover:bg-black/40 hover:border-cyan-500/20 transition-all duration-200 group">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center border border-purple-500/30 group-hover:border-purple-500/50 transition-colors">
                 <Sparkles className="w-5 h-5 text-purple-400" />
-                <div>
-                  <p className="text-white font-medium">AI-Powered Analysis</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Use AI to detect complex refactoring opportunities
-                  </p>
-                </div>
               </div>
-              <input
-                type="checkbox"
-                checked={useAI}
-                onChange={(e) => setUseAI(e.target.checked)}
-                className="w-5 h-5 accent-cyan-500"
-              />
-            </label>
-          </div>
+              <div>
+                <p className="text-white font-medium">AI-Powered Analysis</p>
+                <p className="text-gray-400 text-xs mt-1">
+                  Use AI to detect complex refactoring opportunities
+                </p>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={useAI}
+              onChange={(e) => setUseAI(e.target.checked)}
+              className="w-5 h-5 accent-cyan-500 cursor-pointer"
+            />
+          </label>
 
           {/* Scan Types */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-black/30 border border-white/10 rounded-lg p-4">
-              <Zap className="w-5 h-5 text-yellow-400 mb-2" />
-              <p className="text-white font-medium text-sm">Pattern Detection</p>
-              <p className="text-gray-400 text-xs mt-1">
+            <CyberCard variant="dark" className="!p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <Zap className="w-5 h-5 text-yellow-400" />
+                <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+              </div>
+              <p className="text-white font-medium text-sm mb-1">Pattern Detection</p>
+              <p className="text-gray-400 text-xs">
                 Fast rule-based analysis
               </p>
-            </div>
+            </CyberCard>
             {useAI && (
-              <div className="bg-black/30 border border-purple-500/20 rounded-lg p-4">
-                <Sparkles className="w-5 h-5 text-purple-400 mb-2" />
-                <p className="text-white font-medium text-sm">Deep AI Analysis</p>
-                <p className="text-gray-400 text-xs mt-1">
+              <CyberCard variant="glow" className="!p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-purple-400" />
+                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                </div>
+                <p className="text-white font-medium text-sm mb-1">Deep AI Analysis</p>
+                <p className="text-gray-400 text-xs">
                   Contextual understanding
                 </p>
-              </div>
+              </CyberCard>
             )}
           </div>
         </div>
-      </div>
+      </CyberCard>
 
       {/* Error Display */}
       {analysisError && (
@@ -123,35 +127,28 @@ export default function ScanStep() {
 
       {/* Progress */}
       {isScanning && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-3"
-        >
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-300">
-              {analysisStatus === 'scanning' ? 'Scanning files...' : 'Analyzing code...'}
-            </span>
-            <span className="text-cyan-400 font-medium">{analysisProgress}%</span>
-          </div>
-          <div className="h-2 bg-black/50 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
-              initial={{ width: '0%' }}
-              animate={{ width: `${analysisProgress}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
-        </motion.div>
+        <ProgressBar
+          progress={analysisProgress}
+          label={analysisStatus === 'scanning' ? 'Scanning files...' : 'Analyzing code...'}
+          variant="cyan"
+        />
       )}
 
       {/* Start Button */}
       <button
         onClick={handleStartScan}
-        disabled={isScanning || !activeProjectId}
-        className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none"
+        disabled={isScanning || !activeProject}
+        className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none relative overflow-hidden group"
         data-testid="start-refactor-scan"
       >
+        {/* Blueprint grid pattern overlay */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none"
+             style={{
+               backgroundImage: 'linear-gradient(cyan 1px, transparent 1px), linear-gradient(90deg, cyan 1px, transparent 1px)',
+               backgroundSize: '20px 20px'
+             }}
+        />
+
         {isScanning ? (
           <span className="flex items-center justify-center space-x-2">
             <motion.div
@@ -169,6 +166,6 @@ export default function ScanStep() {
           </span>
         )}
       </button>
-    </motion.div>
+    </WizardStepContainer>
   );
 }

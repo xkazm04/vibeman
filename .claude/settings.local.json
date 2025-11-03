@@ -38,7 +38,10 @@
       "Bash(mkdir:*)",
       "Bash(npm install:*)",
       "Bash(set:*)",
-      "Bash(timeout 30 npm run dev:*)"
+      "Bash(timeout 30 npm run dev:*)",
+      "Bash(lsof:*)",
+      "Bash(cat:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

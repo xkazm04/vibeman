@@ -4,6 +4,7 @@ import { contextDb, DbContext } from '@/app/db';
 import { contextQueries } from '@/lib/queries/contextQueries';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
+import { logger } from '@/lib/logger';
 
 export interface FileChange {
   path: string;
@@ -72,7 +73,7 @@ export async function detectFileChanges(
   try {
     scanDirectory(projectPath);
   } catch (error) {
-    console.error('Error scanning directory:', error);
+    logger.error('Failed to scan directory for file changes', { projectPath, error });
     return [];
   }
 
@@ -201,9 +202,16 @@ export async function analyzeChanges(
         affectedContexts.push(context);
       }
     } catch (error) {
-      console.error(`Failed to parse file paths for context ${context.id}:`, error);
+      logger.debug('Failed to parse context file paths', { contextId: context.id, error });
     }
   }
+
+  logger.debug('File change analysis complete', {
+    createdFiles: createdFiles.length,
+    deletedFiles: deletedFiles.length,
+    modifiedFiles: modifiedFiles.length,
+    affectedContexts: affectedContexts.length,
+  });
 
   // Heuristic: if there are created files and no affected contexts, it's likely a new feature
   const isNewFeature = createdFiles.length > 0 && affectedContexts.length === 0;
@@ -294,8 +302,149 @@ export async function generateContextDescription(
 
     return `Context for ${contextName}`;
   } catch (error) {
-    console.error('Failed to generate context description:', error);
+    logger.error('Failed to generate context description', { contextName, error });
     return `Context for ${contextName}`;
+  }
+}
+
+/**
+ * Helper: Create a new context from detected feature
+ */
+async function createNewFeatureContext(
+  projectId: string,
+  projectPath: string,
+  featureName: string,
+  featureFiles: string[],
+  provider: SupportedProvider
+): Promise<ContextUpdateResult> {
+  try {
+    const description = await generateContextDescription(
+      featureName,
+      featureFiles,
+      projectPath,
+      provider
+    );
+
+    const newContext = await contextQueries.createContext({
+      projectId,
+      groupId: null,
+      name: featureName,
+      description,
+      filePaths: featureFiles,
+    });
+
+    logger.info('Created new context from feature', {
+      contextId: newContext.id,
+      featureName,
+      fileCount: featureFiles.length,
+    });
+
+    return {
+      success: true,
+      contextId: newContext.id,
+      action: 'created',
+      message: `Created new context "${featureName}" with ${featureFiles.length} files`,
+    };
+  } catch (error) {
+    logger.error('Failed to create feature context', { featureName, error });
+    return {
+      success: false,
+      action: 'created',
+      error: error instanceof Error ? error.message : 'Failed to create context',
+    };
+  }
+}
+
+/**
+ * Helper: Update an existing context with file changes
+ */
+async function updateExistingContext(
+  context: DbContext,
+  changes: FileChange[],
+  projectPath: string,
+  provider: SupportedProvider
+): Promise<ContextUpdateResult> {
+  try {
+    const contextFilePaths = JSON.parse(context.file_paths) as string[];
+    const normalizedContextPaths = contextFilePaths.map((fp) => fp.replace(/\\/g, '/'));
+
+    // Remove deleted files
+    const deletedRelativePaths = changes
+      .filter((c) => c.status === 'deleted')
+      .map((c) => c.relativePath);
+    let updatedFilePaths = normalizedContextPaths.filter(
+      (fp) => !deletedRelativePaths.some((dp) => fp.toLowerCase() === dp.toLowerCase())
+    );
+
+    // Add created files that are in the same directory structure
+    const createdRelativePaths = changes
+      .filter((c) => c.status === 'created')
+      .map((c) => c.relativePath);
+
+    for (const createdPath of createdRelativePaths) {
+      const createdDir = path.dirname(createdPath);
+      const isRelevant = updatedFilePaths.some((fp) => {
+        const fpDir = path.dirname(fp);
+        return fpDir === createdDir || createdDir.startsWith(fpDir);
+      });
+
+      if (isRelevant && !updatedFilePaths.includes(createdPath)) {
+        updatedFilePaths.push(createdPath);
+      }
+    }
+
+    // Check if file list changed
+    const fileListChanged =
+      updatedFilePaths.length !== contextFilePaths.length ||
+      updatedFilePaths.some((fp) => !contextFilePaths.includes(fp));
+
+    if (!fileListChanged) {
+      return {
+        success: true,
+        contextId: context.id,
+        action: 'none',
+        message: `Context "${context.name}" unchanged`,
+      };
+    }
+
+    // Regenerate description
+    const newDescription = await generateContextDescription(
+      context.name,
+      updatedFilePaths,
+      projectPath,
+      provider
+    );
+
+    // Update context
+    const updatedContext = await contextQueries.updateContext(context.id, {
+      file_paths: updatedFilePaths,
+      description: newDescription,
+    });
+
+    if (updatedContext) {
+      logger.info('Updated context', {
+        contextId: context.id,
+        contextName: context.name,
+        fileCount: updatedFilePaths.length,
+      });
+
+      return {
+        success: true,
+        contextId: context.id,
+        action: 'updated',
+        message: `Updated context "${context.name}" (${updatedFilePaths.length} files)`,
+      };
+    }
+
+    throw new Error('Failed to update context in database');
+  } catch (error) {
+    logger.error('Failed to update context', { contextId: context.id, error });
+    return {
+      success: false,
+      contextId: context.id,
+      action: 'updated',
+      error: error instanceof Error ? error.message : 'Failed to update context',
+    };
   }
 }
 
@@ -315,6 +464,7 @@ export async function autoUpdateContexts(
     const changes = await detectFileChanges(projectPath, beforeSnapshot);
 
     if (changes.length === 0) {
+      logger.debug('No file changes detected', { projectId });
       return [
         {
           success: true,
@@ -324,134 +474,37 @@ export async function autoUpdateContexts(
       ];
     }
 
-    console.log(`Detected ${changes.length} file changes`);
+    logger.info('Processing file changes', {
+      projectId,
+      changeCount: changes.length,
+    });
 
     // 2. Analyze changes to determine if new feature or existing feature update
     const analysis = await analyzeChanges(changes, projectId, projectPath);
 
     // 3. Handle new feature creation
     if (analysis.isNewFeature && analysis.newFeatureName && analysis.newFeatureFiles) {
-      console.log(`New feature detected: ${analysis.newFeatureName}`);
-
-      try {
-        // Generate description for new context
-        const description = await generateContextDescription(
-          analysis.newFeatureName,
-          analysis.newFeatureFiles,
-          projectPath,
-          provider
-        );
-
-        // Create new context
-        const newContext = await contextQueries.createContext({
-          projectId,
-          groupId: null, // No group by default
-          name: analysis.newFeatureName,
-          description,
-          filePaths: analysis.newFeatureFiles,
-        });
-
-        results.push({
-          success: true,
-          contextId: newContext.id,
-          action: 'created',
-          message: `Created new context "${analysis.newFeatureName}" with ${analysis.newFeatureFiles.length} files`,
-        });
-      } catch (error) {
-        results.push({
-          success: false,
-          action: 'created',
-          error: error instanceof Error ? error.message : 'Failed to create context',
-        });
-      }
+      const result = await createNewFeatureContext(
+        projectId,
+        projectPath,
+        analysis.newFeatureName,
+        analysis.newFeatureFiles,
+        provider
+      );
+      results.push(result);
     }
 
     // 4. Handle updates to existing contexts
     if (analysis.affectedContexts.length > 0) {
-      console.log(`Found ${analysis.affectedContexts.length} affected contexts`);
-
       for (const context of analysis.affectedContexts) {
-        try {
-          const contextFilePaths = JSON.parse(context.file_paths) as string[];
-          const normalizedContextPaths = contextFilePaths.map((fp) => fp.replace(/\\/g, '/'));
-
-          // Remove deleted files
-          const deletedRelativePaths = changes
-            .filter((c) => c.status === 'deleted')
-            .map((c) => c.relativePath);
-          let updatedFilePaths = normalizedContextPaths.filter(
-            (fp) =>
-              !deletedRelativePaths.some((dp) => fp.toLowerCase() === dp.toLowerCase())
-          );
-
-          // Add created files that are in the same directory structure
-          const createdRelativePaths = changes
-            .filter((c) => c.status === 'created')
-            .map((c) => c.relativePath);
-
-          // Only add created files if they're in similar directory to existing context files
-          for (const createdPath of createdRelativePaths) {
-            const createdDir = path.dirname(createdPath);
-            const isRelevant = updatedFilePaths.some((fp) => {
-              const fpDir = path.dirname(fp);
-              return fpDir === createdDir || createdDir.startsWith(fpDir);
-            });
-
-            if (isRelevant && !updatedFilePaths.includes(createdPath)) {
-              updatedFilePaths.push(createdPath);
-            }
-          }
-
-          // Check if file list changed
-          const fileListChanged =
-            updatedFilePaths.length !== contextFilePaths.length ||
-            updatedFilePaths.some((fp) => !contextFilePaths.includes(fp));
-
-          if (fileListChanged) {
-            // Regenerate description
-            const newDescription = await generateContextDescription(
-              context.name,
-              updatedFilePaths,
-              projectPath,
-              provider
-            );
-
-            // Update context
-            const updatedContext = await contextQueries.updateContext(context.id, {
-              file_paths: updatedFilePaths,
-              description: newDescription,
-            });
-
-            if (updatedContext) {
-              results.push({
-                success: true,
-                contextId: context.id,
-                action: 'updated',
-                message: `Updated context "${context.name}" (${updatedFilePaths.length} files)`,
-              });
-            }
-          } else {
-            results.push({
-              success: true,
-              contextId: context.id,
-              action: 'none',
-              message: `Context "${context.name}" unchanged`,
-            });
-          }
-        } catch (error) {
-          results.push({
-            success: false,
-            contextId: context.id,
-            action: 'updated',
-            error: error instanceof Error ? error.message : 'Failed to update context',
-          });
-        }
+        const result = await updateExistingContext(context, changes, projectPath, provider);
+        results.push(result);
       }
     }
 
     return results;
   } catch (error) {
-    console.error('Error in autoUpdateContexts:', error);
+    logger.error('Failed to auto-update contexts', { projectId, error });
     return [
       {
         success: false,

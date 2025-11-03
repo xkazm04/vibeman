@@ -66,7 +66,7 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
           const project = projectConfigStore.getProject(projectId);
           
           if (!project) {
-            set({ error: 'Project not found' });
+            set({ error: 'Project not found', isLoading: false });
             return;
           }
           

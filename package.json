@@ -25,6 +25,7 @@
     "d3": "^7.9.0",
     "framer-motion": "^12.23.0",
     "fs": "^0.0.1-security",
+    "glob": "^11.0.3",
     "lucide-react": "^0.548.0",
     "madge": "^8.0.0",
     "minimatch": "^10.0.3",
@@ -48,7 +49,6 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/glob": "^8.1.0",
     "@types/madge": "^5.0.3",
     "@types/node": "^20",
     "@types/react": "19.2.2",

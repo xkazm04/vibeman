@@ -163,7 +163,7 @@ export interface TriggerMetadata {
   commitHash?: string; // Git commit hash
   branch?: string; // Git branch
   author?: string; // Commit author
-  [key: string]: any; // Allow additional metadata
+  [key: string]: string | string[] | number | boolean | undefined; // Allow additional metadata
 }
 
 // Scan Notification types
@@ -227,7 +227,7 @@ export interface GoalCandidateSourceMetadata {
   commitHash?: string;
   filePaths?: string[];
   techDebtId?: string;
-  [key: string]: any;
+  [key: string]: string | string[] | number | boolean | undefined;
 }
 
 // Export standard category type for use in type annotations

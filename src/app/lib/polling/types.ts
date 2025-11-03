@@ -21,11 +21,11 @@ export interface PollingConfig {
   /** Timeout for individual poll operations (ms) */
   timeout?: number;
   /** Function to determine if polling should continue */
-  shouldContinue?: (result: any) => boolean;
+  shouldContinue?: <T = unknown>(result: T) => boolean;
   /** Error handler for poll failures */
   onError?: (error: Error, retryCount: number) => void;
   /** Success handler for poll results */
-  onSuccess?: (result: any) => void;
+  onSuccess?: <T = unknown>(result: T) => void;
   /** Adaptive polling configuration */
   adaptive?: AdaptivePollingConfig;
 }
