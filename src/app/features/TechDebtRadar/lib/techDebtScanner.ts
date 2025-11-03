@@ -13,6 +13,22 @@ import { calculateRiskScore } from './riskScoring';
 import { generateRemediationPlan } from './remediationPlanner';
 
 /**
+ * Detection details type
+ */
+interface DetectionDetails {
+  scanType?: string;
+  timestamp?: string;
+  recommendedTools?: string[];
+  recommendedCommands?: string[];
+  checkFor?: string[];
+  focusAreas?: string[];
+  metrics?: string[];
+  standards?: string[];
+  tools?: string[];
+  [key: string]: unknown;
+}
+
+/**
  * Detected tech debt issue before database insertion
  */
 interface DetectedIssue {
@@ -23,7 +39,32 @@ interface DetectedIssue {
   filePaths: string[];
   technicalImpact: string;
   businessImpact: string;
-  detectionDetails: any;
+  detectionDetails: DetectionDetails;
+}
+
+/**
+ * Helper to create a detected issue with common structure
+ */
+function createDetectedIssue(
+  category: TechDebtCategory,
+  title: string,
+  description: string,
+  severity: TechDebtSeverity,
+  filePaths: string[],
+  technicalImpact: string,
+  businessImpact: string,
+  detectionDetails: DetectionDetails
+): DetectedIssue {
+  return {
+    category,
+    title,
+    description,
+    severity,
+    filePaths,
+    technicalImpact,
+    businessImpact,
+    detectionDetails
+  };
 }
 
 /**
@@ -82,219 +123,164 @@ async function scanByCategory(
  * Scan for code quality issues
  */
 async function scanCodeQuality(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  // Check for common code smells
-  const patterns = [
-    {
-      pattern: /\/\/ TODO:/gi,
-      title: 'TODO Comments Found',
-      severity: 'low' as TechDebtSeverity,
-      description: 'TODO comments indicate incomplete work or deferred implementation',
-      technicalImpact: 'May indicate incomplete features or edge cases',
-      businessImpact: 'Potential bugs or missing functionality'
-    },
-    {
-      pattern: /console\.(log|warn|error|debug)/gi,
-      title: 'Console Statements in Code',
-      severity: 'low' as TechDebtSeverity,
-      description: 'Console statements should be removed or replaced with proper logging',
-      technicalImpact: 'Performance impact and cluttered console output',
-      businessImpact: 'Poor production debugging experience'
-    },
-    {
-      pattern: /\/\/ FIXME:/gi,
-      title: 'FIXME Comments Found',
-      severity: 'medium' as TechDebtSeverity,
-      description: 'FIXME comments indicate known issues that need attention',
-      technicalImpact: 'Known bugs or problematic code patterns',
-      businessImpact: 'Potential system failures or data issues'
-    },
-    {
-      pattern: /debugger;/gi,
-      title: 'Debugger Statements Left in Code',
-      severity: 'medium' as TechDebtSeverity,
-      description: 'Debugger statements should be removed before production',
-      technicalImpact: 'Will pause execution in production if DevTools are open',
-      businessImpact: 'Poor user experience and potential application hangs'
-    }
-  ];
-
   // Scan project files (simplified - would use proper file traversal)
   // This is a placeholder implementation
-  issues.push({
-    category: 'code_quality',
-    title: 'Code Quality Scan Placeholder',
-    description: 'Automated code quality scanning requires file system access',
-    severity: 'low',
-    filePaths: [],
-    technicalImpact: 'Scanner needs implementation',
-    businessImpact: 'Limited tech debt visibility',
-    detectionDetails: { scanType: 'code_quality', timestamp: new Date().toISOString() }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'code_quality',
+      'Code Quality Scan Placeholder',
+      'Automated code quality scanning requires file system access',
+      'low',
+      [],
+      'Scanner needs implementation',
+      'Limited tech debt visibility',
+      { scanType: 'code_quality', timestamp: new Date().toISOString() }
+    )
+  ];
 }
 
 /**
  * Scan for security vulnerabilities
  */
 async function scanSecurity(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  // Check for common security issues
-  issues.push({
-    category: 'security',
-    title: 'Security Scan Required',
-    description: 'Run npm audit and dependency security checks',
-    severity: 'high',
-    filePaths: ['package.json', 'package-lock.json'],
-    technicalImpact: 'Potential security vulnerabilities in dependencies',
-    businessImpact: 'Risk of data breaches or security incidents',
-    detectionDetails: { recommendedTools: ['npm audit', 'snyk', 'OWASP Dependency-Check'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'security',
+      'Security Scan Required',
+      'Run npm audit and dependency security checks',
+      'high',
+      ['package.json', 'package-lock.json'],
+      'Potential security vulnerabilities in dependencies',
+      'Risk of data breaches or security incidents',
+      { recommendedTools: ['npm audit', 'snyk', 'OWASP Dependency-Check'] }
+    )
+  ];
 }
 
 /**
  * Scan for performance issues
  */
 async function scanPerformance(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  issues.push({
-    category: 'performance',
-    title: 'Performance Audit Recommended',
-    description: 'Conduct performance profiling and optimization analysis',
-    severity: 'medium',
-    filePaths: [],
-    technicalImpact: 'Potential slow rendering, memory leaks, or inefficient algorithms',
-    businessImpact: 'Poor user experience and higher infrastructure costs',
-    detectionDetails: { recommendedTools: ['Lighthouse', 'Chrome DevTools', 'React Profiler'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'performance',
+      'Performance Audit Recommended',
+      'Conduct performance profiling and optimization analysis',
+      'medium',
+      [],
+      'Potential slow rendering, memory leaks, or inefficient algorithms',
+      'Poor user experience and higher infrastructure costs',
+      { recommendedTools: ['Lighthouse', 'Chrome DevTools', 'React Profiler'] }
+    )
+  ];
 }
 
 /**
  * Scan for testing coverage gaps
  */
 async function scanTesting(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  issues.push({
-    category: 'testing',
-    title: 'Test Coverage Analysis Needed',
-    description: 'Measure test coverage and identify untested critical paths',
-    severity: 'medium',
-    filePaths: [],
-    technicalImpact: 'Increased risk of regressions and bugs',
-    businessImpact: 'Higher cost of bug fixes and reduced confidence in releases',
-    detectionDetails: { recommendedTools: ['Jest coverage', 'nyc', 'Istanbul'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'testing',
+      'Test Coverage Analysis Needed',
+      'Measure test coverage and identify untested critical paths',
+      'medium',
+      [],
+      'Increased risk of regressions and bugs',
+      'Higher cost of bug fixes and reduced confidence in releases',
+      { recommendedTools: ['Jest coverage', 'nyc', 'Istanbul'] }
+    )
+  ];
 }
 
 /**
  * Scan for documentation gaps
  */
 async function scanDocumentation(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  issues.push({
-    category: 'documentation',
-    title: 'Documentation Review Required',
-    description: 'Review and update project documentation for completeness',
-    severity: 'low',
-    filePaths: ['README.md', 'docs/'],
-    technicalImpact: 'Difficult onboarding and maintenance',
-    businessImpact: 'Slower development velocity and knowledge silos',
-    detectionDetails: { checkFor: ['API docs', 'setup guides', 'architecture diagrams'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'documentation',
+      'Documentation Review Required',
+      'Review and update project documentation for completeness',
+      'low',
+      ['README.md', 'docs/'],
+      'Difficult onboarding and maintenance',
+      'Slower development velocity and knowledge silos',
+      { checkFor: ['API docs', 'setup guides', 'architecture diagrams'] }
+    )
+  ];
 }
 
 /**
  * Scan for dependency issues
  */
 async function scanDependencies(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  issues.push({
-    category: 'dependencies',
-    title: 'Dependency Audit Required',
-    description: 'Check for outdated dependencies and update recommendations',
-    severity: 'medium',
-    filePaths: ['package.json'],
-    technicalImpact: 'Missing security patches and new features',
-    businessImpact: 'Security risks and compatibility issues',
-    detectionDetails: { recommendedCommands: ['npm outdated', 'npm audit', 'npm update'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'dependencies',
+      'Dependency Audit Required',
+      'Check for outdated dependencies and update recommendations',
+      'medium',
+      ['package.json'],
+      'Missing security patches and new features',
+      'Security risks and compatibility issues',
+      { recommendedCommands: ['npm outdated', 'npm audit', 'npm update'] }
+    )
+  ];
 }
 
 /**
  * Scan for architecture issues
  */
 async function scanArchitecture(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  issues.push({
-    category: 'architecture',
-    title: 'Architecture Review Recommended',
-    description: 'Review system architecture for scalability and maintainability',
-    severity: 'medium',
-    filePaths: [],
-    technicalImpact: 'Potential scalability bottlenecks and tight coupling',
-    businessImpact: 'Difficult to scale and adapt to changing requirements',
-    detectionDetails: { focusAreas: ['component coupling', 'data flow', 'state management'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'architecture',
+      'Architecture Review Recommended',
+      'Review system architecture for scalability and maintainability',
+      'medium',
+      [],
+      'Potential scalability bottlenecks and tight coupling',
+      'Difficult to scale and adapt to changing requirements',
+      { focusAreas: ['component coupling', 'data flow', 'state management'] }
+    )
+  ];
 }
 
 /**
  * Scan for maintainability issues
  */
 async function scanMaintainability(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  issues.push({
-    category: 'maintainability',
-    title: 'Code Maintainability Analysis',
-    description: 'Analyze code complexity and maintainability metrics',
-    severity: 'low',
-    filePaths: [],
-    technicalImpact: 'Complex code that is difficult to understand and modify',
-    businessImpact: 'Higher maintenance costs and slower feature development',
-    detectionDetails: { metrics: ['cyclomatic complexity', 'cognitive complexity', 'duplication'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'maintainability',
+      'Code Maintainability Analysis',
+      'Analyze code complexity and maintainability metrics',
+      'low',
+      [],
+      'Complex code that is difficult to understand and modify',
+      'Higher maintenance costs and slower feature development',
+      { metrics: ['cyclomatic complexity', 'cognitive complexity', 'duplication'] }
+    )
+  ];
 }
 
 /**
  * Scan for accessibility issues
  */
 async function scanAccessibility(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  const issues: DetectedIssue[] = [];
-
-  issues.push({
-    category: 'accessibility',
-    title: 'Accessibility Audit Required',
-    description: 'Conduct WCAG compliance audit and improve accessibility',
-    severity: 'medium',
-    filePaths: [],
-    technicalImpact: 'Non-compliant with accessibility standards',
-    businessImpact: 'Excludes users with disabilities and potential legal risks',
-    detectionDetails: { standards: ['WCAG 2.1 Level AA'], tools: ['axe', 'Lighthouse', 'WAVE'] }
-  });
-
-  return issues;
+  return [
+    createDetectedIssue(
+      'accessibility',
+      'Accessibility Audit Required',
+      'Conduct WCAG compliance audit and improve accessibility',
+      'medium',
+      [],
+      'Non-compliant with accessibility standards',
+      'Excludes users with disabilities and potential legal risks',
+      { standards: ['WCAG 2.1 Level AA'], tools: ['axe', 'Lighthouse', 'WAVE'] }
+    )
+  ];
 }
 
 /**

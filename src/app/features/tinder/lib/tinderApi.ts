@@ -5,6 +5,14 @@
 import { DbIdea } from '@/app/db';
 
 /**
+ * Handle API response errors
+ */
+async function handleApiError(response: Response, defaultMessage: string): Promise<never> {
+  const error = await response.json();
+  throw new Error(error.error || defaultMessage);
+}
+
+/**
  * Fetch ideas in batches for Tinder evaluation
  */
 export async function fetchIdeasBatch(
@@ -25,7 +33,7 @@ export async function fetchIdeasBatch(
   const response = await fetch(`/api/ideas/tinder?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error('Failed to fetch ideas');
+    await handleApiError(response, 'Failed to fetch ideas');
   }
 
   return response.json();
@@ -45,8 +53,7 @@ export async function acceptIdea(
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to accept idea');
+    await handleApiError(response, 'Failed to accept idea');
   }
 
   return response.json();
@@ -63,8 +70,7 @@ export async function rejectIdea(ideaId: string, projectPath?: string): Promise<
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to reject idea');
+    await handleApiError(response, 'Failed to reject idea');
   }
 
   return response.json();
@@ -79,7 +85,7 @@ export async function deleteIdea(ideaId: string): Promise<{ success: boolean }> 
   });
 
   if (!response.ok) {
-    throw new Error('Failed to delete idea');
+    await handleApiError(response, 'Failed to delete idea');
   }
 
   return response.json();

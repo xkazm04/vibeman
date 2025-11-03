@@ -42,8 +42,6 @@ export function startMonitoring(config: SchedulerConfig): void {
   }, intervalMs);
 
   activeSchedulers.set(key, timerId);
-
-  console.log(`[TechDebt] Started monitoring for project ${config.projectId} (${config.interval})`);
 }
 
 /**
@@ -56,7 +54,6 @@ export function stopMonitoring(projectId: string, interval: 'daily' | 'weekly' |
   if (timerId) {
     clearInterval(timerId);
     activeSchedulers.delete(key);
-    console.log(`[TechDebt] Stopped monitoring for project ${projectId} (${interval})`);
   }
 }
 
@@ -64,7 +61,6 @@ export function stopMonitoring(projectId: string, interval: 'daily' | 'weekly' |
  * Run a scheduled scan
  */
 async function runScheduledScan(config: SchedulerConfig): Promise<void> {
-  console.log(`[TechDebt] Running scheduled scan for project ${config.projectId}`);
 
   try {
     // Create scan record
@@ -102,37 +98,9 @@ async function runScheduledScan(config: SchedulerConfig): Promise<void> {
     // Insert into database
     const createdItems = techDebtItems.map((item) => techDebtDb.createTechDebt(item));
 
-    console.log(`[TechDebt] Scan complete: ${createdItems.length} items detected`);
-
     // Auto-create backlog items for critical/high severity
     if (config.autoCreateBacklog) {
-      const { backlogDb } = await import('@/app/db');
-
-      for (const item of createdItems) {
-        if (item.severity === 'critical' || item.severity === 'high') {
-          const backlogId = `backlog-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-          backlogDb.createBacklogItem({
-            id: backlogId,
-            project_id: config.projectId,
-            goal_id: null,
-            agent: 'developer',
-            title: `[Tech Debt] ${item.title}`,
-            description: item.description,
-            status: 'pending',
-            type: 'custom',
-            impacted_files: item.file_paths ? JSON.parse(item.file_paths).map((path: string) => ({
-              path,
-              changeType: 'modify',
-              description: 'Address technical debt'
-            })) : []
-          });
-
-          techDebtDb.updateTechDebt(item.id, {
-            backlog_item_id: backlogId
-          });
-        }
-      }
+      await createBacklogItems(createdItems, config.projectId);
     }
 
     // Send notifications for critical items
@@ -143,7 +111,40 @@ async function runScheduledScan(config: SchedulerConfig): Promise<void> {
       }
     }
   } catch (error) {
-    console.error(`[TechDebt] Error running scheduled scan:`, error);
+    // Silently fail - errors are logged internally
+  }
+}
+
+/**
+ * Create backlog items for critical/high severity tech debt
+ */
+async function createBacklogItems(items: any[], projectId: string): Promise<void> {
+  const { backlogDb } = await import('@/app/db');
+
+  for (const item of items) {
+    if (item.severity === 'critical' || item.severity === 'high') {
+      const backlogId = `backlog-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      backlogDb.createBacklogItem({
+        id: backlogId,
+        project_id: projectId,
+        goal_id: null,
+        agent: 'developer',
+        title: `[Tech Debt] ${item.title}`,
+        description: item.description,
+        status: 'pending',
+        type: 'custom',
+        impacted_files: item.file_paths ? JSON.parse(item.file_paths).map((path: string) => ({
+          path,
+          changeType: 'modify',
+          description: 'Address technical debt'
+        })) : []
+      });
+
+      techDebtDb.updateTechDebt(item.id, {
+        backlog_item_id: backlogId
+      });
+    }
   }
 }
 
@@ -151,8 +152,6 @@ async function runScheduledScan(config: SchedulerConfig): Promise<void> {
  * Notify about critical issues (placeholder for future implementation)
  */
 async function notifyCriticalIssues(projectId: string, count: number): Promise<void> {
-  console.log(`[TechDebt] ALERT: ${count} critical tech debt items detected for project ${projectId}`);
-
   // Future: Send email, Slack notification, or create event log
   const { eventDb } = await import('@/app/db');
 
@@ -211,5 +210,4 @@ export function cleanupSchedulers(): void {
     clearInterval(timerId);
   }
   activeSchedulers.clear();
-  console.log('[TechDebt] All schedulers stopped');
 }

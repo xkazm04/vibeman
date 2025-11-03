@@ -33,9 +33,8 @@ export class BatchStorage {
     try {
       const serialized = JSON.stringify(state);
       localStorage.setItem(STORAGE_KEY, serialized);
-      console.log('[BatchStorage] Saved state:', state);
     } catch (error) {
-      console.error('[BatchStorage] Failed to save state:', error);
+      // Silently fail - state will not persist
     }
   }
 
@@ -48,10 +47,8 @@ export class BatchStorage {
       if (!serialized) return null;
 
       const state = JSON.parse(serialized) as MultiBatchState;
-      console.log('[BatchStorage] Loaded state:', state);
       return state;
     } catch (error) {
-      console.error('[BatchStorage] Failed to load state:', error);
       return null;
     }
   }
@@ -62,9 +59,8 @@ export class BatchStorage {
   static clear(): void {
     try {
       localStorage.removeItem(STORAGE_KEY);
-      console.log('[BatchStorage] Cleared state');
     } catch (error) {
-      console.error('[BatchStorage] Failed to clear state:', error);
+      // Silently fail
     }
   }
 

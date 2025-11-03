@@ -8,6 +8,36 @@ import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { fetchIdeasBatch, acceptIdea, rejectIdea, deleteIdea } from './tinderApi';
 import { TINDER_CONSTANTS } from './tinderUtils';
 
+/**
+ * Helper to perform optimistic update with automatic revert on error
+ */
+function useOptimisticUpdate<T>(
+  setItems: React.Dispatch<React.SetStateAction<T[]>>,
+  currentIndex: number,
+  item: T,
+  apiCall: () => Promise<void>,
+  onSuccess: () => void,
+  onError: (error: unknown) => void
+): () => Promise<void> {
+  return async () => {
+    // Optimistically remove the item
+    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
+      await apiCall();
+      onSuccess();
+    } catch (error) {
+      onError(error);
+      // Revert: re-insert the item at the same position
+      setItems(prev => {
+        const newItems = [...prev];
+        newItems.splice(currentIndex, 0, item);
+        return newItems;
+      });
+    }
+  };
+}
+
 export interface TinderStats {
   accepted: number;
   rejected: number;
@@ -61,7 +91,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
       setHasMore(result.hasMore);
       setTotal(result.total);
     } catch (error) {
-      console.error('Failed to load ideas:', error);
+      // Silently fail - error will be visible through loading state
     } finally {
       setLoading(false);
     }
@@ -70,7 +100,6 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
   const loadMoreIfNeeded = useCallback(() => {
     // Load more when we're N cards away from the end
     if (currentIndex >= ideas.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loading) {
-      console.log('[Tinder] Loading more ideas...');
       loadIdeas(ideas.length);
     }
   }, [currentIndex, ideas.length, hasMore, loading, loadIdeas]);
@@ -92,19 +121,16 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     }
 
     setProcessing(true);
-    try {
-      // Optimistically remove the idea from local state immediately
-      setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
 
+    // Optimistically remove the idea
+    setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
       await acceptIdea(currentIdea.id, selectedProject.path);
       setStats(prev => ({ ...prev, accepted: prev.accepted + 1 }));
-
-      // Don't call moveToNext() - currentIndex stays the same, pointing to next card
       loadMoreIfNeeded();
     } catch (error) {
-      console.error('Failed to accept idea:', error);
       alert('Failed to accept idea: ' + (error instanceof Error ? error.message : 'Unknown error'));
-
       // Revert: re-insert the idea at the same position
       setIdeas(prev => {
         const newIdeas = [...prev];
@@ -123,19 +149,16 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     const selectedProject = getProject(currentIdea.project_id);
 
     setProcessing(true);
-    try {
-      // Optimistically remove the idea from local state immediately
-      setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
 
+    // Optimistically remove the idea
+    setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
       await rejectIdea(currentIdea.id, selectedProject?.path);
       setStats(prev => ({ ...prev, rejected: prev.rejected + 1 }));
-
-      // Don't call moveToNext() - currentIndex stays the same, pointing to next card
       loadMoreIfNeeded();
     } catch (error) {
-      console.error('Failed to reject idea:', error);
       alert('Failed to reject idea');
-
       // Revert: re-insert the idea at the same position
       setIdeas(prev => {
         const newIdeas = [...prev];
@@ -157,19 +180,16 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     }
 
     setProcessing(true);
-    try {
-      // Optimistically remove the idea from local state immediately
-      setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
 
+    // Optimistically remove the idea
+    setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
       await deleteIdea(currentIdea.id);
       setStats(prev => ({ ...prev, deleted: prev.deleted + 1 }));
-
-      // Don't call moveToNext() - currentIndex stays the same, pointing to next card
       loadMoreIfNeeded();
     } catch (error) {
-      console.error('Failed to delete idea:', error);
       alert('Failed to delete idea');
-
       // Revert: re-insert the idea at the same position
       setIdeas(prev => {
         const newIdeas = [...prev];

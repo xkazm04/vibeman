@@ -20,5 +20,10 @@ export interface ContextResultDisplayProps {
   loading: boolean;
   error: string | null;
   onBack: () => void;
-  activeProject: any;
+  activeProject: {
+    id: string;
+    name: string;
+    path: string;
+    [key: string]: unknown;
+  } | null;
 }

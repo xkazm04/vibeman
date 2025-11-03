@@ -1,9 +1,30 @@
 import { ContextFile } from './types';
 
+// Valid file extensions for context files
+const VALID_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.vue', '.py', '.java', '.cs', '.php', '.rb', '.go', '.rs', '.cpp', '.c', '.h', '.css', '.scss', '.sass', '.less', '.html', '.md', '.json', '.yaml', '.yml', '.xml', '.sql']);
+
+/**
+ * Check if a file path is valid and not a duplicate
+ */
+function isValidFile(path: string, existingFiles: ContextFile[]): boolean {
+  if (!path) return false;
+  const extension = path.substring(path.lastIndexOf('.'));
+  return VALID_EXTENSIONS.has(extension) && !existingFiles.some(f => f.path === path);
+}
+
+/**
+ * Create a ContextFile object from a path
+ */
+function createContextFile(path: string): ContextFile {
+  return {
+    path,
+    type: path.split('.').pop() || 'file'
+  };
+}
+
 // Extract files from context content
 export const extractFilesFromContent = (content: string): ContextFile[] => {
   const files: ContextFile[] = [];
-  const validExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.vue', '.py', '.java', '.cs', '.php', '.rb', '.go', '.rs', '.cpp', '.c', '.h', '.css', '.scss', '.sass', '.less', '.html', '.md', '.json', '.yaml', '.yml', '.xml', '.sql']);
   
   // Look for Location Map section
   const locationMapMatch = content.match(/##\s*(?:Architecture\s*)?(?:###\s*)?Location Map\s*\n(.*?)(?=\n##|\n#|$)/s);
@@ -15,12 +36,8 @@ export const extractFilesFromContent = (content: string): ContextFile[] => {
 
     for (const match of pathMatches) {
       const path = match[1];
-      const extension = path.substring(path.lastIndexOf('.'));
-      if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
-        files.push({
-          path,
-          type: path.split('.').pop() || 'file'
-        });
+      if (isValidFile(path, files)) {
+        files.push(createContextFile(path));
       }
     }
   }
@@ -29,12 +46,8 @@ export const extractFilesFromContent = (content: string): ContextFile[] => {
   const tableMatches = content.matchAll(/\|\s*`([^`]+\.[a-zA-Z0-9]+)`/g);
   for (const match of tableMatches) {
     const path = match[1];
-    const extension = path.substring(path.lastIndexOf('.'));
-    if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
-      files.push({
-        path,
-        type: path.split('.').pop() || 'file'
-      });
+    if (isValidFile(path, files)) {
+      files.push(createContextFile(path));
     }
   }
 
@@ -42,12 +55,8 @@ export const extractFilesFromContent = (content: string): ContextFile[] => {
   const bulletMatches = content.matchAll(/(?:[-*]\s+`([^`]+\.[a-zA-Z0-9]+)`|[-*]\s+([a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+))/g);
   for (const match of bulletMatches) {
     const path = match[1] || match[2];
-    const extension = path.substring(path.lastIndexOf('.'));
-    if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
-      files.push({
-        path,
-        type: path.split('.').pop() || 'file'
-      });
+    if (isValidFile(path, files)) {
+      files.push(createContextFile(path));
     }
   }
 
@@ -58,12 +67,8 @@ export const extractFilesFromContent = (content: string): ContextFile[] => {
     const pathMatches = codeContent.matchAll(/(?:├──\s*|└──\s*|│\s*└──\s*|│\s*├──\s*|^|\s)([a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+)/gm);
     for (const pathMatch of pathMatches) {
       const path = pathMatch[1];
-      const extension = path.substring(path.lastIndexOf('.'));
-      if (path && validExtensions.has(extension) && !files.some(f => f.path === path)) {
-        files.push({
-          path,
-          type: path.split('.').pop() || 'file'
-        });
+      if (isValidFile(path, files)) {
+        files.push(createContextFile(path));
       }
     }
   }
