@@ -82,7 +82,6 @@ export default function AnnettePanel() {
 
   const speakMessage = useCallback(async (text: string) => {
     if (!isVoiceEnabled) {
-      console.warn('[Annette] Voice not enabled yet. User must click to activate.');
       return;
     }
 
@@ -143,7 +142,6 @@ export default function AnnettePanel() {
       setAudioElement(audio);
       await audio.play();
     } catch (error) {
-      console.error('[Annette] TTS error:', error);
       setIsSpeaking(false);
       setIsError(true);
       setVolume(0.5);
@@ -237,7 +235,6 @@ export default function AnnettePanel() {
       // Display response and speak it
       await speakMessage(data.response);
     } catch (error) {
-      console.error('[Annette] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Communication error';
       setMessage(errorMessage);
       setIsSpeaking(false);
@@ -253,21 +250,21 @@ export default function AnnettePanel() {
     if (!activeProject) return;
     trackCommand(activeProject.id, 'test_ideas_count', 'button_command', async () => {
       await sendToAnnette('How many pending ideas does this project have?');
-    }).catch(err => console.warn('[Analytics] Failed to log:', err));
+    }).catch(() => {});
   };
 
   const handleTestDocsRetrieval = () => {
     if (!activeProject) return;
     trackCommand(activeProject.id, 'test_docs_retrieval', 'button_command', async () => {
       await sendToAnnette('Can you retrieve the high-level documentation for this project?');
-    }).catch(err => console.warn('[Analytics] Failed to log:', err));
+    }).catch(() => {});
   };
 
   const handleTestSummarize = () => {
     if (!activeProject) return;
     trackCommand(activeProject.id, 'test_summarize', 'button_command', async () => {
       await sendToAnnette('Please summarize the project vision for me.');
-    }).catch(err => console.warn('[Analytics] Failed to log:', err));
+    }).catch(() => {});
   };
 
   return (
@@ -507,8 +504,7 @@ export default function AnnettePanel() {
         {knowledgeSources.length > 0 && (
           <KnowledgeSourcesPanel
             sources={knowledgeSources}
-            onSourceClick={(source) => {
-              console.log('[Annette] Source clicked:', source);
+            onSourceClick={() => {
               // Future: Navigate to source or open detail modal
             }}
           />

@@ -43,7 +43,6 @@ export default function StructureTemplateEditor({
         setError(data.error || 'Failed to load template');
       }
     } catch (err) {
-      console.error('Error loading template:', err);
       setError('Failed to load template');
     } finally {
       setLoading(false);
@@ -72,7 +71,6 @@ export default function StructureTemplateEditor({
         setError(data.error || 'Failed to save template');
       }
     } catch (err) {
-      console.error('Error saving template:', err);
       setError('Failed to save template');
     } finally {
       setSaving(false);
@@ -116,7 +114,6 @@ export default function StructureTemplateEditor({
           setError(data.error || 'Failed to reset template');
         }
       } catch (err) {
-        console.error('Error resetting template:', err);
         setError('Failed to reset template');
       }
     }

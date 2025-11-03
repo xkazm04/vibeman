@@ -27,7 +27,7 @@ export function UserProfile({ userId }: { userId: string }) {
       const userData = await response.json();
       setUser(userData);
     } catch (error) {
-      console.error('Failed to fetch user:', error);
+      // Error handling could be improved here
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export function UserProfile({ userId }: { userId: string }) {
     >
       <h1>{user?.name}</h1>
       <p>{user?.email}</p>
-      <Button onClick={() => console.log('Edit profile')}>
+      <Button onClick={() => {}}>
         Edit Profile
       </Button>
     </motion.div>

@@ -30,7 +30,6 @@ export default function AnalyticsDashboard({ projectId, isOpen = false }: Analyt
       const data = await getAnalyticsSummary(projectId);
       setAnalytics(data);
     } catch (err) {
-      console.error('[Analytics Dashboard] Failed to fetch analytics:', err);
       setError('Failed to load analytics');
     } finally {
       setLoading(false);

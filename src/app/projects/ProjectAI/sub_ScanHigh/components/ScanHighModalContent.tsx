@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { FileText, ArrowLeft, Save, Check } from 'lucide-react';
 import { saveGeneratedContent, validateMarkdownContent, prepareContentForSave } from '../lib/fileOperations';
 import { MarkdownViewer } from '@/components/markdown';
 import SaveFileDialog from '@/components/ui/SaveFileDialog';
+import { Project } from '@/types';
 
 interface ScanHighModalContentProps {
   content: string;
@@ -11,7 +11,7 @@ interface ScanHighModalContentProps {
   previewMode: 'edit' | 'preview';
   onPreviewModeChange: (mode: 'edit' | 'preview') => void;
   onContentChange?: (content: string) => void;
-  activeProject?: any;
+  activeProject?: Project;
 }
 
 export default function ScanHighModalContent({
@@ -53,14 +53,12 @@ export default function ScanHighModalContent({
       });
 
       if (result.success) {
-        console.log('File saved successfully:', result.filePath);
         setIsSaved(true);
         setShowSaveDialog(false);
       } else {
         throw new Error(result.error || 'Unknown save error');
       }
     } catch (error) {
-      console.error('Failed to save:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to save file');
       throw error; // Re-throw to let SaveFileDialog handle it
     }
