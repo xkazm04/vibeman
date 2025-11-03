@@ -4,9 +4,9 @@
  */
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import { ArrowLeft, X, Edit3, Trash2, FolderTree } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
+import ActionButton from './components/ActionButton';
 
 interface ContextDetailHeaderProps {
   contextGroup: ContextGroup | null;
@@ -33,14 +33,11 @@ export default function ContextDetailHeader({
       
       {/* Left Section - Group Info */}
       <div className="flex items-center space-x-4">
-        <motion.button
+        <ActionButton
           onClick={onClose}
-          className="p-2 hover:bg-gray-700/50 rounded-xl transition-all"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <ArrowLeft className="w-6 h-6 text-gray-400" />
-        </motion.button>
+          icon={ArrowLeft}
+          variant="secondary"
+        />
         
         <div className="flex items-center space-x-3">
           <div
@@ -67,32 +64,23 @@ export default function ContextDetailHeader({
 
       {/* Right Section - Actions */}
       <div className="flex items-center space-x-3">
-        <motion.button
+        <ActionButton
           onClick={onEdit}
-          className="p-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-all border border-blue-500/30"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Edit3 className="w-5 h-5" />
-        </motion.button>
-        
-        <motion.button
-          onClick={onDelete}
-          className="p-3 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 transition-all border border-red-500/30"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Trash2 className="w-5 h-5" />
-        </motion.button>
+          icon={Edit3}
+          variant="primary"
+        />
 
-        <motion.button
+        <ActionButton
+          onClick={onDelete}
+          icon={Trash2}
+          variant="danger"
+        />
+
+        <ActionButton
           onClick={onClose}
-          className="p-3 hover:bg-gray-700/50 rounded-xl transition-all"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <X className="w-6 h-6 text-gray-400" />
-        </motion.button>
+          icon={X}
+          variant="secondary"
+        />
       </div>
     </div>
   );

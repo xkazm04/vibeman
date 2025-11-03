@@ -44,14 +44,11 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
       const content = await loadContextFileApi(context.id);
       setMarkdownContent(content);
     } catch (error) {
-      console.error('Failed to load context file:', error);
       setMarkdownContent(generatePlaceholderContent(context));
     } finally {
       setLoading(false);
     }
   };
-
-
 
   const handleSave = () => {
     setShowSaveDialog(true);
@@ -64,25 +61,19 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
 
     try {
       await saveContextFileApi(folderPath, fileName, markdownContent, activeProject.path);
-      
-      // Update context to mark as having a context file
-      console.log('Context file saved successfully');
       setIsEditing(false);
       setPreviewMode('preview');
       setShowSaveDialog(false);
     } catch (error) {
-      console.error('Failed to save context file:', error);
-      throw error; // Re-throw to let SaveContextFileDialog handle the error display
+      throw error;
     }
   };
 
   const handleClose = () => {
-    // Cancel any ongoing generation
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    // Reset all state
     setIsEditing(false);
     setPreviewMode('preview');
     setMarkdownContent('');
@@ -130,14 +121,11 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
             <ContextModalContent
               context={context}
               loading={loading}
-              generating={generating}
-              generationStatus={generationStatus}
               generationError={generationError}
               hasContextFile={context.hasContextFile || false}
               isEditing={isEditing}
               previewMode={previewMode}
               markdownContent={markdownContent}
-              activeProject={activeProject}
               onMarkdownContentChange={setMarkdownContent}
             />
           </div>

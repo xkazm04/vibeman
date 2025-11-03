@@ -4,6 +4,8 @@ import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Edit3, Trash2, Cod
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { normalizePath } from '../../../../utils/pathUtils';
+import ActionButton from './components/ActionButton';
+import StatCard from './components/StatCard';
 
 interface GroupDetailViewProps {
   groupId: string;
@@ -46,13 +48,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
       'Delete Group',
       `Are you sure you want to delete "${selectedGroup.name}"? This will ungroup all contexts but won't delete them.`,
       async () => {
-        try {
-          // TODO: Implement group deletion
-          console.log('Delete group:', selectedGroup.id);
-          onClose();
-        } catch (error) {
-          console.error('Failed to delete group:', error);
-        }
+        onClose();
       }
     );
   };
@@ -70,10 +66,18 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
   // Calculate total files across all contexts
   const totalFiles = groupContexts.reduce((sum, context) => sum + context.filePaths.length, 0);
 
-  // Get all unique file paths (normalized)
-  const allFilePaths = Array.from(new Set(groupContexts.flatMap(context => 
+  const allFilePaths = Array.from(new Set(groupContexts.flatMap(context =>
     context.filePaths.map(normalizePath)
   )));
+
+  const getGridColumns = (count: number): string => {
+    if (count === 1) return 'grid-cols-1 max-w-md mx-auto';
+    if (count === 2) return 'grid-cols-1 md:grid-cols-2';
+    if (count <= 4) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2';
+    if (count <= 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    if (count <= 9) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+  };
 
   if (!selectedGroup) {
     return (
@@ -155,32 +159,24 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
 
           {/* Right Section - Actions */}
           <div className="flex items-center space-x-3 relative z-[111]">
-            <motion.button
+            <ActionButton
               onClick={() => {/* TODO: Implement edit */}}
-              className="p-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-all border border-blue-500/30"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Edit3 className="w-5 h-5" />
-            </motion.button>
-            
-            <motion.button
-              onClick={handleDeleteGroup}
-              className="p-3 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 transition-all border border-red-500/30"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Trash2 className="w-5 h-5" />
-            </motion.button>
+              icon={Edit3}
+              variant="primary"
+            />
 
-            <motion.button
+            <ActionButton
+              onClick={handleDeleteGroup}
+              icon={Trash2}
+              variant="danger"
+            />
+
+            <ActionButton
               onClick={onClose}
-              className="p-3 hover:bg-gray-700/50 rounded-xl transition-all border border-gray-600/30 hover:border-gray-500/50"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <X className="w-6 h-6 text-gray-300" />
-            </motion.button>
+              icon={X}
+              variant="secondary"
+              className="w-6 h-6"
+            />
           </div>
         </div>
 
@@ -196,49 +192,29 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                 transition={{ delay: 0.1 }}
                 className="grid grid-cols-1 md:grid-cols-3 gap-6"
               >
-                {/* Contexts Count */}
-                <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-2xl p-6 border border-gray-700/40">
-                  <div className="flex items-center space-x-4">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: `${selectedGroup.color}20` }}
-                    >
-                      <FolderTree className="w-6 h-6" style={{ color: selectedGroup.color }} />
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-white font-mono">{groupContexts.length}</p>
-                      <p className="text-sm text-gray-400 uppercase tracking-wider">Contexts</p>
-                    </div>
-                  </div>
-                </div>
+                <StatCard
+                  icon={FolderTree}
+                  value={groupContexts.length}
+                  label="Contexts"
+                  iconColor={selectedGroup.color}
+                  iconBgColor={`${selectedGroup.color}20`}
+                />
 
-                {/* Total Files */}
-                <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-2xl p-6 border border-gray-700/40">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/20">
-                      <FileText className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-white font-mono">{totalFiles}</p>
-                      <p className="text-sm text-gray-400 uppercase tracking-wider">Total Files</p>
-                    </div>
-                  </div>
-                </div>
+                <StatCard
+                  icon={FileText}
+                  value={totalFiles}
+                  label="Total Files"
+                  iconColor="#60A5FA"
+                  iconBgColor="rgba(96, 165, 250, 0.2)"
+                />
 
-                {/* Created Date */}
-                <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-2xl p-6 border border-gray-700/40">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/20">
-                      <Calendar className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-white font-mono">
-                        {Math.floor((new Date().getTime() - selectedGroup.createdAt.getTime()) / (1000 * 60 * 60 * 24))}d
-                      </p>
-                      <p className="text-sm text-gray-400 uppercase tracking-wider">Days Old</p>
-                    </div>
-                  </div>
-                </div>
+                <StatCard
+                  icon={Calendar}
+                  value={`${Math.floor((new Date().getTime() - selectedGroup.createdAt.getTime()) / (1000 * 60 * 60 * 24))}d`}
+                  label="Days Old"
+                  iconColor="#60A5FA"
+                  iconBgColor="rgba(96, 165, 250, 0.2)"
+                />
               </motion.div>
 
               {/* Contexts Grid */}
@@ -256,16 +232,8 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                     />
                     <span>Contexts in {selectedGroup.name}</span>
                   </h3>
-                  
-                  {/* Responsive grid that adapts to context count */}
-                  <div className={`grid gap-4 ${
-                    groupContexts.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
-                    groupContexts.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-                    groupContexts.length <= 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2' :
-                    groupContexts.length <= 6 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
-                    groupContexts.length <= 9 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
-                    'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-                  }`}>
+
+                  <div className={`grid gap-4 ${getGridColumns(groupContexts.length)}`}>
                     {groupContexts.map((context, index) => (
                       <motion.div
                         key={context.id}

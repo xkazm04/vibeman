@@ -48,12 +48,8 @@ export default function ContextDetailView({ contextId, onClose }: ContextDetailV
       'Delete Context',
       `Are you sure you want to delete "${selectedContext.name}"? This action cannot be undone.`,
       async () => {
-        try {
-          await removeContext(selectedContext.id);
-          onClose();
-        } catch (error) {
-          console.error('Failed to delete context:', error);
-        }
+        await removeContext(selectedContext.id);
+        onClose();
       }
     );
   };
