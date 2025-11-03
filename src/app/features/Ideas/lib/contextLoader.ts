@@ -16,7 +16,7 @@ export async function fetchContextsForProject(projectId: string): Promise<Contex
       return data.data.contexts || [];
     }
     return [];
-  } catch (error) {
+  } catch {
     return [];
   }
 }

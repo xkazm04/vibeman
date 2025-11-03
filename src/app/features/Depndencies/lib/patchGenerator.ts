@@ -49,14 +49,10 @@ export async function generatePatchProposals(
 }
 
 /**
- * Generate a single patch proposal using Claude
+ * Build vulnerability analysis prompt
  */
-async function generateSinglePatchProposal(
-  client: Anthropic,
-  vuln: VulnerabilityInfo,
-  projectPath: string
-): Promise<PatchProposal> {
-  const prompt = `You are a security expert analyzing a vulnerability in a software project.
+function buildVulnerabilityPrompt(vuln: VulnerabilityInfo): string {
+  return `You are a security expert analyzing a vulnerability in a software project.
 
 **Vulnerability Details:**
 - Package: ${vuln.packageName}
@@ -81,38 +77,108 @@ ${vuln.url ? `- Reference: ${vuln.url}` : ''}
 }
 
 Respond with ONLY the JSON object, no additional text.`;
+}
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2000,
-    messages: [
-      {
-        role: 'user',
-        content: prompt
-      }
-    ]
-  });
+/**
+ * Parse Claude response to extract JSON
+ */
+interface ParsedProposal {
+  analysis: string;
+  proposal: string;
+  minimalChanges: string[];
+  riskAssessment: string;
+}
 
-  const content = response.content[0];
+function parseClaudeResponse(content: Anthropic.ContentBlock): ParsedProposal {
   if (content.type !== 'text') {
     throw new Error('Unexpected response type from Claude');
   }
 
-  // Parse the JSON response
   const jsonMatch = content.text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('Failed to extract JSON from Claude response');
   }
 
-  const parsedResponse = JSON.parse(jsonMatch[0]);
+  return JSON.parse(jsonMatch[0]) as ParsedProposal;
+}
+
+/**
+ * Generate a single patch proposal using Claude
+ */
+async function generateSinglePatchProposal(
+  client: Anthropic,
+  vuln: VulnerabilityInfo,
+  projectPath: string
+): Promise<PatchProposal> {
+  const prompt = buildVulnerabilityPrompt(vuln);
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 2000,
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  const parsedResponse = parseClaudeResponse(response.content[0]);
 
   return {
     vulnerabilityId: vuln.id,
-    analysis: parsedResponse.analysis,
-    proposal: parsedResponse.proposal,
-    minimalChanges: parsedResponse.minimalChanges,
-    riskAssessment: parsedResponse.riskAssessment
+    ...parsedResponse
   };
+}
+
+/**
+ * Group vulnerabilities by severity level
+ */
+function groupBySeverity(
+  vulnerabilities: VulnerabilityInfo[],
+  proposals: PatchProposal[]
+): Record<string, Array<{ vuln: VulnerabilityInfo; proposal: PatchProposal }>> {
+  const bySeverity: Record<string, Array<{ vuln: VulnerabilityInfo; proposal: PatchProposal }>> = {
+    critical: [],
+    high: [],
+    medium: [],
+    low: []
+  };
+
+  vulnerabilities.forEach((vuln, index) => {
+    const proposal = proposals[index];
+    if (proposal) {
+      bySeverity[vuln.severity].push({ vuln, proposal });
+    }
+  });
+
+  return bySeverity;
+}
+
+/**
+ * Generate markdown section for a single vulnerability
+ */
+function generateVulnerabilitySection(
+  vuln: VulnerabilityInfo,
+  proposal: PatchProposal
+): string {
+  let section = `### ${vuln.packageName} (${vuln.id})\n\n`;
+  section += `**Current Version:** ${vuln.currentVersion}\n`;
+  section += `**Fixed Version:** ${vuln.fixedVersion}\n`;
+  section += `**Title:** ${vuln.title}\n\n`;
+
+  section += `**AI Analysis:**\n${proposal.analysis}\n\n`;
+
+  section += `**Proposed Changes:**\n`;
+  proposal.minimalChanges.forEach((change, i) => {
+    section += `${i + 1}. ${change}\n`;
+  });
+  section += '\n';
+
+  section += `**Risk Assessment:**\n${proposal.riskAssessment}\n\n`;
+
+  if (vuln.url) {
+    section += `**Reference:** ${vuln.url}\n\n`;
+  }
+
+  section += '---\n\n';
+
+  return section;
 }
 
 /**
@@ -133,19 +199,7 @@ export function createPatchDocument(
 `;
 
   // Group by severity
-  const bySeverity: Record<string, Array<{ vuln: VulnerabilityInfo; proposal: PatchProposal }>> = {
-    critical: [],
-    high: [],
-    medium: [],
-    low: []
-  };
-
-  vulnerabilities.forEach((vuln, index) => {
-    const proposal = proposals[index];
-    if (proposal) {
-      bySeverity[vuln.severity].push({ vuln, proposal });
-    }
-  });
+  const bySeverity = groupBySeverity(vulnerabilities, proposals);
 
   // Generate sections for each severity level
   for (const severity of ['critical', 'high', 'medium', 'low']) {
@@ -155,26 +209,7 @@ export function createPatchDocument(
     document += `## ${severity.toUpperCase()} Severity (${items.length})\n\n`;
 
     items.forEach(({ vuln, proposal }) => {
-      document += `### ${vuln.packageName} (${vuln.id})\n\n`;
-      document += `**Current Version:** ${vuln.currentVersion}\n`;
-      document += `**Fixed Version:** ${vuln.fixedVersion}\n`;
-      document += `**Title:** ${vuln.title}\n\n`;
-
-      document += `**AI Analysis:**\n${proposal.analysis}\n\n`;
-
-      document += `**Proposed Changes:**\n`;
-      proposal.minimalChanges.forEach((change, i) => {
-        document += `${i + 1}. ${change}\n`;
-      });
-      document += '\n';
-
-      document += `**Risk Assessment:**\n${proposal.riskAssessment}\n\n`;
-
-      if (vuln.url) {
-        document += `**Reference:** ${vuln.url}\n\n`;
-      }
-
-      document += '---\n\n';
+      document += generateVulnerabilitySection(vuln, proposal);
     });
   }
 

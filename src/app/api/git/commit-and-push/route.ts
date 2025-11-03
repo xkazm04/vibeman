@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
 import { GitManager } from '@/lib/gitManager';
 import { projectDb } from '@/lib/project_database';
 
@@ -81,6 +83,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
       );
     }
 
+    // Check for and remove 'null' file if it exists (Claude Code sometimes creates this)
+    try {
+      const nullFilePath = path.join(project.path, 'null');
+
+      if (fs.existsSync(nullFilePath)) {
+        console.log(`[GitOperation] Removing 'null' file from ${project.path}`);
+        fs.unlinkSync(nullFilePath);
+      }
+    } catch (cleanupError) {
+      console.warn('[GitOperation] Failed to check/remove null file:', cleanupError);
+      // Don't fail the operation if cleanup fails
+    }
+
     // Execute commands in sequence
     const results: Array<{
       command: string;
@@ -104,16 +119,46 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
           timeout: 30000 // 30 second timeout per command
         });
 
-        const output = stdout.trim() || stderr.trim();
+        // Combine stdout and stderr for output
+        const output = (stdout.trim() + (stderr.trim() ? '\n' + stderr.trim() : '')).trim();
+
+        // Check if stderr contains actual errors vs warnings
+        const hasWarnings = stderr && !stderr.includes('fatal') && !stderr.includes('error:');
+
         results.push({
           command: processedCommand,
           success: true,
           output: output || 'Command executed successfully'
         });
 
-        console.log(`[GitOperation] Success: ${processedCommand}`, output);
-      } catch (error) {
+        if (hasWarnings) {
+          console.log(`[GitOperation] Success with warnings: ${processedCommand}`, { stdout, stderr });
+        } else {
+          console.log(`[GitOperation] Success: ${processedCommand}`, output);
+        }
+      } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        const exitCode = error.code;
+
+        // Check if it's a non-fatal git error (like "nothing to commit")
+        const isNonFatal =
+          errorMessage.includes('nothing to commit') ||
+          errorMessage.includes('working tree clean') ||
+          errorMessage.includes('no changes added') ||
+          (exitCode === 1 && processedCommand.includes('git add'));
+
+        if (isNonFatal) {
+          // Treat as success with informational message
+          results.push({
+            command: processedCommand,
+            success: true,
+            output: errorMessage
+          });
+          console.log(`[GitOperation] Non-fatal: ${processedCommand}`, errorMessage);
+          continue; // Continue to next command
+        }
+
+        // Real error - log and stop
         results.push({
           command: processedCommand,
           success: false,
@@ -122,7 +167,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
 
         console.error(`[GitOperation] Failed: ${processedCommand}`, errorMessage);
 
-        // Stop execution on first failure
+        // Stop execution on first real failure
         return NextResponse.json(
           {
             success: false,

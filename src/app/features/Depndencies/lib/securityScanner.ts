@@ -16,16 +16,36 @@ interface VulnData {
   };
 }
 
+interface PipVuln {
+  id?: string;
+  severity?: string;
+  description?: string;
+  url?: string;
+  fix_versions?: string[];
+}
+
 interface PipDependency {
   name: string;
   version: string;
-  vulns?: Array<{
-    id?: string;
-    severity?: string;
-    description?: string;
-    url?: string;
-    fix_versions?: string[];
-  }>;
+  vulns?: PipVuln[];
+}
+
+interface NpmAuditMetadata {
+  total?: number;
+  critical?: number;
+  high?: number;
+  medium?: number;
+  low?: number;
+  vulnerabilities?: Record<string, number>;
+}
+
+interface NpmAuditOutput {
+  metadata?: NpmAuditMetadata;
+  vulnerabilities?: Record<string, VulnData>;
+}
+
+interface PipAuditOutput {
+  dependencies?: PipDependency[];
 }
 
 export interface SecurityScanResult {
@@ -39,151 +59,164 @@ export interface SecurityScanResult {
 }
 
 /**
- * Run npm audit on a project
+ * Helper to create VulnerabilityInfo from npm audit data
  */
-export async function runNpmAudit(projectPath: string): Promise<SecurityScanResult> {
+function createNpmVulnerability(
+  pkgName: string,
+  vulnData: VulnData,
+  via: VulnVia
+): VulnerabilityInfo {
+  return {
+    id: via.source?.toString() || 'unknown',
+    packageName: pkgName,
+    currentVersion: vulnData.range || 'unknown',
+    fixedVersion: vulnData.fixAvailable?.version || 'No fix available',
+    severity: (via.severity || 'medium') as 'critical' | 'high' | 'medium' | 'low',
+    title: via.title || 'Security vulnerability',
+    description: via.url || '',
+    url: via.url
+  };
+}
+
+/**
+ * Helper to create VulnerabilityInfo from pip audit data
+ */
+function createPipVulnerability(
+  dep: PipDependency,
+  vuln: PipVuln
+): VulnerabilityInfo {
+  return {
+    id: vuln.id || 'UNKNOWN',
+    packageName: dep.name,
+    currentVersion: dep.version,
+    fixedVersion: vuln.fix_versions?.[0] || 'No fix available',
+    severity: (vuln.severity?.toLowerCase() || 'medium') as 'critical' | 'high' | 'medium' | 'low',
+    title: vuln.description || 'Security vulnerability',
+    description: vuln.description || '',
+    url: vuln.url
+  };
+}
+
+/**
+ * Helper to execute a command and collect output
+ */
+interface SpawnResult {
+  stdout: string;
+  stderr: string;
+}
+
+function executeCommand(
+  command: string,
+  args: string[],
+  cwd: string
+): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
-    const npmAudit = spawn('npm', ['audit', '--json'], {
-      cwd: projectPath,
-      shell: true
-    });
+    const proc = spawn(command, args, { cwd, shell: true });
 
     let stdout = '';
     let stderr = '';
 
-    npmAudit.stdout.on('data', (data) => {
+    proc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    npmAudit.stderr.on('data', (data) => {
+    proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    npmAudit.on('close', (code) => {
-      try {
-        // npm audit returns non-zero exit code when vulnerabilities are found
-        // This is expected behavior, so we don't reject on non-zero codes
-        const auditData = JSON.parse(stdout);
+    proc.on('close', () => {
+      resolve({ stdout, stderr });
+    });
 
-        const vulnerabilities: VulnerabilityInfo[] = [];
-        const metadata = auditData.metadata?.vulnerabilities || {};
+    proc.on('error', (error) => {
+      reject(error);
+    });
+  });
+}
 
-        // Extract vulnerability details from npm audit v2 format
-        if (auditData.vulnerabilities) {
-          Object.entries(auditData.vulnerabilities).forEach(([pkgName, vulnData]: [string, VulnData]) => {
-            if (vulnData.via && Array.isArray(vulnData.via)) {
-              vulnData.via.forEach((via: VulnVia) => {
-                if (typeof via === 'object' && via.source) {
-                  vulnerabilities.push({
-                    id: via.source.toString(),
-                    packageName: pkgName,
-                    currentVersion: vulnData.range || 'unknown',
-                    fixedVersion: vulnData.fixAvailable?.version || 'No fix available',
-                    severity: (via.severity || 'medium') as 'critical' | 'high' | 'medium' | 'low',
-                    title: via.title || 'Security vulnerability',
-                    description: via.url || '',
-                    url: via.url
-                  });
-                }
-              });
+/**
+ * Run npm audit on a project
+ */
+export async function runNpmAudit(projectPath: string): Promise<SecurityScanResult> {
+  try {
+    const { stdout } = await executeCommand('npm', ['audit', '--json'], projectPath);
+
+    // npm audit returns non-zero exit code when vulnerabilities are found
+    // This is expected behavior, so we don't reject on non-zero codes
+    const auditData: NpmAuditOutput = JSON.parse(stdout);
+
+    const vulnerabilities: VulnerabilityInfo[] = [];
+
+    // Extract vulnerability details from npm audit v2 format
+    if (auditData.vulnerabilities) {
+      Object.entries(auditData.vulnerabilities).forEach(([pkgName, vulnData]) => {
+        if (vulnData.via && Array.isArray(vulnData.via)) {
+          vulnData.via.forEach((via) => {
+            if (typeof via === 'object' && via.source) {
+              vulnerabilities.push(createNpmVulnerability(pkgName, vulnData, via));
             }
           });
         }
+      });
+    }
 
-        resolve({
-          totalVulnerabilities: metadata.total || 0,
-          criticalCount: metadata.critical || 0,
-          highCount: metadata.high || 0,
-          mediumCount: metadata.medium || 0,
-          lowCount: metadata.low || 0,
-          vulnerabilities,
-          rawOutput: auditData
-        });
-      } catch (parseError) {
-        reject(new Error(`Failed to parse npm audit output: ${parseError}`));
-      }
-    });
-
-    npmAudit.on('error', (error) => {
-      reject(new Error(`Failed to run npm audit: ${error.message}`));
-    });
-  });
+    return {
+      totalVulnerabilities: auditData.metadata?.total || 0,
+      criticalCount: auditData.metadata?.critical || 0,
+      highCount: auditData.metadata?.high || 0,
+      mediumCount: auditData.metadata?.medium || 0,
+      lowCount: auditData.metadata?.low || 0,
+      vulnerabilities,
+      rawOutput: auditData as Record<string, unknown>
+    };
+  } catch (parseError) {
+    throw new Error(`Failed to parse npm audit output: ${parseError}`);
+  }
 }
 
 /**
  * Run pip-audit on a Python project
  */
 export async function runPipAudit(projectPath: string): Promise<SecurityScanResult> {
-  return new Promise((resolve, reject) => {
-    const pipAudit = spawn('pip-audit', ['--format', 'json'], {
-      cwd: projectPath,
-      shell: true
-    });
+  try {
+    const { stdout } = await executeCommand('pip-audit', ['--format', 'json'], projectPath);
 
-    let stdout = '';
-    let stderr = '';
+    const auditData: PipAuditOutput = JSON.parse(stdout);
 
-    pipAudit.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
+    const vulnerabilities: VulnerabilityInfo[] = [];
+    let criticalCount = 0;
+    let highCount = 0;
+    let mediumCount = 0;
+    let lowCount = 0;
 
-    pipAudit.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
+    // Extract vulnerability details from pip-audit format
+    if (auditData.dependencies) {
+      auditData.dependencies.forEach((dep) => {
+        dep.vulns?.forEach((vuln) => {
+          const severity = (vuln.severity?.toLowerCase() || 'medium') as 'critical' | 'high' | 'medium' | 'low';
 
-    pipAudit.on('close', (code) => {
-      try {
-        const auditData = JSON.parse(stdout);
+          if (severity === 'critical') criticalCount++;
+          else if (severity === 'high') highCount++;
+          else if (severity === 'medium') mediumCount++;
+          else if (severity === 'low') lowCount++;
 
-        const vulnerabilities: VulnerabilityInfo[] = [];
-        let criticalCount = 0;
-        let highCount = 0;
-        let mediumCount = 0;
-        let lowCount = 0;
-
-        // Extract vulnerability details from pip-audit format
-        if (auditData.dependencies) {
-          auditData.dependencies.forEach((dep: PipDependency) => {
-            dep.vulns?.forEach((vuln) => {
-              const severity = (vuln.severity?.toLowerCase() || 'medium') as 'critical' | 'high' | 'medium' | 'low';
-
-              if (severity === 'critical') criticalCount++;
-              else if (severity === 'high') highCount++;
-              else if (severity === 'medium') mediumCount++;
-              else if (severity === 'low') lowCount++;
-
-              vulnerabilities.push({
-                id: vuln.id || 'UNKNOWN',
-                packageName: dep.name,
-                currentVersion: dep.version,
-                fixedVersion: vuln.fix_versions?.[0] || 'No fix available',
-                severity,
-                title: vuln.description || 'Security vulnerability',
-                description: vuln.description || '',
-                url: vuln.url
-              });
-            });
-          });
-        }
-
-        resolve({
-          totalVulnerabilities: vulnerabilities.length,
-          criticalCount,
-          highCount,
-          mediumCount,
-          lowCount,
-          vulnerabilities,
-          rawOutput: auditData
+          vulnerabilities.push(createPipVulnerability(dep, vuln));
         });
-      } catch (parseError) {
-        reject(new Error(`Failed to parse pip-audit output: ${parseError}`));
-      }
-    });
+      });
+    }
 
-    pipAudit.on('error', (error) => {
-      reject(new Error(`pip-audit not found or failed to run: ${error.message}`));
-    });
-  });
+    return {
+      totalVulnerabilities: vulnerabilities.length,
+      criticalCount,
+      highCount,
+      mediumCount,
+      lowCount,
+      vulnerabilities,
+      rawOutput: auditData as Record<string, unknown>
+    };
+  } catch (parseError) {
+    throw new Error(`pip-audit not found or failed to run: ${parseError}`);
+  }
 }
 
 /**

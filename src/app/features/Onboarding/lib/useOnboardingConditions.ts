@@ -3,6 +3,36 @@ import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
+interface Idea {
+  status: string;
+}
+
+interface IdeasResponse {
+  success: boolean;
+  ideas?: Idea[];
+}
+
+interface ContextsResponse {
+  success: boolean;
+  data: {
+    contexts: unknown[];
+  };
+}
+
+/**
+ * Generic function to complete a step if condition is met
+ */
+function completeStepIfNeeded(
+  condition: boolean,
+  stepId: string,
+  isStepCompleted: (id: string) => boolean,
+  completeStep: (id: string) => void
+): void {
+  if (condition && !isStepCompleted(stepId)) {
+    completeStep(stepId);
+  }
+}
+
 /**
  * Hook to check all onboarding conditions and auto-complete steps
  */
@@ -18,9 +48,7 @@ export function useOnboardingAutoComplete() {
 
   // Check Step 1: Create a project
   useEffect(() => {
-    if (projects.length > 0 && !isStepCompleted('create-project')) {
-      completeStep('create-project');
-    }
+    completeStepIfNeeded(projects.length > 0, 'create-project', isStepCompleted, completeStep);
   }, [projects.length, completeStep, isStepCompleted]);
 
   // Check Step 2: Generate documentation (high.md exists)
@@ -41,10 +69,8 @@ export function useOnboardingAutoComplete() {
         const exists = data.exists === true;
         setHasHighMd(exists);
 
-        if (exists && !isStepCompleted('generate-docs')) {
-          completeStep('generate-docs');
-        }
-      } catch (error) {
+        completeStepIfNeeded(exists, 'generate-docs', isStepCompleted, completeStep);
+      } catch {
         // Silently fail - file check is non-critical
       }
     };
@@ -57,17 +83,15 @@ export function useOnboardingAutoComplete() {
     const checkContexts = async () => {
       try {
         const response = await fetch('/api/contexts');
-        const data = await response.json();
+        const data = await response.json() as ContextsResponse;
 
         if (data.success && data.data.contexts) {
           const hasAny = data.data.contexts.length > 0;
           setHasContexts(hasAny);
 
-          if (hasAny && !isStepCompleted('compose-context')) {
-            completeStep('compose-context');
-          }
+          completeStepIfNeeded(hasAny, 'compose-context', isStepCompleted, completeStep);
         }
-      } catch (error) {
+      } catch {
         // Silently fail - context check is non-critical
       }
     };
@@ -80,28 +104,24 @@ export function useOnboardingAutoComplete() {
     const checkIdeas = async () => {
       try {
         const response = await fetch('/api/ideas');
-        const data = await response.json();
+        const data = await response.json() as IdeasResponse;
 
         if (data.success && data.ideas) {
           const hasAny = data.ideas.length > 0;
           setHasIdeas(hasAny);
 
-          if (hasAny && !isStepCompleted('scan-ideas')) {
-            completeStep('scan-ideas');
-          }
+          completeStepIfNeeded(hasAny, 'scan-ideas', isStepCompleted, completeStep);
 
           // Also check for implemented ideas (Step 5)
           const implemented = data.ideas.filter(
-            (idea: { status: string }) => idea.status === 'implemented'
+            (idea: Idea) => idea.status === 'implemented'
           );
           const hasImpl = implemented.length > 0;
           setHasImplementedIdeas(hasImpl);
 
-          if (hasImpl && !isStepCompleted('let-code')) {
-            completeStep('let-code');
-          }
+          completeStepIfNeeded(hasImpl, 'let-code', isStepCompleted, completeStep);
         }
-      } catch (error) {
+      } catch {
         // Silently fail - idea check is non-critical
       }
     };

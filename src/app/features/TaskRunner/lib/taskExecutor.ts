@@ -56,6 +56,12 @@ export function updateBatchProgress(reqId: string): void {
 }
 
 /**
+ * Track which requirements are currently being executed
+ * This allows parallel execution of multiple batches
+ */
+const executingRequirements = new Set<string>();
+
+/**
  * Configuration for task execution
  */
 export interface TaskExecutorConfig {
@@ -70,6 +76,7 @@ export interface TaskExecutorConfig {
 
 /**
  * Execute the next requirement in the queue
+ * Supports parallel execution of multiple batches
  */
 export async function executeNextRequirement(config: TaskExecutorConfig): Promise<void> {
   const {
@@ -84,17 +91,33 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
 
   const { setRequirements, setSelectedRequirements, setProcessedCount, setError, setIsRunning } = actions;
 
-  if (executionQueueRef.current.length === 0 || isExecutingRef.current || isPaused) return;
+  if (executionQueueRef.current.length === 0 || isPaused) return;
 
-  isExecutingRef.current = true;
-  const reqId = executionQueueRef.current[0];
+  // Find next requirement that isn't already executing
+  let reqId: string | null = null;
+  let reqIndex = -1;
+
+  for (let i = 0; i < executionQueueRef.current.length; i++) {
+    const candidateId = executionQueueRef.current[i];
+    if (!executingRequirements.has(candidateId)) {
+      reqId = candidateId;
+      reqIndex = i;
+      break;
+    }
+  }
+
+  // All queued requirements are already executing
+  if (!reqId || reqIndex === -1) return;
+
   const req = requirements.find((r) => getRequirementId(r) === reqId);
 
   if (!req) {
-    executionQueueRef.current.shift();
-    isExecutingRef.current = false;
+    executionQueueRef.current.splice(reqIndex, 1);
     return;
   }
+
+  // Mark this requirement as executing (allows other batches to run in parallel)
+  executingRequirements.add(reqId);
 
   // Update status to running
   setRequirements((prev) =>
@@ -106,7 +129,7 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
   );
 
   // Remove from queue
-  executionQueueRef.current.shift();
+  executionQueueRef.current.splice(reqIndex, 1);
   setProcessedCount((prev) => prev + 1);
 
   try {
@@ -238,7 +261,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
             } catch (deleteError) {
               setError(`Failed to delete completed requirement: ${req.requirementName}`);
             } finally {
-              isExecutingRef.current = false;
+              // Remove from executing set to allow other requirements to run
+              executingRequirements.delete(reqId);
 
               // Trigger next task execution if queue has more items
               if (executionQueueRef.current.length > 0 && !isPaused) {
@@ -246,7 +270,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
               }
             }
           } else if (task.status === 'failed') {
-            isExecutingRef.current = false;
+            // Remove from executing set
+            executingRequirements.delete(reqId);
 
             // Continue with next task if queue has more items
             if (executionQueueRef.current.length > 0 && !isPaused) {
@@ -257,7 +282,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
             const logInfo = task.logFilePath ? ` Check log: ${task.logFilePath}` : '';
             setError(`Task failed: ${req.requirementName}\nError: ${errorMessage}${logInfo}`);
           } else if (task.status === 'session-limit') {
-            isExecutingRef.current = false;
+            // Remove from executing set
+            executingRequirements.delete(reqId);
             const errorMessage = task.error || 'Session limit reached';
             setError(`Session limit reached: ${errorMessage}\nPlease try again later.`);
             executionQueueRef.current = [];
@@ -282,7 +308,9 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
         // If too many consecutive errors, stop polling and mark as failed
         if (pollErrorCount >= MAX_POLL_ERRORS) {
           clearInterval(pollIntervalId);
-          isExecutingRef.current = false;
+
+          // Remove from executing set
+          executingRequirements.delete(reqId);
 
           setRequirements((prev) =>
             prev.map((r) =>
@@ -306,7 +334,10 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
     pollIntervalId = setInterval(pollStatus, currentPollInterval);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    isExecutingRef.current = false;
+
+    // Remove from executing set
+    executingRequirements.delete(reqId);
+
     setError(`Failed to execute: ${req.requirementName}\nError: ${errorMessage}`);
 
     setRequirements((prev) =>

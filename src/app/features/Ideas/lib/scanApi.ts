@@ -38,7 +38,7 @@ export async function gatherCodebaseFiles(
     const data = await response.json();
     return data.files || [];
 
-  } catch (error) {
+  } catch {
     return [];
   }
 }

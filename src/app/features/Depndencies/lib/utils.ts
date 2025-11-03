@@ -38,6 +38,44 @@ export function compareVersions(v1: string, v2: string): number {
 }
 
 /**
+ * Helper to get version comparison styling
+ */
+function getVersionComparisonStyle(
+  comparison: number,
+  upToDateStyle: string,
+  outdatedStyle: string,
+  unknownStyle: string
+): string {
+  if (comparison === 0) return upToDateStyle;
+  if (comparison < 0) return outdatedStyle;
+  return unknownStyle;
+}
+
+/**
+ * Helper to get styled version state (reduces duplication)
+ */
+function getVersionStateStyle(
+  isShared: boolean,
+  currentVersion: string | null,
+  latestVersion: string | null,
+  noVersionStyle: string,
+  uniqueStyle: string,
+  upToDateStyle: string,
+  outdatedStyle: string,
+  unknownStyle: string
+): string {
+  if (!currentVersion) return noVersionStyle;
+  if (!isShared) return uniqueStyle;
+
+  if (latestVersion) {
+    const comparison = compareVersions(currentVersion, latestVersion);
+    return getVersionComparisonStyle(comparison, upToDateStyle, outdatedStyle, unknownStyle);
+  }
+
+  return unknownStyle;
+}
+
+/**
  * Get version color based on comparison with other projects
  */
 export function getVersionColor(
@@ -45,20 +83,16 @@ export function getVersionColor(
   currentVersion: string | null,
   latestVersion: string | null
 ): string {
-  if (!currentVersion) return 'text-gray-600';
-  if (!isShared) return 'text-gray-300'; // Default for unique libraries
-
-  // Compare with latest version using semantic versioning
-  if (latestVersion) {
-    const comparison = compareVersions(currentVersion, latestVersion);
-    if (comparison === 0) {
-      return 'text-green-400'; // Up-to-date (semantically equal)
-    } else if (comparison < 0) {
-      return 'text-red-400'; // Outdated version
-    }
-  }
-
-  return 'text-yellow-400'; // Unknown comparison
+  return getVersionStateStyle(
+    isShared,
+    currentVersion,
+    latestVersion,
+    'text-gray-600',
+    'text-gray-300',
+    'text-green-400',
+    'text-red-400',
+    'text-yellow-400'
+  );
 }
 
 /**
@@ -69,20 +103,16 @@ export function getCellBackground(
   currentVersion: string | null,
   latestVersion: string | null
 ): string {
-  if (!currentVersion) return 'bg-gray-900/20';
-  if (!isShared) return 'bg-gray-800/40';
-
-  // Compare with latest version using semantic versioning
-  if (latestVersion) {
-    const comparison = compareVersions(currentVersion, latestVersion);
-    if (comparison === 0) {
-      return 'bg-green-500/10'; // Up-to-date (semantically equal)
-    } else if (comparison < 0) {
-      return 'bg-red-500/10'; // Outdated version
-    }
-  }
-
-  return 'bg-yellow-500/10';
+  return getVersionStateStyle(
+    isShared,
+    currentVersion,
+    latestVersion,
+    'bg-gray-900/20',
+    'bg-gray-800/40',
+    'bg-green-500/10',
+    'bg-red-500/10',
+    'bg-yellow-500/10'
+  );
 }
 
 /**

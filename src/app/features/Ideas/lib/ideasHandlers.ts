@@ -15,7 +15,7 @@ export async function fetchIdeas(): Promise<DbIdea[]> {
       return data.ideas || [];
     }
     return [];
-  } catch (error) {
+  } catch {
     return [];
   }
 }
@@ -39,7 +39,7 @@ export async function updateIdea(ideaId: string, updates: Partial<DbIdea>): Prom
       return data.idea;
     }
     return null;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -53,7 +53,7 @@ export async function deleteIdea(ideaId: string): Promise<boolean> {
       method: 'DELETE'
     });
     return response.ok;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -72,7 +72,7 @@ export async function deleteAllIdeas(): Promise<{ success: boolean; deletedCount
       return { success: true, deletedCount: data.deletedCount };
     }
     return { success: false, deletedCount: 0 };
-  } catch (error) {
+  } catch {
     return { success: false, deletedCount: 0 };
   }
 }
