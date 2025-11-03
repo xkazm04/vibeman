@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { goalDb } from '@/app/db';
 import { randomUUID } from 'crypto';
+import { logger } from '@/lib/logger';
+import { createErrorResponse, handleError, notFoundResponse } from '@/lib/api-helpers';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
 export async function GET(request: NextRequest) {
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest) {
       const goal = goalDb.getGoalById(goalId);
       
       if (!goal) {
-        return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
+        return notFoundResponse('Goal');
       }
       
       return NextResponse.json({ goal });
@@ -22,14 +24,14 @@ export async function GET(request: NextRequest) {
 
     // Otherwise, fetch all goals for project
     if (!projectId) {
-      return NextResponse.json({ error: 'Project ID or Goal ID is required' }, { status: 400 });
+      return createErrorResponse('Project ID or Goal ID is required', 400);
     }
 
     const goals = goalDb.getGoalsByProject(projectId);
     return NextResponse.json({ goals });
   } catch (error) {
-    console.error('Error in GET /api/goals:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logger.error('Error in GET /api/goals:', { error });
+    return createErrorResponse('Internal server error', 500);
   }
 }
 
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
     const { projectId, contextId, title, description, status = 'open', orderIndex } = body;
 
     if (!projectId || !title) {
-      return NextResponse.json({ error: 'Project ID and title are required' }, { status: 400 });
+      return createErrorResponse('Project ID and title are required', 400);
     }
 
     // If no order index provided, get the next available one
@@ -61,8 +63,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ goal });
   } catch (error) {
-    console.error('Error in POST /api/goals:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logger.error('Error in POST /api/goals:', { error });
+    return createErrorResponse('Internal server error', 500);
   }
 }
 
@@ -73,7 +75,7 @@ export async function PUT(request: NextRequest) {
     const { id, title, description, status, orderIndex, contextId } = body;
 
     if (!id) {
-      return NextResponse.json({ error: 'Goal ID is required' }, { status: 400 });
+      return createErrorResponse('Goal ID is required', 400);
     }
 
     const updateData: {
@@ -92,13 +94,13 @@ export async function PUT(request: NextRequest) {
     const goal = goalDb.updateGoal(id, updateData);
 
     if (!goal) {
-      return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
+      return notFoundResponse('Goal');
     }
 
     return NextResponse.json({ goal });
   } catch (error) {
-    console.error('Error in PUT /api/goals:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logger.error('Error in PUT /api/goals:', { error });
+    return createErrorResponse('Internal server error', 500);
   }
 }
 
@@ -109,18 +111,18 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json({ error: 'Goal ID is required' }, { status: 400 });
+      return createErrorResponse('Goal ID is required', 400);
     }
 
     const success = goalDb.deleteGoal(id);
 
     if (!success) {
-      return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
+      return notFoundResponse('Goal');
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/goals:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logger.error('Error in DELETE /api/goals:', { error });
+    return createErrorResponse('Internal server error', 500);
   }
 } 

@@ -31,39 +31,66 @@ export interface RequirementFileConfig {
 }
 
 /**
+ * Helper: Get issue type label
+ */
+function getIssueTypeLabel(violationType: string): string {
+  switch (violationType) {
+    case 'misplaced':
+      return 'File in wrong location';
+    case 'anti-pattern':
+      return 'Anti-pattern detected';
+    default:
+      return 'Missing expected structure';
+  }
+}
+
+/**
+ * Helper: Get action required text based on violation type
+ */
+function getActionRequiredText(violation: StructureViolation): string {
+  switch (violation.violationType) {
+    case 'misplaced':
+      return `- Move \`${violation.currentLocation}\` to \`${violation.expectedLocation}\`
+- Update all imports that reference this file
+- Verify the file works correctly in the new location`;
+    case 'anti-pattern':
+      return `- Refactor or relocate \`${violation.currentLocation}\`
+- Follow the pattern: ${violation.expectedLocation}
+- Update imports and references`;
+    default:
+      return `- Create the expected structure at \`${violation.expectedLocation}\`
+- Follow the guideline: ${violation.reason}`;
+  }
+}
+
+/**
+ * Helper: Format a single violation for the requirement file
+ */
+function formatViolation(violation: StructureViolation, index: number): string {
+  return `
+### ${index + 1}. ${violation.filePath}
+
+**Issue**: ${getIssueTypeLabel(violation.violationType)}
+
+**Current Location**: \`${violation.currentLocation}\`
+
+**Expected Location**: \`${violation.expectedLocation}\`
+
+**Reason**: ${violation.reason}
+
+**Action Required**:
+${getActionRequiredText(violation)}
+`;
+}
+
+/**
  * Generate a Claude Code requirement file for structure violations
  */
 export function generateViolationRequirement(config: RequirementFileConfig): string {
   const { projectType, projectPath, violations, batchNumber, totalBatches } = config;
 
   const violationsList = violations
-    .map(
-      (v, idx) => `
-### ${idx + 1}. ${v.filePath}
-
-**Issue**: ${v.violationType === 'misplaced' ? 'File in wrong location' : v.violationType === 'anti-pattern' ? 'Anti-pattern detected' : 'Missing expected structure'}
-
-**Current Location**: \`${v.currentLocation}\`
-
-**Expected Location**: \`${v.expectedLocation}\`
-
-**Reason**: ${v.reason}
-
-**Action Required**:
-${
-  v.violationType === 'misplaced'
-    ? `- Move \`${v.currentLocation}\` to \`${v.expectedLocation}\`
-- Update all imports that reference this file
-- Verify the file works correctly in the new location`
-    : v.violationType === 'anti-pattern'
-      ? `- Refactor or relocate \`${v.currentLocation}\`
-- Follow the pattern: ${v.expectedLocation}
-- Update imports and references`
-      : `- Create the expected structure at \`${v.expectedLocation}\`
-- Follow the guideline: ${v.reason}`
-}
-`
-    )
+    .map((v, idx) => formatViolation(v, idx))
     .join('\n---\n');
 
   return `# Structure Refactoring (Batch ${batchNumber}/${totalBatches})

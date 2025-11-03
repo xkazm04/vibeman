@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ queueItems });
   } catch (error) {
-    console.error('Error fetching queue items:', error);
+    logger.error('Error fetching queue items:', { error: error });
     return NextResponse.json(
       { error: 'Failed to fetch queue items', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ queueItem }, { status: 201 });
   } catch (error) {
-    console.error('Error creating queue item:', error);
+    logger.error('Error creating queue item:', { error: error });
     return NextResponse.json(
       { error: 'Failed to create queue item', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

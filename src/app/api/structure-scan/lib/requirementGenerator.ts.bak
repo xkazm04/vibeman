@@ -45,13 +45,13 @@ export async function generateAndSaveRequirements(
 
       console.log(`[RequirementGenerator] 💾 Saving requirement: ${requirementFileName}`);
 
-      const result = createRequirement(projectPath, requirementFileName, requirementContent);
+      const success = await createRequirement(projectPath, requirementFileName, requirementContent);
 
-      if (result.success) {
+      if (success) {
         requirementFiles.push(requirementFileName);
-        console.log(`[RequirementGenerator] ✅ Saved: ${requirementFileName} at ${result.filePath}`);
+        console.log(`[RequirementGenerator] ✅ Saved: ${requirementFileName}`);
       } else {
-        console.error(`[RequirementGenerator] ❌ Failed to save: ${requirementFileName}. Error: ${result.error}`);
+        console.error(`[RequirementGenerator] ❌ Failed to save: ${requirementFileName}`);
       }
     }
 

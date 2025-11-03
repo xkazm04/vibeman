@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries, contextGroupQueries } from '../../../lib/queries/contextQueries';
-import { contextDb } from '@/app/db';
+import { logger } from '@/lib/logger';
+import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
 
 // GET /api/contexts - Get all contexts (optionally filtered by project)
 export async function GET(request: NextRequest) {
@@ -34,11 +35,8 @@ export async function GET(request: NextRequest) {
       data: { contexts: allContexts, groups: [] }
     });
   } catch (error) {
-    console.error('Failed to fetch contexts:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch contexts' },
-      { status: 500 }
-    );
+    logger.error('Failed to fetch contexts:', { error });
+    return createErrorResponse('Failed to fetch contexts', 500);
   }
 }
 
@@ -49,10 +47,7 @@ export async function POST(request: NextRequest) {
     const { projectId, groupId, name, description, filePaths } = body;
 
     if (!projectId || !name || !filePaths) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return createErrorResponse('Missing required fields', 400);
     }
 
     const context = await contextQueries.createContext({
@@ -68,7 +63,7 @@ export async function POST(request: NextRequest) {
       data: context
     });
   } catch (error) {
-    console.error('Failed to create context:', error);
+    logger.error('Failed to create context:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create context' },
       { status: 500 }
@@ -83,19 +78,13 @@ export async function PUT(request: NextRequest) {
     const { contextId, updates } = body;
 
     if (!contextId) {
-      return NextResponse.json(
-        { error: 'Context ID is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Context ID is required', 400);
     }
 
     const context = await contextQueries.updateContext(contextId, updates);
 
     if (!context) {
-      return NextResponse.json(
-        { error: 'Context not found' },
-        { status: 404 }
-      );
+      return notFoundResponse('Context');
     }
 
     return NextResponse.json({
@@ -103,7 +92,7 @@ export async function PUT(request: NextRequest) {
       data: context
     });
   } catch (error) {
-    console.error('Failed to update context:', error);
+    logger.error('Failed to update context:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update context' },
       { status: 500 }
@@ -118,19 +107,13 @@ export async function DELETE(request: NextRequest) {
     const contextId = searchParams.get('contextId');
 
     if (!contextId) {
-      return NextResponse.json(
-        { error: 'Context ID is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Context ID is required', 400);
     }
 
     const success = await contextQueries.deleteContext(contextId);
 
     if (!success) {
-      return NextResponse.json(
-        { error: 'Context not found' },
-        { status: 404 }
-      );
+      return notFoundResponse('Context');
     }
 
     return NextResponse.json({
@@ -138,7 +121,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Context deleted successfully'
     });
   } catch (error) {
-    console.error('Failed to delete context:', error);
+    logger.error('Failed to delete context:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete context' },
       { status: 500 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { implementationLogDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET - Get recent implementation logs for a project
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ logs });
   } catch (error) {
-    console.error('Error fetching implementation logs:', error);
+    logger.error('Error fetching implementation logs:', { error: error });
     return NextResponse.json(
       {
         error: 'Internal server error',
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ log });
   } catch (error) {
-    console.error('Error creating implementation log:', error);
+    logger.error('Error creating implementation log:', { error: error });
     return NextResponse.json(
       {
         error: 'Internal server error',
@@ -100,7 +101,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ log });
   } catch (error) {
-    console.error('Error updating implementation log:', error);
+    logger.error('Error updating implementation log:', { error: error });
     return NextResponse.json(
       {
         error: 'Internal server error',
@@ -130,7 +131,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting implementation log:', error);
+    logger.error('Error deleting implementation log:', { error: error });
     return NextResponse.json(
       {
         error: 'Internal server error',

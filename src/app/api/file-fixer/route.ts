@@ -3,6 +3,8 @@ import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import { logger } from '@/lib/logger';
+import { createErrorResponse, handleError, notFoundResponse } from '@/lib/api-helpers';
 
 const execAsync = promisify(exec);
 
@@ -92,7 +94,7 @@ async function detectBuildCommand(projectPath?: string): Promise<string> {
     // Last resort - full build (may conflict with dev server)
     return `${packageManager} run build`;
   } catch (error) {
-    console.error('Error detecting build command:', error);
+    logger.error('Error detecting build command:', { error });
     return 'npx tsc --noEmit --skipLibCheck';
   }
 }
@@ -258,8 +260,8 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
   
   return new Promise(async (resolve) => {
     const workingDir = projectPath || process.cwd();
-    console.log(`Executing build command in separate process: ${command} (ID: ${processId})`);
-    console.log(`Working directory: ${workingDir}`);
+    logger.info(`Executing build command in separate process: ${command} (ID: ${processId})`);
+    logger.info(`Working directory: ${workingDir}`);
     
     // If this is a TypeScript check command, ensure we use safe options
     let finalCommand = command;
@@ -307,9 +309,9 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
       // Remove from tracking
       runningProcesses.delete(processId);
       
-      console.log(`Build command completed with exit code: ${code} (ID: ${processId})`);
-      console.log(`Execution time: ${executionTime}ms`);
-      console.log(`Command executed: ${finalCommand}`);
+      logger.info(`Build command completed with exit code: ${code} (ID: ${processId})`);
+      logger.info(`Execution time: ${executionTime}ms`);
+      logger.info(`Command executed: ${finalCommand}`);
       
       try {
         // Parse errors from different sources
@@ -347,7 +349,7 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
         });
         
       } catch (parseError) {
-        console.error('Error parsing build output:', parseError);
+        logger.error('Error parsing build output:', parseError);
         resolve({
           success: false,
           errors: [{
@@ -374,7 +376,7 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
       // Remove from tracking
       runningProcesses.delete(processId);
       
-      console.error(`Build process error (ID: ${processId}):`, error);
+      logger.error(`Build process error (ID: ${processId}):`, { error });
       
       resolve({
         success: false,
@@ -397,7 +399,7 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
     // Set timeout to prevent hanging
     setTimeout(() => {
       if (!buildProcess.killed) {
-        console.log('Build command timeout, killing process...');
+        logger.info('Build command timeout, killing process...');
         buildProcess.kill('SIGTERM');
         
         setTimeout(() => {
@@ -425,10 +427,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(result);
         
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return createErrorResponse('Invalid action', 400);
     }
   } catch (error) {
-    console.error('File fixer API error:', error);
+    logger.error('File fixer API error:', { error });
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -443,34 +445,31 @@ export async function GET(request: NextRequest) {
     const buildCommand = await detectBuildCommand(projectPath || undefined);
     return NextResponse.json({ buildCommand });
   } catch (error) {
-    console.error('File fixer GET error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error('File fixer GET error:', { error });
+    return createErrorResponse('Internal server error', 500);
   }
 }
 
 // Cleanup function for running processes
 function cleanupRunningProcesses(): void {
-  console.log(`Cleaning up ${runningProcesses.size} running build processes...`);
+  logger.info(`Cleaning up ${runningProcesses.size} running build processes...`);
   
   for (const [processId, process] of runningProcesses.entries()) {
     try {
       if (!process.killed) {
-        console.log(`Terminating build process: ${processId}`);
+        logger.info(`Terminating build process: ${processId}`);
         process.kill('SIGTERM');
         
         // Force kill after 5 seconds if still running
         setTimeout(() => {
           if (!process.killed) {
-            console.log(`Force killing build process: ${processId}`);
+            logger.info(`Force killing build process: ${processId}`);
             process.kill('SIGKILL');
           }
         }, 5000);
       }
     } catch (error) {
-      console.error(`Error cleaning up process ${processId}:`, error);
+      logger.error(`Error cleaning up process ${processId}:`, { error });
     }
   }
   

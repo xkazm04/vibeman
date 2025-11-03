@@ -16,6 +16,74 @@ import {
 } from './violationRequirementTemplate';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import {minimatch} from 'minimatch';
+import { logger } from '@/lib/logger';
+
+// Constants
+const DEFAULT_IGNORE_PATTERNS = [
+  'node_modules/**',
+  '.next/**',
+  '.git/**',
+  'dist/**',
+  'build/**',
+  '__pycache__/**',
+  '*.pyc',
+  '.venv/**',
+  'venv/**',
+  '.claude/**',
+  'database/**',
+  'context/**',
+  'public/**',
+];
+
+const STANDARD_FOLDERS = ['src', 'public', 'node_modules', '.next', '.git', 'dist', 'build'];
+const STANDARD_HIDDEN_FOLDERS = ['.next', '.git', '.vscode', '.idea', '.claude'];
+
+const MAX_VIOLATIONS_PER_FILE = 20;
+
+/**
+ * Helper: Check if a path should be ignored
+ */
+function shouldIgnorePath(relativePath: string, ignorePatterns: string[]): boolean {
+  return ignorePatterns.some(pattern =>
+    minimatch(relativePath, pattern, { dot: true })
+  );
+}
+
+/**
+ * Helper: Normalize path to use forward slashes
+ */
+function normalizePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+/**
+ * Helper: Recursively scan a directory for files
+ */
+async function scanDirectory(
+  currentPath: string,
+  relativePath: string,
+  ignorePatterns: string[],
+  files: string[]
+): Promise<void> {
+  try {
+    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+      const entryFullPath = path.join(currentPath, entry.name);
+
+      if (shouldIgnorePath(entryRelPath, ignorePatterns)) continue;
+
+      if (entry.isDirectory()) {
+        await scanDirectory(entryFullPath, entryRelPath, ignorePatterns, files);
+      } else if (entry.isFile()) {
+        files.push(normalizePath(entryRelPath));
+      }
+    }
+  } catch (error) {
+    logger.error(`Error scanning ${currentPath}:`, { error });
+  }
+}
 
 /**
  * Helper: Recursively get all files in a directory
@@ -25,35 +93,7 @@ async function getAllFiles(
   ignorePatterns: string[] = []
 ): Promise<string[]> {
   const files: string[] = [];
-
-  async function scan(currentPath: string, relativePath: string = '') {
-    try {
-      const entries = await fs.readdir(currentPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-        const entryFullPath = path.join(currentPath, entry.name);
-
-        // Check if should ignore
-        const shouldIgnore = ignorePatterns.some(pattern =>
-          minimatch(entryRelPath, pattern, { dot: true })
-        );
-
-        if (shouldIgnore) continue;
-
-        if (entry.isDirectory()) {
-          await scan(entryFullPath, entryRelPath);
-        } else if (entry.isFile()) {
-          // Use forward slashes for consistency
-          files.push(entryRelPath.replace(/\\/g, '/'));
-        }
-      }
-    } catch (error) {
-      console.error(`[StructureScan] Error scanning ${currentPath}:`, error);
-    }
-  }
-
-  await scan(dirPath);
+  await scanDirectory(dirPath, '', ignorePatterns, files);
   return files;
 }
 
@@ -68,15 +108,10 @@ function matchPattern(files: string[], pattern: string): string[] {
  * Helper: Check if a name matches a pattern (supports wildcards like "*-page", "sub_*", "*.tsx")
  */
 function matchesNamePattern(name: string, pattern: string): boolean {
-  // If pattern is "*", it matches anything
   if (pattern === '*') return true;
-
-  // If pattern has wildcards, use minimatch
   if (pattern.includes('*')) {
     return minimatch(name, pattern, { dot: true });
   }
-
-  // Exact match
   return name === pattern;
 }
 
@@ -92,37 +127,22 @@ function isAllowedInDirectory(
   matchedPattern?: string;
   description?: string;
 } {
-  if (isDirectory && rule.allowedFolders) {
-    for (const folderRule of rule.allowedFolders) {
-      if (matchesNamePattern(itemName, folderRule.name)) {
-        return {
-          allowed: true,
-          matchedPattern: folderRule.name,
-          description: folderRule.description,
-        };
-      }
-    }
-  }
+  const allowedItems = isDirectory ? rule.allowedFolders : rule.allowedFiles;
 
-  if (!isDirectory && rule.allowedFiles) {
-    for (const fileRule of rule.allowedFiles) {
-      if (matchesNamePattern(itemName, fileRule.name)) {
+  if (allowedItems) {
+    for (const itemRule of allowedItems) {
+      if (matchesNamePattern(itemName, itemRule.name)) {
         return {
           allowed: true,
-          matchedPattern: fileRule.name,
-          description: fileRule.description,
+          matchedPattern: itemRule.name,
+          description: itemRule.description,
         };
       }
     }
   }
 
   // If strict mode and not found in allowed list, it's not allowed
-  if (rule.strictMode) {
-    return { allowed: false };
-  }
-
-  // Non-strict mode: allow by default
-  return { allowed: true };
+  return { allowed: !rule.strictMode };
 }
 
 /**
@@ -133,12 +153,10 @@ function findDirectoryRule(
   rules: DirectoryRule[]
 ): DirectoryRule | null {
   for (const rule of rules) {
-    // Check if this rule matches the target path (exact or pattern match)
     if (rule.path === targetPath || matchesPathPattern(targetPath, rule.path)) {
       return rule;
     }
 
-    // Check subdirectory rules recursively
     if (rule.subdirectoryRules) {
       const subRule = findDirectoryRule(targetPath, rule.subdirectoryRules);
       if (subRule) return subRule;
@@ -151,33 +169,22 @@ function findDirectoryRule(
  * Helper: Check if a path matches a pattern (e.g., "src/app/features/sub_*" matches "src/app/features/sub_auth")
  */
 function matchesPathPattern(actualPath: string, patternPath: string): boolean {
-  // If no wildcard, must be exact match
   if (!patternPath.includes('*')) {
     return actualPath === patternPath;
   }
 
-  // Split both paths
   const actualParts = actualPath.split('/');
   const patternParts = patternPath.split('/');
 
-  // Must have same number of parts
   if (actualParts.length !== patternParts.length) {
     return false;
   }
 
-  // Check each part
-  for (let i = 0; i < patternParts.length; i++) {
-    if (!matchesNamePattern(actualParts[i], patternParts[i])) {
-      return false;
-    }
-  }
-
-  return true;
+  return patternParts.every((part, i) => matchesNamePattern(actualParts[i], part));
 }
 
 /**
  * Helper: Find the most specific rule that applies to a directory path
- * Returns the rule that governs what can be placed IN this directory
  */
 function findApplicableRule(
   targetPath: string,
@@ -188,21 +195,17 @@ function findApplicableRule(
 
   function searchRules(rules: DirectoryRule[], depth: number = 0) {
     for (const rule of rules) {
-      // Check if this rule matches exactly (this rule governs what's IN targetPath)
       if (targetPath === rule.path || matchesPathPattern(targetPath, rule.path)) {
         if (depth > bestMatchDepth) {
           bestMatch = rule;
           bestMatchDepth = depth;
         }
       } else if (targetPath.startsWith(rule.path + '/')) {
-        // Target is inside this rule's directory
-        // First, mark this rule as a potential match (parent rule)
         if (depth > bestMatchDepth) {
           bestMatch = rule;
           bestMatchDepth = depth;
         }
 
-        // Then check subdirectories for a more specific match
         if (rule.subdirectoryRules) {
           searchRules(rule.subdirectoryRules, depth + 1);
         }
@@ -215,6 +218,39 @@ function findApplicableRule(
 }
 
 /**
+ * Helper: Scan directory and collect items
+ */
+async function scanDirectoryItems(
+  currentPath: string,
+  relativePath: string,
+  ignorePatterns: string[],
+  items: Map<string, { isDirectory: boolean; relativePath: string }>
+): Promise<void> {
+  try {
+    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+      const entryFullPath = path.join(currentPath, entry.name);
+
+      if (shouldIgnorePath(entryRelPath, ignorePatterns)) continue;
+
+      const normalizedPath = normalizePath(entryRelPath);
+      items.set(normalizedPath, {
+        isDirectory: entry.isDirectory(),
+        relativePath: normalizedPath,
+      });
+
+      if (entry.isDirectory()) {
+        await scanDirectoryItems(entryFullPath, entryRelPath, ignorePatterns, items);
+      }
+    }
+  } catch (error) {
+    logger.error(`Error scanning ${currentPath}:`, { error });
+  }
+}
+
+/**
  * Helper: Get unique directories from file list
  */
 async function getProjectDirectories(
@@ -222,39 +258,7 @@ async function getProjectDirectories(
   ignorePatterns: string[] = []
 ): Promise<Map<string, { isDirectory: boolean; relativePath: string }>> {
   const items = new Map<string, { isDirectory: boolean; relativePath: string }>();
-
-  async function scan(currentPath: string, relativePath: string = '') {
-    try {
-      const entries = await fs.readdir(currentPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-        const entryFullPath = path.join(currentPath, entry.name);
-
-        // Check if should ignore
-        const shouldIgnore = ignorePatterns.some(pattern =>
-          minimatch(entryRelPath, pattern, { dot: true })
-        );
-
-        if (shouldIgnore) continue;
-
-        // Store this item
-        const normalizedPath = entryRelPath.replace(/\\/g, '/');
-        items.set(normalizedPath, {
-          isDirectory: entry.isDirectory(),
-          relativePath: normalizedPath,
-        });
-
-        if (entry.isDirectory()) {
-          await scan(entryFullPath, entryRelPath);
-        }
-      }
-    } catch (error) {
-      console.error(`[StructureScan] Error scanning ${currentPath}:`, error);
-    }
-  }
-
-  await scan(projectPath);
+  await scanDirectoryItems(projectPath, '', ignorePatterns, items);
   return items;
 }
 
@@ -262,9 +266,7 @@ async function getProjectDirectories(
  * Helper: Suggest a location for a misplaced file/folder
  */
 function getSuggestedLocation(itemPath: string, itemName: string, parentPath: string): string {
-  // Common suggestions based on item location
   if (parentPath === 'src') {
-    // Items in src/ that shouldn't be there
     if (itemName.endsWith('.tsx') || itemName.endsWith('.ts')) {
       return 'src/lib/ or src/components/ or src/app/features/';
     }
@@ -272,7 +274,6 @@ function getSuggestedLocation(itemPath: string, itemName: string, parentPath: st
   }
 
   if (parentPath === 'src/app') {
-    // Folders in src/app/ that shouldn't be there
     if (itemName.toLowerCase().includes('component')) {
       return 'src/app/features/components/';
     }
@@ -286,53 +287,39 @@ function getSuggestedLocation(itemPath: string, itemName: string, parentPath: st
 }
 
 /**
- * Scan using enforced structure rules (NEW METHOD)
+ * Helper: Check if item is in standard location
  */
-async function scanWithEnforcedStructure(
-  projectPath: string,
-  enforcedStructure: EnforcedStructure
-): Promise<StructureViolation[]> {
-  const violations: StructureViolation[] = [];
+function isStandardLocation(firstLevelFolder: string): boolean {
+  const isStandard = STANDARD_FOLDERS.includes(firstLevelFolder);
+  const isHidden = firstLevelFolder.startsWith('.');
+  const isStandardHidden = isHidden && STANDARD_HIDDEN_FOLDERS.includes(firstLevelFolder);
 
-  console.log('[StructureScan] 🔍 Using enforced structure validation');
+  return isStandard || (isHidden && isStandardHidden);
+}
 
-  // Get all items (files and directories) in the project
-  const items = await getProjectDirectories(projectPath, [
-    'node_modules/**',
-    '.next/**',
-    '.git/**',
-    'dist/**',
-    'build/**',
-    '__pycache__/**',
-    '*.pyc',
-    '.venv/**',
-    'venv/**',
-    '.claude/**',
-    'database/**',
-    'context/**',
-    'public/**', // Skip public folder for now
-  ]);
-
-  console.log(`[StructureScan] 📁 Found ${items.size} items (files + folders)`);
-
-  // Check if project has src/ folder (CRITICAL for structure rules that expect src/)
-  const hasSrcFolder = Array.from(items.keys()).some(path => path.startsWith('src/') || path === 'src');
-  console.log(`[StructureScan] 📂 Project has src/ folder: ${hasSrcFolder}`);
-
-  if (!hasSrcFolder && enforcedStructure.directoryRules[0]?.path === 'src') {
-    console.log('[StructureScan] ⚠️  WARNING: Enforced structure expects src/ folder but project does not have one!');
-    violations.push({
-      filePath: 'project-root',
-      violationType: 'missing-structure',
-      currentLocation: 'Project root',
-      expectedLocation: 'Create src/ folder at project root',
-      reason: 'Project structure expects a src/ folder containing app, components, lib, etc. but src/ folder is missing. This is a fundamental structure violation.',
-      rule: 'Root structure',
-    });
-    // Still continue checking to find other violations
+/**
+ * Helper: Get allowed items info for error messages
+ */
+function getAllowedItemsInfo(isDirectory: boolean, rule: DirectoryRule): string {
+  if (isDirectory) {
+    return rule.allowedFolders
+      ? `Allowed folders: ${rule.allowedFolders.map(f => f.name).join(', ')}`
+      : 'No folders allowed';
+  } else {
+    return rule.allowedFiles
+      ? `Allowed files: ${rule.allowedFiles.map(f => f.name).join(', ')}`
+      : 'No files allowed';
   }
+}
 
-  // Check each item against directory rules
+/**
+ * Helper: Process items against directory rules
+ */
+function processItemsAgainstRules(
+  items: Map<string, { isDirectory: boolean; relativePath: string }>,
+  enforcedStructure: EnforcedStructure,
+  violations: StructureViolation[]
+): void {
   let checkedCount = 0;
   let skippedCount = 0;
   let noRuleCount = 0;
@@ -342,35 +329,22 @@ async function scanWithEnforcedStructure(
     const itemName = parts[parts.length - 1];
     const parentPath = parts.slice(0, -1).join('/');
 
-    // Skip root-level items (no parent)
     if (!parentPath) {
       skippedCount++;
       continue;
     }
 
-    // Find the applicable directory rule for the parent path
     const applicableRule = findApplicableRule(parentPath, enforcedStructure.directoryRules);
 
     if (!applicableRule) {
       noRuleCount++;
-      // Log first few items with no rule for debugging
       if (noRuleCount <= 5) {
-        console.log(`[StructureScan] ℹ️  No rule found for parent: ${parentPath} (item: ${itemName})`);
+        logger.info(`No rule found for parent: ${parentPath} (item: ${itemName})`);
       }
 
-      // If the item is in a location with no rules, it might be a violation
-      // Check if it's in an unexpected location (not in standard NextJS folders)
       const firstLevelFolder = itemPath.split('/')[0];
-      const standardFolders = ['src', 'public', 'node_modules', '.next', '.git', 'dist', 'build'];
-      const standardHiddenFolders = ['.next', '.git', '.vscode', '.idea', '.claude'];
-
-      // Check if this is a non-standard folder
-      const isStandard = standardFolders.includes(firstLevelFolder);
-      const isHidden = firstLevelFolder.startsWith('.');
-      const isStandardHidden = isHidden && standardHiddenFolders.includes(firstLevelFolder);
-
-      if (!isStandard && !(isHidden && isStandardHidden)) {
-        // This is a non-standard folder/file at root level or in unexpected location
+      if (!isStandardLocation(firstLevelFolder)) {
+        const isHidden = firstLevelFolder.startsWith('.');
         violations.push({
           filePath: itemPath,
           violationType: 'anti-pattern',
@@ -381,34 +355,26 @@ async function scanWithEnforcedStructure(
         });
 
         if (noRuleCount <= 10) {
-          console.log(`[StructureScan] ❌ Unexpected location: ${itemPath} (no rule for ${parentPath})`);
+          logger.info(`Unexpected location: ${itemPath} (no rule for ${parentPath})`);
         }
       }
-
       continue;
     }
 
     checkedCount++;
-
-    // If we found a rule, check if this item is allowed
     const result = isAllowedInDirectory(itemName, itemInfo.isDirectory, applicableRule);
 
-    // Debug: log first few checks
     if (checkedCount <= 10) {
-      console.log(`[StructureScan] 🔍 Check ${checkedCount}: ${itemName} in ${parentPath}`);
-      console.log(`  Rule: ${applicableRule.path} (strict: ${applicableRule.strictMode})`);
-      console.log(`  Allowed: ${result.allowed}`);
+      logger.debug(`Check ${checkedCount}: ${itemName} in ${parentPath}`, {
+        rule: applicableRule.path,
+        strict: applicableRule.strictMode,
+        allowed: result.allowed
+      });
     }
 
     if (!result.allowed) {
       const itemType = itemInfo.isDirectory ? 'Folder' : 'File';
-      const allowedItemsInfo = itemInfo.isDirectory
-        ? applicableRule.allowedFolders
-          ? `Allowed folders: ${applicableRule.allowedFolders.map(f => f.name).join(', ')}`
-          : 'No folders allowed'
-        : applicableRule.allowedFiles
-          ? `Allowed files: ${applicableRule.allowedFiles.map(f => f.name).join(', ')}`
-          : 'No files allowed';
+      const allowedItemsInfo = getAllowedItemsInfo(itemInfo.isDirectory, applicableRule);
 
       violations.push({
         filePath: itemPath,
@@ -419,133 +385,155 @@ async function scanWithEnforcedStructure(
         rule: applicableRule.path,
       });
 
-      console.log(
-        `[StructureScan] ❌ Violation: ${itemPath} (not allowed in ${parentPath}/)`
-      );
+      logger.info(`Violation: ${itemPath} (not allowed in ${parentPath}/)`);
     }
   }
 
-  console.log(`[StructureScan] 📊 Stats: ${checkedCount} checked, ${skippedCount} skipped (root), ${noRuleCount} no rule found`);
+  logger.info(`Stats: ${checkedCount} checked, ${skippedCount} skipped (root), ${noRuleCount} no rule found`);
+}
 
-  // Check for anti-patterns from enforced structure
-  if (enforcedStructure.antiPatterns) {
-    const allFiles = Array.from(items.keys());
-    for (const antiPattern of enforcedStructure.antiPatterns) {
-      const matches = matchPattern(allFiles, antiPattern.pattern);
-      for (const match of matches) {
-        violations.push({
-          filePath: match,
-          violationType: 'anti-pattern',
-          currentLocation: match,
-          expectedLocation: antiPattern.suggestedLocation,
-          reason: antiPattern.description,
-          rule: antiPattern.pattern,
-        });
+/**
+ * Helper: Check for anti-patterns
+ */
+function checkAntiPatterns(
+  items: Map<string, { isDirectory: boolean; relativePath: string }>,
+  enforcedStructure: EnforcedStructure,
+  violations: StructureViolation[]
+): void {
+  if (!enforcedStructure.antiPatterns) return;
 
-        console.log(`[StructureScan] ❌ Anti-pattern: ${match}`);
-      }
+  const allFiles = Array.from(items.keys());
+  for (const antiPattern of enforcedStructure.antiPatterns) {
+    const matches = matchPattern(allFiles, antiPattern.pattern);
+    for (const match of matches) {
+      violations.push({
+        filePath: match,
+        violationType: 'anti-pattern',
+        currentLocation: match,
+        expectedLocation: antiPattern.suggestedLocation,
+        reason: antiPattern.description,
+        rule: antiPattern.pattern,
+      });
+
+      logger.info(`Anti-pattern: ${match}`);
     }
   }
+}
+
+/**
+ * Scan using enforced structure rules
+ */
+async function scanWithEnforcedStructure(
+  projectPath: string,
+  enforcedStructure: EnforcedStructure
+): Promise<StructureViolation[]> {
+  const violations: StructureViolation[] = [];
+
+  logger.info('Using enforced structure validation');
+
+  const items = await getProjectDirectories(projectPath, DEFAULT_IGNORE_PATTERNS);
+  logger.info(`Found ${items.size} items (files + folders)`);
+
+  // Check if project has src/ folder
+  const hasSrcFolder = Array.from(items.keys()).some(path => path.startsWith('src/') || path === 'src');
+  logger.info(`Project has src/ folder: ${hasSrcFolder}`);
+
+  if (!hasSrcFolder && enforcedStructure.directoryRules[0]?.path === 'src') {
+    logger.warn('WARNING: Enforced structure expects src/ folder but project does not have one!');
+    violations.push({
+      filePath: 'project-root',
+      violationType: 'missing-structure',
+      currentLocation: 'Project root',
+      expectedLocation: 'Create src/ folder at project root',
+      reason: 'Project structure expects a src/ folder containing app, components, lib, etc. but src/ folder is missing. This is a fundamental structure violation.',
+      rule: 'Root structure',
+    });
+  }
+
+  processItemsAgainstRules(items, enforcedStructure, violations);
+  checkAntiPatterns(items, enforcedStructure, violations);
 
   return violations;
 }
 
 /**
- * POST /api/structure-scan
- * Scan project structure and generate requirement files for violations
+ * Helper: Determine expected location for anti-pattern
  */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { projectPath, projectType, projectId } = body;
+function getExpectedLocationForAntiPattern(file: string, rule: { description: string }): { location: string; reason: string } {
+  if (file.includes('src/pages/')) {
+    return {
+      location: file.replace('src/pages/', 'src/app/'),
+      reason: 'Use App Router (src/app/) instead of Pages Router (src/pages/)'
+    };
+  } else if (file.includes('src/utils/')) {
+    return {
+      location: file.replace('src/utils/', 'src/lib/'),
+      reason: 'Use src/lib/ instead of src/utils/ for consistency'
+    };
+  } else if (file.includes('src/helpers/')) {
+    return {
+      location: file.replace('src/helpers/', 'src/lib/'),
+      reason: 'Use src/lib/ instead of src/helpers/ for consistency'
+    };
+  } else if (file.includes('app/utils/')) {
+    return {
+      location: file.replace('app/utils/', 'app/core/'),
+      reason: 'Use app/core/ instead of app/utils/ for better organization'
+    };
+  } else if (file.includes('app/helpers/')) {
+    return {
+      location: file.replace('app/helpers/', 'app/core/'),
+      reason: 'Use app/core/ instead of app/helpers/ for better organization'
+    };
+  }
+  return {
+    location: 'See structure guidelines',
+    reason: rule.description
+  };
+}
 
-    console.log('[StructureScan] 📋 Starting structure scan:', {
-      projectPath,
-      projectType,
-      projectId,
-    });
+/**
+ * Helper: Check shared components for misplacement
+ */
+async function checkSharedComponents(
+  projectPath: string,
+  allFiles: string[],
+  violations: StructureViolation[]
+): Promise<void> {
+  const sharedComponents = matchPattern(allFiles, 'src/components/**/*.tsx')
+    .filter(file => !file.startsWith('src/components/ui/'));
 
-    // Validate inputs
-    if (!projectPath || !projectType) {
-      return NextResponse.json(
-        { error: 'projectPath and projectType are required' },
-        { status: 400 }
-      );
+  if (sharedComponents.length === 0) return;
+
+  logger.info(`Checking ${sharedComponents.length} shared components for misplacement`);
+
+  for (const component of sharedComponents) {
+    const componentName = path.basename(component, '.tsx');
+    const featureMatch = componentName.match(/^([A-Z][a-z]+)/);
+
+    if (featureMatch) {
+      const featureName = featureMatch[1].toLowerCase();
+      const featurePath = path.join(projectPath, 'src', 'app', featureName);
+
+      try {
+        await fs.access(featurePath);
+        violations.push({
+          filePath: component,
+          violationType: 'misplaced',
+          currentLocation: component,
+          expectedLocation: `src/app/${featureName}/${componentName}.tsx`,
+          reason: `Component appears to be ${featureName}-specific and should be co-located with its feature`,
+          rule: 'Feature co-location',
+        });
+      } catch {
+        // Feature folder doesn't exist, component might be truly shared
+      }
     }
-
-    if (projectType !== 'nextjs' && projectType !== 'fastapi') {
-      return NextResponse.json(
-        { error: 'projectType must be "nextjs" or "fastapi"' },
-        { status: 400 }
-      );
-    }
-
-    // Verify project path exists
-    try {
-      await fs.access(projectPath);
-    } catch {
-      return NextResponse.json(
-        { error: 'Project path does not exist' },
-        { status: 404 }
-      );
-    }
-
-    // Try to get enforced structure first (NEW METHOD)
-    const enforcedStructure = getEnforcedStructure(projectType);
-    let violations: StructureViolation[] = [];
-
-    if (enforcedStructure) {
-      console.log(`[StructureScan] 📐 Using ${enforcedStructure.name} enforced structure`);
-      violations = await scanWithEnforcedStructure(projectPath, enforcedStructure);
-    } else {
-      // Fallback to old method with custom template support
-      const template = await getStructureTemplateWithCustom(projectType);
-      console.log(`[StructureScan] 📐 Using ${template.name} template (fallback)${template.rules !== getStructureTemplate(projectType).rules ? ' [CUSTOM]' : ''}`);
-      violations = await scanForViolations(projectPath, template);
-    }
-
-    console.log(`[StructureScan] 🔍 Found ${violations.length} violations`);
-
-    if (violations.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No structure violations found',
-        violations: 0,
-        requirementFiles: [],
-      });
-    }
-
-    // Generate requirement files (max 20 violations per file)
-    const requirementFiles = await generateRequirementFiles(
-      projectPath,
-      projectType,
-      violations
-    );
-
-    console.log(
-      `[StructureScan] ✅ Generated ${requirementFiles.length} requirement files`
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: `Found ${violations.length} violations, created ${requirementFiles.length} requirement files`,
-      violations: violations.length,
-      requirementFiles,
-    });
-  } catch (error) {
-    console.error('[StructureScan] ❌ Error:', error);
-    return NextResponse.json(
-      {
-        error: 'Structure scan failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
   }
 }
 
 /**
- * Scan project for structure violations
+ * Scan project for structure violations (fallback method)
  */
 async function scanForViolations(
   projectPath: string,
@@ -554,136 +542,78 @@ async function scanForViolations(
   const violations: StructureViolation[] = [];
 
   try {
-    console.log('[StructureScan] 🔍 Scanning project at:', projectPath);
+    logger.info('Scanning project at:', { projectPath });
 
-    // Get all files in the project (exclude node_modules, .next, etc.)
-    const allFiles = await getAllFiles(projectPath, [
-      'node_modules/**',
-      '.next/**',
-      '.git/**',
-      'dist/**',
-      'build/**',
-      '__pycache__/**',
-      '*.pyc',
-      '.venv/**',
-      'venv/**',
-      '.claude/**',
-      'database/**',
-      'context/**',
-    ]);
-
-    console.log(`[StructureScan] 📁 Found ${allFiles.length} files`);
+    const allFiles = await getAllFiles(projectPath, DEFAULT_IGNORE_PATTERNS);
+    logger.info(`Found ${allFiles.length} files`);
 
     if (allFiles.length === 0) {
-      console.warn('[StructureScan] ⚠️ No files found in project');
+      logger.warn('No files found in project');
       return violations;
     }
 
     // Check for anti-patterns
     for (const rule of template.rules) {
-      // Skip non-anti-pattern rules
       if (!rule.description.includes('AVOID')) continue;
 
       try {
-        // Match files against the rule pattern
         const matchedFiles = matchPattern(allFiles, rule.pattern);
 
         if (matchedFiles.length === 0) {
-          console.log(`[StructureScan] ✓ No violations for pattern: ${rule.pattern}`);
+          logger.debug(`No violations for pattern: ${rule.pattern}`);
           continue;
         }
 
-        console.log(`[StructureScan] ⚠️ Found ${matchedFiles.length} violations for pattern: ${rule.pattern}`);
+        logger.warn(`Found ${matchedFiles.length} violations for pattern: ${rule.pattern}`);
 
         for (const file of matchedFiles) {
-          // Determine correct location based on the anti-pattern
-          let expectedLocation = '';
-          let reason = rule.description;
-
-          if (file.includes('src/pages/')) {
-            expectedLocation = file.replace('src/pages/', 'src/app/');
-            reason = 'Use App Router (src/app/) instead of Pages Router (src/pages/)';
-          } else if (file.includes('src/utils/')) {
-            expectedLocation = file.replace('src/utils/', 'src/lib/');
-            reason = 'Use src/lib/ instead of src/utils/ for consistency';
-          } else if (file.includes('src/helpers/')) {
-            expectedLocation = file.replace('src/helpers/', 'src/lib/');
-            reason = 'Use src/lib/ instead of src/helpers/ for consistency';
-          } else if (file.includes('app/utils/')) {
-            expectedLocation = file.replace('app/utils/', 'app/core/');
-            reason = 'Use app/core/ instead of app/utils/ for better organization';
-          } else if (file.includes('app/helpers/')) {
-            expectedLocation = file.replace('app/helpers/', 'app/core/');
-            reason = 'Use app/core/ instead of app/helpers/ for better organization';
-          } else {
-            // Generic anti-pattern
-            expectedLocation = 'See structure guidelines';
-            reason = rule.description;
-          }
-
+          const { location, reason } = getExpectedLocationForAntiPattern(file, rule);
           violations.push({
             filePath: file,
             violationType: 'anti-pattern',
             currentLocation: file,
-            expectedLocation,
+            expectedLocation: location,
             reason,
             rule: rule.pattern,
           });
         }
       } catch (err) {
-        console.error(`[StructureScan] Error checking pattern ${rule.pattern}:`, err);
-        // Continue with next rule
+        logger.error(`Error checking pattern ${rule.pattern}:`, { error: err });
       }
     }
 
     // Check for misplaced shared components (Next.js specific)
     if (template.type === 'nextjs') {
       try {
-        // Find components that might be feature-specific but in shared folder
-        const sharedComponents = matchPattern(allFiles, 'src/components/**/*.tsx')
-          .filter(file => !file.startsWith('src/components/ui/')); // ui components are truly shared
-
-        if (sharedComponents.length > 0) {
-          console.log(`[StructureScan] 🔍 Checking ${sharedComponents.length} shared components for misplacement`);
-          for (const component of sharedComponents) {
-            const componentName = path.basename(component, '.tsx');
-
-            // Check if this component is only used in one feature
-            // (This is a heuristic - would need more sophisticated analysis)
-            const featureMatch = componentName.match(/^([A-Z][a-z]+)/);
-            if (featureMatch) {
-              const featureName = featureMatch[1].toLowerCase();
-
-              // Check if a feature folder exists
-              const featurePath = path.join(projectPath, 'src', 'app', featureName);
-              try {
-                await fs.access(featurePath);
-
-                violations.push({
-                  filePath: component,
-                  violationType: 'misplaced',
-                  currentLocation: component,
-                  expectedLocation: `src/app/${featureName}/${componentName}.tsx`,
-                  reason: `Component appears to be ${featureName}-specific and should be co-located with its feature`,
-                  rule: 'Feature co-location',
-                });
-              } catch {
-                // Feature folder doesn't exist, component might be truly shared
-              }
-            }
-          }
-        }
+        await checkSharedComponents(projectPath, allFiles, violations);
       } catch (err) {
-        console.error('[StructureScan] Error checking shared components:', err);
-        // Continue anyway
+        logger.error('Error checking shared components:', { error: err });
       }
     }
   } catch (error) {
-    console.error('[StructureScan] Error in scanForViolations:', error);
+    logger.error('Error in scanForViolations:', { error });
     throw error;
   }
 
   return violations;
+}
+
+/**
+ * Helper: Clean old requirement files
+ */
+async function cleanOldRequirementFiles(commandsDir: string): Promise<void> {
+  try {
+    const files = await fs.readdir(commandsDir);
+    for (const file of files) {
+      if (file.startsWith('refactor-structure-') && file.endsWith('.md')) {
+        const filePath = path.join(commandsDir, file);
+        await fs.unlink(filePath);
+        logger.info(`Deleted old requirement: ${file}`);
+      }
+    }
+  } catch (error) {
+    logger.error('Error deleting old requirements:', { error });
+  }
 }
 
 /**
@@ -694,35 +624,19 @@ async function generateRequirementFiles(
   projectType: 'nextjs' | 'fastapi',
   violations: StructureViolation[]
 ): Promise<string[]> {
-  const MAX_VIOLATIONS_PER_FILE = 20;
-  const batches: StructureViolation[][] = [];
-
-  // Ensure .claude/commands folder exists
   const commandsDir = path.join(projectPath, '.claude', 'commands');
+
   try {
     await fs.mkdir(commandsDir, { recursive: true });
-    console.log(`[StructureScan] 📁 Ensured commands folder exists: ${commandsDir}`);
+    logger.info(`Ensured commands folder exists: ${commandsDir}`);
   } catch (error) {
-    console.error('[StructureScan] Error creating commands folder:', error);
+    logger.error('Error creating commands folder:', { error });
   }
 
-  // Delete old structure scan requirement files first
-  try {
-    if (await fs.access(commandsDir).then(() => true).catch(() => false)) {
-      const files = await fs.readdir(commandsDir);
-      for (const file of files) {
-        if (file.startsWith('refactor-structure-') && file.endsWith('.md')) {
-          const filePath = path.join(commandsDir, file);
-          await fs.unlink(filePath);
-          console.log(`[StructureScan] 🗑️  Deleted old requirement: ${file}`);
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[StructureScan] Error deleting old requirements:', error);
-  }
+  await cleanOldRequirementFiles(commandsDir);
 
   // Split violations into batches
+  const batches: StructureViolation[][] = [];
   for (let i = 0; i < violations.length; i += MAX_VIOLATIONS_PER_FILE) {
     batches.push(violations.slice(i, i + MAX_VIOLATIONS_PER_FILE));
   }
@@ -745,22 +659,121 @@ async function generateRequirementFiles(
 
     const fileName = generateRequirementFileName(projectType, batchNumber, totalBatches);
 
-    console.log(`[StructureScan] 🔧 Creating requirement file: ${fileName}`);
-    console.log(`[StructureScan] 📄 Content length: ${requirementContent.length} chars`);
+    logger.info(`Creating requirement file: ${fileName}`, {
+      contentLength: requirementContent.length
+    });
 
-    // Create the requirement file
     const result = createRequirement(projectPath, fileName, requirementContent);
-
-    console.log(`[StructureScan] 📋 createRequirement result:`, result);
 
     if (result.success) {
       requirementFiles.push(fileName);
-      console.log(`[StructureScan] ✅ Created requirement: ${fileName}`);
+      logger.info(`Created requirement: ${fileName}`);
     } else {
-      console.error(`[StructureScan] ❌ Failed to create requirement: ${fileName}`);
-      console.error(`[StructureScan] ❌ Error:`, result.error);
+      logger.error(`Failed to create requirement: ${fileName}`, { error: result.error });
     }
   }
 
   return requirementFiles;
+}
+
+/**
+ * Helper: Validate request body
+ */
+function validateRequestBody(body: any): { valid: boolean; error?: string } {
+  if (!body.projectPath || !body.projectType) {
+    return { valid: false, error: 'projectPath and projectType are required' };
+  }
+
+  if (body.projectType !== 'nextjs' && body.projectType !== 'fastapi') {
+    return { valid: false, error: 'projectType must be "nextjs" or "fastapi"' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * POST /api/structure-scan
+ * Scan project structure and generate requirement files for violations
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { projectPath, projectType, projectId } = body;
+
+    logger.info('Starting structure scan:', {
+      projectPath,
+      projectType,
+      projectId,
+    });
+
+    // Validate inputs
+    const validation = validateRequestBody(body);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    // Verify project path exists
+    try {
+      await fs.access(projectPath);
+    } catch {
+      return NextResponse.json(
+        { error: 'Project path does not exist' },
+        { status: 404 }
+      );
+    }
+
+    // Try to get enforced structure first (NEW METHOD)
+    const enforcedStructure = getEnforcedStructure(projectType);
+    let violations: StructureViolation[] = [];
+
+    if (enforcedStructure) {
+      logger.info(`Using ${enforcedStructure.name} enforced structure`);
+      violations = await scanWithEnforcedStructure(projectPath, enforcedStructure);
+    } else {
+      // Fallback to old method with custom template support
+      const template = await getStructureTemplateWithCustom(projectType);
+      const isCustom = template.rules !== getStructureTemplate(projectType).rules;
+      logger.info(`Using ${template.name} template (fallback)${isCustom ? ' [CUSTOM]' : ''}`);
+      violations = await scanForViolations(projectPath, template);
+    }
+
+    logger.info(`Found ${violations.length} violations`);
+
+    if (violations.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No structure violations found',
+        violations: 0,
+        requirementFiles: [],
+      });
+    }
+
+    // Generate requirement files (max 20 violations per file)
+    const requirementFiles = await generateRequirementFiles(
+      projectPath,
+      projectType,
+      violations
+    );
+
+    logger.info(`Generated ${requirementFiles.length} requirement files`);
+
+    return NextResponse.json({
+      success: true,
+      message: `Found ${violations.length} violations, created ${requirementFiles.length} requirement files`,
+      violations: violations.length,
+      requirementFiles,
+    });
+  } catch (error) {
+    logger.error('Error:', { error });
+    return NextResponse.json(
+      {
+        error: 'Structure scan failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
 }

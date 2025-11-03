@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { techDebtDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 import type {
   TechDebtCategory,
   TechDebtSeverity,
@@ -45,12 +46,50 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ techDebt });
   } catch (error) {
-    console.error('Error fetching tech debt:', error);
+    logger.error('Failed to fetch tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to fetch tech debt', details: String(error) },
       { status: 500 }
     );
   }
+}
+
+interface CreateTechDebtBody {
+  projectId: string;
+  scanId?: string;
+  category: TechDebtCategory;
+  title: string;
+  description: string;
+  severity: TechDebtSeverity;
+  riskScore: number;
+  estimatedEffortHours?: number;
+  impactScope?: string;
+  technicalImpact?: string;
+  businessImpact?: string;
+  detectedBy: string;
+  detectionDetails?: string;
+  filePaths?: string;
+  status?: TechDebtStatus;
+  remediationPlan?: string;
+  remediationSteps?: string;
+  estimatedCompletionDate?: string;
+  backlogItemId?: string;
+  goalId?: string;
+}
+
+/**
+ * Helper: Validate required fields for tech debt creation
+ */
+function validateTechDebtBody(body: Partial<CreateTechDebtBody>): body is CreateTechDebtBody {
+  return !!(
+    body.projectId &&
+    body.category &&
+    body.title &&
+    body.description &&
+    body.severity &&
+    body.riskScore !== undefined &&
+    body.detectedBy
+  );
 }
 
 /**
@@ -59,32 +98,11 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const {
-      projectId,
-      scanId,
-      category,
-      title,
-      description,
-      severity,
-      riskScore,
-      estimatedEffortHours,
-      impactScope,
-      technicalImpact,
-      businessImpact,
-      detectedBy,
-      detectionDetails,
-      filePaths,
-      status,
-      remediationPlan,
-      remediationSteps,
-      estimatedCompletionDate,
-      backlogItemId,
-      goalId
-    } = body;
+    const body = await request.json() as Partial<CreateTechDebtBody>;
 
     // Validate required fields
-    if (!projectId || !category || !title || !description || !severity || riskScore === undefined || !detectedBy) {
+    if (!validateTechDebtBody(body)) {
+      logger.warn('Missing required fields for tech debt creation', { body });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -95,36 +113,70 @@ export async function POST(request: NextRequest) {
 
     const newTechDebt = techDebtDb.createTechDebt({
       id,
-      project_id: projectId,
-      scan_id: scanId || null,
-      category,
-      title,
-      description,
-      severity,
-      risk_score: riskScore,
-      estimated_effort_hours: estimatedEffortHours || null,
-      impact_scope: impactScope || null,
-      technical_impact: technicalImpact || null,
-      business_impact: businessImpact || null,
-      detected_by: detectedBy,
-      detection_details: detectionDetails || null,
-      file_paths: filePaths || null,
-      status: status || 'detected',
-      remediation_plan: remediationPlan || null,
-      remediation_steps: remediationSteps || null,
-      estimated_completion_date: estimatedCompletionDate || null,
-      backlog_item_id: backlogItemId || null,
-      goal_id: goalId || null
+      project_id: body.projectId,
+      scan_id: body.scanId || null,
+      category: body.category,
+      title: body.title,
+      description: body.description,
+      severity: body.severity,
+      risk_score: body.riskScore,
+      estimated_effort_hours: body.estimatedEffortHours || null,
+      impact_scope: body.impactScope || null,
+      technical_impact: body.technicalImpact || null,
+      business_impact: body.businessImpact || null,
+      detected_by: body.detectedBy,
+      detection_details: body.detectionDetails || null,
+      file_paths: body.filePaths || null,
+      status: body.status || 'detected',
+      remediation_plan: body.remediationPlan || null,
+      remediation_steps: body.remediationSteps || null,
+      estimated_completion_date: body.estimatedCompletionDate || null,
+      backlog_item_id: body.backlogItemId || null,
+      goal_id: body.goalId || null
     });
 
+    logger.info('Created tech debt item', { id, projectId: body.projectId });
     return NextResponse.json({ techDebt: newTechDebt }, { status: 201 });
   } catch (error) {
-    console.error('Error creating tech debt:', error);
+    logger.error('Failed to create tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to create tech debt', details: String(error) },
       { status: 500 }
     );
   }
+}
+
+interface TechDebtUpdates {
+  status?: TechDebtStatus;
+  severity?: TechDebtSeverity;
+  riskScore?: number;
+  estimatedEffortHours?: number;
+  remediationPlan?: string;
+  remediationSteps?: string;
+  estimatedCompletionDate?: string;
+  backlogItemId?: string;
+  goalId?: string;
+  dismissalReason?: string;
+}
+
+/**
+ * Helper: Convert camelCase updates to snake_case for database
+ */
+function convertUpdatesToDatabaseFormat(updates: TechDebtUpdates): Record<string, unknown> {
+  const dbUpdates: Record<string, unknown> = {};
+
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+  if (updates.severity !== undefined) dbUpdates.severity = updates.severity;
+  if (updates.riskScore !== undefined) dbUpdates.risk_score = updates.riskScore;
+  if (updates.estimatedEffortHours !== undefined) dbUpdates.estimated_effort_hours = updates.estimatedEffortHours;
+  if (updates.remediationPlan !== undefined) dbUpdates.remediation_plan = updates.remediationPlan;
+  if (updates.remediationSteps !== undefined) dbUpdates.remediation_steps = updates.remediationSteps;
+  if (updates.estimatedCompletionDate !== undefined) dbUpdates.estimated_completion_date = updates.estimatedCompletionDate;
+  if (updates.backlogItemId !== undefined) dbUpdates.backlog_item_id = updates.backlogItemId;
+  if (updates.goalId !== undefined) dbUpdates.goal_id = updates.goalId;
+  if (updates.dismissalReason !== undefined) dbUpdates.dismissal_reason = updates.dismissalReason;
+
+  return dbUpdates;
 }
 
 /**
@@ -134,7 +186,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, ...updates } = body;
+    const { id, ...updates } = body as { id?: string } & TechDebtUpdates;
 
     if (!id) {
       return NextResponse.json(
@@ -144,17 +196,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Convert camelCase to snake_case for database
-    const dbUpdates: any = {};
-    if (updates.status !== undefined) dbUpdates.status = updates.status;
-    if (updates.severity !== undefined) dbUpdates.severity = updates.severity;
-    if (updates.riskScore !== undefined) dbUpdates.risk_score = updates.riskScore;
-    if (updates.estimatedEffortHours !== undefined) dbUpdates.estimated_effort_hours = updates.estimatedEffortHours;
-    if (updates.remediationPlan !== undefined) dbUpdates.remediation_plan = updates.remediationPlan;
-    if (updates.remediationSteps !== undefined) dbUpdates.remediation_steps = updates.remediationSteps;
-    if (updates.estimatedCompletionDate !== undefined) dbUpdates.estimated_completion_date = updates.estimatedCompletionDate;
-    if (updates.backlogItemId !== undefined) dbUpdates.backlog_item_id = updates.backlogItemId;
-    if (updates.goalId !== undefined) dbUpdates.goal_id = updates.goalId;
-    if (updates.dismissalReason !== undefined) dbUpdates.dismissal_reason = updates.dismissalReason;
+    const dbUpdates = convertUpdatesToDatabaseFormat(updates);
 
     const updatedTechDebt = techDebtDb.updateTechDebt(id, dbUpdates);
 
@@ -165,9 +207,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    logger.info('Updated tech debt item', { id });
     return NextResponse.json({ techDebt: updatedTechDebt });
   } catch (error) {
-    console.error('Error updating tech debt:', error);
+    logger.error('Failed to update tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to update tech debt', details: String(error) },
       { status: 500 }
@@ -200,9 +243,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    logger.info('Deleted tech debt item', { id });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting tech debt:', error);
+    logger.error('Failed to delete tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to delete tech debt', details: String(error) },
       { status: 500 }

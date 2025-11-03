@@ -22,79 +22,38 @@ export interface TestScenario {
 }
 
 /**
+ * Helper: Create a standard module navigation scenario
+ */
+function createModuleScenario(
+  moduleName: string,
+  screenshotName: string,
+  baseUrl = 'http://localhost:3000'
+): TestScenario {
+  return {
+    id: moduleName.toLowerCase(),
+    name: `${moduleName} Module Screenshot`,
+    description: `Navigates to ${moduleName} module via TopBar and captures screenshot`,
+    baseUrl,
+    actions: [
+      { type: 'navigate', url: baseUrl },
+      { type: 'wait', delay: 3000 }, // Wait for initial page load and animations
+      { type: 'click', selector: `text=${moduleName}` },
+      { type: 'wait', delay: 2000 }, // Wait for module to load
+    ],
+    screenshotName,
+  };
+}
+
+/**
  * Default scenarios for testing
  * These scenarios navigate through the TopBar navigation and capture screenshots
  */
 export const TEST_SCENARIOS: Record<string, TestScenario> = {
-  home: {
-    id: 'home',
-    name: 'Home Module Screenshot',
-    description: 'Navigates to Home module via TopBar and captures screenshot',
-    baseUrl: 'http://localhost:3000',
-    actions: [
-      { type: 'navigate', url: 'http://localhost:3000' },
-      { type: 'wait', delay: 3000 }, // Wait for initial page load and animations
-      { type: 'click', selector: 'text=Home' },
-      { type: 'wait', delay: 2000 }, // Wait for module to load
-    ],
-    screenshotName: 'home-module',
-  },
-
-  ideas: {
-    id: 'ideas',
-    name: 'Ideas Module Screenshot',
-    description: 'Navigates to Ideas module via TopBar and captures screenshot',
-    baseUrl: 'http://localhost:3000',
-    actions: [
-      { type: 'navigate', url: 'http://localhost:3000' },
-      { type: 'wait', delay: 3000 },
-      { type: 'click', selector: 'text=Ideas' },
-      { type: 'wait', delay: 2000 },
-    ],
-    screenshotName: 'ideas-module',
-  },
-
-  tinder: {
-    id: 'tinder',
-    name: 'Tinder Module Screenshot',
-    description: 'Navigates to Tinder module via TopBar and captures screenshot',
-    baseUrl: 'http://localhost:3000',
-    actions: [
-      { type: 'navigate', url: 'http://localhost:3000' },
-      { type: 'wait', delay: 3000 },
-      { type: 'click', selector: 'text=Tinder' },
-      { type: 'wait', delay: 2000 },
-    ],
-    screenshotName: 'tinder-module',
-  },
-
-  tasker: {
-    id: 'tasker',
-    name: 'Tasker Module Screenshot',
-    description: 'Navigates to Tasker module via TopBar and captures screenshot',
-    baseUrl: 'http://localhost:3000',
-    actions: [
-      { type: 'navigate', url: 'http://localhost:3000' },
-      { type: 'wait', delay: 3000 },
-      { type: 'click', selector: 'text=Tasker' },
-      { type: 'wait', delay: 2000 },
-    ],
-    screenshotName: 'tasker-module',
-  },
-
-  reflector: {
-    id: 'reflector',
-    name: 'Reflector Module Screenshot',
-    description: 'Navigates to Reflector module via TopBar and captures screenshot',
-    baseUrl: 'http://localhost:3000',
-    actions: [
-      { type: 'navigate', url: 'http://localhost:3000' },
-      { type: 'wait', delay: 3000 },
-      { type: 'click', selector: 'text=Reflector' },
-      { type: 'wait', delay: 2000 },
-    ],
-    screenshotName: 'reflector-module',
-  },
+  home: createModuleScenario('Home', 'home-module'),
+  ideas: createModuleScenario('Ideas', 'ideas-module'),
+  tinder: createModuleScenario('Tinder', 'tinder-module'),
+  tasker: createModuleScenario('Tasker', 'tasker-module'),
+  reflector: createModuleScenario('Reflector', 'reflector-module'),
 };
 
 /**

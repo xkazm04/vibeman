@@ -4,6 +4,7 @@ import path from 'path';
 import { OllamaClient } from '../../../lib/llm/providers/ollama-client';
 import { createFileScannerPrompt } from '../../../prompts/file-scanner-prompt';
 import { createBuildErrorFixerPrompt, BuildErrorForFix, BuildErrorFixResult } from '../../../prompts/build-error-fixer-prompt';
+import { logger } from '@/lib/logger';
 
 interface ScanResult {
   totalFiles: number;
@@ -75,7 +76,7 @@ async function getFilesRecursively(dir: string, extensions: string[] = []): Prom
       }
     }
   } catch (error) {
-    console.error('Error reading directory:', dir, error);
+    logger.error('Error reading directory:', dir, error);
   }
   
   return files;
@@ -182,7 +183,7 @@ async function scanProjectFiles(
     };
 
   } catch (error) {
-    console.error('Error scanning project files:', error);
+    logger.error('Error scanning project files:', { error });
     throw new Error(`Failed to scan project: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -238,7 +239,7 @@ async function fixBuildErrors(
       ]
     };
   } catch (error) {
-    console.error('Error fixing build errors:', error);
+    logger.error('Error fixing build errors:', { error });
     throw new Error(`Failed to fix build errors: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -264,7 +265,7 @@ async function getTestFiles(): Promise<TestFile[]> {
       }
     }
   } catch (error) {
-    console.error('Error reading test files:', error);
+    logger.error('Error reading test files:', { error });
   }
   
   return testFiles;
@@ -293,11 +294,11 @@ async function getProjectFiles(): Promise<TestFile[]> {
           language
         });
       } catch (error) {
-        console.error(`Error reading file ${filePath}:`, error);
+        logger.error(`Error reading file ${filePath}:`, { error });
       }
     }
   } catch (error) {
-    console.error('Error reading project files:', error);
+    logger.error('Error reading project files:', { error });
   }
   
   return projectFiles;
@@ -307,7 +308,7 @@ async function scanFileWithLLM(filePath: string, fileContent: string, fileIndex?
   const logPrefix = fileIndex && totalFiles ? `${fileIndex}/${totalFiles}` : '';
   
   try {
-    console.log(`${logPrefix} file starting to scan: ${filePath}`);
+    logger.info(`${logPrefix} file starting to scan: ${filePath}`);
     
     const ollamaClient = new OllamaClient();
     
@@ -330,7 +331,7 @@ async function scanFileWithLLM(filePath: string, fileContent: string, fileIndex?
     });
 
     if (!response.success || !response.response) {
-      console.log(`${logPrefix} file scan failed: ${filePath} - ${response.error}`);
+      logger.info(`${logPrefix} file scan failed: ${filePath} - ${response.error}`);
       throw new Error(response.error || 'Failed to get response from LLM');
     }
 
@@ -338,28 +339,28 @@ async function scanFileWithLLM(filePath: string, fileContent: string, fileIndex?
     const parseResult = ollamaClient.parseJsonResponse<FileScanResult>(response.response);
     
     if (!parseResult.success || !parseResult.data) {
-      console.log(`${logPrefix} file parse failed: ${filePath} - ${parseResult.error}`);
+      logger.info(`${logPrefix} file parse failed: ${filePath} - ${parseResult.error}`);
       throw new Error(parseResult.error || 'Failed to parse LLM response');
     }
 
     // Validate the response structure
     const result = parseResult.data;
     if (typeof result.hasChanges !== 'boolean' || !result.changesSummary || !result.updatedCode) {
-      console.log(`${logPrefix} file invalid structure: ${filePath}`);
+      logger.info(`${logPrefix} file invalid structure: ${filePath}`);
       throw new Error('Invalid response structure from LLM');
     }
 
     // Log the result
     if (result.hasChanges) {
-      console.log(`${logPrefix} file code changed: ${filePath} - ${result.changesSummary.description}`);
+      logger.info(`${logPrefix} file code changed: ${filePath} - ${result.changesSummary.description}`);
     } else {
-      console.log(`${logPrefix} file no changes: ${filePath}`);
+      logger.info(`${logPrefix} file no changes: ${filePath}`);
     }
 
     return result;
 
   } catch (error) {
-    console.log(`${logPrefix} file error: ${filePath} - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    logger.info(`${logPrefix} file error: ${filePath} - ${error instanceof Error ? error.message : 'Unknown error'}`);
     
     // Return a fallback result
     return {
@@ -378,7 +379,7 @@ async function scanAndWriteFileWithLLM(filePath: string, fileContent: string, fi
   const logPrefix = fileIndex && totalFiles ? `${fileIndex}/${totalFiles}` : '';
   
   try {
-    console.log(`${logPrefix} file starting to scan and write: ${filePath}`);
+    logger.info(`${logPrefix} file starting to scan and write: ${filePath}`);
     
     // First, scan the file with LLM
     const scanResult = await scanFileWithLLM(filePath, fileContent, fileIndex, totalFiles);
@@ -392,14 +393,14 @@ async function scanAndWriteFileWithLLM(filePath: string, fileContent: string, fi
         // Write the updated content back to the file
         await fs.writeFile(fullFilePath, scanResult.updatedCode, 'utf-8');
         
-        console.log(`${logPrefix} file written to disk: ${filePath}`);
+        logger.info(`${logPrefix} file written to disk: ${filePath}`);
         
         return {
           ...scanResult,
           fileWritten: true
         };
       } catch (writeError) {
-        console.error(`${logPrefix} file write error: ${filePath} -`, writeError);
+        logger.error(`${logPrefix} file write error: ${filePath} -`, writeError);
         
         return {
           ...scanResult,
@@ -411,7 +412,7 @@ async function scanAndWriteFileWithLLM(filePath: string, fileContent: string, fi
         };
       }
     } else {
-      console.log(`${logPrefix} file no changes, not writing: ${filePath}`);
+      logger.info(`${logPrefix} file no changes, not writing: ${filePath}`);
       
       return {
         ...scanResult,
@@ -420,7 +421,7 @@ async function scanAndWriteFileWithLLM(filePath: string, fileContent: string, fi
     }
     
   } catch (error) {
-    console.log(`${logPrefix} file scan and write error: ${filePath} - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    logger.info(`${logPrefix} file scan and write error: ${filePath} - ${error instanceof Error ? error.message : 'Unknown error'}`);
     
     return {
       hasChanges: false,
@@ -436,7 +437,7 @@ async function scanAndWriteFileWithLLM(filePath: string, fileContent: string, fi
 }
 
 async function generateTestScanLog(): Promise<{ message: string; logPath: string }> {
-  console.log('API: Generating comprehensive scan report...');
+  logger.info('API: Generating comprehensive scan report...');
   
   // Create scans directory in project root
   const scansDir = path.join(process.cwd(), 'scans');
@@ -481,9 +482,9 @@ async function generateTestScanLog(): Promise<{ message: string; logPath: string
 
   try {
     await fs.writeFile(reportPath, JSON.stringify(reportData, null, 2), 'utf-8');
-    console.log('API: Comprehensive scan report written to:', reportPath);
+    logger.info('API: Comprehensive scan report written to:', reportPath);
   } catch (error) {
-    console.error('API: Error writing scan report:', error);
+    logger.error('API: Error writing scan report:', { error });
   }
   
   return {
@@ -500,7 +501,7 @@ async function fixBuildErrorsInFile(
   const logPrefix = `[BUILD-FIX]`;
   
   try {
-    console.log(`${logPrefix} Fixing errors in: ${filePath}`);
+    logger.info(`${logPrefix} Fixing errors in: ${filePath}`);
     
     // Read the file content
     const fullPath = path.resolve(filePath);
@@ -512,7 +513,7 @@ async function fixBuildErrorsInFile(
     // Initialize Ollama client
     const ollama = new OllamaClient();
 
-    console.log(`${logPrefix} Sending to LLM for error fixing...`);
+    logger.info(`${logPrefix} Sending to LLM for error fixing...`);
     const llmResponse = await ollama.generate({
       prompt,
       model: 'gpt-oss:20b'
@@ -523,7 +524,7 @@ async function fixBuildErrorsInFile(
       throw new Error('No response from LLM');
     }
     
-    console.log(`${logPrefix} LLM Response received, parsing...`);
+    logger.info(`${logPrefix} LLM Response received, parsing...`);
     
     // Parse the JSON response
     let result: BuildErrorFixResult;
@@ -533,7 +534,7 @@ async function fixBuildErrorsInFile(
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : response;
       result = JSON.parse(jsonStr);
     } catch (parseError) {
-      console.error(`${logPrefix} Failed to parse LLM response:`, parseError);
+      logger.error(`${logPrefix} Failed to parse LLM response:`, parseError);
       return {
         hasChanges: false,
         fixedErrors: [],
@@ -562,19 +563,19 @@ async function fixBuildErrorsInFile(
     if (writeFiles && result.hasChanges && result.updatedCode !== fileContent) {
       try {
         await fs.writeFile(fullPath, result.updatedCode, 'utf-8');
-        console.log(`${logPrefix} File updated successfully: ${filePath}`);
+        logger.info(`${logPrefix} File updated successfully: ${filePath}`);
       } catch (writeError) {
-        console.error(`${logPrefix} Failed to write file:`, writeError);
+        logger.error(`${logPrefix} Failed to write file:`, writeError);
         // Don't fail the entire operation, just log the error
       }
     }
     
-    console.log(`${logPrefix} Fixed ${result.fixedErrors.length} errors, skipped ${result.skippedErrors.length} errors`);
+    logger.info(`${logPrefix} Fixed ${result.fixedErrors.length} errors, skipped ${result.skippedErrors.length} errors`);
     
     return result;
     
   } catch (error) {
-    console.error(`${logPrefix} Error fixing file ${filePath}:`, error);
+    logger.error(`${logPrefix} Error fixing file ${filePath}:`, { error });
     
     // Return a safe fallback result
     return {
@@ -617,9 +618,9 @@ async function writeTestScanLog(testFiles: TestFile[], results: FileScanResult[]
     };
 
     await fs.writeFile(logPath, JSON.stringify(logData, null, 2), 'utf-8');
-    console.log(`Test scan log written to: ${logPath}`);
+    logger.info(`Test scan log written to: ${logPath}`);
   } catch (error) {
-    console.error('Error writing test scan log:', error);
+    logger.error('Error writing test scan log:', { error });
   }
 }
 
@@ -698,7 +699,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error) {
-    console.error('File scanner API error:', error);
+    logger.error('File scanner API error:', { error });
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -726,7 +727,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(projectInfo);
   } catch (error) {
-    console.error('File scanner GET error:', error);
+    logger.error('File scanner GET error:', { error });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

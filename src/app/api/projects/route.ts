@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { projectServiceDb } from '@/lib/projectServiceDb';
+import { logger } from '@/lib/logger';
 
 // GET /api/projects - Get all projects
 export async function GET() {
@@ -7,7 +8,7 @@ export async function GET() {
     const projects = await projectServiceDb.getAllProjects();
     return NextResponse.json({ projects });
   } catch (error) {
-    console.error('Projects API GET error:', error);
+    logger.error('Projects API GET error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to get projects' },
       { status: 500 }
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       message: 'Project added successfully'
     });
   } catch (error) {
-    console.error('Projects API POST error:', error);
+    logger.error('Projects API POST error:', { error: error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to add project' },
       { status: 500 }
@@ -107,7 +108,7 @@ export async function PUT(request: NextRequest) {
       message: 'Project updated successfully'
     });
   } catch (error) {
-    console.error('Projects API PUT error:', error);
+    logger.error('Projects API PUT error:', { error: error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update project' },
       { status: 500 }
@@ -134,7 +135,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Project removed successfully'
     });
   } catch (error) {
-    console.error('Projects API DELETE error:', error);
+    logger.error('Projects API DELETE error:', { error: error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to remove project' },
       { status: 500 }

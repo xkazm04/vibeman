@@ -1,5 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
+import { deleteRequirement, createRequirement } from '@/app/Claude/lib/claudeCodeManager';
+
+/**
+ * POST /api/claude-code/requirement
+ * Create a new requirement file in the .claude/commands directory
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { projectPath, requirementName, content, overwrite = false } = body;
+
+    if (!projectPath || !requirementName || !content) {
+      return NextResponse.json(
+        { error: 'projectPath, requirementName, and content are required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[Create Requirement] Creating requirement:', requirementName);
+
+    const result = createRequirement(projectPath, requirementName, content, overwrite);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'Failed to create requirement' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[Create Requirement] Successfully created requirement at:', result.filePath);
+
+    // Extract just the filename for the response
+    const fileName = result.filePath?.split(/[\\/]/).pop() || `${requirementName}.md`;
+
+    return NextResponse.json({
+      success: true,
+      message: 'Requirement created successfully',
+      fileName,
+      filePath: result.filePath,
+    });
+  } catch (error) {
+    console.error('[Create Requirement] Error:', error);
+    return NextResponse.json(
+      {
+        error: 'Failed to create requirement',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
+}
 
 /**
  * DELETE /api/claude-code/requirement

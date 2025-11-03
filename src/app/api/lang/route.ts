@@ -15,6 +15,7 @@ import {
   formatProjectMetadata,
   AVAILABLE_TOOLS
 } from "@/lib/langgraph";
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
       steps: ["Analyzed", "Tools executed", "Response generated"]
     });
   } catch (error) {
-    console.error("LangGraph error:", error);
+    logger.error('LangGraph error:', { error: error });
     return NextResponse.json<LangGraphResponse>({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

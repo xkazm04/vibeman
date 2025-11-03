@@ -8,6 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
 import { fileWatcherManager } from '@/lib/fileWatcher';
+import { logger } from '@/lib/logger';
+import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,17 +17,14 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: 'projectId is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('projectId is required', 400);
     }
 
     const config = scanQueueDb.getFileWatchConfig(projectId);
 
     return NextResponse.json({ config });
   } catch (error) {
-    console.error('Error fetching file watch config:', error);
+    logger.error('Error fetching file watch config:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch file watch config', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -47,10 +46,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!projectId || !watchPatterns || !scanTypes) {
-      return NextResponse.json(
-        { error: 'projectId, watchPatterns, and scanTypes are required' },
-        { status: 400 }
-      );
+      return createErrorResponse('projectId, watchPatterns, and scanTypes are required', 400);
     }
 
     const configId = `watch-${projectId}`;
@@ -74,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ config });
   } catch (error) {
-    console.error('Error creating/updating file watch config:', error);
+    logger.error('Error creating/updating file watch config:', { error });
     return NextResponse.json(
       { error: 'Failed to create/update file watch config', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -88,19 +84,13 @@ export async function PATCH(request: NextRequest) {
     const { projectId, projectPath } = body;
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: 'projectId is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('projectId is required', 400);
     }
 
     const config = scanQueueDb.toggleFileWatch(projectId);
 
     if (!config) {
-      return NextResponse.json(
-        { error: 'File watch config not found' },
-        { status: 404 }
-      );
+      return notFoundResponse('File watch config');
     }
 
     // Start/stop watcher based on new enabled state
@@ -112,7 +102,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ config });
   } catch (error) {
-    console.error('Error toggling file watch:', error);
+    logger.error('Error toggling file watch:', { error });
     return NextResponse.json(
       { error: 'Failed to toggle file watch', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, scanDb, DbIdea, DbIdeaWithColor } from '@/app/db';
+import { ideaDb, DbIdea, DbIdeaWithColor } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/ideas
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ ideas });
   } catch (error) {
-    console.error('Error fetching ideas:', error);
+    logger.error('Error fetching ideas:', { error: error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch ideas' },
       { status: 500 }
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ idea }, { status: 201 });
   } catch (error) {
-    console.error('Error creating idea:', error);
+    logger.error('Error creating idea:', { error: error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create idea' },
       { status: 500 }
@@ -174,7 +175,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ idea });
   } catch (error) {
-    console.error('Error updating idea:', error);
+    logger.error('Error updating idea:', { error: error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update idea' },
       { status: 500 }
@@ -198,7 +199,7 @@ export async function DELETE(request: NextRequest) {
     // Delete all ideas (for testing purposes)
     if (deleteAll) {
       const deletedCount = ideaDb.deleteAllIdeas();
-      console.log(`[DELETE ALL IDEAS] Deleted ${deletedCount} ideas from database`);
+      logger.info(`[DELETE ALL IDEAS] Deleted ${deletedCount} ideas from database`);
 
       return NextResponse.json({
         success: true,
@@ -226,7 +227,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting idea:', error);
+    logger.error('Error deleting idea:', { error: error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete idea' },
       { status: 500 }

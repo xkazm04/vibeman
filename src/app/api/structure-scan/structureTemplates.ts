@@ -3,6 +3,8 @@
  * Defines expected file/folder patterns and their purposes
  */
 
+import { logger } from '@/lib/logger';
+
 export interface StructureRule {
   pattern: string; // Glob pattern to match files
   description: string; // What should be in this location (for LLMs)
@@ -479,7 +481,7 @@ export async function getStructureTemplateWithCustom(type: 'nextjs' | 'fastapi')
       return getStructureTemplate(type);
     }
   } catch (error) {
-    console.warn('Failed to load custom template, using default:', error);
+    logger.warn('Failed to load custom template, using default', { error });
     return getStructureTemplate(type);
   }
 }

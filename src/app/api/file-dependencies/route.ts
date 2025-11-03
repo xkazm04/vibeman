@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
+import { logger } from '@/lib/logger';
 
 export interface FileDependency {
   filePath: string;
@@ -278,8 +279,8 @@ export async function POST(request: NextRequest) {
     try {
       body = JSON.parse(rawBody);
     } catch (parseError) {
-      console.error('JSON parse error in file-dependencies:', parseError);
-      console.error('Raw request body:', rawBody.substring(0, 200)); // Log first 200 chars
+      logger.error('JSON parse error in file-dependencies:', parseError);
+      logger.error('Raw request body:', rawBody.substring(0, 200)); // Log first 200 chars
 
       return NextResponse.json(
         {
@@ -337,7 +338,7 @@ export async function POST(request: NextRequest) {
       try {
         content = await fs.readFile(currentFilePath, 'utf-8');
       } catch {
-        console.warn(`Failed to read file: ${currentFilePath}`);
+        logger.warn(`Failed to read file: ${currentFilePath}`);
         return;
       }
 
@@ -390,7 +391,7 @@ export async function POST(request: NextRequest) {
     } as DependencyAnalysisResponse);
 
   } catch (error) {
-    console.error('File dependency analysis error:', error);
+    logger.error('File dependency analysis error:', { error });
     return NextResponse.json(
       {
         success: false,
