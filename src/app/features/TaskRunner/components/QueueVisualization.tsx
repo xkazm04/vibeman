@@ -9,78 +9,84 @@ interface QueueVisualizationProps {
   getRequirementId: (req: ProjectRequirement) => string;
 }
 
+const getStatusIcon = (status: ProjectRequirement['status']) => {
+  switch (status) {
+    case 'running':
+      return <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />;
+    case 'completed':
+      return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+    case 'failed':
+    case 'session-limit':
+      return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+    case 'queued':
+      return <Clock className="w-3.5 h-3.5 text-amber-400" />;
+    default:
+      return <AlertCircle className="w-3.5 h-3.5 text-gray-400" />;
+  }
+};
+
+const getStatusColor = (status: ProjectRequirement['status']) => {
+  switch (status) {
+    case 'running':
+      return 'border-blue-500/50 bg-blue-500/10';
+    case 'completed':
+      return 'border-emerald-500/50 bg-emerald-500/10';
+    case 'failed':
+    case 'session-limit':
+      return 'border-red-500/50 bg-red-500/10';
+    case 'queued':
+      return 'border-amber-500/50 bg-amber-500/10';
+    default:
+      return 'border-gray-600/50 bg-gray-700/10';
+  }
+};
+
+const getStatusLabel = (status: ProjectRequirement['status']) => {
+  switch (status) {
+    case 'running':
+      return 'Running';
+    case 'completed':
+      return 'Done';
+    case 'failed':
+      return 'Failed';
+    case 'session-limit':
+      return 'Limit';
+    case 'queued':
+      return 'Queued';
+    default:
+      return 'Idle';
+  }
+};
+
+const categorizeRequirements = (requirements: ProjectRequirement[]) => {
+  return {
+    queued: requirements.filter((r) => r.status === 'queued'),
+    running: requirements.filter((r) => r.status === 'running'),
+    completed: requirements.filter((r) => r.status === 'completed'),
+    failed: requirements.filter((r) => r.status === 'failed' || r.status === 'session-limit')
+  };
+};
+
+const getDisplayItems = (categorized: ReturnType<typeof categorizeRequirements>) => {
+  return [
+    ...categorized.running,
+    ...categorized.queued,
+    ...categorized.completed.slice(-3),
+    ...categorized.failed.slice(-3),
+  ].slice(0, 8); // Limit to 8 items to prevent overflow
+};
+
 export default function QueueVisualization({
   requirements,
   getRequirementId,
 }: QueueVisualizationProps) {
   // Filter and categorize requirements
-  const queuedItems = requirements.filter((r) => r.status === 'queued');
-  const runningItems = requirements.filter((r) => r.status === 'running');
-  const completedItems = requirements.filter((r) => r.status === 'completed');
-  const failedItems = requirements.filter(
-    (r) => r.status === 'failed' || r.status === 'session-limit'
-  );
-
-  // Combine for display: running, queued, recently completed/failed (last 3)
-  const displayItems = [
-    ...runningItems,
-    ...queuedItems,
-    ...completedItems.slice(-3),
-    ...failedItems.slice(-3),
-  ].slice(0, 8); // Limit to 8 items to prevent overflow
+  const categorized = categorizeRequirements(requirements);
+  const displayItems = getDisplayItems(categorized);
 
   if (displayItems.length === 0) {
     return null;
   }
-
-  const getStatusIcon = (status: ProjectRequirement['status']) => {
-    switch (status) {
-      case 'running':
-        return <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />;
-      case 'completed':
-        return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
-      case 'failed':
-      case 'session-limit':
-        return <XCircle className="w-3.5 h-3.5 text-red-400" />;
-      case 'queued':
-        return <Clock className="w-3.5 h-3.5 text-amber-400" />;
-      default:
-        return <AlertCircle className="w-3.5 h-3.5 text-gray-400" />;
-    }
-  };
-
-  const getStatusColor = (status: ProjectRequirement['status']) => {
-    switch (status) {
-      case 'running':
-        return 'border-blue-500/50 bg-blue-500/10';
-      case 'completed':
-        return 'border-emerald-500/50 bg-emerald-500/10';
-      case 'failed':
-      case 'session-limit':
-        return 'border-red-500/50 bg-red-500/10';
-      case 'queued':
-        return 'border-amber-500/50 bg-amber-500/10';
-      default:
-        return 'border-gray-600/50 bg-gray-700/10';
-    }
-  };
-
-  const getStatusLabel = (status: ProjectRequirement['status']) => {
-    switch (status) {
-      case 'running':
-        return 'Running';
-      case 'completed':
-        return 'Done';
-      case 'failed':
-        return 'Failed';
-      case 'session-limit':
-        return 'Limit';
-      case 'queued':
-        return 'Queued';
-      default:
-        return 'Idle';
-    }
-  };
 
   return (
     <div className="relative">
@@ -99,20 +105,20 @@ export default function QueueVisualization({
           <div className="flex items-center gap-2 ml-auto text-sm text-gray-500">
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3 text-amber-400" />
-              {queuedItems.length}
+              {categorized.queued.length}
             </span>
             <span className="flex items-center gap-1">
               <Loader2 className="w-3 h-3 text-blue-400" />
-              {runningItems.length}
+              {categorized.running.length}
             </span>
             <span className="flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              {completedItems.length}
+              {categorized.completed.length}
             </span>
-            {failedItems.length > 0 && (
+            {categorized.failed.length > 0 && (
               <span className="flex items-center gap-1">
                 <XCircle className="w-3 h-3 text-red-400" />
-                {failedItems.length}
+                {categorized.failed.length}
               </span>
             )}
           </div>

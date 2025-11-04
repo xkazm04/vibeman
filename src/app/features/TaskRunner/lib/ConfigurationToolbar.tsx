@@ -10,6 +10,34 @@ import GitConfigModalContent from '../sub_Git/GitConfigModalContent';
 
 const STORAGE_KEY_LOG_STREAMING = 'taskRunner_logStreaming';
 
+interface IconButtonProps {
+  onClick: () => void;
+  icon: React.ElementType;
+  title: string;
+  isActive?: boolean;
+  activeColor?: string;
+  inactiveColor?: string;
+}
+
+const IconButton: React.FC<IconButtonProps> = ({
+  onClick,
+  icon: Icon,
+  title,
+  isActive = true,
+  activeColor = 'text-blue-400 hover:text-blue-300',
+  inactiveColor = 'text-gray-500 hover:text-gray-400'
+}) => (
+  <motion.button
+    whileHover={{ scale: 1.1 }}
+    whileTap={{ scale: 0.95 }}
+    onClick={onClick}
+    className={`p-2 rounded-lg hover:bg-gray-700/50 transition-all ${isActive ? activeColor : inactiveColor}`}
+    title={title}
+  >
+    <Icon className="w-4 h-4" />
+  </motion.button>
+);
+
 export default function ConfigurationToolbar() {
   const { showModal, hideModal } = useGlobalModal();
   const { gitEnabled, setGitEnabled } = useGitConfig();
@@ -83,45 +111,29 @@ export default function ConfigurationToolbar() {
   return (
     <div className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-800/30 border border-gray-700/30 rounded-lg">
       {/* Docs Icon */}
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+      <IconButton
         onClick={handleOpenDocsEditor}
-        className="p-2 rounded-lg hover:bg-gray-700/50 transition-all text-blue-400 hover:text-blue-300"
+        icon={FileText}
         title="Edit execution prompt"
-      >
-        <FileText className="w-4 h-4" />
-      </motion.button>
+      />
 
       {/* Scroll Icon - Log Streaming */}
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+      <IconButton
         onClick={handleToggleLogStreaming}
-        className={`p-2 rounded-lg hover:bg-gray-700/50 transition-all ${
-          logStreamingEnabled
-            ? 'text-purple-400 hover:text-purple-300'
-            : 'text-gray-500 hover:text-gray-400'
-        }`}
+        icon={Scroll}
         title={logStreamingEnabled ? 'Log streaming enabled' : 'Log streaming disabled'}
-      >
-        <Scroll className="w-4 h-4" />
-      </motion.button>
+        isActive={logStreamingEnabled}
+        activeColor="text-purple-400 hover:text-purple-300"
+      />
 
       {/* Github Icon */}
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+      <IconButton
         onClick={handleOpenGitConfig}
-        className={`p-2 rounded-lg hover:bg-gray-700/50 transition-all ${
-          gitEnabled
-            ? 'text-yellow-500 hover:text-yellow-400'
-            : 'text-gray-500 hover:text-gray-400'
-        }`}
+        icon={Github}
         title={gitEnabled ? 'Git operations enabled' : 'Git operations disabled'}
-      >
-        <Github className="w-4 h-4" />
-      </motion.button>
+        isActive={gitEnabled}
+        activeColor="text-yellow-500 hover:text-yellow-400"
+      />
     </div>
   );
 }

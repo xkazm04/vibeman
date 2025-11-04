@@ -36,7 +36,6 @@ export default function TaskRunButton({
   const handleBatchRun = () => {
     if (selectedRequirements.size === 0 || isRunning) return;
 
-    console.log(`[TaskRunner] Starting batch run of ${selectedRequirements.size} requirements`);
     setError(undefined); // Clear any previous errors
 
     // Queue all selected requirements

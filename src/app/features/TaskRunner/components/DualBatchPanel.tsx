@@ -21,6 +21,38 @@ interface DualBatchPanelProps {
   getRequirementId: (req: ProjectRequirement) => string;
 }
 
+const getStatusIcon = (status: ProjectRequirement['status']) => {
+  switch (status) {
+    case 'running':
+      return <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />;
+    case 'completed':
+      return <CheckCircle2 className="w-3 h-3 text-emerald-400" />;
+    case 'failed':
+    case 'session-limit':
+      return <XCircle className="w-3 h-3 text-red-400" />;
+    case 'queued':
+      return <Clock className="w-3 h-3 text-amber-400" />;
+    default:
+      return null;
+  }
+};
+
+const getStatusColor = (status: ProjectRequirement['status']) => {
+  switch (status) {
+    case 'running':
+      return 'border-blue-500/50 bg-blue-500/10';
+    case 'completed':
+      return 'border-emerald-500/50 bg-emerald-500/10';
+    case 'failed':
+    case 'session-limit':
+      return 'border-red-500/50 bg-red-500/10';
+    case 'queued':
+      return 'border-amber-500/50 bg-amber-500/10';
+    default:
+      return 'border-gray-600/50 bg-gray-700/10';
+  }
+};
+
 export default function DualBatchPanel({
   batch1,
   batch2,
@@ -48,7 +80,7 @@ export default function DualBatchPanel({
     batches.forEach(({ batch, id }) => {
       if (batch?.status === 'completed') {
         const timer = setTimeout(() => {
-          console.log(`[DualBatchPanel] Auto-resetting completed ${id}`);
+          // Auto-resetting completed batch
           onClearBatch(id);
         }, 3000);
         return () => clearTimeout(timer);
@@ -60,38 +92,6 @@ export default function DualBatchPanel({
   const getBatchQueueItems = (batch: BatchState | null) => {
     if (!batch) return [];
     return requirements.filter((r) => batch.requirementIds.includes(getRequirementId(r)));
-  };
-
-  const getStatusIcon = (status: ProjectRequirement['status']) => {
-    switch (status) {
-      case 'running':
-        return <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />;
-      case 'completed':
-        return <CheckCircle2 className="w-3 h-3 text-emerald-400" />;
-      case 'failed':
-      case 'session-limit':
-        return <XCircle className="w-3 h-3 text-red-400" />;
-      case 'queued':
-        return <Clock className="w-3 h-3 text-amber-400" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: ProjectRequirement['status']) => {
-    switch (status) {
-      case 'running':
-        return 'border-blue-500/50 bg-blue-500/10';
-      case 'completed':
-        return 'border-emerald-500/50 bg-emerald-500/10';
-      case 'failed':
-      case 'session-limit':
-        return 'border-red-500/50 bg-red-500/10';
-      case 'queued':
-        return 'border-amber-500/50 bg-amber-500/10';
-      default:
-        return 'border-gray-600/50 bg-gray-700/10';
-    }
   };
 
   const renderBatch = (
@@ -355,7 +355,7 @@ export default function DualBatchPanel({
 
   // Determine which batches to show based on running state
   const anyBatchRunning = [batch1, batch2, batch3, batch4].some(
-    b => b?.status === 'running'
+    (b: BatchState | null | undefined) => b?.status === 'running'
   );
 
   // Show batch2 if: batch1 is running, batch2 exists, or any batch is running

@@ -9,6 +9,45 @@ interface ExecutionPromptEditorProps {
   onClose: () => void;
 }
 
+interface ActionButtonProps {
+  onClick: () => void;
+  disabled?: boolean;
+  icon: React.ElementType;
+  label: string;
+  variant?: 'primary' | 'secondary' | 'success';
+}
+
+const ActionButton: React.FC<ActionButtonProps> = ({
+  onClick,
+  disabled = false,
+  icon: Icon,
+  label,
+  variant = 'secondary'
+}) => {
+  const baseClasses = "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200";
+
+  const variantClasses = {
+    primary: "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30",
+    secondary: "bg-gray-700/50 hover:bg-gray-600/50 text-gray-400 hover:text-gray-300 border border-gray-600/30",
+    success: "bg-green-500/20 text-green-400 border border-green-500/30"
+  };
+
+  const disabledClasses = disabled ? "bg-gray-700/50 text-gray-400 cursor-not-allowed" : "";
+
+  return (
+    <motion.button
+      whileHover={!disabled ? { scale: 1.05 } : {}}
+      whileTap={!disabled ? { scale: 0.95 } : {}}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClasses} ${disabled ? disabledClasses : variantClasses[variant]}`}
+    >
+      <Icon className="w-4 h-4" />
+      <span>{label}</span>
+    </motion.button>
+  );
+};
+
 const DEFAULT_PROMPT_TEMPLATE = `You are an expert software engineer. Execute the following requirement immediately. Do not ask questions, do not wait for confirmation. Read the requirement carefully and implement all changes to the codebase as specified.
 
 REQUIREMENT TO EXECUTE NOW:
@@ -242,15 +281,12 @@ export default function ExecutionPromptEditor({ onClose }: ExecutionPromptEditor
           </AnimatePresence>
 
           {/* Reset Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <ActionButton
             onClick={handleReset}
-            className="flex items-center space-x-2 px-3 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-gray-400 hover:text-gray-300 border border-gray-600/30 rounded-lg text-sm font-medium transition-all duration-200"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>Reset</span>
-          </motion.button>
+            icon={RotateCcw}
+            label="Reset"
+            variant="secondary"
+          />
 
           {/* Save Button */}
           <motion.button

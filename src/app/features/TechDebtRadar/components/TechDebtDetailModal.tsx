@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { X, CheckCircle, XCircle } from 'lucide-react';
 import type { DbTechDebt, RemediationPlan, TechDebtStatus } from '@/app/db/models/tech-debt.types';
 
 interface TechDebtDetailModalProps {
@@ -10,6 +10,30 @@ interface TechDebtDetailModalProps {
   onClose: () => void;
   onUpdate: () => void;
 }
+
+interface StatusBadgeProps {
+  label: string;
+  colorClasses: string;
+}
+
+const StatusBadge: React.FC<StatusBadgeProps> = ({ label, colorClasses }) => (
+  <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${colorClasses}`}>
+    {label}
+  </span>
+);
+
+const getSeverityClasses = (severity: string) => {
+  switch (severity) {
+    case 'critical':
+      return 'bg-red-500/20 text-red-400 border border-red-500/50';
+    case 'high':
+      return 'bg-orange-500/20 text-orange-400 border border-orange-500/50';
+    case 'medium':
+      return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50';
+    default:
+      return 'bg-blue-500/20 text-blue-400 border border-blue-500/50';
+  }
+};
 
 export default function TechDebtDetailModal({
   techDebt,
@@ -41,7 +65,7 @@ export default function TechDebtDetailModal({
         onClose();
       }
     } catch (error) {
-      console.error('Error updating tech debt:', error);
+      // Error updating tech debt
     } finally {
       setIsUpdating(false);
     }
@@ -62,22 +86,18 @@ export default function TechDebtDetailModal({
           <div className="flex items-start justify-between p-6 border-b border-gray-700/50">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase
-                  ${techDebt.severity === 'critical' ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
-                    techDebt.severity === 'high' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50' :
-                    techDebt.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
-                    'bg-blue-500/20 text-blue-400 border border-blue-500/50'}`}
-                >
-                  {techDebt.severity}
-                </span>
-                <span className="px-3 py-1 rounded-full text-xs font-medium uppercase
-                  bg-gray-700/50 text-gray-300 border border-gray-600/50 capitalize">
-                  {techDebt.category.replace('_', ' ')}
-                </span>
-                <span className="px-3 py-1 rounded-full text-xs font-medium uppercase
-                  bg-purple-500/20 text-purple-400 border border-purple-500/50">
-                  Risk: {techDebt.risk_score}
-                </span>
+                <StatusBadge
+                  label={techDebt.severity}
+                  colorClasses={getSeverityClasses(techDebt.severity)}
+                />
+                <StatusBadge
+                  label={techDebt.category.replace('_', ' ')}
+                  colorClasses="bg-gray-700/50 text-gray-300 border border-gray-600/50 capitalize"
+                />
+                <StatusBadge
+                  label={`Risk: ${techDebt.risk_score}`}
+                  colorClasses="bg-purple-500/20 text-purple-400 border border-purple-500/50"
+                />
               </div>
               <h2 className="text-2xl font-bold text-white">{techDebt.title}</h2>
             </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Scan, Filter, TrendingUp } from 'lucide-react';
+import { Target, Scan, Filter } from 'lucide-react';
 import TechDebtCard from './TechDebtCard';
 import TechDebtDetailModal from './TechDebtDetailModal';
 import TechDebtStatsPanel from './TechDebtStatsPanel';
@@ -11,6 +11,35 @@ import type { DbTechDebt, TechDebtStats, TechDebtCategory, TechDebtSeverity, Tec
 interface TechDebtRadarProps {
   projectId: string;
 }
+
+interface FilterSelectProps {
+  label: string;
+  value: string[];
+  onChange: (values: string[]) => void;
+  options: { value: string; label: string }[];
+}
+
+const FilterSelect: React.FC<FilterSelectProps> = ({ label, value, onChange, options }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-400 mb-2">
+      {label}
+    </label>
+    <select
+      multiple
+      value={value}
+      onChange={(e) => {
+        const values = Array.from(e.target.selectedOptions, option => option.value);
+        onChange(values);
+      }}
+      className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg
+        text-white text-sm focus:outline-none focus:border-blue-500"
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  </div>
+);
 
 export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
   const [techDebtItems, setTechDebtItems] = useState<DbTechDebt[]>([]);
@@ -49,7 +78,7 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
         setStats(data.stats);
       }
     } catch (error) {
-      console.error('Error loading tech debt:', error);
+      // Error loading tech debt
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +119,7 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
         await loadTechDebt();
       }
     } catch (error) {
-      console.error('Error running scan:', error);
+      // Error running scan
     } finally {
       setIsScanning(false);
     }
@@ -109,7 +138,7 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
         await loadTechDebt();
       }
     } catch (error) {
-      console.error('Error creating backlog item:', error);
+      // Error creating backlog item
     }
   };
 
@@ -177,77 +206,50 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
         >
           <div className="grid grid-cols-3 gap-4">
             {/* Category Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                Category
-              </label>
-              <select
-                multiple
-                value={categoryFilter}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions, option => option.value) as TechDebtCategory[];
-                  setCategoryFilter(values);
-                }}
-                className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg
-                  text-white text-sm focus:outline-none focus:border-blue-500"
-              >
-                <option value="code_quality">Code Quality</option>
-                <option value="security">Security</option>
-                <option value="performance">Performance</option>
-                <option value="maintainability">Maintainability</option>
-                <option value="testing">Testing</option>
-                <option value="documentation">Documentation</option>
-                <option value="dependencies">Dependencies</option>
-                <option value="architecture">Architecture</option>
-                <option value="accessibility">Accessibility</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Category"
+              value={categoryFilter}
+              onChange={(values) => setCategoryFilter(values as TechDebtCategory[])}
+              options={[
+                { value: 'code_quality', label: 'Code Quality' },
+                { value: 'security', label: 'Security' },
+                { value: 'performance', label: 'Performance' },
+                { value: 'maintainability', label: 'Maintainability' },
+                { value: 'testing', label: 'Testing' },
+                { value: 'documentation', label: 'Documentation' },
+                { value: 'dependencies', label: 'Dependencies' },
+                { value: 'architecture', label: 'Architecture' },
+                { value: 'accessibility', label: 'Accessibility' }
+              ]}
+            />
 
             {/* Severity Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                Severity
-              </label>
-              <select
-                multiple
-                value={severityFilter}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions, option => option.value) as TechDebtSeverity[];
-                  setSeverityFilter(values);
-                }}
-                className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg
-                  text-white text-sm focus:outline-none focus:border-blue-500"
-              >
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Severity"
+              value={severityFilter}
+              onChange={(values) => setSeverityFilter(values as TechDebtSeverity[])}
+              options={[
+                { value: 'critical', label: 'Critical' },
+                { value: 'high', label: 'High' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'low', label: 'Low' }
+              ]}
+            />
 
             {/* Status Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                Status
-              </label>
-              <select
-                multiple
-                value={statusFilter}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions, option => option.value) as TechDebtStatus[];
-                  setStatusFilter(values);
-                }}
-                className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg
-                  text-white text-sm focus:outline-none focus:border-blue-500"
-              >
-                <option value="detected">Detected</option>
-                <option value="acknowledged">Acknowledged</option>
-                <option value="planned">Planned</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="dismissed">Dismissed</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Status"
+              value={statusFilter}
+              onChange={(values) => setStatusFilter(values as TechDebtStatus[])}
+              options={[
+                { value: 'detected', label: 'Detected' },
+                { value: 'acknowledged', label: 'Acknowledged' },
+                { value: 'planned', label: 'Planned' },
+                { value: 'in_progress', label: 'In Progress' },
+                { value: 'resolved', label: 'Resolved' },
+                { value: 'dismissed', label: 'Dismissed' }
+              ]}
+            />
           </div>
         </motion.div>
       )}

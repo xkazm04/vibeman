@@ -41,7 +41,7 @@ export default function GitConfigModalContent({ onClose }: GitConfigModalContent
           setProjects(data.projects || []);
         }
       } catch (error) {
-        console.error('Failed to fetch projects:', error);
+        // Failed to fetch projects
       } finally {
         setLoadingProjects(false);
       }
