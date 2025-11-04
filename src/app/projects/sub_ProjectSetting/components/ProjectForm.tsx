@@ -91,7 +91,7 @@ export default function ProjectForm({
         setParentPath(data.parentPath);
       }
     } catch (error) {
-      console.error('Error loading directories:', error);
+      // Error loading directories - silently continue
     } finally {
       setLoadingDirectories(false);
     }

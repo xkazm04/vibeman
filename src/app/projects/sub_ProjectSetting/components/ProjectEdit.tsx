@@ -47,10 +47,8 @@ export default function ProjectEdit({ isOpen, onClose, onProjectUpdated, project
       }
 
       // No need to call onProjectUpdated() - stores are already updated
-      console.log(`[ProjectEdit] Type updated to ${newType}`);
 
     } catch (error) {
-      console.error('[ProjectEdit] Error updating project type:', error);
       setError('Failed to update project type');
       // Revert will happen automatically on next sync if needed
     }

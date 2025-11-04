@@ -26,7 +26,7 @@ export default function ProjectPortSelection({
           setUsedPorts(data.usedPorts);
         }
       } catch (error) {
-        console.error('Failed to fetch used ports:', error);
+        // Failed to fetch used ports - silently continue
       } finally {
         setLoading(false);
       }

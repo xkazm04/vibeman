@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Send } from 'lucide-react';
+import { ProjectContext } from '../lib/typesAnnette';
 
 interface AnnetteChatInputProps {
   inputValue: string;
@@ -10,7 +11,7 @@ interface AnnetteChatInputProps {
   onKeyPress?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   isListening?: boolean;
   onToggleListening?: () => void;
-  selectedProject?: any;
+  selectedProject?: ProjectContext;
   isProcessing?: boolean;
   inputRef?: React.RefObject<HTMLInputElement>;
 }

@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import { ProjectContext } from '../lib/typesAnnette';
 
 interface AnnetteChatHeaderProps {
-  selectedProject?: any;
+  selectedProject?: ProjectContext;
   isProcessing?: boolean;
   isListening?: boolean;
   audioLevels?: number[];

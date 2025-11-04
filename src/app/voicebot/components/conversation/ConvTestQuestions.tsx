@@ -37,11 +37,9 @@ export default function ConvTestQuestions({
       if (response.ok) {
         onQuestionsChange(editedQuestions);
         setIsEditing(false);
-      } else {
-        console.error('Failed to save questions');
       }
     } catch (error) {
-      console.error('Error saving questions:', error);
+      // Error saving questions - silently fail
     }
   };
 
