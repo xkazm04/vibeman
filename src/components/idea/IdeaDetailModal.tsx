@@ -28,7 +28,6 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
 
   const { execute: executeRequirementGen, retry: retryRequirementGen, error: requirementError } = useAIOperation({
     onSuccess: () => {
-      console.log('Requirement generation completed successfully');
       setShowAIError(false);
     },
     onError: (err) => {
@@ -92,20 +91,17 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
     try {
       // 1. Update idea status to accepted
       await updateIdea({ status: 'accepted' });
-      console.log('[IdeaDetailModal] Idea accepted');
 
       // 2. If idea has goal_id, generate requirement file for that goal
       if (idea.goal_id) {
         const project = projects.find(p => p.id === idea.project_id);
         if (project) {
-          console.log('[IdeaDetailModal] Generating requirement for goal:', idea.goal_id);
           await executeRequirementGen(async () => {
             await generateRequirementForGoal(project.path, idea.project_id, idea.goal_id!);
             return { success: true };
           });
         }
       } else {
-        console.log('[IdeaDetailModal] No goal associated with this idea, requirement will be created via Tinder UI');
       }
     } catch (error) {
       console.error('[IdeaDetailModal] Error accepting idea:', error);
@@ -129,7 +125,6 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         });
 
         if (response.ok) {
-          console.log('[IdeaDetailModal] Idea rejected successfully');
           // Update local state
           await updateIdea({ status: 'rejected', requirement_id: null });
         } else {
@@ -174,7 +169,6 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
       if (idea.requirement_id) {
         const project = projects.find(p => p.id === idea.project_id);
         if (project?.path) {
-          console.log('[IdeaDetailModal] Deleting requirement file:', idea.requirement_id);
           try {
             const deleteResponse = await fetch('/api/claude-code/requirement', {
               method: 'DELETE',
@@ -186,12 +180,9 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
             });
 
             if (deleteResponse.ok) {
-              console.log('[IdeaDetailModal] Requirement file deleted successfully');
             } else {
-              console.log('[IdeaDetailModal] Requirement file not found (non-critical)');
             }
           } catch (deleteError) {
-            console.log('[IdeaDetailModal] Error deleting requirement file (non-critical):', deleteError);
           }
         }
       }
@@ -220,7 +211,6 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         const project = projects.find(p => p.id === idea.project_id);
 
         if (project?.path) {
-          console.log('[IdeaDetailModal] Removing existing requirement:', idea.requirement_id);
 
           // Delete requirement file
           try {
@@ -234,12 +224,9 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
             });
 
             if (deleteResponse.ok) {
-              console.log('[IdeaDetailModal] Requirement file deleted successfully');
             } else {
-              console.log('[IdeaDetailModal] Requirement file not found on disk, continuing...');
             }
           } catch (deleteError) {
-            console.log('[IdeaDetailModal] Error deleting requirement file (non-critical):', deleteError);
           }
 
           // Remove requirement_id from idea in DB
@@ -263,7 +250,6 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
 
           if (acceptResponse.ok) {
             const acceptData = await acceptResponse.json();
-            console.log('[IdeaDetailModal] Requirement regenerated successfully:', acceptData.requirementName);
             // Update local idea state with new requirement_id
             await updateIdea({ requirement_id: acceptData.requirementName });
           } else {

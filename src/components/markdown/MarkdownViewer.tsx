@@ -264,13 +264,6 @@ export default function MarkdownViewer({
           content,
           type
         });
-        
-        console.log('Parsed interactive content:', {
-          trigger,
-          type,
-          contentLength: content.length,
-          contentPreview: content.substring(0, 100) + '...'
-        });
       }
     }
 

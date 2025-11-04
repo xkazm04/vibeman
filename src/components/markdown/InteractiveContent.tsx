@@ -116,20 +116,15 @@ function PlantUMLRenderer({ content }: PlantUMLRendererProps) {
         // Convert \n back to actual newlines for PlantUML
         let processedContent = content.replace(/\\n/g, '\n');
         
-        console.log('Original PlantUML content:', content);
-        console.log('After newline conversion:', processedContent);
         
         // Ensure the content starts and ends properly
         if (!processedContent.trim().startsWith('@startuml')) {
           processedContent = '@startuml\n' + processedContent;
-          console.log('Added @startuml at start');
         }
         if (!processedContent.trim().endsWith('@enduml')) {
           processedContent = processedContent + '\n@enduml';
-          console.log('Added @enduml at end');
         }
         
-        console.log('Final processed PlantUML content:', processedContent);
         
         // Simple and reliable PlantUML encoding
         try {
@@ -141,7 +136,6 @@ function PlantUMLRenderer({ content }: PlantUMLRendererProps) {
           }
           const url = `https://www.plantuml.com/plantuml/svg/~h${hex}`;
           
-          console.log('PlantUML URL:', url);
           setImageUrl(url);
         } catch (err) {
           console.error('PlantUML encoding error:', err);
