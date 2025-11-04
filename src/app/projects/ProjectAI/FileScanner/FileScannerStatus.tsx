@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Search, FileText, CheckCircle } from 'lucide-react';
+import { FileText, CheckCircle } from 'lucide-react';
 
 export interface ScanStats {
   filesProcessed: number;
@@ -8,6 +8,30 @@ export interface ScanStats {
   codesCleaned: number;
   errors: number;
 }
+
+interface StatCardProps {
+  value: number;
+  label: string;
+  color: 'blue' | 'green' | 'red' | 'yellow' | 'orange';
+  large?: boolean;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ value, label, color, large = false }) => {
+  const colorClasses = {
+    blue: large ? 'text-blue-400' : 'text-blue-400',
+    green: large ? 'text-green-400' : 'text-green-400',
+    red: large ? 'text-red-400' : 'text-red-400',
+    yellow: large ? 'text-yellow-400' : 'text-yellow-400',
+    orange: large ? 'text-orange-400' : 'text-orange-400'
+  };
+
+  return (
+    <div className={`text-center ${large ? 'p-4' : 'p-3'} bg-gray-${large ? '900' : '800'}/50 rounded-lg border border-gray-700/30`}>
+      <div className={`${large ? 'text-3xl' : 'text-lg'} font-bold ${colorClasses[color]} mb-1`}>{value}</div>
+      <div className="text-sm text-gray-400">{label}</div>
+    </div>
+  );
+};
 
 interface FileScannerStatusProps {
   selectedOption: 'full-scan' | 'fix-errors' | 'test-scan' | null;
@@ -124,66 +148,30 @@ export default function FileScannerStatus({
         {/* File Scan Statistics - During Scanning */}
         {(selectedOption === 'test-scan' || selectedOption === 'full-scan') && scanPhase === 'scanning' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-blue-400">{scanStats.filesProcessed}</div>
-              <div className="text-sm text-gray-400">Processed</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-green-400">{scanStats.docsUpdated}</div>
-              <div className="text-sm text-gray-400">Docs Added</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-blue-400">{scanStats.codesCleaned}</div>
-              <div className="text-sm text-gray-400">Code Cleaned</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-red-400">{scanStats.errors}</div>
-              <div className="text-sm text-gray-400">Errors</div>
-            </div>
+            <StatCard value={scanStats.filesProcessed} label="Processed" color="blue" />
+            <StatCard value={scanStats.docsUpdated} label="Docs Added" color="green" />
+            <StatCard value={scanStats.codesCleaned} label="Code Cleaned" color="blue" />
+            <StatCard value={scanStats.errors} label="Errors" color="red" />
           </div>
         )}
 
         {/* Build Error Statistics - During Build Analysis */}
         {selectedOption === 'fix-errors' && buildStats && scanPhase === 'build-analysis' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-red-400">{buildStats.totalErrors}</div>
-              <div className="text-sm text-gray-400">Errors</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-yellow-400">{buildStats.totalWarnings}</div>
-              <div className="text-sm text-gray-400">Warnings</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-blue-400">{buildStats.typescriptErrors}</div>
-              <div className="text-sm text-gray-400">TypeScript</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-blue-400">{buildStats.eslintErrors}</div>
-              <div className="text-sm text-gray-400">ESLint</div>
-            </div>
+            <StatCard value={buildStats.totalErrors} label="Errors" color="red" />
+            <StatCard value={buildStats.totalWarnings} label="Warnings" color="yellow" />
+            <StatCard value={buildStats.typescriptErrors} label="TypeScript" color="blue" />
+            <StatCard value={buildStats.eslintErrors} label="ESLint" color="blue" />
           </div>
         )}
 
         {/* Error Fixing Statistics - During Fixing */}
         {selectedOption === 'fix-errors' && fixStats && scanPhase === 'fixing-errors' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-blue-400">{fixStats.filesProcessed}</div>
-              <div className="text-sm text-gray-400">Files Processed</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-green-400">{fixStats.errorsFixed}</div>
-              <div className="text-sm text-gray-400">Errors Fixed</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-yellow-400">{fixStats.errorsSkipped}</div>
-              <div className="text-sm text-gray-400">Errors Skipped</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/30">
-              <div className="text-lg font-bold text-blue-400">{fixStats.filesWithChanges}</div>
-              <div className="text-sm text-gray-400">Files Changed</div>
-            </div>
+            <StatCard value={fixStats.filesProcessed} label="Files Processed" color="blue" />
+            <StatCard value={fixStats.errorsFixed} label="Errors Fixed" color="green" />
+            <StatCard value={fixStats.errorsSkipped} label="Errors Skipped" color="yellow" />
+            <StatCard value={fixStats.filesWithChanges} label="Files Changed" color="blue" />
           </div>
         )}
 
@@ -195,22 +183,10 @@ export default function FileScannerStatus({
               Scan Complete
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-blue-400 mb-1">{scanStats.filesProcessed}</div>
-                <div className="text-sm text-gray-400">Files Processed</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-green-400 mb-1">{scanStats.docsUpdated}</div>
-                <div className="text-sm text-gray-400">Docs Added</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-blue-400 mb-1">{scanStats.codesCleaned}</div>
-                <div className="text-sm text-gray-400">Code Cleaned</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-red-400 mb-1">{scanStats.errors}</div>
-                <div className="text-sm text-gray-400">Errors</div>
-              </div>
+              <StatCard value={scanStats.filesProcessed} label="Files Processed" color="blue" large />
+              <StatCard value={scanStats.docsUpdated} label="Docs Added" color="green" large />
+              <StatCard value={scanStats.codesCleaned} label="Code Cleaned" color="blue" large />
+              <StatCard value={scanStats.errors} label="Errors" color="red" large />
             </div>
 
             {/* Status Message */}
@@ -234,22 +210,10 @@ export default function FileScannerStatus({
               Build Analysis Complete
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-red-400 mb-1">{buildStats.totalErrors}</div>
-                <div className="text-sm text-gray-400">Build Errors</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-yellow-400 mb-1">{buildStats.totalWarnings}</div>
-                <div className="text-sm text-gray-400">Warnings</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-blue-400 mb-1">{buildStats.typescriptErrors}</div>
-                <div className="text-sm text-gray-400">TypeScript</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-blue-400 mb-1">{buildStats.eslintErrors}</div>
-                <div className="text-sm text-gray-400">ESLint</div>
-              </div>
+              <StatCard value={buildStats.totalErrors} label="Build Errors" color="red" large />
+              <StatCard value={buildStats.totalWarnings} label="Warnings" color="yellow" large />
+              <StatCard value={buildStats.typescriptErrors} label="TypeScript" color="blue" large />
+              <StatCard value={buildStats.eslintErrors} label="ESLint" color="blue" large />
             </div>
 
             {/* Build Command and Execution Time */}
@@ -275,22 +239,10 @@ export default function FileScannerStatus({
               Error Fixing Complete
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-blue-400 mb-1">{fixStats.filesProcessed}</div>
-                <div className="text-sm text-gray-400">Files Processed</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-green-400 mb-1">{fixStats.errorsFixed}</div>
-                <div className="text-sm text-gray-400">Errors Fixed</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-yellow-400 mb-1">{fixStats.errorsSkipped}</div>
-                <div className="text-sm text-gray-400">Errors Skipped</div>
-              </div>
-              <div className="text-center p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="text-3xl font-bold text-blue-400 mb-1">{fixStats.filesWithChanges}</div>
-                <div className="text-sm text-gray-400">Files Changed</div>
-              </div>
+              <StatCard value={fixStats.filesProcessed} label="Files Processed" color="blue" large />
+              <StatCard value={fixStats.errorsFixed} label="Errors Fixed" color="green" large />
+              <StatCard value={fixStats.errorsSkipped} label="Errors Skipped" color="yellow" large />
+              <StatCard value={fixStats.filesWithChanges} label="Files Changed" color="blue" large />
             </div>
 
             {/* Fix Summary */}

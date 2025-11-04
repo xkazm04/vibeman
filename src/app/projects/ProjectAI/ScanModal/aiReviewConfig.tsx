@@ -3,6 +3,17 @@ import { AIReviewMode } from '@/lib/api/aiProjectReviewApi';
 import { AIDocsDisplay } from '../sub_ScanHigh';
 import { ContextResultDisplay } from '../Context';
 
+interface RenderComponentProps {
+  data: unknown;
+  loading: boolean;
+  error: string | null;
+  onBack: () => void;
+  previewMode?: boolean;
+  onPreviewModeChange?: (mode: boolean) => void;
+  onContentChange?: (content: string) => void;
+  activeProject: unknown;
+}
+
 export interface AIReviewModeConfig {
   mode: AIReviewMode;
   loadingKey: 'docsLoading' | 'tasksLoading' | 'goalsLoading' | 'contextsLoading' | 'codeLoading';
@@ -11,7 +22,7 @@ export interface AIReviewModeConfig {
   setLoadingKey: 'setDocsLoading' | 'setTasksLoading' | 'setGoalsLoading' | 'setContextsLoading' | 'setCodeLoading';
   setErrorKey: 'setDocsError' | 'setTasksError' | 'setGoalsError' | 'setContextsError' | 'setCodeError';
   setDataKey: 'setDocsContent' | 'setTasks' | 'setGoals' | 'setContexts' | 'setCodeTasks';
-  renderComponent: (props: any) => React.ReactElement;
+  renderComponent: (props: RenderComponentProps) => React.ReactElement;
 }
 
 export const AI_REVIEW_MODE_CONFIG: Record<AIReviewMode, AIReviewModeConfig> = {

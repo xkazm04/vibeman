@@ -80,6 +80,16 @@ export default function ScanResultsModal({ isOpen, onClose, results, scanStats }
     return colors[ext as keyof typeof colors] || colors.default;
   };
 
+  const getResultCardClassName = (result: FileResult) => {
+    if (result.error) {
+      return 'bg-red-500/10 border-red-500/30 hover:border-red-500/50';
+    }
+    if (result.hasChanges) {
+      return 'bg-green-500/10 border-green-500/30 hover:border-green-500/50';
+    }
+    return 'bg-gray-800/30 border-gray-700/30 hover:border-gray-600/50';
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -138,13 +148,7 @@ export default function ScanResultsModal({ isOpen, onClose, results, scanStats }
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.02 }}
-                className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-lg ${
-                  result.error 
-                    ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50' 
-                    : result.hasChanges
-                    ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
-                    : 'bg-gray-800/30 border-gray-700/30 hover:border-gray-600/50'
-                }`}
+                className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-lg ${getResultCardClassName(result)}`}
               >
                 <div className="flex items-start space-x-4">
                   {/* File Icon */}

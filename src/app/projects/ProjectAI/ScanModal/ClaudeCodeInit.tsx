@@ -48,13 +48,6 @@ export default function ClaudeCodeInit({ projectPath, projectName, projectId, pr
     const result = await initializeClaudeCode(projectPath, projectName, projectId, projectType);
 
     if (result.success) {
-      // Log context scan requirement creation status
-      if (result.contextScanRequirement?.created) {
-        console.log('Context scan requirement created at:', result.contextScanRequirement.filePath);
-      } else if (result.contextScanRequirement?.error) {
-        console.warn('Failed to create context scan requirement:', result.contextScanRequirement.error);
-      }
-
       // Refresh status
       const newStatus = await checkClaudeCodeStatus(projectPath);
       setStatus({

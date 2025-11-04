@@ -10,9 +10,15 @@ import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { MarkdownViewer } from '../../../../components/markdown';
 import { readAIDocs } from './lib/api';
 
+interface ActiveProject {
+  id?: string;
+  name?: string;
+  path?: string;
+}
+
 interface AIContentSelectorProps {
   onSelectMode: (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'file-scanner', backgroundTask?: boolean) => void;
-  activeProject: any;
+  activeProject: ActiveProject | null;
   selectedProvider?: SupportedProvider;
   onProviderChange?: (provider: SupportedProvider) => void;
 }
@@ -66,7 +72,7 @@ export default function AIContentSelector({ onSelectMode, activeProject, selecte
         );
       }
     } catch (error) {
-      console.error('Failed to load AI docs:', error);
+      // Error loading AI docs - silent fail
     }
   };
 

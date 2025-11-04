@@ -1,13 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Search, Wrench, TestTube, FileText } from 'lucide-react';
+import { Search, Wrench, TestTube, FileText, LucideIcon } from 'lucide-react';
 
 export interface ScanOption {
   id: 'full-scan' | 'fix-errors' | 'test-scan';
   title: string;
   description: string;
   bulletPoints: string[];
-  icon: any;
+  icon: LucideIcon;
   gradient: string;
   borderColor: string;
   hoverGradient: string;

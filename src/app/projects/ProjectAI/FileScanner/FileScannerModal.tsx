@@ -7,8 +7,14 @@ import FileScannerOptions from './FileScannerOptions';
 import FileScannerStatus, { ScanStats } from './FileScannerStatus';
 import { FileResult, FileScanner, BuildErrorScanner, BuildError, BuildScanStats } from '@/lib/scanner';
 
+interface ActiveProject {
+  id?: string;
+  name?: string;
+  path?: string;
+}
+
 interface FileScannerModalProps {
-  activeProject: any;
+  activeProject: ActiveProject | null;
   onClose: () => void;
 }
 
@@ -144,7 +150,7 @@ export default function FileScannerModal({ activeProject, onClose }: FileScanner
         setScanPhase('complete');
       }
     } catch (error) {
-      console.error('Scan error:', error);
+      // Scan error occurred
       setScanPhase('complete');
     } finally {
       setCurrentScanner(null);
@@ -235,8 +241,7 @@ export default function FileScannerModal({ activeProject, onClose }: FileScanner
             allSkippedErrors.push(...(result.skippedErrors || []));
           }
         } catch (error) {
-          console.error(`Error fixing file ${filePath}:`, error);
-          // Add all errors for this file to skipped
+          // Error fixing file - add all errors for this file to skipped
           allSkippedErrors.push(...fileErrors.map(err => ({
             file: err.file,
             line: err.line || 0,
@@ -259,9 +264,9 @@ export default function FileScannerModal({ activeProject, onClose }: FileScanner
       setFixedErrors(allFixedErrors);
       setSkippedErrors(allSkippedErrors);
       setScanPhase('complete');
-      
+
     } catch (error) {
-      console.error('Error during fixing process:', error);
+      // Error during fixing process
       setScanPhase('complete');
     }
   };

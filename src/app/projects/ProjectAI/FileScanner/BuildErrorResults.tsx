@@ -114,6 +114,21 @@ export default function BuildErrorResults({
       : 'text-yellow-400 bg-yellow-500/20';
   };
 
+  const getConfidenceColor = (confidence: 'high' | 'medium' | 'low') => {
+    const colors = {
+      high: 'bg-green-500/20 text-green-400',
+      medium: 'bg-yellow-500/20 text-yellow-400',
+      low: 'bg-orange-500/20 text-orange-400'
+    };
+    return colors[confidence];
+  };
+
+  const getIssueBorderColor = (severity: string) => {
+    return severity === 'error'
+      ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50'
+      : 'bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-500/50';
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -230,10 +245,7 @@ export default function BuildErrorResults({
                     <div key={index} className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-mono text-green-300">{fix.file}:{fix.line}:{fix.column}</span>
-                        <span className={`px-2 py-1 rounded text-sm ${fix.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                          fix.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-orange-500/20 text-orange-400'
-                          }`}>
+                        <span className={`px-2 py-1 rounded text-sm ${getConfidenceColor(fix.confidence)}`}>
                           {fix.confidence} confidence
                         </span>
                       </div>
@@ -280,10 +292,7 @@ export default function BuildErrorResults({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.02 }}
-                className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-lg ${issue.severity === 'error'
-                  ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50'
-                  : 'bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-500/50'
-                  }`}
+                className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-lg ${getIssueBorderColor(issue.severity)}`}
               >
                 <div className="flex items-start space-x-4">
                   {/* Error Icon */}
