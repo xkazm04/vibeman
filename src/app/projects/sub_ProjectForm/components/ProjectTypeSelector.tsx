@@ -1,4 +1,3 @@
-import React from 'react';
 import { PROJECT_TYPES } from '../config';
 import { ProjectType } from '../types';
 

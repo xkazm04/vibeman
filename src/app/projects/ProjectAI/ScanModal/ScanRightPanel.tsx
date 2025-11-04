@@ -24,8 +24,7 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
           const data = await response.json();
           setIdeas(data.ideas || []);
         }
-      } catch (error) {
-        console.error('Error fetching ideas:', error);
+      } catch (error) {// Silently handle fetch error
       } finally {
         setLoading(false);
       }

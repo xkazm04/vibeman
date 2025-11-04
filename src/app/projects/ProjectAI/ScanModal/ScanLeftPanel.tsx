@@ -9,7 +9,7 @@ import SupabaseSync from './SupabaseSync';
 interface AILeftPanelProps {
   aiDocsExist: boolean;
   checkingDocs: boolean;
-  activeProject: any;
+  activeProject: { id: string; name: string; path: string; type?: 'nextjs' | 'fastapi' | 'other' };
   selectedProvider: SupportedProvider;
   backgroundTask: boolean;
   onProviderSelect: (provider: SupportedProvider) => void;

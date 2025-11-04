@@ -36,8 +36,7 @@ export default function SupabaseSync() {
       const response = await fetch('/api/db-sync/status');
       const data = await response.json();
       setStatus(data);
-    } catch (error) {
-      console.error('Failed to fetch Supabase status:', error);
+    } catch (error) {// Silently handle fetch status error
       setStatus({
         configured: false,
         error: 'Failed to check Supabase status'
@@ -65,8 +64,7 @@ export default function SupabaseSync() {
         // Refresh status to show updated sync metadata
         await fetchStatus();
       }
-    } catch (error) {
-      console.error('Sync failed:', error);
+    } catch (error) {// Silently handle sync error
       setSyncResult({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -263,7 +261,7 @@ export default function SupabaseSync() {
                     exit={{ opacity: 0, height: 0 }}
                     className="mt-3 space-y-1"
                   >
-                    {syncResult.results.map((result: any) => (
+                    {syncResult.results.map((result: { tableName: string; success: boolean; recordCount?: number }) => (
                       <div
                         key={result.tableName}
                         className="flex items-center justify-between text-xs"

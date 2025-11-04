@@ -1,4 +1,3 @@
-import React from 'react';
 import { FolderOpen, Loader2 } from 'lucide-react';
 import { Directory } from '../types';
 
