@@ -106,7 +106,7 @@ export function Example4_HealthMonitor() {
       criticalThreshold: 50,
       warningThreshold: 20,
       onHealthChange: (health) => {
-        console.log('Health status changed:', health);
+        // Health status changed
       },
     }
   );
@@ -154,8 +154,12 @@ export function Example5_WithPresets() {
 
   // Adaptive preset with custom options
   const adaptiveConfig = mergePreset('adaptive', {
-    onSuccess: (data) => console.log('Updated:', data),
-    onError: (error) => console.error('Failed:', error),
+    onSuccess: (data) => {
+      // Data updated
+    },
+    onError: (error) => {
+      // Error occurred
+    },
   });
 
   const { data: adaptiveData } = usePollingTask(
@@ -235,7 +239,7 @@ export function Example7_ConditionalPolling({ targetValue }: { targetValue: numb
       },
       onSuccess: (result) => {
         if (result.counter >= targetValue) {
-          console.log('Target reached!');
+          // Target reached
         }
       },
     }
@@ -348,15 +352,15 @@ export function Example10_ErrorHandling() {
       retryBackoff: 'exponential',
       retryDelay: 1000,
       onError: (error, attempt) => {
-        console.error(`Poll failed (attempt ${attempt}):`, error.message);
+        // Poll failed
 
         // Show notification on persistent failures
         if (attempt >= 3) {
-          console.warn('Connection issues detected');
+          // Connection issues detected
         }
       },
       onSuccess: (data) => {
-        console.log('Poll succeeded:', data);
+        // Poll succeeded
       },
     }
   );

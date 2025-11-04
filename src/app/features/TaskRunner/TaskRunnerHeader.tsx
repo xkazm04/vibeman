@@ -74,11 +74,8 @@ export default function TaskRunnerHeader({
     ) => {
       if (!batchData) return false;
 
-      console.log(`[TaskRunner] Recovering ${batchId}...`, batchData);
-
       // Don't recover completed batches
       if (batchData.status === 'completed') {
-        console.log(`[TaskRunner] Skipping recovery of completed ${batchId}`);
         setBatch(batchData);
         return false;
       }
@@ -98,7 +95,6 @@ export default function TaskRunnerHeader({
 
         // If no actual requirements remain, mark batch as completed
         if (existingRemaining.length === 0) {
-          console.log(`[TaskRunner] No remaining requirements for ${batchId}, marking as completed`);
           const completedBatch = { ...batchData, status: 'completed' as const };
           setBatch(completedBatch);
           BatchStorage.updateBatch(batchId, completedBatch);
@@ -130,7 +126,6 @@ export default function TaskRunnerHeader({
 
     // Resume execution if batches were recovered
     if (hasRecovered) {
-      console.log('[TaskRunner] Resuming batch execution after recovery');
       setIsRunning(true);
       setTimeout(() => executeNextRequirement(), 500);
     }
@@ -176,7 +171,6 @@ export default function TaskRunnerHeader({
       });
 
       if (nextReqId) {
-        console.log(`[TaskRunner] Auto-processing next requirement from idle batch: ${nextReqId}`);
         executeNextRequirement();
       }
     }
@@ -184,7 +178,6 @@ export default function TaskRunnerHeader({
     // Check if all queued items are done
     const runningReq = requirements.find((r) => r.status === 'running');
     if (isRunning && executionQueueRef.current.length === 0 && !runningReq) {
-      console.log('[TaskRunner] All requirements completed');
       setIsRunning(false);
       setProcessedCount(0);
     }
@@ -225,8 +218,6 @@ export default function TaskRunnerHeader({
 
     // Clear selection
     actions.setSelectedRequirements(new Set());
-
-    console.log(`[TaskRunner] Created ${batchId} with ${selectedReqIds.length} tasks`);
   }, [selectedRequirements, actions]);
 
   const handleStartBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
@@ -240,8 +231,6 @@ export default function TaskRunnerHeader({
     }
 
     if (!batch) return;
-
-    console.log(`[TaskRunner] Starting ${batchId}`);
 
     // Update batch status
     const updatedBatch = {
@@ -293,8 +282,6 @@ export default function TaskRunnerHeader({
 
     if (!batch) return;
 
-    console.log(`[TaskRunner] Pausing ${batchId}`);
-
     const updatedBatch = { ...batch, status: 'paused' as const };
 
     // Update the appropriate state
@@ -321,8 +308,6 @@ export default function TaskRunnerHeader({
 
     if (!batch) return;
 
-    console.log(`[TaskRunner] Resuming ${batchId}`);
-
     const updatedBatch = { ...batch, status: 'running' as const };
 
     // Update the appropriate state
@@ -345,8 +330,6 @@ export default function TaskRunnerHeader({
   }, [batch1, batch2, batch3, batch4, executeNextRequirement]);
 
   const handleClearBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
-    console.log(`[TaskRunner] Clearing ${batchId}`);
-
     // Get the batch to clear
     let batch: BatchState | null = null;
     switch (batchId) {
@@ -396,12 +379,10 @@ export default function TaskRunnerHeader({
   };
 
   const handlePause = () => {
-    console.log('[TaskRunner] Pausing queue execution');
     setIsPaused(true);
   };
 
   const handleResume = () => {
-    console.log('[TaskRunner] Resuming queue execution');
     setIsPaused(false);
     // Trigger queue processing after resume
     setTimeout(() => {

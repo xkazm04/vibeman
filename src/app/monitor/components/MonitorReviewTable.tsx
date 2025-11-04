@@ -53,7 +53,7 @@ export default function MonitorReviewTable() {
         setCallsData(callsWithMessages);
       }
     } catch (error) {
-      console.error('Failed to load calls for review:', error);
+      // Error loading calls for review
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +79,6 @@ export default function MonitorReviewTable() {
         alert('Failed to delete call: ' + data.error);
       }
     } catch (error) {
-      console.error('Error deleting call:', error);
       alert('Failed to delete call');
     } finally {
       setDeletingCallId(null);
@@ -105,7 +104,6 @@ export default function MonitorReviewTable() {
         alert('Evaluation failed: ' + data.error);
       }
     } catch (error) {
-      console.error('Error evaluating call:', error);
       alert('Failed to evaluate call');
     } finally {
       setEvaluatingCallId(null);

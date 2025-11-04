@@ -40,7 +40,6 @@ const TaskRunnerLayout = () => {
       // CRITICAL: Don't reload requirements while a batch is running
       // This would wipe out status information for queued/running tasks
       if (isRunning) {
-        console.log('[TaskRunner] Skipping requirements reload - batch execution in progress');
         return;
       }
 
@@ -65,7 +64,7 @@ const TaskRunnerLayout = () => {
             });
           });
         } catch (error) {
-          console.error(`Failed to load requirements for ${project.name}:`, error);
+          // Failed to load requirements for project
         }
       }
 
@@ -155,7 +154,7 @@ const TaskRunnerLayout = () => {
         });
       }
     } catch (error) {
-      console.error('Failed to delete requirement:', error);
+      // Failed to delete requirement
     }
   };
 

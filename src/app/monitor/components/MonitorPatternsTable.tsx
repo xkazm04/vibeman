@@ -29,7 +29,7 @@ export default function MonitorPatternsTable() {
         setPatterns(data.patterns);
       }
     } catch (error) {
-      console.error('Failed to load patterns:', error);
+      // Error loading patterns
     } finally {
       setIsLoading(false);
     }

@@ -26,7 +26,7 @@ export default function MonitorCallsTable() {
         setCalls(data.calls);
       }
     } catch (error) {
-      console.error('Failed to load calls:', error);
+      // Error loading calls
     } finally {
       setIsLoading(false);
     }

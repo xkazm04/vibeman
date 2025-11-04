@@ -25,7 +25,7 @@ export default function MonitorStatistics() {
         setStats(data.statistics);
       }
     } catch (error) {
-      console.error('Failed to load statistics:', error);
+      // Error loading statistics
     } finally {
       setIsLoading(false);
     }

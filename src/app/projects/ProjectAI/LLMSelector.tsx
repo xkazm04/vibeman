@@ -114,7 +114,6 @@ export default function LLMSelector({ onProviderSelect, selectedProvider }: LLMS
           }
         }
       } catch (error) {
-        console.error('Failed to check provider availability:', error);
         // Fallback: mark all as unavailable except Ollama
         for (const provider of providers) {
           setProviderStatus(prev => ({
