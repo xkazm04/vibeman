@@ -114,7 +114,6 @@ export default function AsyncVoiceSolution() {
       
       await startListening();
     } catch (error) {
-      console.error('Failed to start session:', error);
       addLog('system', 'Failed to start session: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setSessionState('error');
     }
@@ -141,7 +140,7 @@ export default function AsyncVoiceSolution() {
           status: 'completed',
           outcome: 'user-ended'
         })
-      }).catch(error => console.error('Failed to update monitoring call:', error));
+      }).catch(() => {});
       
       setCurrentCallId(null);
       callStartTimeRef.current = null;
@@ -208,7 +207,6 @@ export default function AsyncVoiceSolution() {
 
       mediaRecorderRef.current.start();
     } catch (error) {
-      console.error('Error starting recording:', error);
       setIsListening(false);
       addLog('system', 'Failed to access microphone: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setSessionState('error');
@@ -287,7 +285,6 @@ export default function AsyncVoiceSolution() {
       setSessionState('idle');
       addLog('system', 'Click the button to continue conversation');
     } catch (error) {
-      console.error('Error processing audio:', error);
       addLog('system', 'Error: ' + (error instanceof Error ? error.message : 'Failed to process audio'));
       setSessionState('error');
     }

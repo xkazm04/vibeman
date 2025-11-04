@@ -48,7 +48,6 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
         setGitStatus(data.status);
       }
     } catch (error) {
-      console.error('Failed to fetch git status:', error);
     }
   };
 

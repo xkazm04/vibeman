@@ -42,7 +42,7 @@ export default function EmergencyKillModal({
         setFoundProcesses(data.processes || []);
       }
     } catch {
-      console.error('Failed to scan for processes');
+      // Silent fail
     } finally {
       setScanning(false);
     }

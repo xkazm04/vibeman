@@ -22,16 +22,6 @@ export default function RunnerSwitch({ project, index, disabled }: ProjectCardPr
   const status = processes[project.id];
   const [loading, setLoading] = useState(false);
 
-  // Debug logging
-  console.log(`RunnerSwitch for ${project.id} (${project.name}):`, {
-    projectId: project.id,
-    projectName: project.name,
-    projectPort: project.port,
-    status: status,
-    statusValue: status?.status,
-    allProcesses: Object.keys(processes)
-  });
-
   const handleToggle = async () => {
     const isRunning = status?.status === 'running';
     const hasError = status?.status === 'error';

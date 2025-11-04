@@ -4,7 +4,7 @@ import React from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 
 interface RunnerRightPanelProps {
-  onAnnetteInteraction?: (project: any) => void;
+  onAnnetteInteraction?: (project: Project) => void;
 }
 
 /**
@@ -14,7 +14,7 @@ interface RunnerRightPanelProps {
 export default function RunnerRightPanel({ onAnnetteInteraction }: RunnerRightPanelProps) {
   const { projects } = useProjectConfigStore();
 
-  const handleProjectSelect = (project: any) => {
+  const handleProjectSelect = (project: Project) => {
     if (onAnnetteInteraction) {
       onAnnetteInteraction(project);
     }
