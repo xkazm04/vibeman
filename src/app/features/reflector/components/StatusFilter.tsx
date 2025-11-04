@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock, XCircle, Sparkles } from 'lucide-react';
 

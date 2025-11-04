@@ -41,9 +41,7 @@ export default function ContextFilter({ selectedProjectIds, selectedContextIds, 
       });
 
       setContexts(allContexts);
-    } catch (error) {
-      console.error('Error loading contexts:', error);
-    } finally {
+    } catch (error) {    } finally {
       setLoading(false);
     }
   };

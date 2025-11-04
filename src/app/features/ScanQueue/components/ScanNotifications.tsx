@@ -52,7 +52,7 @@ export function ScanNotifications({
         setNotifications(prev => prev.filter(n => n.id !== notificationId));
       }
     } catch (err) {
-      console.error('Failed to mark notification as read:', err);
+      // Failed to mark notification as read - silently handle
     }
   };
 
@@ -68,7 +68,7 @@ export function ScanNotifications({
         setNotifications([]);
       }
     } catch (err) {
-      console.error('Failed to mark all notifications as read:', err);
+      // Failed to mark all notifications as read - silently handle
     }
   };
 

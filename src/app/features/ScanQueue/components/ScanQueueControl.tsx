@@ -32,7 +32,7 @@ export function ScanQueueControl({ projectId, projectPath }: ScanQueueControlPro
       const watchData = await watchRes.json();
       setFileWatchEnabled(watchData.config?.enabled === 1);
     } catch (error) {
-      console.error('Failed to fetch status:', error);
+      // Failed to fetch status - silently handle
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export function ScanQueueControl({ projectId, projectPath }: ScanQueueControlPro
         setWorkerRunning(!workerRunning);
       }
     } catch (error) {
-      console.error('Failed to toggle worker:', error);
+      // Failed to toggle worker - silently handle
     }
   };
 
@@ -67,7 +67,7 @@ export function ScanQueueControl({ projectId, projectPath }: ScanQueueControlPro
         setFileWatchEnabled(!fileWatchEnabled);
       }
     } catch (error) {
-      console.error('Failed to toggle file watch:', error);
+      // Failed to toggle file watch - silently handle
     }
   };
 
