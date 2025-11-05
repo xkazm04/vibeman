@@ -30,6 +30,7 @@ export default function AnnettePanel() {
   const [isError, setIsError] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [skipWelcome, setSkipWelcome] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -126,11 +127,15 @@ export default function AnnettePanel() {
 
   // Play welcome message when voice is first enabled
   useEffect(() => {
-    if (isVoiceEnabled) {
+    if (isVoiceEnabled && !skipWelcome) {
       const randomPhrase = WELCOME_PHRASES[Math.floor(Math.random() * WELCOME_PHRASES.length)];
       speakMessage(randomPhrase);
     }
-  }, [isVoiceEnabled, speakMessage]);
+    // Reset skip flag after welcome logic runs
+    if (skipWelcome) {
+      setSkipWelcome(false);
+    }
+  }, [isVoiceEnabled, skipWelcome, speakMessage]);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -152,6 +157,12 @@ export default function AnnettePanel() {
       setMessage('No active project selected');
       setIsError(true);
       return;
+    }
+
+    // Auto-enable voice if not already enabled (for better UX)
+    if (!isVoiceEnabled) {
+      setSkipWelcome(true); // Skip welcome message when auto-enabling
+      setIsVoiceEnabled(true);
     }
 
     setIsProcessing(true);

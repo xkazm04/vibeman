@@ -213,12 +213,12 @@ function extractSources(toolsUsed: any[]): AnnetteResponse['sources'] {
     }
 
     // Extract ideas
-    if (toolName.includes('idea') && result.ideas) {
+    if (toolName === 'get_project_ideas' && result.ideas) {
       result.ideas.slice(0, 3).forEach((idea: any) => {
         sources.push({
           type: 'idea',
           id: idea.id,
-          name: idea.title || idea.name,
+          name: idea.title,
           description: idea.description?.substring(0, 100)
         });
       });
@@ -292,12 +292,16 @@ function analyzeResponse(response: string, toolsUsed: any[]): { insights: string
     }
 
     // Ideas insights
-    if (toolName.includes('idea') && result.ideas) {
+    if (toolName === 'get_project_ideas' && result.ideas) {
       const ideaCount = result.ideas.length;
       const pendingIdeas = result.ideas.filter((i: any) => i.status === 'pending').length;
+      const acceptedIdeas = result.ideas.filter((i: any) => i.status === 'accepted').length;
+
+      if (ideaCount > 0) {
+        insights.push(`${ideaCount} total ideas: ${pendingIdeas} pending, ${acceptedIdeas} accepted`);
+      }
 
       if (pendingIdeas > 0) {
-        insights.push(`${pendingIdeas} pending ideas to review`);
         nextSteps.push('Review and evaluate pending ideas');
       }
     }

@@ -166,6 +166,9 @@ User: "Show me all projects"
 User: "What's in the backlog for project X?"
 → Use get_project_backlog with projectId (read-only, no confirmation needed)
 
+User: "How many pending ideas does this project have?"
+→ Use get_project_ideas with projectId and status="pending" (read-only, no confirmation needed)
+
 User: "Create a new project called MyApp"
 → Use create_project (action, needs confirmation for details)
 

@@ -52,14 +52,18 @@ export const READ_ONLY_TOOLS: ToolDefinition[] = [
     }
   },
   {
-    name: 'get_project_backlog',
-    description: 'Retrieves all backlog items and tasks for a specific project. Use when user asks about pending tasks, work items, project status, what work is planned, or backlog contents.',
+    name: 'get_project_ideas',
+    description: 'Retrieves all AI-generated ideas for a specific project from the ideas database. Use when user asks about pending ideas, idea count, project ideas, brainstormed features, or suggestions.',
     parameters: {
       type: 'object',
       properties: {
         projectId: {
           type: 'string',
-          description: 'The ID of the project to fetch backlog for'
+          description: 'The ID of the project to fetch ideas for'
+        },
+        status: {
+          type: 'string',
+          description: 'Filter by status: pending, accepted, rejected, implemented (optional)'
         }
       },
       required: ['projectId']

@@ -92,8 +92,11 @@ function buildEndpointConfig(
       endpoint: buildGetEndpoint(baseUrl, '/api/projects'),
       method: 'GET'
     }),
-    'get_project_backlog': () => ({
-      endpoint: buildGetEndpoint(baseUrl, '/api/backlog', { projectId: parameters.projectId }),
+    'get_project_ideas': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/ideas', {
+        projectId: parameters.projectId,
+        status: parameters.status
+      }),
       method: 'GET'
     }),
     'get_folder_structure': () => ({
