@@ -54,8 +54,7 @@ export default function ResultsStep() {
     const timer = setTimeout(() => {
       setShowHeroBadge(true);
     }, 500);
-    return (
-    <>) => clearTimeout(timer);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleFinish = () => {
@@ -248,6 +247,16 @@ export default function ResultsStep() {
         nextLabel="Finish"
         nextIcon={CheckCircle}
         nextVariant="success"
+      />
+
+      {/* Hero Badge */}
+      <HeroBadge
+        isVisible={showHeroBadge}
+        onClose={() => setShowHeroBadge(false)}
+        userName="Refactor Champion"
+        opportunitiesCount={selectedOpps.length}
+        filesCount={summary.totalFiles}
+        batchCount={summary.batchCount}
       />
     </StepContainer>
   );
