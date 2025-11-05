@@ -37,6 +37,7 @@ export async function executeStructureScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    console.error('[StructureScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -51,6 +52,10 @@ export async function executeStructureScan(): Promise<ScanResult> {
     const result = await registry.executeScan(activeProject, 'structure');
 
     // Convert adapter result to legacy format
+    if (!result.success) {
+      console.error('[StructureScan] Scan failed:', result.error);
+    }
+
     return {
       success: result.success,
       error: result.error,
@@ -58,10 +63,11 @@ export async function executeStructureScan(): Promise<ScanResult> {
       data: result.data,
     };
   } catch (error) {
-    console.error('[StructureScan] Error:', error);
+    console.error('[StructureScan] Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Structure scan failed unexpectedly';
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
     };
   }
 }

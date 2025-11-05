@@ -32,6 +32,7 @@ export async function executeVisionScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    console.error('[VisionScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -54,15 +55,18 @@ export async function executeVisionScan(): Promise<ScanResult> {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[VisionScan] API request failed:', response.status, errorText);
       return {
         success: false,
-        error: 'Failed to generate documentation',
+        error: `Failed to generate documentation: ${response.status}`,
       };
     }
 
     const result = await response.json();
 
     if (!result.success || !result.review) {
+      console.error('[VisionScan] Scan failed:', result.error);
       return {
         success: false,
         error: result.error || 'Failed to generate documentation',
@@ -81,10 +85,11 @@ export async function executeVisionScan(): Promise<ScanResult> {
       },
     };
   } catch (error) {
-    console.error('[VisionScan] Error:', error);
+    console.error('[VisionScan] Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Vision scan failed unexpectedly';
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
     };
   }
 }

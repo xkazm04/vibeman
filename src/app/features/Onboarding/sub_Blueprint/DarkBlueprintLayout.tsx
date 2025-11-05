@@ -14,6 +14,7 @@ import { TaskProgressPanel } from './components/TaskProgressPanel';
 import { BadgeGallery } from './components/BadgeGallery';
 import Stepper, { StepperProgress } from './components/Stepper';
 import StepperConfigPanel from './components/StepperConfigPanel';
+import ScanErrorBanner from './components/ScanErrorBanner';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
@@ -183,11 +184,13 @@ export default function DarkBlueprint() {
     }
 
     if (!buttonConfig) {
+      console.error(`[Blueprint] No button config found for scan: ${scanId}`);
       return;
     }
 
     // Check if scan handler is defined
     if (!buttonConfig.scanHandler) {
+      console.error(`[Blueprint] No scan handler defined for: ${scanId}`);
       return;
     }
 
@@ -198,27 +201,43 @@ export default function DarkBlueprint() {
     // This allows user to continue working and multiple scans to run concurrently
     (async () => {
       try {
+        console.log(`[Blueprint] Starting scan: ${scanId}`);
+
         // Execute scan (with contextId if needed)
         let result;
-        if (buttonConfig.contextNeeded && contextId) {
-          // For context-dependent scans, call with contextId
-          if (scanId === 'selectors') {
-            const { executeSelectorsScan } = await import('./lib/blueprintSelectorsScan');
-            result = await executeSelectorsScan(contextId);
-          } else if (scanId === 'photo') {
-            const { executePhotoScan } = await import('./lib/blueprintPhotoScan');
-            result = await executePhotoScan(contextId);
+        try {
+          if (buttonConfig.contextNeeded && contextId) {
+            // For context-dependent scans, call with contextId
+            if (scanId === 'selectors') {
+              const { executeSelectorsScan } = await import('./lib/blueprintSelectorsScan');
+              result = await executeSelectorsScan(contextId);
+            } else if (scanId === 'photo') {
+              const { executePhotoScan } = await import('./lib/blueprintPhotoScan');
+              result = await executePhotoScan(contextId);
+            } else {
+              result = await buttonConfig.scanHandler.execute();
+            }
           } else {
             result = await buttonConfig.scanHandler.execute();
           }
-        } else {
-          result = await buttonConfig.scanHandler.execute();
+        } catch (scanError) {
+          // Catch execution errors and convert to failed result
+          const errorMsg = scanError instanceof Error ? scanError.message : 'Scan execution failed';
+          console.error(`[Blueprint] Scan execution error for ${scanId}:`, scanError);
+          result = {
+            success: false,
+            error: errorMsg,
+          };
         }
 
-        // Handle failure
+        // Handle failure - log error but continue processing other scans
         if (!result.success) {
           const errorMsg = result.error || 'Scan failed';
+          console.error(`[Blueprint] Scan ${scanId} failed:`, errorMsg);
           failScan(errorMsg);
+
+          // Don't show error decision here - error banner will handle it
+          // Just log and allow other scans to continue
           return;
         }
 
@@ -226,20 +245,32 @@ export default function DarkBlueprint() {
         completeScan();
 
         // Build decision data
-        const decisionData = buttonConfig.scanHandler.buildDecision(result);
+        let decisionData;
+        try {
+          decisionData = buttonConfig.scanHandler.buildDecision(result);
+        } catch (buildError) {
+          console.error(`[Blueprint] Error building decision for ${scanId}:`, buildError);
+          // If decision building fails, still mark scan as complete but don't queue decision
+          return;
+        }
 
         // If decision data exists, wrap onAccept to create event after successful acceptance
         if (decisionData) {
           const originalOnAccept = decisionData.onAccept;
-          
+
           // Wrap onAccept to create event after successful acceptance
           decisionData.onAccept = async () => {
-            // Execute original accept logic
-            await originalOnAccept();
+            try {
+              // Execute original accept logic
+              await originalOnAccept();
 
-            // Create event only after successful acceptance
-            if (buttonConfig.eventTitle && activeProject) {
-              await createScanEvent(buttonConfig.eventTitle, scanId, contextId);
+              // Create event only after successful acceptance
+              if (buttonConfig.eventTitle && activeProject) {
+                await createScanEvent(buttonConfig.eventTitle, scanId, contextId);
+              }
+            } catch (acceptError) {
+              console.error(`[Blueprint] Error in onAccept for ${scanId}:`, acceptError);
+              throw acceptError; // Re-throw to be handled by decision panel
             }
           };
 
@@ -253,26 +284,12 @@ export default function DarkBlueprint() {
           }
         }
       } catch (error) {
+        // Top-level catch for any unexpected errors
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[Blueprint] Unexpected error in scan ${scanId}:`, error);
         failScan(errorMsg);
 
-        // Show error in decision panel
-        addDecision({
-          type: 'scan-error',
-          title: `${buttonConfig.label} Scan Failed`,
-          description: `An error occurred while scanning:\n\n${errorMsg}\n\nPlease check the console for more details.`,
-          count: 0,
-          severity: 'error',
-          projectId: activeProject?.id || '',
-          projectPath: activeProject?.path || '',
-          data: { scanId, error: errorMsg },
-          onAccept: async () => {
-            // Error acknowledged
-          },
-          onReject: async () => {
-            // Error dismissed
-          },
-        });
+        // Don't block the UI with error decisions - error banner will handle retry
       }
     })();
 
@@ -371,6 +388,9 @@ export default function DarkBlueprint() {
 
       {/* Scan Progress Bars - Top of screen */}
       <ScanProgressBars />
+
+      {/* Scan Error Banner - Top Right */}
+      <ScanErrorBanner onRetry={handleSelectScan} />
 
       {/* Decision Panel - Top Center */}
       {currentDecision && (

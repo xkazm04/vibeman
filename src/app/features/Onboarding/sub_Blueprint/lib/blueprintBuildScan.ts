@@ -41,6 +41,7 @@ export async function executeBuildScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    console.error('[BuildScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -48,20 +49,26 @@ export async function executeBuildScan(): Promise<ScanResult> {
   }
 
   try {
+    console.log('[BuildScan] Executing build scan...');
     const registry = getInitializedRegistry();
     const result = await registry.executeScan(activeProject, 'build', { scanOnly: true });
 
     // Convert adapter result to legacy format
+    if (!result.success) {
+      console.error('[BuildScan] Scan failed:', result.error);
+    }
+
     return {
       success: result.success,
       error: result.error,
       data: result.data as any,
     };
   } catch (error) {
-    console.error('[BuildScan] Error:', error);
+    console.error('[BuildScan] Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Build scan failed unexpectedly';
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
     };
   }
 }

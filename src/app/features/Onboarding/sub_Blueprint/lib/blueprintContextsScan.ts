@@ -52,6 +52,7 @@ export async function executeContextsScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    console.error('[ContextsScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -67,16 +68,21 @@ export async function executeContextsScan(): Promise<ScanResult> {
     const result = await registry.executeScan(activeProject, 'contexts', { provider });
 
     // Convert adapter result to legacy format
+    if (!result.success) {
+      console.error('[ContextsScan] Scan failed:', result.error);
+    }
+
     return {
       success: result.success,
       error: result.error,
       data: result.data as any,
     };
   } catch (error) {
-    console.error('[ContextsScan] Error:', error);
+    console.error('[ContextsScan] Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Context scan failed unexpectedly';
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
     };
   }
 }

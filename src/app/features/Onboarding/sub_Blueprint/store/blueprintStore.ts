@@ -34,7 +34,9 @@ interface BlueprintState {
   updateScanProgress: (progress: number) => void;
   completeScan: () => void;
   failScan: (error: string) => void;
+  clearScanError: (scanName: string) => void;
   getScanStatus: (scanName: string) => ScanStatus;
+  getFailedScans: () => ScanStatus[];
   getDaysAgo: (scanName: string) => number | null;
   loadScanEvents: (projectId: string, eventTitles: Record<string, string>) => Promise<void>;
   getColumns: () => ColumnConfig[];
@@ -137,6 +139,8 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
     const { currentScan } = get();
     if (!currentScan) return;
 
+    console.error(`[BlueprintStore] Scan failed: ${currentScan} - ${error}`);
+
     set((state) => ({
       currentScan: null,
       scanProgress: 0,
@@ -154,9 +158,33 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
     }));
   },
 
+  clearScanError: (scanName: string) => {
+    set((state) => ({
+      scans: {
+        ...state.scans,
+        [scanName]: {
+          ...state.scans[scanName],
+          hasError: false,
+          errorMessage: undefined,
+        },
+      },
+    }));
+  },
+
   getScanStatus: (scanName: string) => {
     const { scans } = get();
-    return scans[scanName] || DEFAULT_SCANS[scanName];
+    return scans[scanName] || DEFAULT_SCANS[scanName] || {
+      name: scanName,
+      lastRun: null,
+      isRunning: false,
+      progress: 0,
+      hasError: false,
+    };
+  },
+
+  getFailedScans: () => {
+    const { scans } = get();
+    return Object.values(scans).filter(scan => scan.hasError);
   },
 
   getDaysAgo: (scanName: string) => {

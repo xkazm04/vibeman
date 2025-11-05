@@ -37,6 +37,7 @@ export async function executePhotoScan(contextId: string): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    console.error('[PhotoScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -44,6 +45,7 @@ export async function executePhotoScan(contextId: string): Promise<ScanResult> {
   }
 
   if (!contextId) {
+    console.error('[PhotoScan] No context ID provided');
     return {
       success: false,
       error: 'No context ID provided',
@@ -63,9 +65,19 @@ export async function executePhotoScan(contextId: string): Promise<ScanResult> {
       }),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[PhotoScan] API request failed:', response.status, errorText);
+      return {
+        success: false,
+        error: `API request failed: ${response.status}`,
+      };
+    }
+
     const result = await response.json();
 
-    if (!response.ok || !result.success) {
+    if (!result.success) {
+      console.error('[PhotoScan] Scan failed:', result.error);
       return {
         success: false,
         error: result.error || 'Failed to check test scenario',
@@ -84,10 +96,11 @@ export async function executePhotoScan(contextId: string): Promise<ScanResult> {
       },
     };
   } catch (error) {
-    console.error('[PhotoScan] Error:', error);
+    console.error('[PhotoScan] Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Photo scan failed unexpectedly';
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
     };
   }
 }

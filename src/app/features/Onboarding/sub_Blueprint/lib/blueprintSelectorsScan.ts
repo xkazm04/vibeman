@@ -39,6 +39,7 @@ export async function executeSelectorsScan(contextId: string): Promise<ScanResul
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    console.error('[SelectorsScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -46,6 +47,7 @@ export async function executeSelectorsScan(contextId: string): Promise<ScanResul
   }
 
   if (!contextId) {
+    console.error('[SelectorsScan] No context ID provided');
     return {
       success: false,
       error: 'No context ID provided',
@@ -97,10 +99,11 @@ export async function executeSelectorsScan(contextId: string): Promise<ScanResul
       },
     };
   } catch (error) {
-    console.error('[SelectorsScan] Error:', error);
+    console.error('[SelectorsScan] Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Selectors scan failed unexpectedly';
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
     };
   }
 }

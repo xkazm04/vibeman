@@ -42,6 +42,7 @@ export async function executeUnusedScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
+    console.error('[UnusedScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -50,6 +51,7 @@ export async function executeUnusedScan(): Promise<ScanResult> {
 
   // Only support Next.js projects
   if (activeProject.type !== 'nextjs') {
+    console.warn('[UnusedScan] Unsupported project type:', activeProject.type);
     return {
       success: false,
       error: 'Unused code scan only supports Next.js projects',
@@ -153,10 +155,11 @@ export async function executeUnusedScan(): Promise<ScanResult> {
       stats: finalResult.stats,
     };
   } catch (error) {
-    console.error('[UnusedScan] Error:', error);
+    console.error('[UnusedScan] Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unused scan failed unexpectedly';
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
     };
   }
 }
