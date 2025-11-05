@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { BLUEPRINT_COLUMNS, ColumnConfig } from '../lib/blueprintConfig';
+import { StepperConfig, getStepperConfig } from '../lib/stepperConfig';
 
 export interface ScanStatus {
   name: string;
@@ -20,8 +21,13 @@ interface BlueprintState {
   scans: Record<string, ScanStatus>;
   currentScan: string | null;
   scanProgress: number;
-  columns: ColumnConfig[]; // Column configuration array
+  columns: ColumnConfig[]; // Column configuration array (legacy support)
   taskerProgress: TaskerProgress; // Tasker module progress state
+
+  // Stepper state (new)
+  currentStepIndex: number;
+  completedSteps: number[];
+  stepperConfig: StepperConfig | null;
 
   // Actions
   startScan: (scanName: string) => void;
@@ -37,6 +43,15 @@ interface BlueprintState {
   updateTaskerProgress: (completedCount: number, totalCount: number) => void;
   setTaskerRunning: (isRunning: boolean) => void;
   resetTaskerProgress: () => void;
+
+  // Stepper actions (new)
+  setCurrentStep: (index: number) => void;
+  markStepCompleted: (index: number) => void;
+  nextStep: () => void;
+  previousStep: () => void;
+  resetStepper: () => void;
+  initStepperConfig: (projectType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other') => void;
+  toggleGroup: (groupId: string, enabled: boolean) => void;
 }
 
 const DEFAULT_SCANS: Record<string, ScanStatus> = {
@@ -58,6 +73,11 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
   scanProgress: 0,
   columns: BLUEPRINT_COLUMNS, // Initialize with default column configuration
   taskerProgress: { isRunning: false, completedCount: 0, totalCount: 0 }, // Initialize tasker progress
+
+  // Stepper state (new)
+  currentStepIndex: 0,
+  completedSteps: [],
+  stepperConfig: null,
 
   startScan: (scanName: string) => {
     set((state) => ({
@@ -229,6 +249,67 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
         completedCount: 0,
         totalCount: 0,
       },
+    });
+  },
+
+  // Stepper actions (new)
+  setCurrentStep: (index: number) => {
+    set({ currentStepIndex: index });
+  },
+
+  markStepCompleted: (index: number) => {
+    set((state) => {
+      if (!state.completedSteps.includes(index)) {
+        return { completedSteps: [...state.completedSteps, index] };
+      }
+      return state;
+    });
+  },
+
+  nextStep: () => {
+    const { currentStepIndex, stepperConfig } = get();
+    if (!stepperConfig) return;
+
+    const totalSteps = stepperConfig.groups
+      .filter(g => g.enabled)
+      .reduce((acc, g) => acc + g.techniques.length, 0);
+
+    if (currentStepIndex < totalSteps - 1) {
+      set({ currentStepIndex: currentStepIndex + 1 });
+    }
+  },
+
+  previousStep: () => {
+    const { currentStepIndex } = get();
+    if (currentStepIndex > 0) {
+      set({ currentStepIndex: currentStepIndex - 1 });
+    }
+  },
+
+  resetStepper: () => {
+    set({
+      currentStepIndex: 0,
+      completedSteps: [],
+    });
+  },
+
+  initStepperConfig: (projectType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other') => {
+    const config = getStepperConfig(projectType);
+    set({ stepperConfig: config });
+  },
+
+  toggleGroup: (groupId: string, enabled: boolean) => {
+    set((state) => {
+      if (!state.stepperConfig) return state;
+
+      return {
+        stepperConfig: {
+          ...state.stepperConfig,
+          groups: state.stepperConfig.groups.map((group) =>
+            group.id === groupId ? { ...group, enabled } : group
+          ),
+        },
+      };
     });
   },
 }));

@@ -12,23 +12,51 @@ import ContextSelector from './components/ContextSelector';
 import ScanProgressBars from './components/ScanProgressBars';
 import { TaskProgressPanel } from './components/TaskProgressPanel';
 import { BadgeGallery } from './components/BadgeGallery';
+import Stepper, { StepperProgress } from './components/Stepper';
+import StepperConfigPanel from './components/StepperConfigPanel';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBadgeStore } from '@/stores/badgeStore';
 import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShortcuts';
+import { getAllTechniques } from './lib/stepperConfig';
 
 export default function DarkBlueprint() {
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [showContextSelector, setShowContextSelector] = useState(false);
   const [pendingScanId, setPendingScanId] = useState<string | null>(null);
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
-  const { startScan, updateScanProgress, completeScan, failScan, getDaysAgo, loadScanEvents, columns } = useBlueprintStore();
+  const [useStepper, setUseStepper] = useState(true); // Toggle between stepper and legacy column layout
+
+  const {
+    startScan,
+    updateScanProgress,
+    completeScan,
+    failScan,
+    getDaysAgo,
+    loadScanEvents,
+    columns,
+    stepperConfig,
+    currentStepIndex,
+    completedSteps,
+    initStepperConfig,
+    toggleGroup,
+    getScanStatus,
+  } = useBlueprintStore();
+
   const { setActiveModule, openControlPanel, closeBlueprint } = useOnboardingStore();
   const { currentDecision, addDecision, queue } = useDecisionQueueStore();
   const { activeProject } = useActiveProjectStore();
   const { awardBadge, getProgress, earnedBadges } = useBadgeStore();
+
+  // Initialize stepper config when active project changes
+  useEffect(() => {
+    if (!activeProject) return;
+
+    const projectType = activeProject.type || 'other';
+    initStepperConfig(projectType);
+  }, [activeProject, initStepperConfig]);
 
   // Check if onboarding is complete (no more decisions and has some badges)
   useEffect(() => {
@@ -387,23 +415,63 @@ export default function DarkBlueprint() {
         )}
       </AnimatePresence>
 
+      {/* Stepper Configuration Panel */}
+      {useStepper && stepperConfig && (
+        <StepperConfigPanel
+          groups={stepperConfig.groups}
+          onToggle={toggleGroup}
+        />
+      )}
+
+      {/* Stepper Progress Indicator */}
+      {useStepper && stepperConfig && (
+        <div className="absolute top-32 left-1/2 -translate-x-1/2 z-40">
+          <StepperProgress
+            currentStep={currentStepIndex}
+            totalSteps={getAllTechniques(stepperConfig).length}
+            completedSteps={completedSteps}
+          />
+        </div>
+      )}
+
       {/* Main content area */}
       <div className="relative h-full min-w-[1200px] flex items-center justify-center p-20" data-testid="blueprint-main-content">
-        {/* Dynamic Column Grid Layout - Renders columns from store configuration */}
-        <div className="grid grid-cols-4 min-w-[1200px] gap-10 z-10" data-testid="blueprint-column-grid">
-          {columns.map((column, index) => (
-            <BlueprintColumn
-              key={column.id}
-              column={column}
-              delay={0.4 + index * 0.1}
-              selectedScanId={selectedScanId}
-              onSelectScan={handleSelectScan}
-              onScan={handleScan}
-              onNavigate={handleNavigate}
-              getDaysAgo={getDaysAgo}
-            />
-          ))}
-        </div>
+        {useStepper && stepperConfig ? (
+          /* New Stepper Layout */
+          <Stepper
+            config={stepperConfig}
+            currentStepIndex={currentStepIndex}
+            selectedScanId={selectedScanId}
+            onStepSelect={(_groupId, techniqueId) => handleSelectScan(techniqueId)}
+            onNavigate={handleNavigate}
+            getDaysAgo={getDaysAgo}
+            getScanStatus={(techniqueId) => {
+              const status = getScanStatus(techniqueId);
+              return {
+                isRunning: status.isRunning,
+                progress: status.progress,
+                hasError: status.hasError,
+              };
+            }}
+            className="min-w-[1200px]"
+          />
+        ) : (
+          /* Legacy Column Grid Layout */
+          <div className="grid grid-cols-4 min-w-[1200px] gap-10 z-10" data-testid="blueprint-column-grid">
+            {columns.map((column, index) => (
+              <BlueprintColumn
+                key={column.id}
+                column={column}
+                delay={0.4 + index * 0.1}
+                selectedScanId={selectedScanId}
+                onSelectScan={handleSelectScan}
+                onScan={handleScan}
+                onNavigate={handleNavigate}
+                getDaysAgo={getDaysAgo}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Connection lines between columns */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: -1 }}>
