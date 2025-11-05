@@ -1,19 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Moon, Eclipse, Lightbulb, FileText, Sparkles } from 'lucide-react';
-import StatusChip, { StatusChipState, StatusChipTheme } from '@/app/components/ui/StatusChip';
+import StatusChip, { StatusChipTheme } from '@/app/components/ui/StatusChip';
 import VoiceVisualizer from '../sub_VoiceInterface/VoiceVisualizer';
+import AnnetteThemeSwitcher, { AnnetteTheme, THEME_CONFIGS } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
+import AnnetteTestButtons from '../sub_VoiceInterface/AnnetteTestButtons';
 import KnowledgeSourcesPanel from './KnowledgeSourcesPanel';
 import InsightsPanel from './InsightsPanel';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import { textToSpeech } from '../lib/voicebotApi';
 import { KnowledgeSource } from '../lib/voicebotTypes';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { trackCommand } from '../lib/analyticsWrapper';
-
-export type AnnetteTheme = 'phantom' | 'midnight' | 'shadow';
+import { SupportedProvider } from '@/lib/llm/types';
 
 const WELCOME_PHRASES = [
   "Welcome to your command center.",
@@ -22,43 +21,6 @@ const WELCOME_PHRASES = [
   "All systems operational.",
   "Ready when you are.",
 ];
-
-// Theme configurations
-const THEME_CONFIGS = {
-  phantom: {
-    name: 'Phantom Frequency',
-    icon: Eclipse,
-    colors: {
-      primary: 'from-purple-500 via-violet-500 to-fuchsia-500',
-      glow: 'shadow-purple-500/50',
-      text: 'text-purple-300',
-      border: 'border-purple-500/30',
-      bg: 'bg-purple-500/10',
-    },
-  },
-  midnight: {
-    name: 'Midnight Pulse',
-    icon: Moon,
-    colors: {
-      primary: 'from-blue-600 via-cyan-500 to-blue-400',
-      glow: 'shadow-cyan-500/50',
-      text: 'text-cyan-300',
-      border: 'border-cyan-500/30',
-      bg: 'bg-cyan-500/10',
-    },
-  },
-  shadow: {
-    name: 'Shadow Nexus',
-    icon: Zap,
-    colors: {
-      primary: 'from-red-600 via-rose-500 to-pink-500',
-      glow: 'shadow-red-500/50',
-      text: 'text-red-300',
-      border: 'border-red-500/30',
-      bg: 'bg-red-500/10',
-    },
-  },
-};
 
 export default function AnnettePanel() {
   const [theme, setTheme] = useState<AnnetteTheme>('midnight');
@@ -185,7 +147,7 @@ export default function AnnettePanel() {
   };
 
   // Send message to Annette and get response
-  const sendToAnnette = useCallback(async (userMessage: string) => {
+  const sendToAnnette = useCallback(async (userMessage: string, provider: SupportedProvider) => {
     if (!activeProject) {
       setMessage('No active project selected');
       setIsError(true);
@@ -206,6 +168,7 @@ export default function AnnettePanel() {
           projectPath: activeProject.path,
           message: userMessage,
           conversationId,
+          provider,
         }),
       });
 
@@ -244,28 +207,6 @@ export default function AnnettePanel() {
       setIsProcessing(false);
     }
   }, [activeProject, conversationId, speakMessage]);
-
-  // Test button handlers
-  const handleTestIdeasCount = () => {
-    if (!activeProject) return;
-    trackCommand(activeProject.id, 'test_ideas_count', 'button_command', async () => {
-      await sendToAnnette('How many pending ideas does this project have?');
-    }).catch(() => {});
-  };
-
-  const handleTestDocsRetrieval = () => {
-    if (!activeProject) return;
-    trackCommand(activeProject.id, 'test_docs_retrieval', 'button_command', async () => {
-      await sendToAnnette('Can you retrieve the high-level documentation for this project?');
-    }).catch(() => {});
-  };
-
-  const handleTestSummarize = () => {
-    if (!activeProject) return;
-    trackCommand(activeProject.id, 'test_summarize', 'button_command', async () => {
-      await sendToAnnette('Please summarize the project vision for me.');
-    }).catch(() => {});
-  };
 
   return (
     <motion.div
@@ -366,49 +307,7 @@ export default function AnnettePanel() {
             </motion.button>
 
             {/* Theme Switcher Column */}
-            <div className="flex flex-col gap-1.5">
-              {(Object.keys(THEME_CONFIGS) as AnnetteTheme[]).map((themeKey) => {
-                const config = THEME_CONFIGS[themeKey];
-                const Icon = config.icon;
-                const isActive = theme === themeKey;
-
-                return (
-                  <motion.button
-                    key={themeKey}
-                    onClick={() => handleThemeChange(themeKey)}
-                    whileHover={{ scale: 1.15 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`relative p-1.5 rounded-lg transition-all duration-300 ${
-                      isActive
-                        ? `${config.colors.bg} border ${config.colors.border}`
-                        : 'bg-gray-800/40 border border-gray-700/30 hover:bg-gray-700/50'
-                    }`}
-                    title={config.name}
-                  >
-                    <Icon
-                      className={`w-3.5 h-3.5 transition-colors ${
-                        isActive ? config.colors.text : 'text-gray-500'
-                      }`}
-                    />
-
-                    {/* Active indicator glow */}
-                    {isActive && (
-                      <motion.div
-                        className={`absolute inset-0 rounded-lg blur-sm ${config.colors.glow} -z-10`}
-                        animate={{
-                          opacity: [0.3, 0.6, 0.3],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: 'easeInOut',
-                        }}
-                      />
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
+            <AnnetteThemeSwitcher theme={theme} onThemeChange={handleThemeChange} />
           </div>
         </div>
 
@@ -417,69 +316,14 @@ export default function AnnettePanel() {
       </div>
 
       {/* Test Buttons Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="mt-4 flex gap-3 justify-center"
-      >
-        {/* Test Button 1: Ideas Count */}
-        <motion.button
-          onClick={handleTestIdeasCount}
-          disabled={isProcessing || !activeProject}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`relative px-4 py-2 rounded-lg border transition-all duration-300 ${
-            isProcessing || !activeProject
-              ? 'border-gray-700/30 bg-gray-800/20 text-gray-600 cursor-not-allowed'
-              : `border-purple-500/30 bg-purple-500/10 ${themeConfig.colors.text} hover:border-purple-500/50 hover:bg-purple-500/20`
-          }`}
-          title="Ask for pending ideas count"
-        >
-          <div className="flex items-center gap-2">
-            <Lightbulb className="w-4 h-4" />
-            <span className="text-sm font-mono">Ideas Count</span>
-          </div>
-        </motion.button>
-
-        {/* Test Button 2: Docs Retrieval */}
-        <motion.button
-          onClick={handleTestDocsRetrieval}
-          disabled={isProcessing || !activeProject}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`relative px-4 py-2 rounded-lg border transition-all duration-300 ${
-            isProcessing || !activeProject
-              ? 'border-gray-700/30 bg-gray-800/20 text-gray-600 cursor-not-allowed'
-              : `border-cyan-500/30 bg-cyan-500/10 ${themeConfig.colors.text} hover:border-cyan-500/50 hover:bg-cyan-500/20`
-          }`}
-          title="Ask if docs can be retrieved"
-        >
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            <span className="text-sm font-mono">Check Docs</span>
-          </div>
-        </motion.button>
-
-        {/* Test Button 3: Summarize Vision */}
-        <motion.button
-          onClick={handleTestSummarize}
-          disabled={isProcessing || !activeProject}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`relative px-4 py-2 rounded-lg border transition-all duration-300 ${
-            isProcessing || !activeProject
-              ? 'border-gray-700/30 bg-gray-800/20 text-gray-600 cursor-not-allowed'
-              : `border-pink-500/30 bg-pink-500/10 ${themeConfig.colors.text} hover:border-pink-500/50 hover:bg-pink-500/20`
-          }`}
-          title="Ask to summarize project vision"
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            <span className="text-sm font-mono">Summarize</span>
-          </div>
-        </motion.button>
-      </motion.div>
+      <div className="mt-4">
+        <AnnetteTestButtons
+          theme={theme}
+          isProcessing={isProcessing}
+          activeProjectId={activeProject?.id || null}
+          onSendToAnnette={sendToAnnette}
+        />
+      </div>
 
       {/* Processing indicator */}
       {isProcessing && (

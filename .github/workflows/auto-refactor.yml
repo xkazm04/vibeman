@@ -1,0 +1,190 @@
+name: Auto Refactor PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+      - master
+      - develop
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      severity:
+        description: 'Minimum severity level'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+          - critical
+      auto_fix_only:
+        description: 'Only auto-fixable issues'
+        required: false
+        default: 'true'
+        type: boolean
+      dry_run:
+        description: 'Dry run (no PR creation)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  refactor-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure git
+        run: |
+          git config --global user.name "Vibeman Refactor Bot"
+          git config --global user.email "refactor-bot@vibeman.dev"
+
+      - name: Load refactor configuration
+        id: config
+        run: |
+          if [ -f .refactor.config.json ]; then
+            echo "config_exists=true" >> $GITHUB_OUTPUT
+            cat .refactor.config.json
+          else
+            echo "config_exists=false" >> $GITHUB_OUTPUT
+            echo "No .refactor.config.json found, using defaults"
+          fi
+
+      - name: Run refactor analysis
+        id: analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: LLM API keys for AI analysis
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          # Determine CLI arguments
+          ARGS="--base-branch ${{ github.base_ref || 'main' }}"
+
+          # Handle manual workflow dispatch inputs
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+              ARGS="$ARGS --dry-run"
+            fi
+            if [ "${{ github.event.inputs.auto_fix_only }}" = "true" ]; then
+              ARGS="$ARGS --auto-fix-only"
+            fi
+            if [ -n "${{ github.event.inputs.severity }}" ]; then
+              ARGS="$ARGS --severity ${{ github.event.inputs.severity }}"
+            fi
+          else
+            # Default to auto-fix only for automated runs
+            ARGS="$ARGS --auto-fix-only --severity medium"
+          fi
+
+          # Run the refactor tool
+          npx ts-node scripts/refactor-ci.ts $ARGS
+
+      - name: Add PR status check
+        if: success() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.pull_request.head.sha;
+
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha,
+              state: 'success',
+              context: 'refactor/auto-analysis',
+              description: 'Refactor analysis completed successfully',
+              target_url: `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`
+            });
+
+      - name: Comment on PR with summary
+        if: success() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // Check if analysis generated opportunities
+            const refactorPRExists = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:auto-refactor-${Date.now()}`,
+              state: 'open'
+            });
+
+            let commentBody = '## 🤖 Automated Refactor Analysis\n\n';
+
+            if (refactorPRExists.data.length > 0) {
+              const prUrl = refactorPRExists.data[0].html_url;
+              commentBody += `✅ Refactor analysis found opportunities!\n\n`;
+              commentBody += `A refactor PR has been created: ${prUrl}\n\n`;
+              commentBody += `Please review the suggested improvements and merge if appropriate.`;
+            } else {
+              commentBody += `✨ No refactoring opportunities found matching the current criteria.\n\n`;
+              commentBody += `Your code looks great! Keep up the good work.`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: commentBody
+            });
+
+      - name: Fail on analysis errors
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            if (context.eventName === 'pull_request') {
+              const { owner, repo } = context.repo;
+              const sha = context.payload.pull_request.head.sha;
+
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha,
+                state: 'failure',
+                context: 'refactor/auto-analysis',
+                description: 'Refactor analysis failed',
+                target_url: `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`
+              });
+            }
+
+      - name: Upload analysis results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refactor-analysis-results
+          path: |
+            .claude/commands/auto-refactor-*.md
+          retention-days: 30

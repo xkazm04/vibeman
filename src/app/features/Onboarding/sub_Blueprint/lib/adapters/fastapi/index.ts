@@ -6,21 +6,21 @@
  */
 
 export { FastAPIStructureAdapter } from './FastAPIStructureAdapter';
+export { FastAPIBuildAdapter } from './FastAPIBuildAdapter';
 
 import { FastAPIStructureAdapter } from './FastAPIStructureAdapter';
+import { FastAPIBuildAdapter } from './FastAPIBuildAdapter';
 import { ScanAdapter } from '../types';
 
 /**
  * Get all FastAPI adapters as an array
- *
- * NOTE: These adapters are currently examples/stubs.
- * Implement full functionality as needed for FastAPI support.
  */
 export function getAllFastAPIAdapters(): ScanAdapter[] {
   return [
+    new FastAPIBuildAdapter(),
     new FastAPIStructureAdapter(),
     // TODO: Add more FastAPI adapters
-    // new FastAPIBuildAdapter(),
     // new FastAPIDependencyAdapter(),
+    // new FastAPIContextsAdapter(),
   ];
 }

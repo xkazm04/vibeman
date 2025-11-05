@@ -285,4 +285,6 @@ LLM client abstraction in `src/lib/llm/` with unified interface.
 - **LangGraph Tools**: `docs/LANGGRAPH_TOOLS.md`
 - **API Endpoints**: `docs/API_ENDPOINTS.md`
 - **Voicebot Guide**: `docs/VOICEBOT_GUIDE.md`
+- **CI/CD Refactor Guide**: `docs/CI_CD_REFACTOR.md`
+- **Quick Start Refactor CI**: `docs/QUICK_START_REFACTOR_CI.md`
 - **README**: `README.md` (high-level overview)
