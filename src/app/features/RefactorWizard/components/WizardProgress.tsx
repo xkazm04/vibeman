@@ -6,6 +6,7 @@ import { Rocket } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const steps = [
+  { id: 'settings', label: 'Settings' },
   { id: 'scan', label: 'Scan' },
   { id: 'config', label: 'Configure' },
   { id: 'review', label: 'Review' },
@@ -63,9 +64,10 @@ export default function WizardProgress() {
 
   // Calculate rocket intensity/glow based on stage
   const getRocketIntensity = () => {
-    if (currentIndex === 0) return 'low'; // Scan - starting
-    if (currentIndex === 1 || currentIndex === 2) return 'medium'; // Config/Review - cruising
-    if (currentIndex >= 3) return 'high'; // Execute/Results - max thrust
+    if (currentIndex === 0) return 'low'; // Settings - starting
+    if (currentIndex === 1 || currentIndex === 2) return 'medium'; // Scan/Config - warming up
+    if (currentIndex === 3) return 'medium'; // Review - cruising
+    if (currentIndex >= 4) return 'high'; // Execute/Results - max thrust
     return 'low';
   };
 

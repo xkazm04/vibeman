@@ -32,8 +32,8 @@ export default function ScanStep() {
       title="Project Analysis"
       description="Scan your codebase to discover refactoring opportunities"
       icon={Scan}
-      currentStep={1}
-      totalSteps={4}
+      currentStep={2}
+      totalSteps={6}
       isLoading={false}
       error={analysisError}
       onErrorDismiss={() => setAnalysisError(null)}

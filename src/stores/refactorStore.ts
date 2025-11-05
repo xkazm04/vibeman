@@ -39,7 +39,7 @@ interface RefactorState {
 
   // UI state
   isWizardOpen: boolean;
-  currentStep: 'scan' | 'config' | 'review' | 'execute' | 'results';
+  currentStep: 'settings' | 'scan' | 'config' | 'review' | 'execute' | 'results';
 
   // Actions
   startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string) => Promise<void>;
@@ -80,7 +80,7 @@ export const useRefactorStore = create<RefactorState>()(
       selectedScanGroups: new Set(),
       techniqueOverrides: new Map(),
       isWizardOpen: false,
-      currentStep: 'scan',
+      currentStep: 'settings',
 
       // Actions
       startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string) => {
@@ -196,9 +196,16 @@ export const useRefactorStore = create<RefactorState>()(
 
       selectAllGroups: () => {
         const { wizardPlan } = get();
-        if (!wizardPlan) return;
-        const allIds = new Set<string>(wizardPlan.recommendedGroups.map(g => g.id));
-        set({ selectedScanGroups: allIds });
+        if (wizardPlan) {
+          const allIds = new Set<string>(wizardPlan.recommendedGroups.map(g => g.id));
+          set({ selectedScanGroups: allIds });
+        } else {
+          // If no wizard plan, select all available groups
+          import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ SCAN_TECHNIQUE_GROUPS }) => {
+            const allGroupIds = new Set(SCAN_TECHNIQUE_GROUPS.map(g => g.id));
+            set({ selectedScanGroups: allGroupIds });
+          });
+        }
       },
 
       clearGroupSelection: () => {
@@ -206,6 +213,15 @@ export const useRefactorStore = create<RefactorState>()(
       },
 
       openWizard: () => {
+        // Initialize with all groups selected by default
+        const { selectedScanGroups } = get();
+        if (selectedScanGroups.size === 0) {
+          // Import and get all groups - we'll set them all as selected
+          import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ SCAN_TECHNIQUE_GROUPS }) => {
+            const allGroupIds = new Set(SCAN_TECHNIQUE_GROUPS.map(g => g.id));
+            set({ selectedScanGroups: allGroupIds });
+          });
+        }
         set({ isWizardOpen: true });
       },
 
@@ -226,7 +242,7 @@ export const useRefactorStore = create<RefactorState>()(
           wizardPlan: null,
           selectedScanGroups: new Set(),
           techniqueOverrides: new Map(),
-          currentStep: 'scan',
+          currentStep: 'settings',
         });
       },
     }),
@@ -235,6 +251,12 @@ export const useRefactorStore = create<RefactorState>()(
       partialize: (state) => ({
         opportunities: state.opportunities,
         wizardPlan: state.wizardPlan,
+        selectedScanGroups: Array.from(state.selectedScanGroups),
+      }),
+      merge: (persistedState: any, currentState) => ({
+        ...currentState,
+        ...(persistedState as object),
+        selectedScanGroups: new Set(persistedState?.selectedScanGroups || []),
       }),
     }
   )

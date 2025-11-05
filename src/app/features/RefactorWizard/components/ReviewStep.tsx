@@ -47,8 +47,8 @@ export default function ReviewStep() {
       title="Review Opportunities"
       description={`Found ${opportunities.length} refactoring opportunities`}
       icon={CheckSquare}
-      currentStep={2}
-      totalSteps={4}
+      currentStep={4}
+      totalSteps={6}
       isLoading={false}
       data-testid="review-step-container"
     >

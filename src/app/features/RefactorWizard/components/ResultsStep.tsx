@@ -8,13 +8,15 @@ import {
   StatCard,
   WizardActions,
 } from '@/components/ui/wizard';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BreakdownCard } from './BreakdownCard';
 import { VirtualizedSuggestionList } from './VirtualizedSuggestionList';
+import HeroBadge from './HeroBadge';
 
 export default function ResultsStep() {
   const { opportunities, selectedOpportunities, closeWizard, resetWizard } = useRefactorStore();
+  const [showHeroBadge, setShowHeroBadge] = useState(false);
 
   const selectedOpps = useMemo(() =>
     opportunities.filter(o => selectedOpportunities.has(o.id)),
@@ -47,6 +49,15 @@ export default function ResultsStep() {
     };
   }, [selectedOpps]);
 
+  // Show hero badge automatically when component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowHeroBadge(true);
+    }, 500);
+    return (
+    <>) => clearTimeout(timer);
+  }, []);
+
   const handleFinish = () => {
     closeWizard();
     setTimeout(() => resetWizard(), 300);
@@ -57,8 +68,8 @@ export default function ResultsStep() {
       title="Refactoring Plan Complete"
       description="Review your refactoring summary and next steps"
       icon={Target}
-      currentStep={4}
-      totalSteps={4}
+      currentStep={6}
+      totalSteps={6}
       isLoading={false}
       data-testid="results-step-container"
     >

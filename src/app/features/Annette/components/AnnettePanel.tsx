@@ -333,6 +333,7 @@ export default function AnnettePanel() {
           isProcessing={isProcessing}
           activeProjectId={activeProject?.id || null}
           onSendToAnnette={sendToAnnette}
+          onPlayDirectResponse={speakMessage}
         />
       </div>
 

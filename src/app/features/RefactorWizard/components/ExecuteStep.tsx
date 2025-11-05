@@ -99,8 +99,8 @@ export default function ExecuteStep() {
       title="Create Requirement Files"
       description="Generate Claude Code requirements for automated refactoring"
       icon={Play}
-      currentStep={3}
-      totalSteps={4}
+      currentStep={5}
+      totalSteps={6}
       isLoading={isCreating}
       error={error}
       onErrorDismiss={() => setError(null)}

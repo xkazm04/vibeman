@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb, FileText, Sparkles } from 'lucide-react';
+import { Compass, FileText, Sparkles } from 'lucide-react';
 import ProviderSelector from '@/components/llm/ProviderSelector';
 import { SupportedProvider } from '@/lib/llm/types';
 import { trackCommand } from '../lib/analyticsWrapper';
@@ -14,9 +14,10 @@ interface AnnetteTestButtonsProps {
   isProcessing: boolean;
   activeProjectId: string | null;
   onSendToAnnette: (message: string, provider: SupportedProvider) => Promise<void>;
+  onPlayDirectResponse: (text: string) => Promise<void>;
 }
 
-type TestType = 'ideas' | 'docs' | 'summarize' | null;
+type TestType = 'nextStep' | 'docs' | 'summarize' | null;
 
 /**
  * Test buttons for Annette voice interface
@@ -27,6 +28,7 @@ export default function AnnetteTestButtons({
   isProcessing,
   activeProjectId,
   onSendToAnnette,
+  onPlayDirectResponse,
 }: AnnetteTestButtonsProps) {
   const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>('ollama');
   const [showProviderSelector, setShowProviderSelector] = useState(false);
@@ -36,13 +38,14 @@ export default function AnnetteTestButtons({
 
   // Test configurations
   const TEST_CONFIGS = {
-    ideas: {
-      icon: Lightbulb,
-      label: 'Ideas Count',
-      title: 'Ask for pending ideas count',
-      message: 'How many pending ideas does this project have?',
-      command: 'test_ideas_count',
+    nextStep: {
+      icon: Compass,
+      label: 'Next Step',
+      title: 'Get recommendation for next scan to execute',
+      message: '', // Not used - goes directly to API
+      command: 'next_step_recommendation',
       colorScheme: 'purple',
+      useDirectApi: true, // Flag to use direct API instead of chat
     },
     docs: {
       icon: FileText,
@@ -51,6 +54,7 @@ export default function AnnetteTestButtons({
       message: 'Can you retrieve the high-level documentation for this project?',
       command: 'test_docs_retrieval',
       colorScheme: 'cyan',
+      useDirectApi: false,
     },
     summarize: {
       icon: Sparkles,
@@ -59,6 +63,7 @@ export default function AnnetteTestButtons({
       message: 'Please summarize the project vision for me.',
       command: 'test_summarize',
       colorScheme: 'pink',
+      useDirectApi: false,
     },
   };
 
@@ -78,7 +83,29 @@ export default function AnnetteTestButtons({
 
     // Track the command
     await trackCommand(activeProjectId, testConfig.command, 'button_command', async () => {
-      await onSendToAnnette(testConfig.message, provider);
+      // For Next Step, call the direct API endpoint
+      if (testConfig.useDirectApi && pendingTest === 'nextStep') {
+        const response = await fetch('/api/annette/next-step', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: activeProjectId,
+            provider,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Play the response directly without going through chat API
+          await onPlayDirectResponse(data.response);
+        } else {
+          throw new Error(data.error || 'Failed to get next step recommendation');
+        }
+      } else {
+        // For other tests, use the regular chat flow
+        await onSendToAnnette(testConfig.message, provider);
+      }
     }).catch(() => {});
 
     setPendingTest(null);
