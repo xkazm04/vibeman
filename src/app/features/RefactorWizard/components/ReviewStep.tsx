@@ -8,7 +8,7 @@ import {
   Info,
   Filter
 } from 'lucide-react';
-import { OpportunityCard } from './OpportunityCard';
+import { VirtualizedOpportunityList } from './VirtualizedOpportunityList';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 export default function ReviewStep() {
@@ -122,18 +122,16 @@ export default function ReviewStep() {
       </div>
 
       {/* Opportunities List */}
-      <div className="space-y-3 max-h-96 overflow-y-auto pr-2" data-testid="opportunities-list">
-        {filteredOpportunities.map((opp, index) => (
-          <OpportunityCard
-            key={opp.id}
-            opportunity={opp}
-            isSelected={selectedOpportunities.has(opp.id)}
-            index={index}
-            onToggle={() => toggleOpportunity(opp.id)}
+      <div data-testid="opportunities-list">
+        {filteredOpportunities.length > 0 ? (
+          <VirtualizedOpportunityList
+            opportunities={filteredOpportunities}
+            selectedOpportunities={selectedOpportunities}
+            onToggle={toggleOpportunity}
+            height={400}
+            itemHeight={140}
           />
-        ))}
-
-        {filteredOpportunities.length === 0 && (
+        ) : (
           <div className="text-center py-12" data-testid="no-opportunities-message">
             <Info className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">No opportunities match your filters</p>
