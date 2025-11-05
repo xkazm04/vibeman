@@ -7,6 +7,7 @@ import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import BlueprintColumn from './components/BlueprintColumn';
 import DecisionPanel from './components/DecisionPanel';
 import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
+import BlueprintConfigButton from './components/BlueprintConfigButton';
 import ContextSelector from './components/ContextSelector';
 import ScanProgressBars from './components/ScanProgressBars';
 import { TaskProgressPanel } from './components/TaskProgressPanel';
@@ -336,6 +337,9 @@ export default function DarkBlueprint() {
 
       {/* Keyboard shortcuts help */}
       <BlueprintKeyboardShortcuts />
+      
+      {/* Blueprint Configuration Button */}
+      <BlueprintConfigButton />
 
       {/* Scan Progress Bars - Top of screen */}
       <ScanProgressBars />

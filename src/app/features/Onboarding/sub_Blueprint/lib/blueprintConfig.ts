@@ -41,7 +41,7 @@ export interface DecisionData {
 }
 
 export interface ScanHandler {
-  execute: () => Promise<ScanResult>;
+  execute: (contextId?: string) => Promise<ScanResult>;
   buildDecision: (result: ScanResult) => DecisionData | null;
 }
 
