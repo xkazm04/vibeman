@@ -24,6 +24,10 @@ export { BaseAdapter } from './BaseAdapter';
 // Registry
 export { ScanRegistry, getScanRegistry } from './ScanRegistry';
 
+// Scan Builder
+export { ScanBuilder, createScanBuilder } from './ScanBuilder';
+export type { ColumnConfig, ButtonConfig, ScanHandler } from './ScanBuilder';
+
 // NextJS adapters
 export {
   NextJSBuildAdapter,

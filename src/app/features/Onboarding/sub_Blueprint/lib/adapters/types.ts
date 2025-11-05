@@ -36,7 +36,7 @@ export interface DecisionData {
   projectType?: string;
   data?: any;
   onAccept: () => Promise<void>;
-  onReject: () => Promise<void>;
+  onReject?: () => Promise<void>; // Optional - some decisions are info-only
 }
 
 /**
