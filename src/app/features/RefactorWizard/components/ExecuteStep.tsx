@@ -2,11 +2,10 @@
 
 import { useRefactorStore } from '@/stores/refactorStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { FileText, CheckCircle, Package, Sparkles } from 'lucide-react';
+import { FileText, CheckCircle, Package, Sparkles, Play } from 'lucide-react';
 import { useState } from 'react';
 import {
-  WizardStepContainer,
-  WizardHeader,
+  StepContainer,
   CyberCard,
   ProgressBar,
   StatCard,
@@ -96,12 +95,17 @@ export default function ExecuteStep() {
   const isCompleted = createdFiles.length > 0 && !isCreating;
 
   return (
-    <WizardStepContainer>
-      {/* Header */}
-      <WizardHeader
-        title="Create Requirement Files"
-        description="Generate Claude Code requirements for automated refactoring"
-      />
+    <StepContainer
+      title="Create Requirement Files"
+      description="Generate Claude Code requirements for automated refactoring"
+      icon={Play}
+      currentStep={3}
+      totalSteps={4}
+      isLoading={isCreating}
+      error={error}
+      onErrorDismiss={() => setError(null)}
+      data-testid="execute-step-container"
+    >
 
       {/* Batch Info */}
       <CyberCard data-testid="batch-info-card">
@@ -181,18 +185,6 @@ export default function ExecuteStep() {
         />
       )}
 
-      {/* Error */}
-      {error && (
-        <CyberCard variant="dark" className="bg-red-500/10 border-red-500/30" data-testid="creation-error-message">
-          <div className="flex items-start gap-2">
-            <div className="text-red-400 text-sm">
-              <p className="font-medium mb-1">Error creating requirement files</p>
-              <p className="text-red-300/80">{error}</p>
-            </div>
-          </div>
-        </CyberCard>
-      )}
-
       {/* Success Message */}
       {isCompleted && (
         <motion.div
@@ -236,6 +228,6 @@ export default function ExecuteStep() {
         nextLoading={isCreating}
         nextVariant={isCompleted ? 'success' : 'primary'}
       />
-    </WizardStepContainer>
+    </StepContainer>
   );
 }

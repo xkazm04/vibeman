@@ -5,15 +5,14 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { Scan, Sparkles, Zap, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import {
-  WizardStepContainer,
-  WizardHeader,
+  StepContainer,
   CyberCard,
   ProgressBar,
 } from '@/components/ui/wizard';
 import { motion } from 'framer-motion';
 
 export default function ScanStep() {
-  const { startAnalysis, analysisStatus, analysisProgress, analysisError } = useRefactorStore();
+  const { startAnalysis, analysisStatus, analysisProgress, analysisError, setAnalysisError } = useRefactorStore();
   const activeProject = useActiveProjectStore(state => state.activeProject);
   const [useAI, setUseAI] = useState(true);
 
@@ -29,12 +28,17 @@ export default function ScanStep() {
   const isScanning = analysisStatus === 'scanning' || analysisStatus === 'analyzing';
 
   return (
-    <WizardStepContainer>
-      {/* Header */}
-      <WizardHeader
-        title="Project Analysis"
-        description="Scan your codebase to discover refactoring opportunities"
-      />
+    <StepContainer
+      title="Project Analysis"
+      description="Scan your codebase to discover refactoring opportunities"
+      icon={Scan}
+      currentStep={1}
+      totalSteps={4}
+      isLoading={false}
+      error={analysisError}
+      onErrorDismiss={() => setAnalysisError(null)}
+      data-testid="scan-step-container"
+    >
 
       {/* Options Card */}
       <CyberCard>
@@ -111,21 +115,6 @@ export default function ScanStep() {
         </div>
       </CyberCard>
 
-      {/* Error Display */}
-      {analysisError && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-start space-x-3"
-        >
-          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-red-300 font-medium">Analysis Failed</p>
-            <p className="text-red-200/80 text-sm mt-1">{analysisError}</p>
-          </div>
-        </motion.div>
-      )}
-
       {/* Progress */}
       {isScanning && (
         <ProgressBar
@@ -167,6 +156,6 @@ export default function ScanStep() {
           </span>
         )}
       </button>
-    </WizardStepContainer>
+    </StepContainer>
   );
 }

@@ -1,13 +1,14 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { useRefactorStore } from '@/stores/refactorStore';
 import { useMemo } from 'react';
 import {
   ArrowRight,
   Info,
-  Filter
+  Filter,
+  CheckSquare
 } from 'lucide-react';
+import { StepContainer } from '@/components/ui/wizard';
 import { VirtualizedOpportunityList } from './VirtualizedOpportunityList';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
@@ -42,26 +43,22 @@ export default function ReviewStep() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
+    <StepContainer
+      title="Review Opportunities"
+      description={`Found ${opportunities.length} refactoring opportunities`}
+      icon={CheckSquare}
+      currentStep={2}
+      totalSteps={4}
+      isLoading={false}
+      data-testid="review-step-container"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-light text-white mb-2">Review Opportunities</h3>
-          <p className="text-gray-400 text-sm">
-            Found {opportunities.length} refactoring opportunities
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-cyan-400 text-2xl font-light">
+      {/* Stats Header */}
+      <div className="flex items-center justify-center">
+        <div className="text-center p-6 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl">
+          <p className="text-cyan-400 text-4xl font-light mb-1">
             {selectedOpportunities.size}
           </p>
-          <p className="text-gray-400 text-xs">selected</p>
+          <p className="text-gray-400 text-sm">opportunities selected</p>
         </div>
       </div>
 
@@ -159,6 +156,6 @@ export default function ReviewStep() {
           <ArrowRight className="w-5 h-5" />
         </button>
       </div>
-    </motion.div>
+    </StepContainer>
   );
 }

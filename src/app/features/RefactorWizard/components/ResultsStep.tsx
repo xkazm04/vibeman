@@ -1,10 +1,9 @@
 'use client';
 
 import { useRefactorStore } from '@/stores/refactorStore';
-import { CheckCircle, FileText, Package, Sparkles, AlertCircle, TrendingUp } from 'lucide-react';
+import { CheckCircle, FileText, Package, Sparkles, AlertCircle, TrendingUp, Target } from 'lucide-react';
 import {
-  WizardStepContainer,
-  WizardHeader,
+  StepContainer,
   CyberCard,
   StatCard,
   WizardActions,
@@ -53,12 +52,15 @@ export default function ResultsStep() {
   };
 
   return (
-    <WizardStepContainer>
-      {/* Header */}
-      <WizardHeader
-        title="Refactoring Plan Complete"
-        description="Review your refactoring summary and next steps"
-      />
+    <StepContainer
+      title="Refactoring Plan Complete"
+      description="Review your refactoring summary and next steps"
+      icon={Target}
+      currentStep={4}
+      totalSteps={4}
+      isLoading={false}
+      data-testid="results-step-container"
+    >
 
       {/* Success Banner */}
       <motion.div
@@ -217,6 +219,6 @@ export default function ResultsStep() {
         nextIcon={CheckCircle}
         nextVariant="success"
       />
-    </WizardStepContainer>
+    </StepContainer>
   );
 }
