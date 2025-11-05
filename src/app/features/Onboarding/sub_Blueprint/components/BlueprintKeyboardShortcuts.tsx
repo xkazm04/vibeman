@@ -38,6 +38,7 @@ export default function BlueprintKeyboardShortcuts() {
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-40 p-3 rounded-full bg-gray-900/80 backdrop-blur-xl border border-white/10 hover:border-cyan-500/50 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20"
         title="Keyboard Shortcuts (Ctrl+/)"
+        data-testid="keyboard-shortcuts-btn"
       >
         <Keyboard className="w-5 h-5 text-gray-400 hover:text-cyan-400 transition-colors" />
       </motion.button>
@@ -64,6 +65,7 @@ export default function BlueprintKeyboardShortcuts() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg"
               onClick={(e) => e.stopPropagation()}
+              data-testid="keyboard-shortcuts-modal"
             >
               <div className="relative bg-gradient-to-br from-gray-900 via-blue-950/40 to-gray-900 border border-cyan-500/20 rounded-2xl shadow-2xl overflow-hidden">
                 {/* Header */}
@@ -80,6 +82,7 @@ export default function BlueprintKeyboardShortcuts() {
                     <button
                       onClick={() => setIsOpen(false)}
                       className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                      data-testid="keyboard-shortcuts-close-btn"
                     >
                       <X className="w-5 h-5 text-gray-400" />
                     </button>

@@ -155,6 +155,7 @@ export default function ContextSelector({
         transition={{ delay: index * 0.02 }}
         onClick={() => onSelect(context.id, context.name)}
         className="relative text-left px-6 py-5 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-600/30 hover:border-cyan-500/50 rounded-xl transition-all group"
+        data-testid={`context-card-${context.id}`}
       >
         {/* Days ago indicator (inner top right corner) */}
         <div className="absolute top-2 right-2 z-10">
@@ -181,6 +182,7 @@ export default function ContextSelector({
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             title="View preview"
+            data-testid={`context-preview-btn-${context.id}`}
           >
             <ImageIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-cyan-400" />
           </motion.button>
@@ -227,6 +229,7 @@ export default function ContextSelector({
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={onClose}
+          data-testid="context-selector-backdrop"
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -234,6 +237,7 @@ export default function ContextSelector({
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="bg-gradient-to-br from-gray-900 via-slate-900 to-blue-900/30 border border-gray-700/50 rounded-2xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            data-testid="context-selector-content"
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
@@ -246,6 +250,7 @@ export default function ContextSelector({
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                data-testid="context-selector-close-btn"
               >
                 <X className="w-6 h-6 text-gray-400" />
               </button>
@@ -350,6 +355,7 @@ export default function ContextSelector({
               <button
                 onClick={closePreviewModal}
                 className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/70 rounded-lg border border-gray-600/50 transition-colors"
+                data-testid="context-preview-close-btn"
               >
                 <X className="w-6 h-6 text-white" />
               </button>

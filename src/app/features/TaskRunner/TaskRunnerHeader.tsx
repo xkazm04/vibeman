@@ -7,6 +7,7 @@ import DualBatchPanel from './components/DualBatchPanel';
 import { BatchStorage, type BatchState } from './lib/batchStorage';
 import { executeNextRequirement as executeTask } from './lib/taskExecutor';
 import ConfigurationToolbar from './lib/ConfigurationToolbar';
+import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
 
 interface TaskRunnerHeaderProps {
   selectedCount: number;
@@ -34,6 +35,9 @@ export default function TaskRunnerHeader({
   const executionQueueRef = useRef<string[]>([]);
   const isExecutingRef = useRef(false);
   const { setRequirements, setIsRunning, setProcessedCount, setError } = actions;
+
+  // Blueprint store for syncing tasker progress
+  const { updateTaskerProgress, resetTaskerProgress, setTaskerRunning } = useBlueprintStore();
 
   // Pause/Resume state management with localStorage
   const [isPaused, setIsPaused] = useState(() => {
@@ -182,6 +186,30 @@ export default function TaskRunnerHeader({
       setProcessedCount(0);
     }
   }, [requirements, isRunning, setIsRunning, setProcessedCount, executeNextRequirement, getRequirementId]);
+
+  // Sync tasker progress to blueprint store
+  useEffect(() => {
+    // Calculate total tasks and completed tasks across all active batches
+    const activeBatches = [batch1, batch2, batch3, batch4].filter(b => b && b.status === 'running');
+
+    if (activeBatches.length === 0) {
+      // No batches running - reset progress
+      resetTaskerProgress();
+      return;
+    }
+
+    // Calculate totals
+    let totalTasks = 0;
+    let completedTasks = 0;
+
+    activeBatches.forEach(batch => {
+      totalTasks += batch.requirementIds.length;
+      completedTasks += batch.completedCount;
+    });
+
+    // Update blueprint store
+    updateTaskerProgress(completedTasks, totalTasks);
+  }, [batch1, batch2, batch3, batch4, updateTaskerProgress, resetTaskerProgress]);
 
   // Batch Handler Functions
   const handleCreateBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {

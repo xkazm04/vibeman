@@ -91,6 +91,7 @@ export default function DecisionPanel() {
           stiffness: 300,
         }}
         className="relative w-full max-w-5xl mx-auto"
+        data-testid="decision-panel"
       >
         {/* Main decision card */}
         <div className="relative bg-gray-900/95 backdrop-blur-xl border-2 border-gray-700/50 rounded-2xl overflow-hidden shadow-2xl">
@@ -118,6 +119,7 @@ export default function DecisionPanel() {
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: 'spring', stiffness: 500, damping: 20 }}
                   className={`absolute -bottom-2 -right-2 min-w-[2.5rem] h-10 px-3 rounded-full border-2 ${colors.border} bg-gray-950 flex items-center justify-center`}
+                  data-testid="decision-count-badge"
                 >
                   <span className={`text-lg font-bold font-mono ${colors.text}`}>
                     {currentDecision.count}
@@ -146,6 +148,7 @@ export default function DecisionPanel() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
                   className={`text-2xl font-bold ${colors.text} mb-2`}
+                  data-testid="decision-title"
                 >
                   {currentDecision.title}
                 </motion.h3>
@@ -155,6 +158,7 @@ export default function DecisionPanel() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.15 }}
                   className="text-sm text-gray-400"
+                  data-testid="decision-description"
                 >
                   {currentDecision.description}
                 </motion.p>
@@ -173,6 +177,7 @@ export default function DecisionPanel() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
                     className="group relative px-10 py-4 rounded-xl bg-gradient-to-r from-cyan-600/60 to-blue-500/60 hover:from-cyan-500/70 hover:to-blue-400/70 border-2 border-cyan-500/60 hover:border-cyan-400/80 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20"
+                    data-testid="decision-close-btn"
                   >
                     {/* Outer glow */}
                     <div className="absolute inset-0 rounded-xl bg-cyan-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
@@ -196,6 +201,7 @@ export default function DecisionPanel() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
                       className="group relative px-8 py-4 rounded-xl bg-gray-800/50 hover:bg-gray-700/50 border-2 border-gray-600/50 hover:border-red-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      data-testid="decision-reject-btn"
                     >
                       {/* Glow effect on hover */}
                       <div className="absolute inset-0 rounded-xl bg-red-500/0 group-hover:bg-red-500/10 blur-xl transition-all duration-300 -z-10" />

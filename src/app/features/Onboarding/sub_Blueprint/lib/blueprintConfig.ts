@@ -162,7 +162,7 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
       },
       {
         id: 'tasker',
-        label: 'Taske',
+        label: 'Tasker',
         icon: Code,
         color: 'cyan',
         action: 'navigate',

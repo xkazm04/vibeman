@@ -26,6 +26,8 @@ export interface IlluminatedButtonProps {
   daysAgo?: number | null; // null if never run
   showDaysAgo?: boolean; // Show days ago indicator (only if scan has handler)
   redirectMode?: boolean; // Show exit icon for navigation buttons
+  showProgress?: boolean; // Show progress text instead of icon (for Tasker button)
+  progressText?: string; // Progress text to display (e.g., "3/10")
 }
 
 const colorMap = {
@@ -115,6 +117,8 @@ export default function IlluminatedButton({
   daysAgo = null,
   showDaysAgo = true,
   redirectMode = false,
+  showProgress = false,
+  progressText = '',
 }: IlluminatedButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -145,6 +149,7 @@ export default function IlluminatedButton({
         onMouseLeave={() => setIsHovered(false)}
         whileTap={{ scale: disabled ? 1 : 0.95 }}
         className={`group relative ${sizes.button} bg-gradient-to-br ${colors.bg}  rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all ease-linear duration-300`}
+        data-testid={`blueprint-button-${label.toLowerCase().replace(/\s+/g, '-')}`}
       >
 
         {/* Glass shine effect */}
@@ -152,9 +157,15 @@ export default function IlluminatedButton({
           className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.shine} via-transparent to-transparent opacity-60 group-hover:opacity-60 transition-opacity duration-300`}
         />
 
-        {/* Icon */}
+        {/* Icon or Progress Text */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <Icon className={`${sizes.icon} ${colors.text} drop-shadow-lg`} />
+          {showProgress ? (
+            <span className={`text-sm font-mono font-bold ${colors.text} drop-shadow-lg`}>
+              {progressText}
+            </span>
+          ) : (
+            <Icon className={`${sizes.icon} ${colors.text} drop-shadow-lg`} />
+          )}
         </div>
 
         {/* Cross-out X for disabled buttons */}

@@ -10,11 +10,18 @@ export interface ScanStatus {
   errorMessage?: string; // error message from last scan
 }
 
+export interface TaskerProgress {
+  isRunning: boolean;
+  completedCount: number;
+  totalCount: number;
+}
+
 interface BlueprintState {
   scans: Record<string, ScanStatus>;
   currentScan: string | null;
   scanProgress: number;
   columns: ColumnConfig[]; // Column configuration array
+  taskerProgress: TaskerProgress; // Tasker module progress state
 
   // Actions
   startScan: (scanName: string) => void;
@@ -25,6 +32,11 @@ interface BlueprintState {
   getDaysAgo: (scanName: string) => number | null;
   loadScanEvents: (projectId: string, eventTitles: Record<string, string>) => Promise<void>;
   getColumns: () => ColumnConfig[];
+
+  // Tasker progress actions
+  updateTaskerProgress: (completedCount: number, totalCount: number) => void;
+  setTaskerRunning: (isRunning: boolean) => void;
+  resetTaskerProgress: () => void;
 }
 
 const DEFAULT_SCANS: Record<string, ScanStatus> = {
@@ -45,6 +57,7 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
   currentScan: null,
   scanProgress: 0,
   columns: BLUEPRINT_COLUMNS, // Initialize with default column configuration
+  taskerProgress: { isRunning: false, completedCount: 0, totalCount: 0 }, // Initialize tasker progress
 
   startScan: (scanName: string) => {
     set((state) => ({
@@ -187,5 +200,35 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
   getColumns: () => {
     const { columns } = get();
     return columns;
+  },
+
+  // Tasker progress management
+  updateTaskerProgress: (completedCount: number, totalCount: number) => {
+    set({
+      taskerProgress: {
+        isRunning: true,
+        completedCount,
+        totalCount,
+      },
+    });
+  },
+
+  setTaskerRunning: (isRunning: boolean) => {
+    set((state) => ({
+      taskerProgress: {
+        ...state.taskerProgress,
+        isRunning,
+      },
+    }));
+  },
+
+  resetTaskerProgress: () => {
+    set({
+      taskerProgress: {
+        isRunning: false,
+        completedCount: 0,
+        totalCount: 0,
+      },
+    });
   },
 }));

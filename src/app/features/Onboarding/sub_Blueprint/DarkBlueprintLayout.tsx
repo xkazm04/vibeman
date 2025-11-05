@@ -316,6 +316,7 @@ export default function DarkBlueprint() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
       className="relative w-full h-full bg-gradient-to-br from-gray-950 via-blue-950/30 to-gray-950 overflow-hidden"
+      data-testid="blueprint-layout"
     >
       {/* Background pattern with opacity */}
       <div 
@@ -348,21 +349,23 @@ export default function DarkBlueprint() {
 
       {/* Context Selector Modal */}
       {showContextSelector && activeProject && pendingScanId && (
-        <ContextSelector
-          projectId={activeProject.id}
-          scanId={pendingScanId}
-          scanEventTitle={
-            columns
-              .flatMap(col => col.buttons)
-              .find(btn => btn.id === pendingScanId)?.eventTitle || ''
-          }
-          onSelect={handleContextSelect}
-          onClose={() => {
-            setShowContextSelector(false);
-            setPendingScanId(null);
-            setSelectedScanId(null);
-          }}
-        />
+        <div data-testid="context-selector-modal">
+          <ContextSelector
+            projectId={activeProject.id}
+            scanId={pendingScanId}
+            scanEventTitle={
+              columns
+                .flatMap(col => col.buttons)
+                .find(btn => btn.id === pendingScanId)?.eventTitle || ''
+            }
+            onSelect={handleContextSelect}
+            onClose={() => {
+              setShowContextSelector(false);
+              setPendingScanId(null);
+              setSelectedScanId(null);
+            }}
+          />
+        </div>
       )}
 
       {/* Task Progress Panel */}
@@ -381,9 +384,9 @@ export default function DarkBlueprint() {
       </AnimatePresence>
 
       {/* Main content area */}
-      <div className="relative h-full min-w-[1200px] flex items-center justify-center p-20">
+      <div className="relative h-full min-w-[1200px] flex items-center justify-center p-20" data-testid="blueprint-main-content">
         {/* Dynamic Column Grid Layout - Renders columns from store configuration */}
-        <div className="grid grid-cols-4 min-w-[1200px] gap-10 z-10">
+        <div className="grid grid-cols-4 min-w-[1200px] gap-10 z-10" data-testid="blueprint-column-grid">
           {columns.map((column, index) => (
             <BlueprintColumn
               key={column.id}

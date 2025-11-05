@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import IlluminatedButton from './IlluminatedButton';
 import { ColumnConfig } from '../lib/blueprintConfig';
+import { useBlueprintStore } from '../store/blueprintStore';
 
 interface BlueprintColumnProps {
   column: ColumnConfig;
@@ -25,6 +26,8 @@ export default function BlueprintColumn({
   onNavigate,
   getDaysAgo,
 }: BlueprintColumnProps) {
+  // Get tasker progress from blueprint store
+  const { taskerProgress } = useBlueprintStore();
   // If column is reserved, show placeholder
   if (column.reserved) {
     return (
@@ -73,33 +76,44 @@ export default function BlueprintColumn({
 
       {/* Buttons - Increased spacing from space-y-10  */}
       <div className="flex flex-col gap-16">
-        {column.buttons.map((button, index) => (
-          <motion.div
-            key={button.id}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: delay + 0.1 + index * 0.1 }}
-          >
-            <IlluminatedButton
-              label={button.label}
-              icon={button.icon}
-              onClick={() => {
-                if (button.action === 'scan') {
-                  onSelectScan(button.id); // Select/deselect for scan
-                } else if (button.action === 'navigate' && button.target) {
-                  onNavigate(button.target);
-                }
-              }}
-              color={button.color}
-              size="md"
-              disabled={button.action === 'scan' && !button.scanHandler}
-              selected={button.id === selectedScanId}
-              daysAgo={getDaysAgo(button.id)}
-              showDaysAgo={!!button.scanHandler}
-              redirectMode={button.action === 'navigate'}
-            />
-          </motion.div>
-        ))}
+        {column.buttons.map((button, index) => {
+          // Special handling for tasker button - show progress instead of icon
+          const isTaskerButton = button.id === 'tasker';
+          const showTaskerProgress = isTaskerButton && taskerProgress.isRunning;
+          const taskerProgressText = showTaskerProgress
+            ? `${taskerProgress.completedCount}/${taskerProgress.totalCount}`
+            : '';
+
+          return (
+            <motion.div
+              key={button.id}
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: delay + 0.1 + index * 0.1 }}
+            >
+              <IlluminatedButton
+                label={button.label}
+                icon={button.icon}
+                onClick={() => {
+                  if (button.action === 'scan') {
+                    onSelectScan(button.id); // Select/deselect for scan
+                  } else if (button.action === 'navigate' && button.target) {
+                    onNavigate(button.target);
+                  }
+                }}
+                color={button.color}
+                size="md"
+                disabled={button.action === 'scan' && !button.scanHandler}
+                selected={button.id === selectedScanId}
+                daysAgo={getDaysAgo(button.id)}
+                showDaysAgo={!!button.scanHandler}
+                redirectMode={button.action === 'navigate'}
+                showProgress={showTaskerProgress}
+                progressText={taskerProgressText}
+              />
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Decorative circuit lines */}
