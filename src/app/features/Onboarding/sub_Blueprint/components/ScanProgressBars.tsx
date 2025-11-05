@@ -22,7 +22,7 @@ export default function ScanProgressBars() {
   }
 
   return (
-    <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
+    <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none" data-testid="scan-progress-bars">
       <AnimatePresence>
         {runningScans.map((scan, index) => (
           <motion.div
@@ -33,6 +33,7 @@ export default function ScanProgressBars() {
             transition={{ duration: 0.3, delay: index * 0.05 }}
             className="relative"
             style={{ marginTop: index * 28 }}
+            data-testid={`scan-progress-${scan.id}`}
           >
             {/* Background bar */}
             <div className="h-6 bg-gray-900/80 backdrop-blur-sm border-b border-cyan-500/20">

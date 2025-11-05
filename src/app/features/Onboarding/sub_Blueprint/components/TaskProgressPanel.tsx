@@ -194,7 +194,7 @@ export const TaskProgressPanel: React.FC = () => {
                   <h4 className="text-slate-400 text-xs uppercase tracking-wide mb-3 font-semibold">
                     Recent Tasks
                   </h4>
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-cyan-500/5 [&::-webkit-scrollbar-track]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-cyan-500/30 [&::-webkit-scrollbar-thumb]:rounded-sm hover:[&::-webkit-scrollbar-thumb]:bg-cyan-500/50">
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-cyan-500/5 [&::-webkit-scrollbar-track]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-cyan-500/30 [&::-webkit-scrollbar-thumb]:rounded-sm hover:[&::-webkit-scrollbar-thumb]:bg-cyan-500/50" data-testid="task-list-container">
                     {recentTasks.map((task, index) => (
                       <motion.div
                         key={task.id}
@@ -202,6 +202,7 @@ export const TaskProgressPanel: React.FC = () => {
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: 0.1 * index, duration: 0.3 }}
                         className="flex items-start gap-2 p-2 rounded-lg hover:bg-slate-800/50 transition-colors group"
+                        data-testid={`task-item-${task.id}`}
                       >
                         {task.completed ? (
                           <CheckCircle2

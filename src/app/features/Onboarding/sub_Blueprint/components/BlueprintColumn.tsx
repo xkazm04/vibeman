@@ -59,6 +59,7 @@ export default function BlueprintColumn({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay }}
       className="relative"
+      data-testid={`blueprint-column-${column.id}`}
     >
       {/* Column header with line */}
       <div className="mb-12">
