@@ -9,6 +9,7 @@ import {
   Filter
 } from 'lucide-react';
 import { OpportunityCard } from './OpportunityCard';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 export default function ReviewStep() {
   const {
@@ -70,34 +71,36 @@ export default function ReviewStep() {
           <Filter className="w-4 h-4 text-gray-400" />
 
           {/* Category Filter */}
-          <select
+          <UniversalSelect
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value as any)}
-            className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+            onChange={(value) => setFilterCategory(value as any)}
+            options={[
+              { value: 'all', label: 'All Categories' },
+              { value: 'performance', label: 'Performance' },
+              { value: 'maintainability', label: 'Maintainability' },
+              { value: 'security', label: 'Security' },
+              { value: 'code-quality', label: 'Code Quality' },
+              { value: 'duplication', label: 'Duplication' },
+              { value: 'architecture', label: 'Architecture' },
+            ]}
+            variant="default"
             data-testid="filter-category-select"
-          >
-            <option value="all">All Categories</option>
-            <option value="performance">Performance</option>
-            <option value="maintainability">Maintainability</option>
-            <option value="security">Security</option>
-            <option value="code-quality">Code Quality</option>
-            <option value="duplication">Duplication</option>
-            <option value="architecture">Architecture</option>
-          </select>
+          />
 
           {/* Severity Filter */}
-          <select
+          <UniversalSelect
             value={filterSeverity}
-            onChange={(e) => setFilterSeverity(e.target.value as any)}
-            className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+            onChange={(value) => setFilterSeverity(value as any)}
+            options={[
+              { value: 'all', label: 'All Severities' },
+              { value: 'critical', label: 'Critical' },
+              { value: 'high', label: 'High' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'low', label: 'Low' },
+            ]}
+            variant="default"
             data-testid="filter-severity-select"
-          >
-            <option value="all">All Severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
+          />
         </div>
 
         <div className="flex items-center gap-2">

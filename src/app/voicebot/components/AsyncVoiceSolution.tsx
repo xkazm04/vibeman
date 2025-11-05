@@ -30,6 +30,7 @@ import {
   DEFAULT_PROCESSING_CONFIG
 } from '../lib';
 import { generateCallId, generateMessageId, isMonitoringEnabled } from '@/app/monitor/lib';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 const LLM_PROVIDERS: Array<{ value: LLMProvider; label: string; description: string }> = [
   { value: 'ollama', label: 'Ollama', description: 'Local GPT-OSS 20B' },
@@ -341,22 +342,20 @@ export default function AsyncVoiceSolution() {
               <label className="block text-sm font-medium text-cyan-300/80 mb-1 font-mono uppercase">
                 Provider
               </label>
-              <select
+              <UniversalSelect
                 value={provider}
-                onChange={(e) => {
-                  const newProvider = e.target.value as LLMProvider;
+                onChange={(value) => {
+                  const newProvider = value as LLMProvider;
                   setProvider(newProvider);
                   setModel(DEFAULT_LLM_MODELS[newProvider]);
                 }}
+                options={LLM_PROVIDERS.map(p => ({
+                  value: p.value,
+                  label: `${p.label} - ${p.description}`
+                }))}
                 disabled={sessionState !== 'idle'}
-                className="w-full bg-gray-800/80 border border-cyan-500/30 rounded-lg px-3 py-2 text-white text-sm font-mono disabled:opacity-50 hover:border-cyan-400/50 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 transition-all"
-              >
-                {LLM_PROVIDERS.map(p => (
-                  <option key={p.value} value={p.value}>
-                    {p.label} - {p.description}
-                  </option>
-                ))}
-              </select>
+                variant="default"
+              />
             </div>
 
             {/* Model Selector or Display */}
@@ -365,16 +364,16 @@ export default function AsyncVoiceSolution() {
                 Model
               </label>
               {AVAILABLE_LLM_MODELS[provider].length > 1 ? (
-                <select
+                <UniversalSelect
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(value) => setModel(value)}
+                  options={AVAILABLE_LLM_MODELS[provider].map(m => ({
+                    value: m.value,
+                    label: m.label
+                  }))}
                   disabled={sessionState !== 'idle'}
-                  className="w-full bg-gray-800/80 border border-cyan-500/30 rounded-lg px-3 py-2 text-white text-sm font-mono disabled:opacity-50 hover:border-cyan-400/50 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 transition-all"
-                >
-                  {AVAILABLE_LLM_MODELS[provider].map(m => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                  variant="default"
+                />
               ) : (
                 <div className="p-2 bg-black/30 rounded-lg border border-cyan-500/20 h-[42px] flex items-center">
                   <div className="text-sm text-cyan-400 font-mono font-semibold truncate">{model}</div>

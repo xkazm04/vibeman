@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { ToolbarAction } from '@/components/ui/ProjectToolbar';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import { loadRequirements, deleteRequirement } from '@/app/Claude/lib/requirementApi';
@@ -157,6 +158,21 @@ const TaskRunnerLayout = () => {
       // Failed to delete requirement
     }
   };
+
+  // Toolbar actions
+  const toolbarActions: ToolbarAction[] = useMemo(() => [
+    {
+      icon: RefreshCw,
+      label: 'Refresh requirements',
+      onClick: () => {
+        setRequirements([]);
+        setSelectedRequirements(new Set());
+      },
+      colorScheme: 'green',
+      tooltip: 'Reload all requirements',
+      disabled: isRunning,
+    },
+  ], [isRunning]);
 
   if (isLoading) {
     return (

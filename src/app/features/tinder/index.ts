@@ -4,7 +4,7 @@
  */
 
 export { default as IdeaCard } from './components/IdeaCard';
-export { default as ActionButtons } from './components/ActionButtons';
+export { default as ActionButtons } from './components/TinderButtons';
 export { default as TinderHeader } from './components/TinderHeader';
 export { default as TinderContent } from './components/TinderContent';
 export * from './lib/tinderApi';

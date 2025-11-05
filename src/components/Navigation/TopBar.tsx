@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
+import UnifiedProjectSelector from './UnifiedProjectSelector';
 
 interface NavigationItem {
   module: AppModule;
@@ -22,13 +23,17 @@ const navigationItems: NavigationItem[] = [
 export default function TopBar() {
   const { activeModule, setActiveModule } = useOnboardingStore();
 
+  // Modules that should NOT show the project selector
+  const modulesWithoutProjectSelector: AppModule[] = ['reflector'];
+  const showProjectSelector = !modulesWithoutProjectSelector.includes(activeModule);
+
   return (
     <>
       <motion.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-xl border-b border-white/10 h-16"
+        className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-xl border-b border-white/10"
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
           <nav className="flex items-center justify-center">
@@ -103,6 +108,18 @@ export default function TopBar() {
         {/* Subtle gradient line at bottom */}
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       </motion.header>
+
+      {/* Unified Project Selector - Conditionally rendered */}
+      {showProjectSelector && (
+        <motion.div
+          initial={{ y: -60, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed top-16 left-0 right-0 z-40 overflow-hidden"
+        >
+          <UnifiedProjectSelector />
+        </motion.div>
+      )}
     </>
   );
 }

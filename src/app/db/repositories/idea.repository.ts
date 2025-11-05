@@ -1,20 +1,5 @@
 import { getDatabase } from '../connection';
 import { DbIdea, IdeaCategory } from '../models/types';
-import { LRUCache, generateCacheKey } from '@/lib/lru-cache';
-
-/**
- * LRU cache instance for idea queries
- * Caches up to 200 query results to reduce SQLite access
- */
-const ideaCache = new LRUCache<any>({ maxSize: 200 });
-
-/**
- * Invalidate all idea cache entries
- * Called on any write operation (create, update, delete)
- */
-const invalidateIdeaCache = () => {
-  ideaCache.clear();
-};
 
 /**
  * Idea Repository
@@ -25,126 +10,84 @@ export const ideaRepository = {
    * Get all ideas across all projects
    */
   getAllIdeas: (): DbIdea[] => {
-    const cacheKey = generateCacheKey('getAllIdeas');
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM ideas
       ORDER BY created_at DESC
     `);
-    const result = stmt.all() as DbIdea[];
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all() as DbIdea[];
   },
 
   /**
    * Get ideas by project
    */
   getIdeasByProject: (projectId: string): DbIdea[] => {
-    const cacheKey = generateCacheKey('getIdeasByProject', projectId);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM ideas
       WHERE project_id = ?
       ORDER BY created_at DESC
     `);
-    const result = stmt.all(projectId) as DbIdea[];
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all(projectId) as DbIdea[];
   },
 
   /**
    * Get ideas by status
    */
   getIdeasByStatus: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): DbIdea[] => {
-    const cacheKey = generateCacheKey('getIdeasByStatus', status);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM ideas
       WHERE status = ?
       ORDER BY created_at DESC
     `);
-    const result = stmt.all(status) as DbIdea[];
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all(status) as DbIdea[];
   },
 
   /**
    * Get ideas by context
    */
   getIdeasByContext: (contextId: string): DbIdea[] => {
-    const cacheKey = generateCacheKey('getIdeasByContext', contextId);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM ideas
       WHERE context_id = ?
       ORDER BY created_at DESC
     `);
-    const result = stmt.all(contextId) as DbIdea[];
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all(contextId) as DbIdea[];
   },
 
   /**
    * Get ideas by goal
    */
   getIdeasByGoal: (goalId: string): DbIdea[] => {
-    const cacheKey = generateCacheKey('getIdeasByGoal', goalId);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM ideas
       WHERE goal_id = ?
       ORDER BY created_at DESC
     `);
-    const result = stmt.all(goalId) as DbIdea[];
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all(goalId) as DbIdea[];
   },
 
   /**
    * Get idea by requirement_id
    */
   getIdeaByRequirementId: (requirementId: string): DbIdea | null => {
-    const cacheKey = generateCacheKey('getIdeaByRequirementId', requirementId);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare('SELECT * FROM ideas WHERE requirement_id = ?');
     const idea = stmt.get(requirementId) as DbIdea | undefined;
-    const result = idea || null;
-    ideaCache.set(cacheKey, result);
-    return result;
+    return idea || null;
   },
 
   /**
    * Get a single idea by ID
    */
   getIdeaById: (ideaId: string): DbIdea | null => {
-    const cacheKey = generateCacheKey('getIdeaById', ideaId);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
     const idea = stmt.get(ideaId) as DbIdea | undefined;
-    const result = idea || null;
-    ideaCache.set(cacheKey, result);
-    return result;
+    return idea || null;
   },
 
   /**
@@ -207,12 +150,7 @@ export const ideaRepository = {
     );
 
     const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
-    const result = selectStmt.get(idea.id) as DbIdea;
-
-    // Invalidate cache on write operation
-    invalidateIdeaCache();
-
-    return result;
+    return selectStmt.get(idea.id) as DbIdea;
   },
 
   /**
@@ -318,9 +256,6 @@ export const ideaRepository = {
       return null;
     }
 
-    // Invalidate cache on write operation
-    invalidateIdeaCache();
-
     const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
     return selectStmt.get(id) as DbIdea;
   },
@@ -332,12 +267,6 @@ export const ideaRepository = {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM ideas WHERE id = ?');
     const result = stmt.run(id);
-
-    // Invalidate cache on write operation
-    if (result.changes > 0) {
-      invalidateIdeaCache();
-    }
-
     return result.changes > 0;
   },
 
@@ -348,12 +277,16 @@ export const ideaRepository = {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM ideas WHERE context_id = ?');
     const result = stmt.run(contextId);
+    return result.changes;
+  },
 
-    // Invalidate cache on write operation
-    if (result.changes > 0) {
-      invalidateIdeaCache();
-    }
-
+  /**
+   * Delete all ideas for a specific project
+   */
+  deleteIdeasByProject: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM ideas WHERE project_id = ?');
+    const result = stmt.run(projectId);
     return result.changes;
   },
 
@@ -361,19 +294,13 @@ export const ideaRepository = {
    * Get recent ideas (last N)
    */
   getRecentIdeas: (limit: number = 10): DbIdea[] => {
-    const cacheKey = generateCacheKey('getRecentIdeas', limit);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM ideas
       ORDER BY created_at DESC
       LIMIT ?
     `);
-    const result = stmt.all(limit) as DbIdea[];
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all(limit) as DbIdea[];
   },
 
   /**
@@ -381,10 +308,6 @@ export const ideaRepository = {
    * Returns ideas with their associated context group colors in a single query
    */
   getIdeasByStatusWithColors: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): Array<DbIdea & { context_color?: string | null }> => {
-    const cacheKey = generateCacheKey('getIdeasByStatusWithColors', status);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT
@@ -396,9 +319,7 @@ export const ideaRepository = {
       WHERE ideas.status = ?
       ORDER BY ideas.created_at DESC
     `);
-    const result = stmt.all(status) as Array<DbIdea & { context_color?: string | null }>;
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all(status) as Array<DbIdea & { context_color?: string | null }>;
   },
 
   /**
@@ -406,10 +327,6 @@ export const ideaRepository = {
    * Returns all ideas with their associated context group colors in a single query
    */
   getAllIdeasWithColors: (): Array<DbIdea & { context_color?: string | null }> => {
-    const cacheKey = generateCacheKey('getAllIdeasWithColors');
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT
@@ -420,19 +337,13 @@ export const ideaRepository = {
       LEFT JOIN context_groups ON contexts.group_id = context_groups.id
       ORDER BY ideas.created_at DESC
     `);
-    const result = stmt.all() as Array<DbIdea & { context_color?: string | null }>;
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all() as Array<DbIdea & { context_color?: string | null }>;
   },
 
   /**
    * Get ideas by project with context colors (optimized JOIN query)
    */
   getIdeasByProjectWithColors: (projectId: string): Array<DbIdea & { context_color?: string | null }> => {
-    const cacheKey = generateCacheKey('getIdeasByProjectWithColors', projectId);
-    const cached = ideaCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT
@@ -444,9 +355,7 @@ export const ideaRepository = {
       WHERE ideas.project_id = ?
       ORDER BY ideas.created_at DESC
     `);
-    const result = stmt.all(projectId) as Array<DbIdea & { context_color?: string | null }>;
-    ideaCache.set(cacheKey, result);
-    return result;
+    return stmt.all(projectId) as Array<DbIdea & { context_color?: string | null }>;
   },
 
   /**
@@ -457,12 +366,6 @@ export const ideaRepository = {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM ideas');
     const result = stmt.run();
-
-    // Invalidate cache on write operation
-    if (result.changes > 0) {
-      invalidateIdeaCache();
-    }
-
     return result.changes;
   }
 };

@@ -7,6 +7,7 @@ import TechDebtCard from './TechDebtCard';
 import TechDebtDetailModal from './TechDebtDetailModal';
 import TechDebtStatsPanel from './TechDebtStatsPanel';
 import type { DbTechDebt, TechDebtStats, TechDebtCategory, TechDebtSeverity, TechDebtStatus } from '@/app/db/models/tech-debt.types';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface TechDebtRadarProps {
   projectId: string;
@@ -24,20 +25,16 @@ const FilterSelect: React.FC<FilterSelectProps> = ({ label, value, onChange, opt
     <label className="block text-sm font-medium text-gray-400 mb-2">
       {label}
     </label>
-    <select
-      multiple
-      value={value}
-      onChange={(e) => {
-        const values = Array.from(e.target.selectedOptions, option => option.value);
-        onChange(values);
+    <UniversalSelect
+      value={value.length > 0 ? value[0] : ''}
+      onChange={(selectedValue) => {
+        // For multi-select, we're simplifying to single select for now
+        onChange(selectedValue ? [selectedValue] : []);
       }}
-      className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg
-        text-white text-sm focus:outline-none focus:border-blue-500"
-    >
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
+      options={options}
+      variant="default"
+      placeholder="Select..."
+    />
   </div>
 );
 

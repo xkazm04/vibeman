@@ -97,5 +97,5 @@ Your response must be ONLY a JSON array. Here's what your response should look l
 Here are the ideas:
 [...]
 
-✅ ONLY output the JSON array, nothing else.
+✅ ONLY output the JSON array, nothing else. IMPORTANT: Provider exactly 2 ideas in the array which you believe they could bring the most value to the project.
 `;

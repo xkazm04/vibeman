@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Increase the maximum duration for this route (Vercel)
-export const maxDuration = 300; // 5 minutes (max for hobby plan)
+export const maxDuration = 500; // Vercel hobby has 300s limit
 // For self-hosted or Pro plan, you can set higher values
 
 // Note: In Next.js App Router, body size limits are configured at the server level

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import IdeasLayout from './features/Ideas/IdeasLayout';
-import TinderLayout from './features/Tinder/TinderLayout';
+import TinderLayout from './features/tinder/TinderLayout';
 import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
 import ReflectorLayout from './features/Reflector/ReflectorLayout';
 import DocsPage from './docs/page';
@@ -19,16 +20,17 @@ export default function Home() {
   const [shouldFreezeComponents, setShouldFreezeComponents] = useState(false);
   const { activeModule } = useOnboardingStore();
   const { activeProject } = useActiveProjectStore();
+  const { selectedProjectId } = useUnifiedProjectStore();
 
   const handleFreezeStateChange = (shouldFreeze: boolean) => {
     setShouldFreezeComponents(shouldFreeze);
   };
 
-  // Smooth transition variants
+  // Smooth transition variants for module and project switching
   const moduleVariants = {
-    initial: { opacity: 0, x: 20 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -20 }
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -10 }
   };
 
   const renderActiveModule = () => {
@@ -57,18 +59,18 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-full">
+    <main className="relative min-h-full pt-10">
       {/* Module Content with Smooth Transitions */}
       <LazyContentSection delay={0.1}>
         <FrozenComponent shouldFreeze={shouldFreezeComponents}>
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeModule}
+              key={`${activeModule}-${selectedProjectId}`}
               variants={moduleVariants}
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             >
               {renderActiveModule()}
             </motion.div>

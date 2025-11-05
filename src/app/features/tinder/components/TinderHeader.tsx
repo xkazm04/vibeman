@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, CloudDownload, RefreshCw } from 'lucide-react';
+import { Heart, CloudDownload, RefreshCw, Trash2 } from 'lucide-react';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { TinderStats } from '../lib/tinderHooks';
@@ -15,6 +15,7 @@ interface TinderHeaderProps {
   loading?: boolean;
   processing?: boolean;
   onSyncComplete?: () => void; // Callback to refresh ideas after sync
+  onFlushComplete?: () => void; // Callback to refresh ideas after flush
 }
 
 export default function TinderHeader({
@@ -25,12 +26,16 @@ export default function TinderHeader({
   loading = false,
   processing = false,
   onSyncComplete,
+  onFlushComplete,
 }: TinderHeaderProps) {
   const { projects } = useProjectConfigStore();
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [flushing, setFlushing] = useState(false);
+  const [flushError, setFlushError] = useState<string | null>(null);
+  const [flushSuccess, setFlushSuccess] = useState(false);
 
   // Check if Supabase is configured on mount
   useEffect(() => {
@@ -82,6 +87,56 @@ export default function TinderHeader({
       setTimeout(() => setSyncError(null), 5000);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleFlush = async () => {
+    // Confirmation dialog
+    const projectName = selectedProjectId === 'all'
+      ? 'all projects'
+      : projects.find(p => p.id === selectedProjectId)?.name || 'this project';
+
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete all ideas from ${projectName}?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setFlushing(true);
+      setFlushError(null);
+      setFlushSuccess(false);
+
+      const response = await fetch('/api/ideas/tinder/flush', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: selectedProjectId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to flush ideas');
+      }
+
+      console.log(`Flushed ${data.deletedCount} ideas`);
+      setFlushSuccess(true);
+
+      // Call the callback to refresh the ideas list
+      if (onFlushComplete) {
+        onFlushComplete();
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setFlushSuccess(false), 3000);
+    } catch (error) {
+      console.error('Flush failed:', error);
+      setFlushError(error instanceof Error ? error.message : 'Flush failed');
+
+      // Clear error message after 5 seconds
+      setTimeout(() => setFlushError(null), 5000);
+    } finally {
+      setFlushing(false);
     }
   };
 
@@ -184,7 +239,7 @@ export default function TinderHeader({
             />
           </div>
 
-          {/* Right: Stats */}
+          {/* Right: Stats + Flush Button */}
           <div className="flex items-center space-x-6">
             <div className="text-sm">
               <span className="text-gray-500">Remaining:</span>{' '}
@@ -201,6 +256,62 @@ export default function TinderHeader({
             <div className="text-sm">
               <span className="text-gray-500">Deleted:</span>{' '}
               <span className="text-gray-400 font-mono font-semibold">{stats.deleted}</span>
+            </div>
+
+            {/* Flush Button */}
+            <div className="relative ml-2">
+              <motion.button
+                onClick={handleFlush}
+                disabled={flushing || loading || processing}
+                className={`p-2.5 rounded-lg border transition-all duration-200 ${
+                  flushing
+                    ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+                    : flushSuccess
+                    ? 'bg-green-500/20 border-green-500/40 text-green-400'
+                    : flushError
+                    ? 'bg-red-500/20 border-red-500/40 text-red-400'
+                    : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400'
+                }`}
+                whileHover={flushing ? {} : { scale: 1.05 }}
+                whileTap={flushing ? {} : { scale: 0.95, rotate: -5 }}
+                title={
+                  flushing
+                    ? 'Flushing ideas...'
+                    : flushSuccess
+                    ? 'Ideas flushed!'
+                    : flushError
+                    ? flushError
+                    : 'Flush all ideas (permanent delete)'
+                }
+                data-testid="flush-ideas-btn"
+              >
+                {flushing ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </motion.div>
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+              </motion.button>
+
+              {/* Error/Success Tooltip */}
+              {(flushError || flushSuccess) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className={`absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap z-50 shadow-lg ${
+                    flushSuccess
+                      ? 'bg-green-500/90 text-white'
+                      : 'bg-red-500/90 text-white'
+                  }`}
+                >
+                  {flushSuccess ? 'Ideas flushed!' : flushError}
+                </motion.div>
+              )}
             </div>
           </div>
         </div>

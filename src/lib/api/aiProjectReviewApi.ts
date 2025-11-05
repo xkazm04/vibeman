@@ -59,6 +59,25 @@ export async function callAIReviewAPI(request: AIReviewRequest): Promise<any> {
 }
 
 /**
+ * Generic helper to call AI review API with common project parameters
+ */
+async function callReviewWithMode(
+  projectId: string,
+  projectPath: string,
+  projectName: string,
+  provider: SupportedProvider,
+  mode: AIReviewMode
+) {
+  return callAIReviewAPI({
+    projectId,
+    projectPath,
+    projectName,
+    mode,
+    provider,
+  });
+}
+
+/**
  * Generate project documentation
  */
 export async function generateDocs(
@@ -67,14 +86,7 @@ export async function generateDocs(
   projectName: string,
   provider: SupportedProvider
 ): Promise<string> {
-  const result = await callAIReviewAPI({
-    projectId,
-    projectPath,
-    projectName,
-    mode: 'docs',
-    provider,
-  });
-
+  const result = await callReviewWithMode(projectId, projectPath, projectName, provider, 'docs');
   return result.analysis;
 }
 
@@ -87,14 +99,7 @@ export async function generateTasks(
   projectName: string,
   provider: SupportedProvider
 ): Promise<any[]> {
-  const result = await callAIReviewAPI({
-    projectId,
-    projectPath,
-    projectName,
-    mode: 'tasks',
-    provider,
-  });
-
+  const result = await callReviewWithMode(projectId, projectPath, projectName, provider, 'tasks');
   return extractDataWithFallback<any[]>(result, 'tasks', 'Failed to parse tasks from AI response');
 }
 
@@ -107,14 +112,7 @@ export async function generateGoals(
   projectName: string,
   provider: SupportedProvider
 ): Promise<any[]> {
-  const result = await callAIReviewAPI({
-    projectId,
-    projectPath,
-    projectName,
-    mode: 'goals',
-    provider,
-  });
-
+  const result = await callReviewWithMode(projectId, projectPath, projectName, provider, 'goals');
   return extractDataWithFallback<any[]>(result, 'goals', 'Failed to parse goals from AI response');
 }
 
@@ -127,13 +125,7 @@ export async function generateContexts(
   projectName: string,
   provider: SupportedProvider
 ): Promise<Array<{ filename: string; content: string }>> {
-  const result = await callAIReviewAPI({
-    projectId,
-    projectPath,
-    projectName,
-    mode: 'context',
-    provider,
-  });
+  const result = await callReviewWithMode(projectId, projectPath, projectName, provider, 'context');
 
   if (result.contexts) {
     return result.contexts;
@@ -151,13 +143,6 @@ export async function generateCodeTasks(
   projectName: string,
   provider: SupportedProvider
 ): Promise<any[]> {
-  const result = await callAIReviewAPI({
-    projectId,
-    projectPath,
-    projectName,
-    mode: 'code',
-    provider,
-  });
-
+  const result = await callReviewWithMode(projectId, projectPath, projectName, provider, 'code');
   return extractDataWithFallback<any[]>(result, 'tasks', 'Failed to parse code tasks from AI response');
 }

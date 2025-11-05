@@ -30,7 +30,7 @@ export function buildIdeaGenerationPrompt(
     temperature: number;
   };
 } {
-  const { projectId, projectName, aiDocs, context, codeFiles, existingIdeas } = options;
+  const { projectId, projectName, aiDocs, context, existingIdeas } = options;
 
   // Fetch open goals for the project
   const allGoals = goalDb.getGoalsByProject(projectId);

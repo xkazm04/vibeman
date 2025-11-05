@@ -7,6 +7,7 @@ import { DbIdea } from '@/app/db';
 import { Context } from '@/lib/queries/contextQueries';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 
 // Components
 import IdeasHeaderWithFilter from '@/app/features/Ideas/components/IdeasHeaderWithFilter';
@@ -34,13 +35,13 @@ const IdeasLayout = () => {
   const [ideas, setIdeas] = React.useState<DbIdea[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
-  const [filterProject, setFilterProject] = React.useState<string>('all');
   const [filterContext, setFilterContext] = React.useState<string | null>(null);
   const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
   const [contextsMap, setContextsMap] = React.useState<Record<string, Context[]>>({});
 
   const { projects, initializeProjects, getProject } = useProjectConfigStore();
   const { setActiveProject } = useActiveProjectStore();
+  const { selectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
 
   // Initialize projects on mount
   React.useEffect(() => {
@@ -102,8 +103,8 @@ const IdeasLayout = () => {
   }, []);
 
   const handleProjectSelect = React.useCallback((projectId: string) => {
-    // Update local filter state
-    setFilterProject(projectId);
+    // Update unified store
+    setSelectedProjectId(projectId);
     setFilterContext(null); // Reset context filter when project changes
 
     // Update active project in store (skip if 'all' is selected)
@@ -113,10 +114,10 @@ const IdeasLayout = () => {
         setActiveProject(project);
       }
     }
-  }, [getProject, setActiveProject]);
+  }, [setSelectedProjectId, getProject, setActiveProject]);
 
   // Get selected project details
-  const selectedProject = filterProject !== 'all' ? getProject(filterProject) : null;
+  const selectedProject = selectedProjectId !== 'all' ? getProject(selectedProjectId) : null;
 
   // Filter ideas to only show Pending and Accepted
   const filteredIdeas = React.useMemo(() =>
@@ -126,8 +127,8 @@ const IdeasLayout = () => {
 
   // Compute grouped ideas and stats
   const groupedIdeas = React.useMemo(() =>
-    groupIdeasByProjectAndContext(filteredIdeas, 'all', filterProject),
-    [filteredIdeas, filterProject]
+    groupIdeasByProjectAndContext(filteredIdeas, 'all', selectedProjectId),
+    [filteredIdeas, selectedProjectId]
   );
 
   const stats = React.useMemo(() => calculateIdeaStats(ideas), [ideas]);
@@ -177,16 +178,15 @@ const IdeasLayout = () => {
     <ProcessingIdeaProvider>
       <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
         {/* Project Toolbar */}
-        <ProjectToolbar actions={toolbarActions} position="top-center" styled />
+        {/* <ProjectToolbar actions={toolbarActions} position="top-center" styled /> */}
         {/* Header with Project Filter */}
         <LazyContentSection delay={0}>
           <IdeasHeaderWithFilter
             projects={projects}
-            selectedProjectId={filterProject}
+            selectedProjectId={selectedProjectId}
             onSelectProject={handleProjectSelect}
             selectedContextId={filterContext}
             onSelectContext={setFilterContext}
-            stats={stats}
             selectedProjectPath={selectedProject?.path}
             onIdeaImplemented={loadIdeas}
           />

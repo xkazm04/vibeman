@@ -4,6 +4,7 @@ import { Hash, Calendar, Save, Edit3, Trash2 } from 'lucide-react';
 import { Goal } from '../../../../../types';
 import { useGoals } from '../../../../../hooks/useGoals';
 import { getStatusConfig, formatDate, validateGoalData } from '../lib';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface GoalsDetailModalContentProps {
   goal: Goal;
@@ -118,17 +119,18 @@ export default function GoalsDetailModalContent({
               <span>Status</span>
             </h3>
             {isEditing ? (
-              <select
+              <UniversalSelect
                 value={editedGoal.status}
-                onChange={(e) => setEditedGoal(prev => ({ ...prev, status: e.target.value as Goal['status'] }))}
-                className="w-full p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-lg text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all text-sm"
-              >
-                <option value="open" className="bg-slate-800">Open</option>
-                <option value="in_progress" className="bg-slate-800">In Progress</option>
-                <option value="done" className="bg-slate-800">Completed</option>
-                <option value="undecided" className="bg-slate-800">Under Review</option>
-                <option value="rejected" className="bg-slate-800">Archived</option>
-              </select>
+                onChange={(value) => setEditedGoal(prev => ({ ...prev, status: value as Goal['status'] }))}
+                options={[
+                  { value: 'open', label: 'Open' },
+                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'done', label: 'Completed' },
+                  { value: 'undecided', label: 'Under Review' },
+                  { value: 'rejected', label: 'Archived' },
+                ]}
+                variant="default"
+              />
             ) : (
               <div className={`bg-gradient-to-r ${statusConfig.gradient} backdrop-blur-xl border ${statusConfig.borderColor} rounded-lg p-3.5 ${statusConfig.glow} shadow-lg`}>
                 <div className="flex items-center space-x-3">

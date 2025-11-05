@@ -4,16 +4,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import VibemanControl from '../sub_Vibeman/VibemanControl';
-import IdeasStats from './IdeasStats';
 import ProjectRowSelection from './ProjectRowSelection';
 import ContextRowSelection from './ContextRowSelection';
-
-interface IdeaStats {
-  total: number;
-  pending: number;
-  accepted: number;
-  implemented: number;
-}
 
 interface IdeasHeaderWithFilterProps {
   projects: Array<{ id: string; name: string }>;
@@ -22,7 +14,6 @@ interface IdeasHeaderWithFilterProps {
   selectedContextId?: string | null;
   onSelectContext?: (contextId: string | null) => void;
   onBatchScanAllContexts?: () => void;
-  stats: IdeaStats;
   selectedProjectPath?: string;
   onIdeaImplemented?: () => void;
 }
@@ -34,7 +25,6 @@ export default function IdeasHeaderWithFilter({
   selectedContextId,
   onSelectContext,
   onBatchScanAllContexts,
-  stats,
   selectedProjectPath,
   onIdeaImplemented,
 }: IdeasHeaderWithFilterProps) {
@@ -93,15 +83,6 @@ export default function IdeasHeaderWithFilter({
         transition={{ duration: 0.5 }}
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
-          {/* Project Selection Row */}
-          <div className="mb-3">
-            <ProjectRowSelection
-              projects={projects}
-              selectedProjectId={selectedProjectId}
-              onSelectProject={onSelectProject}
-            />
-          </div>
-
           {/* Context Selection Row - Only show when a specific project is selected */}
           {selectedProjectId !== 'all' && (
             <ContextRowSelection
@@ -111,11 +92,6 @@ export default function IdeasHeaderWithFilter({
               onSelectContext={onSelectContext || (() => {})}
             />
           )}
-        </div>
-
-        {/* Stats - Absolute Top Right */}
-        <div className="absolute top-4 right-6">
-          <IdeasStats stats={stats} />
         </div>
       </motion.div>
     </>

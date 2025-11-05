@@ -27,6 +27,45 @@ export function getLLMClient(provider: LLMProvider) {
   }
 }
 
+type EndpointConfig = {
+  endpoint: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  body?: Record<string, unknown>
+};
+
+/**
+ * Creates endpoint with query parameters
+ */
+function buildGetEndpoint(baseUrl: string, path: string, params?: Record<string, unknown>): string {
+  if (!params || Object.keys(params).length === 0) {
+    return `${baseUrl}${path}`;
+  }
+
+  const queryParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      queryParams.append(key, String(value));
+    }
+  });
+
+  const queryString = queryParams.toString();
+  return queryString ? `${baseUrl}${path}?${queryString}` : `${baseUrl}${path}`;
+}
+
+/**
+ * Creates POST/PUT/DELETE endpoint configuration
+ */
+function buildMutationEndpoint(
+  baseUrl: string,
+  path: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  body?: Record<string, unknown>,
+  queryParams?: Record<string, unknown>
+): EndpointConfig {
+  const endpoint = buildGetEndpoint(baseUrl, path, queryParams);
+  return { endpoint, method, body };
+}
+
 /**
  * Build endpoint configuration for a given tool
  */
@@ -34,156 +73,99 @@ function buildEndpointConfig(
   toolName: string,
   parameters: Record<string, unknown>,
   baseUrl: string
-): { endpoint: string; method: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: Record<string, unknown> } {
-  let endpoint = '';
-  let method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET';
-  let body: Record<string, unknown> | undefined;
+): EndpointConfig {
+  // READ-ONLY OPERATIONS
+  const readOnlyEndpoints: Record<string, () => EndpointConfig> = {
+    'get_project_contexts': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/contexts', { projectId: parameters.projectId }),
+      method: 'GET'
+    }),
+    'get_context_detail': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/contexts/detail', {
+        contextId: parameters.contextId,
+        name: parameters.name,
+        projectId: parameters.projectId
+      }),
+      method: 'GET'
+    }),
+    'get_all_projects': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/projects'),
+      method: 'GET'
+    }),
+    'get_project_backlog': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/backlog', { projectId: parameters.projectId }),
+      method: 'GET'
+    }),
+    'get_folder_structure': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/kiro/folder-structure',
+        parameters.projectPath ? { projectPath: parameters.projectPath } : undefined
+      ),
+      method: 'GET'
+    }),
+    'get_requirements_status': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/requirements/status'),
+      method: 'GET'
+    }),
+    'get_reviewer_pending_files': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/reviewer/pending-files'),
+      method: 'GET'
+    }),
+    'read_file_content': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/kiro/file-content', { filePath: parameters.filePath }),
+      method: 'GET'
+    }),
+    'search_files': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/kiro/search-files', {
+        projectPath: parameters.projectPath,
+        pattern: parameters.pattern,
+        includeContent: parameters.includeContent
+      }),
+      method: 'GET'
+    }),
+    'get_monitor_calls': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/monitor/calls', {
+        status: parameters.status,
+        startDate: parameters.startDate,
+        endDate: parameters.endDate
+      }),
+      method: 'GET'
+    }),
+    'get_monitor_statistics': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/monitor/statistics'),
+      method: 'GET'
+    }),
+    'get_message_patterns': () => ({
+      endpoint: buildGetEndpoint(baseUrl, '/api/monitor/patterns'),
+      method: 'GET'
+    })
+  };
 
-    // ============= READ-ONLY OPERATIONS =============
-    
-    if (toolName === 'get_project_contexts') {
-      endpoint = `${baseUrl}/api/contexts?projectId=${encodeURIComponent(parameters.projectId as string)}`;
-    }
-    else if (toolName === 'get_context_detail') {
-      const queryParams = new URLSearchParams();
-      if (parameters.contextId) queryParams.append('contextId', parameters.contextId as string);
-      if (parameters.name) queryParams.append('name', parameters.name as string);
-      if (parameters.projectId) queryParams.append('projectId', parameters.projectId as string);
-      endpoint = `${baseUrl}/api/contexts/detail?${queryParams.toString()}`;
-    }
-    else if (toolName === 'get_all_projects') {
-      endpoint = `${baseUrl}/api/projects`;
-    }
-    else if (toolName === 'get_project_backlog') {
-      endpoint = `${baseUrl}/api/backlog?projectId=${encodeURIComponent(parameters.projectId as string)}`;
-    }
-    else if (toolName === 'get_folder_structure') {
-      const projectPath = parameters.projectPath ? `?projectPath=${encodeURIComponent(parameters.projectPath as string)}` : '';
-      endpoint = `${baseUrl}/api/kiro/folder-structure${projectPath}`;
-    }
-    else if (toolName === 'get_requirements_status') {
-      endpoint = `${baseUrl}/api/requirements/status`;
-    }
-    else if (toolName === 'get_reviewer_pending_files') {
-      endpoint = `${baseUrl}/api/reviewer/pending-files`;
-    }
+  // MUTATION OPERATIONS (CREATE/UPDATE/DELETE)
+  const mutationEndpoints: Record<string, () => EndpointConfig> = {
+    'create_project': () => buildMutationEndpoint(baseUrl, '/api/projects', 'POST', parameters),
+    'update_project': () => buildMutationEndpoint(baseUrl, '/api/projects', 'PUT', parameters),
+    'delete_project': () => buildMutationEndpoint(baseUrl, '/api/projects', 'DELETE', { projectId: parameters.projectId }),
+    'create_context': () => buildMutationEndpoint(baseUrl, '/api/contexts', 'POST', parameters),
+    'update_context': () => buildMutationEndpoint(baseUrl, '/api/contexts', 'PUT', parameters),
+    'delete_context': () => buildMutationEndpoint(baseUrl, '/api/contexts', 'DELETE', undefined, { contextId: parameters.contextId }),
+    'generate_context': () => buildMutationEndpoint(baseUrl, '/api/kiro/generate-context', 'POST', parameters),
+    'create_backlog_item': () => buildMutationEndpoint(baseUrl, '/api/backlog', 'POST', parameters),
+    'update_backlog_item': () => buildMutationEndpoint(baseUrl, '/api/backlog', 'PUT', parameters),
+    'delete_backlog_item': () => buildMutationEndpoint(baseUrl, '/api/backlog', 'DELETE', { itemId: parameters.itemId }),
+    'analyze_code_quality': () => buildMutationEndpoint(baseUrl, '/api/kiro/analyze-quality', 'POST', parameters),
+    'generate_documentation': () => buildMutationEndpoint(baseUrl, '/api/kiro/generate-docs', 'POST', parameters),
+    'suggest_improvements': () => buildMutationEndpoint(baseUrl, '/api/kiro/suggest-improvements', 'POST', parameters),
+    'evaluate_call_messages': () => buildMutationEndpoint(baseUrl, '/api/monitor/evaluate', 'POST', { callId: parameters.callId })
+  };
 
-    // ============= PROJECT MANAGEMENT =============
-    
-    else if (toolName === 'create_project') {
-      endpoint = `${baseUrl}/api/projects`;
-      method = 'POST';
-      body = parameters;
-    }
-    else if (toolName === 'update_project') {
-      endpoint = `${baseUrl}/api/projects`;
-      method = 'PUT';
-      body = parameters;
-    }
-    else if (toolName === 'delete_project') {
-      endpoint = `${baseUrl}/api/projects`;
-      method = 'DELETE';
-      body = { projectId: parameters.projectId };
-    }
+  // Look up endpoint configuration
+  const endpointBuilder = readOnlyEndpoints[toolName] || mutationEndpoints[toolName];
 
-    // ============= CONTEXT & DOCUMENTATION =============
-    
-    else if (toolName === 'create_context') {
-      endpoint = `${baseUrl}/api/contexts`;
-      method = 'POST';
-      body = parameters;
-    }
-    else if (toolName === 'update_context') {
-      endpoint = `${baseUrl}/api/contexts`;
-      method = 'PUT';
-      body = parameters;
-    }
-    else if (toolName === 'delete_context') {
-      endpoint = `${baseUrl}/api/contexts?contextId=${encodeURIComponent(parameters.contextId as string)}`;
-      method = 'DELETE';
-    }
-    else if (toolName === 'generate_context') {
-      endpoint = `${baseUrl}/api/kiro/generate-context`;
-      method = 'POST';
-      body = parameters;
-    }
+  if (!endpointBuilder) {
+    throw new Error(`Unknown tool: ${toolName}`);
+  }
 
-    // ============= TASK & BACKLOG MANAGEMENT =============
-    
-    else if (toolName === 'create_backlog_item') {
-      endpoint = `${baseUrl}/api/backlog`;
-      method = 'POST';
-      body = parameters;
-    }
-    else if (toolName === 'update_backlog_item') {
-      endpoint = `${baseUrl}/api/backlog`;
-      method = 'PUT';
-      body = parameters;
-    }
-    else if (toolName === 'delete_backlog_item') {
-      endpoint = `${baseUrl}/api/backlog`;
-      method = 'DELETE';
-      body = { itemId: parameters.itemId };
-    }
-
-    // ============= FILE OPERATIONS =============
-    
-    else if (toolName === 'read_file_content') {
-      endpoint = `${baseUrl}/api/kiro/file-content?filePath=${encodeURIComponent(parameters.filePath as string)}`;
-    }
-    else if (toolName === 'search_files') {
-      const queryParams = new URLSearchParams({
-        projectPath: parameters.projectPath as string,
-        pattern: parameters.pattern as string
-      });
-      if (parameters.includeContent) queryParams.append('includeContent', String(parameters.includeContent));
-      endpoint = `${baseUrl}/api/kiro/search-files?${queryParams.toString()}`;
-    }
-
-    // ============= AI-ASSISTED OPERATIONS =============
-    
-    else if (toolName === 'analyze_code_quality') {
-      endpoint = `${baseUrl}/api/kiro/analyze-quality`;
-      method = 'POST';
-      body = parameters;
-    }
-    else if (toolName === 'generate_documentation') {
-      endpoint = `${baseUrl}/api/kiro/generate-docs`;
-      method = 'POST';
-      body = parameters;
-    }
-    else if (toolName === 'suggest_improvements') {
-      endpoint = `${baseUrl}/api/kiro/suggest-improvements`;
-      method = 'POST';
-      body = parameters;
-    }
-
-    // ============= MONITORING TOOLS =============
-    
-    else if (toolName === 'get_monitor_calls') {
-      const queryParams = new URLSearchParams();
-      if (parameters.status) queryParams.append('status', parameters.status as string);
-      if (parameters.startDate) queryParams.append('startDate', parameters.startDate as string);
-      if (parameters.endDate) queryParams.append('endDate', parameters.endDate as string);
-      endpoint = `${baseUrl}/api/monitor/calls${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-    }
-    else if (toolName === 'get_monitor_statistics') {
-      endpoint = `${baseUrl}/api/monitor/statistics`;
-    }
-    else if (toolName === 'evaluate_call_messages') {
-      endpoint = `${baseUrl}/api/monitor/evaluate`;
-      method = 'POST';
-      body = { callId: parameters.callId };
-    }
-    else if (toolName === 'get_message_patterns') {
-      endpoint = `${baseUrl}/api/monitor/patterns`;
-    }
-    
-    else {
-      throw new Error(`Unknown tool: ${toolName}`);
-    }
-
-  return { endpoint, method, body };
+  return endpointBuilder();
 }
 
 /**

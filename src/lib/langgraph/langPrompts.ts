@@ -6,14 +6,9 @@
 import { ToolDefinition } from './langTypes';
 
 /**
- * Creates the analysis prompt to determine user intent and required tools
+ * Categorizes a tool into its appropriate category
  */
-export function createAnalysisPrompt(
-  message: string,
-  projectId: string,
-  tools: ToolDefinition[]
-): string {
-  // Group tools by category for better organization
+function categorizeTools(tools: ToolDefinition[]): Record<string, ToolDefinition[]> {
   const toolsByCategory: Record<string, ToolDefinition[]> = {
     'Read-Only Operations': [],
     'Project Management': [],
@@ -25,7 +20,6 @@ export function createAnalysisPrompt(
     'Monitoring': []
   };
 
-  // Categorize tools based on their names and descriptions
   tools.forEach(tool => {
     if (tool.name.startsWith('get_') || tool.description.includes('Retrieves') || tool.description.includes('Lists')) {
       toolsByCategory['Read-Only Operations'].push(tool);
@@ -46,39 +40,68 @@ export function createAnalysisPrompt(
     }
   });
 
-  // Build categorized tool descriptions
+  return toolsByCategory;
+}
+
+/**
+ * Formats a single tool with its parameters
+ */
+function formatToolWithParameters(tool: ToolDefinition): string {
+  const requiredParams = tool.parameters.required || [];
+  const allParams = Object.keys(tool.parameters.properties || {});
+  const optionalParams = allParams.filter(p => !requiredParams.includes(p));
+
+  let description = `- **${tool.name}**: ${tool.description}\n`;
+  if (requiredParams.length > 0) {
+    description += `  Required: ${requiredParams.join(', ')}\n`;
+  }
+  if (optionalParams.length > 0) {
+    description += `  Optional: ${optionalParams.join(', ')}\n`;
+  }
+
+  return description;
+}
+
+/**
+ * Builds categorized tool descriptions for the prompt
+ */
+function buildToolDescriptions(toolsByCategory: Record<string, ToolDefinition[]>): string {
   let toolDescriptions = '';
   Object.entries(toolsByCategory).forEach(([category, categoryTools]) => {
     if (categoryTools.length > 0) {
       toolDescriptions += `\n**${category}:**\n`;
       categoryTools.forEach(tool => {
-        const requiredParams = tool.parameters.required || [];
-        const allParams = Object.keys(tool.parameters.properties || {});
-        const optionalParams = allParams.filter(p => !requiredParams.includes(p));
-        
-        toolDescriptions += `- **${tool.name}**: ${tool.description}\n`;
-        if (requiredParams.length > 0) {
-          toolDescriptions += `  Required: ${requiredParams.join(', ')}\n`;
-        }
-        if (optionalParams.length > 0) {
-          toolDescriptions += `  Optional: ${optionalParams.join(', ')}\n`;
-        }
+        toolDescriptions += formatToolWithParameters(tool);
       });
     }
   });
+  return toolDescriptions;
+}
 
-  // Default task instructions (fallback if file not available)
-  const defaultTask = `Analyze the user's message and determine:
+/**
+ * Gets the default task instructions
+ */
+function getDefaultTaskInstructions(): string {
+  return `Analyze the user's message and determine:
 1. What is the user's intent?
 2. Does this require accessing the project knowledge base or performing actions?
 3. Which tools (if any) should be used?
 4. Is this a destructive operation that requires confirmation?
 5. What is your confidence level?
 6. Does this require user confirmation before proceeding?`;
+}
 
-  // Note: In production, this should load from data/prompts/analysis-task.txt
-  // For now using default, but component can edit and save to file
-  const taskInstructions = defaultTask;
+/**
+ * Creates the analysis prompt to determine user intent and required tools
+ */
+export function createAnalysisPrompt(
+  message: string,
+  projectId: string,
+  tools: ToolDefinition[]
+): string {
+  const toolsByCategory = categorizeTools(tools);
+  const toolDescriptions = buildToolDescriptions(toolsByCategory);
+  const taskInstructions = getDefaultTaskInstructions();
 
   return `You are Annette, an AI assistant analyzing user requests for a project management and code intelligence system.
 
@@ -159,6 +182,28 @@ Return ONLY the JSON response, no additional text.`;
 }
 
 /**
+ * Gets the default response instructions
+ */
+function getDefaultResponseInstructions(): string {
+  return `1. Answer the user's question using ONLY the data from tool results above
+2. Be specific and reference actual data points from the results
+3. If the tool results don't contain enough information, say so explicitly
+4. Format your response clearly and professionally
+5. If no tools were executed, inform the user that you need to access the knowledge base first`;
+}
+
+/**
+ * Gets the default response guidelines
+ */
+function getDefaultResponseGuidelines(): string {
+  return `- Start directly with the answer (no preamble like "Based on the data...")
+- Use bullet points or numbered lists for clarity when appropriate
+- Cite specific numbers, names, and details from the tool results
+- If data is missing, suggest which tools could provide it
+- Keep responses concise but complete`;
+}
+
+/**
  * Creates the system prompt for final response generation
  */
 export function createResponsePrompt(
@@ -167,26 +212,8 @@ export function createResponsePrompt(
   toolResults: string,
   userIntent: string
 ): string {
-  // Default instructions (fallback if file not available)
-  const defaultInstructions = `1. Answer the user's question using ONLY the data from tool results above
-2. Be specific and reference actual data points from the results
-3. If the tool results don't contain enough information, say so explicitly
-4. Format your response clearly and professionally
-5. If no tools were executed, inform the user that you need to access the knowledge base first`;
-
-  // Default guidelines (fallback if file not available)
-  const defaultGuidelines = `- Start directly with the answer (no preamble like "Based on the data...")
-- Use bullet points or numbered lists for clarity when appropriate
-- Cite specific numbers, names, and details from the tool results
-- If data is missing, suggest which tools could provide it
-- Keep responses concise but complete`;
-
-  // Note: In production, these should load from:
-  // - data/prompts/response-instructions.txt
-  // - data/prompts/response-guidelines.txt
-  // For now using defaults, but component can edit and save to files
-  const instructions = defaultInstructions;
-  const guidelines = defaultGuidelines;
+  const instructions = getDefaultResponseInstructions();
+  const guidelines = getDefaultResponseGuidelines();
 
   return `You are Annette, an AI assistant for project management.
 

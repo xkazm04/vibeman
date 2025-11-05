@@ -4,6 +4,7 @@ import { Plus, AlertCircle } from 'lucide-react';
 import { Goal } from '../../../../../types';
 import { getStatusConfig, validateGoalData } from '../lib';
 import { useActiveProjectStore } from '../../../../../stores/activeProjectStore';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 // Context type (matching the API response)
 interface Context {
@@ -123,27 +124,20 @@ export default function GoalsAddModalContent({ onSubmit, onClose }: GoalsAddModa
 
       {/* Context Selection */}
       <div>
-        <label className="block text-sm font-medium text-white/90 mb-3 tracking-wide">
-          Context <span className="text-slate-500">(Optional)</span>
-        </label>
-        <select
+        <UniversalSelect
+          label="Context"
           value={contextId}
-          onChange={(e) => setContextId(e.target.value)}
-          disabled={loadingContexts || availableContexts.length === 0}
-          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <option value="">
-            {loadingContexts ? 'Loading contexts...' : availableContexts.length === 0 ? 'No contexts available' : 'No context selected'}
-          </option>
-          {availableContexts.map((context) => (
-            <option key={context.id} value={context.id}>
-              {context.name}
-            </option>
-          ))}
-        </select>
-        <p className="mt-2 text-sm text-slate-500">
-          Associate this goal with a specific context for better organization
-        </p>
+          onChange={(value) => setContextId(value)}
+          options={availableContexts.map((context) => ({
+            value: context.id,
+            label: context.name,
+          }))}
+          placeholder={loadingContexts ? 'Loading contexts...' : availableContexts.length === 0 ? 'No contexts available' : 'No context selected'}
+          isLoading={loadingContexts}
+          disabled={availableContexts.length === 0}
+          helperText="Associate this goal with a specific context for better organization"
+          variant="default"
+        />
       </div>
 
       {/* Status Selection */}

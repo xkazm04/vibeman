@@ -41,7 +41,10 @@
       "Bash(timeout 30 npm run dev:*)",
       "Bash(lsof:*)",
       "Bash(cat:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(for file in \"src/app/features/RefactorWizard/components/ReviewStep.tsx\" \"src/app/features/reflector/sub_Reflection/components/FilterPanel.tsx\" \"src/app/features/TechDebtRadar/components/TechDebtRadar.tsx\" \"src/app/projects/sub_ProjectForm/components/RelatedProjectSelector.tsx\" \"src/app/voicebot/components/AsyncVoiceSolution.tsx\" \"src/app/voicebot/components/conversation/ConvModelSelector.tsx\")",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

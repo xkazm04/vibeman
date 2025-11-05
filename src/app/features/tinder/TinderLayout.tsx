@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Database, RefreshCw } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import TinderHeader from '@/app/features/tinder/components/TinderHeader';
+import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
+import ProjectToolbar, { ToolbarAction } from '@/components/ui/ProjectToolbar';
 import TinderContent from '@/app/features/tinder/components/TinderContent';
 import { useTinderIdeas, useTinderKeyboardShortcuts } from '@/app/features/tinder/lib/tinderHooks';
 
 const TinderLayout = () => {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const { initializeProjects } = useProjectConfigStore();
+  const { selectedProjectId } = useUnifiedProjectStore();
 
   // Initialize projects on mount
   useEffect(() => {
@@ -39,18 +41,31 @@ const TinderLayout = () => {
     loadIdeas();
   };
 
+  // Toolbar actions
+  const toolbarActions: ToolbarAction[] = React.useMemo(() => [
+    {
+      icon: Database,
+      label: 'Sync ideas',
+      onClick: async () => {
+        await loadIdeas();
+      },
+      colorScheme: 'blue',
+      tooltip: 'Refresh ideas from database',
+    },
+    {
+      icon: RefreshCw,
+      label: 'Reload',
+      onClick: () => {
+        resetStats();
+        loadIdeas();
+      },
+      colorScheme: 'green',
+      tooltip: 'Reset and reload all ideas',
+    },
+  ], [loadIdeas, resetStats]);
+
   return (
     <div className="min-h-full bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
-      <TinderHeader
-        selectedProjectId={selectedProjectId}
-        onProjectChange={setSelectedProjectId}
-        remainingCount={remainingCount}
-        stats={stats}
-        loading={loading}
-        processing={processing}
-        onSyncComplete={loadIdeas}
-      />
-
       <TinderContent
         ideas={ideas}
         currentIndex={currentIndex}
@@ -61,6 +76,7 @@ const TinderLayout = () => {
         onReject={handleReject}
         onDelete={handleDelete}
         onStartOver={handleStartOver}
+        onFlushComplete={loadIdeas}
       />
     </div>
   );

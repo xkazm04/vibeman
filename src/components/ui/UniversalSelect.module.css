@@ -81,6 +81,100 @@
 }
 
 /* ========================================
+   DARK THEME GLOBAL OVERRIDES
+   Override slim-select default light theme
+   ======================================== */
+
+/* Main select button - default dark theme */
+:global(.ss-main:not(.universal-select-default):not(.universal-select-cyber):not(.universal-select-minimal)) {
+  background: rgba(31, 41, 55, 0.6) !important; /* gray-800/60 */
+  border: 1px solid rgba(55, 65, 81, 0.4) !important; /* gray-700/40 */
+  color: rgb(209, 213, 219) !important; /* gray-300 */
+}
+
+/* Selected value text */
+:global(.ss-main .ss-single-selected) {
+  color: rgb(209, 213, 219) !important; /* gray-300 */
+}
+
+/* Placeholder text */
+:global(.ss-main .ss-single-selected.ss-disabled),
+:global(.ss-main .ss-single-selected.placeholder) {
+  color: rgb(156, 163, 175) !important; /* gray-400 */
+}
+
+/* Arrow/chevron */
+:global(.ss-main .ss-arrow path) {
+  stroke: rgb(156, 163, 175) !important; /* gray-400 */
+}
+
+/* Dropdown content container */
+:global(.ss-content:not(.universal-select-default):not(.universal-select-cyber):not(.universal-select-minimal)) {
+  background: rgb(17, 24, 39) !important; /* gray-900 */
+  border: 1px solid rgba(55, 65, 81, 0.4) !important; /* gray-700/40 */
+}
+
+/* Options - default dark theme */
+:global(.ss-option:not([class*="universal-select"])) {
+  color: rgb(229, 231, 235) !important; /* gray-200 */
+  background: rgb(17, 24, 39) !important; /* gray-900 */
+}
+
+/* Option hover state */
+:global(.ss-option:hover:not([class*="universal-select"])),
+:global(.ss-option.ss-highlighted:not([class*="universal-select"])) {
+  background: rgba(88, 28, 135, 0.4) !important; /* purple-900/40 */
+  color: white !important;
+}
+
+/* Selected option */
+:global(.ss-option.ss-selected:not([class*="universal-select"])) {
+  background: rgba(88, 28, 135, 0.6) !important; /* purple-900/60 */
+  color: white !important;
+}
+
+/* Disabled option */
+:global(.ss-option.ss-disabled:not([class*="universal-select"])) {
+  color: rgb(107, 114, 128) !important; /* gray-500 */
+  background: rgb(17, 24, 39) !important; /* gray-900 */
+}
+
+/* Search input */
+:global(.ss-search input) {
+  background: rgb(31, 41, 55) !important; /* gray-800 */
+  color: rgb(229, 231, 235) !important; /* gray-200 */
+  border-bottom-color: rgba(75, 85, 99, 0.5) !important; /* gray-600/50 */
+}
+
+:global(.ss-search input::placeholder) {
+  color: rgb(156, 163, 175) !important; /* gray-400 */
+}
+
+:global(.ss-search input:focus) {
+  border-bottom-color: rgba(168, 85, 247, 0.6) !important; /* purple-500/60 */
+}
+
+/* "No results" message */
+:global(.ss-search .ss-addable) {
+  color: rgb(156, 163, 175) !important; /* gray-400 */
+}
+
+/* Multi-select values */
+:global(.ss-values .ss-value) {
+  background: rgba(88, 28, 135, 0.3) !important; /* purple-900/30 */
+  color: rgb(229, 231, 235) !important; /* gray-200 */
+  border: 1px solid rgba(168, 85, 247, 0.4) !important; /* purple-500/40 */
+}
+
+:global(.ss-values .ss-value .ss-value-delete) {
+  color: rgb(229, 231, 235) !important; /* gray-200 */
+}
+
+:global(.ss-values .ss-value .ss-value-delete:hover) {
+  color: rgb(248, 113, 113) !important; /* red-400 */
+}
+
+/* ========================================
    DEFAULT VARIANT
    ======================================== */
 :global(.universal-select-default.ss-main) {

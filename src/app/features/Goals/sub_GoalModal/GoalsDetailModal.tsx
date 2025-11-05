@@ -7,6 +7,7 @@ import { useGoalContext } from '@/contexts/GoalContext';
 import GoalsDetailDescription from './components/GoalsDetailDescription';
 import GoalsDetailActions from './components/GoalsDetailActions';
 import { getStatusInfo } from '../sub_GoalModal/lib';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface GoalsDetailModalProps {
   goal: Goal | null;
@@ -135,17 +136,18 @@ export default function GoalsDetailModal({
           <div>
             <h3 className="text-lg font-medium text-white mb-3 tracking-wide">Status</h3>
             {isEditing ? (
-              <select
+              <UniversalSelect
                 value={editedGoal.status}
-                onChange={(e) => handleFieldChange('status', e.target.value as Goal['status'])}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-              >
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="done">Done</option>
-                <option value="undecided">Undecided</option>
-                <option value="rejected">Rejected</option>
-              </select>
+                onChange={(value) => handleFieldChange('status', value as Goal['status'])}
+                options={[
+                  { value: 'open', label: 'Open' },
+                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'done', label: 'Done' },
+                  { value: 'undecided', label: 'Undecided' },
+                  { value: 'rejected', label: 'Rejected' },
+                ]}
+                variant="default"
+              />
             ) : (
               <div className="flex items-center space-x-2 px-4 py-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
                 <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />

@@ -103,6 +103,9 @@ export default function ControlPanelButton({
           <div className="h-full w-0.5 bg-gradient-to-b from-transparent via-cyan-400 to-transparent absolute left-0 animate-[scan_3s_linear_infinite]" />
         </motion.div>
       )}
+                <span className={`${caveat.className} text-xs font-semibold text-cyan-100/90`}>
+            CTRL+B
+          </span>
     </motion.button>
   );
 }

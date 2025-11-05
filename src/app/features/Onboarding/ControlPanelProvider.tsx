@@ -74,7 +74,7 @@ export default function ControlPanelProvider({ children }: { children: ReactNode
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.5 }}
-        className="fixed top-20 left-6 z-50"
+        className="fixed top-5 left-6 z-50"
       >
         <ControlPanelButton
           onClick={toggleControlPanel}

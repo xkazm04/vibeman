@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, GitCompare } from 'lucide-react';
 import { ComparisonFilterState } from '../lib/types';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface FilterPanelProps {
   filters: ComparisonFilterState;
@@ -81,49 +82,50 @@ export default function FilterPanel({
         {/* Project Filter */}
         <div>
           <label className="block text-xs text-gray-500 mb-2">Project</label>
-          <select
+          <UniversalSelect
             value={filters.projectId || ''}
-            onChange={(e) =>
+            onChange={(value) =>
               onFilterChange({
                 ...filters,
-                projectId: e.target.value || null,
+                projectId: value || null,
                 contextId: null
               })
             }
-            className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-gray-300 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
-          >
-            <option value="">All Projects</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: 'All Projects' },
+              ...projects.map(project => ({
+                value: project.id,
+                label: project.name
+              }))
+            ]}
+            variant="default"
+          />
         </div>
 
         {/* Context Filter */}
         <div>
           <label className="block text-xs text-gray-500 mb-2">Context</label>
-          <select
+          <UniversalSelect
             value={filters.contextId || ''}
-            onChange={(e) =>
+            onChange={(value) =>
               onFilterChange({
                 ...filters,
-                contextId: e.target.value || null
+                contextId: value || null
               })
             }
+            options={[
+              {
+                value: '',
+                label: filters.projectId ? 'All Contexts' : 'Select project first'
+              },
+              ...filteredContexts.map(context => ({
+                value: context.id,
+                label: context.name
+              }))
+            ]}
             disabled={!filters.projectId}
-            className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-gray-300 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="">
-              {filters.projectId ? 'All Contexts' : 'Select project first'}
-            </option>
-            {filteredContexts.map(context => (
-              <option key={context.id} value={context.id}>
-                {context.name}
-              </option>
-            ))}
-          </select>
+            variant="default"
+          />
         </div>
       </div>
 
