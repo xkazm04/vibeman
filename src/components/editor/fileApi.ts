@@ -24,8 +24,6 @@ export const loadFileContent = async (filePath: string): Promise<string> => {
     
     return await response.text();
   } catch (error) {
-    console.error('Error loading file:', error);
-    
     // Return placeholder content for demo purposes
     const fileName = filePath.split('/').pop() || 'unknown';
     const extension = fileName.split('.').pop()?.toLowerCase();
@@ -55,7 +53,6 @@ export const saveFileContent = async (filePath: string, content: string): Promis
       throw new Error(errorData.error || `Failed to save file: ${response.statusText}`);
     }
   } catch (error) {
-    console.error('Error saving file:', error);
     throw error;
   }
 };
@@ -328,7 +325,8 @@ const example = {
   filePath: "${filePath}"
 };
 
-console.log(example);`;
+// Example data structure
+};`;
 };
 
 /**
@@ -340,7 +338,6 @@ export const fileExists = async (filePath: string): Promise<boolean> => {
     const data = await response.json();
     return data.exists || false;
   } catch (error) {
-    console.error('Error checking file existence:', error);
     return false;
   }
 };
@@ -367,7 +364,6 @@ export const getFileMetadata = async (filePath: string): Promise<{
       exists: true,
     };
   } catch (error) {
-    console.error('Error getting file metadata:', error);
     return null;
   }
 };

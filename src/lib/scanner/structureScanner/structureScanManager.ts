@@ -19,8 +19,6 @@ export async function startStructureScan(
   projectType: 'nextjs' | 'fastapi',
   projectId?: string
 ): Promise<StructureScanResult> {
-  console.log('[StructureScan] 🎯 Starting structure scan...');
-
   try {
     const response = await fetch('/api/structure-scan', {
       method: 'POST',
@@ -35,14 +33,12 @@ export async function startStructureScan(
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('[StructureScan] ❌ Scan failed:', data.error);
       return {
         success: false,
         error: data.error || 'Structure scan failed',
       };
     }
 
-    console.log('[StructureScan] ✅ Scan completed:', data);
     return {
       success: true,
       message: data.message,
@@ -51,7 +47,6 @@ export async function startStructureScan(
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Failed to start structure scan';
-    console.error('[StructureScan] 💥 Error:', error);
     return {
       success: false,
       error,

@@ -28,18 +28,16 @@ export function getLLMClient(provider: LLMProvider) {
 }
 
 /**
- * Executes a tool by making API calls to internal endpoints
+ * Build endpoint configuration for a given tool
  */
-export async function executeTool(
+function buildEndpointConfig(
   toolName: string,
-  parameters: Record<string, unknown>
-): Promise<ToolCall> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  
-  try {
-    let endpoint = '';
-    let method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET';
-    let body: Record<string, unknown> | undefined;
+  parameters: Record<string, unknown>,
+  baseUrl: string
+): { endpoint: string; method: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: Record<string, unknown> } {
+  let endpoint = '';
+  let method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET';
+  let body: Record<string, unknown> | undefined;
 
     // ============= READ-ONLY OPERATIONS =============
     
@@ -185,6 +183,21 @@ export async function executeTool(
       throw new Error(`Unknown tool: ${toolName}`);
     }
 
+  return { endpoint, method, body };
+}
+
+/**
+ * Executes a tool by making API calls to internal endpoints
+ */
+export async function executeTool(
+  toolName: string,
+  parameters: Record<string, unknown>
+): Promise<ToolCall> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+  try {
+    const { endpoint, method, body } = buildEndpointConfig(toolName, parameters, baseUrl);
+
     const fetchOptions: RequestInit = {
       method,
       headers: { 'Content-Type': 'application/json' }
@@ -202,7 +215,7 @@ export async function executeTool(
     }
 
     const data = await response.json();
-    
+
     return {
       name: toolName,
       description: `Successfully executed ${toolName}`,
@@ -210,12 +223,11 @@ export async function executeTool(
       result: data
     };
   } catch (error) {
-    console.error(`Tool execution error for ${toolName}:`, error);
     return {
       name: toolName,
       description: `Failed to execute ${toolName}`,
       parameters,
-      result: { 
+      result: {
         error: error instanceof Error ? error.message : 'Unknown error',
         success: false
       }
@@ -258,9 +270,8 @@ export function parseJsonResponse(response: string): {
     const data = JSON.parse(cleaned);
     return { success: true, data };
   } catch (error) {
-    console.error('Failed to parse JSON response:', error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error instanceof Error ? error.message : 'Invalid JSON'
     };
   }
@@ -290,7 +301,6 @@ export async function generateLLMResponse(
       error: result.error
     };
   } catch (error) {
-    console.error(`LLM generation error (${provider}):`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

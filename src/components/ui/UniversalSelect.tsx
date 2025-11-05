@@ -1,8 +1,10 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, Loader2 } from 'lucide-react';
-import styles from './UniversalSelect.module.css';
+import { Loader2 } from 'lucide-react';
+import SlimSelect from 'slim-select';
+import 'slim-select/styles';
+import './UniversalSelect.module.css';
 
 interface SelectOption {
   value: string;
@@ -37,51 +39,26 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
   className = '',
   variant = 'default'
 }) => {
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const slimSelectRef = useRef<SlimSelect | null>(null);
+
   const getVariantClasses = () => {
     switch (variant) {
       case 'cyber':
         return {
-          container: 'relative group',
-          select: `w-full px-4 py-3 bg-gradient-to-br from-slate-800/40 via-slate-900/60 to-slate-800/40 
-                  border border-cyan-500/30 rounded-lg text-cyan-100 font-mono
-                  focus:outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-500/20 
-                  transition-all duration-300 appearance-none cursor-pointer
-                  hover:border-cyan-400/40 hover:bg-slate-800/60
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-cyan-500/30
-                  shadow-lg shadow-cyan-500/10`,
-          option: `bg-slate-900 text-cyan-100 font-mono py-2 px-4
-                  hover:bg-cyan-950/50 hover:text-cyan-50
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:text-cyan-400/40`,
-          icon: 'text-cyan-400 group-hover:text-cyan-300',
+          container: 'universal-select-cyber',
           label: 'text-cyan-300 font-mono tracking-wider uppercase text-sm',
           helper: 'text-cyan-400/60 font-mono text-sm'
         };
       case 'minimal':
         return {
-          container: 'relative group',
-          select: `w-full px-4 py-2.5 bg-transparent border-b-2 border-slate-600/50 
-                  text-slate-200 focus:outline-none focus:border-slate-400
-                  transition-all appearance-none cursor-pointer
-                  hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed`,
-          option: `bg-slate-900 text-slate-200 py-2 px-4
-                  hover:bg-slate-800 hover:text-white
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500`,
-          icon: 'text-slate-400 group-hover:text-slate-300',
+          container: 'universal-select-minimal',
           label: 'text-slate-300 text-sm',
           helper: 'text-slate-500 text-sm'
         };
       default:
         return {
-          container: 'relative group',
-          select: `w-full px-4 py-3 bg-gray-800/60 border border-gray-700/40 rounded-lg 
-                  text-gray-300 focus:outline-none focus:border-purple-500/40 focus:ring-2 focus:ring-purple-500/20 
-                  transition-all appearance-none cursor-pointer
-                  hover:bg-gray-700/60 hover:border-gray-600/50
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-800/60`,
-          option: `bg-gray-900 text-gray-200 py-2 px-4 font-medium
-                  hover:bg-purple-900/40 hover:text-white
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:text-gray-500`,
-          icon: 'text-gray-400 group-hover:text-gray-300',
+          container: 'universal-select-default',
           label: 'text-gray-300 text-sm font-medium tracking-wide',
           helper: 'text-gray-400 text-sm'
         };
@@ -89,6 +66,62 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
   };
 
   const variantClasses = getVariantClasses();
+
+  useEffect(() => {
+    if (!selectRef.current || isLoading) return;
+
+    // Initialize SlimSelect
+    slimSelectRef.current = new SlimSelect({
+      select: selectRef.current,
+      settings: {
+        showSearch: options.length > 5,
+        searchPlaceholder: 'Search...',
+        searchText: 'No results found',
+        searchingText: 'Searching...',
+        placeholderText: placeholder,
+        allowDeselect: !required,
+        closeOnSelect: true,
+      },
+      events: {
+        afterChange: (newVal) => {
+          if (newVal.length > 0) {
+            onChange(newVal[0].value);
+          } else if (!required) {
+            onChange('');
+          }
+        }
+      }
+    });
+
+    // Apply variant class to SlimSelect container
+    const slimContainer = selectRef.current.parentElement?.querySelector('.ss-main');
+    if (slimContainer) {
+      slimContainer.classList.add(variantClasses.container);
+    }
+
+    return () => {
+      slimSelectRef.current?.destroy();
+      slimSelectRef.current = null;
+    };
+  }, [options, placeholder, required, isLoading, variant]);
+
+  // Update value when prop changes
+  useEffect(() => {
+    if (slimSelectRef.current && value !== undefined) {
+      slimSelectRef.current.setSelected(value);
+    }
+  }, [value]);
+
+  // Handle disabled state
+  useEffect(() => {
+    if (slimSelectRef.current) {
+      if (disabled) {
+        slimSelectRef.current.disable();
+      } else {
+        slimSelectRef.current.enable();
+      }
+    }
+  }, [disabled]);
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -102,59 +135,41 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
         </label>
       )}
 
-      <div className={variantClasses.container}>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled || isLoading}
-          className={`${variantClasses.select} ${styles.universalSelect}`}
-          required={required}
-        >
-          {placeholder && (
-            <option value="" className={variantClasses.option}>
-              {placeholder}
-            </option>
-          )}
-          {options.map((option) => (
-            <option
-              key={option.value}
-              value={option.value}
-              disabled={option.disabled}
-              className={variantClasses.option}
-            >
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Custom dropdown icon */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-          {isLoading ? (
+      <div className="relative">
+        {isLoading ? (
+          <div className="w-full px-4 py-3 bg-gray-800/60 border border-gray-700/40 rounded-lg text-gray-400 flex items-center justify-center gap-2">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             >
-              <Loader2 className={`w-4 h-4 ${variantClasses.icon}`} />
+              <Loader2 className="w-4 h-4" />
             </motion.div>
-          ) : (
-            <motion.div
-              animate={{ y: [0, 2, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <ChevronDown className={`w-4 h-4 ${variantClasses.icon} transition-colors`} />
-            </motion.div>
-          )}
-        </div>
-
-        {/* Cyber variant glow effect */}
-        {variant === 'cyber' && !disabled && (
-          <motion.div
-            className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.1), transparent)',
-              filter: 'blur(8px)'
-            }}
-          />
+            <span>Loading options...</span>
+          </div>
+        ) : (
+          <select
+            ref={selectRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+            required={required}
+            className="w-full"
+          >
+            {placeholder && (
+              <option value="" disabled={required}>
+                {placeholder}
+              </option>
+            )}
+            {options.map((option) => (
+              <option
+                key={option.value}
+                value={option.value}
+                disabled={option.disabled}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 

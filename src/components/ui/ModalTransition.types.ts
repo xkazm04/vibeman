@@ -47,7 +47,7 @@ export interface ModalTransitionProps {
     modal?: Variants;
   };
   /** Custom transition config (overrides predefined transitions) */
-  customTransition?: any;
+  customTransition?: ModalTransitionConfig;
 }
 
 /**

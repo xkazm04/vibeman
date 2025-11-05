@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { useContextStore, ContextGroup } from '../../../../stores/contextStore';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface ContextSaveModalProps {
   isOpen: boolean;
@@ -120,9 +121,6 @@ export default function ContextSaveModal({ isOpen, onClose, selectedFilePaths, p
 
             {/* Group Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Group *
-              </label>
               {availableGroups.length === 0 ? (
                 <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
                   <p className="text-sm text-yellow-400">
@@ -130,21 +128,21 @@ export default function ContextSaveModal({ isOpen, onClose, selectedFilePaths, p
                   </p>
                 </div>
               ) : (
-                <select
+                <UniversalSelect
+                  label="Group"
                   value={selectedGroupId}
-                  onChange={(e) => {
-                    setSelectedGroupId(e.target.value);
+                  onChange={(value) => {
+                    setSelectedGroupId(value);
                     setError('');
                   }}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                >
-                  <option value="">Select a group...</option>
-                  {availableGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
+                  options={availableGroups.map((group) => ({
+                    value: group.id,
+                    label: group.name,
+                  }))}
+                  placeholder="Select a group..."
+                  required
+                  variant="default"
+                />
               )}
             </div>
 

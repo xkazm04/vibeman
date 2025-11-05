@@ -105,7 +105,7 @@ export default function BlueprintColumn({
                 color={button.color}
                 size="md"
                 disabled={button.action === 'scan' && !button.scanHandler}
-                selected={button.id === selectedScanId}
+                selected={button.id === selectedScanId || showTaskerProgress}
                 daysAgo={getDaysAgo(button.id)}
                 showDaysAgo={!!button.scanHandler}
                 redirectMode={button.action === 'navigate'}

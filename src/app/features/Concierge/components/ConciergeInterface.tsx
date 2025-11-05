@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { DbFeatureRequest } from '@/app/db';
+import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface ConciergeInterfaceProps {
   projectId: string;
@@ -184,20 +185,19 @@ export default function ConciergeInterface({
 
             <div className="flex items-center space-x-4">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Priority
-                </label>
-                <select
+                <UniversalSelect
+                  label="Priority"
                   value={priority}
-                  onChange={(e) => setPriority(e.target.value as any)}
-                  className="w-full bg-gray-900/60 border border-gray-700/40 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  onChange={(value) => setPriority(value as any)}
+                  options={[
+                    { value: 'low', label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high', label: 'High' },
+                    { value: 'urgent', label: 'Urgent' },
+                  ]}
                   disabled={isSubmitting}
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
+                  variant="default"
+                />
               </div>
 
               <motion.button

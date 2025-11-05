@@ -20,6 +20,26 @@ export interface BackgroundTaskRequest {
 }
 
 /**
+ * Helper to extract data from AI response with fallback JSON parsing
+ */
+function extractDataWithFallback<T>(
+  result: any,
+  dataKey: string,
+  errorMessage: string
+): T {
+  if (result[dataKey]) {
+    return result[dataKey] as T;
+  } else if (result.rawResponse) {
+    try {
+      return parseAIJsonResponse(result.rawResponse) as T;
+    } catch (parseError) {
+      throw new Error(errorMessage);
+    }
+  }
+  throw new Error(`No ${dataKey} returned from API`);
+}
+
+/**
  * Call the AI project review API endpoint
  */
 export async function callAIReviewAPI(request: AIReviewRequest): Promise<any> {
@@ -75,17 +95,7 @@ export async function generateTasks(
     provider,
   });
 
-  if (result.tasks) {
-    return result.tasks;
-  } else if (result.rawResponse) {
-    try {
-      return parseAIJsonResponse(result.rawResponse);
-    } catch (parseError) {
-      throw new Error('Failed to parse tasks from AI response');
-    }
-  }
-
-  throw new Error('No tasks returned from API');
+  return extractDataWithFallback<any[]>(result, 'tasks', 'Failed to parse tasks from AI response');
 }
 
 /**
@@ -105,17 +115,7 @@ export async function generateGoals(
     provider,
   });
 
-  if (result.goals) {
-    return result.goals;
-  } else if (result.rawResponse) {
-    try {
-      return parseAIJsonResponse(result.rawResponse);
-    } catch (parseError) {
-      throw new Error('Failed to parse goals from AI response');
-    }
-  }
-
-  throw new Error('No goals returned from API');
+  return extractDataWithFallback<any[]>(result, 'goals', 'Failed to parse goals from AI response');
 }
 
 /**
@@ -159,15 +159,5 @@ export async function generateCodeTasks(
     provider,
   });
 
-  if (result.tasks) {
-    return result.tasks;
-  } else if (result.rawResponse) {
-    try {
-      return parseAIJsonResponse(result.rawResponse);
-    } catch (parseError) {
-      throw new Error('Failed to parse code tasks from AI response');
-    }
-  }
-
-  throw new Error('No code tasks returned from API');
+  return extractDataWithFallback<any[]>(result, 'tasks', 'Failed to parse code tasks from AI response');
 }

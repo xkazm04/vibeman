@@ -22,5 +22,9 @@ export interface ServerStatus {
   hasError: boolean;
   isStopping: boolean;
   isLoading: boolean;
-  status: any;
+  status: {
+    message?: string;
+    error?: string;
+    details?: Record<string, unknown>;
+  };
 }
