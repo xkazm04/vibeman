@@ -31,8 +31,6 @@ export async function evaluateAndSelectIdea(
   projectId: string,
   projectPath: string
 ): Promise<IdeaEvaluationResult> {
-  console.log('[Vibeman API] Evaluating ideas for project:', projectId);
-
   const response = await fetch('/api/ideas/vibeman', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -49,9 +47,7 @@ export async function evaluateAndSelectIdea(
     throw new Error(errorData.error || 'Failed to evaluate ideas');
   }
 
-  const result = await response.json();
-  console.log('[Vibeman API] Evaluation result:', result);
-  return result;
+  const result = await response.json();  return result;
 }
 
 /**
@@ -59,9 +55,7 @@ export async function evaluateAndSelectIdea(
  */
 export async function getFirstAcceptedIdea(
   projectId: string
-): Promise<{ ideaId: string | null; idea?: any }> {
-  console.log('[Vibeman API] Fetching accepted ideas for project:', projectId);
-
+): Promise<{ ideaId: string | null; idea?: unknown }> {
   const response = await fetch('/api/ideas/vibeman', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -77,9 +71,7 @@ export async function getFirstAcceptedIdea(
     throw new Error(errorData.error || 'Failed to get accepted idea');
   }
 
-  const result = await response.json();
-  console.log('[Vibeman API] First accepted idea:', result);
-  return result;
+  const result = await response.json();  return result;
 }
 
 /**
@@ -90,8 +82,6 @@ export async function implementIdea(
   projectPath: string,
   ideaId: string
 ): Promise<ImplementationResult> {
-  console.log('[Vibeman API] Implementing idea:', ideaId);
-
   const response = await fetch('/api/ideas/vibeman', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -108,9 +98,7 @@ export async function implementIdea(
     throw new Error(errorData.error || 'Failed to implement idea');
   }
 
-  const result = await response.json();
-  console.log('[Vibeman API] Implementation result:', result);
-  return result;
+  const result = await response.json();  return result;
 }
 
 /**
@@ -119,8 +107,6 @@ export async function implementIdea(
 export async function markIdeaAsImplemented(
   ideaId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log('[Vibeman API] Marking idea as implemented:', ideaId);
-
   const response = await fetch('/api/ideas/vibeman', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -135,9 +121,7 @@ export async function markIdeaAsImplemented(
     throw new Error(errorData.error || 'Failed to mark idea as implemented');
   }
 
-  const result = await response.json();
-  console.log('[Vibeman API] Mark implemented result:', result);
-  return result;
+  const result = await response.json();  return result;
 }
 
 /**
@@ -146,8 +130,6 @@ export async function markIdeaAsImplemented(
 export async function getAutomationStatus(
   projectId: string
 ): Promise<VibemanStatusResult> {
-  console.log('[Vibeman API] Getting automation status for project:', projectId);
-
   const response = await fetch('/api/ideas/vibeman', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -162,7 +144,5 @@ export async function getAutomationStatus(
     throw new Error(errorData.error || 'Failed to get automation status');
   }
 
-  const result = await response.json();
-  console.log('[Vibeman API] Automation status:', result);
-  return result;
+  const result = await response.json();  return result;
 }

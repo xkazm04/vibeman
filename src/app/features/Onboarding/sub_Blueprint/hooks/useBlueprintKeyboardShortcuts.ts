@@ -23,6 +23,35 @@ interface UseBlueprintKeyboardShortcutsProps {
   onClose: () => void;
 }
 
+
+/**
+ * Helper to check if the key event should be ignored
+ */
+function shouldIgnoreKeyEvent(e: KeyboardEvent): boolean {
+  const target = e.target as HTMLElement;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target.isContentEditable
+  );
+}
+
+/**
+ * Helper to handle Ctrl+Number shortcuts
+ */
+function handleCtrlNumberShortcut(
+  e: KeyboardEvent,
+  key: string,
+  action: () => void
+): boolean {
+  if (e.ctrlKey && e.key === key) {
+    e.preventDefault();
+    action();
+    return true;
+  }
+  return false;
+}
+
 export function useBlueprintKeyboardShortcuts({
   onVisionScan,
   onContextsScan,
@@ -34,12 +63,7 @@ export function useBlueprintKeyboardShortcuts({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input, textarea, or contenteditable element
-      const target = e.target as HTMLElement;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target.isContentEditable
-      ) {
+      if (shouldIgnoreKeyEvent(e)) {
         return;
       }
 
@@ -50,40 +74,12 @@ export function useBlueprintKeyboardShortcuts({
         return;
       }
 
-      // Ctrl+1: Vision Scan
-      if (e.ctrlKey && e.key === '1') {
-        e.preventDefault();
-        onVisionScan();
-        return;
-      }
-
-      // Ctrl+2: Contexts Scan
-      if (e.ctrlKey && e.key === '2') {
-        e.preventDefault();
-        onContextsScan();
-        return;
-      }
-
-      // Ctrl+3: Structure Scan
-      if (e.ctrlKey && e.key === '3') {
-        e.preventDefault();
-        onStructureScan();
-        return;
-      }
-
-      // Ctrl+4: Build Scan
-      if (e.ctrlKey && e.key === '4') {
-        e.preventDefault();
-        onBuildScan();
-        return;
-      }
-
-      // Ctrl+5: Photo Scan
-      if (e.ctrlKey && e.key === '5') {
-        e.preventDefault();
-        onPhotoScan();
-        return;
-      }
+      // Handle Ctrl+Number shortcuts
+      if (handleCtrlNumberShortcut(e, '1', onVisionScan)) return;
+      if (handleCtrlNumberShortcut(e, '2', onContextsScan)) return;
+      if (handleCtrlNumberShortcut(e, '3', onStructureScan)) return;
+      if (handleCtrlNumberShortcut(e, '4', onBuildScan)) return;
+      if (handleCtrlNumberShortcut(e, '5', onPhotoScan)) return;
     };
 
     window.addEventListener('keydown', handleKeyDown);

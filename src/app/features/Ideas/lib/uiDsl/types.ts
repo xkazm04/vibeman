@@ -48,7 +48,7 @@ export type LayoutRegion =
  */
 export interface ContentDescriptor {
   type: 'text' | 'badge' | 'badges' | 'icon' | 'emoji' | 'date' | 'custom' | 'container';
-  value?: any;
+  value?: unknown;
   badges?: BadgeDescriptor[];
   className?: string;
   format?: string | ((value: any) => string);
@@ -119,7 +119,7 @@ export interface ThemeConfig {
  * Render context with data and handlers
  */
 export interface RenderContext {
-  data: any;
+  data: unknown;
   theme: ThemeConfig;
   handlers?: {
     onClick?: () => void;

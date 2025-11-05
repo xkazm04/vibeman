@@ -24,8 +24,8 @@ import * as unusedScan from './blueprintUnusedScan';
 export interface ScanResult {
   success: boolean;
   error?: string;
-  violations?: any[];
-  data?: any;
+  violations?: unknown[];
+  data?: Record<string, unknown>;
 }
 
 export interface DecisionData {
@@ -37,7 +37,7 @@ export interface DecisionData {
   projectId?: string;
   projectPath?: string;
   projectType?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   onAccept: () => Promise<void>;
   onReject?: () => Promise<void>; // Optional - some decisions are info-only
 }

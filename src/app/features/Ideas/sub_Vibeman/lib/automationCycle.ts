@@ -40,15 +40,11 @@ export async function runAutomationCycle(
   const { projectId, projectPath, isRunningRef, currentTaskIdRef } = config;
   const { onStatusChange, onSuccess, onFailure, onIdeaImplemented } = callbacks;
 
-  if (!isRunningRef.current) {
-    console.log('[Vibeman] Automation stopped by user');
-    return;
+  if (!isRunningRef.current) {    return;
   }
 
   try {
-    // PRIORITY STEP: Check for accepted ideas first
-    console.log('[Vibeman] Checking for accepted ideas...');
-    onStatusChange('evaluating', 'Checking for accepted ideas...');
+    // PRIORITY STEP: Check for accepted ideas first    onStatusChange('evaluating', 'Checking for accepted ideas...');
 
     const acceptedResult = await getFirstAcceptedIdea(projectId);
 
@@ -56,21 +52,15 @@ export async function runAutomationCycle(
     let selectionReasoning: string = '';
 
     if (acceptedResult.ideaId) {
-      // Found an accepted idea - skip LLM evaluation and implement directly
-      console.log('[Vibeman] Found accepted idea, skipping evaluation:', acceptedResult.ideaId);
-      selectedIdeaId = acceptedResult.ideaId;
+      // Found an accepted idea - skip LLM evaluation and implement directly      selectedIdeaId = acceptedResult.ideaId;
       selectionReasoning = 'Implementing pre-accepted idea (highest priority)';
       onStatusChange('evaluating', selectionReasoning);
     } else {
-      // No accepted ideas - proceed with normal LLM evaluation of pending ideas
-      console.log('[Vibeman] No accepted ideas found, evaluating pending ideas...');
-      onStatusChange('evaluating', 'Analyzing pending ideas...');
+      // No accepted ideas - proceed with normal LLM evaluation of pending ideas      onStatusChange('evaluating', 'Analyzing pending ideas...');
 
       const evaluation = await evaluateAndSelectIdea(projectId, projectPath);
 
-      if (!evaluation.selectedIdeaId) {
-        console.log('[Vibeman] No suitable idea found');
-        onStatusChange('idle', evaluation.reasoning || 'No suitable ideas to implement');
+      if (!evaluation.selectedIdeaId) {        onStatusChange('idle', evaluation.reasoning || 'No suitable ideas to implement');
         return;
       }
 
@@ -79,9 +69,7 @@ export async function runAutomationCycle(
     }
 
     // Common implementation path for both accepted and evaluated ideas
-    if (!selectedIdeaId) {
-      console.log('[Vibeman] No idea selected');
-      onStatusChange('idle', 'No ideas to implement');
+    if (!selectedIdeaId) {      onStatusChange('idle', 'No ideas to implement');
       return;
     }
 
@@ -90,14 +78,10 @@ export async function runAutomationCycle(
     // Wait a moment before generating requirement
     await sleep(1000);
 
-    if (!isRunningRef.current) {
-      console.log('[Vibeman] Automation stopped during evaluation');
-      return;
+    if (!isRunningRef.current) {      return;
     }
 
-    // Step 2: Implement the selected idea
-    console.log('[Vibeman] Implementing idea:', selectedIdeaId);
-    onStatusChange('generating', 'Generating requirement file...');
+    // Step 2: Implement the selected idea    onStatusChange('generating', 'Generating requirement file...');
 
     const implementation = await implementIdea(projectId, projectPath, selectedIdeaId);
 
@@ -113,9 +97,7 @@ export async function runAutomationCycle(
     const taskSuccess = await monitorTaskExecution(implementation.taskId!, isRunningRef);
 
     if (taskSuccess) {
-      // Step 4: Mark idea as implemented
-      console.log('[Vibeman] Task completed successfully, marking as implemented');
-      await markIdeaAsImplemented(selectedIdeaId);
+      // Step 4: Mark idea as implemented      await markIdeaAsImplemented(selectedIdeaId);
 
       onSuccess();
       onStatusChange('success', 'Implementation successful! Finding next idea...');
@@ -132,9 +114,7 @@ export async function runAutomationCycle(
       } else {
         onStatusChange('idle', 'Automation stopped');
       }
-    } else {
-      console.log('[Vibeman] Task failed');
-      onFailure();
+    } else {      onFailure();
       onStatusChange('error', 'Implementation failed. Trying next idea...');
 
       // Wait before next cycle

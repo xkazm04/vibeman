@@ -11,7 +11,7 @@ export interface ScanResult {
   data?: {
     totalErrors: number;
     totalWarnings: number;
-    errorGroups: any[];
+    errorGroups: unknown[];
     buildCommand: string;
   };
 }
@@ -24,7 +24,7 @@ export interface DecisionData {
   severity?: 'info' | 'warning' | 'error';
   projectId?: string;
   projectPath?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   onAccept: () => Promise<void>;
   onReject: () => Promise<void>;
 }
@@ -43,8 +43,6 @@ export async function executeBuildScan(): Promise<ScanResult> {
   }
 
   try {
-    console.log('[BuildScan] Scanning for build errors...');
-
     const response = await fetch('/api/build-fixer?scanOnly=true', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -68,9 +66,6 @@ export async function executeBuildScan(): Promise<ScanResult> {
         error: result.error || 'Build scan failed',
       };
     }
-
-    console.log(`[BuildScan] Found ${result.totalErrors} errors, ${result.totalWarnings} warnings`);
-
     return {
       success: true,
       data: {
@@ -106,9 +101,7 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
   const { totalErrors, totalWarnings, errorGroups, buildCommand } = result.data;
 
   // If no errors, no decision needed
-  if (totalErrors === 0) {
-    console.log('[BuildScan] No build errors found');
-    return null;
+  if (totalErrors === 0) {    return null;
   }
 
   // Calculate potential files - use errorGroups length if available, otherwise estimate from totalErrors
@@ -130,8 +123,6 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
 
     // Accept: Create requirement files
     onAccept: async () => {
-      console.log('[BuildScan] User accepted - creating requirement files...');
-
       // Call API without scanOnly to create requirement files
       const response = await fetch('/api/build-fixer', {
         method: 'POST',
@@ -151,13 +142,9 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
         throw new Error(result.error || 'Failed to create requirement files');
       }
 
-      const filesCreated = result.requirementFiles?.length || 0;
-      console.log(`[BuildScan] ✅ Created ${filesCreated} requirement file${filesCreated !== 1 ? 's' : ''}`);
-    },
+      const filesCreated = result.requirementFiles?.length || 0;    },
 
     // Reject: Log rejection
-    onReject: async () => {
-      console.log('[BuildScan] User rejected build error fixing');
-    },
+    onReject: async () => {    },
   };
 }
