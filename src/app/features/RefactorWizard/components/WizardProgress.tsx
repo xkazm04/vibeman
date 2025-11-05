@@ -6,6 +6,7 @@ import { Check } from 'lucide-react';
 
 const steps = [
   { id: 'scan', label: 'Scan' },
+  { id: 'config', label: 'Configure' },
   { id: 'review', label: 'Review' },
   { id: 'execute', label: 'Create' },
   { id: 'results', label: 'Summary' },

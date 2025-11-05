@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { WizardPlan } from '@/app/features/RefactorWizard/lib/wizardOptimizer';
+import type { ScanTechniqueGroup } from '@/app/features/RefactorWizard/lib/scanTechniques';
 
 export type RefactorOpportunity = {
   id: string;
@@ -16,7 +18,7 @@ export type RefactorOpportunity = {
   estimatedTime?: string;
 };
 
-export type AnalysisStatus = 'idle' | 'scanning' | 'analyzing' | 'completed' | 'error';
+export type AnalysisStatus = 'idle' | 'scanning' | 'analyzing' | 'generating-plan' | 'completed' | 'error';
 
 interface RefactorState {
   // Analysis state
@@ -30,12 +32,17 @@ interface RefactorState {
   filterCategory: RefactorOpportunity['category'] | 'all';
   filterSeverity: RefactorOpportunity['severity'] | 'all';
 
+  // Wizard configuration
+  wizardPlan: WizardPlan | null;
+  selectedScanGroups: Set<string>;
+  techniqueOverrides: Map<string, boolean>; // techniqueId -> enabled
+
   // UI state
   isWizardOpen: boolean;
-  currentStep: 'scan' | 'review' | 'execute' | 'results';
+  currentStep: 'scan' | 'config' | 'review' | 'execute' | 'results';
 
   // Actions
-  startAnalysis: (projectId: string, projectPath: string) => Promise<void>;
+  startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string) => Promise<void>;
   setAnalysisStatus: (status: AnalysisStatus, progress?: number) => void;
   setAnalysisError: (error: string | null) => void;
   setOpportunities: (opportunities: RefactorOpportunity[]) => void;
@@ -44,6 +51,13 @@ interface RefactorState {
   clearSelection: () => void;
   setFilterCategory: (category: RefactorOpportunity['category'] | 'all') => void;
   setFilterSeverity: (severity: RefactorOpportunity['severity'] | 'all') => void;
+
+  // Wizard configuration actions
+  setWizardPlan: (plan: WizardPlan | null) => void;
+  toggleScanGroup: (groupId: string) => void;
+  toggleTechnique: (groupId: string, techniqueId: string) => void;
+  selectAllGroups: () => void;
+  clearGroupSelection: () => void;
 
   openWizard: () => void;
   closeWizard: () => void;
@@ -62,14 +76,17 @@ export const useRefactorStore = create<RefactorState>()(
       selectedOpportunities: new Set(),
       filterCategory: 'all',
       filterSeverity: 'all',
+      wizardPlan: null,
+      selectedScanGroups: new Set(),
+      techniqueOverrides: new Map(),
       isWizardOpen: false,
       currentStep: 'scan',
 
       // Actions
-      startAnalysis: async (projectId: string, projectPath: string) => {
+      startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string) => {
         set({
-          analysisStatus: 'scanning',
-          analysisProgress: 0,
+          analysisStatus: 'generating-plan',
+          analysisProgress: 10,
           analysisError: null,
           opportunities: [],
           selectedOpportunities: new Set()
@@ -79,7 +96,7 @@ export const useRefactorStore = create<RefactorState>()(
           const response = await fetch('/api/refactor/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, projectPath }),
+            body: JSON.stringify({ projectId, projectPath, useAI, provider, model }),
           });
 
           if (!response.ok) {
@@ -88,11 +105,20 @@ export const useRefactorStore = create<RefactorState>()(
           }
 
           const data = await response.json();
+
+          // Set wizard plan if available
+          if (data.wizardPlan) {
+            set({
+              wizardPlan: data.wizardPlan,
+              selectedScanGroups: new Set(data.wizardPlan.recommendedGroups.map((g: any) => g.id)),
+            });
+          }
+
           set({
             opportunities: data.opportunities || [],
             analysisStatus: 'completed',
             analysisProgress: 100,
-            currentStep: 'review',
+            currentStep: data.wizardPlan ? 'config' : 'review',
           });
         } catch (error) {
           set({
@@ -145,6 +171,40 @@ export const useRefactorStore = create<RefactorState>()(
         set({ filterSeverity: severity });
       },
 
+      // Wizard configuration actions
+      setWizardPlan: (plan: WizardPlan | null) => {
+        set({ wizardPlan: plan });
+      },
+
+      toggleScanGroup: (groupId: string) => {
+        const selected = new Set(get().selectedScanGroups);
+        if (selected.has(groupId)) {
+          selected.delete(groupId);
+        } else {
+          selected.add(groupId);
+        }
+        set({ selectedScanGroups: selected });
+      },
+
+      toggleTechnique: (groupId: string, techniqueId: string) => {
+        const overrides = new Map(get().techniqueOverrides);
+        const key = `${groupId}:${techniqueId}`;
+        const currentValue = overrides.get(key) ?? true;
+        overrides.set(key, !currentValue);
+        set({ techniqueOverrides: overrides });
+      },
+
+      selectAllGroups: () => {
+        const { wizardPlan } = get();
+        if (!wizardPlan) return;
+        const allIds = new Set<string>(wizardPlan.recommendedGroups.map(g => g.id));
+        set({ selectedScanGroups: allIds });
+      },
+
+      clearGroupSelection: () => {
+        set({ selectedScanGroups: new Set() });
+      },
+
       openWizard: () => {
         set({ isWizardOpen: true });
       },
@@ -163,6 +223,9 @@ export const useRefactorStore = create<RefactorState>()(
           analysisProgress: 0,
           analysisError: null,
           selectedOpportunities: new Set(),
+          wizardPlan: null,
+          selectedScanGroups: new Set(),
+          techniqueOverrides: new Map(),
           currentStep: 'scan',
         });
       },
@@ -171,6 +234,7 @@ export const useRefactorStore = create<RefactorState>()(
       name: 'refactor-wizard-storage',
       partialize: (state) => ({
         opportunities: state.opportunities,
+        wizardPlan: state.wizardPlan,
       }),
     }
   )

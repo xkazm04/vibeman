@@ -191,7 +191,7 @@ function getDefaultResponseInstructions(): string {
   return `1. Answer the user's question using ONLY the data from tool results above
 2. Be specific and reference actual data points from the results
 3. If the tool results don't contain enough information, say so explicitly
-4. Format your response clearly and professionally
+4. This is a VOICE ASSISTANT - keep responses SHORT and conversational (max 2-3 sentences)
 5. If no tools were executed, inform the user that you need to access the knowledge base first`;
 }
 
@@ -200,10 +200,12 @@ function getDefaultResponseInstructions(): string {
  */
 function getDefaultResponseGuidelines(): string {
   return `- Start directly with the answer (no preamble like "Based on the data...")
-- Use bullet points or numbered lists for clarity when appropriate
-- Cite specific numbers, names, and details from the tool results
-- If data is missing, suggest which tools could provide it
-- Keep responses concise but complete`;
+- NEVER use bullet points, numbered lists, or markdown formatting (this is for voice)
+- Speak naturally as if having a conversation - use simple, clear language
+- Cite only the most important numbers and facts - skip unnecessary details
+- Maximum response length: 50 words (about 20 seconds of speech)
+- For counts/statistics: state the number directly without elaboration
+- Example: "You have 34 ideas: 16 accepted and 18 pending" (NOT: "The maximum vote count is...")`;
 }
 
 /**
@@ -218,7 +220,10 @@ export function createResponsePrompt(
   const instructions = getDefaultResponseInstructions();
   const guidelines = getDefaultResponseGuidelines();
 
-  return `You are Annette, an AI assistant for project management.
+  return `You are Annette, a voice-first AI assistant for project management.
+
+**CRITICAL: THIS IS A VOICE INTERFACE**
+Your response will be read aloud via text-to-speech. Keep it SHORT, CLEAR, and CONVERSATIONAL.
 
 **CRITICAL KNOWLEDGE BASE ENFORCEMENT:**
 - You can ONLY use information from the tool results provided below
@@ -242,7 +247,12 @@ ${instructions}
 **Response Guidelines:**
 ${guidelines}
 
-Generate your response now:`;
+**Voice Response Examples:**
+- Question: "How many ideas are there?" → "You have 34 ideas total: 16 accepted and 18 pending."
+- Question: "What's the highest vote count?" → "The highest vote count is 5, on the authentication refactor idea."
+- Question: "Any pending goals?" → "You have 8 open goals and 3 in progress."
+
+Generate your response now (remember: SHORT, DIRECT, CONVERSATIONAL):`;
 }
 
 /**

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRefactorStore } from '@/stores/refactorStore';
 import { X, Sparkles } from 'lucide-react';
 import ScanStep from './components/ScanStep';
+import ConfigStep from './components/ConfigStep';
 import ReviewStep from './components/ReviewStep';
 import ExecuteStep from './components/ExecuteStep';
 import ResultsStep from './components/ResultsStep';
@@ -76,6 +77,7 @@ export default function RefactorWizardLayout() {
               <div className="p-8 overflow-y-auto max-h-[calc(90vh-200px)]">
                 <AnimatePresence mode="wait">
                   {currentStep === 'scan' && <ScanStep key="scan" />}
+                  {currentStep === 'config' && <ConfigStep key="config" />}
                   {currentStep === 'review' && <ReviewStep key="review" />}
                   {currentStep === 'execute' && <ExecuteStep key="execute" />}
                   {currentStep === 'results' && <ResultsStep key="results" />}

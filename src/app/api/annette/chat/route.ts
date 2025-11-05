@@ -319,25 +319,33 @@ function analyzeResponse(response: string, toolsUsed: any[]): { insights: string
  * Format response to be more conversational for voice
  */
 function formatForVoice(response: string): string {
-  // Remove markdown formatting
+  // Remove markdown formatting and list markers
   let voiceResponse = response
     .replace(/#{1,6}\s/g, '') // Remove headers
     .replace(/\*\*/g, '') // Remove bold
-    .replace(/\*/g, '') // Remove italics
     .replace(/`/g, '') // Remove code markers
+    .replace(/^[\s]*[-•*]\s+/gm, '') // Remove bullet points at start of lines
+    .replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers
     .replace(/\n\n+/g, '. ') // Replace double line breaks with periods
-    .replace(/\n/g, ', '); // Replace single line breaks with commas
+    .replace(/\n/g, ' '); // Replace single line breaks with spaces (not commas)
 
-  // Make it more conversational
+  // Clean up technical phrases and make conversational
   voiceResponse = voiceResponse
     .replace(/^(Here is|Here are|The following)/, 'I found')
     .replace(/based on the data/gi, '')
-    .replace(/according to the knowledge base/gi, '');
+    .replace(/according to the knowledge base/gi, '')
+    .replace(/e\.g\./gi, 'for example')
+    .replace(/i\.e\./gi, 'that is')
+    .replace(/\(voteCount\s*=\s*\d+\)/gi, '') // Remove technical annotations like (voteCount = 1)
+    .replace(/\s+,\s+/g, ', ') // Fix spacing around commas
+    .replace(/,\s*,+/g, ',') // Remove duplicate commas
+    .replace(/\.\s*\./g, '.') // Remove duplicate periods
+    .replace(/\s{2,}/g, ' '); // Remove extra spaces
 
-  // Limit length for voice (max ~200 words)
-  const words = voiceResponse.split(/\s+/);
-  if (words.length > 200) {
-    voiceResponse = words.slice(0, 200).join(' ') + '... Would you like more details?';
+  // Limit length for voice (max ~75 words = ~30 seconds)
+  const words = voiceResponse.split(/\s+/).filter(w => w.length > 0);
+  if (words.length > 75) {
+    voiceResponse = words.slice(0, 75).join(' ') + '. Would you like more details?';
   }
 
   return voiceResponse.trim();
