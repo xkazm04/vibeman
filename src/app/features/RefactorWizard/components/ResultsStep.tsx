@@ -1,7 +1,7 @@
 'use client';
 
 import { useRefactorStore } from '@/stores/refactorStore';
-import { CheckCircle, FileText, Package, Sparkles, AlertCircle, TrendingUp, Target } from 'lucide-react';
+import { CheckCircle, FileText, Package, Sparkles, AlertCircle, TrendingUp, Target, List as ListIcon } from 'lucide-react';
 import {
   StepContainer,
   CyberCard,
@@ -11,6 +11,7 @@ import {
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BreakdownCard } from './BreakdownCard';
+import { VirtualizedSuggestionList } from './VirtualizedSuggestionList';
 
 export default function ResultsStep() {
   const { opportunities, selectedOpportunities, closeWizard, resetWizard } = useRefactorStore();
@@ -157,6 +158,24 @@ export default function ResultsStep() {
             })}
         />
       </div>
+
+      {/* Selected Suggestions List */}
+      {selectedOpps.length > 0 && (
+        <CyberCard variant="glow" data-testid="selected-suggestions-card">
+          <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+            <ListIcon className="w-4 h-4 text-cyan-400" />
+            Selected Suggestions ({selectedOpps.length})
+          </h4>
+          <div className="text-sm text-gray-400 mb-4">
+            Review all selected refactoring opportunities below. Each will be included in the generated requirement files.
+          </div>
+          <VirtualizedSuggestionList
+            opportunities={selectedOpps}
+            height={500}
+            itemHeight={120}
+          />
+        </CyberCard>
+      )}
 
       {/* Next Steps */}
       <CyberCard variant="glow" data-testid="next-steps-card">

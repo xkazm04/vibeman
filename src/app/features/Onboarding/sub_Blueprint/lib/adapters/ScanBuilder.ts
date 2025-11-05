@@ -65,6 +65,7 @@ interface ScanMetadata {
   contextNeeded?: boolean;
   action?: 'scan' | 'navigate';
   target?: 'ideas' | 'tinder' | 'tasker' | 'reflector';
+  description?: string;
 }
 
 /**
@@ -75,6 +76,7 @@ const SCAN_METADATA: Record<ScanCategory, ScanMetadata> = {
     icon: Eye,
     color: 'cyan',
     eventTitle: 'Vision Scan Completed',
+    description: 'Analyze project overall and create a high-level overview documentation with vision.',
   },
   contexts: {
     icon: Layers,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, CSSProperties, ReactElement } from 'react';
-import { List } from 'react-window';
+import { List } from '@/components/ui/VirtualList';
 import { OpportunityCard } from './OpportunityCard';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 
