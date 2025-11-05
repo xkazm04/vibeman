@@ -76,11 +76,12 @@ export async function GET(request: NextRequest) {
  *   - type: Event type (info, warning, error, success, proposal_accepted, proposal_rejected)
  *   - agent?: Agent name (optional)
  *   - message?: Additional message (optional)
+ *   - context_id?: Context ID (optional)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { project_id, title, description, type, agent, message } = body;
+    const { project_id, title, description, type, agent, message, context_id } = body;
 
     if (!project_id || !title || !description || !type) {
       return NextResponse.json(
@@ -100,7 +101,8 @@ export async function POST(request: NextRequest) {
       description,
       type,
       agent,
-      message
+      message,
+      context_id
     });
 
     return NextResponse.json({

@@ -74,6 +74,8 @@ export function runMigrations() {
     migrateGoalCandidatesTable();
     // Migration 13: Create voicebot_analytics table
     migrateVoicebotAnalyticsTable();
+    // Migration 14: Add context_id column to events table
+    migrateEventsContextId();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -920,5 +922,40 @@ function migrateVoicebotAnalyticsTable() {
     }
   } catch (error) {
     migrationLogger.error('Error creating voicebot_analytics table:', error);
+  }
+}
+
+/**
+ * Add context_id column to events table
+ */
+function migrateEventsContextId() {
+  const db = getConnection();
+
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(events)").all() as Array<{
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: string | number | null;
+      pk: number;
+    }>;
+
+    const hasContextId = tableInfo.some(col => col.name === 'context_id');
+
+    if (!hasContextId) {
+      migrationLogger.info('Adding context_id column to events table');
+      db.exec(`ALTER TABLE events ADD COLUMN context_id TEXT REFERENCES contexts(id) ON DELETE SET NULL`);
+
+      // Create indexes for better query performance
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_events_context_id ON events(context_id)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_events_title_context ON events(project_id, title, context_id)`);
+
+      migrationLogger.info('context_id column added to events table successfully');
+    } else {
+      migrationLogger.info('Events table already has context_id column');
+    }
+  } catch (error) {
+    migrationLogger.error('Error migrating events table context_id:', error);
   }
 }

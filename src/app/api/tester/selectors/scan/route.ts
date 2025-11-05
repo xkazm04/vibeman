@@ -124,7 +124,9 @@ export async function POST(request: NextRequest) {
       dbCount,
       filePaths,
       selectorDetails,
-      dbSelectors
+      dbSelectors,
+      contextId,
+      context.test_scenario
     );
 
     const result = createRequirement(projectPath, requirementName, requirementContent);
@@ -159,13 +161,16 @@ function buildRequirementContent(
   dbCount: number,
   filePaths: string[],
   selectorDetails: Array<{ filepath: string; count: number; testids: string[] }>,
-  dbSelectors: Array<{ id: string; data_testid: string; title: string; filepath: string }>
+  dbSelectors: Array<{ id: string; data_testid: string; title: string; filepath: string }>,
+  contextId: string,
+  existingScenario: string | null
 ): string {
   const timestamp = new Date().toISOString();
 
   let content = `# Test Selector Coverage for "${contextName}"
 
 **Context:** ${contextName}
+**Context ID:** ${contextId}
 **Generated:** ${timestamp}
 **Current Selectors in Code:** ${totalSelectors}
 **Selectors in Database:** ${dbCount}
@@ -174,7 +179,7 @@ function buildRequirementContent(
 
 ## Objective
 
-Improve test automation coverage by adding comprehensive \`data-testid\` attributes to interactive elements in the "${contextName}" context.
+Improve test automation coverage by adding comprehensive \`data-testid\` attributes to interactive elements in the "${contextName}" context, and create/update a test scenario for automated screenshot testing.
 
 ## Database Test Selectors (Current State)
 
@@ -231,20 +236,49 @@ Improve test automation coverage by adding comprehensive \`data-testid\` attribu
 
 **CRITICAL:** This context uses a database to track test selectors. You MUST follow these rules:
 
-### 1. Prevent Duplicates
-Before adding any new \`data-testid\` attribute:
-- Check the "Database Test Selectors" section above
-- If the \`data-testid\` already exists in the database table, **DO NOT add it again**
-- You can reuse existing \`data-testid\` values from the database in your code
+### 1. Prevent Duplicates - MANDATORY CHECK
+
+Before adding any new \`data-testid\` attribute to the code:
+
+**Step 1: Query Existing Selectors**
+\`\`\`bash
+curl -X GET "http://localhost:3000/api/tester/selectors?contextId=${contextId}"
+\`\`\`
+
+This will return a JSON array of existing selectors. Example response:
+\`\`\`json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "selector_123",
+      "dataTestid": "save-goal-button",
+      "title": "Save Goal",
+      "filepath": "src/app/goals/GoalForm.tsx"
+    }
+  ]
+}
+\`\`\`
+
+**Step 2: Check for Duplicates**
+- Parse the response and extract all \`dataTestid\` values
+- Before adding a new \`data-testid\` to the code, verify it's NOT in the existing list
+- If it exists, you can reuse it in your code but **DO NOT** call the POST API again
+
+**Step 3: Track New Selectors**
+- Keep a list of all NEW \`data-testid\` values you add to the code
+- Only these new ones should be saved to the database
 
 ### 2. Save New Selectors to Database
+
 After adding new \`data-testid\` attributes to the code:
 - Call the API endpoint: \`POST /api/tester/selectors\`
+- **ONLY** for selectors that were NOT in the GET response
 - For each NEW selector you add, make a request with:
   \`\`\`json
   {
-    "contextId": "${contextName.toLowerCase().replace(/[^a-z0-9]/g, '-')}",
-    "dataTestid": "the-testid-value",
+    "contextId": "${contextId}",
+    "dataTestid": "the-new-testid-value",
     "title": "Brief description (1-4 words)",
     "filepath": "relative/path/to/file.tsx"
   }
@@ -252,10 +286,12 @@ After adding new \`data-testid\` attributes to the code:
 - Title examples: "Save goal", "Delete item", "Open modal", "Submit form"
 
 ### 3. Implementation Workflow
-1. Review existing selectors in database (see table above)
-2. Add new \`data-testid\` attributes to code (avoid duplicates)
-3. Save each new selector to database via API call
-4. Verify no duplicates were created
+
+1. **Query database**: GET /api/tester/selectors?contextId=${contextId}
+2. **Review existing selectors**: Parse response and note all existing \`dataTestid\` values
+3. **Add new \`data-testid\` attributes**: Only add new ones not in the database
+4. **Save to database**: POST each NEW selector to /api/tester/selectors
+5. **Verify**: Query again to confirm no duplicates were created
 
 ## Code Requirements
 
@@ -292,11 +328,106 @@ After adding new \`data-testid\` attributes to the code:
    - Document key user flows and interactions
    - Ensure selectors are unique within each component
 
+## Test Scenario Generation
+
+**CRITICAL:** After adding \`data-testid\` attributes, you MUST create or update a test scenario for automated screenshot testing.
+
+### Current Test Scenario
+
+`;
+
+  if (existingScenario && existingScenario.trim()) {
+    content += `An existing test scenario is defined for this context:
+
+\`\`\`
+${existingScenario}
+\`\`\`
+
+**Task**: Review the existing scenario and determine if it needs updates based on:
+- New selectors you've added
+- Changes to the UI or user flows
+- Missing steps or navigation paths
+
+If updates are needed, revise the scenario. If it's still accurate, you can keep it as-is.
+
+`;
+  } else {
+    content += `⚠️ **No test scenario exists yet.** You must create one.
+
+`;
+  }
+
+  content += `### Scenario Requirements
+
+The test scenario should:
+1. **Navigate to the feature**: Start from \`http://localhost:3000\` and describe how to reach this feature
+2. **Interact with key elements**: Use the \`data-testid\` selectors you've added
+3. **Capture UI state**: End with the feature in a representative state for screenshot
+4. **Be Playwright-compatible**: Use clear, actionable steps that Playwright can execute
+
+### Scenario Format
+
+Write the scenario as numbered steps using this format:
+
+\`\`\`
+1. Navigate to http://localhost:3000
+2. Click on [data-testid="navigation-item"] to open the [Feature] page
+3. Wait for [data-testid="feature-container"] to be visible
+4. Click on [data-testid="action-button"] to trigger [action]
+5. Wait for [data-testid="result-element"] to appear
+6. The page should now show [expected UI state]
+\`\`\`
+
+### Example Scenarios
+
+**Goals Management Context:**
+\`\`\`
+1. Navigate to http://localhost:3000
+2. Click on [data-testid="goals-nav-link"] to open Goals page
+3. Wait for [data-testid="goals-list"] to be visible
+4. Click on [data-testid="create-goal-btn"] to open the goal creation modal
+5. Wait for [data-testid="goal-modal"] to appear
+6. The create goal modal should be visible and ready for input
+\`\`\`
+
+**Context Preview Context:**
+\`\`\`
+1. Navigate to http://localhost:3000
+2. Click on [data-testid="contexts-nav-link"]
+3. Wait for [data-testid="context-list"] to be visible
+4. Click on the first context card [data-testid="context-card-0"]
+5. Wait for [data-testid="context-preview-panel"] to appear
+6. The context preview should display with file tree and description
+\`\`\`
+
+### Save Test Scenario to Database
+
+After writing or updating the scenario, save it using the contexts API:
+
+\`\`\`bash
+curl -X PUT http://localhost:3000/api/contexts \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "contextId": "${contextId}",
+    "updates": {
+      "test_scenario": "1. Navigate to http://localhost:3000\\n2. Click on [data-testid=\\"...\"]\\n..."
+    }
+  }'
+\`\`\`
+
+**Important:**
+- Escape newlines as \`\\n\` in the JSON
+- Escape double quotes inside the scenario steps
+- Only include the \`test_scenario\` field in \`updates\`
+
 ## Success Criteria
 
 - [ ] All interactive elements have appropriate \`data-testid\` attributes
 - [ ] Selectors follow the naming convention
-- [ ] Selectors are documented in Context Preview Manager
+- [ ] All new selectors saved to database (no duplicates)
+- [ ] Test scenario created or updated and saved to database
+- [ ] Scenario navigates from http://localhost:3000 to the feature
+- [ ] Scenario uses the new \`data-testid\` selectors
 - [ ] No duplicate \`data-testid\` values within the same view
 
 ## Notes
@@ -304,6 +435,7 @@ After adding new \`data-testid\` attributes to the code:
 - Focus on user-facing interactive elements first
 - Group related selectors with common prefixes (e.g., \`goal-modal-*\`)
 - Consider future E2E test scenarios when naming selectors
+- Test scenarios should be maintainable and reflect actual user flows
 `;
 
   return content;

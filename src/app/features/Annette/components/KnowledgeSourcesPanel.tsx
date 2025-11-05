@@ -63,6 +63,7 @@ export default function KnowledgeSourcesPanel({ sources, onSourceClick }: Knowle
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.3 }}
       className="mt-3 p-3 bg-gray-900/60 backdrop-blur-sm border border-gray-700/40 rounded-lg"
+      data-testid="knowledge-sources-panel"
     >
       <div className="flex items-center gap-2 mb-2">
         <BookOpen className="w-4 h-4 text-gray-400" />
@@ -85,6 +86,7 @@ export default function KnowledgeSourcesPanel({ sources, onSourceClick }: Knowle
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: index * 0.05 }}
                 onClick={() => onSourceClick?.(source)}
+                data-testid={`knowledge-source-${source.type}-${source.id}`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={`relative px-3 py-2 rounded-lg border ${colors.border} ${colors.bg} transition-all duration-200 group`}

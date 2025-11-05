@@ -207,10 +207,10 @@ export default function DarkBlueprint() {
           decisionData.onAccept = async () => {
             // Execute original accept logic
             await originalOnAccept();
-            
+
             // Create event only after successful acceptance
             if (buttonConfig.eventTitle && activeProject) {
-              await createScanEvent(buttonConfig.eventTitle, scanId);
+              await createScanEvent(buttonConfig.eventTitle, scanId, contextId);
             }
           };
 
@@ -220,7 +220,7 @@ export default function DarkBlueprint() {
           // If no decision needed (scan completed without user input needed),
           // create event immediately
           if (buttonConfig.eventTitle && activeProject) {
-            await createScanEvent(buttonConfig.eventTitle, scanId);
+            await createScanEvent(buttonConfig.eventTitle, scanId, contextId);
           }
         }
       } catch (error) {
@@ -250,7 +250,7 @@ export default function DarkBlueprint() {
     // Return immediately - scan runs in background
   };
 
-  const createScanEvent = async (eventTitle: string, scanId: string) => {
+  const createScanEvent = async (eventTitle: string, scanId: string, contextId?: string) => {
     if (!activeProject) return;
 
     try {
@@ -264,6 +264,7 @@ export default function DarkBlueprint() {
           type: 'success',
           agent: 'blueprint',
           message: `${scanId} scan executed via Blueprint`,
+          context_id: contextId || null,
         }),
       });
 
@@ -346,9 +347,15 @@ export default function DarkBlueprint() {
       )}
 
       {/* Context Selector Modal */}
-      {showContextSelector && activeProject && (
+      {showContextSelector && activeProject && pendingScanId && (
         <ContextSelector
           projectId={activeProject.id}
+          scanId={pendingScanId}
+          scanEventTitle={
+            columns
+              .flatMap(col => col.buttons)
+              .find(btn => btn.id === pendingScanId)?.eventTitle || ''
+          }
           onSelect={handleContextSelect}
           onClose={() => {
             setShowContextSelector(false);

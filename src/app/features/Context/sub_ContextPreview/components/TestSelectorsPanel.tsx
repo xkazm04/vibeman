@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Loader2, Copy, Check } from 'lucide-react';
+import { Target, Loader2, Copy, Check, X } from 'lucide-react';
 
 interface TestSelector {
   id: string;
@@ -68,6 +68,27 @@ export default function TestSelectorsPanel({
     }
   };
 
+  const handleDelete = async (selectorId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm('Delete this test selector from the database?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/tester/selectors/${selectorId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Reload selectors after successful deletion
+        await loadSelectors();
+      }
+    } catch {
+      // Silently handle error
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="space-y-1">
@@ -122,23 +143,37 @@ export default function TestSelectorsPanel({
                 </div>
               </button>
 
-              {/* Copy button */}
-              <motion.button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCopy(selector.dataTestid, selector.id);
-                }}
-                className="flex-shrink-0 p-1 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                title="Copy to clipboard"
-              >
-                {copiedId === selector.id ? (
-                  <Check className="w-3 h-3 text-green-400" />
-                ) : (
-                  <Copy className="w-3 h-3" />
-                )}
-              </motion.button>
+              {/* Action buttons */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Copy button */}
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopy(selector.dataTestid, selector.id);
+                  }}
+                  className="p-1 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  title="Copy to clipboard"
+                >
+                  {copiedId === selector.id ? (
+                    <Check className="w-3 h-3 text-green-400" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                </motion.button>
+
+                {/* Delete button */}
+                <motion.button
+                  onClick={(e) => handleDelete(selector.id, e)}
+                  className="p-1 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  title="Delete selector"
+                >
+                  <X className="w-3 h-3" />
+                </motion.button>
+              </div>
             </motion.div>
           ))}
         </div>

@@ -23,10 +23,11 @@ export default function InsightsPanel({ insights, nextSteps }: InsightsPanelProp
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.3, delay: 0.1 }}
       className="mt-3 p-3 bg-gray-900/60 backdrop-blur-sm border border-gray-700/40 rounded-lg"
+      data-testid="insights-panel"
     >
       {/* Insights Section */}
       {insights && insights.length > 0 && (
-        <div className="mb-3">
+        <div className="mb-3" data-testid="insights-section">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-yellow-400" />
             <span className="text-xs font-mono text-yellow-400 uppercase tracking-wide">

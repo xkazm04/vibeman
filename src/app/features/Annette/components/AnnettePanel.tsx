@@ -284,7 +284,7 @@ export default function AnnettePanel() {
         {/* Content */}
         <div className="relative flex items-center justify-between px-4 py-3 gap-4">
           {/* Left: Status Chip */}
-          <div className="flex-1">
+          <div className="flex-1" data-testid="annette-status-chip">
             <StatusChip
               status={
                 isError ? 'error' :
@@ -488,7 +488,7 @@ export default function AnnettePanel() {
           animate={{ opacity: 1 }}
           className="mt-3 flex justify-center"
         >
-          <div className="flex items-center gap-2 text-xs font-mono text-gray-500">
+          <div className="flex items-center gap-2 text-xs font-mono text-gray-500" data-testid="annette-processing-indicator">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}

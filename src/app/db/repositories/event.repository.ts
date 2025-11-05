@@ -31,13 +31,14 @@ export const eventRepository = {
     type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
     agent?: string;
     message?: string;
+    context_id?: string;
   }): DbEvent => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO events (id, project_id, title, description, type, agent, message, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO events (id, project_id, title, description, type, agent, message, context_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -48,6 +49,7 @@ export const eventRepository = {
       event.type,
       event.agent || null,
       event.message || null,
+      event.context_id || null,
       now
     );
 
@@ -144,5 +146,25 @@ export const eventRepository = {
     `);
 
     return stmt.all(projectId, weekAgoISO, limit) as Array<{ title: string; count: number }>;
+  },
+
+  /**
+   * Get events by title pattern (for context-aware scans)
+   * Searches for events where title matches the base pattern
+   */
+  getEventsByTitlePattern: (projectId: string, titlePattern: string): DbEvent[] => {
+    const db = getDatabase();
+
+    // Extract base title without {contextId} placeholder
+    // e.g., "Selectors Scan Completed {contextId}" -> "Selectors Scan Completed"
+    const baseTitle = titlePattern.replace(/\s*\{contextId\}\s*$/, '').trim();
+
+    const stmt = db.prepare(`
+      SELECT * FROM events
+      WHERE project_id = ? AND title LIKE ?
+      ORDER BY created_at DESC
+    `);
+
+    return stmt.all(projectId, `${baseTitle}%`) as DbEvent[];
   }
 };

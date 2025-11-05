@@ -39,7 +39,7 @@ export default function NeonStatusDisplay({
   const chipTheme: StatusChipTheme = theme;
 
   return (
-    <div className="relative h-8 flex items-center overflow-hidden w-full">
+    <div className="relative h-8 flex items-center overflow-hidden w-full" data-testid="neon-status-display">
       <StatusChip
         status={status}
         label={message}
