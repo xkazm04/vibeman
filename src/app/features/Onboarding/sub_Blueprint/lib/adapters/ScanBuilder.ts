@@ -82,21 +82,25 @@ const SCAN_METADATA: Record<ScanCategory, ScanMetadata> = {
     icon: Layers,
     color: 'blue',
     eventTitle: 'Contexts Scan Completed',
+    description: 'Analyze project files and suggest grouping into features (contexts) for better organization and understanding of modules.',
   },
   structure: {
     icon: Box,
     color: 'blue',
     eventTitle: 'Structure Scan Completed',
+    description: 'Analyze code structure with static analysis and provides refactiring suggestions to improve modularity and maintainability.',
   },
   build: {
     icon: Hammer,
     color: 'indigo',
     eventTitle: 'Build Scan Completed',
+    description: 'Batch code execution of prepared Claude Code requirement files (accepted ideas)',
   },
   dependencies: {
     icon: Sparkles,
     color: 'purple',
     eventTitle: 'Dependencies Scan Completed',
+    description: 'Analyze project dependencies and suggest updates, removals, or additions to improve security and performance.',
   },
   ideas: {
     icon: Sparkles,
@@ -104,18 +108,7 @@ const SCAN_METADATA: Record<ScanCategory, ScanMetadata> = {
     eventTitle: 'Ideas Generated',
     action: 'navigate',
     target: 'ideas',
-  },
-  prototype: {
-    icon: Sparkles,
-    color: 'green',
-    eventTitle: 'Prototype Scan Completed',
-    action: 'navigate',
-    target: 'tasker',
-  },
-  contribute: {
-    icon: Code,
-    color: 'cyan',
-    eventTitle: 'Contribution Scan Completed',
+    description: 'Generate new ideas for project features, improvements, or enhancements using AI analysis of the codebase and context.',
   },
   fix: {
     icon: Bug,
@@ -127,7 +120,7 @@ const SCAN_METADATA: Record<ScanCategory, ScanMetadata> = {
   photo: {
     icon: Camera,
     color: 'pink',
-    eventTitle: 'Photo Scan Completed',
+    eventTitle: 'Screenshots current state of the UI app',
     contextNeeded: true,
   },
   custom: {
