@@ -3,7 +3,7 @@
  * Uses LLM to analyze project structure and suggest optimal scan configuration
  */
 
-import { createLLMClient } from '@/lib/llm';
+import { llmManager } from '@/lib/llm';
 import type { SupportedProvider } from '@/lib/llm/types';
 import {
   detectProjectType,
@@ -44,17 +44,19 @@ export async function generateWizardPlan(
     const fileTree = buildFileTreeSummary(files);
     const sampleFiles = selectSampleFiles(files);
 
-    // Get LLM client
-    const llm = await createLLMClient(provider, model);
-
     // Construct prompt for AI analysis
     const prompt = buildAnalysisPrompt(projectType, fileTree, sampleFiles, relevantGroups);
 
-    // Call AI
-    const response = await llm.generateText(prompt);
+    // Call AI using llmManager
+    const response = await llmManager.generate({
+      provider,
+      model: model || llmManager.getDefaultModel(provider),
+      prompt,
+      temperature: 0.3,
+    });
 
     // Parse AI response
-    const aiRecommendations = parseAIResponse(response);
+    const aiRecommendations = parseAIResponse(response.content);
 
     // Filter recommended groups based on AI suggestions
     const recommendedGroups = filterGroupsByAIRecommendations(

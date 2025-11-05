@@ -83,7 +83,7 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
 
             if (message.type === 'progress') {
               // Update progress in store
-              const { useBlueprintStore } = await import('../../store/blueprintStore');
+              const { useBlueprintStore } = await import('../../../store/blueprintStore');
               useBlueprintStore.getState().updateScanProgress(message.progress);
 
               this.log(
