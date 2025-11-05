@@ -19,6 +19,20 @@ interface TreeSuggestionsDropdownProps {
   onClear: () => void;
 }
 
+// Animation configurations
+const dropdownAnimation = {
+  initial: { opacity: 0, y: -10, scale: 0.95 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -10, scale: 0.95 },
+  transition: { duration: 0.15, ease: "easeOut" }
+};
+
+const itemAnimation = (index: number) => ({
+  initial: { opacity: 0, x: -10 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.05 }
+});
+
 export default function TreeSuggestionsDropdown({
   suggestions,
   searchTerm,
@@ -29,11 +43,11 @@ export default function TreeSuggestionsDropdown({
 }: TreeSuggestionsDropdownProps) {
   const highlightMatch = (text: string, term: string) => {
     if (!term) return text;
-    
+
     const regex = new RegExp(`(${term})`, 'gi');
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
         <span key={index} className="bg-yellow-400/30 text-yellow-200 font-medium">
           {part}
@@ -48,10 +62,7 @@ export default function TreeSuggestionsDropdown({
       <AnimatePresence>
         {showSuggestions && suggestions.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
+            {...dropdownAnimation}
             className="absolute top-full left-0 right-0 z-50 mt-2 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl overflow-hidden"
           >
             <div className="p-2">
@@ -62,9 +73,7 @@ export default function TreeSuggestionsDropdown({
               {suggestions.map((suggestion, index) => (
                 <motion.button
                   key={suggestion.node.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  {...itemAnimation(index)}
                   onClick={() => onSuggestionClick(suggestion)}
                   className="w-full flex items-center space-x-3 px-2 py-2 rounded-md hover:bg-gray-700/50 transition-colors text-left group"
                 >

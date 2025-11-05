@@ -71,8 +71,9 @@ export default function CodePreviewModal({
       } else {
         setError(data.error || 'Failed to save file');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save file');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save file';
+      setError(errorMessage);
     } finally {
       setIsSaving(false);
     }

@@ -16,6 +16,24 @@ const joinPath = (...parts: string[]): string => {
     .replace(/\\/g, '/'); // Normalize backslashes to forward slashes
 };
 
+// Helper to normalize path for vibeman base path
+const normalizeVibemanPath = (nodePath: string, vibemanBasePath: string): string => {
+  const normalizedVibemanPath = vibemanBasePath.replace(/\\/g, '/');
+  let normalizedNodePath = nodePath.replace(/\\/g, '/');
+
+  if (normalizedNodePath.startsWith(normalizedVibemanPath + '/') ||
+      normalizedNodePath.startsWith(normalizedVibemanPath)) {
+    normalizedNodePath = normalizedNodePath.replace(normalizedVibemanPath + '/', '').replace(normalizedVibemanPath, '');
+  }
+
+  return normalizedNodePath.replace(/\//g, '\\');
+};
+
+// Helper to check if path is absolute
+const isAbsolutePath = (path: string): boolean => {
+  return /^[A-Za-z]:[\\\/]/.test(path) || path.startsWith('/');
+};
+
 interface TreeNodeProps {
   node: TreeNodeType;
   level?: number;
@@ -43,37 +61,16 @@ export default function TreeNode({
   const absoluteFilePath = (() => {
     if (node.type !== 'file') return nodePath;
 
-    // First, strip the vibeman base path if it exists in the nodePath
     const vibemanBasePath = 'C:\\Users\\kazda\\kiro\\vibeman';
-    const normalizedVibemanPath = vibemanBasePath.replace(/\\/g, '/');
-    
-    // Normalize the nodePath to use forward slashes for checking
-    let normalizedNodePath = nodePath.replace(/\\/g, '/');
-    
-    // Remove vibeman base path if it's at the start
-    if (normalizedNodePath.startsWith(normalizedVibemanPath + '/') || 
-        normalizedNodePath.startsWith(normalizedVibemanPath)) {
-      normalizedNodePath = normalizedNodePath.replace(normalizedVibemanPath + '/', '').replace(normalizedVibemanPath, '');
-    }
-    
-    // Convert back to original path separators
-    const cleanedNodePath = normalizedNodePath.replace(/\//g, '\\');
-    
-    // Check if the cleaned path is an absolute path
-    // Windows: C:\ or D:\ etc., Unix: starts with /
-    const isAbsolutePath = /^[A-Za-z]:[\\\/]/.test(cleanedNodePath) || cleanedNodePath.startsWith('/');
-    
-    if (isAbsolutePath) {
-      // If it's already absolute, return it as-is
+    const cleanedNodePath = normalizeVibemanPath(nodePath, vibemanBasePath);
+
+    if (isAbsolutePath(cleanedNodePath)) {
       return cleanedNodePath;
     }
 
-    // Use provided projectPath prop, or fallback to activeProject path
     const baseProjectPath = projectPath || activeProject?.path;
-
     if (!baseProjectPath) return cleanedNodePath;
 
-    // node.id is a relative path, join it with the project path
     return joinPath(baseProjectPath, cleanedNodePath);
   })();
   
