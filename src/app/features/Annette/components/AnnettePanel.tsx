@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Moon, Eclipse, Lightbulb, FileText, Sparkles } from 'lucide-react';
 import StatusChip, { StatusChipState, StatusChipTheme } from '@/app/components/ui/StatusChip';
-import VoiceVisualizer from './VoiceVisualizer';
+import VoiceVisualizer from '../sub_VoiceInterface/VoiceVisualizer';
 import KnowledgeSourcesPanel from './KnowledgeSourcesPanel';
 import InsightsPanel from './InsightsPanel';
 import AnalyticsDashboard from './AnalyticsDashboard';

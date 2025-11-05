@@ -109,7 +109,7 @@ export interface LLMModelConfig {
 export const DEFAULT_LLM_MODELS: Record<LLMProvider, string> = {
   ollama: 'gpt-oss:20b',
   openai: 'gpt-5-mini-2025-08-07',
-  anthropic: 'claude-3-5-haiku-latest',
+  anthropic: 'claude-4-5-haiku-latest',
   gemini: 'gemini-flash-latest'
 };
 

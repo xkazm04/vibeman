@@ -1,10 +1,15 @@
 /**
  * Blueprint Build Scan Library
  * Scans project for build errors and creates requirement files
+ *
+ * NOW USES ADAPTER SYSTEM for multi-framework support
  */
 
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { getInitializedRegistry } from './adapters';
+import type { ScanResult as AdapterScanResult, DecisionData as AdapterDecisionData } from './adapters';
 
+// Re-export types for backward compatibility
 export interface ScanResult {
   success: boolean;
   error?: string;
@@ -30,7 +35,7 @@ export interface DecisionData {
 }
 
 /**
- * Execute build scan (scan only, don't create requirements yet)
+ * Execute build scan using the adapter system
  */
 export async function executeBuildScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
@@ -43,37 +48,14 @@ export async function executeBuildScan(): Promise<ScanResult> {
   }
 
   try {
-    const response = await fetch('/api/build-fixer?scanOnly=true', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectPath: activeProject.path,
-      }),
-    });
+    const registry = getInitializedRegistry();
+    const result = await registry.executeScan(activeProject, 'build', { scanOnly: true });
 
-    if (!response.ok) {
-      return {
-        success: false,
-        error: 'Build scan request failed',
-      };
-    }
-
-    const result = await response.json();
-
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error || 'Build scan failed',
-      };
-    }
+    // Convert adapter result to legacy format
     return {
-      success: true,
-      data: {
-        totalErrors: result.totalErrors,
-        totalWarnings: result.totalWarnings,
-        errorGroups: result.errorGroups || [],
-        buildCommand: result.buildCommand,
-      },
+      success: result.success,
+      error: result.error,
+      data: result.data as any,
     };
   } catch (error) {
     console.error('[BuildScan] Error:', error);
@@ -85,7 +67,7 @@ export async function executeBuildScan(): Promise<ScanResult> {
 }
 
 /**
- * Build decision data for build scan results
+ * Build decision data for build scan results using the adapter system
  */
 export function buildDecisionData(result: ScanResult): DecisionData | null {
   if (!result.success || !result.data) {
@@ -98,53 +80,25 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
     return null;
   }
 
-  const { totalErrors, totalWarnings, errorGroups, buildCommand } = result.data;
+  try {
+    const registry = getInitializedRegistry();
+    const adapter = registry.getBestAdapter(activeProject, 'build');
 
-  // If no errors, no decision needed
-  if (totalErrors === 0) {    return null;
+    if (!adapter) {
+      console.error('[BuildScan] No adapter found for project type:', activeProject.type);
+      return null;
+    }
+
+    // Convert legacy result to adapter format
+    const adapterResult: AdapterScanResult = {
+      success: result.success,
+      error: result.error,
+      data: result.data,
+    };
+
+    return adapter.buildDecision(adapterResult, activeProject);
+  } catch (error) {
+    console.error('[BuildScan] Error building decision:', error);
+    return null;
   }
-
-  // Calculate potential files - use errorGroups length if available, otherwise estimate from totalErrors
-  const potentialFiles = errorGroups && errorGroups.length > 0 
-    ? errorGroups.length 
-    : Math.min(totalErrors, 10); // Estimate: max 10 files, or one per error if fewer
-
-  const description = `Found ${totalErrors} build error${totalErrors > 1 ? 's' : ''} and ${totalWarnings} warning${totalWarnings > 1 ? 's' : ''}.\n\nBuild command: ${buildCommand}\n\nThis will create ${potentialFiles} Claude Code requirement file${potentialFiles !== 1 ? 's' : ''} for fixing.`;
-
-  return {
-    type: 'build-scan',
-    title: 'Build Errors Detected',
-    description,
-    count: potentialFiles,
-    severity: totalErrors > 10 ? 'error' : totalErrors > 5 ? 'warning' : 'info',
-    projectId: activeProject.id,
-    projectPath: activeProject.path,
-    data: { totalErrors, totalWarnings, errorGroups, buildCommand },
-
-    // Accept: Create requirement files
-    onAccept: async () => {
-      // Call API without scanOnly to create requirement files
-      const response = await fetch('/api/build-fixer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectPath: activeProject.path,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create requirement files');
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create requirement files');
-      }
-
-      const filesCreated = result.requirementFiles?.length || 0;    },
-
-    // Reject: Log rejection
-    onReject: async () => {    },
-  };
 }

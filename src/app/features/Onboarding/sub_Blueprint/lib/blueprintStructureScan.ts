@@ -1,9 +1,13 @@
 /**
  * Blueprint Structure Scan Library
  * Handles project structure analysis and violation detection
+ *
+ * NOW USES ADAPTER SYSTEM for multi-framework support
  */
 
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { getInitializedRegistry } from './adapters';
+import type { ScanResult as AdapterScanResult } from './adapters';
 
 export interface ScanResult {
   success: boolean;
@@ -27,7 +31,7 @@ export interface DecisionData {
 }
 
 /**
- * Execute structure scan
+ * Execute structure scan using the adapter system
  */
 export async function executeStructureScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
@@ -42,46 +46,16 @@ export async function executeStructureScan(): Promise<ScanResult> {
   try {
     console.log('[StructureScan] Analyzing project structure...');
 
-    const response = await fetch('/api/structure-scan/trigger', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId: activeProject.id,
-        projectPath: activeProject.path,
-        projectType: activeProject.type || 'nextjs',
-        projectName: activeProject.name,
-      }),
-    });
+    // Use the adapter framework
+    const registry = getInitializedRegistry();
+    const result = await registry.executeScan(activeProject, 'structure');
 
-    const result = await response.json();
-
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error || 'Structure scan failed',
-      };
-    }
-
-    const violations = result.violations || [];
-
-    if (violations.length === 0) {
-      console.log('[StructureScan] No violations found - project structure is compliant');
-      return {
-        success: true,
-        violations: [],
-      };
-    }
-
-    console.log(`[StructureScan] Found ${violations.length} violations`);
-
+    // Convert adapter result to legacy format
     return {
-      success: true,
-      violations,
-      data: {
-        projectId: activeProject.id,
-        projectPath: activeProject.path,
-        projectType: activeProject.type || 'nextjs',
-      },
+      success: result.success,
+      error: result.error,
+      violations: result.data?.violations || [],
+      data: result.data,
     };
   } catch (error) {
     console.error('[StructureScan] Error:', error);
@@ -93,7 +67,7 @@ export async function executeStructureScan(): Promise<ScanResult> {
 }
 
 /**
- * Build decision data for structure scan results
+ * Build decision data for structure scan results using the adapter system
  */
 export function buildDecisionData(result: ScanResult): DecisionData | null {
   if (!result.success || !result.violations || result.violations.length === 0) {
@@ -106,46 +80,26 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
     return null;
   }
 
-  const violations = result.violations;
+  try {
+    // Use the adapter framework
+    const registry = getInitializedRegistry();
+    const adapter = registry.getBestAdapter(activeProject, 'structure');
 
-  return {
-    type: 'structure-scan',
-    title: 'Structure Violations Detected',
-    description: `Found ${violations.length} structure violation${violations.length > 1 ? 's' : ''} in ${activeProject.name}`,
-    count: violations.length,
-    severity: violations.length > 10 ? 'error' : violations.length > 5 ? 'warning' : 'info',
-    projectId: activeProject.id,
-    projectPath: activeProject.path,
-    projectType: activeProject.type || 'nextjs',
-    data: { violations },
+    if (!adapter) {
+      console.error('[StructureScan] No adapter found for project type:', activeProject.type);
+      return null;
+    }
 
-    // Accept: Save requirements
-    onAccept: async () => {
-      console.log('[StructureScan] User accepted - saving requirements...');
+    // Convert legacy result to adapter format
+    const adapterResult: AdapterScanResult = {
+      success: result.success,
+      error: result.error,
+      data: result.data,
+    };
 
-      const saveResponse = await fetch('/api/structure-scan/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          violations,
-          projectPath: activeProject.path,
-          projectId: activeProject.id,
-        }),
-      });
-
-      const saveData = await saveResponse.json();
-
-      if (!saveData.success) {
-        throw new Error(saveData.error || 'Failed to save requirements');
-      }
-
-      console.log(`[StructureScan] ✅ Saved ${saveData.requirementFiles.length} requirement files`);
-    },
-
-    // Reject: Log rejection
-    onReject: async () => {
-      console.log('[StructureScan] User rejected structure scan');
-      // Rejection is logged by the decision system
-    },
-  };
+    return adapter.buildDecision(adapterResult, activeProject);
+  } catch (error) {
+    console.error('[StructureScan] Error building decision:', error);
+    return null;
+  }
 }

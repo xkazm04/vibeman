@@ -1,10 +1,14 @@
 /**
  * Blueprint Contexts Scan Library
  * Scans and generates contexts for the project
+ *
+ * NOW USES ADAPTER SYSTEM for multi-framework support
  */
 
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { DefaultProviderStorage } from '@/lib/llm';
+import { getInitializedRegistry } from './adapters';
+import type { ScanResult as AdapterScanResult } from './adapters';
 
 export interface ScanResult {
   success: boolean;
@@ -42,7 +46,7 @@ export interface DecisionData {
 }
 
 /**
- * Execute contexts scan (scan only, don't save yet)
+ * Execute contexts scan using the adapter system
  */
 export async function executeContextsScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
@@ -57,44 +61,16 @@ export async function executeContextsScan(): Promise<ScanResult> {
   try {
     console.log('[ContextsScan] Scanning for contexts...');
 
-    // Use the full scripted-scan-and-save endpoint for now
-    // It handles scanning, metadata generation, and saving
-    const response = await fetch('/api/contexts/scripted-scan-and-save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId: activeProject.id,
-        projectPath: activeProject.path,
-        projectType: activeProject.type || 'nextjs',
-        provider: DefaultProviderStorage.getDefaultProvider(),
-      }),
-    });
+    // Use the adapter framework
+    const registry = getInitializedRegistry();
+    const provider = DefaultProviderStorage.getDefaultProvider();
+    const result = await registry.executeScan(activeProject, 'contexts', { provider });
 
-    if (!response.ok) {
-      return {
-        success: false,
-        error: 'Context scan failed',
-      };
-    }
-
-    const result = await response.json();
-
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error || 'Context scan failed',
-      };
-    }
-
-    console.log(`[ContextsScan] ✅ Scanned and saved ${result.stats.saved} contexts`);
-
+    // Convert adapter result to legacy format
     return {
-      success: true,
-      data: {
-        contexts: [],
-        stats: result.stats,
-        savedContexts: result.savedContexts || [],
-      },
+      success: result.success,
+      error: result.error,
+      data: result.data as any,
     };
   } catch (error) {
     console.error('[ContextsScan] Error:', error);
@@ -106,7 +82,7 @@ export async function executeContextsScan(): Promise<ScanResult> {
 }
 
 /**
- * Build decision data for contexts scan results
+ * Build decision data for contexts scan results using the adapter system
  */
 export function buildDecisionData(result: ScanResult): DecisionData | null {
   if (!result.success || !result.data) {
@@ -119,37 +95,26 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
     return null;
   }
 
-  const { stats, savedContexts } = result.data;
+  try {
+    // Use the adapter framework
+    const registry = getInitializedRegistry();
+    const adapter = registry.getBestAdapter(activeProject, 'contexts');
 
-  // If no contexts were saved, no decision needed
-  if (stats.saved === 0) {
-    console.log('[ContextsScan] No contexts saved - skipping decision');
+    if (!adapter) {
+      console.error('[ContextsScan] No adapter found for project type:', activeProject.type);
+      return null;
+    }
+
+    // Convert legacy result to adapter format
+    const adapterResult: AdapterScanResult = {
+      success: result.success,
+      error: result.error,
+      data: result.data,
+    };
+
+    return adapter.buildDecision(adapterResult, activeProject);
+  } catch (error) {
+    console.error('[ContextsScan] Error building decision:', error);
     return null;
   }
-
-  // Build description from saved contexts
-  const contextNames = savedContexts.map((c: any) => c.name).join(', ');
-  const description = `Successfully processed ${stats.scanned} contexts:\n- Saved: ${stats.saved}\n- Failed: ${stats.failed}\n- Skipped (duplicates): ${stats.skippedDuplicates}\n\nContext names: ${contextNames}`;
-
-  return {
-    type: 'contexts-scan',
-    title: 'Contexts Updated',
-    description,
-    count: stats.scanned + stats.saved,
-    severity: 'info',
-    projectId: activeProject.id,
-    projectPath: activeProject.path,
-    projectType: activeProject.type || 'nextjs',
-    data: { stats, savedContexts },
-
-    // Accept: Contexts already saved, just log
-    onAccept: async () => {
-      console.log('[ContextsScan] User acknowledged context updates');
-    },
-
-    // Reject: No action needed
-    onReject: async () => {
-      console.log('[ContextsScan] User dismissed context updates');
-    },
-  };
 }

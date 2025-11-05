@@ -1,13 +1,12 @@
 import Database from 'better-sqlite3';
-import { randomUUID } from 'crypto';
 
 const db = new Database('C:\\Users\\kazda\\kiro\\vibeman\\database\\goals.db');
 
-const id = randomUUID();
+const id = '24e401e3-8f7c-4d12-b5e1-9f8a3c2d1e4f';
 const projectId = 'c32769af-72ed-4764-bd27-550d46f14bc5';
-const requirementName = 'dashboard-kpi-summary-cards';
-const title = 'Dashboard KPI Summary Cards';
-const overview = `Implemented KPI summary cards at the top of the ReflectionDashboard to display key metrics. Created KPISummaryCards.tsx component that shows four key performance indicators: Total Reflections (overall.total), Acceptance Rate (overall.acceptanceRatio), Average Impact (calculated as mean of all scan type acceptance ratios), and Active Specialists (count of scan types). The component follows the existing design pattern with glassmorphism styling, gradient backgrounds, animated cards using framer-motion, and color-coded icons matching the existing theme. Integrated the component into ReflectionDashboard.tsx between the FilterPanel and AcceptanceChart sections. Updated the component index.ts to export the new KPISummaryCards component for reusability.`;
+const requirementName = 'idea-24e401e3-modular-scan-adapter-framework';
+const title = 'Modular Scan Adapter Framework';
+const overview = `Implemented a comprehensive plugin architecture for the Blueprint onboarding system that enables multi-technology framework support. Created a ScanAdapter interface defining the contract for scan implementations, a ScanRegistry for managing and executing adapters with priority-based selection, and a BaseAdapter abstract class providing common functionality. Built complete NextJS adapters (NextJSBuildAdapter, NextJSStructureAdapter, NextJSContextsAdapter) migrated from existing implementations, and created example FastAPI adapters (FastAPIBuildAdapter, FastAPIStructureAdapter) to demonstrate cross-framework extensibility. Refactored existing scan utilities (blueprintBuildScan.ts, blueprintStructureScan.ts, blueprintContextsScan.ts) to use the adapter system while maintaining backward compatibility. The framework supports automatic adapter discovery, execution with metadata tracking, usage statistics, and graceful error handling. All adapters follow a consistent pattern with canHandle(), execute(), and buildDecision() methods, making it easy for contributors to add support for Express, React Native, C++, or any other technology stack without modifying core logic. Key files: adapters/types.ts (interface definitions), adapters/ScanRegistry.ts (central registry), adapters/BaseAdapter.ts (abstract base), adapters/nextjs/* (NextJS implementations), adapters/fastapi/* (FastAPI examples), adapters/initialize.ts (auto-registration).`;
 
 const stmt = db.prepare(`
   INSERT INTO implementation_log (id, project_id, requirement_name, title, overview, tested, created_at)
