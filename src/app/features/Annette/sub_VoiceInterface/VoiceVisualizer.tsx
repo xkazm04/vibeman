@@ -65,6 +65,16 @@ const interpolateColor = (color1: string, color2: string, t: number): string => 
   return `rgb(${r}, ${g}, ${b})`;
 };
 
+// Helper to add alpha transparency to RGB color
+const addAlphaToRgb = (rgbString: string, alpha: number): string => {
+  // Extract r, g, b values from "rgb(r, g, b)" string
+  const match = rgbString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (match) {
+    return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
+  }
+  return rgbString; // Fallback if parsing fails
+};
+
 // Calculate color based on amplitude (0-1)
 const getColorForAmplitude = (amplitude: number, colors: typeof THEME_GRADIENTS.phantom): string => {
   if (amplitude < 0.33) {
@@ -133,7 +143,7 @@ export default function VoiceVisualizer({
       // Draw bar with gradient
       const gradient = ctx.createLinearGradient(x, y, x, height);
       gradient.addColorStop(0, color);
-      gradient.addColorStop(1, `${color}88`); // Add transparency at bottom
+      gradient.addColorStop(1, addAlphaToRgb(color, 0.53)); // Add transparency at bottom (0x88 ≈ 0.53)
 
       ctx.fillStyle = gradient;
       ctx.fillRect(x, y, barWidth, barHeight);
@@ -184,7 +194,9 @@ export default function VoiceVisualizer({
             const x = startX + i * (barWidth + barGap);
             const y = height - idleHeight;
 
-            ctx.fillStyle = `${colors.low}33`;
+            // Convert hex to rgba with alpha (0x33 ≈ 0.2)
+            const rgb = hexToRgb(colors.low);
+            ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.2)`;
             ctx.fillRect(x, y, barWidth, idleHeight);
           }
         }

@@ -14,145 +14,129 @@ This will install `ts-node` and other required dependencies.
 
 ```bash
 # Copy example configuration
-cp .refactor.config.example.json .refactor.config.json
+cp .refactor-ci.example.json .refactor-ci.json
+cp .refactor-pr.example.json .refactor-pr.json
 ```
 
-**Recommended starter config** (edit `.refactor.config.json`):
+**Recommended starter config** (edit `.refactor-ci.json`):
 
 ```json
 {
-  "enabled": true,
-  "autoFixOnly": true,
-  "minSeverity": "medium",
+  "severity": "medium",
   "categories": ["code-quality", "maintainability"],
-  "maxOpportunitiesPerPR": 30,
-  "skipAI": true
+  "provider": "gemini",
+  "model": "gemini-flash-latest",
+  "autoPR": false
 }
 ```
 
 This config:
-- ✅ Only includes auto-fixable issues (safe)
 - ✅ Medium+ severity only (focuses on important issues)
-- ✅ Limits to 30 opportunities per PR (manageable)
-- ✅ Skips AI analysis (no API keys needed)
+- ✅ Selected categories for code quality
+- ✅ Uses Gemini Flash (fast and cost-effective)
+- ✅ Manual PR creation (you control when)
 
 ## Step 3: Test Locally
 
-Run a dry run to see what would be found:
+Run analysis to see what would be found:
 
 ```bash
-npm run refactor:ci -- --dry-run
+npm run refactor:ci -- --project ./src --verbose
 ```
 
 You should see output like:
 
 ```
-🔍 Vibeman CI/CD Refactor Tool
+Vibeman Refactor CI
+===================
+Project: C:\Users\...\vibeman\src
+AI Analysis: true
+Provider: gemini
+Model: gemini-flash-latest
 
-📂 Project path: C:\Users\...\vibeman
-⚙️  Config path: .refactor.config.json
-🎯 Base branch: main
-🧪 DRY RUN MODE
+Starting analysis...
 
-🔬 Running refactor analysis...
-✅ Analysis complete: 23 opportunities found
-   - Total files scanned: 145
-   - Total lines: 12543
-
-🎯 Filtered to 12 opportunities
-
-📊 Summary:
-   - code-quality: 8
-   - maintainability: 4
-
-🧪 DRY RUN - Skipping PR creation
-
-Opportunities that would be included:
-1. [medium] Console statements in src/app/page.tsx
-2. [medium] Unused imports in src/components/Header.tsx
-...
+Analysis complete!
+Total issues found: 23
+  Critical: 0
+  High: 5
+  Medium: 12
+  Low: 6
 ```
 
-## Step 4: Run for Real (Optional)
+## Step 4: Output to JSON
 
-If you're happy with the results, run without `--dry-run`:
+Save results to a file:
 
 ```bash
-npm run refactor:ci
+npm run refactor:ci -- --project ./src --output refactor-results.json --verbose
 ```
 
-This will:
-1. Create a new branch `auto-refactor-<timestamp>`
-2. Generate requirement files in `.claude/commands/`
-3. Commit the files
-4. Push to GitHub
-5. Create a PR
+This creates a JSON file with all findings that can be used for PR creation.
 
 ## Step 5: Enable GitHub Actions
 
-The workflow is already configured in `.github/workflows/auto-refactor.yml`.
+The workflow is already configured in `.github/workflows/refactor-check.yml`.
 
 **To enable it:**
 
 1. Commit the workflow file:
    ```bash
-   git add .github/workflows/auto-refactor.yml
-   git commit -m "Add auto-refactor CI workflow"
+   git add .github/workflows/refactor-check.yml
+   git commit -m "Add automated refactor CI workflow"
    git push
    ```
 
 2. The workflow will now run:
    - On every PR to `main`/`master`/`develop`
-   - Weekly on Mondays at 9 AM UTC
-   - Manually via GitHub Actions UI
+   - Manually via GitHub Actions UI (with optional PR creation)
 
-## Step 6: Review Your First Refactor PR
+## Step 6: Create a Refactor PR (Optional)
 
-Once the CI runs, you'll get a PR like this:
+Once you have results, create a PR:
 
-**Title**: `[Auto-Refactor] Fix 12 code quality issues`
+```bash
+npm run create-refactor-pr -- --results refactor-results.json --verbose
+```
+
+This will:
+1. Create a new branch `refactor/automated-<timestamp>`
+2. Commit the results
+3. Push to GitHub
+4. Create a PR with a detailed summary
+
+## Step 7: Review Your First Refactor PR
+
+Once the PR is created, you'll see:
+
+**Title**: `Automated Refactor: 23 improvements`
 
 **Body**:
 ```markdown
-## Automated Refactor Summary
+## Automated Refactor Suggestions
 
-This PR contains automated refactoring suggestions...
+### Summary
+- **Total Issues**: 23
+- **Critical**: 0
+- **High**: 5
+- **Medium**: 12
+- **Low**: 6
 
-### Overview
-- **Total Issues Addressed**: 12
-- **Auto-fixable**: 12
+### Issues by Category
+- **code-quality**: 15
+- **maintainability**: 8
 
-### By Category
-- **code-quality**: 8 issues
-- **maintainability**: 4 issues
-...
+### High Priority Issues
+1. **'any' type usage in src/types.ts**
+   - Category: code-quality
+   - Impact: Improves type safety
+   - Effort: medium
+   ...
 ```
 
-## Step 7: Execute with Claude Code
+## Step 8: Review and Merge
 
-The PR includes requirement files. To apply them:
-
-```bash
-# Open Claude Code
-claude
-
-# Execute the requirements
-/auto-refactor-batch-1
-```
-
-Claude Code will apply the refactors automatically!
-
-## Step 8: Test and Merge
-
-```bash
-# Run tests
-npm test
-
-# Type check
-npm run build
-
-# If all good, merge the PR
-```
+Review the suggested changes and merge when ready!
 
 ## Next Steps
 
@@ -162,43 +146,47 @@ Once comfortable, expand to more categories:
 
 ```json
 {
-  "enabled": true,
-  "autoFixOnly": false,
-  "minSeverity": "low",
+  "severity": "low",
   "categories": [
     "code-quality",
     "maintainability",
     "performance",
-    "duplication"
+    "duplication",
+    "security"
   ],
-  "maxOpportunitiesPerPR": 50,
-  "skipAI": false,
   "provider": "gemini",
-  "model": "gemini-flash-latest"
+  "model": "gemini-flash-latest",
+  "autoPR": true
 }
 ```
 
 ### Add LLM Provider (for AI analysis)
 
-Add to GitHub Secrets:
+Set environment variables:
 
 - `GOOGLE_API_KEY` - for Gemini (recommended, free tier available)
 - `OPENAI_API_KEY` - for OpenAI
 - `ANTHROPIC_API_KEY` - for Claude
 
-Then set `skipAI: false` in config.
+Or add to `.env`:
+```
+GOOGLE_API_KEY=your-api-key
+```
 
 ### Advanced Filters
 
 ```bash
 # Only performance issues
-npm run refactor:ci -- --category performance
+npm run refactor:ci -- --project ./src --category performance
 
 # Only critical severity
-npm run refactor:ci -- --severity critical
+npm run refactor:ci -- --project ./src --severity critical
 
-# Custom PR title
-npm run refactor:ci -- --pr-title "Refactor: Remove console logs"
+# Disable AI (pattern-based only)
+npm run refactor:ci -- --project ./src --no-ai
+
+# Custom provider
+npm run refactor:ci -- --project ./src --provider openai --model gpt-4
 ```
 
 ## Troubleshooting
@@ -230,16 +218,16 @@ Ensure you have:
 
 ### No opportunities found
 
-- Lower `minSeverity` to `"low"`
-- Set `autoFixOnly: false`
-- Increase categories
-- Check `excludePatterns` isn't too broad
+- Lower severity: `--severity low`
+- Add more categories
+- Enable AI analysis (remove `--no-ai`)
+- Check project path is correct
 
 ## Full Documentation
 
 For comprehensive documentation, see:
-- [docs/CI_CD_REFACTOR.md](./CI_CD_REFACTOR.md) - Complete guide
-- [scripts/README.md](../scripts/README.md) - Script reference
+- [docs/REFACTOR_CI_GUIDE.md](./REFACTOR_CI_GUIDE.md) - Complete guide
+- [.github/workflows/refactor-check.yml](../.github/workflows/refactor-check.yml) - CI workflow
 
 ## Support
 
