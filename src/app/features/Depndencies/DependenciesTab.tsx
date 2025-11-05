@@ -32,7 +32,7 @@ export default function DependenciesTab() {
         loadScanData(scansData[0].id);
       }
     } catch (error) {
-      console.error('Failed to load latest scan:', error);
+      // Failed to load latest scan
     }
   };
 
@@ -43,7 +43,7 @@ export default function DependenciesTab() {
       const data = await fetchScanData(scanId);
       setScanData(data);
     } catch (error) {
-      console.error('Failed to load scan data:', error);
+      // Failed to load scan data
       setScanData(null);
     } finally {
       setLoading(false);

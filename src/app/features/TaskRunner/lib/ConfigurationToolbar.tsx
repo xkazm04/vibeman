@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Scroll, Github } from 'lucide-react';
+import { FileText, Scroll, Github, Camera } from 'lucide-react';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { useGitConfig } from '../sub_Git/useGitConfig';
+import { useScreenshotConfig } from '../sub_Screenshot/useScreenshotConfig';
 import ExecutionPromptEditor from './ExecutionPromptEditor';
 import GitConfigModalContent from '../sub_Git/GitConfigModalContent';
 
@@ -41,6 +42,7 @@ const IconButton: React.FC<IconButtonProps> = ({
 export default function ConfigurationToolbar() {
   const { showModal, hideModal } = useGlobalModal();
   const { gitEnabled, setGitEnabled } = useGitConfig();
+  const { screenshotEnabled, setScreenshotEnabled } = useScreenshotConfig();
 
   // Log streaming toggle (default: true)
   const [logStreamingEnabled, setLogStreamingEnabled] = useState(() => {
@@ -74,6 +76,10 @@ export default function ConfigurationToolbar() {
 
   const handleToggleLogStreaming = () => {
     setLogStreamingEnabled(prev => !prev);
+  };
+
+  const handleToggleScreenshot = () => {
+    setScreenshotEnabled(prev => !prev);
   };
 
   const handleOpenGitConfig = () => {
@@ -124,6 +130,15 @@ export default function ConfigurationToolbar() {
         title={logStreamingEnabled ? 'Log streaming enabled' : 'Log streaming disabled'}
         isActive={logStreamingEnabled}
         activeColor="text-purple-400 hover:text-purple-300"
+      />
+
+      {/* Camera Icon - Screenshot */}
+      <IconButton
+        onClick={handleToggleScreenshot}
+        icon={Camera}
+        title={screenshotEnabled ? 'Screenshot after completion enabled' : 'Screenshot after completion disabled'}
+        isActive={screenshotEnabled}
+        activeColor="text-cyan-400 hover:text-cyan-300"
       />
 
       {/* Github Icon */}

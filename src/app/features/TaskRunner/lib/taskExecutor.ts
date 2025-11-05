@@ -6,6 +6,7 @@ import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app
 import type { ProjectRequirement, TaskRunnerActions } from './types';
 import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
 import type { GitConfig } from '../sub_Git/useGitConfig';
+import { getContextIdFromRequirement, triggerScreenshotCapture } from '../sub_Screenshot/screenshotApi';
 import { BatchStorage } from './batchStorage';
 
 /**
@@ -181,6 +182,26 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
       throw new Error('API failed to become ready after health checks');
     }
 
+    // Get git configuration from localStorage
+    const gitEnabled = typeof window !== 'undefined' && localStorage.getItem('taskRunner_gitEnabled') === 'true';
+    let gitConfig = undefined;
+
+    if (gitEnabled && typeof window !== 'undefined') {
+      try {
+        const storedConfig = localStorage.getItem('taskRunner_gitConfig');
+        if (storedConfig) {
+          const parsedConfig = JSON.parse(storedConfig);
+          gitConfig = {
+            enabled: true,
+            commands: parsedConfig.commands || ['git add .', 'git commit -m "{commitMessage}"', 'git push'],
+            commitMessage: parsedConfig.commitMessageTemplate?.replace('{requirementName}', req.requirementName) || `Auto-commit: ${req.requirementName}`
+          };
+        }
+      } catch (err) {
+        console.warn('Failed to parse git config from localStorage:', err);
+      }
+    }
+
     // Start async execution with retry logic for transient errors
     let taskId: string;
     let retryCount = 0;
@@ -191,7 +212,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
         const result = await executeRequirementAsync(
           req.projectPath,
           req.requirementName,
-          req.projectId
+          req.projectId,
+          gitConfig
         );
         taskId = result.taskId;
         break; // Success, exit retry loop
@@ -256,11 +278,24 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
 
           // Handle completion
           if (task.status === 'completed') {
-            // Check if git mode is enabled
-            const gitEnabled = typeof window !== 'undefined' && localStorage.getItem('taskRunner_gitEnabled') === 'true';
+            // Note: Git operations are now handled by Claude Code in the prompt
+            // The executeGitWorkflow function below is deprecated and kept for backward compatibility
+            // If git is enabled, Claude Code will execute git commands as part of the requirement execution
 
-            if (gitEnabled) {
-              await executeGitWorkflow(req, setError);
+            // Trigger screenshot capture if enabled (fire-and-forget, non-blocking)
+            const screenshotEnabled = typeof window !== 'undefined' && localStorage.getItem('taskRunner_screenshotEnabled') === 'true';
+            if (screenshotEnabled) {
+              // Get context_id from the idea associated with this requirement
+              getContextIdFromRequirement(req.requirementName).then(contextId => {
+                if (contextId) {
+                  console.log(`[TaskExecutor] Triggering screenshot for context: ${contextId}`);
+                  triggerScreenshotCapture(contextId);
+                } else {
+                  console.log(`[TaskExecutor] No context_id found for requirement: ${req.requirementName}, skipping screenshot`);
+                }
+              }).catch(err => {
+                console.warn(`[TaskExecutor] Screenshot trigger error (non-blocking):`, err);
+              });
             }
 
             // Update idea status to 'implemented' if this requirement came from an idea

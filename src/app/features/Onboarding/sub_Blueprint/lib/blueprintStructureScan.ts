@@ -3,7 +3,6 @@
  * Handles project structure analysis and violation detection
  */
 
-import { useBlueprintStore } from '../store/blueprintStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
 export interface ScanResult {

@@ -196,17 +196,32 @@ export default function DarkBlueprint() {
         // Mark as complete
         completeScan();
 
-        // Create event for successful scan
-        if (buttonConfig.eventTitle && activeProject) {
-          await createScanEvent(buttonConfig.eventTitle, scanId);
-        }
-
         // Build decision data
         const decisionData = buttonConfig.scanHandler.buildDecision(result);
 
-        // If decision data exists, add to queue
+        // If decision data exists, wrap onAccept to create event after successful acceptance
         if (decisionData) {
+          const originalOnAccept = decisionData.onAccept;
+          
+          // Wrap onAccept to create event after successful acceptance
+          decisionData.onAccept = async () => {
+            // Execute original accept logic
+            await originalOnAccept();
+            
+            // Create event only after successful acceptance
+            if (buttonConfig.eventTitle && activeProject) {
+              await createScanEvent(buttonConfig.eventTitle, scanId);
+            }
+          };
+
+          // Add to decision queue
           addDecision(decisionData);
+        } else {
+          // If no decision needed (scan completed without user input needed),
+          // create event immediately
+          if (buttonConfig.eventTitle && activeProject) {
+            await createScanEvent(buttonConfig.eventTitle, scanId);
+          }
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';

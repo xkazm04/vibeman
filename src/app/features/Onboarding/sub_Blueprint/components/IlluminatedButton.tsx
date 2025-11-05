@@ -206,7 +206,7 @@ export default function IlluminatedButton({
       </motion.button>
 
       {/* Days ago indicator (top left of button) */}
-      {showDaysAgo && daysAgo !== null && daysAgo > 0 && (
+      {showDaysAgo && daysAgo !== null && (
         <div className="absolute -left-8 top-1/2 -translate-y-1/2">
           <span className={`text-xs font-mono ${daysAgo > 7 ? 'text-orange-500' : 'text-green-500'}`}>
             {daysAgo}d

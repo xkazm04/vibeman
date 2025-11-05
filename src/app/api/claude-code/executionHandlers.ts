@@ -17,18 +17,25 @@ interface ExecutionResult {
   sessionLimitReached?: boolean;
 }
 
+export interface GitExecutionConfig {
+  enabled: boolean;
+  commands: string[];
+  commitMessage: string;
+}
+
 /**
  * Queues a requirement for async execution
  */
 export async function queueExecution(
   projectPath: string,
   requirementName: string,
-  projectId?: string
+  projectId?: string,
+  gitConfig?: GitExecutionConfig
 ): Promise<NextResponse> {
-  logger.info('Queuing requirement for execution', { requirementName, projectId });
+  logger.info('Queuing requirement for execution', { requirementName, projectId, gitEnabled: gitConfig?.enabled });
 
   const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-  const taskId = executionQueue.addTask(projectPath, requirementName, projectId);
+  const taskId = executionQueue.addTask(projectPath, requirementName, projectId, gitConfig);
 
   logger.info('Task queued successfully', { taskId });
 

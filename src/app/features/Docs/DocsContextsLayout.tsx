@@ -48,7 +48,7 @@ export default function DocsContextsLayout() {
           setContextGroups(data.data.groups || []);
         }
       } catch (error) {
-        console.error('[DocsContextsLayout] Error fetching contexts:', error);
+        // Error fetching contexts
         setContexts([]);
         setContextGroups([]);
       } finally {

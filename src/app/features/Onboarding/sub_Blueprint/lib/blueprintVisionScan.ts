@@ -12,8 +12,21 @@ export interface ScanResult {
   data?: any;
 }
 
+export interface DecisionData {
+  type: string;
+  title: string;
+  description: string;
+  count?: number;
+  severity?: 'info' | 'warning' | 'error';
+  projectId?: string;
+  projectPath?: string;
+  data?: any;
+  onAccept: () => Promise<void>;
+  onReject: () => Promise<void>;
+}
+
 /**
- * Execute vision scan (generate high-level AI docs)
+ * Execute vision scan (generate high-level AI docs, but don't save yet)
  */
 export async function executeVisionScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
@@ -58,41 +71,13 @@ export async function executeVisionScan(): Promise<ScanResult> {
 
     console.log('[VisionScan] Documentation generated successfully');
 
-    // Auto-save to context/high.md
-    const saveResponse = await fetch('/api/disk/save-file', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        folderPath: 'context',
-        fileName: 'high.md',
-        content: result.review,
-        projectPath: activeProject.path,
-      }),
-    });
-
-    if (!saveResponse.ok) {
-      return {
-        success: false,
-        error: 'Generated docs but failed to save to context/high.md',
-      };
-    }
-
-    const saveResult = await saveResponse.json();
-
-    if (!saveResult.success) {
-      return {
-        success: false,
-        error: saveResult.error || 'Failed to save documentation',
-      };
-    }
-
-    console.log('[VisionScan] ✅ Saved to context/high.md');
-
+    // Return the generated content without saving yet
     return {
       success: true,
       data: {
         filePath: 'context/high.md',
         content: result.review,
+        projectPath: activeProject.path,
       },
     };
   } catch (error) {
@@ -105,9 +90,64 @@ export async function executeVisionScan(): Promise<ScanResult> {
 }
 
 /**
- * Vision scan doesn't need user decision - it runs directly
- * Returns null to indicate no decision panel needed
+ * Build decision data for vision scan results
+ * User must accept to save the documentation to context/high.md
  */
-export function buildDecisionData(): null {
-  return null;
+export function buildDecisionData(result: ScanResult): DecisionData | null {
+  if (!result.success || !result.data) {
+    return null;
+  }
+
+  const { activeProject } = useActiveProjectStore.getState();
+
+  if (!activeProject) {
+    return null;
+  }
+
+  const { content, filePath, projectPath } = result.data;
+  const wordCount = content.split(/\s+/).length;
+
+  return {
+    type: 'vision-scan',
+    title: 'Project Documentation Generated',
+    description: `Generated high-level project documentation (${wordCount} words).\n\nThis will be saved to: ${filePath}\n\nAccept to save the documentation, or Reject to discard.`,
+    count: 1,
+    severity: 'info',
+    projectId: activeProject.id,
+    projectPath: activeProject.path,
+    data: { content, filePath, projectPath },
+
+    // Accept: Save documentation to context/high.md
+    onAccept: async () => {
+      console.log('[VisionScan] User accepted - saving documentation...');
+
+      const saveResponse = await fetch('/api/disk/save-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          folderPath: 'context',
+          fileName: 'high.md',
+          content: content,
+          projectPath: projectPath,
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save documentation to context/high.md');
+      }
+
+      const saveResult = await saveResponse.json();
+
+      if (!saveResult.success) {
+        throw new Error(saveResult.error || 'Failed to save documentation');
+      }
+
+      console.log('[VisionScan] ✅ Saved to context/high.md');
+    },
+
+    // Reject: Discard documentation
+    onReject: async () => {
+      console.log('[VisionScan] User rejected - documentation discarded');
+    },
+  };
 }

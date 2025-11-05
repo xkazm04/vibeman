@@ -59,7 +59,7 @@ const ReflectorLayout = () => {
         setIdeas(data.ideas || []);
       }
     } catch (error) {
-      console.error('Error loading implemented ideas:', error);
+      // Error loading implemented ideas
     } finally {
       setLoading(false);
     }

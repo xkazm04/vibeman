@@ -6,11 +6,18 @@
 import { executeRequirement } from './claudeCodeManager';
 import { logger } from '@/lib/logger';
 
+export interface GitExecutionConfig {
+  enabled: boolean;
+  commands: string[];
+  commitMessage: string;
+}
+
 export interface ExecutionTask {
   id: string;
   projectPath: string;
   requirementName: string;
   projectId?: string;
+  gitConfig?: GitExecutionConfig;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'session-limit';
   progress: string[];
   output?: string;
@@ -38,7 +45,8 @@ class ClaudeExecutionQueue {
   addTask(
     projectPath: string,
     requirementName: string,
-    projectId?: string
+    projectId?: string,
+    gitConfig?: GitExecutionConfig
   ): string {
     // Use requirement name as task ID for stable identification
     // This ensures the task ID matches what the frontend expects
@@ -49,6 +57,7 @@ class ClaudeExecutionQueue {
       projectPath,
       requirementName,
       projectId,
+      gitEnabled: gitConfig?.enabled,
       currentQueueSize: this.tasks.size,
     });
 
@@ -57,6 +66,7 @@ class ClaudeExecutionQueue {
       projectPath,
       requirementName,
       projectId,
+      gitConfig,
       status: 'pending',
       progress: [],
     };
@@ -178,7 +188,7 @@ class ClaudeExecutionQueue {
     task.progress.push(this.createProgressEntry('Execution started'));
 
     try {
-      logger.debug('Calling executeRequirement...', { taskId: task.id });
+      logger.debug('Calling executeRequirement...', { taskId: task.id, gitEnabled: task.gitConfig?.enabled });
 
       // Execute in background (non-blocking)
       const result = await executeRequirement(
@@ -188,7 +198,8 @@ class ClaudeExecutionQueue {
         (progressMsg: string) => {
           // Capture progress messages
           task.progress.push(this.createProgressEntry(progressMsg));
-        }
+        },
+        task.gitConfig // Pass git configuration as 5th parameter
       );
 
       logger.debug('Received execution result', {

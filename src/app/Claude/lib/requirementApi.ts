@@ -30,12 +30,22 @@ export async function loadRequirements(projectPath: string): Promise<string[]> {
 }
 
 /**
+ * Git configuration for requirement execution
+ */
+export interface GitExecutionConfig {
+  enabled: boolean;
+  commands: string[];
+  commitMessage: string;
+}
+
+/**
  * Execute a requirement (async mode - non-blocking)
  */
 export async function executeRequirementAsync(
   projectPath: string,
   requirementName: string,
-  projectId?: string
+  projectId?: string,
+  gitConfig?: GitExecutionConfig
 ): Promise<{ success: boolean; taskId: string }> {
   try {
     const response = await fetch('/api/claude-code', {
@@ -47,6 +57,7 @@ export async function executeRequirementAsync(
         requirementName,
         projectId,
         async: true,
+        gitConfig,
       }),
     });
 

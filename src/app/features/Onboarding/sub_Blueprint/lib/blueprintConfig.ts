@@ -145,20 +145,6 @@ export const BLUEPRINT_COLUMNS: ColumnConfig[] = [
           buildDecision: unusedScan.buildDecisionData,
         },
       },
-      {
-        id: 'dependencies',
-        label: 'Dependencies',
-        icon: GitBranch,
-        color: 'purple',
-        action: 'scan',
-      },
-      {
-        id: 'ideas',
-        label: 'Ideas',
-        icon: Lightbulb,
-        color: 'amber',
-        action: 'scan',
-      },
     ],
   },
   {

@@ -111,8 +111,12 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
     return null;
   }
 
-  const potentialFiles = errorGroups.length;
-  const description = `Found ${totalErrors} build error${totalErrors > 1 ? 's' : ''} and ${totalWarnings} warning${totalWarnings > 1 ? 's' : ''}.\n\nBuild command: ${buildCommand}\n\nThis will create ${potentialFiles} Claude Code requirement file${potentialFiles > 1 ? 's' : ''} for fixing.`;
+  // Calculate potential files - use errorGroups length if available, otherwise estimate from totalErrors
+  const potentialFiles = errorGroups && errorGroups.length > 0 
+    ? errorGroups.length 
+    : Math.min(totalErrors, 10); // Estimate: max 10 files, or one per error if fewer
+
+  const description = `Found ${totalErrors} build error${totalErrors > 1 ? 's' : ''} and ${totalWarnings} warning${totalWarnings > 1 ? 's' : ''}.\n\nBuild command: ${buildCommand}\n\nThis will create ${potentialFiles} Claude Code requirement file${potentialFiles !== 1 ? 's' : ''} for fixing.`;
 
   return {
     type: 'build-scan',
@@ -147,7 +151,8 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
         throw new Error(result.error || 'Failed to create requirement files');
       }
 
-      console.log(`[BuildScan] ✅ Created ${result.requirementFiles.length} requirement files`);
+      const filesCreated = result.requirementFiles?.length || 0;
+      console.log(`[BuildScan] ✅ Created ${filesCreated} requirement file${filesCreated !== 1 ? 's' : ''}`);
     },
 
     // Reject: Log rejection

@@ -40,7 +40,7 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
     try {
       await removeContext(context.id);
     } catch (error) {
-      console.error('Failed to remove context:', error);
+      // Failed to remove context
     }
   };
 
@@ -133,7 +133,7 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
     try {
       await removeContext(context.id);
     } catch (error) {
-      console.error('Failed to delete context:', error);
+      // Failed to delete context
     }
     setShowContextMenu(false);
   };
@@ -157,7 +157,7 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
   };
 
   const handleFileSave = async (filePath: string, content: string) => {
-    console.log('Saving file:', filePath, 'with content length:', content.length);
+    // Saving file
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
         if (Math.random() > 0.1) {

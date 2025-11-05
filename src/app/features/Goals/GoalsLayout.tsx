@@ -14,6 +14,7 @@ import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import { getNextOrder } from './sub_GoalModal/lib';
 import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList';
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
+import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
 
 interface GoalsLayoutProps {
   projectId: string | null;
@@ -166,27 +167,38 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
           </div>
         </motion.div>
 
-        {/* Main Area - Implementation Logs and Screen Catalog */}
-        <div className="flex flex-row flex-wrap gap-4 overflow-hidden bg-gray-950/50 p-4">
-          {/* Implementation Logs - Left */}
-          <div className="flex overflow-y-auto">
-            {projectId ? (
-              <ImplementationLogList projectId={projectId} limit={10} />
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-24"
-              >
-                <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-400 mb-2">No Project Selected</h3>
-                <p className="text-gray-500">
-                  Select a project from the toolbar above to view implementation logs
-                </p>
-              </motion.div>
+        {/* Main Area - Implementation Logs, Events Bar Chart, and Screen Catalog */}
+        <div className="flex flex-col gap-4 overflow-hidden bg-gray-950/50 p-4">
+          {/* Top Row - Implementation Logs and Events Bar Chart */}
+          <div className="flex flex-row gap-4">
+            {/* Implementation Logs - Left */}
+            <div className="flex overflow-y-auto">
+              {projectId ? (
+                <ImplementationLogList projectId={projectId} limit={10} />
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-24"
+                >
+                  <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-400 mb-2">No Project Selected</h3>
+                  <p className="text-gray-500">
+                    Select a project from the toolbar above to view implementation logs
+                  </p>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Events Bar Chart - Right */}
+            {projectId && (
+              <div className="flex overflow-y-auto">
+                <EventsBarChart projectId={projectId} limit={10} />
+              </div>
             )}
           </div>
 
+          {/* Bottom Row - Screen Catalog */}
           <ScreenCatalog projectId={projectId} />
         </div>
       </div>

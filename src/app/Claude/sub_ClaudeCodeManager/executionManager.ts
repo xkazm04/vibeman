@@ -9,6 +9,12 @@ import { buildExecutionPrompt } from './executionPrompt';
  * Handles spawning and managing Claude Code CLI processes
  */
 
+export interface GitExecutionConfig {
+  enabled: boolean;
+  commands: string[];
+  commitMessage: string;
+}
+
 /**
  * Execute a requirement using Claude Code CLI
  * Uses headless mode with proper slash command syntax
@@ -18,7 +24,8 @@ export async function executeRequirement(
   projectPath: string,
   requirementName: string,
   projectId?: string,
-  onProgress?: (data: string) => void
+  onProgress?: (data: string) => void,
+  gitConfig?: GitExecutionConfig
 ): Promise<{
   success: boolean;
   output?: string;
@@ -87,6 +94,9 @@ export async function executeRequirement(
           projectPath,
           projectId,
           dbPath,
+          gitEnabled: gitConfig?.enabled,
+          gitCommands: gitConfig?.commands,
+          gitCommitMessage: gitConfig?.commitMessage,
         });
 
         // Write prompt to temporary file to avoid shell escaping issues

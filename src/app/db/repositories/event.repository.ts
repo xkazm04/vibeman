@@ -123,5 +123,26 @@ export const eventRepository = {
     }
 
     return result;
+  },
+
+  /**
+   * Get top event counts by title from the last week
+   */
+  getTopEventCountsLastWeek: (projectId: string, limit: number = 10): Array<{ title: string; count: number }> => {
+    const db = getDatabase();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const weekAgoISO = oneWeekAgo.toISOString();
+
+    const stmt = db.prepare(`
+      SELECT title, COUNT(*) as count
+      FROM events
+      WHERE project_id = ? AND created_at >= ?
+      GROUP BY title
+      ORDER BY count DESC
+      LIMIT ?
+    `);
+
+    return stmt.all(projectId, weekAgoISO, limit) as Array<{ title: string; count: number }>;
   }
 };

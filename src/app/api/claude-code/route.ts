@@ -125,22 +125,22 @@ export async function POST(request: NextRequest) {
 
     // Execute requirement (async mode - queued execution)
     if (action === 'execute-requirement-async') {
-      const { projectId } = body;
+      const { projectId, gitConfig } = body;
       const validationError = validateRequired({ requirementName }, ['requirementName']);
       if (validationError) return validationError;
 
-      return queueExecution(projectPath, requirementName, projectId);
+      return queueExecution(projectPath, requirementName, projectId, gitConfig);
     }
 
     // Execute requirement (sync mode - blocking, legacy)
     if (action === 'execute-requirement') {
-      const { projectId, async } = body;
+      const { projectId, async, gitConfig } = body;
       const validationError = validateRequired({ requirementName }, ['requirementName']);
       if (validationError) return validationError;
 
       // If async mode requested, delegate to async handler
       if (async === true) {
-        return queueExecution(projectPath, requirementName, projectId);
+        return queueExecution(projectPath, requirementName, projectId, gitConfig);
       }
 
       // Synchronous execution (blocking)

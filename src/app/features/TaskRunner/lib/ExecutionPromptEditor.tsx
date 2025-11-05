@@ -63,18 +63,24 @@ IMPORTANT INSTRUCTIONS:
 - Run any tests if specified
 - Ensure all changes are complete before finishing
 
-## Context Reference Updates
+## Context Updates
 
-After implementing changes, if the requirement references a specific CONTEXT (feature group), update the context documentation:
+**CRITICAL**: If this requirement references a specific CONTEXT name or feature area, you MUST update the context documentation using the context update skill.
 
-1. Look for \`.context\` files in the project that match the feature being implemented
-2. Update the context file with:
-   - New files created
-   - Modified components
-   - Updated functionality
-   - New patterns introduced
+To update a context:
+1. Invoke the \`update-context\` skill by running: \`/skill update-context\`
+2. The skill will guide you through:
+   - Identifying the correct context to update
+   - Analyzing the files you've changed
+   - Updating the context's file paths to include new/modified files
+   - Refreshing the context description to reflect your changes
 
-Example: If working on "authentication" feature, update \`contexts/authentication/.context\` with the changes.
+**When to use the context update skill:**
+- The requirement explicitly mentions a context name (e.g., "Update the Goals Management context")
+- You've created, modified, or deleted files within a feature area that has an existing context
+- Your changes significantly impact the architecture or capabilities of a feature
+
+**Important:** Always invoke the skill AFTER completing your implementation, as it needs to analyze your changes.
 
 ## File Structure Guidelines (Next.js/React Projects)
 
@@ -99,6 +105,35 @@ Examples:
 - Feature component: \`app/features/tasks/components/TaskCard.tsx\`
 - Feature helper: \`app/features/tasks/lib/taskValidation.ts\`
 - Reusable UI: \`app/components/ui/Button.tsx\`
+
+## Test Coverage Preparation
+
+**IMPORTANT**: For all interactive UI components (buttons, inputs, forms, modals, etc.), add \`data-testid\` attributes to enable automated testing.
+
+**Guidelines**:
+- Add \`data-testid\` to all clickable elements (buttons, links, icons)
+- Use descriptive, kebab-case naming: \`data-testid="submit-form-btn"\`
+- Include component context in the ID: \`data-testid="goal-delete-btn"\`, \`data-testid="project-settings-modal"\`
+- Add to form inputs: \`data-testid="email-input"\`, \`data-testid="password-input"\`
+- Add to list items for testing selection: \`data-testid="task-item-123"\`
+
+**Examples**:
+\\\`\\\`\\\`tsx
+<button onClick={handleSubmit} data-testid="create-goal-btn">
+  Create Goal
+</button>
+
+<input
+  type="text"
+  value={title}
+  onChange={handleChange}
+  data-testid="goal-title-input"
+/>
+
+<div className="modal" data-testid="delete-confirmation-modal">
+  ...
+</div>
+\\\`\\\`\\\`
 
 ## Implementation Logging
 
@@ -183,15 +218,19 @@ db.prepare(\`
 db.close();
 \`\`\`
 
+{{GIT_SECTION}}
+
 ## Final Checklist
 
 Before finishing:
 - [ ] All code changes implemented
+- [ ] Test IDs added to interactive components
 - [ ] Context documentation updated (if applicable)
 - [ ] File structure follows guidelines
 - [ ] UI components match existing theme
 - [ ] Implementation log entry created in database
 - [ ] Tests run successfully (if specified)
+- [ ] Git operations executed (if enabled)
 
 Begin implementation now.`;
 
@@ -241,13 +280,60 @@ export default function ExecutionPromptEditor({ onClose }: ExecutionPromptEditor
 
   // Render preview with variable examples
   const renderPreview = () => {
+    const exampleGitSection = `
+## Git Operations
+
+**IMPORTANT**: After completing all implementation and documentation tasks, execute the following git operations to commit and push your changes.
+
+**Git Commands to Execute (in order)**:
+1. \`git add .\`
+2. \`git commit -m "{commitMessage}"\`
+3. \`git push\`
+
+**Commit Message**: Auto-commit: {requirementName}
+
+**Instructions**:
+1. Verify all changes are complete and tested
+2. Execute each git command in sequence using the Bash tool
+3. If a command fails, analyze the error:
+   - **Non-fatal errors** (e.g., "nothing to commit", "working tree clean"): Continue to next command
+   - **Merge conflicts**: Attempt to resolve them or report the conflict clearly
+   - **Authentication errors**: Report the issue - do not attempt to fix authentication
+   - **Branch protection errors**: Report the issue - do not attempt to bypass protection rules
+4. Report the outcome of git operations (success or specific errors encountered)
+
+**Error Handling**:
+- Check git status before committing: \`git status\`
+- If there are no changes to commit, that's OK - report it and continue
+- If push is rejected (e.g., non-fast-forward), fetch and rebase: \`git fetch && git rebase origin/main\`
+- Always provide clear feedback about what happened
+
+**Example workflow**:
+\\\`\\\`\\\`bash
+# Check status
+git status
+
+# Add changes (if any)
+git add .
+
+# Commit with the specified message
+git commit -m "Auto-commit: {requirementName}"
+
+# Push to remote
+git push
+\\\`\\\`\\\`
+
+**Note**: Only proceed with git operations after ALL other tasks are complete (implementation, testing, logging, context updates).
+`;
+
     const exampleContent = content
       .replace(/\{\{REQUIREMENT_CONTENT\}\}/g, '[Your requirement content will appear here]')
       .replace(/\{\{DB_PATH\}\}/g, '/path/to/project/database/goals.db')
       .replace(/\{\{PROJECT_PATH\}\}/g, '/path/to/project')
       .replace(/\{\{PROJECT_ID\}\}/g, 'example-project-id')
       .replace(/\{\{PROJECT_ID_COMMENT\}\}/g, 'Project ID: `example-project-id`')
-      .replace(/\{\{PROJECT_ID_VALUE\}\}/g, ' (use: "example-project-id")');
+      .replace(/\{\{PROJECT_ID_VALUE\}\}/g, ' (use: "example-project-id")')
+      .replace(/\{\{GIT_SECTION\}\}/g, exampleGitSection);
 
     return exampleContent;
   };
