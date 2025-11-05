@@ -22,12 +22,7 @@ import {
 } from 'lucide-react';
 import { getInitializedRegistry } from './adapters';
 import { createScanBuilder } from './adapters/ScanBuilder';
-
-// Legacy imports for scans not yet migrated to adapters
-import * as photoScan from './blueprintPhotoScan';
-import * as visionScan from './blueprintVisionScan';
-import * as selectorsScan from './blueprintSelectorsScan';
-import * as unusedScan from './blueprintUnusedScan';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
 /**
  * Legacy scan result interface (for backward compatibility)
@@ -94,6 +89,7 @@ export interface ColumnConfig {
 
 /**
  * Build blueprint columns dynamically from the registry
+ * All scans are now registered in the ScanRegistry - no hard-coded imports needed!
  */
 function buildBlueprintColumns(): ColumnConfig[] {
   const registry = getInitializedRegistry();
@@ -102,67 +98,150 @@ function buildBlueprintColumns(): ColumnConfig[] {
   // Build columns from registry
   const columns = builder.buildColumns();
 
-  // TEMPORARY: Manually inject legacy scan handlers for scans not yet in adapters
-  // TODO: Migrate these scans to adapter system and remove this section
+  // Enhance buttons with registry-backed scan handlers
   return columns.map((col) => {
     const buttons = col.buttons.map((btn) => {
-      // Inject legacy scan handlers
-      if (btn.id === 'vision') {
+      // For buttons with adapters, create scan handlers that use the registry
+      if (btn.scanHandler) {
         return {
           ...btn,
           scanHandler: {
-            execute: visionScan.executeVisionScan,
-            buildDecision: visionScan.buildDecisionData,
-          },
-        };
-      }
-      if (btn.id === 'photo') {
-        return {
-          ...btn,
-          scanHandler: {
-            execute: photoScan.executePhotoScan,
-            buildDecision: photoScan.buildDecisionData,
-          },
-        };
-      }
-      if (btn.id === 'custom') {
-        // Rename 'custom' to 'selectors'
-        return {
-          ...btn,
-          id: 'selectors',
-          label: 'Selectors',
-          icon: Target,
-          scanHandler: {
-            execute: async () => {
+            execute: async (contextId?: string) => {
+              const { activeProject } = useActiveProjectStore.getState();
+              if (!activeProject) {
+                return {
+                  success: false,
+                  error: 'No active project selected',
+                };
+              }
+
+              // Execute scan via registry
+              const result = await registry.executeScan(
+                activeProject,
+                btn.id as any,
+                { contextId }
+              );
+
               return {
-                success: false,
-                error: 'Context ID is required for this scan',
+                success: result.success,
+                error: result.error,
+                data: result.data,
+                violations: result.data?.violations,
               };
             },
-            buildDecision: selectorsScan.buildDecisionData,
+            buildDecision: (result: ScanResult) => {
+              const { activeProject } = useActiveProjectStore.getState();
+              if (!activeProject) {
+                return null;
+              }
+
+              // Get the best adapter for this scan category
+              const adapter = registry.getBestAdapter(activeProject, btn.id as any);
+              if (!adapter) {
+                return null;
+              }
+
+              // Build decision using the adapter
+              return adapter.buildDecision(
+                {
+                  success: result.success,
+                  error: result.error,
+                  data: result.data,
+                },
+                activeProject
+              );
+            },
           },
         };
+      }
+
+      // Handle 'custom' category buttons (selectors, unused)
+      if (btn.id === 'custom') {
+        // Check if we have a selectors adapter registered
+        const { activeProject } = useActiveProjectStore.getState();
+        if (activeProject) {
+          const selectorsAdapter = registry.getAdapter('nextjs-selectors');
+          if (selectorsAdapter) {
+            return {
+              ...btn,
+              id: 'selectors',
+              label: 'Selectors',
+              icon: Target,
+              scanHandler: {
+                execute: async (contextId?: string) => {
+                  if (!activeProject) {
+                    return { success: false, error: 'No active project selected' };
+                  }
+                  if (!contextId) {
+                    return { success: false, error: 'Context ID is required for this scan' };
+                  }
+
+                  const result = await registry.executeAdapter(selectorsAdapter, activeProject, {
+                    contextId,
+                  });
+
+                  return {
+                    success: result.success,
+                    error: result.error,
+                    data: result.data,
+                  };
+                },
+                buildDecision: (result: ScanResult) => {
+                  if (!activeProject) return null;
+                  return selectorsAdapter.buildDecision(
+                    { success: result.success, error: result.error, data: result.data },
+                    activeProject
+                  );
+                },
+              },
+            };
+          }
+        }
       }
 
       return btn;
     });
 
-    // Special handling for backlog column - add 'unused' button if not present
+    // Special handling for backlog column - add 'unused' button from registry
     if (col.id === 'backlog') {
       const hasUnused = buttons.some((btn) => btn.id === 'unused');
       if (!hasUnused) {
-        buttons.push({
-          id: 'unused',
-          label: 'Unused',
-          icon: Trash2,
-          color: 'red',
-          action: 'scan',
-          eventTitle: 'Unused Code Scan Completed',
-          scanHandler: {
-            execute: unusedScan.executeUnusedScan,
-            buildDecision: unusedScan.buildDecisionData,
-          },
-        });
+        const { activeProject } = useActiveProjectStore.getState();
+        if (activeProject) {
+          const unusedAdapter = registry.getAdapter('nextjs-unused');
+          if (unusedAdapter) {
+            buttons.push({
+              id: 'unused',
+              label: 'Unused',
+              icon: Trash2,
+              color: 'red',
+              action: 'scan',
+              eventTitle: 'Unused Code Scan Completed',
+              scanHandler: {
+                execute: async () => {
+                  if (!activeProject) {
+                    return { success: false, error: 'No active project selected' };
+                  }
+
+                  const result = await registry.executeAdapter(unusedAdapter, activeProject);
+
+                  return {
+                    success: result.success,
+                    error: result.error,
+                    data: result.data,
+                  };
+                },
+                buildDecision: (result: ScanResult) => {
+                  if (!activeProject) return null;
+                  return unusedAdapter.buildDecision(
+                    { success: result.success, error: result.error, data: result.data },
+                    activeProject
+                  );
+                },
+              },
+            });
+          }
+        }
       }
     }
 
