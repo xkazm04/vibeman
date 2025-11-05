@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon, Loader2 } from 'lucide-react';
+import { sanitizeContent } from '@/lib/sanitize';
 
 export type WizardStepSeverity = 'info' | 'warning' | 'error' | 'success';
 
@@ -104,6 +105,10 @@ export default function WizardStepPanel({
   const colors = SEVERITY_COLORS[severity];
   const panelRef = useRef<HTMLDivElement>(null);
   const firstActionRef = useRef<HTMLButtonElement>(null);
+
+  // Sanitize title and description to prevent XSS
+  const sanitizedTitle = useMemo(() => sanitizeContent(title), [title]);
+  const sanitizedDescription = useMemo(() => sanitizeContent(description), [description]);
 
   // Focus trap: Focus first action button when panel appears
   useEffect(() => {
@@ -208,9 +213,8 @@ export default function WizardStepPanel({
                   transition={{ delay: 0.1 }}
                   className={`text-2xl font-bold ${colors.text} mb-2`}
                   data-testid={`${testId}-title`}
-                >
-                  {title}
-                </motion.h3>
+                  dangerouslySetInnerHTML={{ __html: sanitizedTitle }}
+                />
 
                 <motion.p
                   initial={{ opacity: 0, x: -20 }}
@@ -218,9 +222,8 @@ export default function WizardStepPanel({
                   transition={{ delay: 0.15 }}
                   className="text-sm text-gray-400"
                   data-testid={`${testId}-description`}
-                >
-                  {description}
-                </motion.p>
+                  dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+                />
 
                 {/* Custom content slot */}
                 {customContent && (
