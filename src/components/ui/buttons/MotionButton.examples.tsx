@@ -27,7 +27,7 @@ import {
 
 export function BasicButton() {
   return (
-    <MotionButton onClick={() => {/* Handle click */}}>
+    <MotionButton onClick={() => console.log("click")}>
       Click me
     </MotionButton>
   );
@@ -345,7 +345,7 @@ export function BeforeMigration() {
       {/* This is the old pattern - DO NOT USE */}
       {/*
       <motion.button
-        onClick={() => {/* Handle click */}}
+        onClick={() => console.log("click")}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-xs"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
