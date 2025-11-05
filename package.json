@@ -25,6 +25,7 @@
     "chokidar": "^4.0.3",
     "chromadb": "^3.0.10",
     "d3": "^7.9.0",
+    "focus-trap-react": "^11.0.4",
     "framer-motion": "^12.23.0",
     "fs": "^0.0.1-security",
     "glob": "^11.0.3",
