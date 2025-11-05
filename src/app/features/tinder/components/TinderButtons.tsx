@@ -16,7 +16,7 @@ export default function ActionButtons({
   disabled = false,
 }: ActionButtonsProps) {
   return (
-    <div className="flex items-center justify-center gap-6">
+    <div className="flex items-center justify-center gap-6 pt-20">
       {/* Reject Button */}
       <motion.button
         whileHover={{ scale: disabled ? 1 : 1.1 }}

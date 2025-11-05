@@ -342,8 +342,7 @@ export function CustomIconSize() {
 export function BeforeMigration() {
   return (
     <div className="hidden">
-      {/* This is the old pattern - DO NOT USE */}
-      {/*
+      {/* This is the old pattern - DO NOT USE
       <motion.button
         onClick={() => console.log("click")}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-xs"
