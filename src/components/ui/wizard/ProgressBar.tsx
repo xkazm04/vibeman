@@ -9,6 +9,7 @@ interface ProgressBarProps {
   variant?: 'cyan' | 'green' | 'blue' | 'purple';
   height?: 'sm' | 'md' | 'lg';
   className?: string;
+  'data-testid'?: string;
 }
 
 /**
@@ -26,7 +27,8 @@ export default function ProgressBar({
   showPercentage = true,
   variant = 'cyan',
   height = 'md',
-  className = ''
+  className = '',
+  'data-testid': dataTestId,
 }: ProgressBarProps) {
   const variants = {
     cyan: 'from-cyan-500 to-blue-500',
@@ -42,7 +44,7 @@ export default function ProgressBar({
   };
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-2 ${className}`} data-testid={dataTestId}>
       {(label || showPercentage) && (
         <div className="flex items-center justify-between text-sm">
           {label && <span className="text-gray-300">{label}</span>}

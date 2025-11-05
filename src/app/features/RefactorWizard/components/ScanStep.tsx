@@ -62,7 +62,7 @@ export default function ScanStep() {
           </div>
 
           {/* AI Toggle */}
-          <label className="flex items-center justify-between p-4 bg-black/30 border border-white/10 rounded-lg cursor-pointer hover:bg-black/40 hover:border-cyan-500/20 transition-all duration-200 group">
+          <label className="flex items-center justify-between p-4 bg-black/30 border border-white/10 rounded-lg cursor-pointer hover:bg-black/40 hover:border-cyan-500/20 transition-all duration-200 group" data-testid="ai-analysis-toggle-label">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center border border-purple-500/30 group-hover:border-purple-500/50 transition-colors">
                 <Sparkles className="w-5 h-5 text-purple-400" />
@@ -79,6 +79,7 @@ export default function ScanStep() {
               checked={useAI}
               onChange={(e) => setUseAI(e.target.checked)}
               className="w-5 h-5 accent-cyan-500 cursor-pointer"
+              data-testid="ai-analysis-toggle"
             />
           </label>
 

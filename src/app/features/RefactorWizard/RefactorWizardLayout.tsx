@@ -29,6 +29,7 @@ export default function RefactorWizardLayout() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             onClick={handleClose}
+            data-testid="wizard-backdrop"
           />
 
           {/* Wizard Modal */}
@@ -40,7 +41,7 @@ export default function RefactorWizardLayout() {
             className="fixed inset-0 z-50 flex items-center justify-center p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-black/90 border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/20 max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-black/90 border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/20 max-w-6xl w-full max-h-[90vh] overflow-hidden" data-testid="refactor-wizard-modal">
               {/* Header */}
               <div className="relative px-8 py-6 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-blue-500/10">
                 <div className="flex items-center justify-between">

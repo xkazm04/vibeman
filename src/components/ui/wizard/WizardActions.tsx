@@ -55,6 +55,7 @@ export default function WizardActions({
           onClick={onBack}
           disabled={backDisabled}
           className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          data-testid="wizard-back-button"
         >
           <BackIcon className="w-5 h-5" />
           <span>{backLabel}</span>
@@ -74,6 +75,7 @@ export default function WizardActions({
           onClick={onNext}
           disabled={nextDisabled || nextLoading}
           className={`px-6 py-3 bg-gradient-to-r ${nextVariants[nextVariant]} disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-lg disabled:shadow-none flex items-center space-x-2 ${!onBack ? 'ml-auto' : ''}`}
+          data-testid="wizard-next-button"
         >
           {nextLoading ? (
             <>

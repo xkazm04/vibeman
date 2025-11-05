@@ -74,6 +74,7 @@ export default function ReviewStep() {
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value as any)}
             className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+            data-testid="filter-category-select"
           >
             <option value="all">All Categories</option>
             <option value="performance">Performance</option>
@@ -89,6 +90,7 @@ export default function ReviewStep() {
             value={filterSeverity}
             onChange={(e) => setFilterSeverity(e.target.value as any)}
             className="bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+            data-testid="filter-severity-select"
           >
             <option value="all">All Severities</option>
             <option value="critical">Critical</option>
@@ -117,7 +119,7 @@ export default function ReviewStep() {
       </div>
 
       {/* Opportunities List */}
-      <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+      <div className="space-y-3 max-h-96 overflow-y-auto pr-2" data-testid="opportunities-list">
         {filteredOpportunities.map((opp, index) => (
           <OpportunityCard
             key={opp.id}
@@ -129,7 +131,7 @@ export default function ReviewStep() {
         ))}
 
         {filteredOpportunities.length === 0 && (
-          <div className="text-center py-12">
+          <div className="text-center py-12" data-testid="no-opportunities-message">
             <Info className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">No opportunities match your filters</p>
           </div>
@@ -141,6 +143,7 @@ export default function ReviewStep() {
         <button
           onClick={() => setCurrentStep('scan')}
           className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all"
+          data-testid="back-to-scan-button"
         >
           Back
         </button>

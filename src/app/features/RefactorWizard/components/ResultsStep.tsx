@@ -10,6 +10,7 @@ import {
   WizardActions,
 } from '@/components/ui/wizard';
 import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { BreakdownCard } from './BreakdownCard';
 
 export default function ResultsStep() {
@@ -64,6 +65,7 @@ export default function ResultsStep() {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="relative overflow-hidden bg-gradient-to-r from-green-500/10 via-cyan-500/10 to-blue-500/10 border border-green-500/30 rounded-xl p-6"
+        data-testid="results-success-banner"
       >
         <div className="flex items-start gap-4">
           <div className="flex-shrink-0">
@@ -86,7 +88,7 @@ export default function ResultsStep() {
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-3" data-testid="results-stats-grid">
         <StatCard
           label="Total Issues"
           value={selectedOpps.length}
@@ -155,7 +157,7 @@ export default function ResultsStep() {
       </div>
 
       {/* Next Steps */}
-      <CyberCard variant="glow">
+      <CyberCard variant="glow" data-testid="next-steps-card">
         <h4 className="text-white font-medium mb-3 flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-cyan-400" />
           Next Steps

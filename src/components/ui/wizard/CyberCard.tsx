@@ -9,6 +9,7 @@ interface CyberCardProps {
   variant?: 'default' | 'dark' | 'glow';
   hover?: boolean;
   onClick?: () => void;
+  'data-testid'?: string;
 }
 
 /**
@@ -26,7 +27,8 @@ export default function CyberCard({
   className = '',
   variant = 'default',
   hover = false,
-  onClick
+  onClick,
+  'data-testid': dataTestId,
 }: CyberCardProps) {
   const variants = {
     default: 'bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10',
@@ -44,6 +46,7 @@ export default function CyberCard({
     <Component
       onClick={onClick}
       className={`border rounded-xl p-6 transition-all duration-200 ${variants[variant]} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      data-testid={dataTestId}
       {...motionProps}
     >
       {children}

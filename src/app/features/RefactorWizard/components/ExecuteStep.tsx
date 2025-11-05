@@ -104,7 +104,7 @@ export default function ExecuteStep() {
       />
 
       {/* Batch Info */}
-      <CyberCard>
+      <CyberCard data-testid="batch-info-card">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -143,12 +143,12 @@ export default function ExecuteStep() {
       </CyberCard>
 
       {/* Batch Breakdown */}
-      <CyberCard variant="dark">
+      <CyberCard variant="dark" data-testid="batch-breakdown-card">
         <h4 className="text-white font-medium mb-3 flex items-center gap-2">
           <Package className="w-4 h-4 text-cyan-400" />
           Batch Breakdown
         </h4>
-        <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+        <div className="space-y-2 max-h-48 overflow-y-auto pr-2" data-testid="batch-list">
           {Array.from({ length: batchCount }).map((_, index) => {
             const batchNum = index + 1;
             const startIdx = index * BATCH_SIZE;
@@ -177,12 +177,13 @@ export default function ExecuteStep() {
           progress={progress}
           label={`Creating requirement files... (${createdFiles.length}/${batchCount})`}
           variant="cyan"
+          data-testid="creation-progress-bar"
         />
       )}
 
       {/* Error */}
       {error && (
-        <CyberCard variant="dark" className="bg-red-500/10 border-red-500/30">
+        <CyberCard variant="dark" className="bg-red-500/10 border-red-500/30" data-testid="creation-error-message">
           <div className="flex items-start gap-2">
             <div className="text-red-400 text-sm">
               <p className="font-medium mb-1">Error creating requirement files</p>
@@ -198,6 +199,7 @@ export default function ExecuteStep() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/30 rounded-lg p-4"
+          data-testid="creation-success-message"
         >
           <div className="flex items-start gap-3">
             <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" />
