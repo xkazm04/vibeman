@@ -14,11 +14,7 @@ import { useGoalContext } from '@/contexts/GoalContext';
  * ```
  */
 export const useGoals = (projectId: string | null) => {
-  if (process.env.NODE_ENV === 'development') {
-    // Deprecation warning only in development
-    console.warn(
-      'useGoals is deprecated. Please use useGoalContext() from @/contexts/GoalContext instead.'
-    );
-  }
+  // Note: Deprecation warning removed. Developers should use useGoalContext() directly.
+  // See JSDoc comment above for migration guide.
   return useGoalContext();
 }; 

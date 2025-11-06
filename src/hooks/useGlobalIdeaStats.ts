@@ -47,8 +47,8 @@ export function useGlobalIdeaStats() {
         const ideas: DbIdea[] = data.ideas || [];
         setStats(calculateStats(ideas));
       }
-    } catch (error) {
-      console.error('Failed to fetch idea stats:', error);
+    } catch (_error) {
+      // Silently handle fetch errors - stats will remain at previous value
     } finally {
       setLoading(false);
     }
