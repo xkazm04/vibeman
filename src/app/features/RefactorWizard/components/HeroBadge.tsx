@@ -98,7 +98,7 @@ export default function HeroBadge({
   }, [isVisible]);
 
   const handleShare = () => {
-    const text = `<‰ Just completed a refactoring plan with ${opportunitiesCount} improvements across ${filesCount} files! #CodeQuality #Refactoring`;
+    const text = `ðŸ† Just completed a refactoring plan with ${opportunitiesCount} improvements across ${filesCount} files! #CodeQuality #Refactoring`;
 
     if (navigator.share) {
       navigator.share({
@@ -118,19 +118,19 @@ export default function HeroBadge({
   const handleDownload = () => {
     // Create a simple text badge
     const badgeText = `
-TPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPW
-Q                                           Q
-Q         <Æ REFACTOR HERO BADGE <Æ         Q
-Q                                           Q
-Q              ${userName.padStart((userName.length + 20) / 2).padEnd(20)}              Q
-Q                                           Q
-Q  ( ${opportunitiesCount} Improvements Identified       Q
-Q  =Á ${filesCount} Files Enhanced                  Q
-Q  =æ ${batchCount} Requirement Batches Created     Q
-Q                                           Q
-Q        Keep up the great work! =€         Q
-Q                                           Q
-ZPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP]
++-------------------------------------------+
+|                                           |
+|         ðŸ† REFACTOR HERO BADGE ðŸ†         |
+|                                           |
+|              ${userName.padStart((userName.length + 20) / 2).padEnd(20)}              |
+|                                           |
+|  âœ“ ${opportunitiesCount} Improvements Identified       |
+|  âœ“ ${filesCount} Files Enhanced                  |
+|  âœ“ ${batchCount} Requirement Batches Created     |
+|                                           |
+|        Keep up the great work! ðŸš€         |
+|                                           |
++-------------------------------------------+
 `;
 
     const blob = new Blob([badgeText], { type: 'text/plain' });

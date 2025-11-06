@@ -161,8 +161,12 @@ export abstract class BaseLLMClient implements LLMProvider {
    * Validate request parameters
    */
   protected validateRequest(request: LLMRequest): { valid: boolean; error?: string } {
-    if (!request.prompt || request.prompt.trim().length === 0) {
-      return { valid: false, error: 'Prompt is required and cannot be empty' };
+    if (!request.prompt || typeof request.prompt !== 'string') {
+      return { valid: false, error: 'Prompt is required and must be a string' };
+    }
+
+    if (request.prompt.trim().length === 0) {
+      return { valid: false, error: 'Prompt cannot be empty' };
     }
 
     if (request.maxTokens && (request.maxTokens < 1 || request.maxTokens > 100000)) {

@@ -6,7 +6,7 @@ interface Task {
   projectPath: string;
   requirementName: string;
   projectId?: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'session-limit';
   progress: string[];
   error?: string;
   output?: string;
@@ -99,7 +99,7 @@ async function findLogFileAcrossProjects(taskId: string): Promise<Task | null> {
       const latestLogPath = matchingLogs[matchingLogs.length - 1];
       const logContent = fs.readFileSync(latestLogPath, 'utf-8');
 
-      const task = reconstructTaskFromLog(taskId, project, latestLogPath, logContent);
+      const task = reconstructTaskFromLog(taskId, project as unknown as DbProject, latestLogPath, logContent);
 
       logger.info('Task reconstructed from log file', {
         taskId,
@@ -122,7 +122,7 @@ async function findLogFileAcrossProjects(taskId: string): Promise<Task | null> {
  */
 export async function getTaskStatus(taskId: string): Promise<NextResponse> {
   const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-  let task = executionQueue.getTask(taskId);
+  let task: Task | null | undefined = executionQueue.getTask(taskId);
 
   // If task not found in memory, check log files
   if (!task) {

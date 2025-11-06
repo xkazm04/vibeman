@@ -9,6 +9,7 @@ import AnnetteChatInput from './components/AnnetteChatInput';
 import TypewriterMessage from '../voicebot/components/TypewriterMessage';
 import { OllamaClient } from '@/lib/llm/providers/ollama-client';
 import { Project } from '@/types';
+import { ProjectContext } from './lib/typesAnnette';
 
 interface ChatDialogProps {
   selectedProject?: Project;
@@ -207,7 +208,7 @@ const ChatDialog = ({ selectedProject, isProcessing = false }: ChatDialogProps) 
       <AnnetteChatBackground />
       <div className="relative z-10 flex flex-col h-full border border-cyan-500/20 rounded-2xl shadow-2xl shadow-slate-500/10">
         <AnnetteChatHeader
-          selectedProject={selectedProject}
+          selectedProject={selectedProject as ProjectContext | undefined}
           isProcessing={isProcessing || isLoading}
           isListening={isListening}
           audioLevels={audioLevels}
@@ -287,7 +288,7 @@ const ChatDialog = ({ selectedProject, isProcessing = false }: ChatDialogProps) 
           onKeyPress={handleKeyPress}
           isListening={isListening}
           onToggleListening={toggleListening}
-          selectedProject={selectedProject}
+          selectedProject={selectedProject as ProjectContext | undefined}
           isProcessing={isProcessing || isLoading}
           inputRef={inputRef as React.RefObject<HTMLInputElement>}
         />

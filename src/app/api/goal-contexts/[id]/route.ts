@@ -78,10 +78,10 @@ export interface GoalContextAggregation {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const goalId = params.id;
+    const { id: goalId } = await params;
 
     if (!goalId) {
       return NextResponse.json(

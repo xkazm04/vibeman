@@ -55,8 +55,12 @@ export async function generateWizardPlan(
       temperature: 0.3,
     });
 
+    if (!response.success || !response.response) {
+      throw new Error(response.error || 'Failed to generate AI response');
+    }
+
     // Parse AI response
-    const aiRecommendations = parseAIResponse(response.content);
+    const aiRecommendations = parseAIResponse(response.response);
 
     // Filter recommended groups based on AI suggestions
     const recommendedGroups = filterGroupsByAIRecommendations(

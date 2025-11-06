@@ -97,7 +97,8 @@ export async function POST(request: NextRequest) {
     const noProjectPathActions = ['get-task-status'];
 
     if (!projectPath && !noProjectPathActions.includes(action)) {
-      return validateRequired({ projectPath }, ['projectPath']);
+      const validationError = validateRequired({ projectPath }, ['projectPath']);
+      if (validationError) return validationError;
     }
 
     // Initialize Claude folder

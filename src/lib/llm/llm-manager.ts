@@ -250,6 +250,20 @@ export class LLMManager {
   }
 
   /**
+   * Get default model for a specific provider
+   */
+  getDefaultModel(provider: SupportedProvider): string {
+    const defaultModels: Record<SupportedProvider, string> = {
+      ollama: 'gpt-oss:20b',
+      openai: 'gpt-4o',
+      anthropic: 'claude-sonnet-4-20250514',
+      gemini: 'gemini-2.0-flash-exp',
+      internal: 'default'
+    };
+    return defaultModels[provider] || defaultModels.gemini;
+  }
+
+  /**
    * Refresh provider configurations (useful after API key changes)
    */
   refreshProviders(): void {

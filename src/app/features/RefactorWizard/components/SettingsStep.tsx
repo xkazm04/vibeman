@@ -2,7 +2,7 @@
 
 import { useRefactorStore } from '@/stores/refactorStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { Settings, ArrowRight, CheckCircle2, Shield, Zap, Wrench, Network, TestTube, Component, Info } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Shield, Zap, Wrench, Network, TestTube, Component, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StepContainer, CyberCard } from '@/components/ui/wizard';
 import { SCAN_TECHNIQUE_GROUPS, getScanGroupsForProjectType, type ProjectType, type ScanTechniqueGroup } from '../lib/scanTechniques';
@@ -64,11 +64,6 @@ export default function SettingsStep() {
 
   return (
     <StepContainer
-      title="Configure Scan Techniques"
-      description="Select which refactor techniques to apply to your project"
-      icon={Settings}
-      currentStep={1}
-      totalSteps={6}
       isLoading={false}
       error={null}
       data-testid="settings-step-container"
@@ -115,7 +110,7 @@ export default function SettingsStep() {
       </div>
 
       {/* Technique Groups List */}
-      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+      <div className="space-y-3 max-h-[800px] py-6 overflow-y-auto pr-2">
         <AnimatePresence mode="popLayout">
           {relevantGroups.map((group, index) => {
             const isSelected = selectedScanGroups.has(group.id);
@@ -214,7 +209,7 @@ export default function SettingsStep() {
       <button
         onClick={handleContinue}
         disabled={selectedScanGroups.size === 0}
-        className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none relative overflow-hidden group"
+        className="w-full py-4 bg-gradient-to-r cursor-pointer from-cyan-700 to-blue-700 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none relative overflow-hidden group"
         data-testid="settings-continue-btn"
       >
         {/* Blueprint grid pattern overlay */}

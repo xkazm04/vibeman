@@ -18,6 +18,19 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import type { RefactorOpportunity } from '../src/stores/refactorStore';
 
+// Logger utility to replace console statements
+const logger = {
+  log: (message: string) => {
+    process.stdout.write(message + '\n');
+  },
+  error: (message: string, error?: unknown) => {
+    process.stderr.write(`ERROR: ${message}\n`);
+    if (error) {
+      process.stderr.write(`${error}\n`);
+    }
+  }
+};
+
 interface PROptions {
   results: string;
   branch?: string;
@@ -37,6 +50,18 @@ interface PRConfig {
   reviewers?: string[];
 }
 
+interface RefactorConfig {
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  categories?: string[];
+  excludePatterns?: string[];
+  provider?: string;
+  model?: string;
+  autoPR?: boolean;
+  prBranch?: string;
+  prTitle?: string;
+  prBody?: string;
+}
+
 interface RefactorResult {
   success: boolean;
   timestamp: string;
@@ -50,7 +75,7 @@ interface RefactorResult {
     categoryCounts: Record<string, number>;
   };
   opportunities: RefactorOpportunity[];
-  config: any;
+  config: RefactorConfig;
 }
 
 /**
@@ -108,7 +133,7 @@ function parseArgs(): PROptions {
  * Print help message
  */
 function printHelp() {
-  console.log(`
+  const helpText = `
 Vibeman Refactor PR Automation
 
 Usage:
@@ -132,7 +157,8 @@ Examples:
 
   # Dry run
   npm run create-refactor-pr -- --results results.json --dry-run
-`);
+`;
+  logger.log(helpText);
 }
 
 /**
@@ -150,7 +176,7 @@ function loadConfig(configPath?: string): PRConfig {
     const content = fs.readFileSync(targetPath, 'utf-8');
     return JSON.parse(content);
   } catch (error) {
-    console.error(`Error loading PR config from ${targetPath}:`, error);
+    logger.error(`Error loading PR config from ${targetPath}`, error);
     return {};
   }
 }
@@ -241,31 +267,31 @@ function generatePRBody(result: RefactorResult): string {
 }
 
 /**
+ * Execute command and log if verbose
+ */
+function execCommand(command: string, commandType: string, verbose: boolean = false): string {
+  if (verbose) {
+    logger.log(`$ ${command}`);
+  }
+  try {
+    return execSync(command, { encoding: 'utf-8' }).trim();
+  } catch (error) {
+    throw new Error(`${commandType} command failed: ${command}\n${error}`);
+  }
+}
+
+/**
  * Execute git command
  */
 function git(command: string, verbose: boolean = false): string {
-  if (verbose) {
-    console.log(`$ git ${command}`);
-  }
-  try {
-    return execSync(`git ${command}`, { encoding: 'utf-8' }).trim();
-  } catch (error) {
-    throw new Error(`Git command failed: git ${command}`);
-  }
+  return execCommand(`git ${command}`, 'Git', verbose);
 }
 
 /**
  * Execute gh (GitHub CLI) command
  */
 function gh(command: string, verbose: boolean = false): string {
-  if (verbose) {
-    console.log(`$ gh ${command}`);
-  }
-  try {
-    return execSync(`gh ${command}`, { encoding: 'utf-8' }).trim();
-  } catch (error) {
-    throw new Error(`GitHub CLI command failed: gh ${command}\n${error}`);
-  }
+  return execCommand(`gh ${command}`, 'GitHub CLI', verbose);
 }
 
 /**
@@ -288,6 +314,42 @@ function getCurrentBranch(verbose: boolean = false): string {
 }
 
 /**
+ * Log verbose output
+ */
+function logVerbose(message: string, verbose: boolean | undefined) {
+  if (verbose) {
+    logger.log(message);
+  }
+}
+
+/**
+ * Build GitHub CLI PR command
+ */
+function buildGHPRCommand(
+  baseBranch: string,
+  branchName: string,
+  prTitle: string,
+  prBody: string,
+  config: PRConfig
+): string {
+  let command = `pr create --base ${baseBranch} --head ${branchName} --title "${prTitle}" --body "${prBody.replace(/"/g, '\\"')}"`;
+
+  if (config.labels && config.labels.length > 0) {
+    command += ` --label "${config.labels.join(',')}"`;
+  }
+
+  if (config.reviewers && config.reviewers.length > 0) {
+    command += ` --reviewer "${config.reviewers.join(',')}"`;
+  }
+
+  if (config.assignees && config.assignees.length > 0) {
+    command += ` --assignee "${config.assignees.join(',')}"`;
+  }
+
+  return command;
+}
+
+/**
  * Main execution function
  */
 async function main() {
@@ -295,9 +357,9 @@ async function main() {
   const config = loadConfig(options.config);
 
   if (options.verbose) {
-    console.log('Vibeman Refactor PR Automation');
-    console.log('==============================');
-    console.log('');
+    logger.log('Vibeman Refactor PR Automation');
+    logger.log('==============================');
+    logger.log('');
   }
 
   try {
@@ -311,9 +373,7 @@ async function main() {
     }
 
     // Load results
-    if (options.verbose) {
-      console.log(`Loading results from: ${options.results}`);
-    }
+    logVerbose(`Loading results from: ${options.results}`, options.verbose);
     const result = loadResults(options.results);
 
     if (!result.success) {
@@ -321,7 +381,7 @@ async function main() {
     }
 
     if (result.summary.totalIssues === 0) {
-      console.log('No issues found. Skipping PR creation.');
+      logger.log('No issues found. Skipping PR creation.');
       process.exit(0);
     }
 
@@ -338,21 +398,21 @@ async function main() {
     const prBody = generatePRBody(result);
 
     if (options.verbose) {
-      console.log('');
-      console.log('PR Details:');
-      console.log(`  Branch: ${branchName}`);
-      console.log(`  Title: ${prTitle}`);
-      console.log('');
+      logger.log('');
+      logger.log('PR Details:');
+      logger.log(`  Branch: ${branchName}`);
+      logger.log(`  Title: ${prTitle}`);
+      logger.log('');
     }
 
     if (options.dryRun) {
-      console.log('DRY RUN - Would create PR with:');
-      console.log('');
-      console.log('Branch:', branchName);
-      console.log('Title:', prTitle);
-      console.log('');
-      console.log('Body:');
-      console.log(prBody);
+      logger.log('DRY RUN - Would create PR with:');
+      logger.log('');
+      logger.log(`Branch: ${branchName}`);
+      logger.log(`Title: ${prTitle}`);
+      logger.log('');
+      logger.log('Body:');
+      logger.log(prBody);
       process.exit(0);
     }
 
@@ -361,42 +421,38 @@ async function main() {
     const baseBranch = config.baseBranch || 'main';
 
     if (options.verbose) {
-      console.log(`Current branch: ${currentBranch}`);
-      console.log(`Base branch: ${baseBranch}`);
-      console.log('');
+      logger.log(`Current branch: ${currentBranch}`);
+      logger.log(`Base branch: ${baseBranch}`);
+      logger.log('');
     }
 
     // Create new branch if needed
     if (currentBranch !== branchName) {
-      if (options.verbose) {
-        console.log(`Creating new branch: ${branchName}`);
-      }
+      logVerbose(`Creating new branch: ${branchName}`, options.verbose);
       git(`checkout -b ${branchName}`, options.verbose);
     }
 
     // Check if there are changes to commit
     const status = git('status --porcelain', options.verbose);
     if (!status) {
-      console.log('No changes to commit. Skipping PR creation.');
+      logger.log('No changes to commit. Skipping PR creation.');
       process.exit(0);
     }
 
     // Stage and commit changes
     if (options.verbose) {
-      console.log('Staging and committing changes...');
+      logger.log('Staging and committing changes...');
     }
     git('add .', options.verbose);
     git(`commit -m "chore: automated refactor suggestions (${result.summary.totalIssues} issues)"`, options.verbose);
 
     // Push branch
-    if (options.verbose) {
-      console.log(`Pushing branch: ${branchName}`);
-    }
+    logVerbose(`Pushing branch: ${branchName}`, options.verbose);
     git(`push -u origin ${branchName}`, options.verbose);
 
     // Create PR using GitHub CLI
     if (options.verbose) {
-      console.log('Creating pull request...');
+      logger.log('Creating pull request...');
     }
 
     let ghCommand = `pr create --base ${baseBranch} --head ${branchName} --title "${prTitle}" --body "${prBody.replace(/"/g, '\\"')}"`;

@@ -17,6 +17,7 @@ import {
 } from '@/app/features/Annette/prompts/nextStepRecommendation';
 import { getLLMClient } from '@/lib/langgraph/langHelpers';
 import { SupportedProvider } from '@/lib/llm/types';
+import { LLMProvider } from '@/lib/langgraph/langTypes';
 
 interface NextStepRequest {
   projectId: string;
@@ -107,7 +108,11 @@ export async function POST(request: NextRequest) {
     const prompt = createNextStepPrompt(promptData);
 
     // 5. Call LLM to get recommendation
-    const llmClient = getLLMClient(provider);
+    // Filter out 'internal' provider as it's not supported by getLLMClient
+    if (provider === 'internal') {
+      throw new Error('Internal provider is not supported for next-step recommendations');
+    }
+    const llmClient = getLLMClient(provider as LLMProvider);
     const llmResult = await llmClient.generate({
       prompt,
       model: model || getDefaultModel(provider),

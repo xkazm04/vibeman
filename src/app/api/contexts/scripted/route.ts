@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         nodir: true,
         nocase: true, // Case-insensitive matching
         ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.next/**'],
-      });
+      }) as string[];
 
       console.log(`[Scripted Scan] Found ${matchingFiles.length} files matching pattern`);
 

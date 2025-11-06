@@ -78,6 +78,7 @@ export interface DbEvent {
   type: 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
   agent: string | null;
   message: string | null;
+  context_id: string | null;
   created_at: string;
 }
 

@@ -15,6 +15,21 @@ import * as path from 'path';
 import { analyzeProject } from '../src/app/features/RefactorWizard/lib/refactorAnalyzer';
 import type { RefactorOpportunity } from '../src/stores/refactorStore';
 
+// Logger utility to replace console statements
+const logger = {
+  log: (message: string) => {
+    if (process.env.VERBOSE === 'true') {
+      process.stdout.write(message + '\n');
+    }
+  },
+  error: (message: string, error?: unknown) => {
+    process.stderr.write(`ERROR: ${message}\n`);
+    if (error) {
+      process.stderr.write(`${error}\n`);
+    }
+  }
+};
+
 interface CLIOptions {
   project: string;
   output?: string;
@@ -127,7 +142,7 @@ function parseArgs(): CLIOptions {
  * Print help message
  */
 function printHelp() {
-  console.log(`
+  const helpText = `
 Vibeman Refactor CI - Headless Refactor Analysis Tool
 
 Usage:
@@ -161,7 +176,8 @@ Examples:
 
   # Use specific LLM provider
   npm run refactor:ci -- --project ./src --provider openai --model gpt-4
-`);
+`;
+  process.stdout.write(helpText + '\n');
 }
 
 /**
@@ -179,7 +195,7 @@ function loadConfig(configPath?: string): RefactorCIConfig {
     const content = fs.readFileSync(targetPath, 'utf-8');
     return JSON.parse(content);
   } catch (error) {
-    console.error(`Error loading config from ${targetPath}:`, error);
+    logger.error(`Error loading config from ${targetPath}`, error);
     return {};
   }
 }
@@ -234,6 +250,69 @@ function generateSummary(opportunities: RefactorOpportunity[]) {
 }
 
 /**
+ * Log verbose output
+ */
+function logVerbose(message: string, options: CLIOptions) {
+  if (options.verbose) {
+    logger.log(message);
+  }
+}
+
+/**
+ * Write output to file or stdout
+ */
+function writeOutput(output: string, outputPath: string | undefined, options: CLIOptions) {
+  if (outputPath) {
+    fs.writeFileSync(outputPath, output, 'utf-8');
+    logVerbose(`Results written to: ${outputPath}`, options);
+  } else {
+    process.stdout.write(output + '\n');
+  }
+}
+
+/**
+ * Build and return CI result object
+ */
+function buildCIResult(
+  success: boolean,
+  projectPath: string,
+  summary: RefactorCIResult['summary'],
+  opportunities: RefactorOpportunity[],
+  config: RefactorCIConfig,
+  provider?: string,
+  model?: string,
+  error?: string
+): RefactorCIResult {
+  return {
+    success,
+    timestamp: new Date().toISOString(),
+    projectPath,
+    summary,
+    opportunities,
+    config: {
+      ...config,
+      provider,
+      model,
+    },
+    error,
+  };
+}
+
+/**
+ * Handle PR automation flag creation
+ */
+function handlePRAutomation(options: CLIOptions, config: RefactorCIConfig) {
+  if (options.autoPR || config.autoPR) {
+    logVerbose('\nTriggering PR automation...', options);
+    const prFlag = {
+      createPR: true,
+      resultFile: options.output || 'refactor-results.json',
+    };
+    fs.writeFileSync('.refactor-pr-flag.json', JSON.stringify(prFlag, null, 2));
+  }
+}
+
+/**
  * Main execution function
  */
 async function main() {
@@ -244,25 +323,23 @@ async function main() {
   const projectPath = path.resolve(options.project);
 
   if (!fs.existsSync(projectPath)) {
-    console.error(`Error: Project path does not exist: ${projectPath}`);
+    logger.error(`Project path does not exist: ${projectPath}`);
     process.exit(1);
   }
 
   if (options.verbose) {
-    console.log('Vibeman Refactor CI');
-    console.log('===================');
-    console.log(`Project: ${projectPath}`);
-    console.log(`AI Analysis: ${!options.noAI}`);
-    if (options.provider) console.log(`Provider: ${options.provider}`);
-    if (options.model) console.log(`Model: ${options.model}`);
-    console.log('');
+    logger.log('Vibeman Refactor CI');
+    logger.log('===================');
+    logger.log(`Project: ${projectPath}`);
+    logger.log(`AI Analysis: ${!options.noAI}`);
+    if (options.provider) logger.log(`Provider: ${options.provider}`);
+    if (options.model) logger.log(`Model: ${options.model}`);
+    logger.log('');
   }
 
   try {
     // Run analysis
-    if (options.verbose) {
-      console.log('Starting analysis...');
-    }
+    logVerbose('Starting analysis...', options);
 
     const useAI = !options.noAI;
     const provider = options.provider || config.provider;
@@ -281,54 +358,32 @@ async function main() {
     const summary = generateSummary(filteredOpportunities);
 
     if (options.verbose) {
-      console.log(`\nAnalysis complete!`);
-      console.log(`Total issues found: ${summary.totalIssues}`);
-      console.log(`  Critical: ${summary.criticalIssues}`);
-      console.log(`  High: ${summary.highIssues}`);
-      console.log(`  Medium: ${summary.mediumIssues}`);
-      console.log(`  Low: ${summary.lowIssues}`);
-      console.log('');
+      logger.log(`\nAnalysis complete!`);
+      logger.log(`Total issues found: ${summary.totalIssues}`);
+      logger.log(`  Critical: ${summary.criticalIssues}`);
+      logger.log(`  High: ${summary.highIssues}`);
+      logger.log(`  Medium: ${summary.mediumIssues}`);
+      logger.log(`  Low: ${summary.lowIssues}`);
+      logger.log('');
     }
 
     // Build result
-    const ciResult: RefactorCIResult = {
-      success: true,
-      timestamp: new Date().toISOString(),
+    const ciResult = buildCIResult(
+      true,
       projectPath,
       summary,
-      opportunities: filteredOpportunities,
-      config: {
-        ...config,
-        provider,
-        model,
-      },
-    };
+      filteredOpportunities,
+      config,
+      provider,
+      model
+    );
 
     // Output to file or stdout
     const output = JSON.stringify(ciResult, null, 2);
-
-    if (options.output) {
-      fs.writeFileSync(options.output, output, 'utf-8');
-      if (options.verbose) {
-        console.log(`Results written to: ${options.output}`);
-      }
-    } else {
-      console.log(output);
-    }
+    writeOutput(output, options.output, options);
 
     // Auto-create PR if requested
-    if (options.autoPR || config.autoPR) {
-      if (options.verbose) {
-        console.log('\nTriggering PR automation...');
-      }
-      // This will be handled by the PR automation service
-      // For now, just output a flag that can be picked up by CI
-      const prFlag = {
-        createPR: true,
-        resultFile: options.output || 'refactor-results.json',
-      };
-      fs.writeFileSync('.refactor-pr-flag.json', JSON.stringify(prFlag, null, 2));
-    }
+    handlePRAutomation(options, config);
 
     // Exit with non-zero code if critical or high severity issues found
     if (summary.criticalIssues > 0 || summary.highIssues > 0) {
@@ -337,11 +392,10 @@ async function main() {
 
     process.exit(0);
   } catch (error) {
-    const errorResult: RefactorCIResult = {
-      success: false,
-      timestamp: new Date().toISOString(),
+    const errorResult = buildCIResult(
+      false,
       projectPath,
-      summary: {
+      {
         totalIssues: 0,
         criticalIssues: 0,
         highIssues: 0,
@@ -349,18 +403,15 @@ async function main() {
         lowIssues: 0,
         categoryCounts: {},
       },
-      opportunities: [],
+      [],
       config,
-      error: error instanceof Error ? error.message : String(error),
-    };
+      undefined,
+      undefined,
+      error instanceof Error ? error.message : String(error)
+    );
 
     const output = JSON.stringify(errorResult, null, 2);
-
-    if (options.output) {
-      fs.writeFileSync(options.output, output, 'utf-8');
-    } else {
-      console.error(output);
-    }
+    writeOutput(output, options.output, options);
 
     process.exit(1);
   }

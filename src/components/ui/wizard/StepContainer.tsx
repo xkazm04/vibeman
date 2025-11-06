@@ -3,24 +3,12 @@
 import { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FocusTrap from 'focus-trap-react';
-import { LucideIcon, AlertTriangle } from 'lucide-react';
-import { StepHeader } from './StepHeader';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { ErrorOverlay } from './ErrorOverlay';
 
 interface StepContainerProps {
   /** Content to display inside the step */
   children: ReactNode;
-  /** Optional step title for the header */
-  title?: string;
-  /** Optional step description */
-  description?: string;
-  /** Optional icon for the header */
-  icon?: LucideIcon;
-  /** Current step number (for progress badge) */
-  currentStep?: number;
-  /** Total number of steps (for progress badge) */
-  totalSteps?: number;
   /** Loading state - shows skeleton when true */
   isLoading?: boolean;
   /** Error state - shows overlay when provided */
@@ -62,11 +50,6 @@ interface StepContainerProps {
  */
 export default function StepContainer({
   children,
-  title,
-  description,
-  icon,
-  currentStep,
-  totalSteps,
   isLoading = false,
   error = null,
   onErrorDismiss,
@@ -83,18 +66,6 @@ export default function StepContainer({
       className={`relative space-y-6 ${className}`}
       data-testid={testId}
     >
-      {/* Header */}
-      {(title || icon || (currentStep && totalSteps)) && (
-        <StepHeader
-          title={title}
-          description={description}
-          icon={icon}
-          currentStep={currentStep}
-          totalSteps={totalSteps}
-          data-testid={`${testId}-header`}
-        />
-      )}
-
       {/* Loading Skeleton */}
       <AnimatePresence mode="wait">
         {isLoading ? (

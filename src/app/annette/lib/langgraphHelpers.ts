@@ -87,6 +87,6 @@ export function resetConfirmationState(): ConfirmationState {
     type: 'yes_no',
     toolsToUse: [],
     originalMessage: '',
-    projectContext: null
+    projectContext: {}
   };
 }

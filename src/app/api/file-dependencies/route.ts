@@ -279,8 +279,8 @@ export async function POST(request: NextRequest) {
     try {
       body = JSON.parse(rawBody);
     } catch (parseError) {
-      logger.error('JSON parse error in file-dependencies:', parseError);
-      logger.error('Raw request body:', rawBody.substring(0, 200)); // Log first 200 chars
+      logger.error('JSON parse error in file-dependencies:', { error: parseError });
+      logger.error('Raw request body:', { body: rawBody.substring(0, 200) }); // Log first 200 chars
 
       return NextResponse.json(
         {
