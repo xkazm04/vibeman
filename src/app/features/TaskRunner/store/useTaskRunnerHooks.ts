@@ -1,0 +1,303 @@
+/**
+ * Convenience hooks for Task Runner Store
+ * Provides selectors and compound actions for common operations
+ */
+
+import { useCallback, useEffect } from 'react';
+import { useTaskRunnerStore, type BatchId, type BatchState, type TaskState } from './taskRunnerStore';
+import type { ProjectRequirement } from '../lib/types';
+
+// ============================================================================
+// Batch Hooks
+// ============================================================================
+
+/**
+ * Hook to get a specific batch state
+ */
+export function useBatch(batchId: BatchId): BatchState | null {
+  return useTaskRunnerStore((state) => state.batches[batchId]);
+}
+
+/**
+ * Hook to get all batches
+ */
+export function useAllBatches() {
+  return useTaskRunnerStore((state) => state.batches);
+}
+
+/**
+ * Hook to get all active (running) batches
+ */
+export function useActiveBatches(): BatchId[] {
+  return useTaskRunnerStore((state) => state.getActiveBatches());
+}
+
+/**
+ * Hook to get batch progress
+ */
+export function useBatchProgress(batchId: BatchId) {
+  return useTaskRunnerStore((state) => state.getBatchProgress(batchId));
+}
+
+/**
+ * Hook to get tasks for a specific batch
+ */
+export function useBatchTasks(batchId: BatchId): TaskState[] {
+  return useTaskRunnerStore((state) => state.getTasksForBatch(batchId));
+}
+
+// ============================================================================
+// Batch Action Hooks
+// ============================================================================
+
+/**
+ * Hook to get batch management actions
+ */
+export function useBatchActions(batchId: BatchId) {
+  const store = useTaskRunnerStore();
+
+  return {
+    start: useCallback(() => store.startBatch(batchId), [store, batchId]),
+    pause: useCallback(() => store.pauseBatch(batchId), [store, batchId]),
+    resume: useCallback(() => store.resumeBatch(batchId), [store, batchId]),
+    complete: useCallback(() => store.completeBatch(batchId), [store, batchId]),
+    delete: useCallback(() => store.deleteBatch(batchId), [store, batchId]),
+  };
+}
+
+/**
+ * Hook to create a new batch
+ */
+export function useCreateBatch() {
+  const createBatch = useTaskRunnerStore((state) => state.createBatch);
+
+  return useCallback((batchId: BatchId, name: string, taskIds: string[]) => {
+    createBatch(batchId, name, taskIds);
+  }, [createBatch]);
+}
+
+/**
+ * Hook to start batch execution
+ * Combines starting the batch and triggering execution
+ */
+export function useStartBatchExecution() {
+  const store = useTaskRunnerStore();
+
+  return useCallback((batchId: BatchId, requirements: ProjectRequirement[]) => {
+    store.startBatch(batchId);
+    // Start execution after a short delay to ensure state updates
+    setTimeout(() => {
+      store.executeNextTask(batchId, requirements);
+    }, 100);
+  }, [store]);
+}
+
+// ============================================================================
+// Task Action Hooks
+// ============================================================================
+
+/**
+ * Hook to manage tasks within a batch
+ */
+export function useTaskActions(batchId: BatchId) {
+  const store = useTaskRunnerStore();
+
+  return {
+    addTask: useCallback((taskId: string) => {
+      store.addTaskToBatch(batchId, taskId);
+    }, [store, batchId]),
+
+    removeTask: useCallback((taskId: string) => {
+      store.removeTaskFromBatch(batchId, taskId);
+    }, [store, batchId]),
+
+    moveTaskTo: useCallback((taskId: string, toBatchId: BatchId) => {
+      store.moveTask(taskId, batchId, toBatchId);
+    }, [store, batchId]),
+  };
+}
+
+/**
+ * Hook to offload tasks from one batch to another
+ */
+export function useOffloadTasks() {
+  const offloadTasks = useTaskRunnerStore((state) => state.offloadTasks);
+
+  return useCallback((fromBatchId: BatchId, toBatchId: BatchId, taskIds: string[]) => {
+    offloadTasks(fromBatchId, toBatchId, taskIds);
+  }, [offloadTasks]);
+}
+
+// ============================================================================
+// Execution Hooks
+// ============================================================================
+
+/**
+ * Hook to manage task execution for a batch
+ * Automatically triggers execution when batch status changes to 'running'
+ */
+export function useAutoExecution(batchId: BatchId, requirements: ProjectRequirement[]) {
+  const batch = useBatch(batchId);
+  const executeNextTask = useTaskRunnerStore((state) => state.executeNextTask);
+  const canStartTask = useTaskRunnerStore((state) => state.canStartTask(batchId));
+
+  useEffect(() => {
+    if (!batch || batch.status !== 'running') return;
+    if (!canStartTask) return;
+
+    // Try to start next task
+    const timer = setTimeout(() => {
+      executeNextTask(batchId, requirements);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [batch?.status, canStartTask, executeNextTask, batchId, requirements]);
+}
+
+/**
+ * Hook to monitor and auto-restart execution when tasks complete
+ */
+export function useExecutionMonitor(batchId: BatchId, requirements: ProjectRequirement[]) {
+  const tasks = useBatchTasks(batchId);
+  const batch = useBatch(batchId);
+  const executeNextTask = useTaskRunnerStore((state) => state.executeNextTask);
+  const canStartTask = useTaskRunnerStore((state) => state.canStartTask(batchId));
+
+  useEffect(() => {
+    if (!batch || batch.status !== 'running') return;
+
+    // Check if we can start a new task
+    const hasQueuedTasks = tasks.some(t => t.status === 'queued');
+    const hasRunningTask = tasks.some(t => t.status === 'running');
+
+    if (hasQueuedTasks && !hasRunningTask && canStartTask) {
+      // Start next task after a short delay
+      const timer = setTimeout(() => {
+        executeNextTask(batchId, requirements);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [tasks, batch, executeNextTask, batchId, requirements, canStartTask]);
+}
+
+// ============================================================================
+// Global State Hooks
+// ============================================================================
+
+/**
+ * Hook to manage git configuration
+ */
+export function useGitConfig() {
+  const gitConfig = useTaskRunnerStore((state) => state.gitConfig);
+  const setGitConfig = useTaskRunnerStore((state) => state.setGitConfig);
+
+  return {
+    gitConfig,
+    setGitConfig,
+  };
+}
+
+/**
+ * Hook to manage global pause state
+ */
+export function useGlobalPause() {
+  const isPaused = useTaskRunnerStore((state) => state.isPaused);
+  const setPaused = useTaskRunnerStore((state) => state.setPaused);
+
+  return {
+    isPaused,
+    setPaused,
+    pause: useCallback(() => setPaused(true), [setPaused]),
+    resume: useCallback(() => setPaused(false), [setPaused]),
+  };
+}
+
+// ============================================================================
+// Aggregate Hooks
+// ============================================================================
+
+/**
+ * Hook to get overall progress across all active batches
+ */
+export function useOverallProgress() {
+  const batches = useAllBatches();
+  const getBatchProgress = useTaskRunnerStore((state) => state.getBatchProgress);
+
+  let totalTasks = 0;
+  let completedTasks = 0;
+  let failedTasks = 0;
+
+  (Object.keys(batches) as BatchId[]).forEach(batchId => {
+    const batch = batches[batchId];
+    if (batch && batch.status !== 'idle') {
+      const progress = getBatchProgress(batchId);
+      totalTasks += progress.total;
+      completedTasks += progress.completed;
+      failedTasks += progress.failed;
+    }
+  });
+
+  return {
+    total: totalTasks,
+    completed: completedTasks,
+    failed: failedTasks,
+    remaining: totalTasks - completedTasks - failedTasks,
+    percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+  };
+}
+
+/**
+ * Hook to check if any batch is currently executing
+ */
+export function useIsAnyBatchRunning(): boolean {
+  const activeBatches = useActiveBatches();
+  return activeBatches.length > 0;
+}
+
+/**
+ * Hook to get available batches for task offloading
+ * Returns batches that are either idle or running with available capacity
+ */
+export function useAvailableBatchesForOffload(excludeBatchId?: BatchId): BatchId[] {
+  const batches = useAllBatches();
+  const canStartTask = useTaskRunnerStore((state) => state.canStartTask);
+
+  return (Object.keys(batches) as BatchId[]).filter(batchId => {
+    if (batchId === excludeBatchId) return false;
+    const batch = batches[batchId];
+    if (!batch) return false;
+
+    // Include idle batches or running batches that can accept more tasks
+    return batch.status === 'idle' || (batch.status === 'running' && canStartTask(batchId));
+  });
+}
+
+// ============================================================================
+// Recovery Hook
+// ============================================================================
+
+/**
+ * Hook to initialize store from localStorage on mount
+ * Automatically recovers interrupted batches
+ */
+export function useStoreRecovery(requirements: ProjectRequirement[]) {
+  const recoverFromStorage = useTaskRunnerStore((state) => state.recoverFromStorage);
+
+  useEffect(() => {
+    // Recover state on mount
+    recoverFromStorage(requirements);
+  }, []); // Only run once on mount
+}
+
+// ============================================================================
+// Cleanup Hook
+// ============================================================================
+
+/**
+ * Hook to clear all batch and task data
+ */
+export function useClearStore() {
+  const clearAll = useTaskRunnerStore((state) => state.clearAll);
+  return useCallback(() => clearAll(), [clearAll]);
+}
