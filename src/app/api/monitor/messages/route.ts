@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { monitorServiceDb } from '@/lib/monitorServiceDb';
 
+function createErrorResponse(error: string, status: number) {
+  return NextResponse.json({ success: false, error }, { status });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const callId = searchParams.get('callId');
 
     if (!callId) {
-      return NextResponse.json(
-        { success: false, error: 'callId is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('callId is required', 400);
     }
 
     const messages = await monitorServiceDb.getCallMessages(callId);
@@ -20,10 +21,7 @@ export async function GET(request: NextRequest) {
       messages
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch messages' },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to fetch messages', 500);
   }
 }
 
@@ -47,9 +45,6 @@ export async function POST(request: NextRequest) {
       message
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Failed to create message' },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to create message', 500);
   }
 }

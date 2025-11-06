@@ -32,6 +32,26 @@ function getDatabase() {
   return db;
 }
 
+function rowToConfig(row: any): StateMachineConfig {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    projectType: row.project_type,
+    version: row.version,
+    initialState: row.initial_state,
+    completionStates: JSON.parse(row.completion_states),
+    states: JSON.parse(row.states),
+    transitions: JSON.parse(row.transitions),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function createErrorResponse(error: string, details?: unknown, status = 500) {
+  return NextResponse.json({ error, details }, { status });
+}
+
 /**
  * GET - Retrieve state machine configuration
  */
@@ -44,36 +64,18 @@ export async function GET(request: NextRequest) {
     const db = getDatabase();
 
     if (configId) {
-      // Get specific config by ID
       const row = db
         .prepare('SELECT * FROM state_machine_configs WHERE id = ?')
         .get(configId) as any;
 
+      db.close();
+
       if (!row) {
-        return NextResponse.json(
-          { error: 'Configuration not found' },
-          { status: 404 }
-        );
+        return createErrorResponse('Configuration not found', undefined, 404);
       }
 
-      const config: StateMachineConfig = {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        projectType: row.project_type,
-        version: row.version,
-        initialState: row.initial_state,
-        completionStates: JSON.parse(row.completion_states),
-        states: JSON.parse(row.states),
-        transitions: JSON.parse(row.transitions),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
-
-      db.close();
-      return NextResponse.json({ success: true, config });
+      return NextResponse.json({ success: true, config: rowToConfig(row) });
     } else if (projectType) {
-      // Get config by project type
       const row = db
         .prepare('SELECT * FROM state_machine_configs WHERE project_type = ? ORDER BY updated_at DESC LIMIT 1')
         .get(projectType) as any;
@@ -81,57 +83,22 @@ export async function GET(request: NextRequest) {
       db.close();
 
       if (!row) {
-        return NextResponse.json(
-          { success: true, config: null },
-          { status: 200 }
-        );
+        return NextResponse.json({ success: true, config: null });
       }
 
-      const config: StateMachineConfig = {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        projectType: row.project_type,
-        version: row.version,
-        initialState: row.initial_state,
-        completionStates: JSON.parse(row.completion_states),
-        states: JSON.parse(row.states),
-        transitions: JSON.parse(row.transitions),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
-
-      return NextResponse.json({ success: true, config });
+      return NextResponse.json({ success: true, config: rowToConfig(row) });
     } else {
-      // Get all configs
       const rows = db
         .prepare('SELECT * FROM state_machine_configs ORDER BY project_type, updated_at DESC')
         .all() as any[];
 
       db.close();
 
-      const configs: StateMachineConfig[] = rows.map(row => ({
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        projectType: row.project_type,
-        version: row.version,
-        initialState: row.initial_state,
-        completionStates: JSON.parse(row.completion_states),
-        states: JSON.parse(row.states),
-        transitions: JSON.parse(row.transitions),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }));
-
+      const configs = rows.map(rowToConfig);
       return NextResponse.json({ success: true, configs });
     }
   } catch (error) {
-    console.error('Error retrieving state machine config:', error);
-    return NextResponse.json(
-      { error: 'Failed to retrieve configuration', details: error },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to retrieve configuration', error);
   }
 }
 
@@ -142,49 +109,30 @@ export async function POST(request: NextRequest) {
   try {
     const config: StateMachineConfig = await request.json();
 
-    // Validate required fields
     if (!config.id || !config.projectType || !config.states || !config.transitions) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return createErrorResponse('Missing required fields', undefined, 400);
     }
 
     const db = getDatabase();
 
-    // Check if config exists
     const existing = db
       .prepare('SELECT id FROM state_machine_configs WHERE id = ?')
       .get(config.id);
 
     if (existing) {
-      // Update existing config
       db.prepare(`
         UPDATE state_machine_configs
-        SET name = ?,
-            description = ?,
-            project_type = ?,
-            version = ?,
-            initial_state = ?,
-            completion_states = ?,
-            states = ?,
-            transitions = ?,
+        SET name = ?, description = ?, project_type = ?, version = ?,
+            initial_state = ?, completion_states = ?, states = ?, transitions = ?,
             updated_at = ?
         WHERE id = ?
       `).run(
-        config.name,
-        config.description,
-        config.projectType,
-        config.version,
-        config.initialState,
-        JSON.stringify(config.completionStates),
-        JSON.stringify(config.states),
-        JSON.stringify(config.transitions),
-        new Date().toISOString(),
-        config.id
+        config.name, config.description, config.projectType, config.version,
+        config.initialState, JSON.stringify(config.completionStates),
+        JSON.stringify(config.states), JSON.stringify(config.transitions),
+        new Date().toISOString(), config.id
       );
     } else {
-      // Insert new config
       db.prepare(`
         INSERT INTO state_machine_configs (
           id, name, description, project_type, version,
@@ -192,17 +140,10 @@ export async function POST(request: NextRequest) {
           created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        config.id,
-        config.name,
-        config.description,
-        config.projectType,
-        config.version,
-        config.initialState,
-        JSON.stringify(config.completionStates),
-        JSON.stringify(config.states),
-        JSON.stringify(config.transitions),
-        config.createdAt,
-        config.updatedAt
+        config.id, config.name, config.description, config.projectType, config.version,
+        config.initialState, JSON.stringify(config.completionStates),
+        JSON.stringify(config.states), JSON.stringify(config.transitions),
+        config.createdAt, config.updatedAt
       );
     }
 
@@ -213,11 +154,7 @@ export async function POST(request: NextRequest) {
       message: 'Configuration saved successfully',
     });
   } catch (error) {
-    console.error('Error saving state machine config:', error);
-    return NextResponse.json(
-      { error: 'Failed to save configuration', details: error },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to save configuration', error);
   }
 }
 
@@ -230,16 +167,11 @@ export async function DELETE(request: NextRequest) {
     const configId = searchParams.get('id');
 
     if (!configId) {
-      return NextResponse.json(
-        { error: 'Configuration ID is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Configuration ID is required', undefined, 400);
     }
 
     const db = getDatabase();
-
     db.prepare('DELETE FROM state_machine_configs WHERE id = ?').run(configId);
-
     db.close();
 
     return NextResponse.json({
@@ -247,10 +179,6 @@ export async function DELETE(request: NextRequest) {
       message: 'Configuration deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting state machine config:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete configuration', details: error },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to delete configuration', error);
   }
 }

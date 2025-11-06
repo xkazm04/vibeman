@@ -46,6 +46,10 @@ interface EvaluatedMessage {
   error?: string;
 }
 
+function createErrorResponse(error: string, status: number) {
+  return NextResponse.json({ success: false, error }, { status });
+}
+
 function generateClassId(): string {
   return `class_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
@@ -158,19 +162,13 @@ export async function POST(request: NextRequest) {
     const { callId } = await request.json();
 
     if (!callId) {
-      return NextResponse.json(
-        { success: false, error: 'callId is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('callId is required', 400);
     }
 
     const messages = await monitorServiceDb.getCallMessages(callId);
 
     if (messages.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'No messages found for this call' },
-        { status: 404 }
-      );
+      return createErrorResponse('No messages found for this call', 404);
     }
 
     const existingClassesText = await getExistingClassesText();
@@ -194,12 +192,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }

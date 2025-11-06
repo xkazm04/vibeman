@@ -3,7 +3,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm';
 
-function createHealthResponse(status: string, data: any) {
+interface HealthData {
+  success: boolean;
+  providers: Record<string, boolean>;
+  enabledProviders: string[];
+  defaultProvider: string;
+}
+
+function createHealthResponse(status: string, data: HealthData) {
   return NextResponse.json({
     ...data,
     status,

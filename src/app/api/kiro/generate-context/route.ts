@@ -22,19 +22,17 @@ interface ContextFileResult {
   hasContextFile: boolean;
 }
 
+function createErrorResponse(error: string, status: number) {
+  return NextResponse.json({ success: false, error }, { status });
+}
+
 function validateContextRequest(data: Partial<ContextRequest>): NextResponse | null {
   if (!data.contextName || !data.projectId) {
-    return NextResponse.json(
-      { success: false, error: 'Context name and project ID are required' },
-      { status: 400 }
-    );
+    return createErrorResponse('Context name and project ID are required', 400);
   }
 
   if (!data.filePaths || data.filePaths.length === 0) {
-    return NextResponse.json(
-      { success: false, error: 'At least one file path is required' },
-      { status: 400 }
-    );
+    return createErrorResponse('At least one file path is required', 400);
   }
 
   return null;
@@ -193,22 +191,16 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (dbError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Failed to save context: ${dbError instanceof Error ? dbError.message : 'Unknown database error'}`
-        },
-        { status: 500 }
+      return createErrorResponse(
+        `Failed to save context: ${dbError instanceof Error ? dbError.message : 'Unknown database error'}`,
+        500
       );
     }
 
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      },
-      { status: 500 }
+    return createErrorResponse(
+      `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      500
     );
   }
 }

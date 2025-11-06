@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile, readdir, stat } from 'fs/promises';
+import { readFile, readdir } from 'fs/promises';
 import { join, extname, relative } from 'path';
+
+function createErrorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
 
 /**
  * POST /api/project/files
@@ -12,10 +16,7 @@ export async function POST(request: NextRequest) {
     const { projectPath, filePaths, limit = 20 } = body;
 
     if (!projectPath) {
-      return NextResponse.json(
-        { error: 'projectPath is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('projectPath is required', 400);
     }
 
     let files: Array<{ path: string; content: string; type: string }> = [];
@@ -29,9 +30,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ files });
 
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch files' },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Failed to fetch files',
+      500
     );
   }
 }

@@ -224,49 +224,42 @@ async function scanDirectory(dirPath: string, basePath: string): Promise<TreeNod
   }
 }
 
+function createErrorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { projectPath } = await request.json();
-    
+
     if (!projectPath) {
-      return NextResponse.json(
-        { error: 'Project path is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Project path is required', 400);
     }
-    
+
     // Verify the path exists
     try {
       await fs.access(projectPath);
     } catch {
-      return NextResponse.json(
-        { error: 'Project path does not exist' },
-        { status: 404 }
-      );
+      return createErrorResponse('Project path does not exist', 404);
     }
-    
+
     // Scan the directory structure
     const structure = await scanDirectory(projectPath, projectPath);
-    
+
     if (!structure) {
-      return NextResponse.json(
-        { error: 'Failed to scan project structure' },
-        { status: 500 }
-      );
+      return createErrorResponse('Failed to scan project structure', 500);
     }
-    
+
     return NextResponse.json({
       success: true,
       structure,
       scannedAt: new Date().toISOString(),
     });
-    
+
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Failed to scan project structure'
-      },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Failed to scan project structure',
+      500
     );
   }
 } 

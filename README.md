@@ -4,6 +4,13 @@
 
 > *Transform your development workflow with intelligent automation, real-time monitoring, and AI-driven insights*
 
+## Goal
+To boost personal productivity in SW development 100x - 1000x by using AI for operations throughout whole lifecycle
+- Planning
+- Code analysis
+- Implementation 
+- Tests
+
 ## Overview
 
 Vibeman is an intelligent development workflow platform that combines AI-powered automation, real-time project monitoring, and collaborative development tools. Built with Next.js and TypeScript, it provides developers with a comprehensive suite of tools to streamline project management, code review, and development processes.

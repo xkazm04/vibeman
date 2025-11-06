@@ -3,6 +3,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm';
 
+interface GenerateResponseData {
+  response?: string;
+  model?: string;
+  usage?: Record<string, number>;
+  metadata?: Record<string, unknown>;
+}
+
 function validatePrompt(prompt?: string) {
   if (!prompt || prompt.trim().length === 0) {
     return NextResponse.json(
@@ -26,7 +33,7 @@ function createErrorResponse(error: string | unknown, statusCode = 500) {
   );
 }
 
-function createSuccessResponse(data: any) {
+function createSuccessResponse(data: GenerateResponseData) {
   return NextResponse.json({
     success: true,
     response: data.response,

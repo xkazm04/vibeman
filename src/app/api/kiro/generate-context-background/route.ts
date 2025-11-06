@@ -5,17 +5,29 @@ import { existsSync } from 'fs';
 import { eventDb, contextDb } from '@/app/db';
 import { ollamaClient } from '@/lib/ollama';
 
+interface ContextGenerationRequest {
+  contextId: string;
+  contextName: string;
+  filePaths: string[];
+  projectPath: string;
+  projectId: string;
+}
+
 function generateEventId(): string {
   return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-function validateRequest(body: any) {
+function createErrorResponse(error: string, status: number) {
+  return NextResponse.json({ success: false, error }, { status });
+}
+
+function validateRequest(body: Partial<ContextGenerationRequest>) {
   const { contextId, contextName, filePaths, projectPath, projectId } = body;
 
   if (!contextId || !contextName || !filePaths || !projectPath || !projectId) {
-    return NextResponse.json(
-      { success: false, error: 'Context ID, name, file paths, project path, and project ID are required' },
-      { status: 400 }
+    return createErrorResponse(
+      'Context ID, name, file paths, project path, and project ID are required',
+      400
     );
   }
 
@@ -63,9 +75,9 @@ export async function POST(request: NextRequest) {
       eventId: startEventId
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }

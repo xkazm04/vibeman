@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FileSystemInterface } from '../../../../lib/fileSystemInterface';
-import { ClaudeTaskManager } from '../../../../lib/claudeTaskManager';
-import { DevelopmentRequirement } from '../../../../types/development';
-import { createErrorResponse } from '../../../../lib/api-helpers';
+import { FileSystemInterface } from '@/lib/fileSystemInterface';
+import { ClaudeTaskManager } from '@/lib/claudeTaskManager';
+import { DevelopmentRequirement } from '@/types/development';
+import { createErrorResponse } from '@/lib/api-helpers';
 
 interface CreateRequirementParams {
   projectPath: string;
