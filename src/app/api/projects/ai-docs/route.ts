@@ -62,31 +62,28 @@ async function gatherCodebaseResources(projectPath: string, projectId?: string) 
     }
   }
 
-  // Gather config files from project root
-  try {
-    for (const configName of configFileNames) {
-      const configPath = join(projectPath, configName);
-      const file = await readFileSafe(configPath);
-      if (file) {
-        configFiles.push(file);
+  // Helper to gather files from project root
+  async function gatherRootFiles(fileNames: string[]): Promise<Array<{ path: string; content: string; type: string }>> {
+    const files: Array<{ path: string; content: string; type: string }> = [];
+    try {
+      for (const fileName of fileNames) {
+        const filePath = join(projectPath, fileName);
+        const file = await readFileSafe(filePath);
+        if (file) {
+          files.push(file);
+        }
       }
+    } catch {
+      // Continue without files
     }
-  } catch {
-    // Continue without config files
+    return files;
   }
 
+  // Gather config files from project root
+  configFiles.push(...await gatherRootFiles(configFileNames));
+
   // Gather documentation files from project root
-  try {
-    for (const docName of docFileNames) {
-      const docPath = join(projectPath, docName);
-      const file = await readFileSafe(docPath);
-      if (file) {
-        documentationFiles.push(file);
-      }
-    }
-  } catch {
-    // Continue without documentation files
-  }
+  documentationFiles.push(...await gatherRootFiles(docFileNames));
 
   // Gather main implementation files with prioritization
   // Priority: src/ app/ lib/ components/ pages/ api/ routes/ controllers/ models/ services/
@@ -167,41 +164,73 @@ function getFileType(ext: string): string {
   return typeMap[ext] || 'text';
 }
 
+/**
+ * Validate request parameters
+ */
+function validateRequest(projectName: string, projectPath: string): { valid: boolean; error?: NextResponse } {
+  if (!projectName) {
+    return {
+      valid: false,
+      error: NextResponse.json(
+        { success: false, error: 'Project name is required' },
+        { status: 400 }
+      )
+    };
+  }
+
+  if (!projectPath) {
+    return {
+      valid: false,
+      error: NextResponse.json(
+        { success: false, error: 'Project path is required for gathering codebase resources' },
+        { status: 400 }
+      )
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Build enriched analysis with codebase resources
+ */
+function buildEnrichedAnalysis(
+  analysis: any,
+  configFiles: any[],
+  mainFiles: any[],
+  documentationFiles: any[],
+  contexts: any[]
+) {
+  return {
+    ...(analysis || {}),
+    codebase: {
+      configFiles,
+      mainFiles,
+      documentationFiles,
+      contexts
+    },
+    stats: {
+      ...(analysis?.stats || {}),
+      technologies: analysis?.stats?.technologies || []
+    }
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { projectName, projectPath, analysis, projectId, provider, vision } = await request.json();
 
-    if (!projectName) {
-      return NextResponse.json(
-        { success: false, error: 'Project name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!projectPath) {
-      return NextResponse.json(
-        { success: false, error: 'Project path is required for gathering codebase resources' },
-        { status: 400 }
-      );
+    // Validate request
+    const validation = validateRequest(projectName, projectPath);
+    if (!validation.valid) {
+      return validation.error;
     }
 
     // Gather codebase resources (including contexts if projectId is provided)
     const { configFiles, mainFiles, documentationFiles, contexts } = await gatherCodebaseResources(projectPath, projectId);
 
     // Build enriched analysis object with codebase resources
-    const enrichedAnalysis = {
-      ...(analysis || {}),
-      codebase: {
-        configFiles,
-        mainFiles,
-        documentationFiles,
-        contexts
-      },
-      stats: {
-        ...(analysis?.stats || {}),
-        technologies: analysis?.stats?.technologies || []
-      }
-    };
+    const enrichedAnalysis = buildEnrichedAnalysis(analysis, configFiles, mainFiles, documentationFiles, contexts);
 
     const aiReview = await generateAIReview(projectName, enrichedAnalysis, projectId, provider, vision);
 

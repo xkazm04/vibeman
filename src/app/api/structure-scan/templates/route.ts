@@ -63,7 +63,6 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error loading template:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load template' },
       { status: 500 }
@@ -111,7 +110,6 @@ export async function POST(request: NextRequest) {
       message: 'Template saved successfully',
     });
   } catch (error) {
-    console.error('Error saving template:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to save template' },
       { status: 500 }
@@ -148,7 +146,6 @@ export async function DELETE(request: NextRequest) {
       message: 'Template reset to default',
     });
   } catch (error) {
-    console.error('Error resetting template:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to reset template' },
       { status: 500 }

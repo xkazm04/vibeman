@@ -108,6 +108,16 @@ function buildTotalsQuery(daysBack: number, queryParams: HeatmapQueryParams): st
 }
 
 /**
+ * Reset query params for a new query
+ */
+function resetQueryParams(queryParams: HeatmapQueryParams): void {
+  queryParams.params = [];
+  if (queryParams.projectId && queryParams.projectId !== 'all') {
+    queryParams.params.push(queryParams.projectId);
+  }
+}
+
+/**
  * Fetch token heatmap data from database
  */
 function fetchTokenHeatmapData(
@@ -129,24 +139,14 @@ function fetchTokenHeatmapData(
   const heatmapStmt = db.prepare(heatmapQuery);
   const heatmapData = heatmapStmt.all(...queryParams.params) as HeatmapData[];
 
-  // Reset params for summary query
-  queryParams.params = [];
-  if (queryParams.projectId && queryParams.projectId !== 'all') {
-    queryParams.params.push(queryParams.projectId);
-  }
-
   // Fetch summary data
+  resetQueryParams(queryParams);
   const summaryQuery = buildSummaryQuery(daysBack, queryParams);
   const summaryStmt = db.prepare(summaryQuery);
   const summary = summaryStmt.all(...queryParams.params) as SummaryData[];
 
-  // Reset params for totals query
-  queryParams.params = [];
-  if (queryParams.projectId && queryParams.projectId !== 'all') {
-    queryParams.params.push(queryParams.projectId);
-  }
-
   // Fetch totals data
+  resetQueryParams(queryParams);
   const totalsQuery = buildTotalsQuery(daysBack, queryParams);
   const totalsStmt = db.prepare(totalsQuery);
   const totals = totalsStmt.get(...queryParams.params) as TotalsData;

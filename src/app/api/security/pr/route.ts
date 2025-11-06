@@ -4,6 +4,62 @@ import { createSecurityPr, runTests, runBuild, mergePrIfTestsPass } from '@/app/
 import { createPatchDocument } from '@/app/features/Depndencies/lib/patchGenerator';
 
 /**
+ * Helper to create error response
+ */
+function createErrorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+/**
+ * Validate request and fetch required data
+ */
+function validateAndFetchData(scanId: string, projectPath: string) {
+  if (!scanId || !projectPath) {
+    return { error: createErrorResponse('Missing required fields: scanId, projectPath', 400) };
+  }
+
+  const scan = securityScanDb.getById(scanId);
+  if (!scan) {
+    return { error: createErrorResponse('Security scan not found', 404) };
+  }
+
+  const patches = securityPatchDb.getByScanId(scanId);
+  if (patches.length === 0) {
+    return { error: createErrorResponse('No patches found for this scan', 404) };
+  }
+
+  return { scan, patches };
+}
+
+/**
+ * Convert patches to vulnerabilities and proposals
+ */
+function convertPatchesToVulnerabilities(patches: any[]) {
+  const vulnerabilities = patches.map((patch) => ({
+    id: patch.vulnerabilityId,
+    packageName: patch.packageName,
+    currentVersion: patch.currentVersion,
+    fixedVersion: patch.fixedVersion,
+    severity: patch.severity,
+    title: patch.description,
+    description: patch.description
+  }));
+
+  const proposals = patches.map((patch) => ({
+    vulnerabilityId: patch.vulnerabilityId,
+    analysis: patch.aiAnalysis || 'No AI analysis available',
+    proposal: patch.patchProposal || `Update ${patch.packageName} to ${patch.fixedVersion}`,
+    minimalChanges: [
+      `Update ${patch.packageName} from ${patch.currentVersion} to ${patch.fixedVersion}`,
+      'Run npm install'
+    ],
+    riskAssessment: 'Assess risk based on changelog and breaking changes'
+  }));
+
+  return { vulnerabilities, proposals };
+}
+
+/**
  * POST /api/security/pr
  * Create a PR with security patches
  */
@@ -11,51 +67,15 @@ export async function POST(request: NextRequest) {
   try {
     const { scanId, projectPath } = await request.json();
 
-    if (!scanId || !projectPath) {
-      return NextResponse.json(
-        { error: 'Missing required fields: scanId, projectPath' },
-        { status: 400 }
-      );
+    // Validate and fetch data
+    const result = validateAndFetchData(scanId, projectPath);
+    if ('error' in result) {
+      return result.error;
     }
-
-    // Get scan and patches
-    const scan = securityScanDb.getById(scanId);
-    if (!scan) {
-      return NextResponse.json(
-        { error: 'Security scan not found' },
-        { status: 404 }
-      );
-    }
-
-    const patches = securityPatchDb.getByScanId(scanId);
-    if (patches.length === 0) {
-      return NextResponse.json(
-        { error: 'No patches found for this scan' },
-        { status: 404 }
-      );
-    }
+    const { scan, patches } = result;
 
     // Convert patches to vulnerability info and proposals
-    const vulnerabilities = patches.map((patch) => ({
-      id: patch.vulnerabilityId,
-      packageName: patch.packageName,
-      currentVersion: patch.currentVersion,
-      fixedVersion: patch.fixedVersion,
-      severity: patch.severity,
-      title: patch.description,
-      description: patch.description
-    }));
-
-    const proposals = patches.map((patch) => ({
-      vulnerabilityId: patch.vulnerabilityId,
-      analysis: patch.aiAnalysis || 'No AI analysis available',
-      proposal: patch.patchProposal || `Update ${patch.packageName} to ${patch.fixedVersion}`,
-      minimalChanges: [
-        `Update ${patch.packageName} from ${patch.currentVersion} to ${patch.fixedVersion}`,
-        'Run npm install'
-      ],
-      riskAssessment: 'Assess risk based on changelog and breaking changes'
-    }));
+    const { vulnerabilities, proposals } = convertPatchesToVulnerabilities(patches);
 
     // Create patch document
     const patchDocument = createPatchDocument(vulnerabilities, proposals);

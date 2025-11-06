@@ -8,6 +8,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
 
+/**
+ * Helper to create error response
+ */
+function createErrorResponse(message: string, error: unknown, status: number = 500) {
+  return NextResponse.json(
+    {
+      error: message,
+      details: error instanceof Error ? error.message : 'Unknown error'
+    },
+    { status }
+  );
+}
+
+/**
+ * Helper to create not found response
+ */
+function createNotFoundResponse() {
+  return NextResponse.json(
+    { error: 'Queue item not found' },
+    { status: 404 }
+  );
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,18 +40,12 @@ export async function GET(
     const queueItem = scanQueueDb.getQueueItemById(id);
 
     if (!queueItem) {
-      return NextResponse.json(
-        { error: 'Queue item not found' },
-        { status: 404 }
-      );
+      return createNotFoundResponse();
     }
 
     return NextResponse.json({ queueItem });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch queue item', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to fetch queue item', error);
   }
 }
 
@@ -61,18 +78,12 @@ export async function PATCH(
     }
 
     if (!queueItem) {
-      return NextResponse.json(
-        { error: 'Queue item not found' },
-        { status: 404 }
-      );
+      return createNotFoundResponse();
     }
 
     return NextResponse.json({ queueItem });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to update queue item', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to update queue item', error);
   }
 }
 
@@ -86,17 +97,11 @@ export async function DELETE(
     const queueItem = scanQueueDb.updateStatus(id, 'cancelled');
 
     if (!queueItem) {
-      return NextResponse.json(
-        { error: 'Queue item not found' },
-        { status: 404 }
-      );
+      return createNotFoundResponse();
     }
 
     return NextResponse.json({ success: true, queueItem });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to cancel queue item', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to cancel queue item', error);
   }
 }
