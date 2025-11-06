@@ -110,7 +110,20 @@ async function generateContextFile(
   return { hasContextFile: false };
 }
 
-function convertDbContextToFrontend(dbContext: any) {
+interface DbContext {
+  id: string;
+  project_id: string;
+  group_id: string | null;
+  name: string;
+  description: string | null;
+  file_paths: string;
+  has_context_file: number;
+  context_file_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function convertDbContextToFrontend(dbContext: DbContext) {
   return {
     id: dbContext.id,
     projectId: dbContext.project_id,
@@ -125,11 +138,66 @@ function convertDbContextToFrontend(dbContext: any) {
   };
 }
 
+async function handleContextFileGeneration(
+  data: ContextRequest,
+  contextName: string,
+  description: string | undefined,
+  filePaths: string[],
+  projectPath: string | undefined,
+  projectId: string,
+  model: string | undefined
+): Promise<ContextFileResult> {
+  if (data.generateFile && data.prompt && projectPath) {
+    return await generateContextFile(
+      contextName,
+      description,
+      filePaths,
+      projectPath,
+      projectId,
+      data.prompt,
+      model
+    );
+  }
+  return { hasContextFile: false };
+}
+
+function saveContextToDatabase(
+  contextId: string,
+  projectId: string,
+  groupId: string | undefined,
+  contextName: string,
+  description: string | undefined,
+  filePaths: string[],
+  hasContextFile: boolean,
+  contextFilePath: string | undefined
+) {
+  return contextDb.createContext({
+    id: contextId,
+    project_id: projectId,
+    group_id: groupId || null,
+    name: contextName,
+    description: description || undefined,
+    file_paths: filePaths,
+    has_context_file: hasContextFile,
+    context_file_path: contextFilePath
+  });
+}
+
+function createSuccessResponse(context: ReturnType<typeof convertDbContextToFrontend>, hasContextFile: boolean, contextFilePath: string | undefined) {
+  return NextResponse.json({
+    success: true,
+    context,
+    contextFilePath: hasContextFile ? contextFilePath : null,
+    message: hasContextFile
+      ? 'Context created successfully with generated file'
+      : 'Context created successfully'
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const data: ContextRequest = await request.json();
 
-    // Validate required fields
     const validationError = validateContextRequest(data);
     if (validationError) {
       return validationError;
@@ -142,53 +210,36 @@ export async function POST(request: NextRequest) {
       groupId,
       projectId,
       projectPath,
-      generateFile = false,
-      prompt,
       model
     } = data;
 
     const contextId = uuidv4();
-    let contextFilePath: string | undefined;
-    let hasContextFile = false;
 
-    // Generate context file if requested
-    if (generateFile && prompt && projectPath) {
-      const result = await generateContextFile(
+    const fileResult = await handleContextFileGeneration(
+      data,
+      contextName,
+      description,
+      filePaths,
+      projectPath,
+      projectId,
+      model
+    );
+
+    try {
+      const dbContext = saveContextToDatabase(
+        contextId,
+        projectId,
+        groupId,
         contextName,
         description,
         filePaths,
-        projectPath,
-        projectId,
-        prompt,
-        model
+        fileResult.hasContextFile,
+        fileResult.contextFilePath
       );
-      contextFilePath = result.contextFilePath;
-      hasContextFile = result.hasContextFile;
-    }
-
-    // Save context to database
-    try {
-      const dbContext = contextDb.createContext({
-        id: contextId,
-        project_id: projectId,
-        group_id: groupId || null,
-        name: contextName,
-        description: description || undefined,
-        file_paths: filePaths,
-        has_context_file: hasContextFile,
-        context_file_path: contextFilePath
-      });
 
       const context = convertDbContextToFrontend(dbContext);
 
-      return NextResponse.json({
-        success: true,
-        context,
-        contextFilePath: hasContextFile ? contextFilePath : null,
-        message: hasContextFile
-          ? 'Context created successfully with generated file'
-          : 'Context created successfully'
-      });
+      return createSuccessResponse(context, fileResult.hasContextFile, fileResult.contextFilePath);
 
     } catch (dbError) {
       return createErrorResponse(

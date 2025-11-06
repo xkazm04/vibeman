@@ -1,7 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
-import { type ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { SCAN_TYPES } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
+
+interface Idea {
+  project_id: string;
+  context_id: string | null;
+  scan_type: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'implemented';
+}
+
+function filterIdeas(ideas: Idea[], projectId: string | null, contextId: string | null): Idea[] {
+  let filtered = ideas;
+
+  if (projectId) {
+    filtered = filtered.filter(idea => idea.project_id === projectId);
+  }
+
+  if (contextId) {
+    filtered = filtered.filter(idea => idea.context_id === contextId);
+  }
+
+  return filtered;
+}
+
+function calculateStatusCounts(ideas: Idea[]) {
+  return {
+    pending: ideas.filter(i => i.status === 'pending').length,
+    accepted: ideas.filter(i => i.status === 'accepted').length,
+    rejected: ideas.filter(i => i.status === 'rejected').length,
+    implemented: ideas.filter(i => i.status === 'implemented').length,
+    total: ideas.length
+  };
+}
+
+function calculateAcceptanceRatio(accepted: number, implemented: number, total: number): number {
+  return total > 0 ? Math.round(((accepted + implemented) / total) * 100) : 0;
+}
+
+function calculateScanTypeStats(ideas: Idea[]) {
+  const scanTypes = SCAN_TYPES.map(t => t.value);
+
+  return scanTypes.map(scanType => {
+    const scanIdeas = ideas.filter(idea => idea.scan_type === scanType);
+    const counts = calculateStatusCounts(scanIdeas);
+
+    return {
+      scanType,
+      ...counts,
+      acceptanceRatio: calculateAcceptanceRatio(counts.accepted, counts.implemented, counts.total)
+    };
+  });
+}
+
+function calculateOverallStats(ideas: Idea[]) {
+  const counts = calculateStatusCounts(ideas);
+
+  return {
+    ...counts,
+    acceptanceRatio: calculateAcceptanceRatio(counts.accepted, counts.implemented, counts.total)
+  };
+}
+
+function groupByField<T extends string>(
+  ideas: Idea[],
+  fieldGetter: (idea: Idea) => T | null
+) {
+  const map = new Map<T, number>();
+
+  ideas.forEach(idea => {
+    const fieldValue = fieldGetter(idea);
+    if (fieldValue) {
+      const count = map.get(fieldValue) || 0;
+      map.set(fieldValue, count + 1);
+    }
+  });
+
+  return map;
+}
 
 /**
  * GET /api/ideas/stats
@@ -16,89 +91,23 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     const contextId = searchParams.get('contextId');
 
-    // Get ideas based on filters
-    let ideas = ideaDb.getAllIdeas();
+    const allIdeas = ideaDb.getAllIdeas();
+    const ideas = filterIdeas(allIdeas, projectId, contextId);
 
-    if (projectId) {
-      ideas = ideas.filter(idea => idea.project_id === projectId);
-    }
+    const scanTypeStats = calculateScanTypeStats(ideas);
+    const overall = calculateOverallStats(ideas);
 
-    if (contextId) {
-      ideas = ideas.filter(idea => idea.context_id === contextId);
-    }
-
-    // Get all scan types from configuration
-    const scanTypes: ScanType[] = SCAN_TYPES.map(t => t.value);
-
-    // Calculate stats per scan type
-    const scanTypeStats = scanTypes.map(scanType => {
-      const scanIdeas = ideas.filter(idea => idea.scan_type === scanType);
-
-      const pending = scanIdeas.filter(i => i.status === 'pending').length;
-      const accepted = scanIdeas.filter(i => i.status === 'accepted').length;
-      const rejected = scanIdeas.filter(i => i.status === 'rejected').length;
-      const implemented = scanIdeas.filter(i => i.status === 'implemented').length;
-      const total = scanIdeas.length;
-
-      const acceptanceRatio = total > 0
-        ? Math.round(((accepted + implemented) / total) * 100)
-        : 0;
-
-      return {
-        scanType,
-        pending,
-        accepted,
-        rejected,
-        implemented,
-        total,
-        acceptanceRatio
-      };
-    });
-
-    // Calculate overall stats
-    const allPending = ideas.filter(i => i.status === 'pending').length;
-    const allAccepted = ideas.filter(i => i.status === 'accepted').length;
-    const allRejected = ideas.filter(i => i.status === 'rejected').length;
-    const allImplemented = ideas.filter(i => i.status === 'implemented').length;
-    const allTotal = ideas.length;
-    const allAcceptanceRatio = allTotal > 0
-      ? Math.round(((allAccepted + allImplemented) / allTotal) * 100)
-      : 0;
-
-    const overall = {
-      pending: allPending,
-      accepted: allAccepted,
-      rejected: allRejected,
-      implemented: allImplemented,
-      total: allTotal,
-      acceptanceRatio: allAcceptanceRatio
-    };
-
-    // Group by project (for filter dropdown)
-    const projectMap = new Map<string, number>();
-    ideas.forEach(idea => {
-      const count = projectMap.get(idea.project_id) || 0;
-      projectMap.set(idea.project_id, count + 1);
-    });
-
+    const projectMap = groupByField(ideas, idea => idea.project_id);
     const projects = Array.from(projectMap.entries()).map(([projectId, totalIdeas]) => ({
       projectId,
-      name: projectId, // Will be resolved on client side
+      name: projectId,
       totalIdeas
     }));
 
-    // Group by context (for filter dropdown)
-    const contextMap = new Map<string, number>();
-    ideas.forEach(idea => {
-      if (idea.context_id) {
-        const count = contextMap.get(idea.context_id) || 0;
-        contextMap.set(idea.context_id, count + 1);
-      }
-    });
-
+    const contextMap = groupByField(ideas, idea => idea.context_id);
     const contexts = Array.from(contextMap.entries()).map(([contextId, totalIdeas]) => ({
       contextId,
-      name: contextId, // Will be resolved on client side
+      name: contextId,
       totalIdeas
     }));
 

@@ -35,54 +35,83 @@ function sortNodes(a: FolderNode, b: FolderNode): number {
   return a.type === 'folder' ? -1 : 1;
 }
 
-async function buildFolderTree(dirPath: string, relativePath: string = '', maxDepth: number = 3, currentDepth: number = 0): Promise<FolderNode[]> {
+async function createFolderNode(
+  item: string,
+  itemRelativePath: string,
+  fullPath: string,
+  maxDepth: number,
+  currentDepth: number
+): Promise<FolderNode> {
+  const node: FolderNode = {
+    name: item,
+    path: itemRelativePath,
+    type: 'folder'
+  };
+
+  if (currentDepth < maxDepth - 1) {
+    node.children = await buildFolderTree(fullPath, itemRelativePath, maxDepth, currentDepth + 1);
+  }
+
+  return node;
+}
+
+function createFileNode(item: string, itemRelativePath: string): FolderNode {
+  return {
+    name: item,
+    path: itemRelativePath,
+    type: 'file'
+  };
+}
+
+async function processItem(
+  item: string,
+  dirPath: string,
+  relativePath: string,
+  maxDepth: number,
+  currentDepth: number
+): Promise<FolderNode | null> {
+  if (shouldIgnoreItem(item)) {
+    return null;
+  }
+
+  const fullPath = join(dirPath, item);
+  const itemRelativePath = relativePath ? `${relativePath}/${item}` : item;
+
+  try {
+    const stats = await stat(fullPath);
+
+    if (stats.isDirectory()) {
+      return await createFolderNode(item, itemRelativePath, fullPath, maxDepth, currentDepth);
+    } else if (stats.isFile() && shouldIncludeFile(item)) {
+      return createFileNode(item, itemRelativePath);
+    }
+  } catch (statError) {
+    // Skip items that can't be accessed
+  }
+
+  return null;
+}
+
+async function buildFolderTree(
+  dirPath: string,
+  relativePath: string = '',
+  maxDepth: number = 3,
+  currentDepth: number = 0
+): Promise<FolderNode[]> {
   if (currentDepth >= maxDepth) {
     return [];
   }
 
   try {
     const items = await readdir(dirPath);
-    const nodes: FolderNode[] = [];
+    const nodePromises = items.map(item =>
+      processItem(item, dirPath, relativePath, maxDepth, currentDepth)
+    );
 
-    for (const item of items) {
-      if (shouldIgnoreItem(item)) {
-        continue;
-      }
-
-      const fullPath = join(dirPath, item);
-      const itemRelativePath = relativePath ? `${relativePath}/${item}` : item;
-
-      try {
-        const stats = await stat(fullPath);
-
-        if (stats.isDirectory()) {
-          const node: FolderNode = {
-            name: item,
-            path: itemRelativePath,
-            type: 'folder'
-          };
-
-          // Recursively get children for folders
-          if (currentDepth < maxDepth - 1) {
-            node.children = await buildFolderTree(fullPath, itemRelativePath, maxDepth, currentDepth + 1);
-          }
-
-          nodes.push(node);
-        } else if (stats.isFile() && shouldIncludeFile(item)) {
-          nodes.push({
-            name: item,
-            path: itemRelativePath,
-            type: 'file'
-          });
-        }
-      } catch (statError) {
-        // Skip items that can't be accessed
-        continue;
-      }
-    }
+    const processedNodes = await Promise.all(nodePromises);
+    const nodes = processedNodes.filter((node): node is FolderNode => node !== null);
 
     return nodes.sort(sortNodes);
-
   } catch (error) {
     return [];
   }

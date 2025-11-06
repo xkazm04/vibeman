@@ -22,6 +22,26 @@ function validateProjectReviewRequest(data: Partial<ProjectReviewRequest>): stri
   return null;
 }
 
+async function generateProjectDocs(
+  projectName: string,
+  projectPath: string,
+  projectAnalysis: Awaited<ReturnType<typeof analyzeProjectStructure>>,
+  projectId: string,
+  provider?: string
+) {
+  const aiReview = await generateAIReview(projectName, projectAnalysis, projectId, provider);
+  return {
+    success: true,
+    analysis: aiReview,
+    projectInfo: {
+      name: projectName,
+      path: projectPath,
+      structure: projectAnalysis.structure,
+      stats: projectAnalysis.stats
+    }
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const data: ProjectReviewRequest = await request.json();
@@ -36,25 +56,13 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Analyze the project structure
       const projectAnalysis = await analyzeProjectStructure(projectPath);
 
       let result;
 
-      // Generate content based on mode
       switch (mode) {
         case 'docs':
-          const aiReview = await generateAIReview(projectName, projectAnalysis, projectId, provider);
-          result = {
-            success: true,
-            analysis: aiReview,
-            projectInfo: {
-              name: projectName,
-              path: projectPath,
-              structure: projectAnalysis.structure,
-              stats: projectAnalysis.stats
-            }
-          };
+          result = await generateProjectDocs(projectName, projectPath, projectAnalysis, projectId, provider);
           break;
         default:
           throw new Error(`Invalid mode: ${mode}`);

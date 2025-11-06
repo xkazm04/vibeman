@@ -4,6 +4,14 @@ import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.re
 import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { randomUUID } from 'crypto';
 
+function createErrorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+function validateProjectRequest(projectId: string | undefined, projectPath: string | undefined): boolean {
+  return !!(projectId && projectPath);
+}
+
 /**
  * POST /api/goals/generate-candidates
  * Generate goal candidates using LLM
@@ -21,11 +29,8 @@ export async function POST(request: NextRequest) {
       maxCandidates = 10
     } = body;
 
-    if (!projectId || !projectPath) {
-      return NextResponse.json(
-        { error: 'Project ID and path are required' },
-        { status: 400 }
-      );
+    if (!validateProjectRequest(projectId, projectPath)) {
+      return createErrorResponse('Project ID and path are required', 400);
     }
 
     const result = await generateGoalCandidates({
@@ -39,10 +44,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || 'Failed to generate goal candidates' },
-        { status: 500 }
-      );
+      return createErrorResponse(result.error || 'Failed to generate goal candidates', 500);
     }
 
     return NextResponse.json({
@@ -53,11 +55,7 @@ export async function POST(request: NextRequest) {
       metadata: result.metadata
     });
   } catch (error) {
-    console.error('Error in POST /api/goals/generate-candidates:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return createErrorResponse('Internal server error', 500);
   }
 }
 
@@ -72,10 +70,7 @@ export async function GET(request: NextRequest) {
     const userAction = searchParams.get('userAction') as 'pending' | 'accepted' | 'rejected' | 'tweaked' | null;
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: 'Project ID is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Project ID is required', 400);
     }
 
     const candidates = goalCandidateRepository.getCandidatesByProject(
@@ -91,12 +86,73 @@ export async function GET(request: NextRequest) {
       stats
     });
   } catch (error) {
-    console.error('Error in GET /api/goals/generate-candidates:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return createErrorResponse('Internal server error', 500);
   }
+}
+
+function handleAcceptAction(candidateId: string, updates: any) {
+  const candidate = goalCandidateRepository.getCandidateById(candidateId);
+
+  if (!candidate) {
+    return createErrorResponse('Candidate not found', 404);
+  }
+
+  const maxOrderIndex = goalRepository.getMaxOrderIndex(candidate.project_id);
+
+  const goal = goalRepository.createGoal({
+    id: randomUUID(),
+    project_id: candidate.project_id,
+    context_id: candidate.context_id || undefined,
+    title: updates?.title || candidate.title,
+    description: updates?.description || candidate.description || undefined,
+    status: candidate.suggested_status,
+    order_index: maxOrderIndex + 1
+  });
+
+  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
+    user_action: 'accepted',
+    goal_id: goal.id,
+    title: updates?.title,
+    description: updates?.description
+  });
+
+  return NextResponse.json({
+    success: true,
+    candidate: updatedCandidate,
+    goal
+  });
+}
+
+function handleRejectAction(candidateId: string) {
+  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
+    user_action: 'rejected'
+  });
+
+  return NextResponse.json({
+    success: true,
+    candidate: updatedCandidate
+  });
+}
+
+function handleTweakAction(candidateId: string, updates: any) {
+  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
+    user_action: 'tweaked',
+    ...updates
+  });
+
+  return NextResponse.json({
+    success: true,
+    candidate: updatedCandidate
+  });
+}
+
+function handleUpdateAction(candidateId: string, updates: any) {
+  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, updates);
+
+  return NextResponse.json({
+    success: true,
+    candidate: updatedCandidate
+  });
 }
 
 /**
@@ -109,92 +165,42 @@ export async function PUT(request: NextRequest) {
     const { candidateId, action, updates } = body;
 
     if (!candidateId || !action) {
-      return NextResponse.json(
-        { error: 'Candidate ID and action are required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Candidate ID and action are required', 400);
     }
 
-    // Handle different actions
-    if (action === 'accept') {
-      // Get the candidate
-      const candidate = goalCandidateRepository.getCandidateById(candidateId);
-
-      if (!candidate) {
-        return NextResponse.json(
-          { error: 'Candidate not found' },
-          { status: 404 }
-        );
-      }
-
-      // Get next order index for the project
-      const maxOrderIndex = goalRepository.getMaxOrderIndex(candidate.project_id);
-
-      // Create the goal from the candidate
-      const goal = goalRepository.createGoal({
-        id: randomUUID(),
-        project_id: candidate.project_id,
-        context_id: candidate.context_id || undefined,
-        title: updates?.title || candidate.title,
-        description: updates?.description || candidate.description || undefined,
-        status: candidate.suggested_status,
-        order_index: maxOrderIndex + 1
-      });
-
-      // Update the candidate with accepted status and link to goal
-      const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-        user_action: 'accepted',
-        goal_id: goal.id,
-        title: updates?.title,
-        description: updates?.description
-      });
-
-      return NextResponse.json({
-        success: true,
-        candidate: updatedCandidate,
-        goal
-      });
-    } else if (action === 'reject') {
-      const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-        user_action: 'rejected'
-      });
-
-      return NextResponse.json({
-        success: true,
-        candidate: updatedCandidate
-      });
-    } else if (action === 'tweak') {
-      // User wants to edit before accepting
-      const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-        user_action: 'tweaked',
-        ...updates
-      });
-
-      return NextResponse.json({
-        success: true,
-        candidate: updatedCandidate
-      });
-    } else if (action === 'update') {
-      // General update
-      const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, updates);
-
-      return NextResponse.json({
-        success: true,
-        candidate: updatedCandidate
-      });
-    } else {
-      return NextResponse.json(
-        { error: 'Invalid action' },
-        { status: 400 }
-      );
+    switch (action) {
+      case 'accept':
+        return handleAcceptAction(candidateId, updates);
+      case 'reject':
+        return handleRejectAction(candidateId);
+      case 'tweak':
+        return handleTweakAction(candidateId, updates);
+      case 'update':
+        return handleUpdateAction(candidateId, updates);
+      default:
+        return createErrorResponse('Invalid action', 400);
     }
   } catch (error) {
-    console.error('Error in PUT /api/goals/generate-candidates:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return createErrorResponse('Internal server error', 500);
   }
+}
+
+function handleDeleteAll(projectId: string) {
+  const deletedCount = goalCandidateRepository.deleteCandidatesByProject(projectId, 'pending');
+  return NextResponse.json({
+    success: true,
+    deletedCount
+  });
+}
+
+function handleDeleteSingle(candidateId: string) {
+  const success = goalCandidateRepository.deleteCandidate(candidateId);
+
+  if (!success) {
+    return createErrorResponse('Candidate not found', 404);
+  }
+
+  return NextResponse.json({ success: true });
 }
 
 /**
@@ -209,35 +215,13 @@ export async function DELETE(request: NextRequest) {
     const deleteAll = searchParams.get('deleteAll') === 'true';
 
     if (deleteAll && projectId) {
-      // Delete all pending candidates for the project
-      const deletedCount = goalCandidateRepository.deleteCandidatesByProject(projectId, 'pending');
-
-      return NextResponse.json({
-        success: true,
-        deletedCount
-      });
+      return handleDeleteAll(projectId);
     } else if (candidateId) {
-      const success = goalCandidateRepository.deleteCandidate(candidateId);
-
-      if (!success) {
-        return NextResponse.json(
-          { error: 'Candidate not found' },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({ success: true });
+      return handleDeleteSingle(candidateId);
     } else {
-      return NextResponse.json(
-        { error: 'Candidate ID or Project ID with deleteAll flag is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Candidate ID or Project ID with deleteAll flag is required', 400);
     }
   } catch (error) {
-    console.error('Error in DELETE /api/goals/generate-candidates:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return createErrorResponse('Internal server error', 500);
   }
 }

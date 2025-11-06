@@ -1,6 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateIdeas } from '@/app/projects/ProjectAI/ScanIdeas/generateIdeas';
 
+interface GenerateIdeasRequest {
+  projectId: string;
+  projectName: string;
+  projectPath: string;
+  contextId?: string;
+  provider?: string;
+  scanType?: string;
+  codebaseFiles: string[];
+}
+
+function validateGenerateIdeasRequest(body: Partial<GenerateIdeasRequest>): string | null {
+  if (!body.projectId || !body.projectName || !body.projectPath) {
+    return 'projectId, projectName, and projectPath are required';
+  }
+
+  if (!Array.isArray(body.codebaseFiles) || body.codebaseFiles.length === 0) {
+    return 'codebaseFiles array is required and must not be empty';
+  }
+
+  return null;
+}
+
+function createErrorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+function createSuccessResponse(ideas: any[], scanId: string) {
+  return NextResponse.json({
+    success: true,
+    ideas,
+    scanId,
+    count: ideas.length
+  });
+}
+
 /**
  * POST /api/ideas/generate
  * Generate ideas for a project or specific context
@@ -9,7 +44,13 @@ import { generateIdeas } from '@/app/projects/ProjectAI/ScanIdeas/generateIdeas'
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body: GenerateIdeasRequest = await request.json();
+
+    const validationError = validateGenerateIdeasRequest(body);
+    if (validationError) {
+      return createErrorResponse(validationError, 400);
+    }
+
     const {
       projectId,
       projectName,
@@ -20,28 +61,6 @@ export async function POST(request: NextRequest) {
       codebaseFiles
     } = body;
 
-    // Validation
-    if (!projectId || !projectName || !projectPath) {
-      return NextResponse.json(
-        { error: 'projectId, projectName, and projectPath are required' },
-        { status: 400 }
-      );
-    }
-
-    if (!Array.isArray(codebaseFiles) || codebaseFiles.length === 0) {
-      return NextResponse.json(
-        { error: 'codebaseFiles array is required and must not be empty' },
-        { status: 400 }
-      );
-    }
-
-    console.log(`[API] Starting idea generation for project: ${projectName}`);
-    if (contextId) {
-      console.log(`[API] Context specified: ${contextId}`);
-    }
-    console.log(`[API] Analyzing ${codebaseFiles.length} files`);
-
-    // Generate ideas (no timeout - let it run as long as needed)
     const result = await generateIdeas({
       projectId,
       projectName,
@@ -53,27 +72,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
-      console.error('[API] Idea generation failed:', result.error);
-      return NextResponse.json(
-        { error: result.error || 'Failed to generate ideas' },
-        { status: 500 }
-      );
+      return createErrorResponse(result.error || 'Failed to generate ideas', 500);
     }
 
-    console.log(`[API] Successfully generated ${result.ideas?.length || 0} ideas`);
-
-    return NextResponse.json({
-      success: true,
-      ideas: result.ideas,
-      scanId: result.scanId,
-      count: result.ideas?.length || 0
-    });
+    return createSuccessResponse(result.ideas || [], result.scanId || '');
 
   } catch (error) {
-    console.error('[API] Error in idea generation endpoint:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error occurred' },
-      { status: 500 }
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Unknown error occurred',
+      500
     );
   }
 }
