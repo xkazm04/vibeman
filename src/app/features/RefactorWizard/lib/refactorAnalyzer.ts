@@ -19,23 +19,54 @@ export { analyzeWithAI } from './aiAnalyzer';
 export type { FileAnalysis, AnalysisResult } from './types';
 
 /**
+ * Helper: Create a refactor opportunity
+ */
+function createOpportunity(
+  id: string,
+  title: string,
+  description: string,
+  category: string,
+  severity: string,
+  impact: string,
+  effort: string,
+  files: string[],
+  autoFixAvailable: boolean,
+  estimatedTime: string,
+  lineNumbers?: Record<string, number[]>
+): RefactorOpportunity {
+  return {
+    id,
+    title,
+    description,
+    category,
+    severity,
+    impact,
+    effort,
+    files,
+    autoFixAvailable,
+    estimatedTime,
+    ...(lineNumbers && { lineNumbers }),
+  };
+}
+
+/**
  * Check for large file size
  */
 function checkLargeFile(file: FileAnalysis): RefactorOpportunity | null {
   if (file.lines <= 500) return null;
 
-  return {
-    id: `long-file-${file.path}`,
-    title: `Large file detected: ${file.path}`,
-    description: `This file has ${file.lines} lines. Consider splitting it into smaller, more focused modules.`,
-    category: 'maintainability',
-    severity: file.lines > 1000 ? 'high' : 'medium',
-    impact: 'Improves code organization and maintainability',
-    effort: 'high',
-    files: [file.path],
-    autoFixAvailable: false,
-    estimatedTime: '2-4 hours',
-  };
+  return createOpportunity(
+    `long-file-${file.path}`,
+    `Large file detected: ${file.path}`,
+    `This file has ${file.lines} lines. Consider splitting it into smaller, more focused modules.`,
+    'maintainability',
+    file.lines > 1000 ? 'high' : 'medium',
+    'Improves code organization and maintainability',
+    'high',
+    [file.path],
+    false,
+    '2-4 hours'
+  );
 }
 
 /**
