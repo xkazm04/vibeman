@@ -9,6 +9,7 @@ import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import { loadRequirements, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
+import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
 
 
 
@@ -20,6 +21,9 @@ const TaskRunnerLayout = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [error, setError] = useState<string | undefined>();
+
+  // Get store tasks to sync status
+  const storeTasks = useTaskRunnerStore((state) => state.tasks);
 
   const actions: TaskRunnerActions = {
     setRequirements,
@@ -78,11 +82,33 @@ const TaskRunnerLayout = () => {
     }
   }, [projects, isRunning]);
 
-  // Group requirements by project
+  // Helper to get requirement ID
+  const getRequirementId = (req: ProjectRequirement) =>
+    `${req.projectId}:${req.requirementName}`;
+
+  // Merge requirements with store task status for real-time updates
+  const requirementsWithStatus = useMemo(() => {
+    return requirements.map((req) => {
+      const reqId = getRequirementId(req);
+      const task = storeTasks[reqId];
+
+      // If task exists in store, use its status
+      if (task) {
+        return {
+          ...req,
+          status: task.status,
+        };
+      }
+
+      return req;
+    });
+  }, [requirements, storeTasks]);
+
+  // Group requirements by project (using status-merged requirements)
   const groupedRequirements = useMemo(() => {
     const grouped: Record<string, ProjectRequirement[]> = {};
 
-    requirements.forEach((req) => {
+    requirementsWithStatus.forEach((req) => {
       if (!grouped[req.projectId]) {
         grouped[req.projectId] = [];
       }
@@ -90,13 +116,10 @@ const TaskRunnerLayout = () => {
     });
 
     return grouped;
-  }, [requirements]);
-
-  const getRequirementId = (req: ProjectRequirement) =>
-    `${req.projectId}:${req.requirementName}`;
+  }, [requirementsWithStatus]);
 
   const toggleSelection = (reqId: string) => {
-    const req = requirements.find((r) => getRequirementId(r) === reqId);
+    const req = requirementsWithStatus.find((r) => getRequirementId(r) === reqId);
     if (!req || req.status === 'running' || req.status === 'queued') return;
 
     setSelectedRequirements((prev) => {
@@ -198,11 +221,11 @@ const TaskRunnerLayout = () => {
         <LazyContentSection delay={0}>
           <TaskRunnerHeader
             selectedCount={selectedRequirements.size}
-            totalCount={requirements.length}
+            totalCount={requirementsWithStatus.length}
             processedCount={processedCount}
             isRunning={isRunning}
             error={error}
-            requirements={requirements}
+            requirements={requirementsWithStatus}
             selectedRequirements={selectedRequirements}
             actions={actions}
             getRequirementId={getRequirementId}
@@ -211,7 +234,7 @@ const TaskRunnerLayout = () => {
 
         {/* Requirements Grid - Column Layout */}
         <LazyContentSection delay={0.2}>
-          {requirements.length === 0 ? (
+          {requirementsWithStatus.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-gray-500 text-lg">
                 No requirements found. Create requirements in your projects&apos; .claude/commands directory.

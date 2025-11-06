@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DbIdea } from '@/app/db';
+import { getJSON } from './utils/apiHelpers';
 
 /**
  * Idea Statistics Interface
@@ -41,12 +42,9 @@ export function useGlobalIdeaStats() {
   // Fetch ideas and calculate stats
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/ideas');
-      if (response.ok) {
-        const data = await response.json();
-        const ideas: DbIdea[] = data.ideas || [];
-        setStats(calculateStats(ideas));
-      }
+      const data = await getJSON<{ ideas?: DbIdea[] }>('/api/ideas');
+      const ideas: DbIdea[] = data.ideas || [];
+      setStats(calculateStats(ideas));
     } catch (_error) {
       // Silently handle fetch errors - stats will remain at previous value
     } finally {

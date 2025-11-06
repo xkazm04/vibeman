@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTaskRunnerStore, type BatchId, type BatchState, type TaskState } from './taskRunnerStore';
 import type { ProjectRequirement } from '../lib/types';
 
@@ -29,21 +30,21 @@ export function useAllBatches() {
  * Hook to get all active (running) batches
  */
 export function useActiveBatches(): BatchId[] {
-  return useTaskRunnerStore((state) => state.getActiveBatches());
+  return useTaskRunnerStore(useShallow((state) => state.getActiveBatches()));
 }
 
 /**
  * Hook to get batch progress
  */
 export function useBatchProgress(batchId: BatchId) {
-  return useTaskRunnerStore((state) => state.getBatchProgress(batchId));
+  return useTaskRunnerStore(useShallow((state) => state.getBatchProgress(batchId)));
 }
 
 /**
  * Hook to get tasks for a specific batch
  */
 export function useBatchTasks(batchId: BatchId): TaskState[] {
-  return useTaskRunnerStore((state) => state.getTasksForBatch(batchId));
+  return useTaskRunnerStore(useShallow((state) => state.getTasksForBatch(batchId)));
 }
 
 // ============================================================================
@@ -221,30 +222,34 @@ export function useGlobalPause() {
  * Hook to get overall progress across all active batches
  */
 export function useOverallProgress() {
-  const batches = useAllBatches();
-  const getBatchProgress = useTaskRunnerStore((state) => state.getBatchProgress);
+  return useTaskRunnerStore(useShallow((state) => {
+    let totalTasks = 0;
+    let completedTasks = 0;
+    let failedTasks = 0;
 
-  let totalTasks = 0;
-  let completedTasks = 0;
-  let failedTasks = 0;
+    (Object.keys(state.batches) as BatchId[]).forEach(batchId => {
+      const batch = state.batches[batchId];
+      if (!batch || batch.status === 'idle') return;
 
-  (Object.keys(batches) as BatchId[]).forEach(batchId => {
-    const batch = batches[batchId];
-    if (batch && batch.status !== 'idle') {
-      const progress = getBatchProgress(batchId);
-      totalTasks += progress.total;
-      completedTasks += progress.completed;
-      failedTasks += progress.failed;
-    }
-  });
+      // Count tasks by status
+      batch.taskIds.forEach(taskId => {
+        const task = state.tasks[taskId];
+        if (!task) return;
 
-  return {
-    total: totalTasks,
-    completed: completedTasks,
-    failed: failedTasks,
-    remaining: totalTasks - completedTasks - failedTasks,
-    percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
-  };
+        totalTasks++;
+        if (task.status === 'completed') completedTasks++;
+        if (task.status === 'failed') failedTasks++;
+      });
+    });
+
+    return {
+      total: totalTasks,
+      completed: completedTasks,
+      failed: failedTasks,
+      remaining: totalTasks - completedTasks - failedTasks,
+      percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+    };
+  }));
 }
 
 /**

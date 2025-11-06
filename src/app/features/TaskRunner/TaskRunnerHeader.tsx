@@ -1,13 +1,21 @@
 'use client';
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import DualBatchPanel from './components/DualBatchPanel';
-import { BatchStorage, type BatchState } from './lib/batchStorage';
-import { executeNextRequirement as executeTask } from './lib/taskExecutor';
 import ConfigurationToolbar from './lib/ConfigurationToolbar';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
+import {
+  type BatchId,
+  useAllBatches,
+  useCreateBatch,
+  useStartBatchExecution,
+  useBatch,
+  useStoreRecovery,
+  useOverallProgress,
+  useTaskRunnerStore,
+} from './store';
 
 interface TaskRunnerHeaderProps {
   selectedCount: number;
@@ -32,392 +40,102 @@ export default function TaskRunnerHeader({
   actions,
   getRequirementId,
 }: TaskRunnerHeaderProps) {
-  const executionQueueRef = useRef<string[]>([]);
-  const isExecutingRef = useRef(false);
   const { setRequirements, setIsRunning, setProcessedCount, setError } = actions;
 
   // Blueprint store for syncing tasker progress
-  const { updateTaskerProgress, resetTaskerProgress, setTaskerRunning } = useBlueprintStore();
+  const { updateTaskerProgress, resetTaskerProgress } = useBlueprintStore();
 
-  // Pause/Resume state management with localStorage
-  const [isPaused, setIsPaused] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('taskRunnerPaused');
-      return stored === 'true';
-    }
-    return false;
-  });
+  // Store hooks
+  const batches = useAllBatches();
+  const createBatch = useCreateBatch();
+  const startBatchExecution = useStartBatchExecution();
 
-  // Persist pause state to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('taskRunnerPaused', isPaused.toString());
-    }
-  }, [isPaused]);
+  // Recovery - automatically recover interrupted batches on mount
+  useStoreRecovery(requirements);
 
-  // Multi-batch state management (up to 4 batches)
-  const [batch1, setBatch1] = useState<BatchState | null>(null);
-  const [batch2, setBatch2] = useState<BatchState | null>(null);
-  const [batch3, setBatch3] = useState<BatchState | null>(null);
-  const [batch4, setBatch4] = useState<BatchState | null>(null);
-
-  // Recovery logic - restore batches from localStorage on mount
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const recovered = BatchStorage.load();
-    if (!recovered) return;
-
-    let hasRecovered = false;
-
-    // Define batch recovery function
-    const recoverBatch = (
-      batchData: BatchState | null,
-      batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4',
-      setBatch: (batch: BatchState) => void
-    ) => {
-      if (!batchData) return false;
-
-      // Don't recover completed batches
-      if (batchData.status === 'completed') {
-        setBatch(batchData);
-        return false;
-      }
-
-      setBatch(batchData);
-
-      if (batchData.status === 'running') {
-        // Re-queue unfinished tasks
-        const remaining = batchData.requirementIds.slice(
-          batchData.completedCount
-        );
-
-        // Filter to only include requirements that actually exist
-        const existingRemaining = remaining.filter(reqId =>
-          requirements.some(req => getRequirementId(req) === reqId)
-        );
-
-        // If no actual requirements remain, mark batch as completed
-        if (existingRemaining.length === 0) {
-          const completedBatch = { ...batchData, status: 'completed' as const };
-          setBatch(completedBatch);
-          BatchStorage.updateBatch(batchId, completedBatch);
-          return false;
-        }
-
-        executionQueueRef.current = [...executionQueueRef.current, ...existingRemaining];
-
-        // Mark requirements as queued
-        setRequirements(prev =>
-          prev.map(req => {
-            const reqId = getRequirementId(req);
-            if (existingRemaining.includes(reqId)) {
-              return { ...req, status: 'queued' as const, batchId };
-            }
-            return req;
-          })
-        );
-        return true;
-      }
-      return false;
-    };
-
-    // Restore all batches
-    if (recoverBatch(recovered.batch1, 'batch1', setBatch1)) hasRecovered = true;
-    if (recoverBatch(recovered.batch2, 'batch2', setBatch2)) hasRecovered = true;
-    if (recoverBatch(recovered.batch3, 'batch3', setBatch3)) hasRecovered = true;
-    if (recoverBatch(recovered.batch4, 'batch4', setBatch4)) hasRecovered = true;
-
-    // Resume execution if batches were recovered
-    if (hasRecovered) {
-      setIsRunning(true);
-      setTimeout(() => executeNextRequirement(), 500);
-    }
-  }, []); // Run once on mount - eslint-disable-next-line react-hooks/exhaustive-deps
-
-  // Wrapper for executeNextRequirement from taskExecutor
-  const executeNextRequirement = useCallback(() => {
-    // Build batch states map from current batch objects
-    const batchStates = new Map<string, 'idle' | 'running' | 'paused' | 'completed'>();
-    if (batch1) batchStates.set('batch1', batch1.status);
-    if (batch2) batchStates.set('batch2', batch2.status);
-    if (batch3) batchStates.set('batch3', batch3.status);
-    if (batch4) batchStates.set('batch4', batch4.status);
-
-    executeTask({
-      executionQueueRef,
-      isExecutingRef,
-      isPaused,
-      batchStates,
-      requirements,
-      actions,
-      getRequirementId,
-      executeNextRequirement: () => executeNextRequirement(),
-    });
-  }, [requirements, getRequirementId, actions, isPaused, batch1, batch2, batch3, batch4]);
-
-  // Auto-process queue - allow parallel execution from different batches
-  useEffect(() => {
-    // Find all currently running batches
-    const runningBatchIds = new Set(
-      requirements
-        .filter(r => r.status === 'running' && r.batchId)
-        .map(r => r.batchId!)
-    );
-
-    // Try to start requirements from batches that aren't currently running
-    if (executionQueueRef.current.length > 0 && !isExecutingRef.current) {
-      // Find the next requirement from a batch that's not currently executing
-      const nextReqId = executionQueueRef.current.find(reqId => {
-        const req = requirements.find(r => getRequirementId(r) === reqId);
-        // Start this requirement if its batch isn't already running something
-        return req && req.batchId && !runningBatchIds.has(req.batchId);
-      });
-
-      if (nextReqId) {
-        executeNextRequirement();
-      }
-    }
-
-    // Check if all queued items are done
-    const runningReq = requirements.find((r) => r.status === 'running');
-    if (isRunning && executionQueueRef.current.length === 0 && !runningReq) {
-      setIsRunning(false);
-      setProcessedCount(0);
-    }
-  }, [requirements, isRunning, setIsRunning, setProcessedCount, executeNextRequirement, getRequirementId]);
+  // Overall progress tracking
+  const overallProgress = useOverallProgress();
 
   // Sync tasker progress to blueprint store
   useEffect(() => {
-    // Calculate total tasks and completed tasks across all active batches
-    const activeBatches = [batch1, batch2, batch3, batch4].filter(b => b && b.status === 'running');
-
-    if (activeBatches.length === 0) {
-      // No batches running - reset progress
+    if (overallProgress.total === 0) {
       resetTaskerProgress();
-      return;
+    } else {
+      updateTaskerProgress(overallProgress.completed, overallProgress.total);
     }
+  }, [overallProgress, updateTaskerProgress, resetTaskerProgress]);
 
-    // Calculate totals
-    let totalTasks = 0;
-    let completedTasks = 0;
+  // ========================================================================
+  // Batch Handlers - Now using store actions
+  // ========================================================================
 
-    activeBatches.forEach(batch => {
-      totalTasks += batch.requirementIds.length;
-      completedTasks += batch.completedCount;
-    });
-
-    // Update blueprint store
-    updateTaskerProgress(completedTasks, totalTasks);
-  }, [batch1, batch2, batch3, batch4, updateTaskerProgress, resetTaskerProgress]);
-
-  // Batch Handler Functions
-  const handleCreateBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
+  const handleCreateBatch = useCallback((batchId: BatchId) => {
     const selectedReqIds = Array.from(selectedRequirements);
     const batchNumber = batchId.replace('batch', '');
-    const batch = BatchStorage.createBatch(
-      `batch_${Date.now()}`,
-      `Batch ${batchNumber} - ${selectedReqIds.length} tasks`,
-      selectedReqIds
-    );
 
-    // Update the appropriate batch state
-    switch (batchId) {
-      case 'batch1':
-        setBatch1(batch);
-        break;
-      case 'batch2':
-        setBatch2(batch);
-        break;
-      case 'batch3':
-        setBatch3(batch);
-        break;
-      case 'batch4':
-        setBatch4(batch);
-        break;
-    }
+    createBatch(batchId, `Batch ${batchNumber} - ${selectedReqIds.length} tasks`, selectedReqIds);
 
-    // Update localStorage
-    const currentState = BatchStorage.load() || { batch1: null, batch2: null, batch3: null, batch4: null, activeBatch: null };
-    BatchStorage.save({
-      ...currentState,
-      [batchId]: batch,
-    });
-
-    // Clear selection
-    actions.setSelectedRequirements(new Set());
-  }, [selectedRequirements, actions]);
-
-  const handleStartBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
-    // Get the appropriate batch
-    let batch: BatchState | null = null;
-    switch (batchId) {
-      case 'batch1': batch = batch1; break;
-      case 'batch2': batch = batch2; break;
-      case 'batch3': batch = batch3; break;
-      case 'batch4': batch = batch4; break;
-    }
-
-    if (!batch) return;
-
-    // Update batch status
-    const updatedBatch = {
-      ...batch,
-      status: 'running' as const,
-      startedAt: Date.now(),
-    };
-
-    // Update the appropriate state
-    switch (batchId) {
-      case 'batch1': setBatch1(updatedBatch); break;
-      case 'batch2': setBatch2(updatedBatch); break;
-      case 'batch3': setBatch3(updatedBatch); break;
-      case 'batch4': setBatch4(updatedBatch); break;
-    }
-
-    // Save to localStorage
-    BatchStorage.updateBatch(batchId, updatedBatch);
-
-    // Queue all requirements for this batch
-    const reqIds = batch.requirementIds;
-    executionQueueRef.current = [...executionQueueRef.current, ...reqIds];
-
-    // Mark requirements as queued
+    // Update requirements to reflect they're in a batch
     setRequirements(prev =>
       prev.map(req => {
         const reqId = getRequirementId(req);
-        if (reqIds.includes(reqId)) {
+        if (selectedReqIds.includes(reqId)) {
           return { ...req, status: 'queued' as const, batchId };
         }
         return req;
       })
     );
 
-    // Start execution
+    // Clear selection
+    actions.setSelectedRequirements(new Set());
+  }, [selectedRequirements, createBatch, setRequirements, getRequirementId, actions]);
+
+  const handleStartBatch = useCallback((batchId: BatchId) => {
+    // Start batch and trigger execution
+    startBatchExecution(batchId, requirements);
+
+    // Update global running state
     setIsRunning(true);
-    executeNextRequirement();
-  }, [batch1, batch2, batch3, batch4, getRequirementId, setRequirements, setIsRunning, executeNextRequirement]);
+  }, [startBatchExecution, requirements, setIsRunning]);
 
-  const handlePauseBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
-    // Get the appropriate batch
-    let batch: BatchState | null = null;
-    switch (batchId) {
-      case 'batch1': batch = batch1; break;
-      case 'batch2': batch = batch2; break;
-      case 'batch3': batch = batch3; break;
-      case 'batch4': batch = batch4; break;
-    }
+  const handlePauseBatch = useCallback((batchId: BatchId) => {
+    const store = useTaskRunnerStore.getState();
+    store.pauseBatch(batchId);
+  }, []);
 
-    if (!batch) return;
+  const handleResumeBatch = useCallback((batchId: BatchId) => {
+    const store = useTaskRunnerStore.getState();
+    store.resumeBatch(batchId);
 
-    const updatedBatch = { ...batch, status: 'paused' as const };
-
-    // Update the appropriate state
-    switch (batchId) {
-      case 'batch1': setBatch1(updatedBatch); break;
-      case 'batch2': setBatch2(updatedBatch); break;
-      case 'batch3': setBatch3(updatedBatch); break;
-      case 'batch4': setBatch4(updatedBatch); break;
-    }
-
-    BatchStorage.updateBatch(batchId, updatedBatch);
-    // Don't set global isPaused - each batch is independent
-  }, [batch1, batch2, batch3, batch4]);
-
-  const handleResumeBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
-    // Get the appropriate batch
-    let batch: BatchState | null = null;
-    switch (batchId) {
-      case 'batch1': batch = batch1; break;
-      case 'batch2': batch = batch2; break;
-      case 'batch3': batch = batch3; break;
-      case 'batch4': batch = batch4; break;
-    }
-
-    if (!batch) return;
-
-    const updatedBatch = { ...batch, status: 'running' as const };
-
-    // Update the appropriate state
-    switch (batchId) {
-      case 'batch1': setBatch1(updatedBatch); break;
-      case 'batch2': setBatch2(updatedBatch); break;
-      case 'batch3': setBatch3(updatedBatch); break;
-      case 'batch4': setBatch4(updatedBatch); break;
-    }
-
-    BatchStorage.updateBatch(batchId, updatedBatch);
-    // Don't set global isPaused - each batch is independent
-
-    // Resume execution - the executor will check batch states
+    // Trigger execution after resume
     setTimeout(() => {
-      if (executionQueueRef.current.length > 0) {
-        executeNextRequirement();
-      }
+      store.executeNextTask(batchId, requirements);
     }, 100);
-  }, [batch1, batch2, batch3, batch4, executeNextRequirement]);
+  }, [requirements]);
 
-  const handleClearBatch = useCallback((batchId: 'batch1' | 'batch2' | 'batch3' | 'batch4') => {
-    // Get the batch to clear
-    let batch: BatchState | null = null;
-    switch (batchId) {
-      case 'batch1': batch = batch1; break;
-      case 'batch2': batch = batch2; break;
-      case 'batch3': batch = batch3; break;
-      case 'batch4': batch = batch4; break;
-    }
+  const handleClearBatch = useCallback((batchId: BatchId) => {
+    const store = useTaskRunnerStore.getState();
+    const batch = store.batches[batchId];
 
     if (batch) {
-      // Remove batch requirements from execution queue
-      executionQueueRef.current = executionQueueRef.current.filter(
-        reqId => !batch!.requirementIds.includes(reqId)
-      );
-
       // Reset requirements status to idle and clear batchId
       setRequirements(prev =>
         prev.map(req => {
           const reqId = getRequirementId(req);
-          if (batch!.requirementIds.includes(reqId)) {
+          if (batch.taskIds.includes(reqId)) {
             return { ...req, status: 'idle' as const, batchId: undefined };
           }
           return req;
         })
       );
-    }
 
-    // Update the appropriate state
-    switch (batchId) {
-      case 'batch1': setBatch1(null); break;
-      case 'batch2': setBatch2(null); break;
-      case 'batch3': setBatch3(null); break;
-      case 'batch4': setBatch4(null); break;
+      // Delete batch from store
+      store.deleteBatch(batchId);
     }
-
-    const currentState = BatchStorage.load();
-    if (currentState) {
-      BatchStorage.save({
-        ...currentState,
-        [batchId]: null,
-      });
-    }
-  }, [batch1, batch2, batch3, batch4, getRequirementId, setRequirements]);
+  }, [setRequirements, getRequirementId]);
 
   const clearError = () => {
     setError(undefined);
-  };
-
-  const handlePause = () => {
-    setIsPaused(true);
-  };
-
-  const handleResume = () => {
-    setIsPaused(false);
-    // Trigger queue processing after resume
-    setTimeout(() => {
-      if (executionQueueRef.current.length > 0 && !isExecutingRef.current) {
-        executeNextRequirement();
-      }
-    }, 100);
   };
 
   return (
@@ -437,6 +155,7 @@ export default function TaskRunnerHeader({
           <button
             onClick={clearError}
             className="text-red-400 hover:text-red-300 transition-colors"
+            data-testid="clear-error-btn"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -451,10 +170,10 @@ export default function TaskRunnerHeader({
       {/* Multi-Batch Panel with integrated queues (up to 4 batches) */}
       <div className="relative bg-gray-900/40 backdrop-blur-sm border border-gray-800/30 rounded-lg p-4">
         <DualBatchPanel
-          batch1={batch1}
-          batch2={batch2}
-          batch3={batch3}
-          batch4={batch4}
+          batch1={batches.batch1}
+          batch2={batches.batch2}
+          batch3={batches.batch3}
+          batch4={batches.batch4}
           onStartBatch={handleStartBatch}
           onPauseBatch={handlePauseBatch}
           onResumeBatch={handleResumeBatch}

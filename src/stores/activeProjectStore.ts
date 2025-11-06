@@ -3,6 +3,7 @@ import { devtools, persist } from 'zustand/middleware';
 import { Project, TreeNode } from '@/types';
 import { Context } from '@/lib/queries/contextQueries';
 import { useProjectConfigStore } from './projectConfigStore';
+import { getErrorMessage } from './utils/storeHelpers';
 
 // Local storage keys
 const ACTIVE_PROJECT_KEY = 'vibeman-active-project';
@@ -99,7 +100,7 @@ export const useActiveProjectStore = create<ActiveProjectStore>()(
           } catch (error) {
             set({
               isLoading: false,
-              error: error instanceof Error ? error.message : 'Failed to load project structure',
+              error: getErrorMessage(error, 'Failed to load project structure'),
             });
           }
         },

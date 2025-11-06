@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DbScan } from '@/app/db';
+import { buildQueryParams, getJSON } from './utils/apiHelpers';
 
 /**
  * Pagination configuration
@@ -117,41 +118,23 @@ class ScanDataCache {
 const globalCache = new ScanDataCache();
 
 /**
- * Build query params for the API request
+ * Fetch scan data from the API
  */
-function buildScanQueryParams(
+async function fetchScansFromAPI(
   projectId: string,
   scanType: string | undefined,
   offset: number,
   limit: number
-): URLSearchParams {
-  const params = new URLSearchParams({
-    projectId,
-    limit: limit.toString(),
-    offset: offset.toString()
-  });
-
-  if (scanType) {
-    params.set('scanType', scanType);
-  }
-
-  return params;
-}
-
-/**
- * Fetch scan data from the API
- */
-async function fetchScansFromAPI(
-  params: URLSearchParams
 ): Promise<{ scans: DbScan[]; pagination: CacheEntry['pagination'] }> {
-  const response = await fetch(`/api/scans?${params.toString()}`);
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch scans');
-  }
-
-  return await response.json();
+  return getJSON<{ scans: DbScan[]; pagination: CacheEntry['pagination'] }>(
+    '/api/scans',
+    {
+      projectId,
+      scanType,
+      offset,
+      limit
+    }
+  );
 }
 
 /**
@@ -214,9 +197,8 @@ export function useScanData(
         }
       }
 
-      // Build query params and fetch from API
-      const params = buildScanQueryParams(fetchProjectId, fetchScanType, fetchOffset, fetchLimit);
-      const data = await fetchScansFromAPI(params);
+      // Fetch from API
+      const data = await fetchScansFromAPI(fetchProjectId, fetchScanType, fetchOffset, fetchLimit);
 
       setScans(data.scans);
       setPagination(data.pagination);

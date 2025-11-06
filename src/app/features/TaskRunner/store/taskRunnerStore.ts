@@ -32,6 +32,7 @@ export interface BatchState {
   taskIds: string[]; // Tasks assigned to this batch
   status: BatchStatus;
   startedAt: number | null;
+  completedAt?: number | null;
   completedCount: number;
   failedCount: number;
 }
@@ -211,12 +212,21 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           const batch = state.batches[batchId];
           if (!batch) return state;
 
+          // Log completion stats
+          const progress = state.getBatchProgress(batchId);
+          console.log(`✅ Batch ${batchId} completed:`, {
+            total: progress.total,
+            completed: progress.completed,
+            failed: progress.failed,
+          });
+
           return {
             batches: {
               ...state.batches,
               [batchId]: {
                 ...batch,
                 status: 'completed',
+                completedAt: Date.now(),
               },
             },
           };
@@ -399,13 +409,59 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           return;
         }
 
-        // Find the requirement details
-        const requirement = requirements.find(r => r.id === nextTask.id || r.requirementName === nextTask.id);
+        // Parse composite task ID (format: "projectId:requirementName")
+        const [taskProjectId, taskRequirementName] = nextTask.id.includes(':')
+          ? nextTask.id.split(':')
+          : [null, nextTask.id];
+
+        console.log(`🔍 Looking for requirement - Task ID: ${nextTask.id}, Parsed: projectId=${taskProjectId}, name=${taskRequirementName}`);
+
+        // Find the requirement details by matching projectId AND requirementName
+        const requirement = requirements.find(r => {
+          if (taskProjectId) {
+            // Composite ID: match both projectId and requirementName
+            return r.projectId === taskProjectId && r.requirementName === taskRequirementName;
+          } else {
+            // Simple ID: match just requirementName
+            return r.requirementName === taskRequirementName;
+          }
+        });
+
         if (!requirement) {
-          console.error(`Requirement not found for task: ${nextTask.id}`);
+          console.error(`❌ Requirement not found for task: ${nextTask.id}`);
+          console.error(`Available requirements:`, requirements.map(r => `${r.projectId}:${r.requirementName}`));
           state.updateTaskStatus(nextTask.id, 'failed', 'Requirement not found');
+
+          // Remove from executing set (task was never actually started)
+          set((state) => ({
+            executingTasks: new Set([...state.executingTasks].filter(id => id !== nextTask.id)),
+          }));
+
+          // Update batch failed count
+          set((state) => {
+            const batch = state.batches[batchId];
+            if (!batch) return state;
+
+            return {
+              batches: {
+                ...state.batches,
+                [batchId]: {
+                  ...batch,
+                  failedCount: batch.failedCount + 1,
+                },
+              },
+            };
+          });
+
+          // Continue to next task instead of stopping
+          setTimeout(() => {
+            state.executeNextTask(batchId, requirements);
+          }, 500);
           return;
         }
+
+        console.log(`✅ Requirement found: ${requirement.projectPath}/.claude/commands/${requirement.requirementName}.md`);
+        console.log(`🚀 Starting task execution for: ${nextTask.id}`);
 
         // Mark task as running
         set((state) => ({
@@ -562,9 +618,22 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           if (!batch || batch.status === 'completed') return;
 
           // Filter to only include tasks that still exist
-          const validTaskIds = batch.taskIds.filter(taskId =>
-            requirements.some(req => req.id === taskId || req.requirementName === taskId)
-          );
+          const validTaskIds = batch.taskIds.filter(taskId => {
+            // Parse composite task ID (format: "projectId:requirementName")
+            const [taskProjectId, taskRequirementName] = taskId.includes(':')
+              ? taskId.split(':')
+              : [null, taskId];
+
+            return requirements.some(req => {
+              if (taskProjectId) {
+                // Composite ID: match both projectId and requirementName
+                return req.projectId === taskProjectId && req.requirementName === taskRequirementName;
+              } else {
+                // Simple ID: match just requirementName
+                return req.requirementName === taskRequirementName;
+              }
+            });
+          });
 
           if (validTaskIds.length === 0) {
             // No valid tasks, mark as completed
@@ -633,32 +702,45 @@ async function pollTaskCompletion(
   requirement: ProjectRequirement,
   state: TaskRunnerState
 ): Promise<void> {
-  const MAX_POLL_ATTEMPTS = 600; // 10 minutes at 1s intervals
+  const MAX_POLL_ATTEMPTS = 60; // 10 minutes at 10s intervals
   let attempts = 0;
 
   while (attempts < MAX_POLL_ATTEMPTS) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds
     attempts++;
 
     try {
-      const status = await getTaskStatus(taskId);
+      const taskStatus = await getTaskStatus(taskId);
 
-      if (status.task.status === 'completed') {
+      // Handle case where task is not found yet
+      if (!taskStatus) {
+        console.log(`⏳ Task ${taskId} not found yet, will retry...`);
+        continue;
+      }
+
+      console.log(`📊 Task status poll #${attempts}: ${taskStatus.status}`);
+
+      if (taskStatus.status === 'completed') {
         // Task completed successfully
+        console.log(`✅ Task ${requirementId} completed successfully`);
         state.updateTaskStatus(requirementId, 'completed');
 
-        // Update batch progress
-        const store = useTaskRunnerStore.getState();
-        const batch = store.batches[batchId];
-        if (batch) {
-          store.batches[batchId] = {
-            ...batch,
-            completedCount: batch.completedCount + 1,
-          };
-        }
+        // Update batch progress using setState
+        useTaskRunnerStore.setState((state) => {
+          const batch = state.batches[batchId];
+          if (!batch) return state;
 
-        // Remove from executing set
-        store.executingTasks.delete(requirementId);
+          return {
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                ...batch,
+                completedCount: batch.completedCount + 1,
+              },
+            },
+            executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
+          };
+        });
 
         // Clean up requirement file if needed
         try {
@@ -671,22 +753,27 @@ async function pollTaskCompletion(
         setTimeout(() => state.executeNextTask(batchId, [requirement]), 500);
         return;
 
-      } else if (status.task.status === 'failed' || status.task.status === 'session-limit') {
+      } else if (taskStatus.status === 'failed' || taskStatus.status === 'session-limit') {
         // Task failed
-        state.updateTaskStatus(requirementId, 'failed', status.task.error || 'Task failed');
+        console.error(`❌ Task ${requirementId} failed: ${taskStatus.error || 'Unknown error'}`);
+        state.updateTaskStatus(requirementId, 'failed', taskStatus.error || 'Task failed');
 
-        // Update batch failed count
-        const store = useTaskRunnerStore.getState();
-        const batch = store.batches[batchId];
-        if (batch) {
-          store.batches[batchId] = {
-            ...batch,
-            failedCount: batch.failedCount + 1,
+        // Update batch failed count using setState
+        useTaskRunnerStore.setState((state) => {
+          const batch = state.batches[batchId];
+          if (!batch) return state;
+
+          return {
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                ...batch,
+                failedCount: batch.failedCount + 1,
+              },
+            },
+            executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
           };
-        }
-
-        // Remove from executing set
-        store.executingTasks.delete(requirementId);
+        });
 
         // Continue with next task
         setTimeout(() => state.executeNextTask(batchId, [requirement]), 1000);

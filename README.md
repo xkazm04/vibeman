@@ -6,55 +6,40 @@
 
 ## Goal
 To boost personal productivity in SW development 100x - 1000x by using AI for operations throughout whole lifecycle
-- Planning
-- Code analysis
-- Implementation 
-- Tests
+- **Planning** -> Idea brainstorming and task refinement
+- **Code analysis** -> Static analysis technique + LLM evaluation
+- **Implementation** -> Multistream batch code pipelines powered by **Claude Code** 
+- **Tests** -> Automated tests in package, so we can focus on pure development
 
-## Overview
+### Challenges
+1. **How to generate valuable and creative ideas** 
+- By proper feature separation into **Contexts** with defined structure and solid documentation. 
+- By multidimensional analysis, using AI agents in 10 different roles (prompts) looking at the feature's opportunities from different perspectives
+2. **How to produce 1000x code then myself in reasonable quality**
+- Let **Claude Code** cook, it can do it if each requirement file is well generated and skills defined to follow codebase's best practices. **PRECONDITION:** Claude Code MAX plan needed for power usage = autonomous running whole day in one or multiple threads to develop more codebases at once.
+3. **How to mentally manage such rapid development**
+- UI to wrap complex scans into simple experience, provide valuable development metrics and easy options to overview and handle multiple projects at once
+- AI assistant to periodically scan and plan next steps on behalf of user -> User has to become "high level manager" in this environment = decisions based on results, not on the solution detail -> we need to be able to rely on AI mass development won't go sideways
 
-Vibeman is an intelligent development workflow platform that combines AI-powered automation, real-time project monitoring, and collaborative development tools. Built with Next.js and TypeScript, it provides developers with a comprehensive suite of tools to streamline project management, code review, and development processes.
 
-## 🚀 Key Features
 
-### **AI-Powered Development Assistant**
-- **Intelligent Code Analysis**: Automated project structure analysis and optimization recommendations
-- **Context-Aware Documentation**: AI-generated project documentation, goals, and task recommendations
-- **Smart Code Review**: Automated code review with AI-powered suggestions and improvements
-- **Background Task Processing**: Queued AI operations that run efficiently without blocking the UI
 
-### **Project Management & Monitoring**
-- **Multi-Project Support**: Manage multiple development projects with individual configurations
-- **Real-Time Server Monitoring**: Live status tracking for development servers with port management
-- **Git Integration**: Automated repository cloning, branch management, and sync capabilities
-- **Process Management**: Start, stop, and monitor development servers with detailed logging
 
-### **Collaborative Development Tools**
-- **Interactive File Explorer**: Visual project structure with intelligent file categorization
-- **Context Management**: Organize and group related files for better project understanding
-- **Goal Tracking**: Set, track, and manage development objectives with status monitoring
-- **Event Logging**: Comprehensive activity tracking with real-time updates
 
-### **Advanced Code Editor**
-- **Monaco Editor Integration**: Full-featured code editing with syntax highlighting
-- **Multi-File Editing**: Side-by-side file comparison and editing capabilities
-- **Diff Viewer**: Visual code differences with merge capabilities
-- **File Management**: Create, edit, and organize project files directly in the interface
+
 
 ## 🏗️ Architecture
 
 ### **Frontend Stack**
-- **Next.js 15** with React 19 for modern web application framework
+- **Next.js 16** for all round client and server operations relying on interactions with local files. Unsafe to run outside the localhost but simple and efficient architecture for static analysis and direct manipulation with the codebase. 
 - **TypeScript** for type-safe development
 - **Tailwind CSS** for responsive, utility-first styling
 - **Framer Motion** for smooth animations and transitions
 - **Zustand** for lightweight state management
-- **React Query** for efficient data fetching and caching
 
 ### **Backend & Data**
 - **SQLite** with Better-SQLite3 for local data persistence
-- **Vector Databases** (Pinecone, Qdrant, ChromaDB) for AI-powered search
-- **OpenAI Integration** for AI-powered features
+- **LLM Integration** multi-LLM provider for less complex operations in terms of iterations (one-shot prompts, AI assistant). Supported: Gemini Flash latest, Claude Haiku 4.5, GPT 5, **Ollama with gpt-oss:20** (go to solution for )
 - **Model Context Protocol** for extensible AI integrations
 
 ### **Development Tools**

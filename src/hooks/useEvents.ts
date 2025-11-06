@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { buildQueryParams, postJSON, deleteJSON, getJSON } from './utils/apiHelpers';
 
 // Client-side event interface (matches the database structure)
 export interface ClientEvent {
@@ -33,18 +34,7 @@ interface UseEventsOptions {
 
 // Helper function for creating events - reduces duplication
 async function createEventRequest(event: CreateEventPayload) {
-  const response = await fetch('/api/kiro/events', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(event)
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(errorData.error || `Failed to create event: ${response.status}`);
-  }
-
-  return response.json();
+  return postJSON('/api/kiro/events', event);
 }
 
 // Query key factory
@@ -72,24 +62,16 @@ export function useEvents(options: UseEventsOptions = {}) {
 
   // Fetch events from API
   const fetchEvents = async (): Promise<ClientEvent[]> => {
-    const params = new URLSearchParams({
-      projectId,
-      limit: limit.toString(),
-      offset: offset.toString()
-    });
+    const result = await getJSON<{ success: boolean; events?: ClientEvent[]; error?: string }>(
+      '/api/kiro/events',
+      {
+        projectId,
+        limit,
+        offset,
+        type: type !== 'all' ? type : undefined
+      }
+    );
 
-    if (type && type !== 'all') {
-      params.append('type', type);
-    }
-
-    const response = await fetch(`/api/kiro/events?${params}`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch events: ${response.status}`);
-    }
-
-    const result = await response.json();
-    
     if (!result.success) {
       throw new Error(result.error || 'Failed to fetch events');
     }
@@ -115,13 +97,10 @@ export function useEvents(options: UseEventsOptions = {}) {
 
   // Get event counts
   const getEventCounts = async (): Promise<Record<string, number>> => {
-    const response = await fetch(`/api/kiro/events/counts?projectId=${projectId}`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch event counts: ${response.status}`);
-    }
-
-    const result = await response.json();
+    const result = await getJSON<{ counts?: Record<string, number> }>(
+      '/api/kiro/events/counts',
+      { projectId }
+    );
     return result.counts || {};
   };
 
@@ -139,18 +118,7 @@ export function useEvents(options: UseEventsOptions = {}) {
   // Clear events for project
   const clearEvents = useMutation({
     mutationFn: async (projectIdToClear: string) => {
-      const response = await fetch(`/api/kiro/events/clear`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: projectIdToClear })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to clear events: ${response.status}`);
-      }
-
-      return response.json();
+      return deleteJSON('/api/kiro/events/clear', { projectId: projectIdToClear });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: eventKeys.byProject(projectId) });

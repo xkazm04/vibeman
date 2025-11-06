@@ -3,6 +3,14 @@ import { useState, useEffect } from 'react';
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
 import { contextAPI } from './context/contextAPI';
 import type { ContextState, ContextStore } from './context/contextStoreTypes';
+import {
+  createLoadingState,
+  createErrorState,
+  createSuccessState,
+  updateArrayItem,
+  removeArrayItem,
+  addArrayItem
+} from './utils/storeHelpers';
 
 // Re-export for backward compatibility
 export { CONTEXT_GROUP_COLORS };
@@ -56,7 +64,7 @@ export const useContextStore = (() => {
       loadProjectData: async (projectId: string) => {
         if (!projectId) return;
 
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           const { groups, contexts } = await contextAPI.getProjectData(projectId);
@@ -65,21 +73,20 @@ export const useContextStore = (() => {
             ...prev,
             groups,
             contexts,
-            loading: false,
+            ...createSuccessState(),
             initialized: true,
           }));
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to load contexts',
+            ...createErrorState(error, 'Failed to load contexts'),
           }));
         }
       },
 
       // Add a new context
       addContext: async (contextData) => {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           // Use the new generate-context API endpoint
@@ -111,14 +118,13 @@ export const useContextStore = (() => {
 
           setState(prev => ({
             ...prev,
-            contexts: [newContext, ...prev.contexts],
-            loading: false,
+            contexts: addArrayItem(prev.contexts, newContext, 'start'),
+            ...createSuccessState(),
           }));
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to add context',
+            ...createErrorState(error, 'Failed to add context'),
           }));
           throw error;
         }
@@ -126,7 +132,7 @@ export const useContextStore = (() => {
 
       // Remove a context
       removeContext: async (contextId: string) => {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           const success = await contextAPI.deleteContext(contextId);
@@ -134,8 +140,8 @@ export const useContextStore = (() => {
           if (success) {
             setState(prev => ({
               ...prev,
-              contexts: prev.contexts.filter(ctx => ctx.id !== contextId),
-              loading: false,
+              contexts: removeArrayItem(prev.contexts, contextId),
+              ...createSuccessState(),
             }));
           } else {
             throw new Error('Context not found');
@@ -143,8 +149,7 @@ export const useContextStore = (() => {
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to remove context',
+            ...createErrorState(error, 'Failed to remove context'),
           }));
           throw error;
         }
@@ -152,7 +157,7 @@ export const useContextStore = (() => {
 
       // Update a context
       updateContext: async (contextId: string, updates) => {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           const updatedContext = await contextAPI.updateContext(contextId, updates);
@@ -160,10 +165,8 @@ export const useContextStore = (() => {
           if (updatedContext) {
             setState(prev => ({
               ...prev,
-              contexts: prev.contexts.map(ctx =>
-                ctx.id === contextId ? updatedContext : ctx
-              ),
-              loading: false,
+              contexts: updateArrayItem(prev.contexts, contextId, updatedContext),
+              ...createSuccessState(),
             }));
           } else {
             throw new Error('Context not found');
@@ -171,8 +174,7 @@ export const useContextStore = (() => {
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to update context',
+            ...createErrorState(error, 'Failed to update context'),
           }));
           throw error;
         }
@@ -180,7 +182,7 @@ export const useContextStore = (() => {
 
       // Move context to different group
       moveContext: async (contextId: string, newGroupId: string) => {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           const updatedContext = await contextAPI.updateContext(contextId, { groupId: newGroupId });
@@ -188,10 +190,8 @@ export const useContextStore = (() => {
           if (updatedContext) {
             setState(prev => ({
               ...prev,
-              contexts: prev.contexts.map(ctx =>
-                ctx.id === contextId ? updatedContext : ctx
-              ),
-              loading: false,
+              contexts: updateArrayItem(prev.contexts, contextId, updatedContext),
+              ...createSuccessState(),
             }));
           } else {
             throw new Error('Context not found');
@@ -199,8 +199,7 @@ export const useContextStore = (() => {
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to move context',
+            ...createErrorState(error, 'Failed to move context'),
           }));
           throw error;
         }
@@ -208,7 +207,7 @@ export const useContextStore = (() => {
 
       // Add a new group
       addGroup: async (groupData) => {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           const newGroup = await contextAPI.createGroup(groupData);
@@ -216,13 +215,12 @@ export const useContextStore = (() => {
           setState(prev => ({
             ...prev,
             groups: [...prev.groups, newGroup].sort((a, b) => a.position - b.position),
-            loading: false,
+            ...createSuccessState(),
           }));
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to add group',
+            ...createErrorState(error, 'Failed to add group'),
           }));
           throw error;
         }
@@ -230,7 +228,7 @@ export const useContextStore = (() => {
 
       // Remove a group
       removeGroup: async (groupId: string) => {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           const success = await contextAPI.deleteGroup(groupId);
@@ -238,9 +236,9 @@ export const useContextStore = (() => {
           if (success) {
             setState(prev => ({
               ...prev,
-              groups: prev.groups.filter(group => group.id !== groupId),
+              groups: removeArrayItem(prev.groups, groupId),
               contexts: prev.contexts.filter(ctx => ctx.groupId !== groupId),
-              loading: false,
+              ...createSuccessState(),
             }));
           } else {
             throw new Error('Group not found');
@@ -248,8 +246,7 @@ export const useContextStore = (() => {
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to remove group',
+            ...createErrorState(error, 'Failed to remove group'),
           }));
           throw error;
         }
@@ -257,7 +254,7 @@ export const useContextStore = (() => {
 
       // Update a group
       updateGroup: async (groupId: string, updates) => {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {
           const updatedGroup = await contextAPI.updateGroup(groupId, updates);
@@ -265,10 +262,9 @@ export const useContextStore = (() => {
           if (updatedGroup) {
             setState(prev => ({
               ...prev,
-              groups: prev.groups.map(group =>
-                group.id === groupId ? updatedGroup : group
-              ).sort((a, b) => a.position - b.position),
-              loading: false,
+              groups: updateArrayItem(prev.groups, groupId, updatedGroup)
+                .sort((a, b) => a.position - b.position),
+              ...createSuccessState(),
             }));
           } else {
             throw new Error('Group not found');
@@ -276,8 +272,7 @@ export const useContextStore = (() => {
         } catch (error) {
           setState(prev => ({
             ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Failed to update group',
+            ...createErrorState(error, 'Failed to update group'),
           }));
           throw error;
         }
