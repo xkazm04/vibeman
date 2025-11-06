@@ -77,17 +77,24 @@ export async function generateSingleOpportunityScript(
 }
 
 /**
- * Builds prompt for generating refactor script
+ * Helper: Format opportunity description
  */
-function buildScriptGenerationPrompt(opportunities: RefactorOpportunity[]): string {
-  const opportunityDescriptions = opportunities.map((opp, index) =>
-    `${index + 1}. ${opp.title}
+function formatOpportunityDescription(opp: RefactorOpportunity, index: number): string {
+  return `${index + 1}. ${opp.title}
    Category: ${opp.category}
    Severity: ${opp.severity}
    Files: ${opp.files.join(', ')}
    Description: ${opp.description}
-   ${opp.suggestedFix ? `Suggested Fix: ${opp.suggestedFix}` : ''}`
-  ).join('\n\n');
+   ${opp.suggestedFix ? `Suggested Fix: ${opp.suggestedFix}` : ''}`;
+}
+
+/**
+ * Builds prompt for generating refactor script
+ */
+function buildScriptGenerationPrompt(opportunities: RefactorOpportunity[]): string {
+  const opportunityDescriptions = opportunities
+    .map((opp, index) => formatOpportunityDescription(opp, index))
+    .join('\n\n');
 
   return `Generate a detailed refactoring script for the following opportunities:
 
@@ -124,17 +131,22 @@ Return ONLY valid JSON, no additional text.`;
 }
 
 /**
+ * Helper: Format file snippets
+ */
+function formatFileSnippets(fileContents: Map<string, string>): string {
+  return Array.from(fileContents.entries())
+    .map(([path, content]) => `File: ${path}\n\`\`\`\n${content}\n\`\`\``)
+    .join('\n\n');
+}
+
+/**
  * Builds prompt for a single opportunity
  */
 function buildSingleOpportunityPrompt(
   opportunity: RefactorOpportunity,
   fileContents: Map<string, string>
 ): string {
-  const fileSnippets = Array.from(fileContents.entries())
-    .map(([path, content]) =>
-      `File: ${path}\n\`\`\`\n${content}\n\`\`\``
-    )
-    .join('\n\n');
+  const fileSnippets = formatFileSnippets(fileContents);
 
   return `Generate refactoring actions for this specific issue:
 
@@ -197,28 +209,35 @@ function parseScriptResponse(response: string): RefactorAction[] {
 }
 
 /**
+ * Helper: Validate a single action
+ */
+function validateSingleAction(action: RefactorAction, index: number): string[] {
+  const errors: string[] = [];
+
+  if (!action.file) {
+    errors.push(`Action ${index + 1}: Missing file path`);
+  }
+
+  if (action.type === 'replace' && (!action.oldContent || !action.newContent)) {
+    errors.push(`Action ${index + 1}: Replace action requires both oldContent and newContent`);
+  }
+
+  if (action.type === 'insert' && !action.newContent) {
+    errors.push(`Action ${index + 1}: Insert action requires newContent`);
+  }
+
+  if (['insert', 'delete'].includes(action.type) && !action.lineStart) {
+    errors.push(`Action ${index + 1}: ${action.type} action requires lineStart`);
+  }
+
+  return errors;
+}
+
+/**
  * Validates actions before execution
  */
 export function validateActions(actions: RefactorAction[]): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  actions.forEach((action, index) => {
-    if (!action.file) {
-      errors.push(`Action ${index + 1}: Missing file path`);
-    }
-
-    if (action.type === 'replace' && (!action.oldContent || !action.newContent)) {
-      errors.push(`Action ${index + 1}: Replace action requires both oldContent and newContent`);
-    }
-
-    if (action.type === 'insert' && !action.newContent) {
-      errors.push(`Action ${index + 1}: Insert action requires newContent`);
-    }
-
-    if (['insert', 'delete'].includes(action.type) && !action.lineStart) {
-      errors.push(`Action ${index + 1}: ${action.type} action requires lineStart`);
-    }
-  });
+  const errors = actions.flatMap((action, index) => validateSingleAction(action, index));
 
   return {
     valid: errors.length === 0,

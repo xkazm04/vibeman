@@ -1,5 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbGoal } from '../models/types';
+import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
 
 /**
  * Goal Repository
@@ -24,12 +25,7 @@ export const goalRepository = {
    */
   getGoalById: (goalId: string): DbGoal | null => {
     const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM goals
-      WHERE id = ?
-    `);
-    const goal = stmt.get(goalId) as DbGoal | undefined;
-    return goal || null;
+    return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', goalId);
   },
 
   /**
@@ -45,7 +41,7 @@ export const goalRepository = {
     order_index: number;
   }): DbGoal => {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
       INSERT INTO goals (id, project_id, context_id, order_index, title, description, status, created_at, updated_at)
@@ -64,9 +60,7 @@ export const goalRepository = {
       now
     );
 
-    // Return the created goal
-    const selectStmt = db.prepare('SELECT * FROM goals WHERE id = ?');
-    return selectStmt.get(goal.id) as DbGoal;
+    return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', goal.id)!;
   },
 
   /**
@@ -80,58 +74,30 @@ export const goalRepository = {
     context_id?: string | null;
   }): DbGoal | null => {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const { fields, values } = buildUpdateQuery(updates);
 
-    // Build dynamic update query
-    const updateFields: string[] = [];
-    const values: (string | number | null)[] = [];
-
-    if (updates.title !== undefined) {
-      updateFields.push('title = ?');
-      values.push(updates.title);
-    }
-    if (updates.description !== undefined) {
-      updateFields.push('description = ?');
-      values.push(updates.description || null);
-    }
-    if (updates.status !== undefined) {
-      updateFields.push('status = ?');
-      values.push(updates.status);
-    }
-    if (updates.order_index !== undefined) {
-      updateFields.push('order_index = ?');
-      values.push(updates.order_index);
-    }
-    if (updates.context_id !== undefined) {
-      updateFields.push('context_id = ?');
-      values.push(updates.context_id);
+    if (fields.length === 0) {
+      return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', id);
     }
 
-    if (updateFields.length === 0) {
-      // No updates to make
-      const selectStmt = db.prepare('SELECT * FROM goals WHERE id = ?');
-      return selectStmt.get(id) as DbGoal | null;
-    }
-
-    updateFields.push('updated_at = ?');
+    const now = getCurrentTimestamp();
+    fields.push('updated_at = ?');
     values.push(now);
     values.push(id);
 
     const stmt = db.prepare(`
       UPDATE goals
-      SET ${updateFields.join(', ')}
+      SET ${fields.join(', ')}
       WHERE id = ?
     `);
 
     const result = stmt.run(...values);
 
     if (result.changes === 0) {
-      return null; // Goal not found
+      return null;
     }
 
-    // Return the updated goal
-    const selectStmt = db.prepare('SELECT * FROM goals WHERE id = ?');
-    return selectStmt.get(id) as DbGoal;
+    return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', id);
   },
 
   /**

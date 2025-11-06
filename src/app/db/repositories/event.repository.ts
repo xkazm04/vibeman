@@ -1,5 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbEvent } from '../models/types';
+import { getCurrentTimestamp, selectOne } from './repository.utils';
 
 /**
  * Event Repository
@@ -34,7 +35,7 @@ export const eventRepository = {
     context_id?: string;
   }): DbEvent => {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
       INSERT INTO events (id, project_id, title, description, type, agent, message, context_id, created_at)
@@ -53,9 +54,7 @@ export const eventRepository = {
       now
     );
 
-    // Return the created event
-    const selectStmt = db.prepare('SELECT * FROM events WHERE id = ?');
-    return selectStmt.get(event.id) as DbEvent;
+    return selectOne<DbEvent>(db, 'SELECT * FROM events WHERE id = ?', event.id)!;
   },
 
   /**

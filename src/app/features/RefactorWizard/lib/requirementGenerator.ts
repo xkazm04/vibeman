@@ -41,13 +41,42 @@ This batch contains ${batchLength} refactoring opportunities identified through 
 `;
 }
 
+/**
+ * Helper: Format opportunity metadata
+ */
+function formatOpportunityMetadata(opp: Opportunity): string {
+  return `**Category:** ${opp.category}
+**Severity:** ${opp.severity}
+**Effort:** ${opp.effort}
+${opp.estimatedTime ? `**Estimated Time:** ${opp.estimatedTime}` : ''}`;
+}
+
+/**
+ * Helper: Format line numbers section
+ */
+function formatLineNumbers(lineNumbers: Record<string, number[]>): string {
+  return `**Line Numbers:**
+${Object.entries(lineNumbers).map(([file, lines]) => `- ${file}: lines ${lines.join(', ')}`).join('\n')}
+
+`;
+}
+
+/**
+ * Helper: Format suggested fix section
+ */
+function formatSuggestedFix(suggestedFix: string): string {
+  return `**Suggested Fix:**
+\`\`\`
+${suggestedFix}
+\`\`\`
+
+`;
+}
+
 function generateOpportunitySection(opp: Opportunity, index: number): string {
   let section = `### ${index + 1}. ${opp.title}
 
-**Category:** ${opp.category}
-**Severity:** ${opp.severity}
-**Effort:** ${opp.effort}
-${opp.estimatedTime ? `**Estimated Time:** ${opp.estimatedTime}` : ''}
+${formatOpportunityMetadata(opp)}
 
 **Description:**
 ${opp.description}
@@ -61,19 +90,11 @@ ${opp.files.map(f => `- \`${f}\``).join('\n')}
 `;
 
   if (opp.lineNumbers) {
-    section += `**Line Numbers:**
-${Object.entries(opp.lineNumbers).map(([file, lines]) => `- ${file}: lines ${lines.join(', ')}`).join('\n')}
-
-`;
+    section += formatLineNumbers(opp.lineNumbers);
   }
 
   if (opp.suggestedFix) {
-    section += `**Suggested Fix:**
-\`\`\`
-${opp.suggestedFix}
-\`\`\`
-
-`;
+    section += formatSuggestedFix(opp.suggestedFix);
   }
 
   if (opp.autoFixAvailable) {

@@ -1,5 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbContext } from '../models/types';
+import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
 
 /**
  * Context Repository
@@ -39,12 +40,7 @@ export const contextRepository = {
    */
   getContextById: (contextId: string): DbContext | null => {
     const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM contexts
-      WHERE id = ?
-    `);
-    const context = stmt.get(contextId) as DbContext | undefined;
-    return context || null;
+    return selectOne<DbContext>(db, 'SELECT * FROM contexts WHERE id = ?', contextId);
   },
 
   /**
@@ -62,7 +58,7 @@ export const contextRepository = {
     preview?: string | null;
   }): DbContext => {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
       INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, preview, created_at, updated_at)
@@ -83,9 +79,7 @@ export const contextRepository = {
       now
     );
 
-    // Return the created context
-    const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
-    return selectStmt.get(context.id) as DbContext;
+    return selectOne<DbContext>(db, 'SELECT * FROM contexts WHERE id = ?', context.id)!;
   },
 
   /**

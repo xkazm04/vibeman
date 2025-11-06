@@ -299,6 +299,13 @@ export function getTechniquesForProjectType(projectType: ProjectType): ScanTechn
 }
 
 /**
+ * Helper: Check if files contain a specific extension
+ */
+function hasFileExtension(files: { path: string }[], ...extensions: string[]): boolean {
+  return files.some(f => extensions.some(ext => f.path.endsWith(ext)));
+}
+
+/**
  * Detect project type from file structure and package.json
  */
 export function detectProjectType(files: { path: string; content?: string }[]): ProjectType {
@@ -321,12 +328,12 @@ export function detectProjectType(files: { path: string; content?: string }[]): 
   }
 
   // Check for Python
-  if (files.some(f => f.path.endsWith('.py'))) {
+  if (hasFileExtension(files, '.py')) {
     return 'python';
   }
 
   // Check for TypeScript
-  if (hasFile('tsconfig.json') || files.some(f => f.path.endsWith('.ts') || f.path.endsWith('.tsx'))) {
+  if (hasFile('tsconfig.json') || hasFileExtension(files, '.ts', '.tsx')) {
     return 'typescript';
   }
 

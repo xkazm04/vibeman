@@ -1,5 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbIdea, IdeaCategory } from '../models/types';
+import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
 
 /**
  * Idea Repository
@@ -75,9 +76,7 @@ export const ideaRepository = {
    */
   getIdeaByRequirementId: (requirementId: string): DbIdea | null => {
     const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM ideas WHERE requirement_id = ?');
-    const idea = stmt.get(requirementId) as DbIdea | undefined;
-    return idea || null;
+    return selectOne<DbIdea>(db, 'SELECT * FROM ideas WHERE requirement_id = ?', requirementId);
   },
 
   /**
@@ -85,9 +84,7 @@ export const ideaRepository = {
    */
   getIdeaById: (ideaId: string): DbIdea | null => {
     const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
-    const idea = stmt.get(ideaId) as DbIdea | undefined;
-    return idea || null;
+    return selectOne<DbIdea>(db, 'SELECT * FROM ideas WHERE id = ?', ideaId);
   },
 
   /**
@@ -113,7 +110,7 @@ export const ideaRepository = {
     goal_id?: string | null;
   }): DbIdea => {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
 
     // Validate effort and impact values
     const validatedEffort = ideaRepository.validateEffortImpact(idea.effort);
@@ -149,8 +146,7 @@ export const ideaRepository = {
       now
     );
 
-    const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
-    return selectStmt.get(idea.id) as DbIdea;
+    return selectOne<DbIdea>(db, 'SELECT * FROM ideas WHERE id = ?', idea.id)!;
   },
 
   /**
@@ -162,7 +158,6 @@ export const ideaRepository = {
     }
     const num = typeof value === 'number' ? value : parseInt(String(value), 10);
     if (isNaN(num) || num < 1 || num > 3) {
-      // console.warn(`[ideaRepository] Invalid effort/impact value: ${value}, defaulting to 1`);
       return 1; // Default to 1 if invalid
     }
     return num;

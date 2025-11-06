@@ -63,6 +63,46 @@ export function updateBatchProgress(reqId: string): void {
 const executingRequirements = new Set<string>();
 
 /**
+ * Helper: Clean up after task execution and trigger next tasks
+ */
+function cleanupAndContinue(reqId: string, recursiveExecute: () => void, executionQueueRef: React.MutableRefObject<string[]>, delayMs: number = 100): void {
+  executingRequirements.delete(reqId);
+
+  if (executionQueueRef.current.length > 0) {
+    setTimeout(() => {
+      recursiveExecute();
+      // Try again to potentially start another batch
+      setTimeout(() => recursiveExecute(), 50);
+    }, delayMs);
+  }
+}
+
+/**
+ * Helper: Load git config from localStorage
+ */
+function loadGitConfig(req: ProjectRequirement): { enabled: true; commands: string[]; commitMessage: string } | undefined {
+  if (typeof window === 'undefined') return undefined;
+
+  const gitEnabled = localStorage.getItem('taskRunner_gitEnabled') === 'true';
+  if (!gitEnabled) return undefined;
+
+  try {
+    const storedConfig = localStorage.getItem('taskRunner_gitConfig');
+    if (!storedConfig) return undefined;
+
+    const parsedConfig = JSON.parse(storedConfig);
+    return {
+      enabled: true,
+      commands: parsedConfig.commands || ['git add .', 'git commit -m "{commitMessage}"', 'git push'],
+      commitMessage: parsedConfig.commitMessageTemplate?.replace('{requirementName}', req.requirementName) || `Auto-commit: ${req.requirementName}`
+    };
+  } catch (err) {
+    // Failed to parse git config from localStorage
+    return undefined;
+  }
+}
+
+/**
  * Configuration for task execution
  */
 export interface TaskExecutorConfig {
@@ -183,24 +223,7 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
     }
 
     // Get git configuration from localStorage
-    const gitEnabled = typeof window !== 'undefined' && localStorage.getItem('taskRunner_gitEnabled') === 'true';
-    let gitConfig = undefined;
-
-    if (gitEnabled && typeof window !== 'undefined') {
-      try {
-        const storedConfig = localStorage.getItem('taskRunner_gitConfig');
-        if (storedConfig) {
-          const parsedConfig = JSON.parse(storedConfig);
-          gitConfig = {
-            enabled: true,
-            commands: parsedConfig.commands || ['git add .', 'git commit -m "{commitMessage}"', 'git push'],
-            commitMessage: parsedConfig.commitMessageTemplate?.replace('{requirementName}', req.requirementName) || `Auto-commit: ${req.requirementName}`
-          };
-        }
-      } catch (err) {
-        console.warn('Failed to parse git config from localStorage:', err);
-      }
-    }
+    const gitConfig = loadGitConfig(req);
 
     // Start async execution with retry logic for transient errors
     let taskId: string;
@@ -288,13 +311,10 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
               // Get context_id from the idea associated with this requirement
               getContextIdFromRequirement(req.requirementName).then(contextId => {
                 if (contextId) {
-                  console.log(`[TaskExecutor] Triggering screenshot for context: ${contextId}`);
                   triggerScreenshotCapture(contextId);
-                } else {
-                  console.log(`[TaskExecutor] No context_id found for requirement: ${req.requirementName}, skipping screenshot`);
                 }
-              }).catch(err => {
-                console.warn(`[TaskExecutor] Screenshot trigger error (non-blocking):`, err);
+              }).catch(() => {
+                // Screenshot trigger error (non-blocking)
               });
             }
 
@@ -319,32 +339,12 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
             } catch (deleteError) {
               setError(`Failed to delete completed requirement: ${req.requirementName}`);
             } finally {
-              // Remove from executing set to allow other requirements to run
-              executingRequirements.delete(reqId);
-
-              // Trigger next task execution if queue has more items
-              // Try multiple times to start tasks from different batches in parallel
-              if (executionQueueRef.current.length > 0) {
-                setTimeout(() => {
-                  recursiveExecute();
-                  // Try again to potentially start another batch
-                  setTimeout(() => recursiveExecute(), 50);
-                }, 100);
-              }
+              // Remove from executing set and trigger next tasks
+              cleanupAndContinue(reqId, recursiveExecute, executionQueueRef);
             }
           } else if (task.status === 'failed') {
-            // Remove from executing set
-            executingRequirements.delete(reqId);
-
-            // Continue with next task if queue has more items
-            // Try multiple times to start tasks from different batches in parallel
-            if (executionQueueRef.current.length > 0) {
-              setTimeout(() => {
-                recursiveExecute();
-                // Try again to potentially start another batch
-                setTimeout(() => recursiveExecute(), 50);
-              }, 2000);
-            }
+            // Remove from executing set and continue
+            cleanupAndContinue(reqId, recursiveExecute, executionQueueRef, 2000);
 
             const errorMessage = task.error || 'Unknown error';
             const logInfo = task.logFilePath ? ` Check log: ${task.logFilePath}` : '';
@@ -370,9 +370,6 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
         if (pollErrorCount >= MAX_POLL_ERRORS) {
           clearInterval(pollIntervalId);
 
-          // Remove from executing set
-          executingRequirements.delete(reqId);
-
           setRequirements((prev) =>
             prev.map((r) =>
               getRequirementId(r) === reqId
@@ -383,15 +380,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
 
           setError(`Task monitoring failed after ${MAX_POLL_ERRORS} attempts: ${req.requirementName}\nLast error: ${pollErr instanceof Error ? pollErr.message : 'Unknown error'}`);
 
-          // Continue with next task if queue has more items
-          // Try multiple times to start tasks from different batches in parallel
-          if (executionQueueRef.current.length > 0) {
-            setTimeout(() => {
-              recursiveExecute();
-              // Try again to potentially start another batch
-              setTimeout(() => recursiveExecute(), 50);
-            }, 3000);
-          }
+          // Remove from executing set and continue
+          cleanupAndContinue(reqId, recursiveExecute, executionQueueRef, 3000);
         }
       }
     };
@@ -400,9 +390,6 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
     pollIntervalId = setInterval(pollStatus, POLL_INTERVAL);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // Remove from executing set
-    executingRequirements.delete(reqId);
 
     setError(`Failed to execute: ${req.requirementName}\nError: ${errorMessage}`);
 
@@ -414,15 +401,8 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
       )
     );
 
-    // Continue with next task if queue has more items
-    // Try multiple times to start tasks from different batches in parallel
-    if (executionQueueRef.current.length > 0) {
-      setTimeout(() => {
-        recursiveExecute();
-        // Try again to potentially start another batch
-        setTimeout(() => recursiveExecute(), 50);
-      }, 3000);
-    }
+    // Remove from executing set and continue
+    cleanupAndContinue(reqId, recursiveExecute, executionQueueRef, 3000);
   }
 }
 

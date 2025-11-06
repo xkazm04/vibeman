@@ -36,52 +36,9 @@ export async function generateWizardPlan(
   model?: string
 ): Promise<OptimizationResult> {
   try {
-    // Detect basic project type
-    const projectType = detectProjectType(files);
-    const relevantGroups = getScanGroupsForProjectType(projectType);
-
-    // Build file tree summary for AI
-    const fileTree = buildFileTreeSummary(files);
-    const sampleFiles = selectSampleFiles(files);
-
-    // Construct prompt for AI analysis
-    const prompt = buildAnalysisPrompt(projectType, fileTree, sampleFiles, relevantGroups);
-
-    // Call AI using llmManager
-    const response = await llmManager.generate({
-      provider,
-      model: model || llmManager.getDefaultModel(provider),
-      prompt,
-      temperature: 0.3,
-    });
-
-    if (!response.success || !response.response) {
-      throw new Error(response.error || 'Failed to generate AI response');
-    }
-
-    // Parse AI response
-    const aiRecommendations = parseAIResponse(response.response);
-
-    // Filter recommended groups based on AI suggestions
-    const recommendedGroups = filterGroupsByAIRecommendations(
-      relevantGroups,
-      aiRecommendations.recommendedGroupIds
-    );
-
-    const plan: WizardPlan = {
-      projectType,
-      detectedFrameworks: aiRecommendations.frameworks,
-      recommendedGroups,
-      reasoning: aiRecommendations.reasoning,
-      confidence: aiRecommendations.confidence,
-    };
-
-    return {
-      success: true,
-      plan,
-    };
+    const plan = await buildWizardPlan(files, provider, model);
+    return { success: true, plan };
   } catch (error) {
-    console.error('[WizardOptimizer] Error generating plan:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -90,17 +47,75 @@ export async function generateWizardPlan(
 }
 
 /**
- * Build a concise file tree summary for AI analysis
+ * Build the wizard plan from file analysis
  */
-function buildFileTreeSummary(files: FileAnalysis[]): string {
-  const tree: Record<string, number> = {};
+async function buildWizardPlan(
+  files: FileAnalysis[],
+  provider: SupportedProvider,
+  model?: string
+): Promise<WizardPlan> {
+  const projectType = detectProjectType(files);
+  const relevantGroups = getScanGroupsForProjectType(projectType);
 
+  const fileTree = buildFileTreeSummary(files);
+  const sampleFiles = selectSampleFiles(files);
+  const prompt = buildAnalysisPrompt(projectType, fileTree, sampleFiles, relevantGroups);
+
+  const aiRecommendations = await getAIRecommendations(provider, model, prompt);
+  const recommendedGroups = filterGroupsByAIRecommendations(
+    relevantGroups,
+    aiRecommendations.recommendedGroupIds
+  );
+
+  return {
+    projectType,
+    detectedFrameworks: aiRecommendations.frameworks,
+    recommendedGroups,
+    reasoning: aiRecommendations.reasoning,
+    confidence: aiRecommendations.confidence,
+  };
+}
+
+/**
+ * Get AI recommendations from LLM
+ */
+async function getAIRecommendations(
+  provider: SupportedProvider,
+  model: string | undefined,
+  prompt: string
+) {
+  const response = await llmManager.generate({
+    provider,
+    model: model || llmManager.getDefaultModel(provider),
+    prompt,
+    temperature: 0.3,
+  });
+
+  if (!response.success || !response.response) {
+    throw new Error(response.error || 'Failed to generate AI response');
+  }
+
+  return parseAIResponse(response.response);
+}
+
+/**
+ * Helper: Count files by root directory
+ */
+function countFilesByDirectory(files: FileAnalysis[]): Record<string, number> {
+  const tree: Record<string, number> = {};
   files.forEach(file => {
     const parts = file.path.split(/[/\\]/);
     const rootDir = parts[0] || 'root';
     tree[rootDir] = (tree[rootDir] || 0) + 1;
   });
+  return tree;
+}
 
+/**
+ * Build a concise file tree summary for AI analysis
+ */
+function buildFileTreeSummary(files: FileAnalysis[]): string {
+  const tree = countFilesByDirectory(files);
   const lines = Object.entries(tree)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
@@ -110,38 +125,57 @@ function buildFileTreeSummary(files: FileAnalysis[]): string {
 }
 
 /**
- * Select representative sample files for AI analysis
+ * Priority patterns for sample file selection
  */
-function selectSampleFiles(files: FileAnalysis[]): FileAnalysis[] {
-  // Prioritize: package.json, config files, main app files
-  const priority = [
-    /package\.json$/,
-    /next\.config/,
-    /tsconfig\.json$/,
-    /app\/layout\./,
-    /app\/page\./,
-    /pages\/_app/,
-    /main\.py$/,
-    /app\.py$/,
-    /requirements\.txt$/,
-  ];
+const SAMPLE_FILE_PATTERNS = [
+  /package\.json$/,
+  /next\.config/,
+  /tsconfig\.json$/,
+  /app\/layout\./,
+  /app\/page\./,
+  /pages\/_app/,
+  /main\.py$/,
+  /app\.py$/,
+  /requirements\.txt$/,
+];
 
+/**
+ * Helper: Find files matching priority patterns
+ */
+function findPriorityFiles(files: FileAnalysis[], maxCount: number): FileAnalysis[] {
   const samples: FileAnalysis[] = [];
-
-  // Add files matching priority patterns
-  priority.forEach(pattern => {
+  SAMPLE_FILE_PATTERNS.forEach(pattern => {
     const match = files.find(f => pattern.test(f.path));
-    if (match && samples.length < 5) {
+    if (match && samples.length < maxCount) {
       samples.push(match);
     }
   });
+  return samples;
+}
 
-  // Fill remaining slots with largest files
-  if (samples.length < 5) {
-    const remaining = files
-      .filter(f => !samples.includes(f))
-      .sort((a, b) => b.lines - a.lines)
-      .slice(0, 5 - samples.length);
+/**
+ * Helper: Fill remaining slots with largest files
+ */
+function fillWithLargestFiles(
+  files: FileAnalysis[],
+  existingSamples: FileAnalysis[],
+  targetCount: number
+): FileAnalysis[] {
+  return files
+    .filter(f => !existingSamples.includes(f))
+    .sort((a, b) => b.lines - a.lines)
+    .slice(0, targetCount - existingSamples.length);
+}
+
+/**
+ * Select representative sample files for AI analysis
+ */
+function selectSampleFiles(files: FileAnalysis[]): FileAnalysis[] {
+  const maxSamples = 5;
+  const samples = findPriorityFiles(files, maxSamples);
+
+  if (samples.length < maxSamples) {
+    const remaining = fillWithLargestFiles(files, samples, maxSamples);
     samples.push(...remaining);
   }
 
@@ -223,7 +257,6 @@ function parseAIResponse(response: string): {
       confidence: parsed.confidence || 50,
     };
   } catch (error) {
-    console.error('[WizardOptimizer] Error parsing AI response:', error);
     // Fallback: return default recommendations
     return {
       frameworks: [],

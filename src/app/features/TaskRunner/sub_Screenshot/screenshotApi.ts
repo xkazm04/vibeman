@@ -17,19 +17,14 @@ export function triggerScreenshotCapture(contextId: string): void {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contextId }),
   })
-    .then(response => {
-      if (response.ok) {
-        console.log(`[Screenshot] Successfully triggered screenshot for context: ${contextId}`);
-      } else {
-        console.warn(`[Screenshot] Screenshot request failed with status: ${response.status}`);
-      }
+    .then(() => {
+      // Screenshot triggered successfully
     })
-    .catch(error => {
-      console.warn(`[Screenshot] Screenshot request error (non-blocking):`, error);
+    .catch(() => {
+      // Screenshot request failed (non-blocking)
     });
 
   // Return immediately, don't wait for the response
-  console.log(`[Screenshot] Screenshot capture initiated for context: ${contextId}`);
 }
 
 /**
@@ -44,21 +39,17 @@ export async function getContextIdFromRequirement(requirementName: string): Prom
     const response = await fetch(`/api/ideas/by-requirement?requirementId=${encodeURIComponent(requirementName)}`);
 
     if (!response.ok) {
-      console.log(`[Screenshot] No idea found for requirement: ${requirementName}`);
       return null;
     }
 
     const data = await response.json();
 
     if (data.idea && data.idea.context_id) {
-      console.log(`[Screenshot] Found context_id for requirement ${requirementName}: ${data.idea.context_id}`);
       return data.idea.context_id;
     }
 
-    console.log(`[Screenshot] Idea found but no context_id for requirement: ${requirementName}`);
     return null;
   } catch (error) {
-    console.warn(`[Screenshot] Failed to get context_id for requirement ${requirementName}:`, error);
     return null;
   }
 }

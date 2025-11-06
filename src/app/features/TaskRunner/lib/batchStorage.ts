@@ -25,43 +25,46 @@ export interface MultiBatchState {
 
 const STORAGE_KEY = 'taskRunner_batchState';
 
+/**
+ * Helper: Safe localStorage operation with error handling
+ */
+function safeLocalStorageOp<T>(operation: () => T, fallback: T): T {
+  try {
+    return operation();
+  } catch (error) {
+    return fallback;
+  }
+}
+
 export class BatchStorage {
   /**
    * Save batch state to localStorage
    */
   static save(state: MultiBatchState): void {
-    try {
+    safeLocalStorageOp(() => {
       const serialized = JSON.stringify(state);
       localStorage.setItem(STORAGE_KEY, serialized);
-    } catch (error) {
-      // Silently fail - state will not persist
-    }
+    }, undefined);
   }
 
   /**
    * Load batch state from localStorage
    */
   static load(): MultiBatchState | null {
-    try {
+    return safeLocalStorageOp(() => {
       const serialized = localStorage.getItem(STORAGE_KEY);
       if (!serialized) return null;
-
-      const state = JSON.parse(serialized) as MultiBatchState;
-      return state;
-    } catch (error) {
-      return null;
-    }
+      return JSON.parse(serialized) as MultiBatchState;
+    }, null);
   }
 
   /**
    * Clear batch state from localStorage
    */
   static clear(): void {
-    try {
+    safeLocalStorageOp(() => {
       localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      // Silently fail
-    }
+    }, undefined);
   }
 
   /**

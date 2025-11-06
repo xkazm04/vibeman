@@ -1,5 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbConversation, DbMessage, CreateConversationRequest, CreateMessageRequest, ConversationWithMessages } from '../models/conversation.types';
+import { getCurrentTimestamp, selectOne, generateId } from './repository.utils';
 
 /**
  * Conversation Repository
@@ -11,8 +12,8 @@ export const conversationRepository = {
    */
   createConversation: (request: CreateConversationRequest): DbConversation => {
     const db = getDatabase();
-    const now = new Date().toISOString();
-    const id = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = getCurrentTimestamp();
+    const id = generateId('conv');
 
     const stmt = db.prepare(`
       INSERT INTO conversations (id, project_id, title, created_at, updated_at)
@@ -35,9 +36,7 @@ export const conversationRepository = {
    */
   getConversationById: (conversationId: string): DbConversation | null => {
     const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM conversations WHERE id = ?');
-    const conversation = stmt.get(conversationId) as DbConversation | undefined;
-    return conversation || null;
+    return selectOne<DbConversation>(db, 'SELECT * FROM conversations WHERE id = ?', conversationId);
   },
 
   /**
@@ -73,7 +72,7 @@ export const conversationRepository = {
    */
   updateConversationTimestamp: (conversationId: string): void => {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
     const stmt = db.prepare(`
       UPDATE conversations
       SET updated_at = ?
@@ -97,8 +96,8 @@ export const conversationRepository = {
    */
   addMessage: (request: CreateMessageRequest): DbMessage => {
     const db = getDatabase();
-    const now = new Date().toISOString();
-    const id = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = getCurrentTimestamp();
+    const id = generateId('msg');
 
     const stmt = db.prepare(`
       INSERT INTO messages (id, conversation_id, role, content, memory_type, metadata, created_at)

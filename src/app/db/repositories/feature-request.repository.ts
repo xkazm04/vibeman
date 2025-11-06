@@ -5,6 +5,7 @@
 
 import { getDatabase } from '../connection';
 import { DbFeatureRequest, FeatureRequestComment, FeatureRequestNotification } from '../models/feature-request.types';
+import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
 
 export const featureRequestRepository = {
   /**
@@ -12,7 +13,7 @@ export const featureRequestRepository = {
    */
   create(request: Omit<DbFeatureRequest, 'created_at' | 'updated_at'>): DbFeatureRequest {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
       INSERT INTO feature_requests (
@@ -89,18 +90,13 @@ export const featureRequestRepository = {
    */
   update(id: string, updates: Partial<DbFeatureRequest>): DbFeatureRequest | null {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const { fields, values } = buildUpdateQuery(updates);
 
-    const fields: string[] = [];
-    const values: unknown[] = [];
+    if (fields.length === 0) {
+      return this.getById(id);
+    }
 
-    Object.entries(updates).forEach(([key, value]) => {
-      if (key !== 'id' && key !== 'created_at') {
-        fields.push(`${key} = ?`);
-        values.push(value);
-      }
-    });
-
+    const now = getCurrentTimestamp();
     fields.push('updated_at = ?');
     values.push(now);
     values.push(id);
@@ -144,7 +140,7 @@ export const featureRequestRepository = {
    */
   addComment(comment: Omit<FeatureRequestComment, 'created_at'>): FeatureRequestComment {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
       INSERT INTO feature_request_comments (
@@ -182,7 +178,7 @@ export const featureRequestRepository = {
    */
   createNotification(notification: Omit<FeatureRequestNotification, 'sent_at'>): FeatureRequestNotification {
     const db = getDatabase();
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
       INSERT INTO feature_request_notifications (
