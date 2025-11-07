@@ -20,8 +20,8 @@ export interface AIOperationOptions {
  *
  * @example
  * const { execute, isLoading, error, retry } = useAIOperation({
- *   onSuccess: (data) => console.log('Success:', data),
- *   onError: (error) => console.error('Failed:', error),
+ *   onSuccess: (data) => {},
+ *   onError: (error) => {},
  * });
  *
  * await execute(async () => {
@@ -91,9 +91,6 @@ export function useAIOperation<T = unknown>(options: AIOperationOptions = {}) {
 
   const retry = useCallback(async (): Promise<T | null> => {
     if (!lastOperation) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('No operation to retry');
-      }
       return null;
     }
     return execute(lastOperation);

@@ -19,6 +19,46 @@ interface ContextMenuProps {
   variant?: 'simple' | 'neural'; // simple for basic menus, neural for fancy effects
 }
 
+// Helper function to get menu container class names
+const getMenuContainerClasses = (variant: 'simple' | 'neural'): string => {
+  const baseClasses = 'fixed min-w-[220px] backdrop-blur-xl rounded-lg shadow-2xl';
+
+  if (variant === 'neural') {
+    return `${baseClasses} bg-gradient-to-br from-gray-900/95 via-slate-900/95 to-blue-900/30 border border-gray-700/50 py-4`;
+  }
+
+  return `${baseClasses} bg-gray-900/95 border border-gray-700/50 py-2`;
+};
+
+// Helper function to get button class names
+const getButtonClasses = (
+  variant: 'simple' | 'neural',
+  disabled?: boolean,
+  destructive?: boolean
+): string => {
+  const baseClasses = 'w-full text-left text-sm flex items-center transition-all';
+  const variantSpacing = variant === 'neural'
+    ? 'px-4 py-3 space-x-3 rounded-xl mx-1 border border-transparent duration-300'
+    : 'px-4 py-2 gap-3 duration-200';
+
+  if (disabled) {
+    return `${baseClasses} ${variantSpacing} text-gray-500 cursor-not-allowed`;
+  }
+
+  if (destructive) {
+    const destructiveStyles = variant === 'neural'
+      ? 'text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:to-red-600/20 hover:text-red-300 hover:border-red-500/50'
+      : 'text-red-400 hover:bg-red-500/10 hover:text-red-300';
+    return `${baseClasses} ${variantSpacing} ${destructiveStyles}`;
+  }
+
+  const normalStyles = variant === 'neural'
+    ? 'text-gray-200 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 hover:text-cyan-300 hover:border-cyan-500/30'
+    : 'text-gray-300 hover:bg-gray-700/50 hover:text-white';
+
+  return `${baseClasses} ${variantSpacing} ${normalStyles}`;
+};
+
 export default function ContextMenu({
   isOpen,
   position,
@@ -114,11 +154,7 @@ export default function ContextMenu({
               stiffness: 300,
               damping: 30
             }}
-            className={`fixed min-w-[220px] backdrop-blur-xl rounded-lg shadow-2xl ${
-              variant === 'neural'
-                ? 'bg-gradient-to-br from-gray-900/95 via-slate-900/95 to-blue-900/30 border border-gray-700/50 py-4'
-                : 'bg-gray-900/95 border border-gray-700/50 py-2'
-            }`}
+            className={getMenuContainerClasses(variant)}
             style={{
               left: `${adjustedPosition.x}px`,
               top: `${adjustedPosition.y}px`,
@@ -149,21 +185,7 @@ export default function ContextMenu({
                       }
                     }}
                     disabled={item.disabled}
-                    className={`w-full text-left text-sm flex items-center transition-all ${
-                      variant === 'neural'
-                        ? 'px-4 py-3 space-x-3 rounded-xl mx-1 border border-transparent duration-300'
-                        : 'px-4 py-2 gap-3 duration-200'
-                    } ${
-                      item.disabled
-                        ? 'text-gray-500 cursor-not-allowed'
-                        : item.destructive
-                        ? variant === 'neural'
-                          ? 'text-red-400 hover:bg-gradient-to-r hover:from-red-500/20 hover:to-red-600/20 hover:text-red-300 hover:border-red-500/50'
-                          : 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
-                        : variant === 'neural'
-                        ? 'text-gray-200 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 hover:text-cyan-300 hover:border-cyan-500/30'
-                        : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
-                    }`}
+                    className={getButtonClasses(variant, item.disabled, item.destructive)}
                     whileHover={variant === 'neural' ? { x: 6, scale: 1.02 } : {}}
                     whileTap={variant === 'neural' ? { scale: 0.98 } : {}}
                   >

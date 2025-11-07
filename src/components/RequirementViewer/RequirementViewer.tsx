@@ -14,6 +14,42 @@ interface RequirementViewerProps {
   className?: string;
 }
 
+// Helper component for action buttons
+interface ActionButtonProps {
+  onClick: () => void;
+  disabled?: boolean;
+  variant: 'cancel' | 'save' | 'edit';
+  icon: React.ReactNode;
+  label: string;
+  loading?: boolean;
+}
+
+function ActionButton({ onClick, disabled, variant, icon, label, loading }: ActionButtonProps) {
+  const getVariantClasses = () => {
+    switch (variant) {
+      case 'cancel':
+        return 'px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition-colors disabled:opacity-50';
+      case 'save':
+        return 'px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-lg text-xs font-medium transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5';
+      case 'edit':
+        return 'px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 hover:from-cyan-500/20 hover:to-blue-500/20 text-cyan-400 border border-cyan-500/30 hover:border-cyan-500/50 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5';
+    }
+  };
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      disabled={disabled}
+      className={getVariantClasses()}
+    >
+      {icon}
+      <span>{label}</span>
+    </motion.button>
+  );
+}
+
 export default function RequirementViewer({
   projectPath,
   requirementName,
@@ -104,45 +140,28 @@ export default function RequirementViewer({
           <div className="flex items-center gap-2 flex-shrink-0">
             {isEditing ? (
               <>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <ActionButton
                   onClick={handleCancel}
                   disabled={isSaving}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition-colors disabled:opacity-50"
-                >
-                  <X className="w-4 h-4" />
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  variant="cancel"
+                  icon={<X className="w-4 h-4" />}
+                  label=""
+                />
+                <ActionButton
                   onClick={handleSave}
                   disabled={isSaving || editedContent === content}
-                  className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-lg text-xs font-medium transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save</span>
-                    </>
-                  )}
-                </motion.button>
+                  variant="save"
+                  icon={isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  label={isSaving ? 'Saving...' : 'Save'}
+                />
               </>
             ) : (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <ActionButton
                 onClick={() => setIsEditing(true)}
-                className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 hover:from-cyan-500/20 hover:to-blue-500/20 text-cyan-400 border border-cyan-500/30 hover:border-cyan-500/50 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Edit</span>
-              </motion.button>
+                variant="edit"
+                icon={<Edit2 className="w-3.5 h-3.5" />}
+                label="Edit"
+              />
             )}
           </div>
         )}

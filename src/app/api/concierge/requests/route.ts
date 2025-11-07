@@ -56,7 +56,6 @@ export async function GET(request: NextRequest) {
       data: requests,
     });
   } catch (error) {
-    console.error('Error fetching feature requests:', error);
     return NextResponse.json(
       {
         error: 'Failed to fetch feature requests',
@@ -122,7 +121,6 @@ export async function POST(request: NextRequest) {
       data: featureRequest,
     });
   } catch (error) {
-    console.error('Error creating feature request:', error);
     return NextResponse.json(
       {
         error: 'Failed to create feature request',
@@ -165,7 +163,6 @@ export async function PATCH(request: NextRequest) {
       data: updated,
     });
   } catch (error) {
-    console.error('Error updating feature request:', error);
     return NextResponse.json(
       {
         error: 'Failed to update feature request',
@@ -205,7 +202,6 @@ export async function DELETE(request: NextRequest) {
       message: 'Feature request deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting feature request:', error);
     return NextResponse.json(
       {
         error: 'Failed to delete feature request',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { getPortCheckCommand, getProcessCommandLookup, extractCommand } from '../utils';
 
 const execAsync = promisify(exec);
 
@@ -8,35 +9,6 @@ interface ProcessInfo {
   port: number;
   pid: number | null;
   command?: string;
-}
-
-/**
- * Get port check command for current platform
- */
-function getPortCheckCommand(port: number): string {
-  return process.platform === 'win32'
-    ? `netstat -ano | findstr :${port}`
-    : `lsof -i :${port}`;
-}
-
-/**
- * Get process command lookup command for current platform
- */
-function getProcessCommandLookup(pid: number): string {
-  return process.platform === 'win32'
-    ? `wmic process where processid=${pid} get commandline /format:list`
-    : `ps -p ${pid} -o command=`;
-}
-
-/**
- * Extract command from command lookup output
- */
-function extractCommand(output: string, platform: string): string {
-  if (platform === 'win32') {
-    const match = output.match(/CommandLine=(.+)/);
-    return match ? match[1].trim() : '';
-  }
-  return output.trim();
 }
 
 export async function POST(request: NextRequest) {
@@ -59,13 +31,12 @@ export async function POST(request: NextRequest) {
           processes.push(processInfo);
         }
       } catch (error) {
-        console.warn(`Failed to check port ${port}:`, error);
+        // Port check failed, continue to next port
       }
     }
 
     return NextResponse.json({ processes });
   } catch (error) {
-    console.error('Scan ports API error:', error);
     return NextResponse.json(
       { error: 'Failed to scan ports' },
       { status: 500 }

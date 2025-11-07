@@ -9,9 +9,7 @@ import { getSyncStatus } from '@/lib/supabase/sync';
 export async function GET() {
   try {
     // Check if Supabase is configured
-    const isConfigured = isSupabaseConfigured();
-
-    if (!isConfigured) {
+    if (!isSupabaseConfigured()) {
       return NextResponse.json({
         configured: false,
         message: 'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
@@ -47,7 +45,6 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('[API] Error checking Supabase status:', error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Unknown error occurred'

@@ -18,14 +18,10 @@ export function useGenerateAIDocs() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateDocs = useCallback(async (params: GenerateAIDocsParams): Promise<GenerateAIDocsResult> => {
-    console.log('[useGenerateAIDocs] Setting isGenerating to true');
-    setIsGenerating(true);
+  const generateDocs = useCallback(async (params: GenerateAIDocsParams): Promise<GenerateAIDocsResult> => {    setIsGenerating(true);
     setError(null);
 
-    try {
-      console.log('[useGenerateAIDocs] Calling API with params:', { ...params, analysis: 'omitted' });
-      const response = await fetch('/api/projects/ai-docs', {
+    try {      const response = await fetch('/api/projects/ai-docs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -34,21 +30,15 @@ export function useGenerateAIDocs() {
       });
 
       const result = await response.json();
-      console.log('[useGenerateAIDocs] API response:', { success: result.success, hasReview: !!result.review });
-
       if (!result.success) {
         throw new Error(result.error || 'Failed to generate AI documentation');
       }
 
       return result;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      console.error('[useGenerateAIDocs] Error:', errorMessage);
-      setError(errorMessage);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';      setError(errorMessage);
       return { success: false, error: errorMessage };
-    } finally {
-      console.log('[useGenerateAIDocs] Setting isGenerating to false');
-      setIsGenerating(false);
+    } finally {      setIsGenerating(false);
     }
   }, []);
 

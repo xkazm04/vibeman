@@ -69,7 +69,6 @@ export async function POST(request: NextRequest) {
             });
           }
         } catch (dbError) {
-          console.error(`Failed to create/update database entry for ${cleanFilename}:`, dbError);
           // Continue with file creation even if database fails
         }
 
@@ -78,9 +77,7 @@ export async function POST(request: NextRequest) {
           success: true
         });
 
-        console.log(`Successfully saved context: ${cleanFilename}`);
       } catch (error) {
-        console.error(`Failed to save context ${context.filename}:`, error);
         savedContexts.push({
           filename: context.filename,
           success: false,
@@ -100,7 +97,6 @@ export async function POST(request: NextRequest) {
       failureCount
     });
   } catch (error) {
-    console.error('Batch save contexts API error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

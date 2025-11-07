@@ -100,8 +100,6 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (error) {
-      console.error('Code generation error:', error);
-
       // Update status to failed
       featureRequestDb.update(requestId, {
         status: 'failed',
@@ -122,7 +120,6 @@ export async function POST(request: NextRequest) {
       throw error;
     }
   } catch (error) {
-    console.error('Error in code generation API:', error);
     return NextResponse.json(
       {
         error: 'Failed to generate code',
@@ -164,7 +161,7 @@ export async function GET(request: NextRequest) {
       try {
         generatedCode = JSON.parse(featureRequest.generated_code);
       } catch (e) {
-        console.error('Error parsing generated code:', e);
+        // Failed to parse generated code
       }
     }
 
@@ -172,7 +169,7 @@ export async function GET(request: NextRequest) {
       try {
         generatedTests = JSON.parse(featureRequest.generated_tests);
       } catch (e) {
-        console.error('Error parsing generated tests:', e);
+        // Failed to parse generated tests
       }
     }
 
@@ -188,7 +185,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error getting generation status:', error);
     return NextResponse.json(
       {
         error: 'Failed to get generation status',

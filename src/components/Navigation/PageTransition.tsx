@@ -8,6 +8,9 @@ interface PageTransitionProps {
   children: React.ReactNode;
 }
 
+// Smooth easing curve constant
+const SMOOTH_EASING = [0.22, 1, 0.36, 1] as const;
+
 const pageVariants = {
   initial: {
     opacity: 0,
@@ -24,11 +27,11 @@ const pageVariants = {
     y: -20,
     scale: 1.02,
   },
-};
+} as const;
 
 const pageTransition = {
-  type: 'tween',
-  ease: [0.22, 1, 0.36, 1],
+  type: 'tween' as const,
+  ease: SMOOTH_EASING,
   duration: 0.4,
 };
 

@@ -64,7 +64,6 @@ export function sanitizeContent(
 
     return sanitized as string;
   } catch (error) {
-    console.error('Sanitization error:', error);
     // In case of error, return empty string for safety
     return '';
   }

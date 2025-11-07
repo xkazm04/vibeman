@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
 import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
+import { DbIdea } from '@/app/db/models/types';
 
 /**
  * DELETE /api/contexts/ideas
@@ -20,35 +21,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    console.log('[Delete Context Ideas] Deleting ideas for context:', contextId);
-
     // Get all ideas for this context
     const ideas = ideaDb.getIdeasByContext(contextId);
-    console.log(`[Delete Context Ideas] Found ${ideas.length} idea(s) to delete`);
 
     // Delete requirement files if they exist and projectPath is provided
     if (projectPath) {
-      for (const idea of ideas) {
-        if (idea.requirement_id) {
-          try {
-            console.log('[Delete Context Ideas] Deleting requirement file:', idea.requirement_id);
-            const deleteResult = deleteRequirement(projectPath, idea.requirement_id);
-            if (deleteResult.success) {
-              console.log('[Delete Context Ideas] Requirement file deleted successfully');
-            } else {
-              console.warn('[Delete Context Ideas] Failed to delete requirement file:', deleteResult.error);
-            }
-          } catch (deleteError) {
-            console.error('[Delete Context Ideas] Error deleting requirement file:', deleteError);
-            // Continue with other deletions
-          }
-        }
-      }
+      await deleteRequirementFiles(ideas, projectPath);
     }
 
     // Delete all ideas from database
     const deletedCount = ideaDb.deleteIdeasByContext(contextId);
-    console.log(`[Delete Context Ideas] Deleted ${deletedCount} idea(s)`);
 
     return NextResponse.json({
       success: true,
@@ -56,7 +38,6 @@ export async function DELETE(request: NextRequest) {
       message: `Deleted ${deletedCount} idea(s) from context`,
     });
   } catch (error) {
-    console.error('[Delete Context Ideas] Error:', error);
     return NextResponse.json(
       {
         error: 'Failed to delete context ideas',
@@ -64,5 +45,23 @@ export async function DELETE(request: NextRequest) {
       },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Delete requirement files associated with ideas
+ */
+async function deleteRequirementFiles(ideas: DbIdea[], projectPath: string): Promise<void> {
+  for (const idea of ideas) {
+    if (idea.requirement_id) {
+      try {
+        const deleteResult = deleteRequirement(projectPath, idea.requirement_id);
+        if (!deleteResult.success) {
+          // Log warning but continue with other deletions
+        }
+      } catch (deleteError) {
+        // Continue with other deletions even if one fails
+      }
+    }
   }
 }

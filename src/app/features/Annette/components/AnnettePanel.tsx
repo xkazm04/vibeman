@@ -13,6 +13,7 @@ import { textToSpeech } from '../lib/voicebotApi';
 import { KnowledgeSource } from '../lib/voicebotTypes';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { SupportedProvider } from '@/lib/llm/types';
+import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
 
 const WELCOME_PHRASES = [
   "Welcome to your command center.",
@@ -41,13 +42,11 @@ export default function AnnettePanel() {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
   const { activeProject } = useActiveProjectStore();
+  const { recommendScan } = useBlueprintStore();
   const themeConfig = THEME_CONFIGS[theme];
 
-  const speakMessage = useCallback(async (text: string) => {
-    if (!isVoiceEnabled) {
-      return;
-    }
-
+  // Internal function to play audio (bypasses voice enabled check)
+  const playAudioInternal = useCallback(async (text: string) => {
     setMessage(text);
     setIsSpeaking(true);
     setIsError(false);
@@ -89,7 +88,10 @@ export default function AnnettePanel() {
         setAudioContext(null);
         setAnalyser(null);
         URL.revokeObjectURL(audioUrl);
-        audioCtx.close();
+        // Only close if not already closed
+        if (audioCtx.state !== 'closed') {
+          audioCtx.close();
+        }
       };
 
       audio.onerror = () => {
@@ -99,7 +101,10 @@ export default function AnnettePanel() {
         setAudioContext(null);
         setAnalyser(null);
         URL.revokeObjectURL(audioUrl);
-        audioCtx.close();
+        // Only close if not already closed
+        if (audioCtx.state !== 'closed') {
+          audioCtx.close();
+        }
       };
 
       setAudioElement(audio);
@@ -116,7 +121,18 @@ export default function AnnettePanel() {
         setMessage('Voice system offline');
       }
     }
-  }, [isVoiceEnabled]);
+  }, []);
+
+  const speakMessage = useCallback(async (text: string) => {
+    // Always update the message display
+    setMessage(text);
+
+    // Only play audio if voice is enabled
+    if (!isVoiceEnabled) {
+      return;
+    }
+    await playAudioInternal(text);
+  }, [isVoiceEnabled, playAudioInternal]);
 
   const handleActivateVoice = async () => {
     if (!isVoiceEnabled) {
@@ -124,6 +140,18 @@ export default function AnnettePanel() {
       setIsVoiceEnabled(true);
     }
   };
+
+  // Play direct response with auto-enable voice
+  const playDirectResponse = useCallback(async (text: string) => {
+    // Auto-enable voice if not already enabled
+    if (!isVoiceEnabled) {
+      setSkipWelcome(true); // Skip welcome message when auto-enabling
+      setIsVoiceEnabled(true);
+    }
+
+    // Play audio directly without waiting for state update
+    await playAudioInternal(text);
+  }, [isVoiceEnabled, playAudioInternal]);
 
   // Play welcome message when voice is first enabled
   useEffect(() => {
@@ -203,6 +231,17 @@ export default function AnnettePanel() {
       }
       if (data.nextSteps) {
         setNextSteps(data.nextSteps);
+      }
+
+      // Handle scan recommendations from Annette
+      if (data.recommendedScans && Array.isArray(data.recommendedScans)) {
+        console.log('[AnnettePanel] Received recommendations:', data.recommendedScans);
+        data.recommendedScans.forEach((scanId: string) => {
+          console.log('[AnnettePanel] Recommending scan:', scanId);
+          recommendScan(scanId);
+        });
+      } else {
+        console.log('[AnnettePanel] No recommendations received or invalid format:', data.recommendedScans);
       }
 
       setIsListening(false);
@@ -333,7 +372,7 @@ export default function AnnettePanel() {
           isProcessing={isProcessing}
           activeProjectId={activeProject?.id || null}
           onSendToAnnette={sendToAnnette}
-          onPlayDirectResponse={speakMessage}
+          onPlayDirectResponse={playDirectResponse}
         />
       </div>
 

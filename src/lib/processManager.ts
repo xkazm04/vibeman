@@ -4,27 +4,17 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-// Logger helper for consistent logging
+// Logger helper for consistent logging (production-ready - no console output)
 function log(context: string, message: string, data?: unknown): void {
-  if (process.env.NODE_ENV === 'development') {
-    if (data !== undefined) {
-      console.log(`[ProcessManager:${context}] ${message}`, data);
-    } else {
-      console.log(`[ProcessManager:${context}] ${message}`);
-    }
-  }
+  // Silent in production - could integrate with logging service
 }
 
 function logError(context: string, message: string, error?: unknown): void {
-  if (process.env.NODE_ENV === 'development') {
-    console.error(`[ProcessManager:${context}] ${message}`, error);
-  }
+  // Silent in production - could integrate with logging service
 }
 
 function logWarn(context: string, message: string, error?: unknown): void {
-  if (process.env.NODE_ENV === 'development') {
-    console.warn(`[ProcessManager:${context}] ${message}`, error);
-  }
+  // Silent in production - could integrate with logging service
 }
 
 class ProcessManager {

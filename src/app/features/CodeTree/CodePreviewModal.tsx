@@ -132,6 +132,7 @@ export default function CodePreviewModal({
         <>
           {/* Backdrop */}
           <motion.div
+            data-testid="code-preview-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -147,7 +148,7 @@ export default function CodePreviewModal({
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           >
-            <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div data-testid="code-preview-modal" className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/50">
                 <div className="flex items-center gap-3">
@@ -170,6 +171,7 @@ export default function CodePreviewModal({
                     </span>
                   )}
                   <button
+                    data-testid="code-preview-save-button"
                     onClick={handleSave}
                     disabled={!hasChanges || isSaving}
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
@@ -187,6 +189,7 @@ export default function CodePreviewModal({
                     )}
                   </button>
                   <button
+                    data-testid="code-preview-close-button"
                     onClick={handleClose}
                     className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
                   >

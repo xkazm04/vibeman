@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
         const version = await fetchLatestVersion(packageName, registryUrl);
         return { packageName, version };
       } catch (error) {
-        console.error(`Failed to fetch version for ${packageName}:`, error);
         return { packageName, version: null };
       }
     });
@@ -40,7 +39,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ versions: versionsMap });
   } catch (error) {
-    console.error('Error fetching registry versions:', error);
     return NextResponse.json(
       { error: 'Failed to fetch registry versions', details: (error as Error).message },
       { status: 500 }

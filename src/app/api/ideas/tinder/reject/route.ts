@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
 import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
+import { createErrorResponse, createSuccessResponse } from '../utils';
 
 interface RejectIdeaRequest {
   ideaId: string;
@@ -24,10 +25,7 @@ function tryDeleteRequirementFile(projectPath: string | undefined, requirementId
   }
 
   try {
-    const deleteResult = deleteRequirement(projectPath, requirementId);
-    if (!deleteResult.success) {
-      // Log but don't throw - requirement deletion is not critical
-    }
+    deleteRequirement(projectPath, requirementId);
   } catch {
     // Ignore errors - requirement deletion is not critical
   }
@@ -42,10 +40,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     if (!validateRequest(body)) {
-      return NextResponse.json(
-        { error: 'ideaId is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('ideaId is required', undefined, 400);
     }
 
     const { ideaId, projectPath } = body;
@@ -53,10 +48,7 @@ export async function POST(request: NextRequest) {
     // Get the idea to verify it exists
     const idea = ideaDb.getIdeaById(ideaId);
     if (!idea) {
-      return NextResponse.json(
-        { error: 'Idea not found' },
-        { status: 404 }
-      );
+      return createErrorResponse('Idea not found', undefined, 404);
     }
 
     // Delete requirement file if it exists
@@ -65,17 +57,8 @@ export async function POST(request: NextRequest) {
     // Update idea status to rejected and clear requirement_id
     ideaDb.updateIdea(ideaId, { status: 'rejected', requirement_id: null });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Idea rejected',
-    });
+    return createSuccessResponse({ message: 'Idea rejected' });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: 'Failed to reject idea',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to reject idea', error);
   }
 }

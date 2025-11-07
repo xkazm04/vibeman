@@ -25,9 +25,39 @@ export interface DecisionData {
   projectId?: string;
   projectPath?: string;
   contextId?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   onAccept: () => Promise<void>;
   onReject: () => Promise<void>;
+}
+
+/**
+ * Check if context has a test scenario
+ */
+async function checkTestScenario(contextId: string): Promise<{
+  success: boolean;
+  contextId?: string;
+  contextName?: string;
+  hasScenario?: boolean;
+  daysAgo?: number;
+  error?: string;
+}> {
+  const response = await fetch('/api/tester/screenshot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contextId,
+      scanOnly: true,
+    }),
+  });
+
+  if (!response.ok) {
+    return {
+      success: false,
+      error: `API request failed: ${response.status}`,
+    };
+  }
+
+  return response.json();
 }
 
 /**
@@ -37,7 +67,6 @@ export async function executePhotoScan(contextId: string): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
-    console.error('[PhotoScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -45,7 +74,6 @@ export async function executePhotoScan(contextId: string): Promise<ScanResult> {
   }
 
   if (!contextId) {
-    console.error('[PhotoScan] No context ID provided');
     return {
       success: false,
       error: 'No context ID provided',
@@ -53,50 +81,25 @@ export async function executePhotoScan(contextId: string): Promise<ScanResult> {
   }
 
   try {
-    console.log('[PhotoScan] Checking test scenario for context...');
-
-    // Call screenshot API in scanOnly mode to check scenario
-    const response = await fetch('/api/tester/screenshot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contextId,
-        scanOnly: true,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[PhotoScan] API request failed:', response.status, errorText);
-      return {
-        success: false,
-        error: `API request failed: ${response.status}`,
-      };
-    }
-
-    const result = await response.json();
+    const result = await checkTestScenario(contextId);
 
     if (!result.success) {
-      console.error('[PhotoScan] Scan failed:', result.error);
       return {
         success: false,
         error: result.error || 'Failed to check test scenario',
       };
     }
 
-    console.log(`[PhotoScan] Context "${result.contextName}" - Scenario: ${result.hasScenario ? 'Found' : 'Not found'}`);
-
     return {
       success: true,
       data: {
-        contextId: result.contextId,
-        contextName: result.contextName,
-        hasScenario: result.hasScenario,
-        daysAgo: result.daysAgo,
+        contextId: result.contextId!,
+        contextName: result.contextName!,
+        hasScenario: result.hasScenario!,
+        daysAgo: result.daysAgo ?? null,
       },
     };
   } catch (error) {
-    console.error('[PhotoScan] Unexpected error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Photo scan failed unexpectedly';
     return {
       success: false,
@@ -135,12 +138,12 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
 
       // Accept: Do nothing (abort)
       onAccept: async () => {
-        console.log('[PhotoScan] User acknowledged - no scenario available');
+        // User acknowledged - no scenario available
       },
 
       // Reject: Do nothing
       onReject: async () => {
-        console.log('[PhotoScan] User cancelled');
+        // User cancelled
       },
     };
   }
@@ -166,8 +169,6 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
 
     // Accept: Execute screenshot
     onAccept: async () => {
-      console.log('[PhotoScan] User confirmed - executing screenshot...');
-
       const response = await fetch('/api/tester/screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,13 +183,11 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
       if (!response.ok || !executeResult.success) {
         throw new Error(executeResult.error || 'Failed to execute screenshot');
       }
-
-      console.log(`[PhotoScan] ✅ Screenshot saved: ${executeResult.screenshotPath}`);
     },
 
     // Reject: Cancel
     onReject: async () => {
-      console.log('[PhotoScan] User cancelled screenshot');
+      // User cancelled screenshot
     },
   };
 }

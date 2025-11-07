@@ -1,6 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 import IlluminatedButton from './IlluminatedButton';
+import ColumnTooltip from './ColumnTooltip';
 import { ColumnConfig } from '../lib/blueprintConfig';
 import { useBlueprintStore } from '../store/blueprintStore';
 
@@ -26,8 +27,8 @@ export default function BlueprintColumn({
   onNavigate,
   getDaysAgo,
 }: BlueprintColumnProps) {
-  // Get tasker progress from blueprint store
-  const { taskerProgress } = useBlueprintStore();
+  // Get tasker progress and tooltip state from blueprint store
+  const { taskerProgress, activeTooltip, showTooltip, hideTooltip } = useBlueprintStore();
   // If column is reserved, show placeholder
   if (column.reserved) {
     return (
@@ -60,6 +61,9 @@ export default function BlueprintColumn({
       transition={{ delay }}
       className="relative"
       data-testid={`blueprint-column-${column.id}`}
+      onMouseEnter={() => column.tooltipDescription && showTooltip(column.id)}
+      onMouseLeave={() => hideTooltip()}
+      onTouchStart={() => column.tooltipDescription && showTooltip(column.id)}
     >
       {/* Column header with line */}
       <div className="mb-12">
@@ -74,6 +78,16 @@ export default function BlueprintColumn({
           {column.title}
         </h2>
       </div>
+
+      {/* Tooltip */}
+      {column.tooltipDescription && (
+        <ColumnTooltip
+          isVisible={activeTooltip === column.id}
+          title={column.title}
+          description={column.tooltipDescription}
+          onClose={hideTooltip}
+        />
+      )}
 
       {/* Buttons - Increased spacing from space-y-10  */}
       <div className="flex flex-col gap-16">

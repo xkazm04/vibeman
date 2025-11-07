@@ -6,7 +6,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { conversationDb } from "@/app/db";
-import { v4 as uuidv4 } from "uuid";
+
+// Logger utility
+const logger = {
+  error: (message: string, error?: unknown) => {
+    const errorMsg = error instanceof Error ? error.message : error;
+    // eslint-disable-next-line no-console
+    console.error(`[API/AnnetteChat] ${message}`, errorMsg || '');
+  }
+};
 
 interface AnnetteRequest {
   projectId: string;
@@ -17,23 +25,64 @@ interface AnnetteRequest {
   model?: string;
 }
 
+interface SourceItem {
+  type: 'context' | 'goal' | 'backlog' | 'documentation' | 'idea';
+  id: string;
+  name: string;
+  description?: string;
+}
+
+interface ToolItem {
+  name: string;
+  description?: string;
+}
+
 interface AnnetteResponse {
   success: boolean;
   response: string;
   conversationId: string;
   error?: string;
-  sources?: Array<{
-    type: 'context' | 'goal' | 'backlog' | 'documentation' | 'idea';
-    id: string;
-    name: string;
-    description?: string;
-  }>;
-  toolsUsed?: Array<{
-    name: string;
-    description?: string;
-  }>;
+  sources?: SourceItem[];
+  toolsUsed?: ToolItem[];
   insights?: string[];
   nextSteps?: string[];
+  recommendedScans?: string[]; // Scan IDs that Annette recommends (e.g., 'contexts', 'vision')
+}
+
+interface LangGraphTool {
+  tool?: string;
+  name?: string;
+  result?: Record<string, unknown>;
+}
+
+interface LangGraphResult {
+  id?: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  status?: string;
+}
+
+interface GoalResult extends LangGraphResult {
+  // Goal-specific fields
+}
+
+interface BacklogResult extends LangGraphResult {
+  // Backlog-specific fields
+}
+
+interface IdeaResult extends LangGraphResult {
+  // Idea-specific fields
+}
+
+interface ContextResult extends LangGraphResult {
+  // Context-specific fields
+}
+
+interface DocumentationResult {
+  id?: string;
+  title?: string;
+  summary?: string;
 }
 
 /**
@@ -98,8 +147,11 @@ export async function POST(request: NextRequest) {
     // Extract sources from tools used
     const sources = extractSources(langGraphData.toolsUsed || []);
 
-    // Generate insights and next steps from response
-    const { insights, nextSteps } = analyzeResponse(langGraphData.response, langGraphData.toolsUsed || []);
+    // Generate insights, next steps, and scan recommendations from response
+    const { insights, nextSteps, recommendedScans } = analyzeResponse(langGraphData.response, langGraphData.toolsUsed || []);
+
+    // eslint-disable-next-line no-console
+    console.log('[AnnetteChat] Recommendations generated:', recommendedScans);
 
     // Format response for voice (make it more conversational)
     const voiceResponse = formatForVoice(langGraphData.response);
@@ -113,7 +165,8 @@ export async function POST(request: NextRequest) {
         toolsUsed: langGraphData.toolsUsed,
         sources,
         insights,
-        nextSteps
+        nextSteps,
+        recommendedScans
       }
     });
 
@@ -122,16 +175,17 @@ export async function POST(request: NextRequest) {
       response: voiceResponse,
       conversationId: currentConversationId,
       sources,
-      toolsUsed: langGraphData.toolsUsed?.map((tool: any) => ({
-        name: tool.tool,
-        description: tool.description
+      toolsUsed: langGraphData.toolsUsed?.map((tool: LangGraphTool): ToolItem => ({
+        name: tool.tool || tool.name || 'Unknown Tool',
+        description: tool.result?.description as string | undefined
       })),
       insights,
-      nextSteps
+      nextSteps,
+      recommendedScans
     });
 
   } catch (error) {
-    console.error('[Annette Chat API] Error:', error);
+
     return NextResponse.json<AnnetteResponse>({
       success: false,
       response: 'I encountered an error processing your request. Please try again.',
@@ -155,82 +209,39 @@ function getDefaultModel(provider: string): string {
 }
 
 /**
- * Extract source references from tools used
+ * Truncate description to max length
  */
-function extractSources(toolsUsed: any[]): AnnetteResponse['sources'] {
-  const sources: AnnetteResponse['sources'] = [];
+function truncateDescription(description: string | undefined, maxLength = 100): string | undefined {
+  return description?.substring(0, maxLength);
+}
 
-  for (const tool of toolsUsed) {
-    const toolName = tool.tool || tool.name;
-    const result = tool.result;
+/**
+ * Extract contexts from tool results
+ */
+function extractContextSources(toolName: string, result: Record<string, unknown>): SourceItem[] {
+  const sources: SourceItem[] = [];
 
-    if (!result) continue;
-
-    // Extract contexts
-    if (toolName === 'get_project_contexts' && result.contexts) {
-      result.contexts.forEach((ctx: any) => {
+  if (toolName === 'get_project_contexts' && Array.isArray(result.contexts)) {
+    result.contexts.forEach((ctx: ContextResult) => {
+      if (ctx.id && (ctx.name || ctx.title)) {
         sources.push({
           type: 'context',
           id: ctx.id,
-          name: ctx.name,
-          description: ctx.description?.substring(0, 100)
+          name: ctx.name || ctx.title || 'Unnamed Context',
+          description: truncateDescription(ctx.description)
         });
-      });
-    }
+      }
+    });
+  }
 
-    // Extract context detail
-    if (toolName === 'get_context_detail' && result.context) {
+  if (toolName === 'get_context_detail' && result.context && typeof result.context === 'object') {
+    const ctx = result.context as ContextResult;
+    if (ctx.id && (ctx.name || ctx.title)) {
       sources.push({
         type: 'context',
-        id: result.context.id,
-        name: result.context.name,
-        description: result.context.description?.substring(0, 100)
-      });
-    }
-
-    // Extract goals (from various goal-related tools)
-    if (toolName.includes('goal') && result.goals) {
-      result.goals.slice(0, 3).forEach((goal: any) => {
-        sources.push({
-          type: 'goal',
-          id: goal.id,
-          name: goal.title || goal.name,
-          description: goal.description?.substring(0, 100)
-        });
-      });
-    }
-
-    // Extract backlog items
-    if (toolName === 'get_project_backlog' && result.items) {
-      result.items.slice(0, 3).forEach((item: any) => {
-        sources.push({
-          type: 'backlog',
-          id: item.id,
-          name: item.title,
-          description: item.description?.substring(0, 100)
-        });
-      });
-    }
-
-    // Extract ideas
-    if (toolName === 'get_project_ideas' && result.ideas) {
-      result.ideas.slice(0, 3).forEach((idea: any) => {
-        sources.push({
-          type: 'idea',
-          id: idea.id,
-          name: idea.title,
-          description: idea.description?.substring(0, 100)
-        });
-      });
-    }
-
-    // Extract documentation
-    if (toolName.includes('documentation') && result.documentation) {
-      sources.push({
-        type: 'documentation',
-        id: result.documentation.id || 'doc-' + Date.now(),
-        name: result.documentation.title || 'Project Documentation',
-        description: result.documentation.summary?.substring(0, 100)
+        id: ctx.id,
+        name: ctx.name || ctx.title || 'Unnamed Context',
+        description: truncateDescription(ctx.description)
       });
     }
   }
@@ -239,71 +250,294 @@ function extractSources(toolsUsed: any[]): AnnetteResponse['sources'] {
 }
 
 /**
+ * Extract goals from tool results
+ */
+function extractGoalSources(toolName: string, result: Record<string, unknown>): SourceItem[] {
+  const sources: SourceItem[] = [];
+
+  if (toolName.includes('goal') && Array.isArray(result.goals)) {
+    result.goals.slice(0, 3).forEach((goal: GoalResult) => {
+      if (goal.id && (goal.title || goal.name)) {
+        sources.push({
+          type: 'goal',
+          id: goal.id,
+          name: goal.title || goal.name || 'Unnamed Goal',
+          description: truncateDescription(goal.description)
+        });
+      }
+    });
+  }
+
+  return sources;
+}
+
+/**
+ * Extract backlog items from tool results
+ */
+function extractBacklogSources(toolName: string, result: Record<string, unknown>): SourceItem[] {
+  const sources: SourceItem[] = [];
+
+  if (toolName === 'get_project_backlog' && Array.isArray(result.items)) {
+    result.items.slice(0, 3).forEach((item: BacklogResult) => {
+      if (item.id && (item.title || item.name)) {
+        sources.push({
+          type: 'backlog',
+          id: item.id,
+          name: item.title || item.name || 'Unnamed Item',
+          description: truncateDescription(item.description)
+        });
+      }
+    });
+  }
+
+  return sources;
+}
+
+/**
+ * Extract ideas from tool results
+ */
+function extractIdeaSources(toolName: string, result: Record<string, unknown>): SourceItem[] {
+  const sources: SourceItem[] = [];
+
+  if (toolName === 'get_project_ideas' && Array.isArray(result.ideas)) {
+    result.ideas.slice(0, 3).forEach((idea: IdeaResult) => {
+      if (idea.id && (idea.title || idea.name)) {
+        sources.push({
+          type: 'idea',
+          id: idea.id,
+          name: idea.title || idea.name || 'Unnamed Idea',
+          description: truncateDescription(idea.description)
+        });
+      }
+    });
+  }
+
+  return sources;
+}
+
+/**
+ * Extract documentation from tool results
+ */
+function extractDocumentationSources(toolName: string, result: Record<string, unknown>): SourceItem[] {
+  const sources: SourceItem[] = [];
+
+  if (toolName.includes('documentation') && result.documentation && typeof result.documentation === 'object') {
+    const doc = result.documentation as DocumentationResult;
+    sources.push({
+      type: 'documentation',
+      id: doc.id || `doc-${Date.now()}`,
+      name: doc.title || 'Project Documentation',
+      description: truncateDescription(doc.summary)
+    });
+  }
+
+  return sources;
+}
+
+/**
+ * Extract source references from tools used
+ */
+function extractSources(toolsUsed: LangGraphTool[]): SourceItem[] {
+  const sources: SourceItem[] = [];
+
+  for (const tool of toolsUsed) {
+    const toolName = tool.tool || tool.name || '';
+    const result = tool.result;
+
+    if (!result) continue;
+
+    // Extract different types of sources
+    sources.push(...extractContextSources(toolName, result));
+    sources.push(...extractGoalSources(toolName, result));
+    sources.push(...extractBacklogSources(toolName, result));
+    sources.push(...extractIdeaSources(toolName, result));
+    sources.push(...extractDocumentationSources(toolName, result));
+  }
+
+  return sources;
+}
+
+/**
+ * Analyze goal insights
+ */
+function analyzeGoalInsights(goals: GoalResult[]): { insights: string[], nextSteps: string[] } {
+  const insights: string[] = [];
+  const nextSteps: string[] = [];
+
+  const goalCount = goals.length;
+  const openGoals = goals.filter(g => g.status === 'open').length;
+  const inProgressGoals = goals.filter(g => g.status === 'in_progress').length;
+
+  if (goalCount > 0) {
+    insights.push(`${goalCount} total goals: ${openGoals} open, ${inProgressGoals} in progress`);
+  }
+
+  if (openGoals > 0) {
+    nextSteps.push('Review and prioritize open goals');
+  }
+
+  return { insights, nextSteps };
+}
+
+/**
+ * Analyze backlog insights
+ */
+function analyzeBacklogInsights(items: BacklogResult[]): { insights: string[], nextSteps: string[] } {
+  const insights: string[] = [];
+  const nextSteps: string[] = [];
+
+  const itemCount = items.length;
+  const pendingItems = items.filter(i => i.status === 'pending').length;
+
+  if (itemCount > 0) {
+    insights.push(`${itemCount} backlog items, ${pendingItems} pending`);
+  }
+
+  if (pendingItems > 3) {
+    nextSteps.push('Consider processing backlog items');
+  }
+
+  return { insights, nextSteps };
+}
+
+/**
+ * Analyze idea insights
+ */
+function analyzeIdeaInsights(ideas: IdeaResult[]): { insights: string[], nextSteps: string[] } {
+  const insights: string[] = [];
+  const nextSteps: string[] = [];
+
+  const ideaCount = ideas.length;
+  const pendingIdeas = ideas.filter(i => i.status === 'pending').length;
+  const acceptedIdeas = ideas.filter(i => i.status === 'accepted').length;
+
+  if (ideaCount > 0) {
+    insights.push(`${ideaCount} total ideas: ${pendingIdeas} pending, ${acceptedIdeas} accepted`);
+  }
+
+  if (pendingIdeas > 0) {
+    nextSteps.push('Review and evaluate pending ideas');
+  }
+
+  return { insights, nextSteps };
+}
+
+/**
+ * Detect which scans should be recommended based on analysis
+ */
+function detectRecommendedScans(response: string, toolsUsed: LangGraphTool[]): string[] {
+  const recommended: Set<string> = new Set();
+
+  // eslint-disable-next-line no-console
+  console.log('[detectRecommendedScans] Analyzing response:', response.substring(0, 100) + '...');
+  // eslint-disable-next-line no-console
+  console.log('[detectRecommendedScans] Tools used:', toolsUsed.map(t => t.tool || t.name));
+
+  // Analyze response text for scan keywords
+  const lowerResponse = response.toLowerCase();
+
+  // Recommend context scan if contexts are mentioned or missing
+  if (lowerResponse.includes('context') || lowerResponse.includes('documentation') || lowerResponse.includes('organize')) {
+    recommended.add('contexts');
+  }
+
+  // Recommend vision scan if goals/strategy mentioned
+  if (lowerResponse.includes('goal') || lowerResponse.includes('vision') || lowerResponse.includes('strategic') || lowerResponse.includes('direction')) {
+    recommended.add('vision');
+  }
+
+  // Recommend structure scan if architecture mentioned
+  if (lowerResponse.includes('structure') || lowerResponse.includes('architecture') || lowerResponse.includes('organization')) {
+    recommended.add('structure');
+  }
+
+  // Recommend build scan if errors/build mentioned
+  if (lowerResponse.includes('build') || lowerResponse.includes('error') || lowerResponse.includes('compile')) {
+    recommended.add('build');
+  }
+
+  // Analyze tools used
+  for (const tool of toolsUsed) {
+    const toolName = tool.tool || tool.name || '';
+    const result = tool.result;
+
+    if (!result) continue;
+
+    // If contexts are empty or very few, recommend context scan
+    if (toolName === 'get_project_contexts' && Array.isArray(result.contexts)) {
+      const contextCount = result.contexts.length;
+      if (contextCount < 3) {
+        recommended.add('contexts');
+      }
+    }
+
+    // If goals are mentioned, recommend vision scan
+    if (toolName.includes('goal') && Array.isArray(result.goals)) {
+      const openGoals = result.goals.filter((g: GoalResult) => g.status === 'open').length;
+      if (openGoals > 0) {
+        recommended.add('vision');
+      }
+    }
+
+    // If ideas are mentioned, recommend ideas/structure scan
+    if (toolName === 'get_project_ideas' && Array.isArray(result.ideas)) {
+      const pendingIdeas = result.ideas.filter((i: IdeaResult) => i.status === 'pending').length;
+      if (pendingIdeas > 0) {
+        recommended.add('structure');
+      }
+    }
+  }
+
+  const result = Array.from(recommended);
+  // eslint-disable-next-line no-console
+  console.log('[detectRecommendedScans] Recommended scans:', result);
+  return result;
+}
+
+/**
  * Analyze response to extract insights and next steps
  */
-function analyzeResponse(response: string, toolsUsed: any[]): { insights: string[], nextSteps: string[] } {
+function analyzeResponse(response: string, toolsUsed: LangGraphTool[]): { insights: string[], nextSteps: string[], recommendedScans: string[] } {
   const insights: string[] = [];
   const nextSteps: string[] = [];
 
   // Extract insights based on tools used
   for (const tool of toolsUsed) {
-    const toolName = tool.tool || tool.name;
+    const toolName = tool.tool || tool.name || '';
     const result = tool.result;
 
     if (!result) continue;
 
     // Goal insights
-    if (toolName.includes('goal')) {
-      if (result.goals) {
-        const goalCount = result.goals.length;
-        const openGoals = result.goals.filter((g: any) => g.status === 'open').length;
-        const inProgressGoals = result.goals.filter((g: any) => g.status === 'in_progress').length;
-
-        if (goalCount > 0) {
-          insights.push(`${goalCount} total goals: ${openGoals} open, ${inProgressGoals} in progress`);
-        }
-
-        if (openGoals > 0) {
-          nextSteps.push('Review and prioritize open goals');
-        }
-      }
+    if (toolName.includes('goal') && Array.isArray(result.goals)) {
+      const analysis = analyzeGoalInsights(result.goals as GoalResult[]);
+      insights.push(...analysis.insights);
+      nextSteps.push(...analysis.nextSteps);
     }
 
     // Backlog insights
-    if (toolName === 'get_project_backlog' && result.items) {
-      const itemCount = result.items.length;
-      const pendingItems = result.items.filter((i: any) => i.status === 'pending').length;
-
-      if (itemCount > 0) {
-        insights.push(`${itemCount} backlog items, ${pendingItems} pending`);
-      }
-
-      if (pendingItems > 3) {
-        nextSteps.push('Consider processing backlog items');
-      }
+    if (toolName === 'get_project_backlog' && Array.isArray(result.items)) {
+      const analysis = analyzeBacklogInsights(result.items as BacklogResult[]);
+      insights.push(...analysis.insights);
+      nextSteps.push(...analysis.nextSteps);
     }
 
     // Context insights
-    if (toolName === 'get_project_contexts' && result.contexts) {
+    if (toolName === 'get_project_contexts' && Array.isArray(result.contexts)) {
       const contextCount = result.contexts.length;
       if (contextCount > 0) {
         insights.push(`${contextCount} documented contexts available`);
+      } else {
+        insights.push('No contexts found - consider running a context scan');
+        nextSteps.push('Run context scan to document code modules');
       }
     }
 
     // Ideas insights
-    if (toolName === 'get_project_ideas' && result.ideas) {
-      const ideaCount = result.ideas.length;
-      const pendingIdeas = result.ideas.filter((i: any) => i.status === 'pending').length;
-      const acceptedIdeas = result.ideas.filter((i: any) => i.status === 'accepted').length;
-
-      if (ideaCount > 0) {
-        insights.push(`${ideaCount} total ideas: ${pendingIdeas} pending, ${acceptedIdeas} accepted`);
-      }
-
-      if (pendingIdeas > 0) {
-        nextSteps.push('Review and evaluate pending ideas');
-      }
+    if (toolName === 'get_project_ideas' && Array.isArray(result.ideas)) {
+      const analysis = analyzeIdeaInsights(result.ideas as IdeaResult[]);
+      insights.push(...analysis.insights);
+      nextSteps.push(...analysis.nextSteps);
     }
   }
 
@@ -312,7 +546,10 @@ function analyzeResponse(response: string, toolsUsed: any[]): { insights: string
     nextSteps.push('Ask follow-up questions for more details');
   }
 
-  return { insights, nextSteps };
+  // Detect which scans to recommend
+  const recommendedScans = detectRecommendedScans(response, toolsUsed);
+
+  return { insights, nextSteps, recommendedScans };
 }
 
 /**

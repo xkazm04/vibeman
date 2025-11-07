@@ -161,7 +161,6 @@ export async function GET(
     return NextResponse.json(aggregation, { status: 200 });
 
   } catch (error) {
-    console.error('[goal-contexts] Error fetching goal aggregation:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',

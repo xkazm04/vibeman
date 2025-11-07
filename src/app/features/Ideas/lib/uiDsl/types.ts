@@ -10,11 +10,11 @@ import type { LucideIcon } from 'lucide-react';
  * Animation configuration
  */
 export interface AnimationConfig {
-  initial?: Record<string, any>;
-  animate?: Record<string, any>;
-  transition?: Record<string, any>;
-  whileHover?: Record<string, any>;
-  whileTap?: Record<string, any>;
+  initial?: Record<string, unknown>;
+  animate?: Record<string, unknown>;
+  transition?: Record<string, unknown>;
+  whileHover?: Record<string, unknown>;
+  whileTap?: Record<string, unknown>;
 }
 
 /**
@@ -51,7 +51,7 @@ export interface ContentDescriptor {
   value?: unknown;
   badges?: BadgeDescriptor[];
   className?: string;
-  format?: string | ((value: any) => string);
+  format?: string | ((value: unknown) => string);
   animation?: AnimationConfig;
   children?: ContentDescriptor[];
 }

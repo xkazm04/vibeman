@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               // Font sources - allow self and data URIs
               "font-src 'self' data:",
+              // Media sources - allow self and blob URIs (for audio/video playback)
+              "media-src 'self' blob:",
               // Connect sources - allow self (for API calls)
               "connect-src 'self'",
               // Frame sources - disallow all frames

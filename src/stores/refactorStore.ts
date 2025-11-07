@@ -42,7 +42,7 @@ interface RefactorState {
   currentStep: 'settings' | 'scan' | 'config' | 'review' | 'execute' | 'results';
 
   // Actions
-  startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string) => Promise<void>;
+  startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string, projectType?: string) => Promise<void>;
   setAnalysisStatus: (status: AnalysisStatus, progress?: number) => void;
   setAnalysisError: (error: string | null) => void;
   setOpportunities: (opportunities: RefactorOpportunity[]) => void;
@@ -83,7 +83,7 @@ export const useRefactorStore = create<RefactorState>()(
       currentStep: 'settings',
 
       // Actions
-      startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string) => {
+      startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string, projectType?: string) => {
         set({
           analysisStatus: 'generating-plan',
           analysisProgress: 10,
@@ -93,10 +93,22 @@ export const useRefactorStore = create<RefactorState>()(
         });
 
         try {
+          // Get selected groups to pass to the API
+          const { selectedScanGroups } = get();
+          const selectedGroupsArray = Array.from(selectedScanGroups);
+
           const response = await fetch('/api/refactor/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, projectPath, useAI, provider, model }),
+            body: JSON.stringify({
+              projectId,
+              projectPath,
+              useAI,
+              provider,
+              model,
+              selectedGroups: selectedGroupsArray,
+              projectType
+            }),
           });
 
           if (!response.ok) {

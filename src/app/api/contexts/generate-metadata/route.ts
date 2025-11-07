@@ -12,6 +12,19 @@ interface ContextMetadata {
   groupName: string | null;
 }
 
+interface FileContent {
+  path: string;
+  content: string;
+}
+
+interface RequestBody {
+  projectId: string;
+  projectPath: string;
+  filePaths: string[];
+  provider?: string;
+  model?: string;
+}
+
 /**
  * POST /api/contexts/generate-metadata
  *
@@ -19,83 +32,23 @@ interface ContextMetadata {
  * - Title (1-2 words)
  * - Description (detailed)
  * - Context group assignment (from existing groups)
- *
- * Request body:
- * {
- *   projectId: string;
- *   projectPath: string;
- *   filePaths: string[];      // Array of relative file paths
- *   provider?: string;         // LLM provider (default: 'ollama')
- *   model?: string;            // LLM model
- * }
- *
- * Response:
- * {
- *   success: boolean;
- *   metadata?: {
- *     title: string;
- *     description: string;
- *     groupId: string | null;
- *     groupName: string | null;
- *   };
- *   error?: string;
- * }
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body: RequestBody = await request.json();
     const { projectId, projectPath, filePaths, provider, model } = body;
 
     // Validate input
-    if (!projectId) {
-      return NextResponse.json(
-        { success: false, error: 'projectId is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!projectPath) {
-      return NextResponse.json(
-        { success: false, error: 'projectPath is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!filePaths || !Array.isArray(filePaths) || filePaths.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'filePaths array is required' },
-        { status: 400 }
-      );
+    const validationError = validateInput(projectId, projectPath, filePaths);
+    if (validationError) {
+      return validationError;
     }
 
     // Fetch existing context groups for this project
     const contextGroups = await contextGroupQueries.getGroupsByProject(projectId);
 
-    // Read file contents (limit to first 10 files, 400 chars per file)
-    const fileContents: Array<{ path: string; content: string }> = [];
-    const maxFiles = 10;
-    const maxCharsPerFile = 400;
-
-    for (const filePath of filePaths.slice(0, maxFiles)) {
-      try {
-        const fullPath = path.isAbsolute(filePath)
-          ? filePath
-          : path.join(projectPath, filePath);
-
-        if (!fs.existsSync(fullPath)) {
-          continue;
-        }
-
-        const content = fs.readFileSync(fullPath, 'utf-8');
-        fileContents.push({
-          path: filePath,
-          content: content.substring(0, maxCharsPerFile),
-        });
-      } catch (err) {
-        console.error(`Error reading file ${filePath}:`, err);
-        continue;
-      }
-    }
+    // Read file contents
+    const fileContents = await readFileContents(projectPath, filePaths);
 
     if (fileContents.length === 0) {
       return NextResponse.json(
@@ -105,14 +58,109 @@ export async function POST(request: NextRequest) {
     }
 
     // Build prompt for LLM
-    const parentFile = filePaths[0];
-    const groupsDescription = contextGroups.length > 0
-      ? contextGroups
-          .map(g => `- "${g.name}" (ID: ${g.id})`)
-          .join('\n')
-      : 'No context groups exist yet.';
+    const prompt = buildMetadataPrompt(filePaths, fileContents, contextGroups);
 
-    const prompt = `You are analyzing a code context to generate metadata.
+    // Generate metadata using LLM
+    const metadata = await generateMetadata(prompt, provider, model, contextGroups);
+
+    return NextResponse.json({
+      success: true,
+      metadata,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate metadata',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Validate request input parameters
+ */
+function validateInput(
+  projectId: string,
+  projectPath: string,
+  filePaths: string[]
+): NextResponse | null {
+  if (!projectId) {
+    return NextResponse.json(
+      { success: false, error: 'projectId is required' },
+      { status: 400 }
+    );
+  }
+
+  if (!projectPath) {
+    return NextResponse.json(
+      { success: false, error: 'projectPath is required' },
+      { status: 400 }
+    );
+  }
+
+  if (!filePaths || !Array.isArray(filePaths) || filePaths.length === 0) {
+    return NextResponse.json(
+      { success: false, error: 'filePaths array is required' },
+      { status: 400 }
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Read file contents from disk
+ */
+async function readFileContents(
+  projectPath: string,
+  filePaths: string[]
+): Promise<FileContent[]> {
+  const fileContents: FileContent[] = [];
+  const maxFiles = 10;
+  const maxCharsPerFile = 400;
+
+  for (const filePath of filePaths.slice(0, maxFiles)) {
+    try {
+      const fullPath = path.isAbsolute(filePath)
+        ? filePath
+        : path.join(projectPath, filePath);
+
+      if (!fs.existsSync(fullPath)) {
+        continue;
+      }
+
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      fileContents.push({
+        path: filePath,
+        content: content.substring(0, maxCharsPerFile),
+      });
+    } catch (err) {
+      // Continue with other files
+      continue;
+    }
+  }
+
+  return fileContents;
+}
+
+/**
+ * Build prompt for LLM metadata generation
+ */
+function buildMetadataPrompt(
+  filePaths: string[],
+  fileContents: FileContent[],
+  contextGroups: any[]
+): string {
+  const parentFile = filePaths[0];
+  const groupsDescription = contextGroups.length > 0
+    ? contextGroups
+        .map(g => `- "${g.name}" (ID: ${g.id})`)
+        .join('\n')
+    : 'No context groups exist yet.';
+
+  return `You are analyzing a code context to generate metadata.
 
 **Context Information:**
 - Parent file: ${parentFile}
@@ -149,80 +197,77 @@ Generate metadata for this context in JSON format:
 \`\`\`
 
 Respond ONLY with the JSON object, no additional text.`;
+}
 
-    // Generate metadata using LLM
-    const selectedProvider: SupportedProvider = (provider as SupportedProvider) || 'ollama';
+/**
+ * Generate metadata using LLM
+ */
+async function generateMetadata(
+  prompt: string,
+  provider: string | undefined,
+  model: string | undefined,
+  contextGroups: any[]
+): Promise<ContextMetadata> {
+  const selectedProvider: SupportedProvider = (provider as SupportedProvider) || 'ollama';
 
-    const result = await llmManager.generate({
-      prompt,
-      provider: selectedProvider,
-      model: model,
-      maxTokens: 1000,
-      temperature: 0.7,
-      taskType: 'context-metadata-generation',
-      taskDescription: 'Generate context metadata (title, description, group)',
-    });
+  const result = await llmManager.generate({
+    prompt,
+    provider: selectedProvider,
+    model: model,
+    maxTokens: 1000,
+    temperature: 0.7,
+    taskType: 'context-metadata-generation',
+    taskDescription: 'Generate context metadata (title, description, group)',
+  });
 
-    if (!result.success || !result.response) {
-      return NextResponse.json(
-        { success: false, error: result.error || 'Failed to generate metadata' },
-        { status: 500 }
-      );
+  if (!result.success || !result.response) {
+    throw new Error(result.error || 'Failed to generate metadata');
+  }
+
+  // Parse LLM response
+  return parseMetadataResponse(result.response, contextGroups);
+}
+
+/**
+ * Parse LLM response into ContextMetadata
+ */
+function parseMetadataResponse(
+  response: string,
+  contextGroups: any[]
+): ContextMetadata {
+  try {
+    // Try to extract JSON from response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
     }
 
-    // Parse LLM response
-    let metadata: ContextMetadata;
+    const parsed = JSON.parse(jsonMatch[0]);
 
-    try {
-      // Try to extract JSON from response
-      const jsonMatch = result.response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
+    const metadata: ContextMetadata = {
+      title: parsed.title || 'Untitled Context',
+      description: parsed.description || 'No description available.',
+      groupId: parsed.groupId || null,
+      groupName: parsed.groupName || null,
+    };
+
+    // Validate groupId exists
+    if (metadata.groupId) {
+      const groupExists = contextGroups.some(g => g.id === metadata.groupId);
+      if (!groupExists) {
+        metadata.groupId = null;
+        metadata.groupName = null;
       }
-
-      const parsed = JSON.parse(jsonMatch[0]);
-
-      metadata = {
-        title: parsed.title || 'Untitled Context',
-        description: parsed.description || 'No description available.',
-        groupId: parsed.groupId || null,
-        groupName: parsed.groupName || null,
-      };
-
-      // Validate groupId exists
-      if (metadata.groupId) {
-        const groupExists = contextGroups.some(g => g.id === metadata.groupId);
-        if (!groupExists) {
-          console.warn(`LLM selected non-existent group ID: ${metadata.groupId}`);
-          metadata.groupId = null;
-          metadata.groupName = null;
-        }
-      }
-    } catch (parseError) {
-      console.error('Failed to parse LLM response:', parseError);
-      console.error('Raw response:', result.response);
-
-      // Fallback metadata
-      metadata = {
-        title: parentFile.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'Untitled',
-        description: `Context containing ${filePaths.length} files starting with ${parentFile}`,
-        groupId: null,
-        groupName: null,
-      };
     }
 
-    return NextResponse.json({
-      success: true,
-      metadata,
-    });
-  } catch (error) {
-    console.error('Error generating context metadata:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to generate metadata',
-      },
-      { status: 500 }
-    );
+    return metadata;
+  } catch (parseError) {
+    // Fallback metadata
+    return {
+      title: 'Untitled',
+      description: 'Context metadata generation failed',
+      groupId: null,
+      groupName: null,
+    };
   }
 }

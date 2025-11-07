@@ -12,49 +12,56 @@ export interface ContextScanConfig {
 }
 
 /**
- * Generate a Claude Code requirement file content for context scanning
+ * Generate timestamp for file naming
  */
-export function generateContextScanRequirement(config: ContextScanConfig): string {
-  const { projectId, projectName, projectPath, projectType = 'nextjs' } = config;
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+function generateTimestamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+}
 
-  return `# Context Scan and Generation
+/**
+ * Generate mission section
+ */
+function generateMissionSection(projectName: string, projectPath: string): string {
+  return `## Your Mission
 
-## Your Mission
+Analyze the **${projectName}** codebase at **${projectPath}** and create/update intelligent, structure-based contexts in the SQLite database.`;
+}
 
-Analyze the **${projectName}** codebase at **${projectPath}** and create/update intelligent, structure-based contexts in the SQLite database.
-
-## Project Information
+/**
+ * Generate project information section
+ */
+function generateProjectInfoSection(
+  projectId: string,
+  projectName: string,
+  projectPath: string,
+  projectType: string,
+  timestamp: string
+): string {
+  return `## Project Information
 
 - **Project ID**: ${projectId}
 - **Project Name**: ${projectName}
 - **Project Path**: ${projectPath}
 - **Project Type**: ${projectType}
-- **Scan Timestamp**: ${timestamp}
+- **Scan Timestamp**: ${timestamp}`;
+}
 
-## How to Complete This Task
-
-Use the Claude Code skill for detailed instructions:
-
-\`\`\`
-/context-scan-${projectType}
-\`\`\`
-
-This skill provides comprehensive guidance on:
-- Checking existing contexts
-- Mapping project structure
-- Creating properly-sized contexts
-- Using the required description template
-- Updating existing contexts
-- Quality validation
-
-## Quick Reference
+/**
+ * Generate quick reference section
+ */
+function generateQuickReferenceSection(projectId: string, projectPath: string): string {
+  return `## Quick Reference
 
 **Always replace these placeholders:**
 - \`PROJECT_ID\` → ${projectId}
-- \`PROJECT_PATH\` → ${projectPath}
+- \`PROJECT_PATH\` → ${projectPath}`;
+}
 
-## Essential Steps
+/**
+ * Generate essential steps section
+ */
+function generateEssentialStepsSection(projectId: string, projectPath: string, timestamp: string, projectName: string): string {
+  return `## Essential Steps
 
 ### 1. Check Existing Contexts
 
@@ -177,9 +184,14 @@ EOF
 - Contexts that were identified but not actually saved
 - API errors during context creation
 - Size and structure issues
-- Coverage gaps
+- Coverage gaps`;
+}
 
-## Final Output
+/**
+ * Generate final output section
+ */
+function generateFinalOutputSection(projectPath: string, timestamp: string): string {
+  return `## Final Output
 
 After completing all steps and generating the markdown report:
 
@@ -199,7 +211,43 @@ Detailed report saved to:
 ${projectPath}/docs/contexts/scan-report-${timestamp}.md
 
 All contexts verified in database.
+\`\`\``;
+}
+
+/**
+ * Generate a Claude Code requirement file content for context scanning
+ */
+export function generateContextScanRequirement(config: ContextScanConfig): string {
+  const { projectId, projectName, projectPath, projectType = 'nextjs' } = config;
+  const timestamp = generateTimestamp();
+
+  return `# Context Scan and Generation
+
+${generateMissionSection(projectName, projectPath)}
+
+${generateProjectInfoSection(projectId, projectName, projectPath, projectType, timestamp)}
+
+## How to Complete This Task
+
+Use the Claude Code skill for detailed instructions:
+
 \`\`\`
+/context-scan-${projectType}
+\`\`\`
+
+This skill provides comprehensive guidance on:
+- Checking existing contexts
+- Mapping project structure
+- Creating properly-sized contexts
+- Using the required description template
+- Updating existing contexts
+- Quality validation
+
+${generateQuickReferenceSection(projectId, projectPath)}
+
+${generateEssentialStepsSection(projectId, projectPath, timestamp, projectName)}
+
+${generateFinalOutputSection(projectPath, timestamp)}
 
 ## Important Notes
 

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Maximize2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { findBestPlantUMLEncoding } from '@/utils/plantumlEncoder';
 
 interface InteractiveContentProps {
   trigger: string;
@@ -135,15 +134,13 @@ function PlantUMLRenderer({ content }: PlantUMLRendererProps) {
             hex += utf8Bytes[i].toString(16).padStart(2, '0');
           }
           const url = `https://www.plantuml.com/plantuml/svg/~h${hex}`;
-          
+
           setImageUrl(url);
-        } catch (err) {
-          console.error('PlantUML encoding error:', err);
+        } catch {
           setError('Failed to encode PlantUML diagram');
         }
-        
-      } catch (err) {
-        console.error('PlantUML Error:', err);
+
+      } catch {
         setError('Failed to generate PlantUML diagram');
         setIsLoading(false);
       }

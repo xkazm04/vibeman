@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Caveat } from 'next/font/google';
 import { LucideIcon } from 'lucide-react';
@@ -28,6 +28,7 @@ export interface IlluminatedButtonProps {
   redirectMode?: boolean; // Show exit icon for navigation buttons
   showProgress?: boolean; // Show progress text instead of icon (for Tasker button)
   progressText?: string; // Progress text to display (e.g., "3/10")
+  recommended?: boolean; // Button is recommended by Annette AI (pulses with its color)
 }
 
 const colorMap = {
@@ -119,10 +120,23 @@ export default function IlluminatedButton({
   redirectMode = false,
   showProgress = false,
   progressText = '',
+  recommended = false,
 }: IlluminatedButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [wasRecommended, setWasRecommended] = useState(false);
 
-  // Color priority: scanning > disabled > hasError > selected > gray (default)
+  // Log when recommended state changes (not on every render)
+  useEffect(() => {
+    if (recommended && !wasRecommended) {
+      console.log(`[IlluminatedButton] ${label} is NOW recommended, color: ${color}`);
+      setWasRecommended(true);
+    } else if (!recommended && wasRecommended) {
+      console.log(`[IlluminatedButton] ${label} is NO LONGER recommended`);
+      setWasRecommended(false);
+    }
+  }, [recommended, wasRecommended, label, color]);
+
+  // Color priority: scanning > disabled > hasError > selected > recommended > gray (default)
   const effectiveColor = scanning
     ? 'green'
     : disabled
@@ -131,7 +145,9 @@ export default function IlluminatedButton({
         ? 'red'
         : selected
           ? color
-          : 'gray';
+          : recommended
+            ? color // Show assigned color when recommended
+            : 'gray';
 
   // On hover (and not disabled/scanning), preview the assigned color
   const displayColor = !disabled && !scanning && isHovered ? color : effectiveColor;
@@ -204,15 +220,33 @@ export default function IlluminatedButton({
         <motion.div
           className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.bg} blur-md ${colors.glow} opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10`}
           animate={{
-            opacity: glowing ? [0.4, 0.8, 0.4] : 0,
-            scale: glowing ? [1, 1.2, 1] : 1,
+            opacity: glowing || recommended ? [0.4, 0.8, 0.4] : 0,
+            scale: glowing || recommended ? [1, 1.2, 1] : 1,
           }}
           transition={{
-            duration: 2,
-            repeat: glowing ? Infinity : 0,
+            duration: recommended ? 1.5 : 2, // Faster pulse for recommendations
+            repeat: (glowing || recommended) ? Infinity : 0,
             ease: 'easeInOut',
           }}
         />
+
+        {/* Icon pulse animation when recommended (inside the button) */}
+        {recommended && !scanning && !disabled && (
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            animate={{
+              scale: [1, 1.15, 1],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          >
+            <Icon className={`${sizes.icon} ${colors.text}`} />
+          </motion.div>
+        )}
 
       </motion.button>
 

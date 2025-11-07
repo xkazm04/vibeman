@@ -32,7 +32,6 @@ export async function DELETE(
       message: 'Test selector deleted successfully',
     });
   } catch (error) {
-    console.error('Failed to delete test selector:', error);
     return NextResponse.json(
       { error: 'Failed to delete test selector' },
       { status: 500 }

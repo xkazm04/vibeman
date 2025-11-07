@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateIdeas } from '@/app/projects/ProjectAI/ScanIdeas/generateIdeas';
+import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 interface GenerateIdeasRequest {
   projectId: string;
@@ -7,8 +8,8 @@ interface GenerateIdeasRequest {
   projectPath: string;
   contextId?: string;
   provider?: string;
-  scanType?: string;
-  codebaseFiles: string[];
+  scanType?: ScanType;
+  codebaseFiles: Array<{ path: string; content: string; type: string }>;
 }
 
 function validateGenerateIdeasRequest(body: Partial<GenerateIdeasRequest>): string | null {

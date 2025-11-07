@@ -11,12 +11,13 @@ import {
   Compass,
   GraduationCap,
   Sparkles,
-  Heart
+  Heart,
+  type LucideIcon
 } from 'lucide-react';
 
 export interface ScanTypeConfig {
   label: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
   borderColor: string;
   bgGradient: string;

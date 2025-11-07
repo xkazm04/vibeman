@@ -10,11 +10,20 @@ import { DefaultProviderStorage } from '@/lib/llm';
 import { getInitializedRegistry } from './adapters';
 import type { ScanResult as AdapterScanResult } from './adapters';
 
+interface ContextData {
+  id: string;
+  name: string;
+  description?: string;
+  filePaths: string[];
+  groupId?: string | null;
+  groupName?: string | null;
+}
+
 export interface ScanResult {
   success: boolean;
   error?: string;
   data?: {
-    contexts: any[];
+    contexts: ContextData[];
     stats: {
       scanned: number;
       saved: number;
@@ -40,7 +49,7 @@ export interface DecisionData {
   projectId?: string;
   projectPath?: string;
   projectType?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   onAccept: () => Promise<void>;
   onReject: () => Promise<void>;
 }
@@ -52,7 +61,6 @@ export async function executeContextsScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
-    console.error('[ContextsScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -60,25 +68,18 @@ export async function executeContextsScan(): Promise<ScanResult> {
   }
 
   try {
-    console.log('[ContextsScan] Scanning for contexts...');
-
     // Use the adapter framework
     const registry = getInitializedRegistry();
     const provider = DefaultProviderStorage.getDefaultProvider();
     const result = await registry.executeScan(activeProject, 'contexts', { provider });
 
     // Convert adapter result to legacy format
-    if (!result.success) {
-      console.error('[ContextsScan] Scan failed:', result.error);
-    }
-
     return {
       success: result.success,
       error: result.error,
       data: result.data as any,
     };
   } catch (error) {
-    console.error('[ContextsScan] Unexpected error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Context scan failed unexpectedly';
     return {
       success: false,
@@ -107,7 +108,6 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
     const adapter = registry.getBestAdapter(activeProject, 'contexts');
 
     if (!adapter) {
-      console.error('[ContextsScan] No adapter found for project type:', activeProject.type);
       return null;
     }
 
@@ -120,7 +120,6 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
 
     return adapter.buildDecision(adapterResult, activeProject);
   } catch (error) {
-    console.error('[ContextsScan] Error building decision:', error);
     return null;
   }
 }

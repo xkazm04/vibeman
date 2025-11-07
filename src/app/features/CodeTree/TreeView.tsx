@@ -29,7 +29,7 @@ export default function TreeView({
   selectedPaths = []
 }: TreeViewProps) {
   return (
-    <div className="flex-1 overflow-y-scroll max-h-[60vh] overflow-x-hidden custom-scrollbar min-h-0">
+    <div data-testid="tree-view-container" className="flex-1 overflow-y-scroll max-h-[60vh] overflow-x-hidden custom-scrollbar min-h-0">
       <div className="pr-2">
         {isLoading ? (
           <div className="text-center py-12 text-gray-500">
@@ -48,12 +48,14 @@ export default function TreeView({
             <p className="text-sm text-gray-600 mb-4">{error}</p>
             <div className="flex justify-center space-x-2">
               <button
+                data-testid="tree-error-dismiss-button"
                 onClick={onClearError}
                 className="text-sm text-gray-400 hover:text-gray-300 transition-colors px-4 py-2 bg-gray-700/50 rounded-lg hover:bg-gray-700/70"
               >
                 Dismiss
               </button>
               <button
+                data-testid="tree-error-retry-button"
                 onClick={onRefresh}
                 className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors px-4 py-2 bg-cyan-500/10 rounded-lg hover:bg-cyan-500/20"
               >

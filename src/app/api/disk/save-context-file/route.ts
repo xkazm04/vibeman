@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
         message: 'Context file saved successfully'
       });
     } catch (fileError) {
-      console.error(`Failed to save file ${filePath}:`, fileError);
       return NextResponse.json(
         { 
           success: false, 
@@ -53,7 +52,6 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Save context file API error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

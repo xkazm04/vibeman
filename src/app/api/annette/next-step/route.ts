@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Annette Next Step API] Error:', error);
+
     return NextResponse.json<NextStepResponse>(
       {
         success: false,

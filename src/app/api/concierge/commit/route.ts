@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
             await fs.unlink(filePath);
             deletedFiles.push(file.file_path);
           } catch (error) {
-            console.warn(`Could not delete file ${filePath}:`, error);
+            // Could not delete file - may not exist
           }
         } else {
           // Ensure directory exists
@@ -154,11 +154,10 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
               }
             }
           } catch (error) {
-            console.warn('Could not get remote URL:', error);
+            // Could not get remote URL
           }
         } catch (error) {
-          console.error('Git commit failed:', error);
-          // Don't fail the entire operation if commit fails
+          // Git commit failed - continue with file operations
         }
       }
 
@@ -192,8 +191,6 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
         },
       });
     } catch (error) {
-      console.error('Error writing/committing code:', error);
-
       // Update status to failed
       featureRequestDb.update(requestId, {
         status: 'failed',
@@ -214,7 +211,6 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
       throw error;
     }
   } catch (error) {
-    console.error('Error in commit API:', error);
     return NextResponse.json(
       {
         error: 'Failed to commit code',

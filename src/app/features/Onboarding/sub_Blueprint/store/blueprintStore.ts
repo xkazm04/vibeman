@@ -29,6 +29,12 @@ interface BlueprintState {
   completedSteps: number[];
   stepperConfig: StepperConfig | null;
 
+  // Tooltip state
+  activeTooltip: string | null; // ID of column with active tooltip
+
+  // Recommendation state (Annette AI assistant recommendations)
+  recommendedScans: Record<string, number>; // scanId -> timestamp when recommended
+
   // Actions
   startScan: (scanName: string) => void;
   updateScanProgress: (progress: number) => void;
@@ -54,6 +60,15 @@ interface BlueprintState {
   resetStepper: () => void;
   initStepperConfig: (projectType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other') => void;
   toggleGroup: (groupId: string, enabled: boolean) => void;
+
+  // Tooltip actions
+  showTooltip: (columnId: string) => void;
+  hideTooltip: () => void;
+
+  // Recommendation actions (Annette AI integration)
+  recommendScan: (scanId: string) => void;
+  clearRecommendation: (scanId: string) => void;
+  isRecommended: (scanId: string) => boolean;
 }
 
 const DEFAULT_SCANS: Record<string, ScanStatus> = {
@@ -80,6 +95,12 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
   currentStepIndex: 0,
   completedSteps: [],
   stepperConfig: null,
+
+  // Tooltip state
+  activeTooltip: null,
+
+  // Recommendation state (Annette AI)
+  recommendedScans: {},
 
   startScan: (scanName: string) => {
     set((state) => ({
@@ -138,8 +159,6 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
   failScan: (error: string) => {
     const { currentScan } = get();
     if (!currentScan) return;
-
-    console.error(`[BlueprintStore] Scan failed: ${currentScan} - ${error}`);
 
     set((state) => ({
       currentScan: null,
@@ -208,7 +227,6 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
       const response = await fetch(`/api/blueprint/events?projectId=${projectId}&titles=${encodeURIComponent(titles)}`);
 
       if (!response.ok) {
-        console.error('[BlueprintStore] Failed to fetch events');
         return;
       }
 
@@ -238,10 +256,8 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
 
         return { scans: updatedScans };
       });
-
-      console.log('[BlueprintStore] ✅ Loaded scan events');
     } catch (error) {
-      console.error('[BlueprintStore] Error loading events:', error);
+      // Error loading events - fail silently
     }
   },
 
@@ -339,5 +355,61 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
         },
       };
     });
+  },
+
+  // Tooltip actions
+  showTooltip: (columnId: string) => {
+    set({ activeTooltip: columnId });
+  },
+
+  hideTooltip: () => {
+    set({ activeTooltip: null });
+  },
+
+  // Recommendation actions (Annette AI integration)
+  recommendScan: (scanId: string) => {
+    console.log('[BlueprintStore] recommendScan called for:', scanId);
+    const timestamp = Date.now();
+    set((state) => {
+      console.log('[BlueprintStore] Current recommendedScans:', state.recommendedScans);
+      const newState = {
+        recommendedScans: {
+          ...state.recommendedScans,
+          [scanId]: timestamp,
+        },
+      };
+      console.log('[BlueprintStore] New recommendedScans:', newState.recommendedScans);
+      return newState;
+    });
+
+    // Auto-clear after 20 seconds
+    setTimeout(() => {
+      set((state) => {
+        // Only clear if timestamp matches (prevent clearing newer recommendations)
+        if (state.recommendedScans[scanId] === timestamp) {
+          console.log('[BlueprintStore] Auto-clearing recommendation for:', scanId);
+          const { [scanId]: _, ...rest } = state.recommendedScans;
+          return { recommendedScans: rest };
+        }
+        return state;
+      });
+    }, 20000); // 20 seconds
+  },
+
+  clearRecommendation: (scanId: string) => {
+    set((state) => {
+      const { [scanId]: _, ...rest } = state.recommendedScans;
+      return { recommendedScans: rest };
+    });
+  },
+
+  isRecommended: (scanId: string) => {
+    const { recommendedScans } = get();
+    const isRecommended = scanId in recommendedScans;
+    // Only log if recommended to avoid spam
+    if (isRecommended) {
+      console.log('[BlueprintStore] isRecommended check for', scanId, ':', isRecommended);
+    }
+    return isRecommended;
   },
 }));

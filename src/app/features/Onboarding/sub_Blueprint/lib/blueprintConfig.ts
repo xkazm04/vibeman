@@ -85,6 +85,7 @@ export interface ColumnConfig {
   gradientVia?: string;
   buttons: ButtonConfig[];
   reserved?: boolean;
+  tooltipDescription?: string; // Short, jargon-free description for hover tooltips
 }
 
 /**

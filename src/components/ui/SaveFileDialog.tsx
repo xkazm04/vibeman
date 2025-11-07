@@ -19,6 +19,19 @@ function getFinalFileName(fileName: string, extension: string): string {
   return fileName.endsWith(extension) ? fileName : `${fileName}${extension}`;
 }
 
+// Animation variants
+const backdropVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 }
+};
+
+const modalVariants = {
+  initial: { opacity: 0, scale: 0.95, y: 20 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 20 }
+};
+
 export default function SaveFileDialog({
   isOpen,
   onClose,
@@ -88,16 +101,18 @@ export default function SaveFileDialog({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        variants={backdropVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={handleClose}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          variants={modalVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
           transition={{ duration: 0.2 }}
           className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}

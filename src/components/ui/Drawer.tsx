@@ -14,6 +14,45 @@ interface DrawerProps {
   transparentOverlay?: boolean; // Allow seeing the app behind
 }
 
+// Backdrop component for drawer overlay
+function DrawerBackdrop({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+      onClick={onClose}
+      data-testid="drawer-backdrop"
+    />
+  );
+}
+
+// Background image overlay component
+function BackgroundImage({ imageUrl }: { imageUrl: string }) {
+  return (
+    <div
+      className="absolute inset-0 opacity-10 pointer-events-none"
+      style={{
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    />
+  );
+}
+
+// Decorative corner elements
+function DecorativeCorners() {
+  return (
+    <>
+      <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-cyan-200/20 rounded-tl-lg" />
+      <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-cyan-200/20 rounded-br-lg" />
+    </>
+  );
+}
+
 export default function Drawer({
   isOpen,
   onClose,
@@ -32,16 +71,7 @@ export default function Drawer({
       {isOpen && (
         <>
           {/* Backdrop - Optional transparent mode */}
-          {!transparentOverlay && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-              onClick={onClose}
-            />
-          )}
+          {!transparentOverlay && <DrawerBackdrop onClose={onClose} />}
 
           {/* Drawer Panel */}
           <motion.div
@@ -59,22 +89,14 @@ export default function Drawer({
             {/* Drawer content */}
             <div className={`relative h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ${borderClass} border-cyan-500/30 shadow-2xl shadow-cyan-500/20 overflow-y-auto`}>
               {/* Optional background image */}
-              {backgroundImage && (
-                <div
-                  className="absolute inset-0 opacity-10 pointer-events-none"
-                  style={{
-                    backgroundImage: `url(${backgroundImage})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                />
-              )}
+              {backgroundImage && <BackgroundImage imageUrl={backgroundImage} />}
 
               <div className="relative p-8">
                 {/* Close button */}
                 <button
                   onClick={onClose}
                   className="absolute top-4 right-4 p-2 rounded-full bg-gray-700/50 hover:bg-gray-600/50 transition-colors z-10"
+                  data-testid="drawer-close-btn"
                 >
                   <X className="w-4 h-4 text-gray-400 hover:text-white" />
                 </button>
@@ -84,8 +106,7 @@ export default function Drawer({
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-cyan-200/20 rounded-tl-lg" />
-              <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-cyan-200/20 rounded-br-lg" />
+              <DecorativeCorners />
             </div>
           </motion.div>
         </>

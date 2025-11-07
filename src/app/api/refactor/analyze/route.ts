@@ -2,17 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { analyzeProject, scanProjectFiles } from '@/app/features/RefactorWizard/lib/refactorAnalyzer';
 import { generateWizardPlan } from '@/app/features/RefactorWizard/lib/wizardOptimizer';
 import { createErrorResponse } from '@/lib/api-helpers';
+import type { ProjectType } from '@/lib/scan';
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectId, projectPath, useAI = true, provider = 'gemini', model } = await request.json();
+    const {
+      projectId,
+      projectPath,
+      projectType,
+      useAI = true,
+      provider = 'gemini',
+      model,
+      selectedGroups
+    } = await request.json();
 
     if (!projectPath) {
       return createErrorResponse('Project path is required', 400);
     }
 
-    // First, scan files for wizard plan generation
-    const files = await scanProjectFiles(projectPath);
+    // First, scan files for wizard plan generation (using strategy pattern)
+    const files = await scanProjectFiles(projectPath, projectType as ProjectType);
 
     // Generate AI-powered wizard plan
     let wizardPlan = null;
@@ -23,8 +32,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Run full analysis
-    const result = await analyzeProject(projectPath, useAI, provider, model);
+    // Run full analysis with optional group filtering and project type
+    const result = await analyzeProject(projectPath, useAI, provider, model, selectedGroups, projectType as ProjectType);
 
     return NextResponse.json({
       opportunities: result.opportunities,

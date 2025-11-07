@@ -47,14 +47,6 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}) {
       // Use ErrorContext if available
       if (errorContext) {
         errorContext.handleError(error, context);
-      } else {
-        // Fallback: log to console
-        if (process.env.NODE_ENV === 'development') {
-          console.error(
-            `[useErrorHandler]${context ? ` [${context}]` : ''}`,
-            ErrorClassifier.formatForLogging(error)
-          );
-        }
       }
 
       // Call custom error handler

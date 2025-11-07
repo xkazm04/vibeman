@@ -3,15 +3,18 @@
 import { ReactElement, ComponentType, CSSProperties } from 'react';
 import { List as ReactWindowList } from 'react-window';
 
-export interface VirtualListProps<T = any> {
+// Row component props type
+export interface RowComponentProps<T = Record<string, unknown>> {
+  index: number;
+  style: CSSProperties;
+  data?: T;
+}
+
+export interface VirtualListProps<T = Record<string, unknown>> {
   defaultHeight: number;
   rowCount: number;
   rowHeight: number;
-  rowComponent: ComponentType<{
-    index: number;
-    style: CSSProperties;
-    [key: string]: any;
-  }>;
+  rowComponent: ComponentType<RowComponentProps<T>>;
   rowProps?: T;
   className?: string;
   'data-testid'?: string;
@@ -21,12 +24,12 @@ export interface VirtualListProps<T = any> {
  * Custom wrapper around react-window's List component
  * Provides a simplified API for virtualizing large lists
  */
-export function List<T = any>({
+export function List<T = Record<string, unknown>>({
   defaultHeight,
   rowCount,
   rowHeight,
   rowComponent,
-  rowProps = {} as T,
+  rowProps,
   className = '',
   'data-testid': dataTestId,
 }: VirtualListProps<T>): ReactElement {

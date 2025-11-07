@@ -9,7 +9,11 @@ import { DefaultProviderStorage } from '@/lib/llm';
 export interface ScanResult {
   success: boolean;
   error?: string;
-  data?: any;
+  data?: {
+    filePath: string;
+    content: string;
+    projectPath: string;
+  };
 }
 
 export interface DecisionData {
@@ -20,9 +24,43 @@ export interface DecisionData {
   severity?: 'info' | 'warning' | 'error';
   projectId?: string;
   projectPath?: string;
-  data?: any;
+  data?: {
+    content: string;
+    filePath: string;
+    projectPath: string;
+  };
   onAccept: () => Promise<void>;
   onReject: () => Promise<void>;
+}
+
+/**
+ * Generate AI documentation via API call
+ */
+async function generateAIDocs(
+  projectName: string,
+  projectPath: string,
+  projectId: string
+): Promise<{ success: boolean; review?: string; error?: string }> {
+  const response = await fetch('/api/projects/ai-docs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectName,
+      projectPath,
+      projectId,
+      analysis: {},
+      provider: DefaultProviderStorage.getDefaultProvider(),
+    }),
+  });
+
+  if (!response.ok) {
+    return {
+      success: false,
+      error: `Failed to generate documentation: ${response.status}`,
+    };
+  }
+
+  return response.json();
 }
 
 /**
@@ -32,7 +70,6 @@ export async function executeVisionScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
-    console.error('[VisionScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -40,40 +77,18 @@ export async function executeVisionScan(): Promise<ScanResult> {
   }
 
   try {
-    console.log('[VisionScan] Generating high-level documentation...');
-
-    const response = await fetch('/api/projects/ai-docs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectName: activeProject.name,
-        projectPath: activeProject.path,
-        projectId: activeProject.id,
-        analysis: {},
-        provider: DefaultProviderStorage.getDefaultProvider(),
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[VisionScan] API request failed:', response.status, errorText);
-      return {
-        success: false,
-        error: `Failed to generate documentation: ${response.status}`,
-      };
-    }
-
-    const result = await response.json();
+    const result = await generateAIDocs(
+      activeProject.name,
+      activeProject.path,
+      activeProject.id
+    );
 
     if (!result.success || !result.review) {
-      console.error('[VisionScan] Scan failed:', result.error);
       return {
         success: false,
         error: result.error || 'Failed to generate documentation',
       };
     }
-
-    console.log('[VisionScan] Documentation generated successfully');
 
     // Return the generated content without saving yet
     return {
@@ -85,7 +100,6 @@ export async function executeVisionScan(): Promise<ScanResult> {
       },
     };
   } catch (error) {
-    console.error('[VisionScan] Unexpected error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Vision scan failed unexpectedly';
     return {
       success: false,
@@ -124,8 +138,6 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
 
     // Accept: Save documentation to context/high.md
     onAccept: async () => {
-      console.log('[VisionScan] User accepted - saving documentation...');
-
       const saveResponse = await fetch('/api/disk/save-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,13 +158,11 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
       if (!saveResult.success) {
         throw new Error(saveResult.error || 'Failed to save documentation');
       }
-
-      console.log('[VisionScan] ✅ Saved to context/high.md');
     },
 
     // Reject: Discard documentation
     onReject: async () => {
-      console.log('[VisionScan] User rejected - documentation discarded');
+      // Documentation discarded - no action needed
     },
   };
 }

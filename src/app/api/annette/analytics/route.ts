@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/app/db/drivers';
-import { CommandAnalyticsEntry, AnalyticsSummary } from '@/app/features/Annette/lib/voicebotAnalytics';
+import { AnalyticsSummary } from '@/app/features/Annette/lib/voicebotAnalytics';
 
 /**
  * POST: Log a command execution to analytics
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, id });
   } catch (error) {
-    console.error('[Analytics API] Error logging command:', error);
+
     return NextResponse.json(
       { error: 'Failed to log command execution' },
       { status: 500 }
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(summary);
   } catch (error) {
-    console.error('[Analytics API] Error querying analytics:', error);
+
     return NextResponse.json(
       { error: 'Failed to query analytics' },
       { status: 500 }

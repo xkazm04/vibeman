@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
       path: normalizedPath
     });
   } catch (error) {
-    console.error('Error checking file:', error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Failed to check file',

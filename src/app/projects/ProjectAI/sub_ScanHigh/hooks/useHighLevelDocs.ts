@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import { buildHighLevelDocsPrompt } from '../lib/improvedPrompt';
-import { generateWithLLM, DefaultProviderStorage, SupportedProvider } from '@/lib/llm';
+import { SupportedProvider, DefaultProviderStorage } from '@/lib/llm';
 
 interface UseHighLevelDocsParams {
   projectPath?: string;
@@ -53,9 +52,7 @@ export function useHighLevelDocs({ projectPath, projectName, projectId }: UseHig
         setContent('');
         return false;
       }
-    } catch (err) {
-      console.error('Failed to load docs:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load documentation');
+    } catch (err) {      setError(err instanceof Error ? err.message : 'Failed to load documentation');
       setHasExistingDocs(false);
       return false;
     } finally {
@@ -109,9 +106,7 @@ export function useHighLevelDocs({ projectPath, projectName, projectId }: UseHig
       }
 
       return true;
-    } catch (err) {
-      console.error('Failed to generate docs:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate documentation');
+    } catch (err) {      setError(err instanceof Error ? err.message : 'Failed to generate documentation');
       return false;
     } finally {
       setIsGenerating(false);
@@ -160,9 +155,7 @@ export function useHighLevelDocs({ projectPath, projectName, projectId }: UseHig
 
       setHasExistingDocs(true);
       return true;
-    } catch (err) {
-      console.error('Failed to save docs:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save documentation');
+    } catch (err) {      setError(err instanceof Error ? err.message : 'Failed to save documentation');
       return false;
     } finally {
       setIsSaving(false);

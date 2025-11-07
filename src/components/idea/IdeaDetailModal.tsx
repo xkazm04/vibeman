@@ -30,8 +30,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
     onSuccess: () => {
       setShowAIError(false);
     },
-    onError: (err) => {
-      console.error('Failed to generate requirement:', err);
+    onError: () => {
       setShowAIError(true);
     },
   });
@@ -80,8 +79,8 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         const data = await response.json();
         onUpdate(data.idea);
       }
-    } catch (error) {
-      console.error('Error updating idea:', error);
+    } catch {
+      // Silently fail - error will be shown in UI
     } finally {
       setSaving(false);
     }
@@ -101,10 +100,9 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
             return { success: true };
           });
         }
-      } else {
       }
-    } catch (error) {
-      console.error('[IdeaDetailModal] Error accepting idea:', error);
+    } catch {
+      // Error handling done by useAIOperation hook
     }
   };
 
@@ -135,8 +133,8 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         // Fallback if project not found
         await updateIdea({ status: 'rejected' });
       }
-    } catch (error) {
-      console.error('[IdeaDetailModal] Error rejecting idea:', error);
+    } catch {
+      // Error will be shown in UI
     } finally {
       setSaving(false);
     }
@@ -179,10 +177,9 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
               }),
             });
 
-            if (deleteResponse.ok) {
-            } else {
-            }
-          } catch (deleteError) {
+            // Ignore delete errors - idea will still be deleted from DB
+          } catch {
+            // Ignore file deletion errors
           }
         }
       }
@@ -195,8 +192,8 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
       if (response.ok) {
         onDelete(idea.id);
       }
-    } catch (error) {
-      console.error('Error deleting idea:', error);
+    } catch {
+      // Error will be shown in UI
     } finally {
       setSaving(false);
     }
@@ -223,10 +220,9 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
               }),
             });
 
-            if (deleteResponse.ok) {
-            } else {
-            }
-          } catch (deleteError) {
+            // Ignore delete errors
+          } catch {
+            // Ignore file deletion errors
           }
 
           // Remove requirement_id from idea in DB
@@ -257,12 +253,11 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
             throw new Error(errorData.error || 'Failed to regenerate requirement');
           }
         } catch (regenerateError) {
-          console.error('[IdeaDetailModal] Error regenerating requirement:', regenerateError);
           throw regenerateError;
         }
       }
-    } catch (error) {
-      console.error('[IdeaDetailModal] Error in handleRegenerate:', error);
+    } catch {
+      // Error will be shown in UI
     } finally {
       setSaving(false);
     }

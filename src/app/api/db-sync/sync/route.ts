@@ -11,14 +11,10 @@ import { syncAllTables } from '@/lib/supabase/sync';
 export async function POST(request: NextRequest) {
   try {
     // Check if Supabase is configured
-    const isConfigured = isSupabaseConfigured();
-
-    if (!isConfigured) {
-      return NextResponse.json(
-        {
-          error: 'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
-        },
-        { status: 400 }
+    if (!isSupabaseConfigured()) {
+      return buildErrorResponse(
+        'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.',
+        400
       );
     }
 
@@ -26,14 +22,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { stopOnError = false } = body;
 
-    console.log('[API] Starting database sync to Supabase...');
-    console.log(`[API] Stop on error: ${stopOnError}`);
-
     // Perform the sync
     const result = await syncAllTables(stopOnError);
 
     if (!result.success) {
-      console.error('[API] Sync completed with errors');
       return NextResponse.json(
         {
           ...result,
@@ -44,8 +36,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[API] Sync completed successfully. Total records: ${result.totalRecords}`);
-
     return NextResponse.json({
       ...result,
       success: true,
@@ -53,14 +43,21 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[API] Error during database sync:', error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      },
-      { status: 500 }
+    return buildErrorResponse(
+      error instanceof Error ? error.message : 'Unknown error occurred',
+      500
     );
   }
+}
+
+/**
+ * Build error response helper
+ */
+function buildErrorResponse(errorMessage: string, status: number): NextResponse {
+  return NextResponse.json(
+    { error: errorMessage },
+    { status }
+  );
 }
 
 // Increase the maximum duration for this route (Vercel)

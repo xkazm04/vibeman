@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const name = searchParams.get('name');
     const projectId = searchParams.get('projectId');
 
-    // Must provide either contextId or (name + projectId)
+    // Validate input parameters
     if (!contextId && (!name || !projectId)) {
       return NextResponse.json(
         { error: 'Either contextId or (name + projectId) is required' },
@@ -17,25 +17,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let context;
-
-    if (contextId) {
-      // Get by ID - need to search across all contexts
-      // First try to extract projectId from contextId if it follows pattern "projectId-contextName"
-      const possibleProjectId = contextId.split('-')[0];
-      const contexts = await contextQueries.getContextsByProject(possibleProjectId || projectId || '');
-      context = contexts.find(c => c.id === contextId);
-      
-      // If not found and we have projectId, try that
-      if (!context && projectId) {
-        const projectContexts = await contextQueries.getContextsByProject(projectId);
-        context = projectContexts.find(c => c.id === contextId);
-      }
-    } else {
-      // Get by name and projectId
-      const contexts = await contextQueries.getContextsByProject(projectId!);
-      context = contexts.find(c => c.name.toLowerCase() === name!.toLowerCase());
-    }
+    // Find context by ID or name
+    const context = contextId
+      ? await findContextById(contextId, projectId)
+      : await findContextByName(name!, projectId!);
 
     if (!context) {
       return NextResponse.json(
@@ -49,10 +34,35 @@ export async function GET(request: NextRequest) {
       data: context
     });
   } catch (error) {
-    console.error('Failed to fetch context detail:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch context detail' },
       { status: 500 }
     );
   }
+}
+
+/**
+ * Find context by ID, with fallback to projectId if provided
+ */
+async function findContextById(contextId: string, projectId: string | null): Promise<any | null> {
+  // First try to extract projectId from contextId if it follows pattern "projectId-contextName"
+  const possibleProjectId = contextId.split('-')[0];
+  let contexts = await contextQueries.getContextsByProject(possibleProjectId || projectId || '');
+  let context = contexts.find(c => c.id === contextId);
+
+  // If not found and we have projectId, try that
+  if (!context && projectId) {
+    const projectContexts = await contextQueries.getContextsByProject(projectId);
+    context = projectContexts.find(c => c.id === contextId);
+  }
+
+  return context || null;
+}
+
+/**
+ * Find context by name and projectId
+ */
+async function findContextByName(name: string, projectId: string): Promise<any | null> {
+  const contexts = await contextQueries.getContextsByProject(projectId);
+  return contexts.find(c => c.name.toLowerCase() === name.toLowerCase()) || null;
 }

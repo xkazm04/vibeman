@@ -1,220 +1,66 @@
 /**
  * Main analyzer that orchestrates file scanning, pattern detection, and AI analysis
+ * Updated to use ScanStrategy plugin architecture for multitech support
  */
 import type { RefactorOpportunity } from '@/stores/refactorStore';
-import { scanProjectFiles } from './fileScanner';
-import {
-  detectDuplication,
-  detectLongFunctions,
-  detectConsoleStatements,
-  detectAnyTypes,
-  detectUnusedImports,
-} from './patternDetectors';
+import { getScanStrategy } from '@/lib/scan';
+import type { ProjectType } from '@/lib/scan';
+import { scanProjectFiles as legacyScanProjectFiles } from './fileScanner';
 import { analyzeWithAI, deduplicateOpportunities } from './aiAnalyzer';
 import type { FileAnalysis, AnalysisResult } from './types';
 
 // Re-export types and functions for backward compatibility
-export { scanProjectFiles } from './fileScanner';
 export { analyzeWithAI } from './aiAnalyzer';
 export type { FileAnalysis, AnalysisResult } from './types';
 
 /**
- * Helper: Create a refactor opportunity
+ * Backward compatibility wrapper for scanProjectFiles
+ * @deprecated Use getScanStrategy().scanProjectFiles() instead
  */
-function createOpportunity(
-  id: string,
-  title: string,
-  description: string,
-  category: string,
-  severity: string,
-  impact: string,
-  effort: string,
-  files: string[],
-  autoFixAvailable: boolean,
-  estimatedTime: string,
-  lineNumbers?: Record<string, number[]>
-): RefactorOpportunity {
-  return {
-    id,
-    title,
-    description,
-    category,
-    severity,
-    impact,
-    effort,
-    files,
-    autoFixAvailable,
-    estimatedTime,
-    ...(lineNumbers && { lineNumbers }),
-  };
-}
-
-/**
- * Check for large file size
- */
-function checkLargeFile(file: FileAnalysis): RefactorOpportunity | null {
-  if (file.lines <= 500) return null;
-
-  return createOpportunity(
-    `long-file-${file.path}`,
-    `Large file detected: ${file.path}`,
-    `This file has ${file.lines} lines. Consider splitting it into smaller, more focused modules.`,
-    'maintainability',
-    file.lines > 1000 ? 'high' : 'medium',
-    'Improves code organization and maintainability',
-    'high',
-    [file.path],
-    false,
-    '2-4 hours'
-  );
-}
-
-/**
- * Check for code duplication
- */
-function checkDuplication(file: FileAnalysis): RefactorOpportunity | null {
-  const duplicatePatterns = detectDuplication(file.content);
-  if (duplicatePatterns.length === 0) return null;
-
-  return {
-    id: `duplication-${file.path}`,
-    title: `Code duplication in ${file.path}`,
-    description: `Found ${duplicatePatterns.length} duplicated code blocks that could be extracted into reusable functions.`,
-    category: 'duplication',
-    severity: 'medium',
-    impact: 'Reduces code duplication and improves maintainability',
-    effort: 'medium',
-    files: [file.path],
-    autoFixAvailable: true,
-    estimatedTime: '1-2 hours',
-  };
-}
-
-/**
- * Check for long functions
- */
-function checkLongFunctions(file: FileAnalysis): RefactorOpportunity | null {
-  const longFunctions = detectLongFunctions(file.content);
-  if (longFunctions.length === 0) return null;
-
-  return {
-    id: `long-functions-${file.path}`,
-    title: `Long functions in ${file.path}`,
-    description: `Found ${longFunctions.length} functions exceeding 50 lines. Consider breaking them into smaller functions.`,
-    category: 'maintainability',
-    severity: 'low',
-    impact: 'Improves code readability and testability',
-    effort: 'medium',
-    files: [file.path],
-    lineNumbers: { [file.path]: longFunctions },
-    autoFixAvailable: true,
-    estimatedTime: '1-3 hours',
-  };
-}
-
-/**
- * Check for console statements
- */
-function checkConsoleStatements(file: FileAnalysis): RefactorOpportunity | null {
-  const consoleStatements = detectConsoleStatements(file.content);
-  if (consoleStatements.length === 0) return null;
-
-  return {
-    id: `console-logs-${file.path}`,
-    title: `Console statements in ${file.path}`,
-    description: `Found ${consoleStatements.length} console.log statements that should be removed or replaced with proper logging.`,
-    category: 'code-quality',
-    severity: 'low',
-    impact: 'Cleaner production code',
-    effort: 'low',
-    files: [file.path],
-    lineNumbers: { [file.path]: consoleStatements },
-    autoFixAvailable: true,
-    estimatedTime: '15-30 minutes',
-  };
-}
-
-/**
- * Check for any type usage
- */
-function checkAnyTypes(file: FileAnalysis): RefactorOpportunity | null {
-  const anyTypes = detectAnyTypes(file.content);
-  if (anyTypes.length === 0) return null;
-
-  return {
-    id: `any-types-${file.path}`,
-    title: `'any' type usage in ${file.path}`,
-    description: `Found ${anyTypes.length} uses of 'any' type. Consider using proper TypeScript types for better type safety.`,
-    category: 'code-quality',
-    severity: 'medium',
-    impact: 'Improves type safety and prevents runtime errors',
-    effort: 'medium',
-    files: [file.path],
-    lineNumbers: { [file.path]: anyTypes },
-    autoFixAvailable: false,
-    estimatedTime: '30-60 minutes',
-  };
-}
-
-/**
- * Check for unused imports
- */
-function checkUnusedImports(file: FileAnalysis): RefactorOpportunity | null {
-  const unusedImports = detectUnusedImports(file.content);
-  if (unusedImports.length === 0) return null;
-
-  return {
-    id: `unused-imports-${file.path}`,
-    title: `Unused imports in ${file.path}`,
-    description: `Found ${unusedImports.length} potentially unused imports that could be removed.`,
-    category: 'code-quality',
-    severity: 'low',
-    impact: 'Cleaner code and smaller bundle size',
-    effort: 'low',
-    files: [file.path],
-    autoFixAvailable: true,
-    estimatedTime: '10-15 minutes',
-  };
-}
-
-/**
- * Analyzes code for common refactor opportunities using pattern detection
- */
-export function analyzeCodePatterns(files: FileAnalysis[]): RefactorOpportunity[] {
-  const opportunities: RefactorOpportunity[] = [];
-
-  for (const file of files) {
-    const checks = [
-      checkLargeFile(file),
-      checkDuplication(file),
-      checkLongFunctions(file),
-      checkConsoleStatements(file),
-      checkAnyTypes(file),
-      checkUnusedImports(file),
-    ];
-
-    checks.forEach(opp => {
-      if (opp) opportunities.push(opp);
-    });
+export async function scanProjectFiles(projectPath: string, projectType?: ProjectType): Promise<FileAnalysis[]> {
+  try {
+    const strategy = await getScanStrategy(projectPath, projectType);
+    return strategy.scanProjectFiles(projectPath);
+  } catch (error) {
+    // Fallback to legacy scanner if strategy fails
+    console.warn('Strategy scan failed, falling back to legacy scanner:', error);
+    return legacyScanProjectFiles(projectPath);
   }
+}
 
-  return opportunities;
+/**
+ * Analyzes code for common refactor opportunities (legacy function kept for compatibility)
+ * @deprecated This function is kept for backward compatibility but no longer used
+ */
+export function analyzeCodePatterns(
+  files: FileAnalysis[],
+  selectedGroups?: string[]
+): RefactorOpportunity[] {
+  // This function is deprecated but kept for backward compatibility
+  // The actual pattern detection is now done by strategies
+  return [];
 }
 
 /**
  * Combines pattern-based and AI analysis
+ * Now uses ScanStrategy plugin architecture for multitech support
  */
 export async function analyzeProject(
   projectPath: string,
   useAI: boolean = true,
   provider?: string,
-  model?: string
+  model?: string,
+  selectedGroups?: string[],
+  projectType?: ProjectType
 ): Promise<AnalysisResult> {
-  // Scan files
-  const files = await scanProjectFiles(projectPath);
+  // Get appropriate strategy for the project
+  const strategy = await getScanStrategy(projectPath, projectType);
 
-  // Pattern-based analysis
-  const patternOpportunities = analyzeCodePatterns(files);
+  // Scan files using strategy
+  const files = await strategy.scanProjectFiles(projectPath);
+
+  // Pattern-based analysis using strategy (tech-specific detection)
+  const patternOpportunities = strategy.detectOpportunities(files);
 
   // AI-based analysis (if enabled)
   let aiOpportunities: RefactorOpportunity[] = [];

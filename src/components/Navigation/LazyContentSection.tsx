@@ -9,6 +9,9 @@ interface LazyContentSectionProps {
   className?: string;
 }
 
+// Animation constants
+const SMOOTH_EASING = [0.22, 1, 0.36, 1] as const;
+
 export default function LazyContentSection({
   children,
   delay = 0,
@@ -21,7 +24,7 @@ export default function LazyContentSection({
       transition={{
         duration: 0.6,
         delay,
-        ease: [0.22, 1, 0.36, 1],
+        ease: SMOOTH_EASING,
       }}
       className={className}
     >

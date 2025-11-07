@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
       }
 
       // Other errors (permissions, etc.) are actual problems worth logging
-      console.error(`Failed to read file ${fullPath}:`, fileError);
       return NextResponse.json(
         {
           success: false,
@@ -70,7 +69,6 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('API error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

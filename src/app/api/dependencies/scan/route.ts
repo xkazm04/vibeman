@@ -147,7 +147,6 @@ export async function POST(request: NextRequest) {
       message: 'Dependency scan completed successfully'
     });
   } catch (error) {
-    console.error('Error scanning dependencies:', error);
     return NextResponse.json(
       { error: 'Failed to scan dependencies', details: (error as Error).message },
       { status: 500 }
@@ -237,7 +236,6 @@ async function fetchRegistryVersionsForScan(
 
     return allVersions;
   } catch (error) {
-    console.error('Error fetching registry versions:', error);
     return {};
   }
 }

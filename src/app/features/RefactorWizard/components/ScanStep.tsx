@@ -22,7 +22,7 @@ export default function ScanStep() {
       return;
     }
 
-    await startAnalysis(activeProject.id, activeProject.path);
+    await startAnalysis(activeProject.id, activeProject.path, useAI, undefined, undefined, activeProject.type);
   };
 
   const isScanning = analysisStatus === 'scanning' || analysisStatus === 'analyzing';

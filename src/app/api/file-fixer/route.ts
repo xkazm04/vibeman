@@ -349,7 +349,7 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
         });
         
       } catch (parseError) {
-        logger.error('Error parsing build output:', parseError);
+        logger.error('Error parsing build output:', { error: parseError });
         resolve({
           success: false,
           errors: [{

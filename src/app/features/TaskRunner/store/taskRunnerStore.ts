@@ -19,6 +19,13 @@ import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
 import { getContextIdFromRequirement, triggerScreenshotCapture } from '../sub_Screenshot/screenshotApi';
 
 // ============================================================================
+// Global Polling Management
+// ============================================================================
+
+// Track active polling intervals to enable reconnection after page refresh
+const activePollingIntervals = new Map<string, NodeJS.Timeout>();
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -485,8 +492,8 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             state.gitConfig || undefined
           );
 
-          // Poll for completion
-          await pollTaskCompletion(result.taskId, nextTask.id, batchId, requirement, state);
+          // Start polling for completion (using setInterval for reconnection support)
+          startPollingForTask(result.taskId, nextTask.id, batchId, requirement, state);
 
         } catch (error) {
           console.error(`Error executing task ${nextTask.id}:`, error);
@@ -654,14 +661,49 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             }));
           }
 
-          // If batch was running, resume execution
+          // If batch was running, reconnect to running tasks and resume execution
           if (batch.status === 'running') {
+            console.log(`🔄 Recovering batch ${batchId} - reconnecting to running tasks`);
+
+            // Reconnect to any tasks that were running before page refresh
+            validTaskIds.forEach(taskId => {
+              const task = state.tasks[taskId];
+              if (task && task.status === 'running') {
+                // Find the requirement for this task
+                const [taskProjectId, taskRequirementName] = taskId.includes(':')
+                  ? taskId.split(':')
+                  : [null, taskId];
+
+                const requirement = requirements.find(req => {
+                  if (taskProjectId) {
+                    return req.projectId === taskProjectId && req.requirementName === taskRequirementName;
+                  } else {
+                    return req.requirementName === taskRequirementName;
+                  }
+                });
+
+                if (requirement) {
+                  console.log(`🔌 Reconnecting polling for task: ${taskId}`);
+                  // Restart polling for this task (uses requirementName as taskId)
+                  startPollingForTask(requirement.requirementName, taskId, batchId, requirement, state);
+                }
+              }
+            });
+
+            // Also resume execution for queued tasks
             state.executeNextTask(batchId, requirements);
           }
         });
       },
 
       clearAll: () => {
+        // Stop all active polling intervals
+        activePollingIntervals.forEach((interval, taskId) => {
+          clearInterval(interval);
+          console.log(`⏹️ Stopped polling for task: ${taskId}`);
+        });
+        activePollingIntervals.clear();
+
         set({
           batches: {
             batch1: null,
@@ -693,20 +735,24 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
 // ============================================================================
 
 /**
- * Poll for task completion
+ * Start polling for task completion using setInterval (survives page refresh)
  */
-async function pollTaskCompletion(
+function startPollingForTask(
   taskId: string,
   requirementId: string,
   batchId: BatchId,
   requirement: ProjectRequirement,
   state: TaskRunnerState
-): Promise<void> {
+): void {
+  // Clear any existing polling interval for this task
+  stopPollingForTask(requirementId);
+
   const MAX_POLL_ATTEMPTS = 60; // 10 minutes at 10s intervals
   let attempts = 0;
 
-  while (attempts < MAX_POLL_ATTEMPTS) {
-    await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds
+  console.log(`🔄 Starting polling for task: ${requirementId}`);
+
+  const pollInterval = setInterval(async () => {
     attempts++;
 
     try {
@@ -715,7 +761,14 @@ async function pollTaskCompletion(
       // Handle case where task is not found yet
       if (!taskStatus) {
         console.log(`⏳ Task ${taskId} not found yet, will retry...`);
-        continue;
+
+        // Stop polling if we've exceeded max attempts
+        if (attempts >= MAX_POLL_ATTEMPTS) {
+          console.error(`⏰ Polling timeout for task: ${requirementId}`);
+          state.updateTaskStatus(requirementId, 'failed', 'Polling timeout - task took too long');
+          stopPollingForTask(requirementId);
+        }
+        return;
       }
 
       console.log(`📊 Task status poll #${attempts}: ${taskStatus.status}`);
@@ -724,6 +777,9 @@ async function pollTaskCompletion(
         // Task completed successfully
         console.log(`✅ Task ${requirementId} completed successfully`);
         state.updateTaskStatus(requirementId, 'completed');
+
+        // Stop polling
+        stopPollingForTask(requirementId);
 
         // Update batch progress using setState
         useTaskRunnerStore.setState((state) => {
@@ -758,6 +814,9 @@ async function pollTaskCompletion(
         console.error(`❌ Task ${requirementId} failed: ${taskStatus.error || 'Unknown error'}`);
         state.updateTaskStatus(requirementId, 'failed', taskStatus.error || 'Task failed');
 
+        // Stop polling
+        stopPollingForTask(requirementId);
+
         // Update batch failed count using setState
         useTaskRunnerStore.setState((state) => {
           const batch = state.batches[batchId];
@@ -784,11 +843,22 @@ async function pollTaskCompletion(
 
     } catch (error) {
       console.error('Error polling task status:', error);
-      // Continue polling despite error
+      // Continue polling despite error - will retry on next interval
     }
-  }
+  }, 10000); // Poll every 10 seconds
 
-  // Max attempts reached
-  state.updateTaskStatus(requirementId, 'failed', 'Polling timeout - task took too long');
-  useTaskRunnerStore.getState().executingTasks.delete(requirementId);
+  // Store the interval ID so we can stop it later
+  activePollingIntervals.set(requirementId, pollInterval);
+}
+
+/**
+ * Stop polling for a specific task
+ */
+function stopPollingForTask(requirementId: string): void {
+  const interval = activePollingIntervals.get(requirementId);
+  if (interval) {
+    clearInterval(interval);
+    activePollingIntervals.delete(requirementId);
+    console.log(`⏹️ Stopped polling for task: ${requirementId}`);
+  }
 }

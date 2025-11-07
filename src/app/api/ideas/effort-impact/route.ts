@@ -120,7 +120,6 @@ export async function GET(request: NextRequest) {
       totalIdeas: ideas.length
     });
   } catch (error) {
-    console.error('Error fetching effort-impact stats:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch effort-impact stats' },
       { status: 500 }

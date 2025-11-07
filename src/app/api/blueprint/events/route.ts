@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       events
     });
   } catch (error) {
-    console.error('[Blueprint Events API] Error:', error);
+
     return NextResponse.json(
       {
         success: false,
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       event
     });
   } catch (error) {
-    console.error('[Blueprint Events API] Create error:', error);
+
     return NextResponse.json(
       {
         success: false,

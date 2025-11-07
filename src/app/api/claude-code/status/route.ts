@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
       missing: status.missing,
     });
   } catch (error) {
-    console.error('Error checking Claude Code status:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to check status' },
       { status: 500 }

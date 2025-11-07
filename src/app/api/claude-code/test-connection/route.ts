@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
 
+interface ConnectionCheck {
+  name: string;
+  status: 'PASS' | 'FAIL';
+  message: string;
+  duration?: number;
+  error?: string;
+  models?: string[];
+}
+
+interface ConnectionTestResults {
+  timestamp: string;
+  checks: ConnectionCheck[];
+}
+
 /**
  * GET - Test Anthropic API connection
  * This endpoint helps diagnose connectivity issues
  */
 export async function GET(request: NextRequest) {
-  const results: any = {
+  const results: ConnectionTestResults = {
     timestamp: new Date().toISOString(),
     checks: []
   };
@@ -103,8 +117,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Connection test error:', error);
-
     results.checks.push({
       name: 'Overall Test',
       status: 'FAIL',

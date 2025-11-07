@@ -37,8 +37,11 @@ export default class AIErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error details for debugging
-    console.error('AIErrorBoundary caught an error:', error, errorInfo);
+    // Log error details for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('AIErrorBoundary caught an error:', error, errorInfo);
+    }
 
     // Call optional error handler
     this.props.onError?.(error, errorInfo);

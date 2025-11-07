@@ -76,7 +76,7 @@ async function getFilesRecursively(dir: string, extensions: string[] = []): Prom
       }
     }
   } catch (error) {
-    logger.error('Error reading directory:', dir, error);
+    logger.error('Error reading directory:', { dir, error });
   }
   
   return files;
@@ -400,7 +400,7 @@ async function scanAndWriteFileWithLLM(filePath: string, fileContent: string, fi
           fileWritten: true
         };
       } catch (writeError) {
-        logger.error(`${logPrefix} file write error: ${filePath} -`, writeError);
+        logger.error(`${logPrefix} file write error: ${filePath}`, { error: writeError });
         
         return {
           ...scanResult,
@@ -482,7 +482,7 @@ async function generateTestScanLog(): Promise<{ message: string; logPath: string
 
   try {
     await fs.writeFile(reportPath, JSON.stringify(reportData, null, 2), 'utf-8');
-    logger.info('API: Comprehensive scan report written to:', reportPath);
+    logger.info('API: Comprehensive scan report written to:', { reportPath });
   } catch (error) {
     logger.error('API: Error writing scan report:', { error });
   }
@@ -534,7 +534,7 @@ async function fixBuildErrorsInFile(
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : response;
       result = JSON.parse(jsonStr);
     } catch (parseError) {
-      logger.error(`${logPrefix} Failed to parse LLM response:`, parseError);
+      logger.error(`${logPrefix} Failed to parse LLM response:`, { error: parseError });
       return {
         hasChanges: false,
         fixedErrors: [],
@@ -565,7 +565,7 @@ async function fixBuildErrorsInFile(
         await fs.writeFile(fullPath, result.updatedCode, 'utf-8');
         logger.info(`${logPrefix} File updated successfully: ${filePath}`);
       } catch (writeError) {
-        logger.error(`${logPrefix} Failed to write file:`, writeError);
+        logger.error(`${logPrefix} Failed to write file:`, { error: writeError });
         // Don't fail the entire operation, just log the error
       }
     }

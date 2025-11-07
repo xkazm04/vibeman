@@ -53,6 +53,7 @@ export interface ColumnConfig {
   gradientVia?: string;
   buttons: ButtonConfig[];
   reserved?: boolean;
+  tooltipDescription?: string; // Short, jargon-free description for hover tooltips
 }
 
 /**
@@ -110,6 +111,18 @@ const SCAN_METADATA: Record<ScanCategory, ScanMetadata> = {
     target: 'ideas',
     description: 'Generate new ideas for project features, improvements, or enhancements using AI analysis of the codebase and context.',
   },
+  prototype: {
+    icon: Code,
+    color: 'green',
+    eventTitle: 'Prototype Scan Completed',
+    description: 'Rapidly build and test feature prototypes before full implementation.',
+  },
+  contribute: {
+    icon: Sparkles,
+    color: 'green',
+    eventTitle: 'Contribution Scan Completed',
+    description: 'Analyze and contribute new features to the codebase.',
+  },
   fix: {
     icon: Bug,
     color: 'red',
@@ -140,6 +153,7 @@ interface ColumnLayout {
   gradientFrom: string;
   gradientVia?: string;
   categories: ScanCategory[];
+  tooltipDescription?: string; // Short, jargon-free description for hover tooltips
 }
 
 /**
@@ -152,6 +166,7 @@ const DEFAULT_COLUMN_LAYOUT: ColumnLayout[] = [
     color: 'cyan',
     gradientFrom: 'cyan-500/50',
     categories: ['vision', 'contexts'],
+    tooltipDescription: 'Project: Define your project vision and organize code into logical contexts',
   },
   {
     id: 'backlog',
@@ -160,6 +175,7 @@ const DEFAULT_COLUMN_LAYOUT: ColumnLayout[] = [
     gradientFrom: 'blue-500/50',
     gradientVia: 'blue-500/30',
     categories: ['structure', 'build', 'dependencies'],
+    tooltipDescription: 'Backlog: Analyze structure, manage dependencies, and batch-execute requirements',
   },
   {
     id: 'code',
@@ -168,6 +184,7 @@ const DEFAULT_COLUMN_LAYOUT: ColumnLayout[] = [
     gradientFrom: 'green-500/50',
     gradientVia: 'green-500/30',
     categories: ['prototype', 'contribute', 'fix'],
+    tooltipDescription: 'Code: Build prototypes, contribute features, and fix issues',
   },
   {
     id: 'test',
@@ -176,6 +193,7 @@ const DEFAULT_COLUMN_LAYOUT: ColumnLayout[] = [
     gradientFrom: 'pink-500/50',
     gradientVia: 'pink-500/30',
     categories: ['photo', 'custom'],
+    tooltipDescription: 'Test: Capture screenshots and run custom testing scans',
   },
 ];
 
@@ -237,6 +255,7 @@ export class ScanBuilder {
       gradientFrom: layout.gradientFrom,
       gradientVia: layout.gradientVia,
       buttons,
+      tooltipDescription: layout.tooltipDescription,
     };
   }
 

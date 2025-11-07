@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventRepository } from '@/app/db/repositories/event.repository';
+import { extractProjectId, createErrorResponse } from '../utils';
 
 /**
  * GET /api/blueprint/events/by-context
@@ -16,19 +17,10 @@ import { eventRepository } from '@/app/db/repositories/event.repository';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
+    const { projectId, error: projectError } = extractProjectId(request);
+    if (projectError) return projectError;
+
     const eventTitle = searchParams.get('eventTitle');
-
-    if (!projectId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Missing projectId parameter'
-        },
-        { status: 400 }
-      );
-    }
-
     if (!eventTitle) {
       return NextResponse.json(
         {
@@ -40,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all events with this title pattern for this project
-    const allEvents = eventRepository.getEventsByTitlePattern(projectId, eventTitle);
+    const allEvents = eventRepository.getEventsByTitlePattern(projectId!, eventTitle);
 
     // Group events by context_id and get the most recent one for each context
     const eventsByContext: Record<string, any> = {};
@@ -68,13 +60,6 @@ export async function GET(request: NextRequest) {
       events
     });
   } catch (error) {
-    console.error('[Blueprint Events By Context API] Error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error);
   }
 }

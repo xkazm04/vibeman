@@ -36,15 +36,17 @@ export default function TreeFooter({
         <div className="flex items-center space-x-2">
           {selectedNodesCount > 0 && (
             <button
+              data-testid="tree-clear-selection-button"
               onClick={onClearSelection}
               className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors px-3 py-1 bg-cyan-500/10 rounded-md hover:bg-cyan-500/20"
             >
               Clear selection
             </button>
           )}
-          
+
           {highlightedNodesCount > 0 && (
             <button
+              data-testid="tree-clear-highlights-button"
               onClick={onClearHighlights}
               className="text-sm text-orange-400 hover:text-orange-300 transition-colors px-3 py-1 bg-orange-500/10 rounded-md hover:bg-orange-500/20"
             >

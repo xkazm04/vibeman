@@ -62,6 +62,7 @@ export default function TreeSuggestionsDropdown({
       <AnimatePresence>
         {showSuggestions && suggestions.length > 0 && (
           <motion.div
+            data-testid="tree-suggestions-dropdown"
             {...dropdownAnimation}
             className="absolute top-full left-0 right-0 z-50 mt-2 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl overflow-hidden"
           >
@@ -73,6 +74,7 @@ export default function TreeSuggestionsDropdown({
               {suggestions.map((suggestion, index) => (
                 <motion.button
                   key={suggestion.node.id}
+                  data-testid={`tree-suggestion-item-${index}`}
                   {...itemAnimation(index)}
                   onClick={() => onSuggestionClick(suggestion)}
                   className="w-full flex items-center space-x-3 px-2 py-2 rounded-md hover:bg-gray-700/50 transition-colors text-left group"
@@ -130,6 +132,7 @@ export default function TreeSuggestionsDropdown({
               No results found for &quot;{searchTerm}&quot;
             </div>
             <button
+              data-testid="tree-no-results-clear-button"
               onClick={onClear}
               className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors mt-2"
             >

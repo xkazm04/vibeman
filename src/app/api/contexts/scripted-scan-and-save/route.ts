@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
 
     // Step 1: Run scripted scan
-    console.log('[Scan & Save] Step 1: Running scripted scan...');
     const scanResponse = await fetch(`${origin}/api/contexts/scripted`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -99,20 +98,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`[Scan & Save] Found ${scanData.contexts.length} contexts to process`);
-
     // Step 2 & 3: For each context, generate metadata and save
     for (let i = 0; i < scanData.contexts.length; i++) {
       const context = scanData.contexts[i];
       const allFiles = [context.parentFile, ...context.dependencies];
 
-      console.log(
-        `[Scan & Save] Processing context ${i + 1}/${scanData.contexts.length}: ${context.parentFile}`
-      );
-
       try {
         // Generate metadata via LLM
-        console.log('[Scan & Save]   - Generating metadata...');
         const metadataResponse = await fetch(`${origin}/api/contexts/generate-metadata`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -140,10 +132,7 @@ export async function POST(request: NextRequest) {
 
         const { title, description, groupId } = metadataData.metadata;
 
-        console.log(`[Scan & Save]   - Metadata: "${title}"`);
-
         // Save context to database
-        console.log('[Scan & Save]   - Saving to database...');
         const savedContext = await contextQueries.createContext({
           projectId,
           groupId: groupId || undefined,
@@ -159,13 +148,10 @@ export async function POST(request: NextRequest) {
           groupId: groupId,
           groupName: metadataData.metadata.groupName,
         });
-
-        console.log(`[Scan & Save]   ✓ Saved context: ${title} (${allFiles.length} files)`);
       } catch (error) {
         const errorMsg =
           error instanceof Error ? error.message : 'Unknown error';
         errors.push(`Failed to process ${context.parentFile}: ${errorMsg}`);
-        console.error(`[Scan & Save]   ✗ Error processing context:`, error);
       }
     }
 
@@ -183,7 +169,6 @@ export async function POST(request: NextRequest) {
       message: `Successfully saved ${savedContexts.length} of ${scanData.contexts.length} contexts`,
     });
   } catch (error) {
-    console.error('Scripted scan and save error:', error);
     return NextResponse.json(
       {
         success: false,

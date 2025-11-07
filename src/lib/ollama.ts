@@ -222,9 +222,6 @@ export class OllamaClient {
       });
       return response.ok;
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Ollama availability check failed:', error);
-      }
       return false;
     }
   }
@@ -242,9 +239,6 @@ export class OllamaClient {
       const data = await response.json();
       return data.models?.map((model: { name: string }) => model.name) || [];
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to get available models:', error);
-      }
       return [];
     }
   }
@@ -309,9 +303,6 @@ export class OllamaClient {
         });
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to log event:', error);
-      }
       // Don't throw - logging failures shouldn't break the main flow
     }
   }

@@ -27,66 +27,58 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
     loadFolderStructure();
   }, [activeProject]);
 
+  const fetchFolderData = async () => {
+    const params = new URLSearchParams();
+    if (activeProject?.path) {
+      params.set('projectPath', activeProject.path);
+    }
+
+    const response = await fetch(`/api/kiro/folder-structure?${params}`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to load folder structure: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to load folder structure');
+    }
+
+    return result.structure || [];
+  };
+
+  const ensureContextFolder = (structure: FolderNode[]): FolderNode[] => {
+    const hasContextFolder = structure.some((node: FolderNode) => node.name === 'context');
+
+    if (!hasContextFolder) {
+      return [{
+        name: 'context',
+        path: 'context',
+        type: 'folder'
+      }, ...structure];
+    }
+
+    return structure;
+  };
+
+  const getFallbackStructure = (): FolderNode[] => {
+    return [
+      { name: 'context', path: 'context', type: 'folder' },
+      { name: 'src', path: 'src', type: 'folder' },
+      { name: 'docs', path: 'docs', type: 'folder' },
+      { name: 'public', path: 'public', type: 'folder' }
+    ];
+  };
+
   const loadFolderStructure = async () => {
     try {
-      // Build the API URL with the active project's path
-      const params = new URLSearchParams();
-      if (activeProject?.path) {
-        params.set('projectPath', activeProject.path);
-      }
-      
-      const response = await fetch(`/api/kiro/folder-structure?${params}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load folder structure: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load folder structure');
-      }
-      
-      // Add a default 'context' folder if it doesn't exist
-      const structure = result.structure || [];
-      const hasContextFolder = structure.some((node: FolderNode) => node.name === 'context');
-      
-      if (!hasContextFolder) {
-        structure.unshift({
-          name: 'context',
-          path: 'context',
-          type: 'folder'
-        });
-      }
-      
-      setFolderTree(structure);
-      setLoading(false);
+      const structure = await fetchFolderData();
+      const structureWithContext = ensureContextFolder(structure);
+      setFolderTree(structureWithContext);
     } catch (error) {
-      // Fallback to a basic structure with context folder
-      const fallbackStructure: FolderNode[] = [
-        {
-          name: 'context',
-          path: 'context',
-          type: 'folder'
-        },
-        {
-          name: 'src',
-          path: 'src',
-          type: 'folder'
-        },
-        {
-          name: 'docs',
-          path: 'docs',
-          type: 'folder'
-        },
-        {
-          name: 'public',
-          path: 'public',
-          type: 'folder'
-        }
-      ];
-      
-      setFolderTree(fallbackStructure);
+      setFolderTree(getFallbackStructure());
+    } finally {
       setLoading(false);
     }
   };

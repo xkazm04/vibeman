@@ -132,6 +132,7 @@ export default function TreeNode({
   return (
     <div className="select-none">
       <motion.div
+        data-testid={`tree-node-${node.id}`}
         whileHover={{ backgroundColor: 'rgba(55, 65, 81, 0.2)' }}
         className={`
           group flex items-center my-[0.5px] py-2 relative px-2 rounded-sm cursor-pointer transition-all duration-200
@@ -145,11 +146,12 @@ export default function TreeNode({
         {/* Chevron for folders */}
         {hasChildren ? (
           <motion.div
+            data-testid={`tree-node-chevron-${node.id}`}
             whileHover={{ scale: 1.1 }}
             onClick={handleChevronClick}
             className="flex items-center justify-center w-4 h-4 mr-1 hover:bg-gray-600/50 rounded-sm"
           >
-            <ChevronRight 
+            <ChevronRight
               className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
             />
           </motion.div>
@@ -160,11 +162,14 @@ export default function TreeNode({
         {/* Checkbox for file selection mode */}
         {showCheckboxes && (
           <div className="flex items-center mr-2">
-            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 ${
-              isSelected 
-                ? 'bg-cyan-500 border-cyan-500' 
-                : 'border-gray-500 hover:border-gray-400'
-            }`}>
+            <div
+              data-testid={`tree-node-checkbox-${node.id}`}
+              className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                isSelected
+                  ? 'bg-cyan-500 border-cyan-500'
+                  : 'border-gray-500 hover:border-gray-400'
+              }`}
+            >
               {isSelected && <Check className="w-3 h-3 text-white" />}
             </div>
           </div>

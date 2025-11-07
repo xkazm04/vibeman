@@ -25,6 +25,7 @@ export interface StepperProps {
     progress: number;
     hasError: boolean;
   };
+  isRecommended?: (techniqueId: string) => boolean; // Check if scan is recommended by Annette AI
   className?: string;
 }
 
@@ -42,6 +43,7 @@ export default function Stepper({
   onNavigate,
   getDaysAgo,
   getScanStatus,
+  isRecommended,
   className = '',
 }: StepperProps) {
   // Get enabled groups only
@@ -64,6 +66,7 @@ export default function Stepper({
           onNavigate={onNavigate}
           getDaysAgo={getDaysAgo}
           getScanStatus={getScanStatus}
+          isRecommended={isRecommended}
         />
       ))}
     </div>
@@ -82,6 +85,7 @@ interface StepperColumnProps {
     progress: number;
     hasError: boolean;
   };
+  isRecommended?: (techniqueId: string) => boolean; // Check if scan is recommended by Annette AI
 }
 
 /**
@@ -95,7 +99,19 @@ function StepperColumn({
   onNavigate,
   getDaysAgo,
   getScanStatus,
+  isRecommended,
 }: StepperColumnProps) {
+  // Log technique recommendations for debugging
+  React.useEffect(() => {
+    if (isRecommended) {
+      group.techniques.forEach(technique => {
+        if (isRecommended(technique.id)) {
+          console.log(`[StepperColumn] ${technique.label} (${technique.id}) is recommended`);
+        }
+      });
+    }
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, x: delay < 0.6 ? -20 : delay < 0.7 ? -10 : 10 }}
@@ -124,6 +140,7 @@ function StepperColumn({
         {group.techniques.map((technique, index) => {
           const status = getScanStatus?.(technique.id);
           const daysAgo = getDaysAgo?.(technique.id);
+          const recommended = isRecommended?.(technique.id) ?? false;
 
           return (
             <motion.div
@@ -148,6 +165,7 @@ function StepperColumn({
                 redirectMode={false}
                 showProgress={false}
                 progressText=""
+                recommended={recommended}
               />
             </motion.div>
           );

@@ -55,7 +55,7 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
     const {
       projectId,
       projectPath,
-      provider = 'gemini',
+      provider = 'ollama',
       model,
       scanDepth = 'standard',
       includeSources = ['repository', 'tech_debt', 'ideas'],

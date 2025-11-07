@@ -34,6 +34,7 @@ function ProjectSelector({
   return (
     <div className="relative project-selector">
       <button
+        data-testid="tree-project-selector-toggle"
         onClick={onProjectSelectorToggle}
         className="flex items-center space-x-1 text-sm text-gray-400 font-mono hover:text-gray-300 transition-colors"
       >
@@ -41,10 +42,11 @@ function ProjectSelector({
         <ChevronDown className="w-3 h-3" />
       </button>
       {showProjectSelector && (
-        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 min-w-[200px]">
+        <div data-testid="tree-project-selector-dropdown" className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 min-w-[200px]">
           {allProjects.map((project, index) => (
             <button
               key={project.id || `project-${index}`}
+              data-testid={`tree-project-option-${project.id}`}
               onClick={() => onProjectSelect(project.id)}
               className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ${
                 activeProject.id === project.id ? 'bg-gray-700 text-cyan-400' : 'text-gray-300'
@@ -110,6 +112,7 @@ function StatsDisplay({
         </>
       )}
       <button
+        data-testid="tree-refresh-button"
         onClick={onRefresh}
         disabled={isLoading}
         className="p-1 hover:bg-gray-700/50 rounded-sm transition-colors disabled:opacity-50"

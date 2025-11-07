@@ -47,10 +47,10 @@ export async function GET(
     const projectDependencies = projectDependencyDb.getDependenciesByScan(scanId);
 
     // Group dependencies by project
-    const dependenciesByProject = projectIds.reduce((acc: any, projectId: string) => {
+    const dependenciesByProject = projectIds.reduce((acc: Record<string, typeof projectDependencies>, projectId: string) => {
       acc[projectId] = projectDependencies.filter(d => d.project_id === projectId);
       return acc;
-    }, {});
+    }, {} as Record<string, typeof projectDependencies>);
 
     // Get shared dependencies
     const sharedDependencies = sharedDependencyDb.getSharedDependenciesByScan(scanId);
@@ -88,7 +88,6 @@ export async function GET(
       registryVersions
     });
   } catch (error) {
-    console.error('Error fetching scan details:', error);
     return NextResponse.json(
       { error: 'Failed to fetch scan details', details: (error as Error).message },
       { status: 500 }
@@ -120,7 +119,6 @@ export async function DELETE(
       message: 'Scan deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting scan:', error);
     return NextResponse.json(
       { error: 'Failed to delete scan', details: (error as Error).message },
       { status: 500 }

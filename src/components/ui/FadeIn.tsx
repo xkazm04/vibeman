@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, type HTMLMotionProps } from 'framer-motion';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 interface FadeInProps extends Omit<HTMLMotionProps<'div'>, 'initial' | 'animate' | 'exit'> {
   children: ReactNode;
@@ -22,6 +22,9 @@ interface FadeInProps extends Omit<HTMLMotionProps<'div'>, 'initial' | 'animate'
    */
   className?: string;
 }
+
+// Smooth easing curve constant
+const SMOOTH_EASING = [0.22, 1, 0.36, 1] as const;
 
 /**
  * FadeIn Component
@@ -57,7 +60,7 @@ export function FadeIn({
       transition={{
         duration,
         delay,
-        ease: [0.22, 1, 0.36, 1], // Smooth easing curve
+        ease: SMOOTH_EASING,
       }}
       className={className}
       {...motionProps}

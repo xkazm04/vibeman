@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processManager } from '@/lib/processManager';
 import { GitManager } from '@/lib/gitManager';
-
-/**
- * Helper to create failure response
- */
-function failureResponse(message: string, status: number) {
-  return NextResponse.json({ success: false, message }, { status });
-}
+import { failureResponse } from '../utils';
 
 /**
  * Validate project can be pulled

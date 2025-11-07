@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -17,14 +17,10 @@ import { HorizontalContextBar } from './features/Context';
 import GoalsLayout from './features/Goals/GoalsLayout';
 
 export default function Home() {
-  const [shouldFreezeComponents, setShouldFreezeComponents] = useState(false);
+  const [shouldFreezeComponents] = useState(false);
   const { activeModule } = useOnboardingStore();
   const { activeProject } = useActiveProjectStore();
   const { selectedProjectId } = useUnifiedProjectStore();
-
-  const handleFreezeStateChange = (shouldFreeze: boolean) => {
-    setShouldFreezeComponents(shouldFreeze);
-  };
 
   // Smooth transition variants for module and project switching
   const moduleVariants = {

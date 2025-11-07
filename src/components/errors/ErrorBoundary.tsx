@@ -12,21 +12,64 @@ interface ErrorActionButtonProps {
   variant?: 'primary' | 'secondary';
 }
 
-function ErrorActionButton({ onClick, icon: Icon, label, variant = 'secondary' }: ErrorActionButtonProps) {
-  const className = variant === 'primary'
-    ? 'flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-lg font-medium transition-all shadow-lg'
-    : 'flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all';
+const ERROR_BUTTON_STYLES = {
+  primary: 'flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-lg font-medium transition-all shadow-lg',
+  secondary: 'flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all'
+};
 
+function ErrorActionButton({ onClick, icon: Icon, label, variant = 'secondary' }: ErrorActionButtonProps) {
   return (
     <motion.button
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className={className}
+      className={ERROR_BUTTON_STYLES[variant]}
+      data-testid={`error-action-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <Icon className="w-4 h-4" />
       {label}
     </motion.button>
+  );
+}
+
+// Recovery actions panel component
+interface RecoveryActionsPanelProps {
+  error: ClassifiedError;
+  onAction: (action: RecoveryAction) => void;
+}
+
+function RecoveryActionsPanel({ error, onAction }: RecoveryActionsPanelProps) {
+  const hasRetryAction = error.recoveryActions.includes(RecoveryAction.RETRY) ||
+    error.recoveryActions.includes(RecoveryAction.RETRY_WITH_BACKOFF) ||
+    error.recoveryActions.includes(RecoveryAction.REFRESH);
+
+  const hasSupportAction = error.recoveryActions.includes(RecoveryAction.CONTACT_SUPPORT);
+
+  return (
+    <div className="flex flex-wrap gap-3 justify-center">
+      {hasRetryAction && (
+        <ErrorActionButton
+          onClick={() => onAction(RecoveryAction.RETRY)}
+          icon={RefreshCw}
+          label="Try Again"
+          variant="primary"
+        />
+      )}
+
+      <ErrorActionButton
+        onClick={() => window.location.href = '/'}
+        icon={Home}
+        label="Go Home"
+      />
+
+      {hasSupportAction && (
+        <ErrorActionButton
+          onClick={() => onAction(RecoveryAction.CONTACT_SUPPORT)}
+          icon={AlertTriangle}
+          label="Contact Support"
+        />
+      )}
+    </div>
   );
 }
 
@@ -181,32 +224,10 @@ function DefaultErrorFallback({ error, onReset }: DefaultErrorFallbackProps) {
           )}
 
           {/* Recovery Actions */}
-          <div className="flex flex-wrap gap-3 justify-center">
-            {(error.recoveryActions.includes(RecoveryAction.RETRY) ||
-              error.recoveryActions.includes(RecoveryAction.RETRY_WITH_BACKOFF) ||
-              error.recoveryActions.includes(RecoveryAction.REFRESH)) && (
-              <ErrorActionButton
-                onClick={() => handleAction(RecoveryAction.RETRY)}
-                icon={RefreshCw}
-                label="Try Again"
-                variant="primary"
-              />
-            )}
-
-            <ErrorActionButton
-              onClick={() => window.location.href = '/'}
-              icon={Home}
-              label="Go Home"
-            />
-
-            {error.recoveryActions.includes(RecoveryAction.CONTACT_SUPPORT) && (
-              <ErrorActionButton
-                onClick={() => handleAction(RecoveryAction.CONTACT_SUPPORT)}
-                icon={AlertTriangle}
-                label="Contact Support"
-              />
-            )}
-          </div>
+          <RecoveryActionsPanel
+            error={error}
+            onAction={handleAction}
+          />
 
           {/* Retry Information */}
           {error.isTransient && (

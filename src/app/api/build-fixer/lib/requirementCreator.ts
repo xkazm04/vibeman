@@ -5,6 +5,21 @@
 
 import { ErrorGroup, formatErrorGroup, generateRequirementName } from './buildScanner';
 
+// Logger utility
+const logger = {
+  info: (message: string, data?: unknown) => {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log(`[RequirementCreator] ${message}`, data || '');
+    }
+  },
+  error: (message: string, error?: unknown) => {
+    const errorMsg = error instanceof Error ? error.message : error;
+    // eslint-disable-next-line no-console
+    console.error(`[RequirementCreator] ${message}`, errorMsg || '');
+  }
+};
+
 /**
  * Create a Claude Code requirement file using the official claudeCodeManager
  */
@@ -44,12 +59,12 @@ export async function createRequirementFiles(
     if (result.success) {
       requirementFiles.push(requirementName);
       const uniqueFiles = [...new Set(group.errors.map(e => e.file))];
-      console.log(
-        `[RequirementCreator] Created: ${requirementName} (${group.errors.length} errors across ${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''})`
+      logger.info(
+        `Created: ${requirementName} (${group.errors.length} errors across ${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''})`
       );
     } else {
       errors.push(`Failed to create ${requirementName}: ${result.error}`);
-      console.error('[RequirementCreator] Failed to create requirement:', result.error);
+      logger.error('Failed to create requirement:', result.error);
     }
   }
 

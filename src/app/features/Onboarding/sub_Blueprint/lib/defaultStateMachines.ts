@@ -13,8 +13,14 @@ import {
   Bug,
   Camera,
   Target,
+  type LucideIcon,
 } from 'lucide-react';
-import type { StateMachineConfig, TechniqueGroupDefinition } from './stateMachineTypes';
+import type {
+  StateMachineConfig,
+  TechniqueGroupDefinition,
+  StateMachineState,
+  StateMachineTransition,
+} from './stateMachineTypes';
 import * as structureScan from './blueprintStructureScan';
 import * as photoScan from './blueprintPhotoScan';
 import * as visionScan from './blueprintVisionScan';
@@ -22,6 +28,76 @@ import * as contextsScan from './blueprintContextsScan';
 import * as buildScan from './blueprintBuildScan';
 import * as selectorsScan from './blueprintSelectorsScan';
 import * as unusedScan from './blueprintUnusedScan';
+
+/**
+ * Helper type for state creation
+ */
+type StateConfig = Partial<StateMachineState> & {
+  id: string;
+  label: string;
+  description: string;
+};
+
+/**
+ * Create a scan state with common defaults
+ */
+function createScanState(config: StateConfig): StateMachineState {
+  return {
+    type: 'scan',
+    enabled: true,
+    color: 'blue',
+    icon: Box,
+    group: 'code-analysis',
+    ...config,
+  } as StateMachineState;
+}
+
+/**
+ * Create a navigate state with common defaults
+ */
+function createNavigateState(config: StateConfig): StateMachineState {
+  return {
+    type: 'navigate',
+    enabled: false,
+    group: 'automation',
+    navigationTarget: 'tasker',
+    estimatedTime: '1 min',
+    ...config,
+  } as StateMachineState;
+}
+
+/**
+ * Create a completion state
+ */
+function createCompletionState(order: number = 99): StateMachineState {
+  return {
+    id: 'completed',
+    label: 'Completed',
+    description: 'Onboarding completed successfully',
+    icon: Sparkles,
+    color: 'green',
+    type: 'completion',
+    group: 'custom',
+    enabled: true,
+    order,
+  };
+}
+
+/**
+ * Create a linear transition chain
+ */
+function createLinearTransitions(stateIds: string[]): StateMachineTransition[] {
+  const transitions: StateMachineTransition[] = [];
+  for (let i = 0; i < stateIds.length - 1; i++) {
+    transitions.push({
+      id: `t${transitions.length + 1}`,
+      fromState: stateIds[i],
+      toState: stateIds[i + 1],
+      condition: 'always',
+    });
+  }
+  return transitions;
+}
 
 /**
  * Technique group definitions
@@ -81,15 +157,13 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
 
   states: [
     // Project Structure Group
-    {
+    createScanState({
       id: 'vision',
       label: 'Vision',
       description: 'Define project vision and goals',
       icon: Eye,
       color: 'cyan',
-      type: 'scan',
       group: 'project-structure',
-      enabled: true,
       order: 1,
       eventTitle: 'Vision Scan Completed',
       estimatedTime: '2-3 min',
@@ -98,16 +172,14 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         execute: visionScan.executeVisionScan,
         buildDecision: visionScan.buildDecisionData,
       },
-    },
-    {
+    }),
+    createScanState({
       id: 'contexts',
       label: 'Contexts',
       description: 'Identify and document code contexts',
       icon: Layers,
       color: 'blue',
-      type: 'scan',
       group: 'project-structure',
-      enabled: true,
       order: 2,
       eventTitle: 'Contexts Scan Completed',
       estimatedTime: '3-5 min',
@@ -116,18 +188,16 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         execute: contextsScan.executeContextsScan,
         buildDecision: contextsScan.buildDecisionData,
       },
-    },
+    }),
 
     // Code Analysis Group
-    {
+    createScanState({
       id: 'structure',
       label: 'Structure',
       description: 'Analyze project structure and architecture',
       icon: Box,
       color: 'blue',
-      type: 'scan',
       group: 'code-analysis',
-      enabled: true,
       order: 3,
       eventTitle: 'Structure Scan Completed',
       estimatedTime: '2-4 min',
@@ -135,16 +205,14 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         execute: structureScan.executeStructureScan,
         buildDecision: structureScan.buildDecisionData,
       },
-    },
-    {
+    }),
+    createScanState({
       id: 'build',
       label: 'Build',
       description: 'Check build configuration and dependencies',
       icon: Hammer,
       color: 'indigo',
-      type: 'scan',
       group: 'code-analysis',
-      enabled: true,
       order: 4,
       eventTitle: 'Build Scan Completed',
       estimatedTime: '1-2 min',
@@ -152,16 +220,14 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         execute: buildScan.executeBuildScan,
         buildDecision: buildScan.buildDecisionData,
       },
-    },
-    {
+    }),
+    createScanState({
       id: 'unused',
       label: 'Unused',
       description: 'Find unused code and dependencies',
       icon: Trash2,
       color: 'red',
-      type: 'scan',
       group: 'code-analysis',
-      enabled: true,
       order: 5,
       eventTitle: 'Unused Code Scan Completed',
       estimatedTime: '2-3 min',
@@ -169,18 +235,16 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         execute: unusedScan.executeUnusedScan,
         buildDecision: unusedScan.buildDecisionData,
       },
-    },
+    }),
 
     // Quality Assurance Group
-    {
+    createScanState({
       id: 'photo',
       label: 'Photo',
       description: 'Visual regression testing setup',
       icon: Camera,
       color: 'pink',
-      type: 'scan',
       group: 'quality-assurance',
-      enabled: true,
       order: 6,
       eventTitle: 'Photo Scan Completed',
       contextNeeded: true,
@@ -189,16 +253,14 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         execute: photoScan.executePhotoScan,
         buildDecision: photoScan.buildDecisionData,
       },
-    },
-    {
+    }),
+    createScanState({
       id: 'selectors',
       label: 'Selectors',
       description: 'Validate test selectors and coverage',
       icon: Target,
       color: 'cyan',
-      type: 'scan',
       group: 'quality-assurance',
-      enabled: true,
       order: 7,
       eventTitle: 'Selectors Scan Completed',
       contextNeeded: true,
@@ -210,83 +272,53 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         }),
         buildDecision: selectorsScan.buildDecisionData,
       },
-    },
+    }),
 
     // Automation Group
-    {
+    createNavigateState({
       id: 'prototype',
       label: 'Prototype',
       description: 'Navigate to prototyping tools',
       icon: Sparkles,
       color: 'green',
-      type: 'navigate',
-      group: 'automation',
-      enabled: false,
       order: 8,
-      navigationTarget: 'tasker',
-      estimatedTime: '1 min',
-    },
-    {
+    }),
+    createNavigateState({
       id: 'tasker',
       label: 'Tasker',
       description: 'Navigate to task automation',
       icon: Code,
       color: 'cyan',
-      type: 'navigate',
-      group: 'automation',
-      enabled: false,
       order: 9,
-      navigationTarget: 'tasker',
-      estimatedTime: '1 min',
-    },
-    {
+    }),
+    createNavigateState({
       id: 'fix',
       label: 'Fix',
       description: 'Navigate to bug fixing tools',
       icon: Bug,
       color: 'red',
-      type: 'navigate',
-      group: 'automation',
-      enabled: false,
       order: 10,
-      navigationTarget: 'tasker',
-      estimatedTime: '1 min',
-    },
+    }),
 
     // Completion state
-    {
-      id: 'completed',
-      label: 'Completed',
-      description: 'Onboarding completed successfully',
-      icon: Sparkles,
-      color: 'green',
-      type: 'completion',
-      group: 'custom',
-      enabled: true,
-      order: 99,
-    },
+    createCompletionState(),
   ],
 
   transitions: [
-    // Linear flow through project structure
-    { id: 't1', fromState: 'vision', toState: 'contexts', condition: 'always' },
-    { id: 't2', fromState: 'contexts', toState: 'structure', condition: 'always' },
-
-    // Linear flow through code analysis
-    { id: 't3', fromState: 'structure', toState: 'build', condition: 'always' },
-    { id: 't4', fromState: 'build', toState: 'unused', condition: 'always' },
-
-    // Linear flow through quality assurance
-    { id: 't5', fromState: 'unused', toState: 'photo', condition: 'always' },
-    { id: 't6', fromState: 'photo', toState: 'selectors', condition: 'always' },
-
-    // Optional automation steps
-    { id: 't7', fromState: 'selectors', toState: 'prototype', condition: 'always' },
-    { id: 't8', fromState: 'prototype', toState: 'tasker', condition: 'always' },
-    { id: 't9', fromState: 'tasker', toState: 'fix', condition: 'always' },
-
-    // Completion
-    { id: 't10', fromState: 'fix', toState: 'completed', condition: 'always' },
+    ...createLinearTransitions([
+      'vision',
+      'contexts',
+      'structure',
+      'build',
+      'unused',
+      'photo',
+      'selectors',
+      'prototype',
+      'tasker',
+      'fix',
+      'completed',
+    ]),
+    // Add skip transition from selectors to completed
     { id: 't11', fromState: 'selectors', toState: 'completed', condition: 'skip' },
   ],
 };
@@ -307,15 +339,13 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
 
   states: [
     // Project Structure Group
-    {
+    createScanState({
       id: 'vision',
       label: 'Vision',
       description: 'Define project vision and goals',
       icon: Eye,
       color: 'cyan',
-      type: 'scan',
       group: 'project-structure',
-      enabled: true,
       order: 1,
       eventTitle: 'Vision Scan Completed',
       estimatedTime: '2-3 min',
@@ -324,16 +354,14 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
         execute: visionScan.executeVisionScan,
         buildDecision: visionScan.buildDecisionData,
       },
-    },
-    {
+    }),
+    createScanState({
       id: 'contexts',
       label: 'Contexts',
       description: 'Identify and document code contexts',
       icon: Layers,
       color: 'blue',
-      type: 'scan',
       group: 'project-structure',
-      enabled: true,
       order: 2,
       eventTitle: 'Contexts Scan Completed',
       estimatedTime: '3-5 min',
@@ -342,18 +370,16 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
         execute: contextsScan.executeContextsScan,
         buildDecision: contextsScan.buildDecisionData,
       },
-    },
+    }),
 
     // Code Analysis Group (adjusted for Python)
-    {
+    createScanState({
       id: 'structure',
       label: 'Structure',
       description: 'Analyze project structure and architecture',
       icon: Box,
       color: 'blue',
-      type: 'scan',
       group: 'code-analysis',
-      enabled: true,
       order: 3,
       eventTitle: 'Structure Scan Completed',
       estimatedTime: '2-4 min',
@@ -361,16 +387,14 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
         execute: structureScan.executeStructureScan,
         buildDecision: structureScan.buildDecisionData,
       },
-    },
-    {
+    }),
+    createScanState({
       id: 'build',
       label: 'Dependencies',
       description: 'Check requirements.txt and dependencies',
       icon: Hammer,
       color: 'indigo',
-      type: 'scan',
       group: 'code-analysis',
-      enabled: true,
       order: 4,
       eventTitle: 'Dependencies Scan Completed',
       estimatedTime: '1-2 min',
@@ -378,16 +402,14 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
         execute: buildScan.executeBuildScan,
         buildDecision: buildScan.buildDecisionData,
       },
-    },
-    {
+    }),
+    createScanState({
       id: 'unused',
       label: 'Unused',
       description: 'Find unused code and imports',
       icon: Trash2,
       color: 'red',
-      type: 'scan',
       group: 'code-analysis',
-      enabled: true,
       order: 5,
       eventTitle: 'Unused Code Scan Completed',
       estimatedTime: '2-3 min',
@@ -395,29 +417,13 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
         execute: unusedScan.executeUnusedScan,
         buildDecision: unusedScan.buildDecisionData,
       },
-    },
+    }),
 
     // Completion state
-    {
-      id: 'completed',
-      label: 'Completed',
-      description: 'Onboarding completed successfully',
-      icon: Sparkles,
-      color: 'green',
-      type: 'completion',
-      group: 'custom',
-      enabled: true,
-      order: 99,
-    },
+    createCompletionState(),
   ],
 
-  transitions: [
-    { id: 't1', fromState: 'vision', toState: 'contexts', condition: 'always' },
-    { id: 't2', fromState: 'contexts', toState: 'structure', condition: 'always' },
-    { id: 't3', fromState: 'structure', toState: 'build', condition: 'always' },
-    { id: 't4', fromState: 'build', toState: 'unused', condition: 'always' },
-    { id: 't5', fromState: 'unused', toState: 'completed', condition: 'always' },
-  ],
+  transitions: createLinearTransitions(['vision', 'contexts', 'structure', 'build', 'unused', 'completed']),
 };
 
 /**

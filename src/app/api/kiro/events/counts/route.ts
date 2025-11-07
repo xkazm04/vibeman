@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventDb } from '@/lib/eventDatabase';
+import { createErrorResponse } from '../utils';
 
 /**
  * Extract project ID from request
@@ -7,19 +8,6 @@ import { eventDb } from '@/lib/eventDatabase';
 function extractProjectId(request: NextRequest): string {
   const { searchParams } = new URL(request.url);
   return searchParams.get('projectId') || 'default';
-}
-
-/**
- * Create error response
- */
-function createErrorResponse(error: unknown, message: string) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    },
-    { status: 500 }
-  );
 }
 
 export async function GET(request: NextRequest) {

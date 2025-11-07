@@ -85,6 +85,32 @@ export function getNextState(
 }
 
 /**
+ * Get enabled non-completion states count
+ */
+function getEnabledStepsCount(config: StateMachineConfig): number {
+  return config.states.filter(s => s.enabled && s.type !== 'completion').length;
+}
+
+/**
+ * Calculate progress percentage
+ */
+function calculateProgress(completedCount: number, totalCount: number): number {
+  return Math.round((completedCount / totalCount) * 100);
+}
+
+/**
+ * Determine instance status based on completion and current status
+ */
+function determineStatus(
+  isComplete: boolean,
+  currentStatus: string
+): 'not-started' | 'in-progress' | 'completed' {
+  if (isComplete) return 'completed';
+  if (currentStatus === 'not-started') return 'in-progress';
+  return currentStatus as 'not-started' | 'in-progress' | 'completed';
+}
+
+/**
  * Transition to next state
  */
 export function transitionToState(
@@ -107,19 +133,13 @@ export function transitionToState(
   }
 
   // Calculate progress
-  const enabledSteps = config.states.filter(
-    s => s.enabled && s.type !== 'completion'
-  ).length;
+  const enabledSteps = getEnabledStepsCount(config);
   const completedSteps = instance.completedStates.length;
-  const progress = Math.round((completedSteps / enabledSteps) * 100);
+  const progress = calculateProgress(completedSteps, enabledSteps);
 
   // Check if onboarding is completed
   const isOnboardingComplete = config.completionStates.includes(targetStateId);
-  const status = isOnboardingComplete
-    ? 'completed'
-    : instance.status === 'not-started'
-    ? 'in-progress'
-    : instance.status;
+  const status = determineStatus(isOnboardingComplete, instance.status);
 
   return {
     ...instance,

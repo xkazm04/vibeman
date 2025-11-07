@@ -1,30 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { getKillCommand, getPortCheckCommand } from '../utils';
 
 const execAsync = promisify(exec);
 
 interface KillProcessRequest {
   pid: number;
   port?: number;
-}
-
-/**
- * Get platform-specific kill command
- */
-function getKillCommand(pid: number): string {
-  return process.platform === 'win32'
-    ? `taskkill /PID ${pid} /T /F`
-    : `kill -KILL ${pid}`;
-}
-
-/**
- * Get platform-specific port check command
- */
-function getPortCheckCommand(port: number): string {
-  return process.platform === 'win32'
-    ? `netstat -ano | findstr :${port}`
-    : `lsof -i :${port}`;
 }
 
 /**

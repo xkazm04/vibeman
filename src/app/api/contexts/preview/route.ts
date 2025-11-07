@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updateData: any = {};
+    const updateData: { preview?: string | null; test_scenario?: string | null } = {};
     if (preview !== undefined) {
       updateData.preview = preview || null;
     }
@@ -54,7 +54,6 @@ export async function PATCH(request: NextRequest) {
       data: updatedContext,
     });
   } catch (error) {
-    console.error('Failed to update context preview:', error);
     return NextResponse.json(
       {
         error: 'Failed to update context preview',

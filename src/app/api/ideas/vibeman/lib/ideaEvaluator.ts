@@ -9,6 +9,9 @@ export interface IdeaEvaluationResult {
   error?: string;
 }
 
+/**
+ * Build system prompt for LLM evaluation
+ */
 function buildEvaluationSystemPrompt(): string {
   return `You are an expert project manager AI responsible for selecting the best idea to implement next.
 
@@ -27,10 +30,11 @@ Selection criteria (in order of priority):
 You must respond with ONLY valid JSON in the exact format specified. No additional text or explanation outside the JSON.`;
 }
 
-function buildEvaluationPrompt(ideas: DbIdea[], goals: DbGoal[]): string {
-  const ideasSection = ideas
-    .map(
-      (idea, index) => `
+/**
+ * Format idea for prompt
+ */
+function formatIdea(idea: DbIdea, index: number): string {
+  return `
 ### Idea ${index + 1}: ${idea.title}
 - **ID**: ${idea.id}
 - **Category**: ${idea.category}
@@ -40,22 +44,28 @@ function buildEvaluationPrompt(ideas: DbIdea[], goals: DbGoal[]): string {
 - **Description**: ${idea.description || 'No description'}
 - **Reasoning**: ${idea.reasoning || 'No reasoning provided'}
 - **Scan Type**: ${idea.scan_type}
-`
-    )
-    .join('\n');
+`;
+}
 
-  const goalsSection =
-    goals.length > 0
-      ? goals
-          .map(
-            (goal, index) => `
+/**
+ * Format goal for prompt
+ */
+function formatGoal(goal: DbGoal, index: number): string {
+  return `
 ### Goal ${index + 1}: ${goal.title}
 - **Status**: ${goal.status}
 - **Description**: ${goal.description || 'No description'}
-`
-          )
-          .join('\n')
-      : 'No open goals currently defined for this project.';
+`;
+}
+
+/**
+ * Build the main evaluation prompt
+ */
+function buildEvaluationPrompt(ideas: DbIdea[], goals: DbGoal[]): string {
+  const ideasSection = ideas.map(formatIdea).join('\n');
+  const goalsSection = goals.length > 0
+    ? goals.map(formatGoal).join('\n')
+    : 'No open goals currently defined for this project.';
 
   return `# Project Context
 
@@ -105,6 +115,9 @@ REMEMBER: Copy the FULL ID value from the - **ID**: field above, not "Idea 1" or
 Select the best idea now:`;
 }
 
+/**
+ * Clean JSON from markdown formatting
+ */
 function cleanJsonResponse(response: string): string {
   let cleaned = response.trim();
   if (cleaned.startsWith('```json')) {
@@ -115,12 +128,18 @@ function cleanJsonResponse(response: string): string {
   return cleaned;
 }
 
+/**
+ * Find fallback idea based on effort/impact ratio
+ */
 function findFallbackIdea(ideas: DbIdea[]): DbIdea | undefined {
   return ideas
     .filter(i => i.effort && i.impact)
     .sort((a, b) => (b.impact! / b.effort!) - (a.impact! / a.effort!))[0];
 }
 
+/**
+ * Validate selected idea and provide fallback if needed
+ */
 function validateSelectedIdea(
   evaluation: IdeaEvaluationResult,
   pendingIdeas: DbIdea[]
@@ -148,6 +167,29 @@ function validateSelectedIdea(
   return evaluation;
 }
 
+/**
+ * Call LLM with evaluation prompt
+ */
+async function callLLMForEvaluation(
+  prompt: string,
+  projectId: string
+): Promise<{ success: boolean; response?: string; error?: string }> {
+  const ollama = new OllamaClient({
+    baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+  });
+
+  return await ollama.generate({
+    prompt,
+    systemPrompt: buildEvaluationSystemPrompt(),
+    maxTokens: 2000,
+    temperature: 0.3,
+    projectId,
+  });
+}
+
+/**
+ * Main evaluation function
+ */
 export async function evaluateAndSelectIdea(
   projectId: string,
   projectPath: string
@@ -172,17 +214,7 @@ export async function evaluateAndSelectIdea(
     const prompt = buildEvaluationPrompt(pendingIdeas, openGoals);
 
     // 4. Call Ollama LLM for evaluation
-    const ollama = new OllamaClient({
-      baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-    });
-
-    const response = await ollama.generate({
-      prompt,
-      systemPrompt: buildEvaluationSystemPrompt(),
-      maxTokens: 2000,
-      temperature: 0.3,
-      projectId,
-    });
+    const response = await callLLMForEvaluation(prompt, projectId);
 
     if (!response.success || !response.response) {
       throw new Error(response.error || 'LLM evaluation failed');

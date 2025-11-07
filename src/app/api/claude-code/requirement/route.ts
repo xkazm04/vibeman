@@ -17,8 +17,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[Create Requirement] Creating requirement:', requirementName);
-
     const result = createRequirement(projectPath, requirementName, content, overwrite);
 
     if (!result.success) {
@@ -27,8 +25,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log('[Create Requirement] Successfully created requirement at:', result.filePath);
 
     // Extract just the filename for the response
     const fileName = result.filePath?.split(/[\\/]/).pop() || `${requirementName}.md`;
@@ -40,7 +36,6 @@ export async function POST(request: NextRequest) {
       filePath: result.filePath,
     });
   } catch (error) {
-    console.error('[Create Requirement] Error:', error);
     return NextResponse.json(
       {
         error: 'Failed to create requirement',
@@ -67,8 +62,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    console.log('[Delete Requirement] Deleting requirement:', requirementName);
-
     const result = deleteRequirement(projectPath, requirementName);
 
     if (!result.success) {
@@ -78,14 +71,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    console.log('[Delete Requirement] Successfully deleted requirement');
-
     return NextResponse.json({
       success: true,
       message: 'Requirement deleted successfully',
     });
   } catch (error) {
-    console.error('[Delete Requirement] Error:', error);
     return NextResponse.json(
       {
         error: 'Failed to delete requirement',

@@ -8,6 +8,85 @@ import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useGlobalIdeaStats } from '@/hooks/useGlobalIdeaStats';
 
+// Animation constants
+const PULSE_ANIMATION = {
+  boxShadow: [
+    '0 0 0 0 rgba(59, 130, 246, 0)',
+    '0 0 0 4px rgba(59, 130, 246, 0.1)',
+    '0 0 0 0 rgba(59, 130, 246, 0)'
+  ]
+};
+
+const PULSE_TRANSITION = {
+  scale: { duration: 0.2 },
+  y: { duration: 0.2 },
+  boxShadow: { duration: 1.5, repeat: Infinity }
+};
+
+// Stat badge component
+interface StatBadgeProps {
+  icon: React.ElementType;
+  value: number | string;
+  color: 'blue' | 'green' | 'amber';
+  loading?: boolean;
+}
+
+function StatBadge({ icon: Icon, value, color, loading }: StatBadgeProps) {
+  const colors = {
+    blue: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+    green: 'bg-green-500/10 border-green-500/20 text-green-400',
+    amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+  };
+
+  return (
+    <motion.div
+      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${colors[color]}`}
+      whileHover={{ scale: 1.05 }}
+      animate={{ scale: [1, 1.02, 1] }}
+      transition={{ duration: 0.3 }}
+      key={`${color}-${value}`}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      <motion.span
+        className="text-xs font-mono font-semibold"
+        initial={{ scale: 1.2 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.2 }}
+      >
+        {loading ? '...' : value}
+      </motion.span>
+    </motion.div>
+  );
+}
+
+// Project button component
+interface ProjectButtonProps {
+  projectId: string;
+  projectName: string;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+function ProjectButton({ projectId, projectName, isSelected, onClick }: ProjectButtonProps) {
+  return (
+    <motion.button
+      data-testid={`unified-project-${projectId}`}
+      onClick={onClick}
+      className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+        isSelected
+          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-lg shadow-blue-500/20'
+          : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
+      }`}
+      whileHover={{ scale: 1.05, y: -1 }}
+      whileTap={{ scale: 0.95 }}
+      animate={isSelected ? PULSE_ANIMATION : {}}
+      transition={PULSE_TRANSITION}
+    >
+      {projectName}
+    </motion.button>
+  );
+}
+
 /**
  * UnifiedProjectSelector
  *
@@ -50,121 +129,30 @@ export default function UnifiedProjectSelector() {
             </span>
 
             {/* All Projects Button */}
-            <motion.button
-              data-testid="unified-project-all"
+            <ProjectButton
+              projectId="all"
+              projectName="All Projects"
+              isSelected={selectedProjectId === 'all'}
               onClick={() => handleProjectSelect('all')}
-              className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                selectedProjectId === 'all'
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-lg shadow-blue-500/20'
-                  : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
-              }`}
-              whileHover={{ scale: 1.05, y: -1 }}
-              whileTap={{ scale: 0.95 }}
-              animate={selectedProjectId === 'all' ? {
-                boxShadow: [
-                  '0 0 0 0 rgba(59, 130, 246, 0)',
-                  '0 0 0 4px rgba(59, 130, 246, 0.1)',
-                  '0 0 0 0 rgba(59, 130, 246, 0)'
-                ]
-              } : {}}
-              transition={{
-                scale: { duration: 0.2 },
-                y: { duration: 0.2 },
-                boxShadow: { duration: 1.5, repeat: Infinity }
-              }}
-            >
-              All Projects
-            </motion.button>
+            />
 
             {/* Individual Project Buttons */}
             {projects.map((project) => (
-              <motion.button
+              <ProjectButton
                 key={project.id}
-                data-testid={`unified-project-${project.id}`}
+                projectId={project.id}
+                projectName={project.name}
+                isSelected={selectedProjectId === project.id}
                 onClick={() => handleProjectSelect(project.id)}
-                className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                  selectedProjectId === project.id
-                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-lg shadow-blue-500/20'
-                    : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
-                }`}
-                whileHover={{ scale: 1.05, y: -1 }}
-                whileTap={{ scale: 0.95 }}
-                animate={selectedProjectId === project.id ? {
-                  boxShadow: [
-                    '0 0 0 0 rgba(59, 130, 246, 0)',
-                    '0 0 0 4px rgba(59, 130, 246, 0.1)',
-                    '0 0 0 0 rgba(59, 130, 246, 0)'
-                  ]
-                } : {}}
-                transition={{
-                  scale: { duration: 0.2 },
-                  y: { duration: 0.2 },
-                  boxShadow: { duration: 1.5, repeat: Infinity }
-                }}
-              >
-                {project.name}
-              </motion.button>
+              />
             ))}
           </div>
 
           {/* Right: Idea Stats */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Pending */}
-            <motion.div
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20"
-              whileHover={{ scale: 1.05 }}
-              animate={{ scale: [1, 1.02, 1] }}
-              transition={{ duration: 0.3 }}
-              key={`pending-${stats.pending}`}
-            >
-              <Clock className="w-3.5 h-3.5 text-blue-400" />
-              <motion.span
-                className="text-xs font-mono font-semibold text-blue-400"
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.2 }}
-              >
-                {loading ? '...' : stats.pending}
-              </motion.span>
-            </motion.div>
-
-            {/* Accepted */}
-            <motion.div
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20"
-              whileHover={{ scale: 1.05 }}
-              animate={{ scale: [1, 1.02, 1] }}
-              transition={{ duration: 0.3 }}
-              key={`accepted-${stats.accepted}`}
-            >
-              <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-              <motion.span
-                className="text-xs font-mono font-semibold text-green-400"
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.2 }}
-              >
-                {loading ? '...' : stats.accepted}
-              </motion.span>
-            </motion.div>
-
-            {/* Implemented */}
-            <motion.div
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20"
-              whileHover={{ scale: 1.05 }}
-              animate={{ scale: [1, 1.02, 1] }}
-              transition={{ duration: 0.3 }}
-              key={`implemented-${stats.implemented}`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <motion.span
-                className="text-xs font-mono font-semibold text-amber-400"
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.2 }}
-              >
-                {loading ? '...' : stats.implemented}
-              </motion.span>
-            </motion.div>
+            <StatBadge icon={Clock} value={stats.pending} color="blue" loading={loading} />
+            <StatBadge icon={CheckCircle} value={stats.accepted} color="green" loading={loading} />
+            <StatBadge icon={Sparkles} value={stats.implemented} color="amber" loading={loading} />
           </div>
         </div>
       </div>

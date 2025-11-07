@@ -1,15 +1,6 @@
 import { GitManager } from '@/lib/gitManager';
 import { NextRequest, NextResponse } from 'next/server';
-
-/**
- * Default error status object
- */
-const DEFAULT_ERROR_STATUS = {
-  hasChanges: false,
-  ahead: 0,
-  behind: 0,
-  currentBranch: 'unknown',
-};
+import { DEFAULT_ERROR_STATUS } from '../utils';
 
 export async function POST(request: NextRequest) {
   try {

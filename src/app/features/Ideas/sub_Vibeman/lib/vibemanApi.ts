@@ -25,29 +25,43 @@ export interface VibemanStatusResult {
 }
 
 /**
+ * Generic API caller for Vibeman endpoints
+ * Reduces code duplication across all API methods
+ */
+async function callVibemanApi<T>(
+  action: string,
+  params: Record<string, unknown>,
+  errorMessage: string
+): Promise<T> {
+  const response = await fetch('/api/ideas/vibeman', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action,
+      ...params,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || errorMessage);
+  }
+
+  return await response.json();
+}
+
+/**
  * Evaluate pending ideas and select the best one to implement
  */
 export async function evaluateAndSelectIdea(
   projectId: string,
   projectPath: string
 ): Promise<IdeaEvaluationResult> {
-  const response = await fetch('/api/ideas/vibeman', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectId,
-      projectPath,
-      action: 'evaluate-and-select',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    console.error('[Vibeman API] Evaluate API error:', errorData);
-    throw new Error(errorData.error || 'Failed to evaluate ideas');
-  }
-
-  const result = await response.json();  return result;
+  return callVibemanApi<IdeaEvaluationResult>(
+    'evaluate-and-select',
+    { projectId, projectPath },
+    'Failed to evaluate ideas'
+  );
 }
 
 /**
@@ -56,22 +70,11 @@ export async function evaluateAndSelectIdea(
 export async function getFirstAcceptedIdea(
   projectId: string
 ): Promise<{ ideaId: string | null; idea?: unknown }> {
-  const response = await fetch('/api/ideas/vibeman', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectId,
-      action: 'get-first-accepted',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    console.error('[Vibeman API] Get accepted idea error:', errorData);
-    throw new Error(errorData.error || 'Failed to get accepted idea');
-  }
-
-  const result = await response.json();  return result;
+  return callVibemanApi<{ ideaId: string | null; idea?: unknown }>(
+    'get-first-accepted',
+    { projectId },
+    'Failed to get accepted idea'
+  );
 }
 
 /**
@@ -82,23 +85,11 @@ export async function implementIdea(
   projectPath: string,
   ideaId: string
 ): Promise<ImplementationResult> {
-  const response = await fetch('/api/ideas/vibeman', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectId,
-      projectPath,
-      action: 'implement-idea',
-      ideaId,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to implement idea');
-  }
-
-  const result = await response.json();  return result;
+  return callVibemanApi<ImplementationResult>(
+    'implement-idea',
+    { projectId, projectPath, ideaId },
+    'Failed to implement idea'
+  );
 }
 
 /**
@@ -107,21 +98,11 @@ export async function implementIdea(
 export async function markIdeaAsImplemented(
   ideaId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const response = await fetch('/api/ideas/vibeman', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'mark-implemented',
-      ideaId,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to mark idea as implemented');
-  }
-
-  const result = await response.json();  return result;
+  return callVibemanApi<{ success: boolean; error?: string }>(
+    'mark-implemented',
+    { ideaId },
+    'Failed to mark idea as implemented'
+  );
 }
 
 /**
@@ -130,19 +111,9 @@ export async function markIdeaAsImplemented(
 export async function getAutomationStatus(
   projectId: string
 ): Promise<VibemanStatusResult> {
-  const response = await fetch('/api/ideas/vibeman', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectId,
-      action: 'get-status',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to get automation status');
-  }
-
-  const result = await response.json();  return result;
+  return callVibemanApi<VibemanStatusResult>(
+    'get-status',
+    { projectId },
+    'Failed to get automation status'
+  );
 }

@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const existingParentFiles = new Set(
       existingContexts
         .map(ctx => {
-          const filePaths = Array.isArray(ctx.filePaths) ? ctx.filePaths : JSON.parse((ctx.filePaths as any) || '[]') as string[];
+          const filePaths = Array.isArray(ctx.filePaths) ? ctx.filePaths : JSON.parse((ctx.filePaths as string) || '[]') as string[];
           // Consider the first file in the context as the "parent"
           return filePaths[0];
         })
@@ -106,8 +106,6 @@ export async function POST(request: NextRequest) {
 
     // Process each context rule
     for (const rule of contextRules) {
-      console.log(`\n[Scripted Scan] Processing rule: ${rule.pattern}`);
-
       // Find matching files using glob
       const matchingFiles = await glob(rule.pattern, {
         cwd: projectPath,
@@ -117,8 +115,6 @@ export async function POST(request: NextRequest) {
         ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.next/**'],
       }) as string[];
 
-      console.log(`[Scripted Scan] Found ${matchingFiles.length} files matching pattern`);
-
       // For each matching file, gather dependencies
       for (const relativeFilePath of matchingFiles) {
         const absoluteFilePath = path.join(projectPath, relativeFilePath);
@@ -126,12 +122,9 @@ export async function POST(request: NextRequest) {
 
         // Check if this file is already in an existing context
         if (existingParentFiles.has(normalizedRelativePath)) {
-          console.log(`[Scripted Scan] Skipping ${normalizedRelativePath} (already exists in a context)`);
           skippedDuplicates++;
           continue;
         }
-
-        console.log(`[Scripted Scan] Analyzing dependencies for: ${normalizedRelativePath}`);
 
         // Call file-dependencies API to gather children
         try {
@@ -149,7 +142,6 @@ export async function POST(request: NextRequest) {
           );
 
           if (!dependencyResponse.ok) {
-            console.warn(`Failed to analyze dependencies for ${normalizedRelativePath}`);
             continue;
           }
 
@@ -158,23 +150,18 @@ export async function POST(request: NextRequest) {
           if (dependencyData.success && dependencyData.dependencies) {
             const allFiles = [
               normalizedRelativePath, // Parent file
-              ...dependencyData.dependencies.map((dep: any) => dep.relativePath),
+              ...dependencyData.dependencies.map((dep: { relativePath: string }) => dep.relativePath),
             ];
 
             discoveredContexts.push({
               parentFile: normalizedRelativePath,
-              dependencies: dependencyData.dependencies.map((dep: any) => dep.relativePath),
+              dependencies: dependencyData.dependencies.map((dep: { relativePath: string }) => dep.relativePath),
               totalFiles: allFiles.length,
             });
 
             totalFilesCount += allFiles.length;
-
-            console.log(
-              `[Scripted Scan] ✓ Context found: ${normalizedRelativePath} (${allFiles.length} files)`
-            );
           }
         } catch (error) {
-          console.error(`Error analyzing ${normalizedRelativePath}:`, error);
           continue;
         }
       }
@@ -195,7 +182,6 @@ export async function POST(request: NextRequest) {
         : 'Scripted scan complete. Ready for LLM metadata generation.',
     });
   } catch (error) {
-    console.error('Scripted scan API error:', error);
     return NextResponse.json(
       {
         success: false,

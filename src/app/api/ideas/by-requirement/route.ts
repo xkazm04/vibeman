@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ idea });
   } catch (error) {
-    console.error('Error fetching idea by requirement:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch idea' },
       { status: 500 }

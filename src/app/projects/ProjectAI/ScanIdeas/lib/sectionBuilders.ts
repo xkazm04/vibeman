@@ -6,6 +6,16 @@
 import { DbIdea, DbContext, DbGoal } from '@/app/db';
 
 /**
+ * Truncate long descriptions to save tokens
+ */
+function truncateDescription(description: string, maxLength: number = 150): string {
+  if (description.length <= maxLength) {
+    return description;
+  }
+  return description.slice(0, maxLength) + '...';
+}
+
+/**
  * Build the context information section
  */
 export function buildContextSection(context: DbContext | null): string {
@@ -31,7 +41,7 @@ export function buildContextSection(context: DbContext | null): string {
         section += '\n';
       }
     } catch (error) {
-      console.error('Error parsing file paths:', error);
+      // Silently handle JSON parsing errors - file paths may be malformed
     }
   }
 
@@ -65,11 +75,7 @@ export function buildExistingIdeasSection(existingIdeas: DbIdea[]): string {
     pending.forEach((idea, index) => {
       section += `${index + 1}. **${idea.title}** (${idea.category})\n`;
       if (idea.description) {
-        // Truncate long descriptions to save tokens
-        const shortDesc = idea.description.length > 150
-          ? idea.description.slice(0, 150) + '...'
-          : idea.description;
-        section += `   - ${shortDesc}\n`;
+        section += `   - ${truncateDescription(idea.description)}\n`;
       }
     });
     section += '\n';
@@ -80,10 +86,7 @@ export function buildExistingIdeasSection(existingIdeas: DbIdea[]): string {
     accepted.forEach((idea, index) => {
       section += `${index + 1}. **${idea.title}** (${idea.category})\n`;
       if (idea.description) {
-        const shortDesc = idea.description.length > 150
-          ? idea.description.slice(0, 150) + '...'
-          : idea.description;
-        section += `   - ${shortDesc}\n`;
+        section += `   - ${truncateDescription(idea.description)}\n`;
       }
     });
     section += '\n';

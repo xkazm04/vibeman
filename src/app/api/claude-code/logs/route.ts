@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
       path: logFilePath,
     });
   } catch (error) {
-    console.error('Error reading log file:', error);
     return NextResponse.json(
       {
         error: 'Failed to read log file',
@@ -100,7 +99,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ logs: logFiles });
   } catch (error) {
-    console.error('Error listing log files:', error);
     return NextResponse.json(
       {
         error: 'Failed to list log files',

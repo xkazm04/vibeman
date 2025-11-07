@@ -14,6 +14,29 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+// Logger utility to replace console statements
+const logger = {
+  warn: (message: string, error?: unknown) => {
+    // In production, this could be replaced with proper logging service
+    if (process.env.NODE_ENV !== 'production') {
+      const errorMsg = error instanceof Error ? error.message : error;
+      // eslint-disable-next-line no-console
+      console.warn(`[StructuralScan] ${message}`, errorMsg || '');
+    }
+  },
+  error: (message: string, error?: unknown) => {
+    const errorMsg = error instanceof Error ? error.message : error;
+    // eslint-disable-next-line no-console
+    console.error(`[StructuralScan] ${message}`, errorMsg || '');
+  },
+  info: (message: string, data?: unknown) => {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log(`[StructuralScan] ${message}`, data || '');
+    }
+  }
+};
+
 export interface StructuralContext {
   name: string;
   description: string;
@@ -100,12 +123,35 @@ export async function scanProjectStructure(
     };
 
   } catch (error) {
-    console.error('Structural scan error:', error);
+    logger.error('Structural scan error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error during structural scan',
     };
   }
+}
+
+/**
+ * Helper to create a context object
+ */
+function createContext(
+  name: string,
+  description: string,
+  files: string[],
+  sourceType: 'page' | 'subfeature' | 'api' | 'library' | 'feature',
+  sourcePath: string
+): StructuralContext {
+  return {
+    name,
+    description,
+    filePaths: files,
+    source: {
+      type: sourceType,
+      path: sourcePath,
+    },
+    fileCount: files.length,
+    sizeCategory: categorizeContextSize(files.length),
+  };
 }
 
 /**
@@ -125,22 +171,19 @@ async function scanPageFolders(projectPath: string): Promise<StructuralContext[]
 
         if (files.length > 0) {
           const contextName = formatPageName(entry.name);
-          contexts.push({
-            name: contextName,
-            description: `User interface and logic for the ${contextName}`,
-            filePaths: files,
-            source: {
-              type: 'page',
-              path: path.relative(projectPath, folderPath),
-            },
-            fileCount: files.length,
-            sizeCategory: categorizeContextSize(files.length),
-          });
+          const context = createContext(
+            contextName,
+            `User interface and logic for the ${contextName}`,
+            files,
+            'page',
+            path.relative(projectPath, folderPath)
+          );
+          contexts.push(context);
         }
       }
     }
   } catch (error) {
-    console.warn('Could not scan page folders:', error);
+    logger.warn('Could not scan page folders:', error);
   }
 
   return contexts;
@@ -163,22 +206,19 @@ async function scanSubfeatures(projectPath: string): Promise<StructuralContext[]
 
         if (files.length > 0) {
           const contextName = formatSubfeatureName(entry.name);
-          contexts.push({
-            name: contextName,
-            description: `Subfeature module providing ${contextName.toLowerCase()} functionality`,
-            filePaths: files,
-            source: {
-              type: 'subfeature',
-              path: path.relative(projectPath, folderPath),
-            },
-            fileCount: files.length,
-            sizeCategory: categorizeContextSize(files.length),
-          });
+          const context = createContext(
+            contextName,
+            `Subfeature module providing ${contextName.toLowerCase()} functionality`,
+            files,
+            'subfeature',
+            path.relative(projectPath, folderPath)
+          );
+          contexts.push(context);
         }
       }
     }
   } catch (error) {
-    console.warn('Could not scan subfeatures:', error);
+    logger.warn('Could not scan subfeatures:', error);
   }
 
   return contexts;
@@ -202,22 +242,19 @@ async function scanApiFolders(projectPath: string): Promise<StructuralContext[]>
         // Only create context if there are multiple files (route.ts alone is too small)
         if (files.length >= 2) {
           const contextName = formatApiName(entry.name);
-          contexts.push({
-            name: contextName,
-            description: `API endpoints for ${contextName.toLowerCase()} resource`,
-            filePaths: files,
-            source: {
-              type: 'api',
-              path: path.relative(projectPath, folderPath),
-            },
-            fileCount: files.length,
-            sizeCategory: categorizeContextSize(files.length),
-          });
+          const context = createContext(
+            contextName,
+            `API endpoints for ${contextName.toLowerCase()} resource`,
+            files,
+            'api',
+            path.relative(projectPath, folderPath)
+          );
+          contexts.push(context);
         }
       }
     }
   } catch (error) {
-    console.warn('Could not scan API folders:', error);
+    logger.warn('Could not scan API folders:', error);
   }
 
   return contexts;
@@ -241,22 +278,19 @@ async function scanLibraryFolders(projectPath: string): Promise<StructuralContex
 
         if (files.length >= 5) { // Libraries should have at least 5 files to be meaningful
           const contextName = formatLibraryName(entry.name);
-          contexts.push({
-            name: contextName,
-            description: `Shared library providing ${contextName.toLowerCase()} utilities`,
-            filePaths: files,
-            source: {
-              type: 'library',
-              path: path.relative(projectPath, folderPath),
-            },
-            fileCount: files.length,
-            sizeCategory: categorizeContextSize(files.length),
-          });
+          const context = createContext(
+            contextName,
+            `Shared library providing ${contextName.toLowerCase()} utilities`,
+            files,
+            'library',
+            path.relative(projectPath, folderPath)
+          );
+          contexts.push(context);
         }
       }
     }
   } catch (error) {
-    console.warn('Could not scan lib folders:', error);
+    logger.warn('Could not scan lib folders:', error);
   }
 
   // Scan src/stores (all stores together as one context)
@@ -265,20 +299,17 @@ async function scanLibraryFolders(projectPath: string): Promise<StructuralContex
     const files = await getAllFilesInDirectory(storesPath, projectPath);
 
     if (files.length >= 3) {
-      contexts.push({
-        name: 'State Management',
-        description: 'Global state management using Zustand stores',
-        filePaths: files,
-        source: {
-          type: 'library',
-          path: path.relative(projectPath, storesPath),
-        },
-        fileCount: files.length,
-        sizeCategory: categorizeContextSize(files.length),
-      });
+      const context = createContext(
+        'State Management',
+        'Global state management using Zustand stores',
+        files,
+        'library',
+        path.relative(projectPath, storesPath)
+      );
+      contexts.push(context);
     }
   } catch (error) {
-    console.warn('Could not scan stores folder:', error);
+    logger.warn('Could not scan stores folder:', error);
   }
 
   return contexts;
@@ -315,7 +346,7 @@ async function getAllFilesInDirectory(
       }
     }
   } catch (error) {
-    console.warn(`Could not read directory ${dirPath}:`, error);
+    logger.warn(`Could not read directory ${dirPath}:`, error);
   }
 
   return files;
@@ -374,33 +405,33 @@ function formatLibraryName(folderName: string): string {
  */
 export function printScanResults(result: StructuralScanResult): void {
   if (!result.success) {
-    console.error('Scan failed:', result.error);
+    logger.error('Scan failed:', result.error);
     return;
   }
 
-  console.log('\n=== Structural Context Scan Results ===\n');
-  console.log(`Total Contexts: ${result.stats!.totalContexts}`);
-  console.log(`Total Files: ${result.stats!.totalFiles}`);
-  console.log('\nContexts by Type:');
+  logger.info('\n=== Structural Context Scan Results ===\n');
+  logger.info(`Total Contexts: ${result.stats!.totalContexts}`);
+  logger.info(`Total Files: ${result.stats!.totalFiles}`);
+  logger.info('\nContexts by Type:');
   Object.entries(result.stats!.byType).forEach(([type, count]) => {
-    console.log(`  ${type}: ${count}`);
+    logger.info(`  ${type}: ${count}`);
   });
-  console.log('\nSize Distribution:');
+  logger.info('\nSize Distribution:');
   Object.entries(result.stats!.sizeDistribution).forEach(([size, count]) => {
-    console.log(`  ${size}: ${count}`);
+    logger.info(`  ${size}: ${count}`);
   });
 
   if (result.warnings && result.warnings.length > 0) {
-    console.log('\nWarnings:');
-    result.warnings.forEach(w => console.log(`  ⚠️  ${w}`));
+    logger.info('\nWarnings:');
+    result.warnings.forEach(w => logger.info(`  ⚠️  ${w}`));
   }
 
-  console.log('\nDetected Contexts:\n');
+  logger.info('\nDetected Contexts:\n');
   result.contexts!.forEach((ctx, idx) => {
-    console.log(`${idx + 1}. ${ctx.name} (${ctx.fileCount} files)`);
-    console.log(`   Type: ${ctx.source.type}`);
-    console.log(`   Path: ${ctx.source.path}`);
-    console.log(`   Size: ${ctx.sizeCategory}`);
-    console.log('');
+    logger.info(`${idx + 1}. ${ctx.name} (${ctx.fileCount} files)`);
+    logger.info(`   Type: ${ctx.source.type}`);
+    logger.info(`   Path: ${ctx.source.path}`);
+    logger.info(`   Size: ${ctx.sizeCategory}`);
+    logger.info('');
   });
 }

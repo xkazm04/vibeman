@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { existsSync } from 'fs';
 
 export async function POST(request: NextRequest) {
@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
         message: 'File saved successfully'
       });
     } catch (fileError) {
-      console.error(`Failed to save file ${fileName}:`, fileError);
       return NextResponse.json(
         { 
           success: false, 
@@ -61,7 +60,6 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Save file API error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

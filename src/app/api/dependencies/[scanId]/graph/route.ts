@@ -5,7 +5,13 @@ import {
   dependencyRelationshipDb,
   projectDependencyDb
 } from '@/lib/dependency_database';
-import { projectDb } from '@/lib/project_database';
+import {
+  createErrorResponse,
+  getProjectColor,
+  getDependencyColor,
+  extractProjectSummaries,
+  parseVersionConflicts
+} from '../../utils';
 
 interface GraphNode {
   id: string;
@@ -42,6 +48,26 @@ interface Project {
 }
 
 /**
+ * Calculate statistics for the dependency graph
+ */
+function calculateStatistics(
+  projects: Project[],
+  sharedDependencies: ReturnType<typeof sharedDependencyDb.getSharedDependenciesByScan>,
+  relationships: ReturnType<typeof dependencyRelationshipDb.getRelationshipsByScan>
+) {
+  return {
+    totalProjects: projects.length,
+    totalSharedDependencies: sharedDependencies.length,
+    totalRelationships: relationships.length,
+    versionConflicts: sharedDependencies.filter(d =>
+      d.version_conflicts && JSON.parse(d.version_conflicts)
+    ).length,
+    criticalDependencies: sharedDependencies.filter(d => d.priority === 'critical').length,
+    highPriorityDependencies: sharedDependencies.filter(d => d.priority === 'high').length
+  };
+}
+
+/**
  * GET /api/dependencies/[scanId]/graph
  * Get graph visualization data for a dependency scan
  * Returns nodes and links for visualization libraries like react-force-graph
@@ -56,20 +82,14 @@ export async function GET(
     // Get scan info
     const scan = dependencyScanDb.getScanById(scanId);
     if (!scan) {
-      return NextResponse.json(
-        { error: 'Scan not found' },
-        { status: 404 }
-      );
+      return createErrorResponse('Scan not found', undefined, 404);
     }
 
     // Parse project IDs
     const projectIds = JSON.parse(scan.project_ids) as string[];
 
     // Get project details
-    const allProjects = projectDb.getAllProjects();
-    const projects = projectIds
-      .map((id: string) => allProjects.find(p => p.id === id))
-      .filter((p): p is NonNullable<typeof p> => Boolean(p));
+    const projects = extractProjectSummaries(projectIds);
 
     // Get shared dependencies and relationships
     const sharedDependencies = sharedDependencyDb.getSharedDependenciesByScan(scanId);
@@ -108,7 +128,7 @@ export async function GET(
         nodeMap.set(nodeId, nodes.length);
 
         const projectIdsArray = JSON.parse(dep.project_ids) as string[];
-        const versionConflicts = dep.version_conflicts ? JSON.parse(dep.version_conflicts) : null;
+        const versionConflicts = parseVersionConflicts(dep.version_conflicts);
 
         nodes.push({
           id: nodeId,
@@ -133,7 +153,7 @@ export async function GET(
     sharedDependencies.forEach((dep) => {
       const depNodeId = `dep-${dep.dependency_name}`;
       const projectIdsArray = JSON.parse(dep.project_ids) as string[];
-      const versionConflicts = dep.version_conflicts ? JSON.parse(dep.version_conflicts) : null;
+      const versionConflicts = parseVersionConflicts(dep.version_conflicts);
 
       projectIdsArray.forEach((projectId: string) => {
         const projectNodeId = `project-${projectId}`;
@@ -183,60 +203,9 @@ export async function GET(
     });
 
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to generate graph data', details: (error as Error).message },
-      { status: 500 }
+    return createErrorResponse(
+      'Failed to generate graph data',
+      (error as Error).message
     );
   }
-}
-
-/**
- * Calculate statistics for the dependency graph
- */
-function calculateStatistics(
-  projects: Project[],
-  sharedDependencies: ReturnType<typeof sharedDependencyDb.getSharedDependenciesByScan>,
-  relationships: ReturnType<typeof dependencyRelationshipDb.getRelationshipsByScan>
-) {
-  return {
-    totalProjects: projects.length,
-    totalSharedDependencies: sharedDependencies.length,
-    totalRelationships: relationships.length,
-    versionConflicts: sharedDependencies.filter(d =>
-      d.version_conflicts && JSON.parse(d.version_conflicts)
-    ).length,
-    criticalDependencies: sharedDependencies.filter(d => d.priority === 'critical').length,
-    highPriorityDependencies: sharedDependencies.filter(d => d.priority === 'high').length
-  };
-}
-
-/**
- * Get color for project node based on project type
- */
-function getProjectColor(projectType: string): string {
-  const colors: Record<string, string> = {
-    nextjs: '#0070f3',
-    fastapi: '#009688',
-    react: '#61dafb',
-    python: '#3776ab',
-    nodejs: '#68a063',
-    other: '#6c757d'
-  };
-  return colors[projectType] || colors.other;
-}
-
-/**
- * Get color for dependency node based on priority and conflicts
- */
-function getDependencyColor(priority: string | null, hasConflicts: boolean): string {
-  if (hasConflicts) return '#ff6b6b';
-
-  const colors: Record<string, string> = {
-    critical: '#dc3545',
-    high: '#fd7e14',
-    medium: '#ffc107',
-    low: '#28a745'
-  };
-
-  return colors[priority || 'low'] || '#888';
 }

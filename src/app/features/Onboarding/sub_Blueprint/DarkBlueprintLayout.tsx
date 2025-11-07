@@ -44,7 +44,16 @@ export default function DarkBlueprint() {
     initStepperConfig,
     toggleGroup,
     getScanStatus,
+    isRecommended,
+    recommendedScans, // Subscribe to recommendedScans for reactivity
   } = useBlueprintStore();
+
+  // Log when recommendedScans changes
+  useEffect(() => {
+    if (Object.keys(recommendedScans).length > 0) {
+      console.log('[DarkBlueprintLayout] recommendedScans updated:', recommendedScans);
+    }
+  }, [recommendedScans]);
 
   const { setActiveModule, openControlPanel, closeBlueprint } = useOnboardingStore();
   const { currentDecision, addDecision, queue } = useDecisionQueueStore();
@@ -473,6 +482,7 @@ export default function DarkBlueprint() {
                 hasError: status.hasError,
               };
             }}
+            isRecommended={isRecommended}
             className="min-w-[1200px]"
           />
         ) : (

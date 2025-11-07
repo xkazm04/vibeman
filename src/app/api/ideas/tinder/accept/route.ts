@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, goalDb, contextDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
+import { createErrorResponse, createSuccessResponse } from '../utils';
 
 interface AcceptIdeaRequest {
   ideaId: string;
@@ -61,10 +62,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     if (!validateRequest(body)) {
-      return NextResponse.json(
-        { error: 'ideaId and projectPath are required' },
-        { status: 400 }
-      );
+      return createErrorResponse('ideaId and projectPath are required', undefined, 400);
     }
 
     const { ideaId, projectPath } = body;
@@ -72,10 +70,7 @@ export async function POST(request: NextRequest) {
     // Get the idea
     const idea = ideaDb.getIdeaById(ideaId);
     if (!idea) {
-      return NextResponse.json(
-        { error: 'Idea not found' },
-        { status: 404 }
-      );
+      return createErrorResponse('Idea not found', undefined, 404);
     }
 
     // Update idea status to accepted
@@ -106,19 +101,11 @@ export async function POST(request: NextRequest) {
     // Update idea with requirement_id (the requirement file name)
     ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
 
-    return NextResponse.json({
-      success: true,
+    return createSuccessResponse({
       requirementName,
-      message: 'Idea accepted and requirement file created',
+      message: 'Idea accepted and requirement file created'
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: 'Failed to accept idea',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
+    return createErrorResponse('Failed to accept idea', error);
   }
 }
-

@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateScanBriefing, generateQuickScanStatus } from '@/app/features/Annette/lib/scanBriefingService';
 
+// Logger utility
+const logger = {
+  error: (message: string, error?: unknown) => {
+    const errorMsg = error instanceof Error ? error.message : error;
+    // eslint-disable-next-line no-console
+    console.error(`[API/ScanBriefing] ${message}`, errorMsg || '');
+  }
+};
+
+interface ScanBriefingResponse {
+  success: boolean;
+  text?: string;
+  data?: unknown;
+  error?: string;
+  details?: string;
+}
+
+/**
+ * Validate request parameters
+ */
+function validateRequest(searchParams: URLSearchParams): { valid: boolean; error?: string; projectId?: string } {
+  const projectId = searchParams.get('projectId');
+
+  if (!projectId) {
+    return { valid: false, error: 'Project ID is required' };
+  }
+
+  return { valid: true, projectId };
+}
+
+/**
+ * Generate briefing based on variant
+ */
+async function generateBriefing(
+  variant: string,
+  projectId: string,
+  timeframeHours: number
+): Promise<{ text: string; data?: unknown }> {
+  if (variant === 'quick') {
+    const text = await generateQuickScanStatus(projectId);
+    return { text };
+  }
+
+  const briefing = await generateScanBriefing(projectId, timeframeHours);
+  return { text: briefing.text, data: briefing.data };
+}
+
 /**
  * GET /api/annette/scan-briefing
  * Generate a scan status briefing for voicebot
@@ -8,37 +55,29 @@ import { generateScanBriefing, generateQuickScanStatus } from '@/app/features/An
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const projectId = searchParams.get('projectId');
-    const variant = searchParams.get('variant') || 'full';
-    const timeframeHours = parseInt(searchParams.get('timeframeHours') || '24', 10);
+    const validation = validateRequest(searchParams);
 
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'Project ID is required' },
+    if (!validation.valid || !validation.projectId) {
+      return NextResponse.json<ScanBriefingResponse>(
+        { success: false, error: validation.error || 'Validation failed' },
         { status: 400 }
       );
     }
 
-    let briefingText: string;
-    let briefingData = null;
+    const variant = searchParams.get('variant') || 'full';
+    const timeframeHours = parseInt(searchParams.get('timeframeHours') || '24', 10);
 
-    if (variant === 'quick') {
-      briefingText = await generateQuickScanStatus(projectId);
-    } else {
-      const briefing = await generateScanBriefing(projectId, timeframeHours);
-      briefingText = briefing.text;
-      briefingData = briefing.data;
-    }
+    const { text, data } = await generateBriefing(variant, validation.projectId, timeframeHours);
 
-    return NextResponse.json({
+    return NextResponse.json<ScanBriefingResponse>({
       success: true,
-      text: briefingText,
-      data: briefingData
+      text,
+      data
     });
 
   } catch (error) {
-    console.error('[API] Scan briefing error:', error);
-    return NextResponse.json(
+    logger.error('Scan briefing error:', error);
+    return NextResponse.json<ScanBriefingResponse>(
       {
         success: false,
         error: 'Failed to generate scan briefing',

@@ -66,7 +66,7 @@ export default function TreeLayout() {
 
 
   return (
-    <GlowCard className="p-6 h-full min-w-[550px] max-h-[60vh] flex flex-col">
+    <GlowCard data-testid="tree-layout-container" className="p-6 h-full min-w-[550px] max-h-[60vh] flex flex-col">
       <TreeHeader
         activeProject={activeProject}
         totalNodes={totalNodes}

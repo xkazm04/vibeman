@@ -30,9 +30,102 @@ export interface DecisionData {
   projectId?: string;
   projectPath?: string;
   projectType?: string;
-  data?: any;
+  data?: {
+    unusedFiles: Array<{
+      filePath: string;
+      relativePath: string;
+      exports: string[];
+      reason: string;
+    }>;
+    stats?: {
+      totalFiles: number;
+      totalExports: number;
+      unusedExports: number;
+    };
+  };
   onAccept: () => Promise<void>;
   onReject?: () => Promise<void>;
+}
+
+/**
+ * Process a streaming message from the unused code scan
+ */
+async function processStreamMessage(line: string): Promise<{
+  type: 'progress' | 'complete' | 'error' | 'skip';
+  result?: ScanResult;
+  error?: string;
+  progress?: number;
+}> {
+  if (!line.trim()) {
+    return { type: 'skip' };
+  }
+
+  try {
+    const message = JSON.parse(line);
+
+    if (message.type === 'progress') {
+      // Update progress in store
+      const { useBlueprintStore } = await import('../store/blueprintStore');
+      useBlueprintStore.getState().updateScanProgress(message.progress);
+      return { type: 'progress', progress: message.progress };
+    }
+
+    if (message.type === 'complete') {
+      return { type: 'complete', result: message.result };
+    }
+
+    if (message.type === 'error') {
+      return { type: 'error', error: message.error };
+    }
+  } catch {
+    // Ignore parse errors for malformed messages
+  }
+
+  return { type: 'skip' };
+}
+
+/**
+ * Read and process streaming response from unused code scan
+ */
+async function processStreamingResponse(body: ReadableStream<Uint8Array>): Promise<ScanResult> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalResult: ScanResult | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    // Decode chunk and add to buffer
+    buffer += decoder.decode(value, { stream: true });
+
+    // Process complete lines
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      const processed = await processStreamMessage(line);
+
+      if (processed.type === 'complete' && processed.result) {
+        finalResult = processed.result;
+      } else if (processed.type === 'error') {
+        return {
+          success: false,
+          error: processed.error || 'Scan error',
+        };
+      }
+    }
+  }
+
+  if (!finalResult) {
+    return {
+      success: false,
+      error: 'No result received from scan',
+    };
+  }
+
+  return finalResult;
 }
 
 /**
@@ -42,7 +135,6 @@ export async function executeUnusedScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
 
   if (!activeProject) {
-    console.error('[UnusedScan] No active project selected');
     return {
       success: false,
       error: 'No active project selected',
@@ -51,7 +143,6 @@ export async function executeUnusedScan(): Promise<ScanResult> {
 
   // Only support Next.js projects
   if (activeProject.type !== 'nextjs') {
-    console.warn('[UnusedScan] Unsupported project type:', activeProject.type);
     return {
       success: false,
       error: 'Unused code scan only supports Next.js projects',
@@ -59,15 +150,13 @@ export async function executeUnusedScan(): Promise<ScanResult> {
   }
 
   try {
-    console.log('[UnusedScan] Analyzing project for unused code...');
-
     const response = await fetch('/api/unused-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         projectPath: activeProject.path,
         projectType: activeProject.type,
-        stream: true, // Enable streaming
+        stream: true,
       }),
     });
 
@@ -78,84 +167,18 @@ export async function executeUnusedScan(): Promise<ScanResult> {
       };
     }
 
-    // Read streaming response
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let finalResult: ScanResult | null = null;
+    const result = await processStreamingResponse(response.body);
 
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      // Decode chunk and add to buffer
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete lines
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-
-        try {
-          const message = JSON.parse(line);
-
-          if (message.type === 'progress') {
-            // Update progress in store
-            const { useBlueprintStore } = await import('../store/blueprintStore');
-            useBlueprintStore.getState().updateScanProgress(message.progress);
-
-            console.log(`[UnusedScan] Progress: ${message.current}/${message.total} - ${message.currentFile}`);
-          } else if (message.type === 'complete') {
-            finalResult = message.result;
-          } else if (message.type === 'error') {
-            return {
-              success: false,
-              error: message.error,
-            };
-          }
-        } catch (parseError) {
-          console.error('[UnusedScan] Failed to parse message:', line);
-        }
-      }
+    if (!result.success) {
+      return result;
     }
-
-    if (!finalResult) {
-      return {
-        success: false,
-        error: 'No result received from scan',
-      };
-    }
-
-    if (!finalResult.success) {
-      return {
-        success: false,
-        error: finalResult.error || 'Unused code scan failed',
-      };
-    }
-
-    const unusedFiles = finalResult.unusedFiles || [];
-
-    if (unusedFiles.length === 0) {
-      console.log('[UnusedScan] No unused code found - project is clean');
-      return {
-        success: true,
-        unusedFiles: [],
-        stats: finalResult.stats,
-      };
-    }
-
-    console.log(`[UnusedScan] Found ${unusedFiles.length} unused files`);
 
     return {
       success: true,
-      unusedFiles,
-      stats: finalResult.stats,
+      unusedFiles: result.unusedFiles || [],
+      stats: result.stats,
     };
   } catch (error) {
-    console.error('[UnusedScan] Unexpected error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Unused scan failed unexpectedly';
     return {
       success: false,
@@ -242,35 +265,27 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
 
     // Save report to markdown file
     onAccept: async () => {
-      console.log('[UnusedScan] User accepted - generating markdown report...');
+      const response = await fetch('/api/unused-code/save-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath: activeProject.path,
+          projectName: activeProject.name,
+          unusedFiles,
+          stats,
+        }),
+      });
 
-      try {
-        const response = await fetch('/api/unused-code/save-report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectPath: activeProject.path,
-            projectName: activeProject.name,
-            unusedFiles,
-            stats,
-          }),
-        });
+      const result = await response.json();
 
-        const result = await response.json();
-
-        if (result.success) {
-          console.log(`[UnusedScan] ✅ Report saved to: ${result.relativePath}`);
-        } else {
-          console.error('[UnusedScan] Failed to save report:', result.error);
-        }
-      } catch (error) {
-        console.error('[UnusedScan] Error saving report:', error);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save report');
       }
     },
 
     // Reject handler - user dismissed the report
     onReject: async () => {
-      console.log('[UnusedScan] User dismissed unused code report');
+      // Report dismissed - no action needed
     },
   };
 }

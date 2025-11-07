@@ -7,6 +7,28 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+// Logger utility
+const logger = {
+  info: (message: string, data?: unknown) => {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log(`[BuildScanner] ${message}`, data || '');
+    }
+  },
+  warn: (message: string, error?: unknown) => {
+    if (process.env.NODE_ENV !== 'production') {
+      const errorMsg = error instanceof Error ? error.message : error;
+      // eslint-disable-next-line no-console
+      console.warn(`[BuildScanner] ${message}`, errorMsg || '');
+    }
+  },
+  error: (message: string, error?: unknown) => {
+    const errorMsg = error instanceof Error ? error.message : error;
+    // eslint-disable-next-line no-console
+    console.error(`[BuildScanner] ${message}`, errorMsg || '');
+  }
+};
+
 export interface BuildError {
   file: string;
   line?: number;
@@ -87,7 +109,7 @@ export async function detectBuildCommand(projectPath: string): Promise<string> {
 
     return `${packageManager} run build`;
   } catch (error) {
-    console.error('Error detecting build command:', error);
+    logger.error('Error detecting build command:', error);
     return 'npx tsc --noEmit --skipLibCheck';
   }
 }
@@ -176,7 +198,7 @@ export function deduplicateErrors(errors: BuildError[]): BuildError[] {
  */
 export async function executeBuildCommand(command: string, projectPath: string): Promise<{ output: string; exitCode: number }> {
   return new Promise((resolve) => {
-    console.log(`[BuildScanner] Executing: ${command} in ${projectPath}`);
+    logger.info(`Executing: ${command} in ${projectPath}`);
 
     const isWindows = process.platform === 'win32';
     const shell = isWindows ? 'cmd.exe' : '/bin/bash';
@@ -434,10 +456,10 @@ export async function scanBuildErrors(projectPath: string, buildCommand?: string
 
   try {
     const command = buildCommand || await detectBuildCommand(projectPath);
-    console.log('[BuildScanner] Using build command:', command);
+    logger.info('Using build command:', command);
 
     const { output, exitCode } = await executeBuildCommand(command, projectPath);
-    console.log('[BuildScanner] Build completed with exit code:', exitCode);
+    logger.info('Build completed with exit code:', exitCode);
 
     const allErrors = [
       ...parseTypeScriptErrors(output),
@@ -448,7 +470,7 @@ export async function scanBuildErrors(projectPath: string, buildCommand?: string
     const errors = uniqueErrors.filter(e => e.severity === 'error');
     const warnings = uniqueErrors.filter(e => e.severity === 'warning');
 
-    console.log('[BuildScanner] Found', errors.length, 'errors and', warnings.length, 'warnings');
+    logger.info(`Found ${errors.length} errors and ${warnings.length} warnings`);
 
     const errorGroups = errors.length > 0 ? createIntelligentErrorGroups(errors) : [];
 
@@ -463,7 +485,7 @@ export async function scanBuildErrors(projectPath: string, buildCommand?: string
       executionTime: Date.now() - startTime
     };
   } catch (error) {
-    console.error('[BuildScanner] Error:', error);
+    logger.error('Build scan error:', error);
     return {
       success: false,
       totalErrors: 0,

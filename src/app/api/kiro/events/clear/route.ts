@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventDb } from '@/lib/eventDatabase';
+import { createErrorResponse } from '../utils';
 
 /**
  * Validate request body contains project ID
@@ -7,19 +8,6 @@ import { eventDb } from '@/lib/eventDatabase';
 function validateProjectId(body: unknown): body is { projectId: string } {
   const req = body as { projectId?: string };
   return typeof req.projectId === 'string' && req.projectId.length > 0;
-}
-
-/**
- * Create error response
- */
-function createErrorResponse(error: unknown, message: string, status = 500) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error')
-    },
-    { status }
-  );
 }
 
 export async function DELETE(request: NextRequest) {

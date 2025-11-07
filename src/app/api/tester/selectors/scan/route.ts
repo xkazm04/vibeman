@@ -92,8 +92,7 @@ export async function POST(request: NextRequest) {
           selectorDetails.push({ filepath, count, testids });
         }
       } catch (error) {
-        console.warn(`Failed to read file ${filepath}:`, error);
-        // Continue with other files
+        // Failed to read file, continue with other files
       }
     }
 

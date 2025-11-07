@@ -128,7 +128,6 @@ export async function runAutomationCycle(
       }
     }
   } catch (error) {
-    console.error('[Vibeman] Automation error:', error);
     onFailure();
     onStatusChange('error', error instanceof Error ? error.message : 'Unknown error occurred');
     throw error;
@@ -160,7 +159,6 @@ async function monitorTaskExecution(
       await sleep(5000); // Poll every 5 seconds
       attempts++;
     } catch (error) {
-      console.error('[Vibeman] Error polling task status:', error);
       return false;
     }
   }

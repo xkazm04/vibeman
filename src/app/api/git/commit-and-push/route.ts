@@ -88,11 +88,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
       const nullFilePath = path.join(project.path, 'null');
 
       if (fs.existsSync(nullFilePath)) {
-        console.log(`[GitOperation] Removing 'null' file from ${project.path}`);
         fs.unlinkSync(nullFilePath);
       }
     } catch (cleanupError) {
-      console.warn('[GitOperation] Failed to check/remove null file:', cleanupError);
       // Don't fail the operation if cleanup fails
     }
 
@@ -111,7 +109,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
         .replace(/{projectName}/g, project.name)
         .replace(/{branch}/g, project.git_branch || 'main');
 
-      console.log(`[GitOperation] Executing: ${processedCommand} in ${project.path}`);
 
       try {
         const { stdout, stderr } = await execAsync(processedCommand, {
@@ -149,13 +146,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
         });
 
         if (hasRealWarnings) {
-          console.log(`[GitOperation] Success with warnings: ${processedCommand}`, { stdout, stderr: filteredStderr });
         } else {
-          console.log(`[GitOperation] Success: ${processedCommand}`, output);
         }
-      } catch (error: any) {
+      } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        const exitCode = error.code;
+        const exitCode = (error as { code?: number }).code;
 
         // Check if it's a non-fatal git error (like "nothing to commit")
         const isNonFatal =
@@ -171,7 +166,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
             success: true,
             output: errorMessage
           });
-          console.log(`[GitOperation] Non-fatal: ${processedCommand}`, errorMessage);
           continue; // Continue to next command
         }
 
@@ -182,7 +176,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
           error: errorMessage
         });
 
-        console.error(`[GitOperation] Failed: ${processedCommand}`, errorMessage);
 
         // Stop execution on first real failure
         return NextResponse.json(
@@ -204,7 +197,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
       results
     });
   } catch (error) {
-    console.error('Git operation error:', error);
     return NextResponse.json(
       {
         success: false,

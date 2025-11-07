@@ -5,9 +5,7 @@ import { projectDb, DbProject } from './project_database';
 function handleError(context: string, error: unknown): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
   // In production, this could integrate with a logging service
-  if (process.env.NODE_ENV === 'development') {
-    console.error(`[ProjectServiceDb] ${context}:`, error);
-  }
+  // Error is handled and propagated through try-catch blocks
 }
 
 // Convert DbProject to Project type

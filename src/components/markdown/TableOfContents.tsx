@@ -12,6 +12,63 @@ interface TableOfContentsProps {
   headings: TOCItem[];
 }
 
+// TOC Header component
+function TOCHeader({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <div className="p-3 border-b border-gray-700/50">
+      <div className="flex items-center justify-between">
+        <List className="w-5 h-5 text-gray-400" />
+        {isExpanded && (
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-sm text-gray-300 font-medium"
+          >
+            Contents
+          </motion.span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// TOC Item component
+interface TOCItemButtonProps {
+  heading: TOCItem;
+  index: number;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+function TOCItemButton({ heading, index, isActive, onClick }: TOCItemButtonProps) {
+  return (
+    <motion.button
+      key={heading.id}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05 }}
+      onClick={onClick}
+      className={`
+        w-full text-left px-3 py-2 text-sm transition-all duration-200
+        hover:bg-gray-800/50 hover:text-white
+        ${isActive
+          ? 'text-cyan-400 bg-cyan-500/10 border-r-2 border-cyan-400'
+          : 'text-gray-400'
+        }
+      `}
+      style={{ paddingLeft: `${0.75 + (heading.level - 1) * 0.5}rem` }}
+      data-testid={`toc-item-${heading.id}`}
+    >
+      <div className="flex items-center space-x-2">
+        {heading.level > 1 && (
+          <ChevronRight className="w-3 h-3 opacity-50" />
+        )}
+        <span className="truncate">{heading.text}</span>
+      </div>
+    </motion.button>
+  );
+}
+
 export default function TableOfContents({ headings }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string>('');
   const [isVisible, setIsVisible] = useState(false);
@@ -81,21 +138,7 @@ export default function TableOfContents({ headings }: TableOfContentsProps) {
             onMouseEnter={() => setIsExpanded(true)}
             onMouseLeave={() => setIsExpanded(false)}
           >
-            {/* Toggle Button */}
-            <div className="p-3 border-b border-gray-700/50">
-              <div className="flex items-center justify-between">
-                <List className="w-5 h-5 text-gray-400" />
-                {isExpanded && (
-                  <motion.span
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-sm text-gray-300 font-medium"
-                  >
-                    Contents
-                  </motion.span>
-                )}
-              </div>
-            </div>
+            <TOCHeader isExpanded={isExpanded} />
 
             {/* TOC Items */}
             <AnimatePresence>
@@ -108,29 +151,13 @@ export default function TableOfContents({ headings }: TableOfContentsProps) {
                   className="max-h-96 overflow-y-auto py-2"
                 >
                   {headings.map((heading, index) => (
-                    <motion.button
+                    <TOCItemButton
                       key={heading.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                      heading={heading}
+                      index={index}
+                      isActive={activeId === heading.id}
                       onClick={() => scrollToHeading(heading.id)}
-                      className={`
-                        w-full text-left px-3 py-2 text-sm transition-all duration-200
-                        hover:bg-gray-800/50 hover:text-white
-                        ${activeId === heading.id 
-                          ? 'text-cyan-400 bg-cyan-500/10 border-r-2 border-cyan-400' 
-                          : 'text-gray-400'
-                        }
-                      `}
-                      style={{ paddingLeft: `${0.75 + (heading.level - 1) * 0.5}rem` }}
-                    >
-                      <div className="flex items-center space-x-2">
-                        {heading.level > 1 && (
-                          <ChevronRight className="w-3 h-3 opacity-50" />
-                        )}
-                        <span className="truncate">{heading.text}</span>
-                      </div>
-                    </motion.button>
+                    />
                   ))}
                 </motion.div>
               )}

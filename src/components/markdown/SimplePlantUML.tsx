@@ -7,24 +7,8 @@ interface SimplePlantUMLProps {
   title?: string;
 }
 
-export default function SimplePlantUML({ content, title }: SimplePlantUMLProps) {
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
-  const [showSource, setShowSource] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const generatePlantUMLUrl = () => {
-      try {
-        setIsLoading(true);
-        setError('');
-        
-        // Convert \n back to actual newlines for PlantUML
-        let processedContent = content.replace(/\\n/g, '\n');
-        
-        // Apply dark theme styling if not already present
-        const darkThemeDirectives = `
+// Dark theme directives for PlantUML
+const DARK_THEME_DIRECTIVES = `
 !theme vibrant
 skinparam backgroundColor #0f172a
 skinparam defaultFontColor #e2e8f0
@@ -103,42 +87,87 @@ skinparam package {
 }
 `;
 
-        // Check if content already has theme directives
-        const hasTheme = processedContent.includes('!theme') || 
-                        processedContent.includes('skinparam backgroundColor') ||
-                        processedContent.includes('skinparam defaultFontColor');
-        
-        // Ensure the content starts and ends properly
-        if (!processedContent.trim().startsWith('@startuml')) {
-          processedContent = '@startuml\n' + processedContent;
-        }
-        
-        // Insert dark theme directives after @startuml if not present
-        if (!hasTheme) {
-          const lines = processedContent.split('\n');
-          const startIndex = lines.findIndex(line => line.trim().startsWith('@startuml'));
-          if (startIndex !== -1) {
-            lines.splice(startIndex + 1, 0, darkThemeDirectives);
-            processedContent = lines.join('\n');
-          }
-        }
-        
-        if (!processedContent.trim().endsWith('@enduml')) {
-          processedContent = processedContent + '\n@enduml';
-        }
-        
-        // Use hex encoding (most reliable)
-        const utf8Bytes = new TextEncoder().encode(processedContent);
-        let hex = '';
-        for (let i = 0; i < utf8Bytes.length; i++) {
-          hex += utf8Bytes[i].toString(16).padStart(2, '0');
-        }
+// Helper function to check if content has theme directives
+const hasThemeDirectives = (content: string): boolean => {
+  return content.includes('!theme') ||
+         content.includes('skinparam backgroundColor') ||
+         content.includes('skinparam defaultFontColor');
+};
+
+// Helper function to ensure content starts with @startuml
+const ensureStartTag = (content: string): string => {
+  if (!content.trim().startsWith('@startuml')) {
+    return '@startuml\n' + content;
+  }
+  return content;
+};
+
+// Helper function to ensure content ends with @enduml
+const ensureEndTag = (content: string): string => {
+  if (!content.trim().endsWith('@enduml')) {
+    return content + '\n@enduml';
+  }
+  return content;
+};
+
+// Helper function to insert dark theme after @startuml
+const insertDarkTheme = (content: string): string => {
+  const lines = content.split('\n');
+  const startIndex = lines.findIndex(line => line.trim().startsWith('@startuml'));
+  if (startIndex !== -1) {
+    lines.splice(startIndex + 1, 0, DARK_THEME_DIRECTIVES);
+    return lines.join('\n');
+  }
+  return content;
+};
+
+// Helper function to encode content to hex
+const encodeToHex = (content: string): string => {
+  const utf8Bytes = new TextEncoder().encode(content);
+  let hex = '';
+  for (let i = 0; i < utf8Bytes.length; i++) {
+    hex += utf8Bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex;
+};
+
+// Main processing function
+const processPlantUMLContent = (content: string): string => {
+  // Convert \n back to actual newlines for PlantUML
+  let processed = content.replace(/\\n/g, '\n');
+
+  // Ensure proper tags
+  processed = ensureStartTag(processed);
+  processed = ensureEndTag(processed);
+
+  // Add dark theme if not present
+  if (!hasThemeDirectives(processed)) {
+    processed = insertDarkTheme(processed);
+  }
+
+  return processed;
+};
+
+export default function SimplePlantUML({ content, title }: SimplePlantUMLProps) {
+  const [imageUrl, setImageUrl] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+  const [showSource, setShowSource] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const generatePlantUMLUrl = () => {
+      try {
+        setIsLoading(true);
+        setError('');
+
+        const processedContent = processPlantUMLContent(content);
+        const hex = encodeToHex(processedContent);
         const url = `https://www.plantuml.com/plantuml/svg/~h${hex}`;
-        
+
         setImageUrl(url);
         setIsLoading(false);
       } catch (err) {
-        console.error('PlantUML Error:', err);
         setError('Failed to generate PlantUML diagram');
         setIsLoading(false);
       }

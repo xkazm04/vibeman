@@ -18,6 +18,7 @@ export default function TreeSearchInput({
     <div className="relative">
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
       <input
+        data-testid="tree-search-input"
         type="text"
         placeholder="Search files and folders..."
         value={searchTerm}
@@ -35,6 +36,7 @@ export default function TreeSearchInput({
       {/* Clear button */}
       {searchTerm && (
         <button
+          data-testid="tree-search-clear-button"
           onClick={onClear}
           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
           aria-label="Clear search"
