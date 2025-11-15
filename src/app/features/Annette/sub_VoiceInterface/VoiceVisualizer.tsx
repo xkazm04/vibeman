@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AnnetteTheme } from '../components/AnnettePanel';
+import { AnnetteTheme } from './AnnetteThemeSwitcher';
 
 interface VoiceVisualizerProps {
   isActive: boolean;

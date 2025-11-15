@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, Calendar, Wrench, BookOpen, Users } from 'lucide-react';
+import { X, FileText, Calendar, Wrench, BookOpen, Users, TestTube } from 'lucide-react';
 
-export type TabType = 'manager' | 'docs' | 'advisors';
+export type TabType = 'manager' | 'docs' | 'advisors' | 'testing';
 
 interface Tab {
   id: TabType;
@@ -19,11 +19,13 @@ interface ContextOverviewHeaderProps {
   createdAt?: string;
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
-  onClose: () => void;
+  onClose?: () => void;
+  showCloseButton?: boolean;
 }
 
 const TABS: Tab[] = [
   { id: 'manager', label: 'Manager', icon: Wrench },
+  { id: 'testing', label: 'Testing', icon: TestTube },
   { id: 'docs', label: 'Docs', icon: BookOpen },
   { id: 'advisors', label: 'Advisors', icon: Users },
 ];
@@ -36,25 +38,23 @@ export default function ContextOverviewHeader({
   activeTab,
   onTabChange,
   onClose,
+  showCloseButton = true,
 }: ContextOverviewHeaderProps) {
   return (
     <div className="relative flex flex-col px-8 py-6 border-b border-gray-700/30">
       {/* Top Row - Title and Close */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
-          <motion.div
+          <div
             className="p-3 rounded-xl backdrop-blur-sm border"
             style={{
               backgroundColor: `${groupColor}20`,
-              borderColor: `${groupColor}40`
+              borderColor: `${groupColor}40`,
+              boxShadow: `0 0 10px ${groupColor}30`
             }}
-            animate={{
-              boxShadow: [`0 0 0 ${groupColor}00`, `0 0 20px ${groupColor}40`, `0 0 0 ${groupColor}00`]
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
           >
             <FileText className="w-6 h-6" style={{ color: groupColor }} />
-          </motion.div>
+          </div>
           <div className="flex-1">
             <motion.h4
               className="text-2xl font-bold font-mono bg-gradient-to-r bg-clip-text text-transparent"
@@ -86,16 +86,18 @@ export default function ContextOverviewHeader({
         </div>
 
         {/* Close Button */}
-        <motion.button
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          onClick={onClose}
-          className="p-2 bg-gray-800/80 hover:bg-gray-700/80 rounded-full transition-colors"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <X className="w-5 h-5 text-gray-400 hover:text-white" />
-        </motion.button>
+        {showCloseButton && onClose && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={onClose}
+            className="p-2 bg-gray-800/80 hover:bg-gray-700/80 rounded-full transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <X className="w-5 h-5 text-gray-400 hover:text-white" />
+          </motion.button>
+        )}
       </div>
 
       {/* Tab Switcher */}

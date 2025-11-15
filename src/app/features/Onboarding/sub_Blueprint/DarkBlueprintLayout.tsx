@@ -1,46 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { motion } from 'framer-motion';
 import BlueprintBackground from './components/BlueprintBackground';
 import BlueprintCornerLabels from './components/BlueprintCornerLabels';
-import BlueprintColumn from './components/BlueprintColumn';
 import DecisionPanel from './components/DecisionPanel';
 import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
 import BlueprintConfigButton from './components/BlueprintConfigButton';
-import ContextSelector from './components/ContextSelector';
 import ScanProgressBars from './components/ScanProgressBars';
 import { TaskProgressPanel } from './components/TaskProgressPanel';
-import { BadgeGallery } from './components/BadgeGallery';
-import Stepper, { StepperProgress } from './components/Stepper';
-import StepperConfigPanel from './components/StepperConfigPanel';
+import ScanButtonsBar from './components/ScanButtonsBar';
 import ScanErrorBanner from './components/ScanErrorBanner';
+import { BlueprintTestPanel } from './components/BlueprintTestPanel';
+import BlueprintTestCompact from './components/BlueprintTestCompact';
+import ContextGroupSelector from '../sub_BlueprintContext/components/ContextGroupSelector';
+import BlueprintContextSelector from '../sub_BlueprintContext/components/BlueprintContextSelector';
+import ContextDependentScans from '../sub_BlueprintContext/components/ContextDependentScans';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBadgeStore } from '@/stores/badgeStore';
 import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShortcuts';
-import { getAllTechniques } from './lib/stepperConfig';
+import { executeScan } from './lib/blueprint-scan';
+
+// Lazy load heavy components for better initial load performance
+const StepperConfigPanel = lazy(() => import('./components/StepperConfigPanel'));
+const ContextOverview = lazy(() => import('../../Context/sub_ContextOverview/ContextOverview'));
+
+// Loading fallback component
+const SuspenseFallback = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+  </div>
+);
 
 export default function DarkBlueprint() {
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
-  const [showContextSelector, setShowContextSelector] = useState(false);
-  const [pendingScanId, setPendingScanId] = useState<string | null>(null);
-  const [showBadgeGallery, setShowBadgeGallery] = useState(false);
-  const [useStepper, setUseStepper] = useState(true); // Toggle between stepper and legacy column layout
+  const [selectedContextGroupId, setSelectedContextGroupId] = useState<string | null>(null);
+  const [selectedContextId, setSelectedContextId] = useState<string | null>(null);
+  const [selectedContext, setSelectedContext] = useState<any>(null);
+  const [contextGroups, setContextGroups] = useState<any[]>([]);
 
   const {
     startScan,
-    updateScanProgress,
     completeScan,
     failScan,
     getDaysAgo,
     loadScanEvents,
-    columns,
     stepperConfig,
-    currentStepIndex,
-    completedSteps,
     initStepperConfig,
     toggleGroup,
     getScanStatus,
@@ -55,10 +63,10 @@ export default function DarkBlueprint() {
     }
   }, [recommendedScans]);
 
-  const { setActiveModule, openControlPanel, closeBlueprint } = useOnboardingStore();
+  const { closeBlueprint } = useOnboardingStore();
   const { currentDecision, addDecision, queue } = useDecisionQueueStore();
   const { activeProject } = useActiveProjectStore();
-  const { awardBadge, getProgress, earnedBadges } = useBadgeStore();
+  const { awardBadge, earnedBadges } = useBadgeStore();
 
   // Initialize stepper config when active project changes
   useEffect(() => {
@@ -73,292 +81,219 @@ export default function DarkBlueprint() {
     if (!currentDecision && queue.length === 0 && earnedBadges.length >= 3) {
       // Award the completion badge
       awardBadge('blueprint-master');
-      // Show the gallery after a short delay
-      setTimeout(() => setShowBadgeGallery(true), 1000);
     }
   }, [currentDecision, queue.length, earnedBadges.length, awardBadge]);
 
   // Load scan events when active project changes
   useEffect(() => {
-    if (!activeProject) return;
+    if (!activeProject || !stepperConfig) return;
 
-    // Build event title map from config
+    // Build event title map from stepper config
     const eventTitles: Record<string, string> = {};
-    for (const column of columns) {
-      for (const button of column.buttons) {
-        if (button.eventTitle) {
-          eventTitles[button.id] = button.eventTitle;
+    for (const group of stepperConfig.groups) {
+      for (const technique of group.techniques) {
+        if (technique.eventTitle) {
+          eventTitles[technique.id] = technique.eventTitle;
         }
       }
     }
 
     loadScanEvents(activeProject.id, eventTitles);
-  }, [activeProject, loadScanEvents, columns]);
+  }, [activeProject, stepperConfig, loadScanEvents]);
 
-  const handleSelectScan = (scanId: string) => {
+  // Load context groups when active project changes
+  useEffect(() => {
+    if (!activeProject) {
+      setContextGroups([]);
+      return;
+    }
+
+    const loadGroups = async () => {
+      try {
+        const response = await fetch(`/api/context-groups?projectId=${activeProject.id}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            setContextGroups(result.data);
+          }
+        }
+      } catch (error) {
+        console.error('[Blueprint] Error loading context groups:', error);
+      }
+    };
+
+    loadGroups();
+  }, [activeProject]);
+
+  // Reset context selection when group changes
+  useEffect(() => {
+    setSelectedContextId(null);
+    setSelectedContext(null);
+  }, [selectedContextGroupId]);
+
+  // Memoize event handlers to prevent unnecessary re-renders
+  const handleSelectScan = useCallback((groupId: string, scanId: string) => {
+    // For context-dependent scans, check if context is selected
+    const contextDependentScans = ['selectors', 'photo', 'test', 'separator', 'testDesign'];
+    if (contextDependentScans.includes(scanId) && !selectedContextId) {
+      console.warn(`[Blueprint] Scan ${scanId} requires a context to be selected`);
+      return;
+    }
+
     // If already selected, deselect
     if (selectedScanId === scanId) {
       setSelectedScanId(null);
       return;
     }
 
-    // Find button config
-    let buttonConfig = null;
-    let buttonLabel = scanId;
-    for (const column of columns) {
-      const button = column.buttons.find(b => b.id === scanId);
-      if (button) {
-        buttonConfig = button;
-        buttonLabel = button.label;
-        break;
+    // Find scan label from stepper config
+    let scanLabel = scanId;
+    if (stepperConfig) {
+      for (const group of stepperConfig.groups) {
+        const technique = group.techniques.find(t => t.id === scanId);
+        if (technique) {
+          scanLabel = technique.label;
+          break;
+        }
       }
-    }
-
-    if (!buttonConfig) {
-      return;
     }
 
     // Select the scan
     setSelectedScanId(scanId);
 
-    // If context is needed, show context selector
-    if (buttonConfig.contextNeeded) {
-      setPendingScanId(scanId);
-      setShowContextSelector(true);
+    // For context-dependent scans, use the already-selected context
+    if (contextDependentScans.includes(scanId) && selectedContextId && selectedContext) {
+      addDecision({
+        type: 'pre-scan',
+        title: `Execute ${scanLabel} Scan?`,
+        description: `Context: "${selectedContext.name}"\n\nClick Accept to start the ${scanLabel.toLowerCase()} scan for this context.`,
+        severity: 'info' as const,
+        data: { scanId, contextId: selectedContextId },
+        onAccept: async () => {
+          setSelectedScanId(null);
+          await handleScan(scanId, selectedContextId);
+        },
+        onReject: async () => {
+          setSelectedScanId(null);
+        },
+      });
       return;
     }
 
-    // Otherwise, add pre-scan decision to queue
+    // For non-context scans, add standard pre-scan decision
     addDecision({
       type: 'pre-scan',
-      title: `Execute ${buttonLabel} Scan?`,
-      description: `Click Accept to start the ${buttonLabel.toLowerCase()} scan for this project.`,
-      severity: 'info',
+      title: `Execute ${scanLabel} Scan?`,
+      description: `Click Accept to start the ${scanLabel.toLowerCase()} scan for this project.`,
+      severity: 'info' as const,
       data: { scanId },
       onAccept: async () => {
-        setSelectedScanId(null); // Clear selection
-        await handleScan(scanId); // Execute scan
+        setSelectedScanId(null);
+        await handleScan(scanId);
       },
       onReject: async () => {
-        setSelectedScanId(null); // Clear selection
+        setSelectedScanId(null);
       },
     });
-  };
+  }, [selectedContextId, selectedScanId, stepperConfig, selectedContext, addDecision]);
 
-  const handleContextSelect = (contextId: string, contextName: string) => {
-    setShowContextSelector(false);
-
-    if (!pendingScanId) return;
-
-    const scanId = pendingScanId;
-
-    // Find button config
-    let buttonLabel = scanId;
-    for (const column of columns) {
-      const button = column.buttons.find(b => b.id === scanId);
-      if (button) {
-        buttonLabel = button.label;
-        break;
-      }
-    }
-
-    // Add pre-scan decision with context info
-    addDecision({
-      type: 'pre-scan',
-      title: `Execute ${buttonLabel} Scan?`,
-      description: `Context: "${contextName}"\n\nClick Accept to start the ${buttonLabel.toLowerCase()} scan for this context.`,
-      severity: 'info',
-      data: { scanId, contextId },
-      onAccept: async () => {
-        setSelectedScanId(null); // Clear selection
-        setPendingScanId(null);
-        await handleScan(scanId, contextId); // Execute scan with contextId
+  const handleScan = useCallback(async (scanId: string, contextId?: string) => {
+    // Use extracted scan execution logic
+    await executeScan(
+      scanId,
+      stepperConfig,
+      {
+        startScan,
+        completeScan,
+        failScan,
+        addDecision,
       },
-      onReject: async () => {
-        setSelectedScanId(null); // Clear selection
-        setPendingScanId(null);
-      },
-    });
-  };
+      activeProject,
+      contextId
+    );
 
-  const handleScan = async (scanId: string, contextId?: string) => {
-    // Find button config by scanning all columns
-    let buttonConfig = null;
-    for (const column of columns) {
-      const button = column.buttons.find(b => b.id === scanId);
-      if (button) {
-        buttonConfig = button;
-        break;
-      }
-    }
-
-    if (!buttonConfig) {
-      console.error(`[Blueprint] No button config found for scan: ${scanId}`);
-      return;
-    }
-
-    // Check if scan handler is defined
-    if (!buttonConfig.scanHandler) {
-      console.error(`[Blueprint] No scan handler defined for: ${scanId}`);
-      return;
-    }
-
-    // Start scan
-    startScan(scanId);
-
-    // Execute scan in background (non-blocking)
-    // This allows user to continue working and multiple scans to run concurrently
-    (async () => {
-      try {
-        console.log(`[Blueprint] Starting scan: ${scanId}`);
-
-        // Execute scan (with contextId if needed)
-        let result;
-        try {
-          if (buttonConfig.contextNeeded && contextId) {
-            // For context-dependent scans, call with contextId
-            if (scanId === 'selectors') {
-              const { executeSelectorsScan } = await import('./lib/blueprintSelectorsScan');
-              result = await executeSelectorsScan(contextId);
-            } else if (scanId === 'photo') {
-              const { executePhotoScan } = await import('./lib/blueprintPhotoScan');
-              result = await executePhotoScan(contextId);
-            } else {
-              result = await buttonConfig.scanHandler.execute();
-            }
-          } else {
-            result = await buttonConfig.scanHandler.execute();
-          }
-        } catch (scanError) {
-          // Catch execution errors and convert to failed result
-          const errorMsg = scanError instanceof Error ? scanError.message : 'Scan execution failed';
-          console.error(`[Blueprint] Scan execution error for ${scanId}:`, scanError);
-          result = {
-            success: false,
-            error: errorMsg,
-          };
-        }
-
-        // Handle failure - log error but continue processing other scans
-        if (!result.success) {
-          const errorMsg = result.error || 'Scan failed';
-          console.error(`[Blueprint] Scan ${scanId} failed:`, errorMsg);
-          failScan(errorMsg);
-
-          // Don't show error decision here - error banner will handle it
-          // Just log and allow other scans to continue
-          return;
-        }
-
-        // Mark as complete
-        completeScan();
-
-        // Build decision data
-        let decisionData;
-        try {
-          decisionData = buttonConfig.scanHandler.buildDecision(result);
-        } catch (buildError) {
-          console.error(`[Blueprint] Error building decision for ${scanId}:`, buildError);
-          // If decision building fails, still mark scan as complete but don't queue decision
-          return;
-        }
-
-        // If decision data exists, wrap onAccept to create event after successful acceptance
-        if (decisionData) {
-          const originalOnAccept = decisionData.onAccept;
-
-          // Wrap onAccept to create event after successful acceptance
-          decisionData.onAccept = async () => {
-            try {
-              // Execute original accept logic
-              await originalOnAccept();
-
-              // Create event only after successful acceptance
-              if (buttonConfig.eventTitle && activeProject) {
-                await createScanEvent(buttonConfig.eventTitle, scanId, contextId);
-              }
-            } catch (acceptError) {
-              console.error(`[Blueprint] Error in onAccept for ${scanId}:`, acceptError);
-              throw acceptError; // Re-throw to be handled by decision panel
-            }
-          };
-
-          // Add to decision queue
-          addDecision(decisionData);
-        } else {
-          // If no decision needed (scan completed without user input needed),
-          // create event immediately
-          if (buttonConfig.eventTitle && activeProject) {
-            await createScanEvent(buttonConfig.eventTitle, scanId, contextId);
+    // Reload scan events after scan completes
+    if (activeProject && stepperConfig) {
+      const eventTitles: Record<string, string> = {};
+      for (const group of stepperConfig.groups) {
+        for (const technique of group.techniques) {
+          if (technique.eventTitle) {
+            eventTitles[technique.id] = technique.eventTitle;
           }
         }
-      } catch (error) {
-        // Top-level catch for any unexpected errors
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Blueprint] Unexpected error in scan ${scanId}:`, error);
-        failScan(errorMsg);
-
-        // Don't block the UI with error decisions - error banner will handle retry
       }
-    })();
+      await loadScanEvents(activeProject.id, eventTitles);
+    }
+  }, [stepperConfig, startScan, completeScan, failScan, addDecision, activeProject, loadScanEvents]);
 
-    // Return immediately - scan runs in background
-  };
+  const handleBlueprintContextSelect = useCallback((contextId: string, context: any) => {
+    setSelectedContextId(contextId);
+    setSelectedContext(context);
+  }, []);
 
-  const createScanEvent = async (eventTitle: string, scanId: string, contextId?: string) => {
-    if (!activeProject) return;
+  const handlePreviewUpdated = useCallback(async (
+    newPreview: string | null,
+    testScenario: string | null,
+    target?: string | null,
+    targetFulfillment?: string | null
+  ) => {
+    if (!selectedContext || !activeProject) return;
 
     try {
-      const response = await fetch('/api/blueprint/events', {
-        method: 'POST',
+      // Update context with new preview, test scenario, and target fields
+      const response = await fetch('/api/contexts', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          project_id: activeProject.id,
-          title: eventTitle,
-          description: `Scan completed successfully`,
-          type: 'success',
-          agent: 'blueprint',
-          message: `${scanId} scan executed via Blueprint`,
-          context_id: contextId || null,
+          contextId: selectedContext.id,
+          updates: {
+            preview: newPreview,
+            testScenario: testScenario,
+            testUpdated: testScenario ? new Date().toISOString() : selectedContext.testUpdated,
+            target: target,
+            target_fulfillment: targetFulfillment,
+          },
         }),
       });
 
-      if (!response.ok) {
-        return;
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Reload scan events to update days ago
-        const eventTitles: Record<string, string> = {};
-        for (const column of columns) {
-          for (const button of column.buttons) {
-            if (button.eventTitle) {
-              eventTitles[button.id] = button.eventTitle;
-            }
-          }
-        }
-        await loadScanEvents(activeProject.id, eventTitles);
+      if (response.ok) {
+        // Update local state
+        setSelectedContext({
+          ...selectedContext,
+          preview: newPreview,
+          testScenario: testScenario,
+          target: target,
+          target_fulfillment: targetFulfillment,
+        });
       }
     } catch (error) {
-      // Silent error handling
+      console.error('[Blueprint] Error updating context preview:', error);
     }
-  };
+  }, [selectedContext, activeProject]);
 
-  const handleNavigate = (module: 'ideas' | 'tinder' | 'tasker' | 'reflector') => {
-    setActiveModule(module);
-    closeBlueprint();
-    openControlPanel();
-  };
+  // Memoize expensive computed values
+  const selectedGroupColor = useMemo(() => {
+    if (!selectedContextGroupId) return '#06b6d4';
+    return contextGroups.find(g => g.id === selectedContextGroupId)?.color || '#06b6d4';
+  }, [selectedContextGroupId, contextGroups]);
+
+  // Memoize scan status callback to prevent unnecessary re-renders
+  const getScanStatusMemoized = useCallback((techniqueId: string) => {
+    const status = getScanStatus(techniqueId);
+    return {
+      isRunning: status.isRunning,
+      progress: status.progress,
+      hasError: status.hasError,
+    };
+  }, [getScanStatus]);
 
   // Keyboard shortcuts
   useBlueprintKeyboardShortcuts({
-    onVisionScan: () => handleSelectScan('vision'),
-    onContextsScan: () => handleSelectScan('contexts'),
-    onStructureScan: () => handleSelectScan('structure'),
-    onBuildScan: () => handleSelectScan('build'),
-    onPhotoScan: () => handleSelectScan('photo'),
+    onVisionScan: () => handleSelectScan('vision', 'vision'),
+    onContextsScan: () => handleSelectScan('knowledge', 'contexts'),
+    onStructureScan: () => handleSelectScan('structure', 'structure'),
+    onBuildScan: () => handleSelectScan('quality', 'build'),
+    onPhotoScan: () => handleSelectScan('nextjs-ui', 'photo'),
     onClose: closeBlueprint,
   });
 
@@ -401,6 +336,7 @@ export default function DarkBlueprint() {
       {/* Scan Error Banner - Top Right */}
       <ScanErrorBanner onRetry={handleSelectScan} />
 
+
       {/* Decision Panel - Top Center */}
       {currentDecision && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-8">
@@ -408,127 +344,116 @@ export default function DarkBlueprint() {
         </div>
       )}
 
-      {/* Context Selector Modal */}
-      {showContextSelector && activeProject && pendingScanId && (
-        <div data-testid="context-selector-modal">
-          <ContextSelector
-            projectId={activeProject.id}
-            scanId={pendingScanId}
-            scanEventTitle={
-              columns
-                .flatMap(col => col.buttons)
-                .find(btn => btn.id === pendingScanId)?.eventTitle || ''
-            }
-            onSelect={handleContextSelect}
-            onClose={() => {
-              setShowContextSelector(false);
-              setPendingScanId(null);
-              setSelectedScanId(null);
-            }}
-          />
-        </div>
-      )}
-
       {/* Task Progress Panel */}
       <TaskProgressPanel />
 
-      {/* Badge Gallery - Full Screen Completion View */}
-      <AnimatePresence>
-        {showBadgeGallery && (
-          <BadgeGallery
-            onClose={() => {
-              setShowBadgeGallery(false);
-              closeBlueprint();
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Blueprint Test Panel */}
+      <BlueprintTestPanel />
 
-      {/* Stepper Configuration Panel */}
-      {useStepper && stepperConfig && (
-        <StepperConfigPanel
-          groups={stepperConfig.groups}
-          onToggle={toggleGroup}
-        />
+      {/* Stepper Configuration Panel - Lazy loaded */}
+      {stepperConfig && (
+        <Suspense fallback={<SuspenseFallback />}>
+          <StepperConfigPanel
+            groups={stepperConfig.groups}
+            onToggle={toggleGroup}
+          />
+        </Suspense>
       )}
 
-      {/* Stepper Progress Indicator */}
-      {useStepper && stepperConfig && (
-        <div className="absolute top-32 left-1/2 -translate-x-1/2 z-40">
-          <StepperProgress
-            currentStep={currentStepIndex}
-            totalSteps={getAllTechniques(stepperConfig).length}
-            completedSteps={completedSteps}
+      {/* Scan Buttons Bar - Top */}
+      {stepperConfig && (
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-40">
+          <ScanButtonsBar
+            config={stepperConfig}
+            selectedScanId={selectedScanId}
+            onScanSelect={handleSelectScan}
+            getDaysAgo={getDaysAgo}
+            getScanStatus={getScanStatusMemoized}
+            isRecommended={isRecommended}
           />
         </div>
       )}
 
-      {/* Main content area */}
-      <div className="relative h-full min-w-[1200px] flex items-center justify-center p-20" data-testid="blueprint-main-content">
-        {useStepper && stepperConfig ? (
-          /* New Stepper Layout */
-          <Stepper
-            config={stepperConfig}
-            currentStepIndex={currentStepIndex}
-            selectedScanId={selectedScanId}
-            onStepSelect={(_groupId, techniqueId) => handleSelectScan(techniqueId)}
-            onNavigate={handleNavigate}
-            getDaysAgo={getDaysAgo}
-            getScanStatus={(techniqueId) => {
-              const status = getScanStatus(techniqueId);
-              return {
-                isRunning: status.isRunning,
-                progress: status.progress,
-                hasError: status.hasError,
-              };
-            }}
-            isRecommended={isRecommended}
-            className="min-w-[1200px]"
-          />
-        ) : (
-          /* Legacy Column Grid Layout */
-          <div className="grid grid-cols-4 min-w-[1200px] gap-10 z-10" data-testid="blueprint-column-grid">
-            {columns.map((column, index) => (
-              <BlueprintColumn
-                key={column.id}
-                column={column}
-                delay={0.4 + index * 0.1}
-                selectedScanId={selectedScanId}
-                onSelectScan={handleSelectScan}
-                onScan={handleScan}
-                onNavigate={handleNavigate}
-                getDaysAgo={getDaysAgo}
-              />
-            ))}
+      {/* Blueprint Context Selector - Left Sidebar */}
+      {selectedContextGroupId && (
+        <motion.div
+          initial={{ opacity: 0, x: -300 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -300 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="absolute left-4 top-24 bottom-24 z-30 w-64"
+          data-testid="blueprint-context-sidebar"
+        >
+          <div className="h-full bg-gray-950/10 backdrop-blur-sm border border-cyan-500/20 rounded-xl shadow-2xl overflow-hidden">
+            <BlueprintContextSelector
+              selectedGroupId={selectedContextGroupId}
+              groupColor={selectedGroupColor}
+              selectedContextId={selectedContextId}
+              onSelectContext={handleBlueprintContextSelect}
+            />
           </div>
-        )}
+        </motion.div>
+      )}
 
-        {/* Connection lines between columns */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: -1 }}>
-          <defs>
-            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(59, 130, 246, 0)" />
-              <stop offset="50%" stopColor="rgba(59, 130, 246, 0.2)" />
-              <stop offset="100%" stopColor="rgba(59, 130, 246, 0)" />
-            </linearGradient>
-          </defs>
-          <motion.line
-            x1="25%" y1="50%" x2="50%" y2="50%"
-            stroke="url(#lineGradient)"
-            strokeWidth="1"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 1, delay: 1 }}
-          />
-          <motion.line
-            x1="50%" y1="50%" x2="75%" y2="50%"
-            stroke="url(#lineGradient)"
-            strokeWidth="1"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 1, delay: 1.2 }}
-          />
-        </svg>
+      {/* Right Sidebar - Split in half for Context Scans and Test Results */}
+      {selectedContextGroupId && (
+        <motion.div
+          initial={{ opacity: 0, x: 300 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 300 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="absolute right-4 top-24 bottom-24 z-30 w-48 flex flex-col gap-4"
+          data-testid="right-sidebar-split"
+        >
+          {/* Upper Half - Context-Dependent Scans */}
+          <div className="flex-1 bg-gray-950/10 backdrop-blur-sm border border-cyan-500/20 rounded-xl shadow-2xl overflow-hidden">
+            <ContextDependentScans
+              selectedContextId={selectedContextId}
+              selectedScanId={selectedScanId}
+              onScanSelect={handleSelectScan}
+              getDaysAgo={getDaysAgo}
+              getScanStatus={getScanStatusMemoized}
+              isRecommended={isRecommended}
+            />
+          </div>
+
+          {/* Bottom Half - Test Results */}
+          <div className="flex-1 bg-gray-950/10 backdrop-blur-sm border border-cyan-500/20 rounded-xl shadow-2xl overflow-hidden">
+            <BlueprintTestCompact />
+          </div>
+        </motion.div>
+      )}
+
+      {/* Context Overview - Center (with margins for both sidebars) - Lazy loaded */}
+      {selectedContext && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="absolute top-24 left-72 right-56 bottom-24 z-40"
+          data-testid="blueprint-context-preview"
+        >
+          <Suspense fallback={<SuspenseFallback />}>
+            <ContextOverview
+              mode="embedded"
+              contextData={selectedContext}
+              groupColorProp={selectedGroupColor}
+            onClose={() => {
+              setSelectedContextId(null);
+              setSelectedContext(null);
+            }}
+            onPreviewUpdated={handlePreviewUpdated}
+            />
+          </Suspense>
+        </motion.div>
+      )}
+
+      {/* Context Group Selector - Bottom */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl px-8">
+        <ContextGroupSelector
+          selectedGroupId={selectedContextGroupId}
+          onSelectGroup={setSelectedContextGroupId}
+        />
       </div>
     </motion.div>
   );

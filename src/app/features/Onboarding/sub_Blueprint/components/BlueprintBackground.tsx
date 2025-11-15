@@ -1,6 +1,8 @@
 'use client';
 
-export default function BlueprintBackground() {
+import { memo } from 'react';
+
+const BlueprintBackground = memo(function BlueprintBackground() {
   return (
     <>
       {/* Blueprint Grid Background */}
@@ -33,4 +35,6 @@ export default function BlueprintBackground() {
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-gray-950/50 via-transparent to-gray-950/50" />
     </>
   );
-}
+});
+
+export default BlueprintBackground;

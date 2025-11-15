@@ -4,13 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Target, CheckCircle2, Circle, Clock, XCircle, HelpCircle } from 'lucide-react';
 
 import ProjectsLayout from '../../projects/ProjectsLayout';
-import GoalsAddModal from './sub_GoalModal/components/GoalsAddModal';
-import GoalsDetailModalContent from './sub_GoalModal/components/GoalsDetailModalContent';
+import GoalModal from './sub_GoalModal/GoalModal';
 import { Goal } from '../../../types';
 import { GoalProvider, useGoalContext } from '@/contexts/GoalContext';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
-import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import { getNextOrder } from './sub_GoalModal/lib';
 import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList';
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
@@ -40,37 +38,16 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
   const { activeProject } = useActiveProjectStore();
   const { goals, createGoal, updateGoal } = useGoalContext();
   const { showAddGoal, setShowAddGoal } = useProjectsToolbarStore();
-  const { showShellModal, hideModal } = useGlobalModal();
 
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Filter goals for active project
   const projectGoals = goals.filter(goal => goal.projectId === activeProject?.id);
 
   const handleGoalClick = (goal: Goal) => {
-    showShellModal(
-      {
-        title: 'Goal Details',
-        subtitle: 'Review and manage your objective',
-        icon: Target,
-        iconBgColor: 'from-blue-600/20 to-slate-600/20',
-        iconColor: 'text-blue-400',
-        maxWidth: 'max-w-6xl',
-        maxHeight: 'max-h-[90vh]'
-      },
-      {
-        content: { enabled: true },
-        customContent: (
-          <GoalsDetailModalContent
-            goal={goal}
-            projectId={activeProject?.id || null}
-            onSave={updateGoal}
-            onClose={hideModal}
-          />
-        ),
-        isTopMost: true
-      }
-    );
+    setSelectedGoal(goal);
+    setShowDetailModal(true);
   };
 
   const handleAddNewGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
@@ -204,11 +181,27 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
       </div>
 
       {/* Add Goal Modal */}
-      <GoalsAddModal
+      <GoalModal
+        mode="add"
         isOpen={showAddGoal}
         onClose={() => setShowAddGoal(false)}
         onSubmit={handleAddNewGoal}
       />
+
+      {/* Goal Detail Modal */}
+      {selectedGoal && (
+        <GoalModal
+          mode="detail"
+          isOpen={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedGoal(null);
+          }}
+          goal={selectedGoal}
+          projectId={activeProject?.id || null}
+          onSave={updateGoal}
+        />
+      )}
     </>
   );
 }

@@ -1,6 +1,6 @@
 /**
  * Next.js Vision Scan Adapter
- * Generates high-level project documentation (AI Docs)
+ * Generates high-level project documentation using Claude Code
  *
  * Note: While placed in nextjs folder, this adapter works with any project type
  * It's framework-agnostic and could be moved to a generic adapter folder in the future
@@ -9,58 +9,80 @@
 import { Project } from '@/types';
 import { BaseAdapter } from '../BaseAdapter';
 import { ScanContext, ScanResult, DecisionData } from '../types';
-import { DefaultProviderStorage } from '@/lib/llm';
+import { executePipeline } from '../../pipeline';
 
 interface VisionScanData {
-  filePath: string;
-  content: string;
-  projectPath: string;
+  taskId: string;
+  requirementPath: string;
 }
 
 export class NextJSVisionAdapter extends BaseAdapter<VisionScanData> {
   public readonly id = 'nextjs-vision';
   public readonly name = 'Next.js Vision Scan';
-  public readonly description = 'Generates high-level project documentation using AI';
+  public readonly description = 'Generates high-level project documentation using Claude Code';
   public readonly supportedTypes = ['*']; // Framework-agnostic
   public readonly category = 'vision';
   public readonly priority = 100;
 
   /**
-   * Execute vision scan (generate high-level AI docs, but don't save yet)
+   * Execute vision scan using Claude Code pipeline
    */
   public async execute(context: ScanContext): Promise<ScanResult<VisionScanData>> {
     const { project } = context;
 
     try {
-      this.log('Generating high-level documentation...');
+      this.log('Building requirement with codebase context...');
 
-      const apiResult = await this.fetchApi('/api/projects/ai-docs', {
+      // Build requirement content via API (server-side)
+      const buildResponse = await fetch('/api/blueprint/vision-requirement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectName: project.name,
           projectPath: project.path,
           projectId: project.id,
-          analysis: {},
-          provider: DefaultProviderStorage.getDefaultProvider(),
         }),
       });
 
-      if (!apiResult.success || !apiResult.data?.success || !apiResult.data?.review) {
+      const buildResult = await buildResponse.json();
+
+      if (!buildResult.success || !buildResult.requirementContent) {
         return this.createResult(
           false,
           undefined,
-          apiResult.data?.error || apiResult.error || 'Failed to generate documentation'
+          buildResult.error || 'Failed to build requirement content'
+        );
+      }
+
+      this.log('Starting Claude Code pipeline...');
+
+      // Execute pipeline with progress tracking
+      const result = await executePipeline({
+        projectPath: project.path,
+        projectId: project.id,
+        requirementName: 'vision-scan',
+        requirementContent: buildResult.requirementContent,
+        onProgress: (progress, message) => {
+          // Update progress
+          const { useBlueprintStore } = require('../../../store/blueprintStore');
+          useBlueprintStore.getState().updateScanProgress(progress);
+          this.log(`Progress: ${progress}% - ${message}`);
+        },
+      });
+
+      if (!result.success) {
+        return this.createResult(
+          false,
+          undefined,
+          result.error || 'Pipeline execution failed'
         );
       }
 
       this.log('Documentation generated successfully');
 
-      // Return the generated content without saving yet
       return this.createResult(true, {
-        filePath: 'context/high.md',
-        content: apiResult.data.review,
-        projectPath: project.path,
+        taskId: result.taskId || '',
+        requirementPath: result.requirementPath || '',
       });
     } catch (error) {
       this.error('Error executing vision scan:', error);
@@ -73,57 +95,32 @@ export class NextJSVisionAdapter extends BaseAdapter<VisionScanData> {
   }
 
   /**
-   * Build decision data for vision scan results
-   * User must accept to save the documentation to context/high.md
+   * Build decision data for vision scan completion
    */
   public buildDecision(result: ScanResult<VisionScanData>, project: Project): DecisionData | null {
     if (!result.success || !result.data) {
       return null;
     }
 
-    const { content, filePath, projectPath } = result.data;
-    const wordCount = content.split(/\s+/).length;
+    const { taskId } = result.data;
 
     return this.createDecision(
       {
         type: 'vision-scan',
-        title: 'Project Documentation Generated',
-        description: `Generated high-level project documentation (${wordCount} words).\n\nThis will be saved to: ${filePath}\n\nAccept to save the documentation, or Reject to discard.`,
+        title: 'Vision Scan Completed',
+        description: `✅ Claude Code has successfully generated high-level documentation for **${project.name}**.\n\n📄 **Output Location**: \`context/high.md\`\n\n🔍 **Task ID**: ${taskId}\n\nThe documentation includes:\n- Project overview and purpose\n- Architecture and tech stack\n- Key features and capabilities\n- Project structure\n- Development workflow\n- Design patterns\n\nClick **Accept** to acknowledge completion.`,
         count: 1,
         severity: 'info',
-        data: { content, filePath, projectPath },
+        data: { taskId },
 
-        // Accept: Save documentation to context/high.md
+        // Accept: Acknowledge completion
         onAccept: async () => {
-          this.log('User accepted - saving documentation...');
-
-          const saveResponse = await fetch('/api/disk/save-file', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              folderPath: 'context',
-              fileName: 'high.md',
-              content: content,
-              projectPath: projectPath,
-            }),
-          });
-
-          if (!saveResponse.ok) {
-            throw new Error('Failed to save documentation to context/high.md');
-          }
-
-          const saveResult = await saveResponse.json();
-
-          if (!saveResult.success) {
-            throw new Error(saveResult.error || 'Failed to save documentation');
-          }
-
-          this.log('✅ Saved to context/high.md');
+          this.log('User acknowledged completion');
         },
 
-        // Reject: Discard documentation
+        // Reject: Not applicable
         onReject: async () => {
-          this.log('User rejected - documentation discarded');
+          this.log('User dismissed notification');
         },
       },
       project

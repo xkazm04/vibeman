@@ -16,7 +16,7 @@ export interface IlluminatedButtonProps {
   icon: LucideIcon;
   onClick: () => void;
   color?: 'blue' | 'cyan' | 'purple' | 'amber' | 'green' | 'red' | 'pink' | 'indigo';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
   selected?: boolean; // Button is selected for scan (shows in decision panel)
   hasError?: boolean; // Button shows red when last scan failed
@@ -98,6 +98,7 @@ const colorMap = {
 };
 
 const sizeMap = {
+  xs: { button: 'w-[51px] h-[51px]', icon: 'w-6 h-6', label: 'text-sm', labelY: 'top-[58px]' }, // 20% smaller than sm, icon stays same size
   sm: { button: 'w-16 h-16', icon: 'w-6 h-6', label: 'text-sm', labelY: 'top-20' },
   md: { button: 'w-20 h-20', icon: 'w-7 h-7', label: 'text-base', labelY: 'top-24' },
   lg: { button: 'w-24 h-24', icon: 'w-8 h-8', label: 'text-lg', labelY: 'top-28' },
@@ -164,7 +165,7 @@ export default function IlluminatedButton({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         whileTap={{ scale: disabled ? 1 : 0.95 }}
-        className={`group relative ${sizes.button} bg-gradient-to-br ${colors.bg}  rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all ease-linear duration-300`}
+        className={`group relative ${sizes.button} cursor-pointer bg-gradient-to-br ${colors.bg}  rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all ease-linear duration-300`}
         data-testid={`blueprint-button-${label.toLowerCase().replace(/\s+/g, '-')}`}
       >
 
@@ -216,36 +217,16 @@ export default function IlluminatedButton({
           </div>
         )}
 
-        {/* Outer glow */}
-        <motion.div
-          className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.bg} blur-md ${colors.glow} opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10`}
-          animate={{
-            opacity: glowing || recommended ? [0.4, 0.8, 0.4] : 0,
-            scale: glowing || recommended ? [1, 1.2, 1] : 1,
-          }}
-          transition={{
-            duration: recommended ? 1.5 : 2, // Faster pulse for recommendations
-            repeat: (glowing || recommended) ? Infinity : 0,
-            ease: 'easeInOut',
-          }}
+        {/* Outer glow - Static version (removed infinite animation) */}
+        <div
+          className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.bg} blur-md ${colors.glow} transition-opacity duration-300 -z-10 ${
+            glowing || recommended ? 'opacity-60' : 'opacity-0 group-hover:opacity-100'
+          }`}
         />
 
-        {/* Icon pulse animation when recommended (inside the button) */}
+        {/* Recommended indicator - Static version (removed pulse animation) */}
         {recommended && !scanning && !disabled && (
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            animate={{
-              scale: [1, 1.15, 1],
-              opacity: [0.6, 1, 0.6],
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          >
-            <Icon className={`${sizes.icon} ${colors.text}`} />
-          </motion.div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full border-2 border-gray-900 shadow-lg shadow-yellow-500/50" />
         )}
 
       </motion.button>

@@ -41,7 +41,7 @@ export const TaskProgressPanel: React.FC = () => {
       initial={{ x: 100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ delay: 0.5, duration: 0.5 }}
-      className="fixed right-0 top-20 z-40 h-[calc(100vh-5rem)]"
+      className="fixed right-0 top-20 z-40 h-[calc(100vh-2rem)]"
     >
       <div className="relative h-full flex items-stretch">
         {/* Toggle Button */}
@@ -64,20 +64,9 @@ export const TaskProgressPanel: React.FC = () => {
             ) : (
               <ChevronLeft size={20} className="text-cyan-400 group-hover:text-cyan-300 transition-colors" />
             )}
-            {/* Pulse indicator when not expanded */}
+            {/* Indicator when not expanded - Static version (removed pulse animation) */}
             {!isExpanded && (
-              <motion.div
-                className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full"
-                animate={{
-                  scale: [1, 1.5, 1],
-                  opacity: [1, 0.5, 1],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50" />
             )}
           </div>
         </button>

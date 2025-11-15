@@ -54,7 +54,7 @@ export default function ContextPreviewHeader({
       <div className="flex items-center space-x-2">
         <Upload className="w-5 h-5" style={{ color: groupColor }} />
         <h5 className="text-lg font-semibold text-gray-300 font-mono">
-          Manage Preview & Testing
+          Preview
         </h5>
       </div>
       {currentPreview && (

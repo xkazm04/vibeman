@@ -86,6 +86,18 @@ export function runMigrations() {
     migrateVoicebotAnalyticsTable();
     // Migration 14: Add context_id column to events table
     migrateEventsContextId();
+    // Migration 15: Create test_scenarios table
+    migrateTestScenariosTable();
+    // Migration 16: Create test_executions table
+    migrateTestExecutionsTable();
+    // Migration 17: Create visual_diffs table
+    migrateVisualDiffsTable();
+    // Migration 18: Create scan predictions tables
+    migrateScanPredictionsTables();
+    // Migration 19: Add target fields to contexts table
+    migrateContextsTargetFields();
+    // Migration 20: Create test case management tables
+    migrateTestCaseManagementTables();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -814,4 +826,300 @@ function migrateEventsContextId() {
       migrationLogger.info('Events table already has context_id column');
     }
   }, migrationLogger);
+}
+
+/**
+ * Create test_scenarios table for AI-generated test scenarios
+ */
+function migrateTestScenariosTable() {
+  safeMigration('testScenariosTable', () => {
+    const db = getConnection();
+    const created = createTableIfNotExists(db, 'test_scenarios', `
+      CREATE TABLE test_scenarios (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        context_id TEXT,
+        name TEXT NOT NULL,
+        description TEXT,
+        user_flows TEXT NOT NULL, -- JSON array of user interaction steps
+        component_tree TEXT, -- JSON representation of component hierarchy
+        test_skeleton TEXT, -- Generated Playwright test code
+        data_testids TEXT, -- JSON array of required data-testid attributes
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'generated', 'ready', 'running', 'completed', 'failed')),
+        ai_confidence_score INTEGER CHECK (ai_confidence_score >= 0 AND ai_confidence_score <= 100),
+        created_by TEXT NOT NULL CHECK (created_by IN ('ai', 'manual')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_test_scenarios_project_id ON test_scenarios(project_id);
+        CREATE INDEX idx_test_scenarios_context_id ON test_scenarios(context_id);
+        CREATE INDEX idx_test_scenarios_status ON test_scenarios(project_id, status);
+      `);
+      migrationLogger.info('test_scenarios table created successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Create test_executions table for test run results
+ */
+function migrateTestExecutionsTable() {
+  safeMigration('testExecutionsTable', () => {
+    const db = getConnection();
+    const created = createTableIfNotExists(db, 'test_executions', `
+      CREATE TABLE test_executions (
+        id TEXT PRIMARY KEY,
+        scenario_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'passed', 'failed', 'skipped')),
+        execution_time_ms INTEGER,
+        error_message TEXT,
+        console_output TEXT,
+        screenshots TEXT, -- JSON array of screenshot file paths
+        coverage_data TEXT, -- JSON coverage report
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (scenario_id) REFERENCES test_scenarios(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_test_executions_scenario_id ON test_executions(scenario_id);
+        CREATE INDEX idx_test_executions_project_id ON test_executions(project_id);
+        CREATE INDEX idx_test_executions_status ON test_executions(status);
+        CREATE INDEX idx_test_executions_created_at ON test_executions(project_id, created_at DESC);
+      `);
+      migrationLogger.info('test_executions table created successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Create visual_diffs table for screenshot comparison
+ */
+function migrateVisualDiffsTable() {
+  safeMigration('visualDiffsTable', () => {
+    const db = getConnection();
+    const created = createTableIfNotExists(db, 'visual_diffs', `
+      CREATE TABLE visual_diffs (
+        id TEXT PRIMARY KEY,
+        execution_id TEXT NOT NULL,
+        baseline_screenshot TEXT NOT NULL, -- File path to baseline image
+        current_screenshot TEXT NOT NULL, -- File path to current image
+        diff_screenshot TEXT, -- File path to diff image (if differences found)
+        diff_percentage REAL, -- Percentage of pixels different
+        has_differences INTEGER DEFAULT 0, -- Boolean flag
+        step_name TEXT NOT NULL, -- Name of the test step
+        viewport_width INTEGER,
+        viewport_height INTEGER,
+        metadata TEXT, -- JSON metadata (browser, device, etc.)
+        reviewed INTEGER DEFAULT 0, -- Boolean flag for manual review
+        approved INTEGER DEFAULT 0, -- Boolean flag for approval
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (execution_id) REFERENCES test_executions(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_visual_diffs_execution_id ON visual_diffs(execution_id);
+        CREATE INDEX idx_visual_diffs_has_differences ON visual_diffs(has_differences);
+        CREATE INDEX idx_visual_diffs_reviewed ON visual_diffs(reviewed);
+      `);
+      migrationLogger.info('visual_diffs table created successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Create scan predictions and history tables
+ * Enables predictive scan scheduling based on file change patterns
+ */
+function migrateScanPredictionsTables() {
+  const db = getConnection();
+
+  // Create scan_history table
+  safeMigration('scanHistoryTable', () => {
+    const created = createTableIfNotExists(db, 'scan_history', `
+      CREATE TABLE scan_history (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        scan_type TEXT NOT NULL,
+        context_id TEXT,
+        triggered_by TEXT NOT NULL CHECK (triggered_by IN ('manual', 'scheduled', 'file_change', 'commit')),
+        file_changes TEXT, -- JSON array of changed file paths
+        commit_sha TEXT, -- Git commit hash if triggered by commit
+        execution_time_ms INTEGER,
+        status TEXT NOT NULL CHECK (status IN ('completed', 'failed', 'skipped')),
+        error_message TEXT,
+        findings_count INTEGER DEFAULT 0, -- Number of issues/ideas generated
+        staleness_score REAL, -- 0-100 score indicating how stale the scan was
+        executed_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_scan_history_project_id ON scan_history(project_id);
+        CREATE INDEX idx_scan_history_scan_type ON scan_history(project_id, scan_type);
+        CREATE INDEX idx_scan_history_executed_at ON scan_history(project_id, executed_at DESC);
+        CREATE INDEX idx_scan_history_context_id ON scan_history(context_id);
+      `);
+      migrationLogger.info('scan_history table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create scan_predictions table
+  safeMigration('scanPredictionsTable', () => {
+    const created = createTableIfNotExists(db, 'scan_predictions', `
+      CREATE TABLE scan_predictions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        scan_type TEXT NOT NULL,
+        context_id TEXT,
+        confidence_score REAL NOT NULL CHECK (confidence_score >= 0 AND confidence_score <= 100),
+        staleness_score REAL NOT NULL CHECK (staleness_score >= 0 AND staleness_score <= 100),
+        priority_score REAL NOT NULL CHECK (priority_score >= 0 AND priority_score <= 100),
+        predicted_findings INTEGER, -- Estimated number of findings if scanned
+        recommendation TEXT NOT NULL CHECK (recommendation IN ('immediate', 'soon', 'scheduled', 'skip')),
+        reasoning TEXT, -- AI explanation for the recommendation
+        affected_file_patterns TEXT, -- JSON array of file patterns likely to trigger this scan
+        last_scan_at TEXT, -- When this scan was last executed
+        last_change_at TEXT, -- When relevant files were last modified
+        next_recommended_at TEXT, -- Suggested time for next scan
+        change_frequency_days REAL, -- Average days between changes to relevant files
+        scan_frequency_days REAL, -- Average days between scans
+        dismissed INTEGER DEFAULT 0, -- User dismissed this recommendation
+        scheduled INTEGER DEFAULT 0, -- Scan was scheduled based on this prediction
+        calculated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_scan_predictions_project_id ON scan_predictions(project_id);
+        CREATE INDEX idx_scan_predictions_priority ON scan_predictions(project_id, priority_score DESC);
+        CREATE INDEX idx_scan_predictions_recommendation ON scan_predictions(project_id, recommendation);
+        CREATE INDEX idx_scan_predictions_dismissed ON scan_predictions(project_id, dismissed);
+        CREATE INDEX idx_scan_predictions_context_id ON scan_predictions(context_id);
+        CREATE UNIQUE INDEX idx_scan_predictions_unique ON scan_predictions(project_id, scan_type, COALESCE(context_id, ''));
+      `);
+      migrationLogger.info('scan_predictions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create file_change_patterns table
+  safeMigration('fileChangePatternsTable', () => {
+    const created = createTableIfNotExists(db, 'file_change_patterns', `
+      CREATE TABLE file_change_patterns (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        file_pattern TEXT NOT NULL, -- Glob pattern like 'src/**/*.ts'
+        scan_types TEXT NOT NULL, -- JSON array of scan types affected by this pattern
+        change_frequency_days REAL, -- Average days between changes
+        last_changed_at TEXT, -- Last time a file matching this pattern changed
+        commit_count INTEGER DEFAULT 0, -- Number of commits affecting this pattern
+        total_changes INTEGER DEFAULT 0, -- Total number of file changes
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_file_change_patterns_project_id ON file_change_patterns(project_id);
+        CREATE INDEX idx_file_change_patterns_last_changed ON file_change_patterns(project_id, last_changed_at DESC);
+        CREATE UNIQUE INDEX idx_file_change_patterns_unique ON file_change_patterns(project_id, file_pattern);
+      `);
+      migrationLogger.info('file_change_patterns table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Scan prediction tables created successfully');
+}
+
+/**
+ * Add target and target_fulfillment columns to contexts table
+ */
+function migrateContextsTargetFields() {
+  safeMigration('contextsTargetFields', () => {
+    const db = getConnection();
+    const added = addColumnsIfNotExist(db, 'contexts', [
+      { name: 'target', definition: 'TEXT' },
+      { name: 'target_fulfillment', definition: 'TEXT' }
+    ], migrationLogger);
+
+    if (added === 0) {
+      migrationLogger.info('Contexts table already has target fields');
+    } else {
+      migrationLogger.info(`Added ${added} target field(s) to contexts table`);
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Create test case management tables
+ * Enables manual test case scenarios and steps for contexts
+ */
+function migrateTestCaseManagementTables() {
+  const db = getConnection();
+
+  // Create test_case_scenarios table
+  safeMigration('testCaseScenariosTable', () => {
+    const created = createTableIfNotExists(db, 'test_case_scenarios', `
+      CREATE TABLE test_case_scenarios (
+        id TEXT PRIMARY KEY,
+        context_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`CREATE INDEX idx_test_case_scenarios_context_id ON test_case_scenarios(context_id)`);
+      migrationLogger.info('test_case_scenarios table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create test_case_steps table
+  safeMigration('testCaseStepsTable', () => {
+    const created = createTableIfNotExists(db, 'test_case_steps', `
+      CREATE TABLE test_case_steps (
+        id TEXT PRIMARY KEY,
+        scenario_id TEXT NOT NULL,
+        step_order INTEGER NOT NULL,
+        step_name TEXT NOT NULL,
+        expected_result TEXT NOT NULL,
+        test_selector_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (scenario_id) REFERENCES test_case_scenarios(id) ON DELETE CASCADE,
+        FOREIGN KEY (test_selector_id) REFERENCES test_selectors(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_test_case_steps_scenario_id ON test_case_steps(scenario_id);
+        CREATE INDEX idx_test_case_steps_order ON test_case_steps(scenario_id, step_order);
+      `);
+      migrationLogger.info('test_case_steps table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Test case management tables created successfully');
 }

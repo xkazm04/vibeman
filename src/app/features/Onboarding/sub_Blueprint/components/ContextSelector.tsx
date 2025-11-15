@@ -176,16 +176,16 @@ export default function ContextSelector({
 
         {/* Preview icon (inner bottom left) */}
         {context.preview && (
-          <motion.button
+          <motion.div
             onClick={(e) => handlePreviewClick(context.preview!, e)}
-            className="absolute bottom-2 left-2 z-10 p-1.5 bg-gray-700/80 hover:bg-cyan-500/20 rounded-lg border border-gray-600/50 hover:border-cyan-500/50 transition-all"
+            className="absolute bottom-2 left-2 z-10 p-1.5 bg-gray-700/80 hover:bg-cyan-500/20 rounded-lg border border-gray-600/50 hover:border-cyan-500/50 transition-all cursor-pointer"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             title="View preview"
             data-testid={`context-preview-btn-${context.id}`}
           >
             <ImageIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-cyan-400" />
-          </motion.button>
+          </motion.div>
         )}
 
         <div className="flex flex-col gap-2">

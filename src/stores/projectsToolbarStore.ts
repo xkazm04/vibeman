@@ -11,6 +11,7 @@ interface ProjectsToolbarState {
   showAddGoal: boolean;
   showAIReview: boolean;
   showClaudeCode: boolean;
+  showStructure: boolean;
 
   // Selected items
   selectedGoal: DbGoal | null;
@@ -24,6 +25,7 @@ interface ProjectsToolbarState {
   setShowAddGoal: (show: boolean) => void;
   setShowAIReview: (show: boolean) => void;
   setShowClaudeCode: (show: boolean) => void;
+  setShowStructure: (show: boolean) => void;
   setSelectedGoal: (goal: DbGoal | null) => void;
   setSelectedProject: (project: Project | null) => void;
 
@@ -40,6 +42,7 @@ export const useProjectsToolbarStore = create<ProjectsToolbarState>((set) => ({
   showAddGoal: false,
   showAIReview: false,
   showClaudeCode: false,
+  showStructure: false,
   selectedGoal: null,
   selectedProject: null,
 
@@ -51,6 +54,7 @@ export const useProjectsToolbarStore = create<ProjectsToolbarState>((set) => ({
   setShowAddGoal: (show) => set({ showAddGoal: show }),
   setShowAIReview: (show) => set({ showAIReview: show }),
   setShowClaudeCode: (show) => set({ showClaudeCode: show }),
+  setShowStructure: (show) => set({ showStructure: show }),
   setSelectedGoal: (goal) => set({ selectedGoal: goal }),
   setSelectedProject: (project) => set({ selectedProject: project }),
 
@@ -63,5 +67,6 @@ export const useProjectsToolbarStore = create<ProjectsToolbarState>((set) => ({
     showAddGoal: false,
     showAIReview: false,
     showClaudeCode: false,
+    showStructure: false,
   }),
 }));

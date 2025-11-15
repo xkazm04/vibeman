@@ -8,6 +8,7 @@ import BlueprintModal from './components/BlueprintModal';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useOnboardingAutoComplete } from './lib/useOnboardingConditions';
 import { TOTAL_TASKS } from './sub_GettingStarted/lib/config';
+import FrozenComponent from '@/components/FrozenComponent';
 
 interface ControlPanelContextType {
   openBlueprint: () => void;
@@ -67,7 +68,10 @@ export default function ControlPanelProvider({ children }: { children: ReactNode
 
   return (
     <ControlPanelContext.Provider value={{ openBlueprint, closeBlueprint, isBlueprintOpen }}>
-      {children}
+      {/* Freeze main content when Blueprint is open for better performance */}
+      <FrozenComponent shouldFreeze={isBlueprintOpen}>
+        {children}
+      </FrozenComponent>
 
       {/* Blueprint Button - Always visible in top left */}
       <motion.div

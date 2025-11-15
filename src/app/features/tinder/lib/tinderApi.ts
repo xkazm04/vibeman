@@ -8,8 +8,16 @@ import { DbIdea } from '@/app/db';
  * Handle API response errors
  */
 async function handleApiError(response: Response, defaultMessage: string): Promise<never> {
-  const error = await response.json();
-  throw new Error(error.error || defaultMessage);
+  try {
+    const error = await response.json();
+    const message = error.error || defaultMessage;
+    const details = error.details ? ` - ${error.details}` : '';
+    throw new Error(message + details);
+  } catch (parseError) {
+    // If JSON parsing fails, throw a generic error with status
+    console.error('Failed to parse error response:', parseError);
+    throw new Error(`${defaultMessage} (Status: ${response.status})`);
+  }
 }
 
 /**

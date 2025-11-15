@@ -157,19 +157,8 @@ export default function ScanProgressBar({
         aria-label={label || 'Scan progress'}
         aria-busy={state === 'scanning'}
       >
-        {/* Animated background gradient (always present for visual interest) */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20"
-          animate={{
-            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: 'linear',
-          }}
-          style={{ backgroundSize: '200% 100%' }}
-        />
+        {/* Static background gradient - (removed animation for performance) */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20" />
 
         {/* Progress fill - Determinate mode */}
         {!isIndeterminate && (
@@ -182,18 +171,8 @@ export default function ScanProgressBar({
               ease: 'easeOut',
             }}
           >
-            {/* Shimmer effect */}
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-              animate={{
-                x: ['-100%', '200%'],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: 'linear',
-              }}
-            />
+            {/* Static highlight - (removed shimmer animation for performance) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           </motion.div>
         )}
 

@@ -1,18 +1,18 @@
 /**
  * Blueprint Vision Scan Library
- * Generates high-level project documentation (AI Docs)
+ * Generates high-level project documentation using Claude Code
  */
 
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { DefaultProviderStorage } from '@/lib/llm';
+import { executePipeline } from './pipeline';
+import { useBlueprintStore } from '../store/blueprintStore';
 
 export interface ScanResult {
   success: boolean;
   error?: string;
   data?: {
-    filePath: string;
-    content: string;
-    projectPath: string;
+    taskId: string;
+    requirementPath: string;
   };
 }
 
@@ -24,47 +24,13 @@ export interface DecisionData {
   severity?: 'info' | 'warning' | 'error';
   projectId?: string;
   projectPath?: string;
-  data?: {
-    content: string;
-    filePath: string;
-    projectPath: string;
-  };
+  data?: any;
   onAccept: () => Promise<void>;
   onReject: () => Promise<void>;
 }
 
 /**
- * Generate AI documentation via API call
- */
-async function generateAIDocs(
-  projectName: string,
-  projectPath: string,
-  projectId: string
-): Promise<{ success: boolean; review?: string; error?: string }> {
-  const response = await fetch('/api/projects/ai-docs', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectName,
-      projectPath,
-      projectId,
-      analysis: {},
-      provider: DefaultProviderStorage.getDefaultProvider(),
-    }),
-  });
-
-  if (!response.ok) {
-    return {
-      success: false,
-      error: `Failed to generate documentation: ${response.status}`,
-    };
-  }
-
-  return response.json();
-}
-
-/**
- * Execute vision scan (generate high-level AI docs, but don't save yet)
+ * Execute vision scan using Claude Code pipeline
  */
 export async function executeVisionScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
@@ -77,26 +43,51 @@ export async function executeVisionScan(): Promise<ScanResult> {
   }
 
   try {
-    const result = await generateAIDocs(
-      activeProject.name,
-      activeProject.path,
-      activeProject.id
-    );
+    // Build requirement content via API (server-side)
+    const buildResponse = await fetch('/api/blueprint/vision-requirement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        projectId: activeProject.id,
+      }),
+    });
 
-    if (!result.success || !result.review) {
+    const buildResult = await buildResponse.json();
+
+    if (!buildResult.success || !buildResult.requirementContent) {
       return {
         success: false,
-        error: result.error || 'Failed to generate documentation',
+        error: buildResult.error || 'Failed to build requirement content',
       };
     }
 
-    // Return the generated content without saving yet
+    // Execute pipeline with progress tracking
+    const result = await executePipeline({
+      projectPath: activeProject.path,
+      projectId: activeProject.id,
+      requirementName: 'vision-scan',
+      requirementContent: buildResult.requirementContent,
+      onProgress: (progress, message) => {
+        // Update Blueprint store with progress
+        useBlueprintStore.getState().updateScanProgress(progress);
+        console.log(`[Vision Scan] ${progress}%: ${message}`);
+      },
+    });
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Pipeline execution failed',
+      };
+    }
+
     return {
       success: true,
       data: {
-        filePath: 'context/high.md',
-        content: result.review,
-        projectPath: activeProject.path,
+        taskId: result.taskId || '',
+        requirementPath: result.requirementPath || '',
       },
     };
   } catch (error) {
@@ -109,8 +100,8 @@ export async function executeVisionScan(): Promise<ScanResult> {
 }
 
 /**
- * Build decision data for vision scan results
- * User must accept to save the documentation to context/high.md
+ * Build decision data for vision scan
+ * This shows after scan completes successfully
  */
 export function buildDecisionData(result: ScanResult): DecisionData | null {
   if (!result.success || !result.data) {
@@ -123,46 +114,27 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
     return null;
   }
 
-  const { content, filePath, projectPath } = result.data;
-  const wordCount = content.split(/\s+/).length;
+  const { taskId } = result.data;
 
   return {
     type: 'vision-scan',
-    title: 'Project Documentation Generated',
-    description: `Generated high-level project documentation (${wordCount} words).\n\nThis will be saved to: ${filePath}\n\nAccept to save the documentation, or Reject to discard.`,
+    title: 'Vision Scan Completed',
+    description: `✅ Claude Code has successfully generated high-level documentation for **${activeProject.name}**.\n\n📄 **Output Location**: \`context/high.md\`\n\n🔍 **Task ID**: ${taskId}\n\nThe documentation includes:\n- Project overview and purpose\n- Architecture and tech stack\n- Key features and capabilities\n- Project structure\n- Development workflow\n- Design patterns\n\nClick **Accept** to acknowledge completion.`,
     count: 1,
     severity: 'info',
     projectId: activeProject.id,
     projectPath: activeProject.path,
-    data: { content, filePath, projectPath },
+    data: { taskId },
 
-    // Accept: Save documentation to context/high.md
+    // Accept: Acknowledge completion
     onAccept: async () => {
-      const saveResponse = await fetch('/api/disk/save-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          folderPath: 'context',
-          fileName: 'high.md',
-          content: content,
-          projectPath: projectPath,
-        }),
-      });
-
-      if (!saveResponse.ok) {
-        throw new Error('Failed to save documentation to context/high.md');
-      }
-
-      const saveResult = await saveResponse.json();
-
-      if (!saveResult.success) {
-        throw new Error(saveResult.error || 'Failed to save documentation');
-      }
+      // Task already completed, just acknowledge
+      console.log('[Vision Scan] User acknowledged completion');
     },
 
-    // Reject: Discard documentation
+    // Reject: Not applicable for this scan
     onReject: async () => {
-      // Documentation discarded - no action needed
+      console.log('[Vision Scan] User dismissed notification');
     },
   };
 }

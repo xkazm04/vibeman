@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { BLUEPRINT_COLUMNS, ColumnConfig } from '../lib/blueprintConfig';
 import { StepperConfig, getStepperConfig } from '../lib/stepperConfig';
 
 export interface ScanStatus {
@@ -21,7 +20,6 @@ interface BlueprintState {
   scans: Record<string, ScanStatus>;
   currentScan: string | null;
   scanProgress: number;
-  columns: ColumnConfig[]; // Column configuration array (legacy support)
   taskerProgress: TaskerProgress; // Tasker module progress state
 
   // Stepper state (new)
@@ -45,7 +43,6 @@ interface BlueprintState {
   getFailedScans: () => ScanStatus[];
   getDaysAgo: (scanName: string) => number | null;
   loadScanEvents: (projectId: string, eventTitles: Record<string, string>) => Promise<void>;
-  getColumns: () => ColumnConfig[];
 
   // Tasker progress actions
   updateTaskerProgress: (completedCount: number, totalCount: number) => void;
@@ -71,24 +68,36 @@ interface BlueprintState {
   isRecommended: (scanId: string) => boolean;
 }
 
-const DEFAULT_SCANS: Record<string, ScanStatus> = {
-  vision: { name: 'Vision', lastRun: null, isRunning: false, progress: 0, hasError: false },
-  contexts: { name: 'Contexts', lastRun: Date.now() - 2 * 24 * 60 * 60 * 1000, isRunning: false, progress: 0, hasError: false }, // 2 days ago
-  structure: { name: 'Structure', lastRun: Date.now() - 5 * 24 * 60 * 60 * 1000, isRunning: false, progress: 0, hasError: false }, // 5 days ago
-  build: { name: 'Build', lastRun: null, isRunning: false, progress: 0, hasError: false },
-  dependencies: { name: 'Dependencies', lastRun: Date.now() - 10 * 24 * 60 * 60 * 1000, isRunning: false, progress: 0, hasError: false }, // 10 days ago
-  ideas: { name: 'Ideas', lastRun: Date.now() - 1 * 24 * 60 * 60 * 1000, isRunning: false, progress: 0, hasError: false }, // 1 day ago
-  prototype: { name: 'Prototype', lastRun: null, isRunning: false, progress: 0, hasError: false },
-  contribute: { name: 'Contribute', lastRun: Date.now() - 7 * 24 * 60 * 60 * 1000, isRunning: false, progress: 0, hasError: false }, // 7 days ago
-  fix: { name: 'Fix', lastRun: null, isRunning: false, progress: 0, hasError: false },
-  photo: { name: 'Photo', lastRun: null, isRunning: false, progress: 0, hasError: false },
-};
+/**
+ * Auto-generate default scans from stepper configuration
+ * This eliminates the need to manually maintain scan lists
+ */
+function generateDefaultScans(config: StepperConfig): Record<string, ScanStatus> {
+  const scans: Record<string, ScanStatus> = {};
+
+  for (const group of config.groups) {
+    for (const technique of group.techniques) {
+      scans[technique.id] = {
+        name: technique.label,
+        lastRun: null,
+        isRunning: false,
+        progress: 0,
+        hasError: false,
+      };
+    }
+  }
+
+  return scans;
+}
+
+// Initialize with a default Next.js config as fallback
+const DEFAULT_STEPPER_CONFIG = getStepperConfig('nextjs');
+const DEFAULT_SCANS: Record<string, ScanStatus> = generateDefaultScans(DEFAULT_STEPPER_CONFIG);
 
 export const useBlueprintStore = create<BlueprintState>((set, get) => ({
   scans: DEFAULT_SCANS,
   currentScan: null,
   scanProgress: 0,
-  columns: BLUEPRINT_COLUMNS, // Initialize with default column configuration
   taskerProgress: { isRunning: false, completedCount: 0, totalCount: 0 }, // Initialize tasker progress
 
   // Stepper state (new)
@@ -261,11 +270,6 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
     }
   },
 
-  getColumns: () => {
-    const { columns } = get();
-    return columns;
-  },
-
   // Tasker progress management
   updateTaskerProgress: (completedCount: number, totalCount: number) => {
     set({
@@ -339,7 +343,9 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
 
   initStepperConfig: (projectType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other') => {
     const config = getStepperConfig(projectType);
-    set({ stepperConfig: config });
+    // Auto-generate scans from the new config
+    const scans = generateDefaultScans(config);
+    set({ stepperConfig: config, scans });
   },
 
   toggleGroup: (groupId: string, enabled: boolean) => {

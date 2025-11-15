@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FolderOpen, Plus, Pencil, Target, Zap, Trash2 } from 'lucide-react';
+import { FolderOpen, Plus, Pencil, Target, Zap, Trash2, FileCode } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useProjectsToolbarStore } from '@/stores/projectsToolbarStore';
@@ -33,6 +33,7 @@ export default function ProjectToolbar() {
     setShowEditProject,
     setShowAddGoal,
     setShowAIReview,
+    setShowStructure,
   } = useProjectsToolbarStore();
   const { showFullScreenModal, hideModal } = useGlobalModal();
 
@@ -143,6 +144,13 @@ export default function ProjectToolbar() {
     }
   };
 
+  // Structure Editor
+  const handleStructureEditor = () => {
+    if (activeProject) {
+      setShowStructure(true);
+    }
+  };
+
   const colorSchemes = {
     cyan: {
       bg: 'from-cyan-600/20 to-cyan-400/20',
@@ -202,6 +210,15 @@ export default function ProjectToolbar() {
       disabled: !activeProject,
       colorScheme: 'blue',
       testId: 'toolbar-edit-project',
+    },
+    {
+      id: 'structure',
+      icon: FileCode,
+      label: 'Structure',
+      onClick: handleStructureEditor,
+      disabled: !activeProject,
+      colorScheme: 'blue',
+      testId: 'toolbar-structure',
     },
     {
       id: 'delete-project',
@@ -278,12 +295,12 @@ export default function ProjectToolbar() {
       </motion.div>
     );
 
-    // Wrap with GlowWrapper if glow is enabled
-    return action.glow ? (
-      <GlowWrapper key={action.id} isActive={true}>
+    // Always wrap with consistent structure to prevent hydration mismatch
+    return (
+      <GlowWrapper key={action.id} isActive={action.glow || false}>
         {button}
       </GlowWrapper>
-    ) : button;
+    );
   };
 
   return (

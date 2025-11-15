@@ -2,18 +2,24 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FileText, History } from 'lucide-react';
 import StatusChip, { StatusChipTheme } from '@/app/components/ui/StatusChip';
 import VoiceVisualizer from '../sub_VoiceInterface/VoiceVisualizer';
-import AnnetteThemeSwitcher, { AnnetteTheme, THEME_CONFIGS } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
+import AnnetteThemeSwitcher from '../sub_VoiceInterface/AnnetteThemeSwitcher';
 import AnnetteTestButtons from '../sub_VoiceInterface/AnnetteTestButtons';
+import { useThemeStore } from '@/stores/themeStore';
 import KnowledgeSourcesPanel from './KnowledgeSourcesPanel';
 import InsightsPanel from './InsightsPanel';
 import AnalyticsDashboard from './AnalyticsDashboard';
+import VoiceTranscript, { TranscriptEntry } from './VoiceTranscript';
+import VoiceSessionHistory from './VoiceSessionHistory';
+import VoiceSessionReplay from './VoiceSessionReplay';
 import { textToSpeech } from '../lib/voicebotApi';
-import { KnowledgeSource } from '../lib/voicebotTypes';
+import { KnowledgeSource, VoiceSession, VoiceSessionInteraction } from '../lib/voicebotTypes';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { SupportedProvider } from '@/lib/llm/types';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
+import { saveVoiceSession, updateVoiceSession } from '../lib/voiceSessionStorage';
 
 const WELCOME_PHRASES = [
   "Welcome to your command center.",
@@ -40,10 +46,17 @@ export default function AnnettePanel() {
   const [nextSteps, setNextSteps] = useState<string[]>([]);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [transcriptEntries, setTranscriptEntries] = useState<TranscriptEntry[]>([]);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [currentSession, setCurrentSession] = useState<VoiceSession | null>(null);
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
+  const [replaySession, setReplaySession] = useState<VoiceSession | null>(null);
 
   const { activeProject } = useActiveProjectStore();
   const { recommendScan } = useBlueprintStore();
-  const themeConfig = THEME_CONFIGS[theme];
+  const { getThemeConfig, getThemeColors } = useThemeStore();
+  const themeConfig = getThemeConfig();
+  const colors = getThemeColors();
 
   // Internal function to play audio (bypasses voice enabled check)
   const playAudioInternal = useCallback(async (text: string) => {
@@ -175,9 +188,101 @@ export default function AnnettePanel() {
     };
   }, [audioElement]);
 
-  const handleThemeChange = (newTheme: AnnetteTheme) => {
-    setTheme(newTheme);
-  };
+  // Helper to add transcript entry
+  const addTranscriptEntry = useCallback((speaker: 'user' | 'assistant' | 'system', text: string, ssml?: string) => {
+    const entry: TranscriptEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      speaker,
+      text,
+      ssml,
+    };
+    setTranscriptEntries(prev => [...prev, entry]);
+  }, []);
+
+  // Clear transcript
+  const clearTranscript = useCallback(() => {
+    setTranscriptEntries([]);
+  }, []);
+
+  // Initialize a new session when first interaction happens
+  const initializeSession = useCallback(() => {
+    if (!activeProject || currentSession) return;
+
+    const newSession: VoiceSession = {
+      id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      projectId: activeProject.id,
+      projectName: activeProject.name,
+      startTime: new Date(),
+      interactions: [],
+      totalInteractions: 0,
+      conversationId,
+    };
+
+    setCurrentSession(newSession);
+    saveVoiceSession(newSession).catch(err => {
+      console.error('Failed to save initial session:', err);
+    });
+  }, [activeProject, currentSession, conversationId]);
+
+  // Add interaction to current session
+  const addInteractionToCurrentSession = useCallback(async (
+    userText: string,
+    assistantText: string,
+    sources?: KnowledgeSource[],
+    insights?: string[],
+    nextSteps?: string[],
+    toolsUsed?: Array<{ name: string; description?: string }>,
+    timing?: { llmMs?: number; ttsMs?: number; totalMs?: number }
+  ) => {
+    if (!currentSession) return;
+
+    const interaction: VoiceSessionInteraction = {
+      id: `interaction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      userText,
+      assistantText,
+      sources,
+      insights,
+      nextSteps,
+      toolsUsed,
+      timing,
+    };
+
+    const updatedSession: VoiceSession = {
+      ...currentSession,
+      interactions: [...currentSession.interactions, interaction],
+      totalInteractions: currentSession.interactions.length + 1,
+    };
+
+    setCurrentSession(updatedSession);
+
+    // Save to IndexedDB
+    try {
+      await updateVoiceSession(updatedSession);
+    } catch (err) {
+      console.error('Failed to update session:', err);
+    }
+  }, [currentSession]);
+
+  // End current session
+  const endCurrentSession = useCallback(async () => {
+    if (!currentSession) return;
+
+    const endedSession: VoiceSession = {
+      ...currentSession,
+      endTime: new Date(),
+    };
+
+    setCurrentSession(null);
+
+    // Save final session state
+    try {
+      await updateVoiceSession(endedSession);
+    } catch (err) {
+      console.error('Failed to end session:', err);
+    }
+  }, [currentSession]);
 
   // Send message to Annette and get response
   const sendToAnnette = useCallback(async (userMessage: string, provider: SupportedProvider) => {
@@ -187,16 +292,26 @@ export default function AnnettePanel() {
       return;
     }
 
+    // Initialize session on first interaction
+    if (!currentSession) {
+      initializeSession();
+    }
+
     // Auto-enable voice if not already enabled (for better UX)
     if (!isVoiceEnabled) {
       setSkipWelcome(true); // Skip welcome message when auto-enabling
       setIsVoiceEnabled(true);
     }
 
+    // Add user message to transcript
+    addTranscriptEntry('user', userMessage);
+
     setIsProcessing(true);
     setIsListening(true);
     setIsError(false);
     setMessage('Processing your request...');
+
+    const startTime = Date.now();
 
     try {
       const response = await fetch('/api/annette/chat', {
@@ -216,6 +331,8 @@ export default function AnnettePanel() {
       if (!data.success) {
         throw new Error(data.error || 'Failed to get response');
       }
+
+      const totalMs = Date.now() - startTime;
 
       // Update conversation ID
       if (data.conversationId) {
@@ -244,6 +361,20 @@ export default function AnnettePanel() {
         console.log('[AnnettePanel] No recommendations received or invalid format:', data.recommendedScans);
       }
 
+      // Add assistant response to transcript
+      addTranscriptEntry('assistant', data.response);
+
+      // Add interaction to session
+      await addInteractionToCurrentSession(
+        userMessage,
+        data.response,
+        data.sources,
+        data.insights,
+        data.nextSteps,
+        data.toolsUsed,
+        { totalMs, llmMs: data.timing?.llmMs, ttsMs: data.timing?.ttsMs }
+      );
+
       setIsListening(false);
       // Display response and speak it
       await speakMessage(data.response);
@@ -253,10 +384,12 @@ export default function AnnettePanel() {
       setIsSpeaking(false);
       setIsListening(false);
       setIsError(true);
+      // Add error to transcript
+      addTranscriptEntry('system', `Error: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
     }
-  }, [activeProject, conversationId, speakMessage]);
+  }, [activeProject, conversationId, speakMessage, addTranscriptEntry, isVoiceEnabled, recommendScan, currentSession, initializeSession, addInteractionToCurrentSession]);
 
   return (
     <motion.div
@@ -356,8 +489,53 @@ export default function AnnettePanel() {
               )}
             </motion.button>
 
+            {/* Transcript Toggle Button */}
+            <motion.button
+              onClick={() => setShowTranscript(!showTranscript)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`relative p-2 rounded-lg transition-all duration-300 ${
+                showTranscript
+                  ? `${themeConfig.colors.bg} border ${themeConfig.colors.border}`
+                  : 'bg-gray-800/40 border border-gray-700/30 hover:bg-gray-700/50'
+              }`}
+              title={showTranscript ? 'Hide transcript' : 'Show transcript'}
+              data-testid="toggle-transcript-btn"
+            >
+              <FileText
+                className={`w-4 h-4 transition-colors ${
+                  showTranscript ? themeConfig.colors.text : 'text-gray-500'
+                }`}
+              />
+              {transcriptEntries.length > 0 && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white">
+                  {transcriptEntries.length > 9 ? '9+' : transcriptEntries.length}
+                </div>
+              )}
+            </motion.button>
+
+            {/* Session History Toggle Button */}
+            <motion.button
+              onClick={() => setShowSessionHistory(!showSessionHistory)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`relative p-2 rounded-lg transition-all duration-300 ${
+                showSessionHistory
+                  ? `${themeConfig.colors.bg} border ${themeConfig.colors.border}`
+                  : 'bg-gray-800/40 border border-gray-700/30 hover:bg-gray-700/50'
+              }`}
+              title={showSessionHistory ? 'Hide session history' : 'Show session history'}
+              data-testid="toggle-session-history-btn"
+            >
+              <History
+                className={`w-4 h-4 transition-colors ${
+                  showSessionHistory ? themeConfig.colors.text : 'text-gray-500'
+                }`}
+              />
+            </motion.button>
+
             {/* Theme Switcher Column */}
-            <AnnetteThemeSwitcher theme={theme} onThemeChange={handleThemeChange} />
+            <AnnetteThemeSwitcher />
           </div>
         </div>
 
@@ -365,10 +543,9 @@ export default function AnnettePanel() {
         <div className={`h-0.5 bg-gradient-to-r ${themeConfig.colors.primary} opacity-30`} />
       </div>
 
-      {/* Test Buttons Section */}
+      {/* Action Buttons Section */}
       <div className="mt-4">
         <AnnetteTestButtons
-          theme={theme}
           isProcessing={isProcessing}
           activeProjectId={activeProject?.id || null}
           onSendToAnnette={sendToAnnette}
@@ -420,6 +597,56 @@ export default function AnnettePanel() {
       {activeProject && (
         <AnalyticsDashboard projectId={activeProject.id} />
       )}
+
+      {/* Voice Transcript Panel */}
+      <AnimatePresence>
+        {showTranscript && (
+          <div className="mt-4">
+            <VoiceTranscript
+              entries={transcriptEntries}
+              theme={theme}
+              maxHeight="400px"
+              enableSSMLHighlight={false}
+              onClear={clearTranscript}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Session History Panel */}
+      <AnimatePresence>
+        {showSessionHistory && !replaySession && (
+          <div className="mt-4">
+            <VoiceSessionHistory
+              projectId={activeProject?.id}
+              theme={theme}
+              onSessionSelect={(session) => {
+                setReplaySession(session);
+                setShowSessionHistory(false);
+              }}
+              onSessionDelete={(sessionId) => {
+                console.log('Session deleted:', sessionId);
+              }}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Session Replay Panel */}
+      <AnimatePresence>
+        {replaySession && (
+          <div className="mt-4">
+            <VoiceSessionReplay
+              session={replaySession}
+              theme={theme}
+              onClose={() => {
+                setReplaySession(null);
+                setShowSessionHistory(true);
+              }}
+            />
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

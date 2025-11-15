@@ -140,7 +140,7 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
 
   /**
    * Build decision data for unused code scan results
-   * Returns acknowledgment-only decision (no accept/reject)
+   * Shows only stats, creates Claude Code requirement on accept
    */
   public buildDecision(
     result: ScanResult<UnusedScanData>,
@@ -152,11 +152,11 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
 
     const { unusedFiles, stats } = result.data;
 
-    // Build detailed description with file list
+    // Build concise description with stats only (no file list)
     let description = '';
 
     if (unusedFiles.length === 0) {
-      description = `✅ **Great news!** No unused code detected in ${project.name}.\n\nAll components and modules are being used.\n\n📄 Click **Accept** to generate a summary report in \`<projectRoot>/docs/unused/\``;
+      description = `✅ **Great news!** No unused code detected in ${project.name}.\n\nAll components and modules are being used.`;
     } else {
       description = `Found **${unusedFiles.length} unused file${unusedFiles.length > 1 ? 's' : ''}** in ${project.name}.\n\n`;
 
@@ -167,33 +167,14 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
         description += `- Unused exports: ${stats.unusedExports}\n\n`;
       }
 
-      description += `📁 **Unused Files:**\n\n`;
-
-      // List first 15 files, then summarize the rest
-      const displayLimit = 15;
-      const filesToShow = unusedFiles.slice(0, displayLimit);
-
-      filesToShow.forEach((file, index) => {
-        description += `${index + 1}. \`${file.relativePath}\`\n`;
-        description += `   └─ Exports: ${file.exports.join(', ')}\n`;
-      });
-
-      if (unusedFiles.length > displayLimit) {
-        description += `\n...and ${unusedFiles.length - displayLimit} more file${unusedFiles.length - displayLimit > 1 ? 's' : ''}.\n`;
-      }
-
-      description += `\n💡 **Detection Method:**\n`;
-      description += `This scan searches for component usage in two ways:\n`;
-      description += `1. **JSX Tags**: Searches for \`<ComponentName>\` in all files\n`;
-      description += `2. **Imports**: Searches for \`import ComponentName\` or \`import { ComponentName }\`\n\n`;
-      description += `⚠️ **Limitations:**\n`;
-      description += `- May miss dynamically generated component names\n`;
-      description += `- May miss components used via string references\n`;
-      description += `- Focuses on .tsx files only (UI components)\n`;
-      description += `- Excludes API routes, utilities, types, and services\n\n`;
-      description += `📄 **Report Generation:**\n`;
-      description += `Click **Accept** to generate a detailed markdown report in \`<projectRoot>/docs/unused/\`\n\n`;
-      description += `✅ **Recommendation:** Review manually before removing any files.`;
+      description += `💡 **Next Step:**\n`;
+      description += `Click **Accept** to create a Claude Code requirement that will:\n`;
+      description += `1. Review each file to verify it's truly unused\n`;
+      description += `2. Check for dynamic references and edge cases\n`;
+      description += `3. Safely remove confirmed unused files\n`;
+      description += `4. Generate a cleanup report\n\n`;
+      description += `⚠️ **Detection Method:**\n`;
+      description += `This scan uses static analysis (JSX tags and imports). Claude Code will perform deeper verification before removal.`;
     }
 
     return this.createDecision(
@@ -208,31 +189,89 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
           stats,
         },
 
-        // Save report to markdown file
+        // Create Claude Code requirement for cleanup
         onAccept: async () => {
-          this.log('User accepted - generating markdown report...');
+          if (unusedFiles.length === 0) {
+            this.log('No unused files to clean up');
+            return; // Nothing to clean up
+          }
+
+          this.log('Creating Claude Code requirement for unused code cleanup...');
+
+          // Build requirement content
+          const fileList = unusedFiles.map((file, index) =>
+            `${index + 1}. \`${file.relativePath}\`\n   - Exports: ${file.exports.join(', ')}\n   - Reason: ${file.reason}`
+          ).join('\n\n');
+
+          const requirementContent = `# Unused Code Cleanup
+
+## Objective
+Verify and remove unused code files detected by static analysis.
+
+## Files to Review (${unusedFiles.length} total)
+
+${fileList}
+
+## Task Instructions
+
+1. **Verification Phase**
+   - For each file listed above, perform thorough analysis:
+     - Search for dynamic imports (e.g., \`import()\`, \`require()\`)
+     - Check for string-based references
+     - Look for configuration-based usage
+     - Verify no test files depend on these components
+
+2. **Cleanup Phase**
+   - Only delete files that are confirmed unused after verification
+   - Create a backup/report of deleted files
+   - Update any related documentation or comments
+
+3. **Report Generation**
+   - Create a markdown report in \`docs/unused/cleanup-report.md\` containing:
+     - List of deleted files
+     - List of files kept (with justification)
+     - Total cleanup impact (files/lines removed)
+
+## Statistics
+
+- Total files analyzed: ${stats?.totalFiles || 'N/A'}
+- Total exports: ${stats?.totalExports || 'N/A'}
+- Unused exports: ${stats?.unusedExports || 'N/A'}
+
+## Safety Guidelines
+
+- **DO NOT** delete files that have ANY uncertainty
+- **DO** create a git commit with all deletions for easy rollback
+- **DO** run the build and tests after cleanup
+- **DO** verify the application still functions correctly
+
+🤖 Generated by Blueprint Unused Code Scan
+`;
 
           try {
-            const response = await fetch('/api/unused-code/save-report', {
+            // Create requirement via API
+            const response = await fetch('/api/claude-code/requirement', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 projectPath: project.path,
-                projectName: project.name,
-                unusedFiles,
-                stats,
+                requirementName: 'unused-code-cleanup',
+                content: requirementContent,
+                overwrite: true,
               }),
             });
 
             const saveResult = await response.json();
 
             if (saveResult.success) {
-              this.log(`✅ Report saved to: ${saveResult.relativePath}`);
+              this.log(`✅ Claude Code requirement created: ${saveResult.fileName}`);
             } else {
-              this.error('Failed to save report:', saveResult.error);
+              this.error('Failed to create requirement:', saveResult.error);
+              throw new Error(saveResult.error || 'Failed to create Claude Code requirement');
             }
           } catch (error) {
-            this.error('Error saving report:', error);
+            this.error('Error creating Claude Code requirement:', error);
+            throw error;
           }
         },
 

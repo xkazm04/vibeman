@@ -3,11 +3,22 @@ import { contextQueries, contextGroupQueries } from '../../../lib/queries/contex
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
 
-// GET /api/contexts - Get all contexts (optionally filtered by project)
+// GET /api/contexts - Get all contexts (optionally filtered by project or group)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
+    const groupId = searchParams.get('groupId');
+
+    // If groupId is provided, get contexts for that group
+    if (groupId) {
+      const contexts = await contextQueries.getContextsByGroup(groupId);
+
+      return NextResponse.json({
+        success: true,
+        data: contexts
+      });
+    }
 
     // If projectId is provided, get contexts for that project
     if (projectId) {

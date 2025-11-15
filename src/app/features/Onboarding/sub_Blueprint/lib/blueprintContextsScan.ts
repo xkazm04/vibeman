@@ -55,7 +55,7 @@ export interface DecisionData {
 }
 
 /**
- * Execute contexts scan using the adapter system
+ * Execute contexts scan using Web Worker (offloads to background thread)
  */
 export async function executeContextsScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
@@ -68,17 +68,11 @@ export async function executeContextsScan(): Promise<ScanResult> {
   }
 
   try {
-    // Use the adapter framework
-    const registry = getInitializedRegistry();
-    const provider = DefaultProviderStorage.getDefaultProvider();
-    const result = await registry.executeScan(activeProject, 'contexts', { provider });
+    // Dynamically import worker utilities to avoid bundling issues
+    const { executeContextsScanWithWorker } = await import('./blueprintScansWithWorkers');
 
-    // Convert adapter result to legacy format
-    return {
-      success: result.success,
-      error: result.error,
-      data: result.data as any,
-    };
+    // Execute scan in Web Worker
+    return await executeContextsScanWithWorker();
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Context scan failed unexpectedly';
     return {

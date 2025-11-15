@@ -54,6 +54,8 @@ export function initializeTables() {
       preview TEXT, -- Optional preview image path (relative to public folder)
       test_scenario TEXT, -- Testing steps for automated screenshots
       test_updated TEXT, -- Last time screenshot was taken
+      target TEXT, -- Goal/target functionality of this context
+      target_fulfillment TEXT, -- Current progress toward target
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE SET NULL
@@ -395,5 +397,42 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_file_watch_config_project_id ON file_watch_config(project_id);
     CREATE INDEX IF NOT EXISTS idx_test_selectors_context_id ON test_selectors(context_id);
     CREATE INDEX IF NOT EXISTS idx_test_selectors_filepath ON test_selectors(filepath);
+  `);
+
+  // Create test case management tables
+  // Test scenarios table - stores test scenario names for contexts
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS test_case_scenarios (
+      id TEXT PRIMARY KEY,
+      context_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Test steps table - stores non-technical test steps for scenarios
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS test_case_steps (
+      id TEXT PRIMARY KEY,
+      scenario_id TEXT NOT NULL,
+      step_order INTEGER NOT NULL,
+      step_name TEXT NOT NULL,
+      expected_result TEXT NOT NULL,
+      test_selector_id TEXT, -- Optional reference to test_selectors
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (scenario_id) REFERENCES test_case_scenarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (test_selector_id) REFERENCES test_selectors(id) ON DELETE SET NULL
+    );
+  `);
+
+  // Create indexes for test case tables
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_test_case_scenarios_context_id ON test_case_scenarios(context_id);
+    CREATE INDEX IF NOT EXISTS idx_test_case_steps_scenario_id ON test_case_steps(scenario_id);
+    CREATE INDEX IF NOT EXISTS idx_test_case_steps_order ON test_case_steps(scenario_id, step_order);
   `);
 }

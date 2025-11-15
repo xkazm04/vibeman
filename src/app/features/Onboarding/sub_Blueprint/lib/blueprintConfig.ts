@@ -8,14 +8,6 @@
  */
 
 import {
-  Eye,
-  Layers,
-  Box,
-  Hammer,
-  Sparkles,
-  Code,
-  Bug,
-  Camera,
   Target,
   Trash2,
   LucideIcon,

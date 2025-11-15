@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import StatusChip, { StatusChipState, StatusChipTheme } from '@/app/components/ui/StatusChip';
-import { AnnetteTheme } from './AnnettePanel';
+import { AnnetteTheme } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
 
 export type BotMoodState = 'idle' | 'listening' | 'speaking' | 'error';
 

@@ -177,8 +177,8 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5 rounded-2xl" />
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-2xl" />
             
-            {/* Animated Grid Pattern */}
-            <motion.div
+            {/* Static Grid Pattern - (removed animation for performance) */}
+            <div
               className="absolute inset-0 opacity-5 rounded-2xl"
               style={{
                 backgroundImage: `
@@ -187,37 +187,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
                 `,
                 backgroundSize: '8px 8px'
               }}
-              animate={{
-                backgroundPosition: ['0px 0px', '8px 8px'],
-              }}
-              transition={{
-                duration: 8,
-                repeat: Infinity,
-                ease: "linear"
-              }}
             />
-            
-            {/* Floating Particles */}
-            {Array.from({ length: 3 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
-                style={{
-                  left: `${20 + i * 30}%`,
-                  top: `${20 + i * 20}%`,
-                }}
-                animate={{
-                  y: [0, -10, 0],
-                  opacity: [0, 1, 0],
-                  scale: [0, 1, 0],
-                }}
-                transition={{
-                  duration: 2 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: i * 0.5,
-                }}
-              />
-            ))}
             
             <div className="relative space-y-1">
               <MenuButton

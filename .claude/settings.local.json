@@ -44,7 +44,9 @@
       "Bash(npm uninstall:*)",
       "Bash(for file in \"src/app/features/RefactorWizard/components/ReviewStep.tsx\" \"src/app/features/reflector/sub_Reflection/components/FilterPanel.tsx\" \"src/app/features/TechDebtRadar/components/TechDebtRadar.tsx\" \"src/app/projects/sub_ProjectForm/components/RelatedProjectSelector.tsx\" \"src/app/voicebot/components/AsyncVoiceSolution.tsx\" \"src/app/voicebot/components/conversation/ConvModelSelector.tsx\")",
       "Bash(do echo \"=== $file ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(for:*)",
+      "Bash(do sed -i \"s/import { AnnetteTheme, THEME_CONFIGS } from ''\\.\\.\\/sub_VoiceInterface\\/AnnetteThemeSwitcher'';/import { AnnetteTheme } from ''..\\/sub_VoiceInterface\\/AnnetteThemeSwitcher'';\\nimport { THEME_CONFIGS } from ''@\\/stores\\/themeStore'';/\" \"$file\")"
     ],
     "deny": [],
     "ask": []

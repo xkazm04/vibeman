@@ -73,39 +73,92 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Idea not found', undefined, 404);
     }
 
+    // Validate required idea fields
+    if (!idea.title || typeof idea.title !== 'string') {
+      return createErrorResponse('Idea is missing required title field', undefined, 400);
+    }
+
+    // Validate project path
+    if (!projectPath || typeof projectPath !== 'string') {
+      return createErrorResponse('Invalid project path', undefined, 400);
+    }
+
     // Update idea status to accepted
-    ideaDb.updateIdea(ideaId, { status: 'accepted' });
+    try {
+      ideaDb.updateIdea(ideaId, { status: 'accepted' });
+    } catch (error) {
+      console.error('[API] Failed to update idea status:', error);
+      return createErrorResponse('Failed to update idea status in database', error);
+    }
 
     // Generate requirement file name
     const requirementName = generateRequirementName(ideaId, idea.title);
 
     // Fetch goal and context if they exist
-    const { goal, context } = fetchAssociatedData(idea.goal_id, idea.context_id);
+    let goal, context;
+    try {
+      const data = fetchAssociatedData(idea.goal_id, idea.context_id);
+      goal = data.goal;
+      context = data.context;
+    } catch (error) {
+      console.error('[API] Failed to fetch associated data:', error);
+      // Continue without goal/context - they are optional
+      goal = null;
+      context = null;
+    }
 
     // Build requirement content using unified builder
-    const content = buildRequirementFromIdea({
-      idea,
-      goal,
-      context,
-    });
+    let content: string;
+    try {
+      content = buildRequirementFromIdea({
+        idea,
+        goal,
+        context,
+      });
+    } catch (error) {
+      console.error('[API] Failed to build requirement content:', error);
+      // Rollback status change
+      try {
+        ideaDb.updateIdea(ideaId, { status: 'pending' });
+      } catch (rollbackError) {
+        console.error('[API] Failed to rollback status:', rollbackError);
+      }
+      return createErrorResponse('Failed to generate requirement content', error);
+    }
 
     // Create requirement file (overwrite if exists)
     try {
       createRequirementFile(projectPath, requirementName, content);
     } catch (error) {
+      console.error('[API] Failed to create requirement file:', error);
       // Rollback status change
-      ideaDb.updateIdea(ideaId, { status: 'pending' });
-      throw error;
+      try {
+        ideaDb.updateIdea(ideaId, { status: 'pending' });
+      } catch (rollbackError) {
+        console.error('[API] Failed to rollback status:', rollbackError);
+      }
+      return createErrorResponse('Failed to create requirement file', error);
     }
 
     // Update idea with requirement_id (the requirement file name)
-    ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
+    try {
+      ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
+    } catch (error) {
+      console.error('[API] Failed to update idea with requirement_id:', error);
+      // File is already created, so don't rollback status
+      // Just log the error and continue
+    }
 
     return createSuccessResponse({
       requirementName,
       message: 'Idea accepted and requirement file created'
     });
   } catch (error) {
+    console.error('[API /ideas/tinder/accept] Error details:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return createErrorResponse('Failed to accept idea', error);
   }
 }

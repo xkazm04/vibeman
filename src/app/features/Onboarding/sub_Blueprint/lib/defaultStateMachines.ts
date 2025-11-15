@@ -13,6 +13,9 @@ import {
   Bug,
   Camera,
   Target,
+  FlaskConical,
+  Scissors,
+  FileEdit,
   type LucideIcon,
 } from 'lucide-react';
 import type {
@@ -21,13 +24,16 @@ import type {
   StateMachineState,
   StateMachineTransition,
 } from './stateMachineTypes';
-import * as structureScan from './blueprintStructureScan';
-import * as photoScan from './blueprintPhotoScan';
+import * as structureScan from './context-scans/blueprintStructureScan';
+import * as photoScan from './context-scans/blueprintPhotoScan';
 import * as visionScan from './blueprintVisionScan';
 import * as contextsScan from './blueprintContextsScan';
 import * as buildScan from './blueprintBuildScan';
 import * as selectorsScan from './blueprintSelectorsScan';
 import * as unusedScan from './blueprintUnusedScan';
+import * as testScan from './context-scans/blueprintTestScan';
+import * as separatorScan from './context-scans/blueprintSeparatorScan';
+import * as testDesignScan from './context-scans/blueprintTestDesign';
 
 /**
  * Helper type for state creation
@@ -273,6 +279,57 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
         buildDecision: selectorsScan.buildDecisionData,
       },
     }),
+    createScanState({
+      id: 'test',
+      label: 'Test',
+      description: 'Generate and run Playwright tests',
+      icon: FlaskConical,
+      color: 'green',
+      group: 'quality-assurance',
+      order: 8,
+      eventTitle: 'Test Scan Completed',
+      contextNeeded: true,
+      estimatedTime: '5-10 min',
+      scanHandler: {
+        execute: async () => ({
+          success: false,
+          error: 'Context ID is required for this scan',
+        }),
+        buildDecision: testScan.buildDecisionData,
+      },
+    }),
+    createScanState({
+      id: 'testDesign',
+      label: 'Test Design',
+      description: 'Design and generate test scenarios for comprehensive coverage',
+      icon: FileEdit,
+      color: 'yellow',
+      group: 'quality-assurance',
+      order: 9,
+      eventTitle: 'Test Design Scan Completed',
+      contextNeeded: true,
+      estimatedTime: '4-6 min',
+      scanHandler: {
+        execute: testDesignScan.executeTestDesignScan,
+        buildDecision: testDesignScan.buildDecisionData,
+      },
+    }),
+    createScanState({
+      id: 'separator',
+      label: 'Separator',
+      description: 'Intelligently separate contexts into smaller, focused units',
+      icon: Scissors,
+      color: 'purple',
+      group: 'quality-assurance',
+      order: 10,
+      eventTitle: 'Separator Scan Completed',
+      contextNeeded: true,
+      estimatedTime: '3-5 min',
+      scanHandler: {
+        execute: separatorScan.executeSeparatorScan,
+        buildDecision: separatorScan.buildDecisionData,
+      },
+    }),
 
     // Automation Group
     createNavigateState({
@@ -281,7 +338,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       description: 'Navigate to prototyping tools',
       icon: Sparkles,
       color: 'green',
-      order: 8,
+      order: 9,
     }),
     createNavigateState({
       id: 'tasker',
@@ -289,7 +346,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       description: 'Navigate to task automation',
       icon: Code,
       color: 'cyan',
-      order: 9,
+      order: 10,
     }),
     createNavigateState({
       id: 'fix',
@@ -297,7 +354,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       description: 'Navigate to bug fixing tools',
       icon: Bug,
       color: 'red',
-      order: 10,
+      order: 11,
     }),
 
     // Completion state
@@ -313,13 +370,15 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       'unused',
       'photo',
       'selectors',
+      'test',
+      'separator',
       'prototype',
       'tasker',
       'fix',
       'completed',
     ]),
-    // Add skip transition from selectors to completed
-    { id: 't11', fromState: 'selectors', toState: 'completed', condition: 'skip' },
+    // Add skip transition from separator to completed
+    { id: 't13', fromState: 'separator', toState: 'completed', condition: 'skip' },
   ],
 };
 

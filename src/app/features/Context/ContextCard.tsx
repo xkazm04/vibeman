@@ -243,20 +243,11 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
           <X className="w-3 h-3" />
         </motion.button>
 
-        {/* Selection Indicator */}
+        {/* Selection Indicator - Static version (removed pulse animation) */}
         {isSelectedForBacklog && (
-          <motion.div
-            className="absolute -top-1 -left-1 w-4 h-4 bg-green-400 rounded-full flex items-center justify-center shadow-lg"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          >
-            <motion.div
-              className="w-2 h-2 bg-white rounded-full"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-          </motion.div>
+          <div className="absolute -top-1 -left-1 w-4 h-4 bg-green-400 rounded-full flex items-center justify-center shadow-lg shadow-green-400/50">
+            <div className="w-2 h-2 bg-white rounded-full" />
+          </div>
         )}
 
         {/* Main Content - Single Row Layout */}

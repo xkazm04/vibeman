@@ -7,8 +7,7 @@ import { Target, Plus, Sparkles } from 'lucide-react';
 import { Goal } from '@/types';
 import { useGoalContext } from '@/contexts/GoalContext';
 import GoalRow from './GoalRow';
-import GoalsDetailModal from '@/app/features/Goals/sub_GoalModal/GoalsDetailModal';
-import GoalsAddModal from '@/app/features/Goals/sub_GoalModal/components/GoalsAddModal';
+import GoalModal from '@/app/features/Goals/sub_GoalModal/GoalModal';
 import GoalCandidatesModal from '@/app/features/Goals/sub_GoalModal/components/GoalCandidatesModal';
 
 const caveat = Caveat({
@@ -152,7 +151,8 @@ export default function GoalReviewer({ projectId }: GoalReviewerProps) {
 
       {/* Goal Detail Modal */}
       {selectedGoal && (
-        <GoalsDetailModal
+        <GoalModal
+          mode="detail"
           goal={selectedGoal}
           isOpen={showDetailModal}
           onClose={() => {
@@ -167,7 +167,8 @@ export default function GoalReviewer({ projectId }: GoalReviewerProps) {
       )}
 
       {/* Add Goal Modal */}
-      <GoalsAddModal
+      <GoalModal
+        mode="add"
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddGoal}

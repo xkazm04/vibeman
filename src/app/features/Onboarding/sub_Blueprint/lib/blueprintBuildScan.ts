@@ -35,7 +35,7 @@ export interface DecisionData {
 }
 
 /**
- * Execute build scan using the adapter system
+ * Execute build scan using Web Worker (offloads to background thread)
  */
 export async function executeBuildScan(): Promise<ScanResult> {
   const { activeProject } = useActiveProjectStore.getState();
@@ -48,15 +48,11 @@ export async function executeBuildScan(): Promise<ScanResult> {
   }
 
   try {
-    const registry = getInitializedRegistry();
-    const result = await registry.executeScan(activeProject, 'build', { scanOnly: true });
+    // Dynamically import worker utilities to avoid bundling issues
+    const { executeBuildScanWithWorker } = await import('./blueprintScansWithWorkers');
 
-    // Convert adapter result to legacy format
-    return {
-      success: result.success,
-      error: result.error,
-      data: result.data as any,
-    };
+    // Execute scan in Web Worker
+    return await executeBuildScanWithWorker();
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Build scan failed unexpectedly';
     return {

@@ -20,10 +20,20 @@ import { techDebtRepository } from './repositories/tech-debt.repository';
 import { scanQueueRepository } from './repositories/scanQueue.repository';
 import { testSelectorRepository } from './repositories/test-selector.repository';
 import {
+  testScenarioRepository,
+  testExecutionRepository,
+  visualDiffRepository
+} from './repositories/test-scenario.repository';
+import {
   securityScanRepository,
   securityPatchRepository,
   securityPrRepository
 } from './repositories/security-patch.repository';
+import {
+  scanHistoryRepository,
+  scanPredictionRepository,
+  fileChangePatternRepository,
+} from './repositories/scan-prediction.repository';
 
 // Export types
 export * from './models/types';
@@ -31,6 +41,8 @@ export * from './models/feature-request.types';
 export * from './models/conversation.types';
 export * from './models/tech-debt.types';
 export * from './models/security-patch.types';
+export * from './models/test-scenario.types';
+export * from './models/scan-prediction.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -198,6 +210,60 @@ export const securityPatchDb = {
  */
 export const securityPrDb = {
   ...securityPrRepository,
+  close: closeDatabase
+};
+
+/**
+ * Test Scenario Database Operations
+ * Handles AI-generated test scenarios
+ */
+export const testScenarioDb = {
+  ...testScenarioRepository,
+  close: closeDatabase
+};
+
+/**
+ * Test Execution Database Operations
+ * Handles test run results and execution history
+ */
+export const testExecutionDb = {
+  ...testExecutionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Visual Diff Database Operations
+ * Handles screenshot comparison and visual regression
+ */
+export const visualDiffDb = {
+  ...visualDiffRepository,
+  close: closeDatabase
+};
+
+/**
+ * Scan History Database Operations
+ * Handles scan execution history tracking
+ */
+export const scanHistoryDb = {
+  ...scanHistoryRepository,
+  close: closeDatabase
+};
+
+/**
+ * Scan Prediction Database Operations
+ * Handles AI-generated scan recommendations
+ */
+export const scanPredictionDb = {
+  ...scanPredictionRepository,
+  close: closeDatabase
+};
+
+/**
+ * File Change Pattern Database Operations
+ * Handles file change pattern tracking for predictive scheduling
+ */
+export const fileChangePatternDb = {
+  ...fileChangePatternRepository,
   close: closeDatabase
 };
 

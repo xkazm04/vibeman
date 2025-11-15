@@ -65,6 +65,8 @@ export interface DbContext {
   preview: string | null; // Preview image path
   test_scenario: string | null; // Testing steps for automated screenshots
   test_updated: string | null; // Last time screenshot was taken
+  target: string | null; // Goal/target functionality of this context
+  target_fulfillment: string | null; // Current progress toward target
   created_at: string;
   updated_at: string;
 }
@@ -229,6 +231,27 @@ export interface GoalCandidateSourceMetadata {
   filePaths?: string[];
   techDebtId?: string;
   [key: string]: string | string[] | number | boolean | undefined;
+}
+
+// Test Case Management types
+export interface DbTestCaseScenario {
+  id: string;
+  context_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbTestCaseStep {
+  id: string;
+  scenario_id: string;
+  step_order: number;
+  step_name: string;
+  expected_result: string;
+  test_selector_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Export standard category type for use in type annotations

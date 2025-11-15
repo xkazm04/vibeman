@@ -1,30 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Compass, FileText, Sparkles } from 'lucide-react';
 import ProviderSelector from '@/components/llm/ProviderSelector';
 import { SupportedProvider } from '@/lib/llm/types';
 import { trackCommand } from '../lib/analyticsWrapper';
-import { AnnetteTheme } from './AnnetteThemeSwitcher';
-import { THEME_CONFIGS } from './AnnetteThemeSwitcher';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface AnnetteTestButtonsProps {
-  theme: AnnetteTheme;
   isProcessing: boolean;
   activeProjectId: string | null;
   onSendToAnnette: (message: string, provider: SupportedProvider) => Promise<void>;
   onPlayDirectResponse: (text: string) => Promise<void>;
 }
 
-type TestType = 'nextStep' | 'docs' | 'summarize' | null;
+type TestType = 'status' | 'nextStep' | 'analyze' | null;
 
 /**
  * Test buttons for Annette voice interface
  * Includes LLM provider selection before executing tests
  */
 export default function AnnetteTestButtons({
-  theme,
   isProcessing,
   activeProjectId,
   onSendToAnnette,
@@ -34,35 +30,33 @@ export default function AnnetteTestButtons({
   const [showProviderSelector, setShowProviderSelector] = useState(false);
   const [pendingTest, setPendingTest] = useState<TestType>(null);
 
-  const themeConfig = THEME_CONFIGS[theme];
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
 
   // Test configurations
   const TEST_CONFIGS = {
+    status: {
+      label: 'Status',
+      title: 'Get current project status',
+      message: 'What is the current status of this project?',
+      command: 'project_status',
+      shortcut: '1',
+      useDirectApi: false,
+    },
     nextStep: {
-      icon: Compass,
       label: 'Next Step',
       title: 'Get recommendation for next scan to execute',
       message: '', // Not used - goes directly to API
       command: 'next_step_recommendation',
-      colorScheme: 'purple',
-      useDirectApi: true, // Flag to use direct API instead of chat
+      shortcut: '2',
+      useDirectApi: true,
     },
-    docs: {
-      icon: FileText,
-      label: 'Check Docs',
-      title: 'Ask if docs can be retrieved',
-      message: 'Can you retrieve the high-level documentation for this project?',
-      command: 'test_docs_retrieval',
-      colorScheme: 'cyan',
-      useDirectApi: false,
-    },
-    summarize: {
-      icon: Sparkles,
-      label: 'Summarize',
-      title: 'Ask to summarize project vision',
-      message: 'Please summarize the project vision for me.',
-      command: 'test_summarize',
-      colorScheme: 'pink',
+    analyze: {
+      label: 'Analyze',
+      title: 'Analyze project insights',
+      message: 'Please analyze the current project insights and goals.',
+      command: 'project_analysis',
+      shortcut: '3',
       useDirectApi: false,
     },
   };
@@ -116,72 +110,249 @@ export default function AnnetteTestButtons({
     setPendingTest(null);
   };
 
+  // Keyboard shortcuts (1, 2, 3)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Ignore if showing provider selector
+      if (showProviderSelector || isProcessing || !activeProjectId) {
+        return;
+      }
+
+      const keyMap: Record<string, TestType> = {
+        '1': 'status',
+        '2': 'nextStep',
+        '3': 'analyze',
+      };
+
+      const testType = keyMap[e.key];
+      if (testType) {
+        e.preventDefault();
+        handleInitiateTest(testType);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showProviderSelector, isProcessing, activeProjectId]);
+
   return (
-    <div className="space-y-4">
-      {/* Provider Selector Modal */}
-      <AnimatePresence>
-        {showProviderSelector && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col items-center gap-3 p-4 bg-gray-800/60 border border-gray-600/40 rounded-xl backdrop-blur-md"
-          >
-            <span className="text-sm text-gray-300 font-medium">Select LLM Provider:</span>
-            <ProviderSelector
-              selectedProvider={selectedProvider}
-              onSelectProvider={handleProviderSelect}
-              compact={false}
-            />
-            <motion.button
-              onClick={handleCancelProviderSelection}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              Cancel
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="relative">
+      {/* Blueprint-styled Container */}
+      <motion.div
+        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+        className={`relative bg-gray-900/90 backdrop-blur-xl border ${colors.border} rounded-xl overflow-hidden shadow-xl`}
+      >
+        {/* Grid Pattern Background */}
+        <div
+          className="absolute inset-0 opacity-5 pointer-events-none"
+          style={{
+            backgroundImage: `
+              linear-gradient(${colors.baseColor}4D 1px, transparent 1px),
+              linear-gradient(90deg, ${colors.baseColor}4D 1px, transparent 1px)
+            `,
+            backgroundSize: '20px 20px',
+          }}
+        />
 
-      {/* Test Buttons Row */}
-      {!showProviderSelector && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex gap-3 justify-center"
-        >
-          {(Object.keys(TEST_CONFIGS) as TestType[]).filter(Boolean).map((testKey) => {
-            const config = TEST_CONFIGS[testKey!];
-            const Icon = config.icon;
+        {/* Ambient Glow */}
+        <div className={`absolute inset-0 bg-gradient-to-r ${colors.primary} opacity-5 blur-2xl pointer-events-none`} />
 
-            return (
-              <motion.button
-                key={testKey}
-                onClick={() => handleInitiateTest(testKey)}
-                disabled={isProcessing || !activeProjectId}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`relative px-4 py-2 rounded-lg border transition-all duration-300 ${
-                  isProcessing || !activeProjectId
-                    ? 'border-gray-700/30 bg-gray-800/20 text-gray-600 cursor-not-allowed'
-                    : `border-${config.colorScheme}-500/30 bg-${config.colorScheme}-500/10 ${themeConfig.colors.text} hover:border-${config.colorScheme}-500/50 hover:bg-${config.colorScheme}-500/20`
-                }`}
-                title={config.title}
-                data-testid={`annette-test-${testKey}`}
+        {/* Content */}
+        <div className="relative p-3">
+          {/* Provider Selector Modal */}
+          <AnimatePresence>
+            {showProviderSelector && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className={`flex flex-col items-center gap-3 p-4 bg-gray-800/80 border ${colors.border} rounded-lg backdrop-blur-md`}
               >
-                <div className="flex items-center gap-2">
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm font-mono">{config.label}</span>
-                </div>
-              </motion.button>
-            );
-          })}
-        </motion.div>
-      )}
+                <span className={`text-xs ${colors.text} font-mono uppercase tracking-wide`}>Select LLM Provider:</span>
+                <ProviderSelector
+                  selectedProvider={selectedProvider}
+                  onSelectProvider={handleProviderSelect}
+                  compact={false}
+                />
+                <motion.button
+                  onClick={handleCancelProviderSelection}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="text-xs text-gray-500 hover:text-gray-300 transition-colors font-mono"
+                >
+                  Cancel
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Action Buttons Row */}
+          {!showProviderSelector && (
+            <div className="flex gap-3">
+              {(Object.keys(TEST_CONFIGS) as TestType[]).filter(Boolean).map((testKey, idx) => {
+                const config = TEST_CONFIGS[testKey!];
+
+                return (
+                  <motion.button
+                    key={testKey}
+                    onClick={() => handleInitiateTest(testKey)}
+                    disabled={isProcessing || !activeProjectId}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay: idx * 0.05,
+                      type: 'spring',
+                      stiffness: 300,
+                      damping: 30
+                    }}
+                    className="relative flex-1 group overflow-hidden"
+                    title={`${config.title} (Press ${config.shortcut})`}
+                    data-testid={`annette-test-${testKey}`}
+                  >
+                    {/* Main Button Container */}
+                    <div
+                      className={`
+                        relative h-16 w-full overflow-hidden border-2 rounded-lg
+                        bg-gradient-to-br from-gray-900/40 via-transparent to-gray-800/40 backdrop-blur-sm
+                        transition-all duration-300
+                        ${
+                          isProcessing || !activeProjectId
+                            ? 'border-gray-700/30 opacity-50 cursor-not-allowed'
+                            : `${colors.border} group-hover:from-gray-800/60 group-hover:to-gray-700/60 ${colors.borderHover}`
+                        }
+                      `}
+                    >
+                      {/* Vertical Bars Pattern */}
+                      <div className="absolute inset-0 flex">
+                        {Array.from({ length: 8 }).map((_, barIndex) => (
+                          <motion.div
+                            key={`v-${barIndex}`}
+                            className={`flex-1 border-r ${colors.borderLight}`}
+                            initial={{ scaleY: 0 }}
+                            animate={{ scaleY: 1 }}
+                            transition={{
+                              delay: idx * 0.05 + barIndex * 0.02,
+                              duration: 0.3
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Horizontal Bars Pattern */}
+                      <div className="absolute inset-0 flex flex-col">
+                        {Array.from({ length: 3 }).map((_, barIndex) => (
+                          <motion.div
+                            key={`h-${barIndex}`}
+                            className={`flex-1 border-b ${colors.borderLight}`}
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: 1 }}
+                            transition={{
+                              delay: idx * 0.05 + barIndex * 0.03,
+                              duration: 0.3
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Large Semi-Transparent Number - Left Side */}
+                      <div className="absolute left-2 top-1/2 -translate-y-1/2 z-0">
+                        <motion.span
+                          className="text-6xl font-bold font-mono leading-none transition-colors duration-300"
+                          style={{
+                            color: isProcessing || !activeProjectId
+                              ? 'rgba(55, 65, 81, 0.2)'
+                              : `${colors.baseColor}33`,
+                          }}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{
+                            delay: idx * 0.05 + 0.2,
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 30
+                          }}
+                        >
+                          {config.shortcut}
+                        </motion.span>
+                      </div>
+
+                      {/* Title - Main Content */}
+                      <div className="relative z-10 h-full flex items-center justify-center px-4">
+                        <motion.h4
+                          className={`
+                            font-bold font-mono text-center leading-tight text-lg
+                            bg-gradient-to-r bg-clip-text text-transparent
+                            ${
+                              isProcessing || !activeProjectId
+                                ? 'opacity-50'
+                                : ''
+                            }
+                          `}
+                          style={{
+                            backgroundImage: `linear-gradient(to right, ${colors.baseColor}, ${colors.baseColor}C0)`
+                          }}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{
+                            delay: idx * 0.05 + 0.3,
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 30
+                          }}
+                        >
+                          {config.label}
+                        </motion.h4>
+                      </div>
+
+                      {/* Hover Glow Effect */}
+                      {!isProcessing && activeProjectId && (
+                        <motion.div
+                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                          style={{
+                            background: `linear-gradient(45deg, ${colors.baseColor}15, transparent, ${colors.baseColor}15)`,
+                            filter: 'blur(2px)',
+                          }}
+                        />
+                      )}
+
+                      {/* Corner Reinforcements */}
+                      <div
+                        className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2"
+                        style={{ borderColor: `${colors.baseColor}99` }}
+                      />
+                      <div
+                        className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2"
+                        style={{ borderColor: `${colors.baseColor}99` }}
+                      />
+                      <div
+                        className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2"
+                        style={{ borderColor: `${colors.baseColor}99` }}
+                      />
+                      <div
+                        className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2"
+                        style={{ borderColor: `${colors.baseColor}99` }}
+                      />
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Accent Line */}
+        <div className={`h-0.5 bg-gradient-to-r ${colors.primary} opacity-30`} />
+      </motion.div>
     </div>
   );
 }

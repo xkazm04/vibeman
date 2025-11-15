@@ -99,21 +99,8 @@ export default function ScanErrorBanner({ onRetry }: ScanErrorBannerProps) {
               </div>
             </div>
 
-            {/* Animated border pulse */}
-            <motion.div
-              className="absolute inset-0 rounded-lg"
-              style={{
-                background: 'linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.3), transparent)',
-              }}
-              animate={{
-                x: ['-100%', '100%'],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: 'linear',
-              }}
-            />
+            {/* Static border highlight - (removed shimmer animation) */}
+            <div className="absolute inset-0 rounded-lg border-2 border-red-500/20" />
           </motion.div>
         ))}
       </AnimatePresence>

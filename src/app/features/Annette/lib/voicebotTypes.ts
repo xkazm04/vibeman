@@ -176,3 +176,73 @@ export interface AnnetteResponse {
   };
 }
 
+/**
+ * Voice session interaction entry
+ */
+export interface VoiceSessionInteraction {
+  id: string;
+  timestamp: Date;
+  userText: string;
+  assistantText: string;
+  audioUrl?: string;
+  sources?: KnowledgeSource[];
+  insights?: string[];
+  nextSteps?: string[];
+  toolsUsed?: Array<{
+    name: string;
+    description?: string;
+  }>;
+  timing?: {
+    llmMs?: number;
+    ttsMs?: number;
+    totalMs?: number;
+  };
+}
+
+/**
+ * Complete voice session with all interactions
+ */
+export interface VoiceSession {
+  id: string;
+  projectId: string;
+  projectName: string;
+  startTime: Date;
+  endTime?: Date;
+  interactions: VoiceSessionInteraction[];
+  totalInteractions: number;
+  conversationId?: string;
+}
+
+/**
+ * Response cache configuration
+ */
+export interface ResponseCacheConfig {
+  /** Enable or disable response caching (default: true) */
+  enabled?: boolean;
+  /** Time-to-live in milliseconds (default: 3600000 = 1 hour) */
+  ttl?: number;
+  /** Maximum number of cached entries (LRU eviction, default: unlimited) */
+  maxEntries?: number;
+}
+
+/**
+ * Cached response statistics
+ */
+export interface ResponseCacheStats {
+  /** Total number of cached entries */
+  totalEntries: number;
+  /** Timestamp of oldest entry (ms since epoch) */
+  oldestEntry: number | null;
+  /** Timestamp of newest entry (ms since epoch) */
+  newestEntry: number | null;
+  /** Estimated total size of cached data in bytes */
+  totalSizeEstimate: number;
+}
+
+/**
+ * Re-export response cache utilities for convenience
+ */
+export type {
+  ResponseCacheConfig as VoicebotResponseCacheConfig
+} from './voicebotResponseCache';
+

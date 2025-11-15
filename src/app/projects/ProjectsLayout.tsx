@@ -9,6 +9,7 @@ import ProjectAdd from './sub_ProjectSetting/components/ProjectAdd';
 import ProjectEdit from './sub_ProjectSetting/components/ProjectEdit';
 import ProjectToolbar from './ProjectToolbar';
 import { useProjectConfigStore } from '../../stores/projectConfigStore';
+import StructureTemplateEditor from '../Claude/sub_ClaudeStructureScan/components/StructureTemplateEditor';
 
 export default function ProjectsLayout() {
   const { isActive } = useAnalysisStore();
@@ -19,9 +20,11 @@ export default function ProjectsLayout() {
     showAddProject,
     showEditProject,
     showAIReview,
+    showStructure,
     setShowAddProject,
     setShowEditProject,
     setShowAIReview,
+    setShowStructure,
   } = useProjectsToolbarStore();
 
   // Handle project added - refresh the project list
@@ -67,6 +70,15 @@ export default function ProjectsLayout() {
         onProjectUpdated={handleProjectUpdated}
         project={activeProject}
       />
+
+      {/* Structure Template Editor Modal */}
+      {activeProject && (
+        <StructureTemplateEditor
+          isOpen={showStructure}
+          onClose={() => setShowStructure(false)}
+          projectType={(activeProject.type as 'nextjs' | 'fastapi') || 'nextjs'}
+        />
+      )}
     </>
   );
 }
