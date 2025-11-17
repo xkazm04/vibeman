@@ -24,6 +24,7 @@ export interface WizardStepPanelProps {
   icon: LucideIcon;
   count?: number;
   actions: WizardStepAction[];
+  titleActions?: WizardStepAction[]; // Actions rendered in title row (top-right)
   isProcessing?: boolean;
   customContent?: React.ReactNode;
   onClose?: () => void;
@@ -96,6 +97,7 @@ export default function WizardStepPanel({
   icon: Icon,
   count,
   actions,
+  titleActions = [],
   isProcessing = false,
   customContent,
   onClose,
@@ -205,33 +207,75 @@ export default function WizardStepPanel({
               </div>
 
               {/* Text content */}
-              <div className="flex-1 min-w-0">
-                <motion.h3
-                  id="wizard-step-title"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className={`text-2xl font-bold ${colors.text} mb-2`}
-                  data-testid={`${testId}-title`}
-                  dangerouslySetInnerHTML={{ __html: sanitizedTitle }}
-                />
+              <div className="flex-1 min-w-0 flex flex-col max-h-[calc(100vh-12rem)]">
+                <div className="flex-shrink-0">
+                  {/* Title Row with optional title actions */}
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <motion.h3
+                      id="wizard-step-title"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className={`text-2xl font-bold ${colors.text}`}
+                      data-testid={`${testId}-title`}
+                      dangerouslySetInnerHTML={{ __html: sanitizedTitle }}
+                    />
 
-                <motion.p
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="text-sm text-gray-400"
-                  data-testid={`${testId}-description`}
-                  dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
-                />
+                    {/* Title-level actions (top-right) */}
+                    {titleActions.length > 0 && (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {titleActions.map((action, index) => {
+                          const variant = action.variant || 'secondary';
+                          const styles = VARIANT_STYLES[variant];
 
-                {/* Custom content slot */}
+                          return (
+                            <motion.button
+                              key={action.label}
+                              onClick={action.onClick}
+                              disabled={action.disabled || isProcessing}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.15 + index * 0.05 }}
+                              className={`group relative px-4 py-2 rounded-lg ${styles.bg} border ${styles.border} transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
+                              data-testid={action.testId || `${testId}-title-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
+                              aria-label={action.label}
+                            >
+                              <div className="relative flex items-center gap-1.5">
+                                {action.loading || (isProcessing && variant === 'primary') ? (
+                                  <Loader2 className={`w-4 h-4 ${styles.text} animate-spin`} />
+                                ) : (
+                                  <action.icon className={`w-4 h-4 ${styles.text}`} aria-hidden="true" />
+                                )}
+                                <span className={`text-xs font-bold tracking-wide ${styles.text} uppercase`}>
+                                  {action.loading || (isProcessing && variant === 'primary') ? 'Processing...' : action.label}
+                                </span>
+                              </div>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="text-sm text-gray-400"
+                    data-testid={`${testId}-description`}
+                    dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+                  />
+                </div>
+
+                {/* Custom content slot with scroll support */}
                 {customContent && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="mt-4"
+                    className="mt-4 flex-1 overflow-y-auto min-h-0"
                     data-testid={`${testId}-custom-content`}
                   >
                     {customContent}
@@ -239,64 +283,66 @@ export default function WizardStepPanel({
                 )}
               </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center gap-3 flex-shrink-0">
-                {actions.map((action, index) => {
-                  const variant = action.variant || 'secondary';
-                  const styles = VARIANT_STYLES[variant];
-                  const isFirstAction = index === 0;
+              {/* Action buttons - only show if actions provided */}
+              {actions.length > 0 && (
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {actions.map((action, index) => {
+                    const variant = action.variant || 'secondary';
+                    const styles = VARIANT_STYLES[variant];
+                    const isFirstAction = index === 0;
 
-                  return (
-                    <motion.button
-                      key={action.label}
-                      ref={isFirstAction ? firstActionRef : undefined}
-                      onClick={action.onClick}
-                      disabled={action.disabled || isProcessing}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 + index * 0.05 }}
-                      className={`group relative px-10 py-4 rounded-xl ${styles.bg} border-2 ${styles.border} transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${styles.shadow}`}
-                      data-testid={action.testId || `${testId}-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
-                      aria-label={action.label}
-                    >
-                      {/* Outer glow */}
-                      <div className={`absolute inset-0 rounded-xl ${styles.glow} blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10`} />
+                    return (
+                      <motion.button
+                        key={action.label}
+                        ref={isFirstAction ? firstActionRef : undefined}
+                        onClick={action.onClick}
+                        disabled={action.disabled || isProcessing}
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 + index * 0.05 }}
+                        className={`group relative px-10 py-4 rounded-xl ${styles.bg} border-2 ${styles.border} transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${styles.shadow}`}
+                        data-testid={action.testId || `${testId}-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
+                        aria-label={action.label}
+                      >
+                        {/* Outer glow */}
+                        <div className={`absolute inset-0 rounded-xl ${styles.glow} blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10`} />
 
-                      {/* Shimmer effect for primary variant */}
-                      {variant === 'primary' && (
-                        <motion.div
-                          className="absolute inset-0 rounded-xl overflow-hidden"
-                          animate={{
-                            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                          }}
-                          transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: 'linear',
-                          }}
-                          style={{
-                            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%)',
-                            backgroundSize: '200% 100%',
-                          }}
-                        />
-                      )}
-
-                      <div className="relative flex items-center gap-2">
-                        {action.loading || (isProcessing && variant === 'primary') ? (
-                          <Loader2 className={`w-5 h-5 ${styles.text} animate-spin`} />
-                        ) : (
-                          <action.icon className={`w-5 h-5 ${styles.text}`} aria-hidden="true" />
+                        {/* Shimmer effect for primary variant */}
+                        {variant === 'primary' && (
+                          <motion.div
+                            className="absolute inset-0 rounded-xl overflow-hidden"
+                            animate={{
+                              backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                            }}
+                            transition={{
+                              duration: 3,
+                              repeat: Infinity,
+                              ease: 'linear',
+                            }}
+                            style={{
+                              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%)',
+                              backgroundSize: '200% 100%',
+                            }}
+                          />
                         )}
-                        <span className={`text-sm font-bold tracking-wide ${styles.text} uppercase`}>
-                          {action.loading || (isProcessing && variant === 'primary') ? 'Processing...' : action.label}
-                        </span>
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </div>
+
+                        <div className="relative flex items-center gap-2">
+                          {action.loading || (isProcessing && variant === 'primary') ? (
+                            <Loader2 className={`w-5 h-5 ${styles.text} animate-spin`} />
+                          ) : (
+                            <action.icon className={`w-5 h-5 ${styles.text}`} aria-hidden="true" />
+                          )}
+                          <span className={`text-sm font-bold tracking-wide ${styles.text} uppercase`}>
+                            {action.loading || (isProcessing && variant === 'primary') ? 'Processing...' : action.label}
+                          </span>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

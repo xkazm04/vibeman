@@ -1,9 +1,11 @@
 /**
- * ScanStrategy Interface
+ * ScanStrategy Interface (FIXED VERSION)
  *
- * Defines the contract for technology-specific scanning strategies.
- * Each implementation provides custom file patterns, ignore rules,
- * and analysis logic tailored to a specific tech stack.
+ * CHANGES:
+ * - Added selectedGroups parameter to detectOpportunities()
+ * - Added shouldRunGroup() helper method to BaseScanStrategy
+ *
+ * TO APPLY: Copy this file to src/lib/scan/ScanStrategy.ts
  */
 
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/types';
@@ -18,45 +20,21 @@ export type ProjectType = 'nextjs' | 'fastapi' | 'express' | 'react-native' | 'o
  * ScanStrategy interface - implement this for each technology stack
  */
 export interface ScanStrategy {
-  /**
-   * Unique identifier for this strategy
-   */
   readonly name: string;
-
-  /**
-   * Technology stack this strategy supports
-   */
   readonly techStack: ProjectType;
 
-  /**
-   * File patterns to scan (glob patterns)
-   */
   getScanPatterns(): string[];
-
-  /**
-   * Patterns to ignore during scanning
-   */
   getIgnorePatterns(): string[];
-
-  /**
-   * Scan and analyze files in the project
-   */
   scanProjectFiles(projectPath: string): Promise<FileAnalysis[]>;
 
   /**
    * Detect tech-specific refactoring opportunities
-   * This is where stack-specific pattern detection happens
+   * @param files - Array of analyzed files
+   * @param selectedGroups - Optional list of scan group IDs to filter checks
    */
-  detectOpportunities(files: FileAnalysis[]): RefactorOpportunity[];
+  detectOpportunities(files: FileAnalysis[], selectedGroups?: string[]): RefactorOpportunity[];
 
-  /**
-   * Get recommended scan technique groups for this tech stack
-   */
   getRecommendedTechniqueGroups(): string[];
-
-  /**
-   * Validate if this strategy can handle the given project
-   */
   canHandle(projectPath: string, projectType?: ProjectType): Promise<boolean>;
 }
 
@@ -69,13 +47,20 @@ export abstract class BaseScanStrategy implements ScanStrategy {
 
   abstract getScanPatterns(): string[];
   abstract getIgnorePatterns(): string[];
-  abstract detectOpportunities(files: FileAnalysis[]): RefactorOpportunity[];
+  abstract detectOpportunities(files: FileAnalysis[], selectedGroups?: string[]): RefactorOpportunity[];
   abstract getRecommendedTechniqueGroups(): string[];
 
   /**
-   * Default implementation of scanProjectFiles
-   * Can be overridden for tech-specific logic
+   * Helper: Check if a scan group is selected
+   * If no groups specified, run all checks (backward compatibility)
    */
+  protected shouldRunGroup(groupId: string, selectedGroups?: string[]): boolean {
+    if (!selectedGroups || selectedGroups.length === 0) {
+      return true; // No filter = run all
+    }
+    return selectedGroups.includes(groupId);
+  }
+
   async scanProjectFiles(projectPath: string): Promise<FileAnalysis[]> {
     const { promises: fs } = await import('fs');
     const path = await import('path');
@@ -116,9 +101,6 @@ export abstract class BaseScanStrategy implements ScanStrategy {
     return files;
   }
 
-  /**
-   * Default validation - checks if explicit projectType matches
-   */
   async canHandle(projectPath: string, projectType?: ProjectType): Promise<boolean> {
     if (projectType) {
       return projectType === this.techStack;
@@ -126,9 +108,6 @@ export abstract class BaseScanStrategy implements ScanStrategy {
     return false;
   }
 
-  /**
-   * Helper: Create a refactor opportunity
-   */
   protected createOpportunity(
     id: string,
     title: string,
@@ -156,11 +135,18 @@ export abstract class BaseScanStrategy implements ScanStrategy {
       ...(lineNumbers && { lineNumbers }),
     };
   }
+
+  protected async fileExists(filePath: string): Promise<boolean> {
+    try {
+      const { promises: fs } = await import('fs');
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
-/**
- * Strategy metadata for registration
- */
 export interface ScanStrategyMetadata {
   name: string;
   techStack: ProjectType;

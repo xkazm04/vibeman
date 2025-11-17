@@ -66,13 +66,18 @@ const IGNORED_DIRS = [
 ];
 
 // Known Next.js entry points that should not be marked as unused
+// Normalize paths to forward slashes for consistent pattern matching
 const NEXTJS_ENTRY_PATTERNS = [
-  /\/app\/.*\/(page|layout|loading|error|not-found|template)\.tsx?$/,
+  /\/app\/.*\/(page|layout|loading|error|not-found|template|default|global-error)\.tsx?$/,
   /\/app\/.*\/route\.ts$/,
+  /\/app\/.*\/\[[^\]]+\]\.(tsx?|ts)$/, // Dynamic routes like [id].tsx, [slug].tsx
+  /\/app\/.*\/\[\.\.\..*\]\.(tsx?|ts)$/, // Catch-all routes like [...slug].tsx
   /\/pages\/.*\.tsx?$/,
+  /\/pages\/.*\/\[[^\]]+\]\.tsx?$/, // Dynamic routes in pages directory
   /\/_app\.tsx?$/,
   /\/_document\.tsx?$/,
   /\/middleware\.ts$/,
+  /\/instrumentation\.(ts|js)$/,
 ];
 
 // Directories and file patterns to exclude from unused code analysis
@@ -97,25 +102,30 @@ const EXCLUDED_PATTERNS = [
 
 /**
  * Check if file is a Next.js entry point
+ * Always normalize path to forward slashes for cross-platform compatibility
  */
 function isEntryPoint(filePath: string): boolean {
-  return NEXTJS_ENTRY_PATTERNS.some(pattern => pattern.test(filePath));
+  const normalizedPath = normalizePath(filePath);
+  return NEXTJS_ENTRY_PATTERNS.some(pattern => pattern.test(normalizedPath));
 }
 
 /**
  * Check if file should be excluded from unused code analysis
+ * Always normalize path to forward slashes for cross-platform compatibility
  */
 function shouldExcludeFile(filePath: string): boolean {
+  const normalizedPath = normalizePath(filePath);
+
   // Check against exclusion patterns
-  if (EXCLUDED_PATTERNS.some(pattern => pattern.test(filePath))) {
+  if (EXCLUDED_PATTERNS.some(pattern => pattern.test(normalizedPath))) {
     return true;
   }
 
   // Only include .tsx files and specific .ts files in UI directories
   // Exclude pure .ts files in root directories (likely utilities)
-  if (filePath.endsWith('.ts') && !filePath.endsWith('.tsx')) {
+  if (normalizedPath.endsWith('.ts') && !normalizedPath.endsWith('.tsx')) {
     // Allow .ts files in components/, features/, app/ if they're in subdirectories
-    const hasUiPath = /\/(components|features|app)\/.+\//.test(filePath);
+    const hasUiPath = /\/(components|features|app)\/.+\//.test(normalizedPath);
     if (!hasUiPath) {
       return true; // Exclude root-level .ts files
     }

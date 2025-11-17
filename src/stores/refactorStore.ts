@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { WizardPlan } from '@/app/features/RefactorWizard/lib/wizardOptimizer';
 import type { ScanTechniqueGroup } from '@/app/features/RefactorWizard/lib/scanTechniques';
+import type { RefactoringPackage, DependencyGraph, ProjectContext, PackageFilter } from '@/app/features/RefactorWizard/lib/types';
 
 export type RefactorOpportunity = {
   id: string;
@@ -36,10 +37,24 @@ interface RefactorState {
   wizardPlan: WizardPlan | null;
   selectedScanGroups: Set<string>;
   techniqueOverrides: Map<string, boolean>; // techniqueId -> enabled
+  llmProvider: string;
+  llmModel: string;
 
   // UI state
   isWizardOpen: boolean;
-  currentStep: 'settings' | 'scan' | 'config' | 'review' | 'execute' | 'results';
+  currentStep: 'settings' | 'scan' | 'config' | 'review' | 'package' | 'execute' | 'results';
+
+  // ============================================================================
+  // PACKAGE-BASED REFACTORING STATE (Phase 1)
+  // ============================================================================
+
+  packages: RefactoringPackage[];
+  selectedPackages: Set<string>;
+  packageDependencies: DependencyGraph | null;
+  packageFilter: PackageFilter;
+  packageGenerationStatus: 'idle' | 'generating' | 'completed' | 'error';
+  packageGenerationError: string | null;
+  projectContext: ProjectContext | null;
 
   // Actions
   startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string, projectType?: string) => Promise<void>;
@@ -58,11 +73,32 @@ interface RefactorState {
   toggleTechnique: (groupId: string, techniqueId: string) => void;
   selectAllGroups: () => void;
   clearGroupSelection: () => void;
+  setLLMProvider: (provider: string) => void;
+  setLLMModel: (model: string) => void;
 
   openWizard: () => void;
   closeWizard: () => void;
   setCurrentStep: (step: RefactorState['currentStep']) => void;
   resetWizard: () => void;
+
+  // ============================================================================
+  // PACKAGE ACTIONS (Phase 1)
+  // ============================================================================
+
+  setPackages: (packages: RefactoringPackage[]) => void;
+  togglePackageSelection: (packageId: string) => void;
+  selectPackagesWithDependencies: (packageId: string) => void;
+  setPackageFilter: (filter: Partial<PackageFilter>) => void;
+  clearPackages: () => void;
+  setPackageDependencies: (graph: DependencyGraph) => void;
+  setProjectContext: (context: ProjectContext) => void;
+  setPackageGenerationStatus: (status: RefactorState['packageGenerationStatus'], error?: string) => void;
+
+  // Bulk selection helpers
+  selectAllPackages: () => void;
+  clearPackageSelection: () => void;
+  selectPackagesByCategory: (category: string) => void;
+  selectFoundationalPackages: () => void;
 }
 
 export const useRefactorStore = create<RefactorState>()(
@@ -79,8 +115,19 @@ export const useRefactorStore = create<RefactorState>()(
       wizardPlan: null,
       selectedScanGroups: new Set(),
       techniqueOverrides: new Map(),
+      llmProvider: 'gemini',
+      llmModel: '',
       isWizardOpen: false,
       currentStep: 'settings',
+
+      // NEW: Package state (Phase 1)
+      packages: [],
+      selectedPackages: new Set(),
+      packageDependencies: null,
+      packageFilter: { category: 'all', impact: 'all', effort: 'all', status: 'all' },
+      packageGenerationStatus: 'idle',
+      packageGenerationError: null,
+      projectContext: null,
 
       // Actions
       startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string, projectType?: string) => {
@@ -124,6 +171,24 @@ export const useRefactorStore = create<RefactorState>()(
               wizardPlan: data.wizardPlan,
               selectedScanGroups: new Set(data.wizardPlan.recommendedGroups.map((g: any) => g.id)),
             });
+          }
+
+          // NEW: Store packages if generated
+          if (data.packages && data.packages.length > 0) {
+            console.log('[RefactorStore] Storing', data.packages.length, 'packages');
+            set({
+              packages: data.packages,
+              projectContext: data.context,
+              packageGenerationStatus: 'completed',
+              packageGenerationError: null
+            });
+
+            if (data.dependencyGraph) {
+              set({ packageDependencies: data.dependencyGraph });
+            }
+
+            // Auto-select foundational packages (optional)
+            get().selectFoundationalPackages();
           }
 
           set({
@@ -224,6 +289,14 @@ export const useRefactorStore = create<RefactorState>()(
         set({ selectedScanGroups: new Set() });
       },
 
+      setLLMProvider: (provider: string) => {
+        set({ llmProvider: provider });
+      },
+
+      setLLMModel: (model: string) => {
+        set({ llmModel: model });
+      },
+
       openWizard: () => {
         // Initialize with all groups selected by default
         const { selectedScanGroups } = get();
@@ -257,6 +330,102 @@ export const useRefactorStore = create<RefactorState>()(
           currentStep: 'settings',
         });
       },
+
+      // ============================================================================
+      // PACKAGE ACTIONS IMPLEMENTATION (Phase 1)
+      // ============================================================================
+
+      setPackages: (packages) => set({
+        packages,
+        packageGenerationStatus: 'completed',
+        packageGenerationError: null
+      }),
+
+      togglePackageSelection: (packageId) => {
+        const selected = new Set(get().selectedPackages);
+        if (selected.has(packageId)) {
+          selected.delete(packageId);
+        } else {
+          selected.add(packageId);
+        }
+        set({ selectedPackages: selected });
+      },
+
+      selectPackagesWithDependencies: (packageId) => {
+        const { packages } = get();
+        const selected = new Set(get().selectedPackages);
+        const pkg = packages.find(p => p.id === packageId);
+
+        if (!pkg) return;
+
+        // Select this package
+        selected.add(packageId);
+
+        // Select all dependencies recursively
+        const selectDeps = (pkgId: string) => {
+          const p = packages.find(p => p.id === pkgId);
+          if (!p) return;
+
+          for (const depId of p.dependsOn) {
+            if (!selected.has(depId)) {
+              selected.add(depId);
+              selectDeps(depId); // Recursive
+            }
+          }
+        };
+
+        selectDeps(packageId);
+        set({ selectedPackages: selected });
+      },
+
+      setPackageFilter: (filter) => set((state) => ({
+        packageFilter: { ...state.packageFilter, ...filter }
+      })),
+
+      clearPackages: () => set({
+        packages: [],
+        selectedPackages: new Set(),
+        packageDependencies: null,
+        packageGenerationStatus: 'idle',
+        packageGenerationError: null,
+      }),
+
+      setPackageDependencies: (graph) => set({ packageDependencies: graph }),
+
+      setProjectContext: (context) => set({ projectContext: context }),
+
+      setPackageGenerationStatus: (status, error) => set({
+        packageGenerationStatus: status,
+        packageGenerationError: error || null,
+      }),
+
+      // Bulk selection helpers
+      selectAllPackages: () => {
+        const selected = new Set(get().packages.map(p => p.id));
+        set({ selectedPackages: selected });
+      },
+
+      clearPackageSelection: () => {
+        set({ selectedPackages: new Set() });
+      },
+
+      selectPackagesByCategory: (category) => {
+        const selected = new Set(
+          get().packages
+            .filter(p => p.category === category)
+            .map(p => p.id)
+        );
+        set({ selectedPackages: selected });
+      },
+
+      selectFoundationalPackages: () => {
+        const selected = new Set(
+          get().packages
+            .filter(p => p.executionOrder === 1 || p.dependsOn.length === 0)
+            .map(p => p.id)
+        );
+        set({ selectedPackages: selected });
+      },
     }),
     {
       name: 'refactor-wizard-storage',
@@ -264,11 +433,17 @@ export const useRefactorStore = create<RefactorState>()(
         opportunities: state.opportunities,
         wizardPlan: state.wizardPlan,
         selectedScanGroups: Array.from(state.selectedScanGroups),
+        // NEW: Persist packages (Phase 1)
+        packages: state.packages,
+        selectedPackages: Array.from(state.selectedPackages), // Convert Set to Array
+        packageFilter: state.packageFilter,
       }),
       merge: (persistedState: any, currentState) => ({
         ...currentState,
         ...(persistedState as object),
         selectedScanGroups: new Set(persistedState?.selectedScanGroups || []),
+        // NEW: Handle Set deserialization for packages (Phase 1)
+        selectedPackages: new Set(persistedState?.selectedPackages || []),
       }),
     }
   )

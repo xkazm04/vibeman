@@ -1,8 +1,10 @@
 /**
- * FastAPI Scan Strategy
+ * FastAPI Scan Strategy (FIXED VERSION)
  *
- * Implements scanning logic specific to FastAPI applications.
- * Detects Python-specific patterns and FastAPI conventions.
+ * CHANGES:
+ * - Added selectedGroups parameter to detectOpportunities()
+ * - Wrapped check calls in shouldRunGroup() conditionals
+ * - Removed duplicate fileExists() method (inherited from base)
  */
 
 import { BaseScanStrategy } from '../ScanStrategy';
@@ -16,7 +18,6 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
   getScanPatterns(): string[] {
     return [
       '**/*.py',
-      // FastAPI specific
       'app/**/*.py',
       'src/**/*.py',
       'api/**/*.py',
@@ -52,49 +53,62 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
       'code-quality',
       'maintainability',
       'performance',
-      'fastapi-specific',
+      'security',
+      'architecture',
     ];
   }
 
   /**
    * Detect FastAPI-specific opportunities
+   * FIXED: Now respects selectedGroups parameter
    */
-  detectOpportunities(files: FileAnalysis[]): RefactorOpportunity[] {
+  detectOpportunities(files: FileAnalysis[], selectedGroups?: string[]): RefactorOpportunity[] {
     const opportunities: RefactorOpportunity[] = [];
 
     for (const file of files) {
-      // Generic Python checks
-      this.checkLargeFile(file, opportunities);
-      this.checkLongFunctions(file, opportunities);
-      this.checkPrintStatements(file, opportunities);
-      this.checkTypeAnnotations(file, opportunities);
-      this.checkUnusedImports(file, opportunities);
+      // Maintainability checks
+      if (this.shouldRunGroup('maintainability', selectedGroups)) {
+        this.checkLargeFile(file, opportunities);
+        this.checkLongFunctions(file, opportunities);
+        this.checkPydanticModels(file, opportunities);
+        this.checkErrorHandling(file, opportunities);
+      }
 
-      // FastAPI specific checks
-      this.checkDependencyInjection(file, opportunities);
-      this.checkAsyncEndpoints(file, opportunities);
-      this.checkPydanticModels(file, opportunities);
-      this.checkErrorHandling(file, opportunities);
-      this.checkCORSConfiguration(file, opportunities);
+      // Code Quality checks
+      if (this.shouldRunGroup('code-quality', selectedGroups)) {
+        this.checkPrintStatements(file, opportunities);
+        this.checkTypeAnnotations(file, opportunities);
+        this.checkUnusedImports(file, opportunities);
+      }
+
+      // Architecture checks
+      if (this.shouldRunGroup('architecture', selectedGroups)) {
+        this.checkDependencyInjection(file, opportunities);
+      }
+
+      // Performance checks
+      if (this.shouldRunGroup('performance', selectedGroups)) {
+        this.checkAsyncEndpoints(file, opportunities);
+      }
+
+      // Security checks
+      if (this.shouldRunGroup('security', selectedGroups)) {
+        this.checkCORSConfiguration(file, opportunities);
+      }
     }
 
     return opportunities;
   }
 
-  /**
-   * Validate if this is a FastAPI project
-   */
   async canHandle(projectPath: string, projectType?: 'nextjs' | 'fastapi' | 'express' | 'react-native' | 'other'): Promise<boolean> {
     if (projectType === 'fastapi') {
       return true;
     }
 
-    // Auto-detect by checking for FastAPI files
     try {
       const { promises: fs } = await import('fs');
       const path = await import('path');
 
-      // Check for requirements.txt with fastapi
       const requirementsPath = path.join(projectPath, 'requirements.txt');
       if (await this.fileExists(requirementsPath)) {
         const requirements = await fs.readFile(requirementsPath, 'utf-8');
@@ -103,7 +117,6 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
         }
       }
 
-      // Check for pyproject.toml with fastapi
       const pyprojectPath = path.join(projectPath, 'pyproject.toml');
       if (await this.fileExists(pyprojectPath)) {
         const pyproject = await fs.readFile(pyprojectPath, 'utf-8');
@@ -112,7 +125,6 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
         }
       }
 
-      // Check for main.py with FastAPI import
       const mainPyPath = path.join(projectPath, 'main.py');
       if (await this.fileExists(mainPyPath)) {
         const mainPy = await fs.readFile(mainPyPath, 'utf-8');
@@ -164,7 +176,6 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
       const line = lines[i];
       const trimmed = line.trim();
 
-      // Detect function definition
       if (trimmed.startsWith('def ') || trimmed.startsWith('async def ')) {
         if (currentFunctionStart !== -1) {
           const functionLength = i - currentFunctionStart;
@@ -175,7 +186,6 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
         currentFunctionStart = i;
         currentIndent = line.length - line.trimStart().length;
       }
-      // Detect end of function (return to base indent or less)
       else if (currentFunctionStart !== -1 && trimmed && !line.startsWith(' '.repeat(currentIndent + 1))) {
         const functionLength = i - currentFunctionStart;
         if (functionLength > 50) {
@@ -241,9 +251,7 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      // Check for function definitions without type hints
       if ((line.startsWith('def ') || line.startsWith('async def ')) && !line.includes('->')) {
-        // Skip __init__ and other dunder methods
         if (!line.includes('def __')) {
           missingAnnotations.push(i + 1);
         }
@@ -275,7 +283,6 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
     const imports = new Map<string, number>();
     const unusedImports: number[] = [];
 
-    // Collect imports
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       const importMatch = line.match(/^(?:from .+ )?import (.+)/);
@@ -285,8 +292,7 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
       }
     }
 
-    // Check usage (simple heuristic)
-    const restOfFile = lines.slice(10).join('\n'); // Skip import section
+    const restOfFile = lines.slice(10).join('\n');
     for (const [name, lineNum] of imports) {
       if (!restOfFile.includes(name)) {
         unusedImports.push(lineNum);
@@ -441,18 +447,6 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
           '15-30 minutes'
         )
       );
-    }
-  }
-
-  // ========== Helpers ==========
-
-  private async fileExists(filePath: string): Promise<boolean> {
-    try {
-      const { promises: fs } = await import('fs');
-      await fs.access(filePath);
-      return true;
-    } catch {
-      return false;
     }
   }
 }

@@ -2,11 +2,13 @@
 
 import { useRefactorStore } from '@/stores/refactorStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { ArrowRight, CheckCircle2, Shield, Zap, Wrench, Network, TestTube, Component, Info } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Shield, Zap, Wrench, Network, TestTube, Component, Info, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StepContainer, CyberCard } from '@/components/ui/wizard';
 import { SCAN_TECHNIQUE_GROUPS, getScanGroupsForProjectType, type ProjectType, type ScanTechniqueGroup } from '../lib/scanTechniques';
 import { useState, useEffect } from 'react';
+import ProviderSelector from '@/components/llm/ProviderSelector';
+
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   CheckCircle2,
@@ -26,6 +28,8 @@ export default function SettingsStep() {
     clearGroupSelection,
     setCurrentStep,
     setAnalysisError,
+    llmProvider,
+    setLLMProvider,
   } = useRefactorStore();
 
   const activeProject = useActiveProjectStore(state => state.activeProject);
@@ -83,6 +87,35 @@ export default function SettingsStep() {
               <span className="ml-2">- {relevantGroups.length} relevant scan groups available</span>
             </p>
           </div>
+        </div>
+      </CyberCard>
+
+      {/* AI Provider Selection - FIXED */}
+      <CyberCard variant="glow" data-testid="ai-provider-card">
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-500/30">
+              <Sparkles className="w-6 h-6 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-white font-medium">AI Provider Settings</h4>
+              <p className="text-sm text-gray-400 mt-1">
+                Select LLM provider for package generation and analysis
+              </p>
+            </div>
+          </div>
+
+          {/* FIXED: Use correct prop name */}
+          <ProviderSelector
+            selectedProvider={llmProvider as any}
+            onSelectProvider={(provider) => setLLMProvider(provider)}
+            compact={true}
+            showAllProviders={true}
+          />
+
+          <p className="text-xs text-gray-500">
+            💡 Package generation uses AI to intelligently group refactoring opportunities into strategic packages
+          </p>
         </div>
       </CyberCard>
 

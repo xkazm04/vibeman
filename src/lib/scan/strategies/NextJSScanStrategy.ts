@@ -1,8 +1,10 @@
 /**
- * NextJS Scan Strategy
+ * NextJS Scan Strategy (FIXED VERSION)
  *
- * Implements scanning logic specific to Next.js applications.
- * Detects Next.js-specific patterns, conventions, and issues.
+ * CHANGES:
+ * - Added selectedGroups parameter to detectOpportunities()
+ * - Wrapped check calls in shouldRunGroup() conditionals
+ * - Now respects user's scan group selection
  */
 
 import { BaseScanStrategy } from '../ScanStrategy';
@@ -22,12 +24,10 @@ export class NextJSScanStrategy extends BaseScanStrategy {
 
   getScanPatterns(): string[] {
     return [
-      // TypeScript/JavaScript
       '**/*.ts',
       '**/*.tsx',
       '**/*.js',
       '**/*.jsx',
-      // Next.js specific
       'app/**/*',
       'pages/**/*',
       'components/**/*',
@@ -54,45 +54,58 @@ export class NextJSScanStrategy extends BaseScanStrategy {
       'code-quality',
       'maintainability',
       'performance',
-      'nextjs-specific',
+      'react-specific',
     ];
   }
 
   /**
    * Detect Next.js-specific opportunities
+   * FIXED: Now respects selectedGroups parameter!
    */
-  detectOpportunities(files: FileAnalysis[]): RefactorOpportunity[] {
+  detectOpportunities(files: FileAnalysis[], selectedGroups?: string[]): RefactorOpportunity[] {
     const opportunities: RefactorOpportunity[] = [];
 
     for (const file of files) {
-      // Generic checks
-      this.checkLargeFile(file, opportunities);
-      this.checkDuplication(file, opportunities);
-      this.checkLongFunctions(file, opportunities);
-      this.checkConsoleStatements(file, opportunities);
-      this.checkAnyTypes(file, opportunities);
-      this.checkUnusedImports(file, opportunities);
+      // Code Quality & Standards
+      if (this.shouldRunGroup('code-quality', selectedGroups)) {
+        this.checkConsoleStatements(file, opportunities);
+        this.checkAnyTypes(file, opportunities);
+        this.checkUnusedImports(file, opportunities);
+      }
 
-      // Next.js specific checks
-      this.checkClientServerMixing(file, opportunities);
-      this.checkImageOptimization(file, opportunities);
-      this.checkDynamicImports(file, opportunities);
-      this.checkMetadataAPI(file, opportunities);
-      this.checkServerActions(file, opportunities);
+      // Maintainability
+      if (this.shouldRunGroup('maintainability', selectedGroups)) {
+        this.checkLargeFile(file, opportunities);
+        this.checkDuplication(file, opportunities);
+        this.checkLongFunctions(file, opportunities);
+      }
+
+      // React & Component Patterns
+      if (this.shouldRunGroup('react-specific', selectedGroups)) {
+        this.checkClientServerMixing(file, opportunities);
+        this.checkMetadataAPI(file, opportunities);
+      }
+
+      // Performance
+      if (this.shouldRunGroup('performance', selectedGroups)) {
+        this.checkImageOptimization(file, opportunities);
+        this.checkDynamicImports(file, opportunities);
+      }
+
+      // Architecture (if security includes architectural checks)
+      if (this.shouldRunGroup('architecture', selectedGroups)) {
+        // Architecture-specific checks can go here
+      }
     }
 
     return opportunities;
   }
 
-  /**
-   * Validate if this is a Next.js project
-   */
   async canHandle(projectPath: string, projectType?: 'nextjs' | 'fastapi' | 'express' | 'react-native' | 'other'): Promise<boolean> {
     if (projectType === 'nextjs') {
       return true;
     }
 
-    // Auto-detect by checking for Next.js files
     try {
       const { promises: fs } = await import('fs');
       const path = await import('path');
@@ -314,7 +327,6 @@ export class NextJSScanStrategy extends BaseScanStrategy {
     file: FileAnalysis,
     opportunities: RefactorOpportunity[]
   ): void {
-    // Check for large client components that could benefit from dynamic imports
     const hasUseClient = file.content.includes("'use client'");
     const isLarge = file.lines > 300;
     const hasHeavyLibs =
@@ -347,7 +359,6 @@ export class NextJSScanStrategy extends BaseScanStrategy {
     file: FileAnalysis,
     opportunities: RefactorOpportunity[]
   ): void {
-    // Check if using old Head component instead of metadata API
     const hasHead = /import\s+Head\s+from\s+['"]next\/head['"]/g.test(
       file.content
     );
@@ -371,36 +382,6 @@ export class NextJSScanStrategy extends BaseScanStrategy {
       );
     }
   }
-
-  private checkServerActions(
-    file: FileAnalysis,
-    opportunities: RefactorOpportunity[]
-  ): void {
-    // Check for API routes that could be server actions
-    const isApiRoute = file.path.includes('/api/') || file.path.includes('\\api\\');
-    const hasSimplePostHandler =
-      /export\s+async\s+function\s+POST/.test(file.content) &&
-      file.lines < 50;
-
-    if (isApiRoute && hasSimplePostHandler) {
-      opportunities.push(
-        this.createOpportunity(
-          `server-action-${file.path}`,
-          `Consider Server Actions for ${file.path}`,
-          'This simple API route could be converted to a Server Action for better type safety and simpler data flow.',
-          'maintainability',
-          'low',
-          'Simplifies data mutations and improves type safety',
-          'medium',
-          [file.path],
-          false,
-          '1-2 hours'
-        )
-      );
-    }
-  }
-
-  // ========== Helpers ==========
 
   private async fileExists(filePath: string): Promise<boolean> {
     try {

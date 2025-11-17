@@ -46,7 +46,17 @@
       "Bash(do echo \"=== $file ===\")",
       "Bash(done)",
       "Bash(for:*)",
-      "Bash(do sed -i \"s/import { AnnetteTheme, THEME_CONFIGS } from ''\\.\\.\\/sub_VoiceInterface\\/AnnetteThemeSwitcher'';/import { AnnetteTheme } from ''..\\/sub_VoiceInterface\\/AnnetteThemeSwitcher'';\\nimport { THEME_CONFIGS } from ''@\\/stores\\/themeStore'';/\" \"$file\")"
+      "Bash(do sed -i \"s/import { AnnetteTheme, THEME_CONFIGS } from ''\\.\\.\\/sub_VoiceInterface\\/AnnetteThemeSwitcher'';/import { AnnetteTheme } from ''..\\/sub_VoiceInterface\\/AnnetteThemeSwitcher'';\\nimport { THEME_CONFIGS } from ''@\\/stores\\/themeStore'';/\" \"$file\")",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File:*)",
+      "Bash(node fix-react-native.js:*)",
+      "Bash(node fix-context-loader.js:*)",
+      "Bash(node fix-package-generator.js:*)",
+      "Bash(node fix-safe-context.js:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

@@ -8,7 +8,6 @@
 import type { ScanStrategy, ProjectType, ScanStrategyMetadata } from './ScanStrategy';
 import { NextJSScanStrategy } from './strategies/NextJSScanStrategy';
 import { FastAPIScanStrategy } from './strategies/FastAPIScanStrategy';
-import { ExpressScanStrategy } from './strategies/ExpressScanStrategy';
 import { ReactNativeScanStrategy } from './strategies/ReactNativeScanStrategy';
 
 /**
@@ -26,12 +25,6 @@ const STRATEGY_REGISTRY: ScanStrategyMetadata[] = [
     techStack: 'fastapi',
     description: 'Scanner for FastAPI Python applications',
     strategyClass: FastAPIScanStrategy,
-  },
-  {
-    name: 'Express.js Scanner',
-    techStack: 'express',
-    description: 'Scanner for Express.js Node.js applications',
-    strategyClass: ExpressScanStrategy,
   },
   {
     name: 'React Native Scanner',

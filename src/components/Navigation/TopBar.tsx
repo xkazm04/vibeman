@@ -17,7 +17,7 @@ const navigationItems: NavigationItem[] = [
   { module: 'tasker', label: 'Tasker' },
   { module: 'reflector', label: 'Reflector' },
   { module: 'docs', label: 'Docs' },
-  { module: 'refactor', label: 'Wizzard' },
+  { module: 'refactor', label: 'Wizard' },
 ];
 
 // Navigation item component

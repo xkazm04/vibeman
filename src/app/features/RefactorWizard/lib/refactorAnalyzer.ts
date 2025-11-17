@@ -1,6 +1,10 @@
 /**
- * Main analyzer that orchestrates file scanning, pattern detection, and AI analysis
- * Updated to use ScanStrategy plugin architecture for multitech support
+ * Main analyzer (FIXED VERSION)
+ *
+ * CHANGES:
+ * - Pass selectedGroups parameter to strategy.detectOpportunities()
+ *
+ * TO APPLY: Copy to src/app/features/RefactorWizard/lib/refactorAnalyzer.ts
  */
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 import { getScanStrategy } from '@/lib/scan';
@@ -9,41 +13,35 @@ import { scanProjectFiles as legacyScanProjectFiles } from './fileScanner';
 import { analyzeWithAI, deduplicateOpportunities } from './aiAnalyzer';
 import type { FileAnalysis, AnalysisResult } from './types';
 
-// Re-export types and functions for backward compatibility
 export { analyzeWithAI } from './aiAnalyzer';
 export type { FileAnalysis, AnalysisResult } from './types';
 
 /**
  * Backward compatibility wrapper for scanProjectFiles
- * @deprecated Use getScanStrategy().scanProjectFiles() instead
  */
 export async function scanProjectFiles(projectPath: string, projectType?: ProjectType): Promise<FileAnalysis[]> {
   try {
     const strategy = await getScanStrategy(projectPath, projectType);
     return strategy.scanProjectFiles(projectPath);
   } catch (error) {
-    // Fallback to legacy scanner if strategy fails
     console.warn('Strategy scan failed, falling back to legacy scanner:', error);
     return legacyScanProjectFiles(projectPath);
   }
 }
 
 /**
- * Analyzes code for common refactor opportunities (legacy function kept for compatibility)
- * @deprecated This function is kept for backward compatibility but no longer used
+ * Analyzes code for common refactor opportunities (legacy - deprecated)
  */
 export function analyzeCodePatterns(
   files: FileAnalysis[],
   selectedGroups?: string[]
 ): RefactorOpportunity[] {
-  // This function is deprecated but kept for backward compatibility
-  // The actual pattern detection is now done by strategies
   return [];
 }
 
 /**
  * Combines pattern-based and AI analysis
- * Now uses ScanStrategy plugin architecture for multitech support
+ * NOW PROPERLY USES selectedGroups!
  */
 export async function analyzeProject(
   projectPath: string,
@@ -53,14 +51,12 @@ export async function analyzeProject(
   selectedGroups?: string[],
   projectType?: ProjectType
 ): Promise<AnalysisResult> {
-  // Get appropriate strategy for the project
   const strategy = await getScanStrategy(projectPath, projectType);
-
-  // Scan files using strategy
   const files = await strategy.scanProjectFiles(projectPath);
 
-  // Pattern-based analysis using strategy (tech-specific detection)
-  const patternOpportunities = strategy.detectOpportunities(files);
+  // FIXED: Pass selectedGroups to detectOpportunities!
+  console.log('[RefactorAnalyzer] Running scan with groups:', selectedGroups || 'all');
+  const patternOpportunities = strategy.detectOpportunities(files, selectedGroups);
 
   // AI-based analysis (if enabled)
   let aiOpportunities: RefactorOpportunity[] = [];

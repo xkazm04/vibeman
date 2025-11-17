@@ -35,10 +35,48 @@ export async function POST(request: NextRequest) {
     // Run full analysis with optional group filtering and project type
     const result = await analyzeProject(projectPath, useAI, provider, model, selectedGroups, projectType as ProjectType);
 
+    // NEW: Generate packages automatically if enabled
+    let packages = [];
+    let context = null;
+    let dependencyGraph = null;
+
+    if (useAI && result.opportunities.length > 0) {
+      try {
+        console.log('[API /analyze] Generating packages...');
+
+        const packageResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/refactor/generate-packages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            opportunities: result.opportunities,
+            projectPath,
+            userPreferences: {
+              provider,
+              model,
+            },
+          }),
+        });
+
+        if (packageResponse.ok) {
+          const packageData = await packageResponse.json();
+          packages = packageData.packages || [];
+          context = packageData.context || null;
+          dependencyGraph = packageData.dependencyGraph || null;
+          console.log('[API /analyze] Generated', packages.length, 'packages');
+        }
+      } catch (error) {
+        console.error('[API /analyze] Failed to generate packages:', error);
+        // Continue without packages (non-fatal)
+      }
+    }
+
     return NextResponse.json({
       opportunities: result.opportunities,
       summary: result.summary,
       wizardPlan,
+      packages, // NEW
+      context, // NEW
+      dependencyGraph, // NEW
     });
   } catch (error) {
     return createErrorResponse(

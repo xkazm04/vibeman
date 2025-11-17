@@ -7,6 +7,7 @@ import SettingsStep from './components/SettingsStep';
 import ScanStep from './components/ScanStep';
 import ConfigStep from './components/ConfigStep';
 import ReviewStep from './components/ReviewStep';
+import PackageStep from './components/PackageStep';
 import ExecuteStep from './components/ExecuteStep';
 import ResultsStep from './components/ResultsStep';
 import WizardProgress from './components/WizardProgress';
@@ -81,6 +82,13 @@ export default function RefactorWizardLayout() {
                   {currentStep === 'scan' && <ScanStep key="scan" />}
                   {currentStep === 'config' && <ConfigStep key="config" />}
                   {currentStep === 'review' && <ReviewStep key="review" />}
+                  {currentStep === 'package' && (
+                    <PackageStep
+                      key="package"
+                      onNext={() => useRefactorStore.getState().setCurrentStep('execute')}
+                      onBack={() => useRefactorStore.getState().setCurrentStep('review')}
+                    />
+                  )}
                   {currentStep === 'execute' && <ExecuteStep key="execute" />}
                   {currentStep === 'results' && <ResultsStep key="results" />}
                 </AnimatePresence>

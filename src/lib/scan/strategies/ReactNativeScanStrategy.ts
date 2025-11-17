@@ -62,7 +62,7 @@ export class ReactNativeScanStrategy extends BaseScanStrategy {
   /**
    * Detect React Native-specific opportunities
    */
-  detectOpportunities(files: FileAnalysis[]): RefactorOpportunity[] {
+  detectOpportunities(files: FileAnalysis[], selectedGroups?: string[]): RefactorOpportunity[] {
     const opportunities: RefactorOpportunity[] = [];
 
     for (const file of files) {

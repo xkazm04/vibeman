@@ -10,6 +10,7 @@ const steps = [
   { id: 'scan', label: 'Scan' },
   { id: 'config', label: 'Configure' },
   { id: 'review', label: 'Review' },
+  { id: 'package', label: 'Packages' },
   { id: 'execute', label: 'Create' },
   { id: 'results', label: 'Summary' },
 ] as const;
@@ -66,8 +67,8 @@ export default function WizardProgress() {
   const getRocketIntensity = () => {
     if (currentIndex === 0) return 'low'; // Settings - starting
     if (currentIndex === 1 || currentIndex === 2) return 'medium'; // Scan/Config - warming up
-    if (currentIndex === 3) return 'medium'; // Review - cruising
-    if (currentIndex >= 4) return 'high'; // Execute/Results - max thrust
+    if (currentIndex === 3 || currentIndex === 4) return 'medium'; // Review/Package - cruising
+    if (currentIndex >= 5) return 'high'; // Execute/Results - max thrust
     return 'low';
   };
 

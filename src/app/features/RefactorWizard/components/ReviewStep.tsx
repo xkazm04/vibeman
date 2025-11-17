@@ -39,7 +39,16 @@ export default function ReviewStep() {
       alert('Please select at least one opportunity');
       return;
     }
-    setCurrentStep('execute');
+    setCurrentStep('package');
+  };
+
+  const handleSelectAll = () => {
+    // Select only filtered opportunities (not all opportunities)
+    filteredOpportunities.forEach(opp => {
+      if (!selectedOpportunities.has(opp.id)) {
+        toggleOpportunity(opp.id);
+      }
+    });
   };
 
   return (
@@ -48,17 +57,52 @@ export default function ReviewStep() {
       description={`Found ${opportunities.length} refactoring opportunities`}
       icon={CheckSquare}
       currentStep={4}
-      totalSteps={6}
+      totalSteps={7}
       isLoading={false}
       data-testid="review-step-container"
     >
-      {/* Stats Header */}
-      <div className="flex items-center justify-center">
+      {/* Stats Header with Actions */}
+      <div className="flex items-center justify-between gap-6">
+        {/* Selected Count */}
         <div className="text-center p-6 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl">
           <p className="text-cyan-400 text-4xl font-light mb-1">
             {selectedOpportunities.size}
           </p>
           <p className="text-gray-400 text-sm">opportunities selected</p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            {/* Skip to Execute (Legacy mode) */}
+            <button
+              onClick={() => {
+                // Auto-select all packages and skip to execute
+                const store = useRefactorStore.getState();
+                store.selectAllPackages();
+                store.setCurrentStep('execute');
+              }}
+              disabled={selectedOpportunities.size === 0}
+              className="px-4 py-2 text-sm bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="skip-package-step-top"
+              title="Skip package selection and execute all refactorings"
+            >
+              Skip to Execute (Legacy)
+            </button>
+
+            <button
+              onClick={handleContinue}
+              disabled={selectedOpportunities.size === 0}
+              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none flex items-center space-x-2"
+              data-testid="continue-to-packages-top"
+            >
+              <span>Continue to Packages</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-gray-500 text-xs text-right">
+            Select opportunities below, then continue to package them strategically
+          </p>
         </div>
       </div>
 
@@ -102,11 +146,18 @@ export default function ReviewStep() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={selectAllOpportunities}
+            onClick={handleSelectAll}
             className="px-4 py-2 text-sm bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-all"
             data-testid="select-all-opportunities"
+            title={
+              filterCategory !== 'all' || filterSeverity !== 'all'
+                ? `Select all ${filteredOpportunities.length} filtered opportunities`
+                : `Select all ${opportunities.length} opportunities`
+            }
           >
-            Select All
+            {filterCategory !== 'all' || filterSeverity !== 'all'
+              ? `Select Filtered (${filteredOpportunities.length})`
+              : 'Select All'}
           </button>
           <button
             onClick={clearSelection}
@@ -136,7 +187,7 @@ export default function ReviewStep() {
         )}
       </div>
 
-      {/* Actions */}
+      {/* Bottom Actions */}
       <div className="flex items-center justify-between pt-4 border-t border-white/10">
         <button
           onClick={() => setCurrentStep('scan')}
@@ -146,15 +197,11 @@ export default function ReviewStep() {
           Back
         </button>
 
-        <button
-          onClick={handleContinue}
-          disabled={selectedOpportunities.size === 0}
-          className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none flex items-center space-x-2"
-          data-testid="continue-to-execute"
-        >
-          <span>Continue</span>
-          <ArrowRight className="w-5 h-5" />
-        </button>
+        <p className="text-gray-500 text-sm">
+          {selectedOpportunities.size > 0
+            ? `${selectedOpportunities.size} selected • Continue at the top ↑`
+            : 'Select opportunities above to continue'}
+        </p>
       </div>
     </StepContainer>
   );

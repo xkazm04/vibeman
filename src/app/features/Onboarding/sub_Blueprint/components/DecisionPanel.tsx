@@ -19,6 +19,8 @@ const DECISION_BADGE_MAP: Record<string, string> = {
   'documentation-scan': 'documentation-master',
   'snapshot-scan': 'snapshot-specialist',
   'goal-scan': 'goal-setter',
+  'unused-scan-selection': 'code-cleaner',
+  'unused-scan-result': 'code-cleaner',
 };
 
 const SEVERITY_ICONS = {
@@ -57,8 +59,14 @@ export default function DecisionPanel() {
                          currentDecision.type.includes('notification') ||
                          currentDecision.type.includes('abort');
 
+  // Check if this decision has custom content (e.g., file selection)
+  // If so, don't show default action buttons - let custom content handle it
+  const hasCustomContent = !!currentDecision.customContent;
+
   // Build action buttons based on decision type
-  const actions: WizardStepAction[] = isNotification
+  const actions: WizardStepAction[] = hasCustomContent
+    ? [] // Custom content provides its own actions
+    : isNotification
     ? [
         {
           label: 'Close',
@@ -88,6 +96,30 @@ export default function DecisionPanel() {
         },
       ];
 
+  // Enhance titleActions to wire up decision queue
+  const enhancedTitleActions = currentDecision.titleActions?.map(action => ({
+    ...action,
+    onClick: async () => {
+      try {
+        // Call the original onClick handler
+        await action.onClick();
+
+        // Automatically trigger decision queue based on action type
+        if (action.variant === 'primary') {
+          // Primary actions (like "Create Requirements") should accept the decision
+          await handleAccept();
+        } else if (action.variant === 'secondary' && (action.label.toLowerCase().includes('cancel') || action.label.toLowerCase().includes('reject'))) {
+          // Secondary cancel/reject actions should reject the decision
+          await rejectDecision();
+        }
+      } catch (error) {
+        // If onClick throws an error, don't close the decision
+        // Error is already logged/displayed by the handler
+        console.error('[DecisionPanel] Action failed:', error);
+      }
+    },
+  }));
+
   return (
     <WizardStepPanel
       title={currentDecision.title}
@@ -96,8 +128,10 @@ export default function DecisionPanel() {
       icon={Icon}
       count={currentDecision.count}
       actions={actions}
+      titleActions={enhancedTitleActions}
       isProcessing={isProcessing}
       visible={true}
+      customContent={currentDecision.customContent}
       testId="decision-panel"
     />
   );

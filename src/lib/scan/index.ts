@@ -35,5 +35,4 @@ export {
 // Export concrete strategy implementations
 export { NextJSScanStrategy } from './strategies/NextJSScanStrategy';
 export { FastAPIScanStrategy } from './strategies/FastAPIScanStrategy';
-export { ExpressScanStrategy } from './strategies/ExpressScanStrategy';
 export { ReactNativeScanStrategy } from './strategies/ReactNativeScanStrategy';

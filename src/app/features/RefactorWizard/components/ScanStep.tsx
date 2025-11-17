@@ -12,7 +12,7 @@ import {
 import { motion } from 'framer-motion';
 
 export default function ScanStep() {
-  const { startAnalysis, analysisStatus, analysisProgress, analysisError, setAnalysisError } = useRefactorStore();
+  const { startAnalysis, analysisStatus, analysisProgress, analysisError, setAnalysisError, packageGenerationStatus, llmProvider, llmModel } = useRefactorStore();
   const activeProject = useActiveProjectStore(state => state.activeProject);
   const [useAI, setUseAI] = useState(true);
 
@@ -22,7 +22,8 @@ export default function ScanStep() {
       return;
     }
 
-    await startAnalysis(activeProject.id, activeProject.path, useAI, undefined, undefined, activeProject.type);
+    console.log('[ScanStep] Starting analysis with provider:', llmProvider, 'model:', llmModel);
+    await startAnalysis(activeProject.id, activeProject.path, useAI, llmProvider, llmModel, activeProject.type);
   };
 
   const isScanning = analysisStatus === 'scanning' || analysisStatus === 'analyzing';
@@ -122,6 +123,44 @@ export default function ScanStep() {
           label={analysisStatus === 'scanning' ? 'Scanning files...' : 'Analyzing code...'}
           variant="cyan"
         />
+      )}
+
+      {/* Analysis Status Indicators */}
+      {analysisStatus === 'analyzing' && useAI && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4"
+        >
+          <div className="flex items-center gap-2 text-sm text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+            >
+              <Sparkles className="w-4 h-4" />
+            </motion.div>
+            <span>AI analyzing code patterns...</span>
+          </div>
+        </motion.div>
+      )}
+
+      {/* NEW: Package generation status */}
+      {packageGenerationStatus === 'generating' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4"
+        >
+          <div className="flex items-center gap-2 text-sm text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              📦
+            </motion.div>
+            <span>Generating strategic refactoring packages...</span>
+          </div>
+        </motion.div>
       )}
 
       {/* Start Button */}
