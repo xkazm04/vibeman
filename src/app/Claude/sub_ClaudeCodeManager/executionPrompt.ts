@@ -37,25 +37,6 @@ IMPORTANT INSTRUCTIONS:
 - Run any tests if specified
 - Ensure all changes are complete before finishing
 
-## Context Updates
-
-**CRITICAL**: If this requirement references a specific CONTEXT name or feature area, you MUST update the context documentation using the context update skill.
-
-To update a context:
-1. Invoke the \`update-context\` skill by running: \`/skill update-context\`
-2. The skill will guide you through:
-   - Identifying the correct context to update
-   - Analyzing the files you've changed
-   - Updating the context's file paths to include new/modified files
-   - Refreshing the context description to reflect your changes
-
-**When to use the context update skill:**
-- The requirement explicitly mentions a context name (e.g., "Update the Goals Management context")
-- You've created, modified, or deleted files within a feature area that has an existing context
-- Your changes significantly impact the architecture or capabilities of a feature
-
-**Important:** Always invoke the skill AFTER completing your implementation, as it needs to analyze your changes.
-
 ## File Structure Guidelines (Next.js/React Projects)
 
 When creating new files in Next.js/React projects, follow this structure:
@@ -241,7 +222,6 @@ git push
 Before finishing:
 - [ ] All code changes implemented
 - [ ] Test IDs added to interactive components
-- [ ] Context documentation updated (if applicable)
 - [ ] File structure follows guidelines
 - [ ] UI components match existing theme
 - [ ] Implementation log entry created in database

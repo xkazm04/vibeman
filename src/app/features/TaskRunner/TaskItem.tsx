@@ -7,8 +7,6 @@ import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2 } from '
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { RequirementViewer } from '@/components/RequirementViewer';
 import type { ProjectRequirement } from './lib/types';
-import { useContextMenu } from '@/components/ContextMenu/useContextMenu';
-import { ContextMenuItem } from '@/components/ContextMenu/ContextMenu';
 import ContextMenu from '@/components/ContextMenu';
 
 interface TaskItemProps {

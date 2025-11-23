@@ -6,9 +6,12 @@ import {
   ArrowRight,
   Info,
   Filter,
-  CheckSquare
+  CheckSquare,
+  ArrowLeft,
+  Package
 } from 'lucide-react';
 import { StepContainer } from '@/components/ui/wizard';
+import { StepHeader } from '@/components/ui/wizard/StepHeader';
 import { VirtualizedOpportunityList } from './VirtualizedOpportunityList';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
@@ -24,26 +27,49 @@ export default function ReviewStep() {
     setFilterCategory,
     setFilterSeverity,
     setCurrentStep,
+    // New package state
+    packages,
+    selectedPackages,
   } = useRefactorStore();
 
+  // Get the currently selected package (assuming single selection for detail view)
+  // If multiple are selected, we might want to show a combined view or just the first one
+  // For now, let's assume we're viewing the "active" package or all selected packages
+  // But wait, the store doesn't have an "activePackage" concept, just "selectedPackages".
+  // Let's infer the context: if we came from PlanStep, we likely want to review ALL selected packages
+  // OR we want to review the specific one we clicked.
+
+  // Let's assume we show ALL selected packages' opportunities.
+  const activePackageIds = Array.from(selectedPackages);
+  const activePackages = packages.filter(p => selectedPackages.has(p.id));
+
+  // Filter opportunities to only those in the selected packages
+  const packageOpportunities = useMemo(() => {
+    if (activePackages.length === 0) return opportunities; // Fallback to all if none selected (legacy behavior)
+
+    const pkgOppIds = new Set(activePackages.flatMap(p => p.opportunities.map(o => o.id)));
+    return opportunities.filter(o => pkgOppIds.has(o.id));
+  }, [opportunities, activePackages]);
+
   const filteredOpportunities = useMemo(() => {
-    return opportunities.filter(opp => {
+    return packageOpportunities.filter(opp => {
       const categoryMatch = filterCategory === 'all' || opp.category === filterCategory;
       const severityMatch = filterSeverity === 'all' || opp.severity === filterSeverity;
       return categoryMatch && severityMatch;
     });
-  }, [opportunities, filterCategory, filterSeverity]);
+  }, [packageOpportunities, filterCategory, filterSeverity]);
 
   const handleContinue = () => {
     if (selectedOpportunities.size === 0) {
       alert('Please select at least one opportunity');
       return;
     }
-    setCurrentStep('package');
+    setCurrentStep('execute'); // Skip package step (legacy) -> Go straight to execute
+    // In the new flow, "PackageStep" is replaced by "PlanStep", so we go to Execute.
   };
 
   const handleSelectAll = () => {
-    // Select only filtered opportunities (not all opportunities)
+    // Select only filtered opportunities
     filteredOpportunities.forEach(opp => {
       if (!selectedOpportunities.has(opp.id)) {
         toggleOpportunity(opp.id);
@@ -51,16 +77,27 @@ export default function ReviewStep() {
     });
   };
 
+  const packageName = activePackages.length === 1
+    ? activePackages[0].name
+    : `${activePackages.length} Packages Selected`;
+
+  const packageDescription = activePackages.length === 1
+    ? activePackages[0].description
+    : 'Review opportunities across selected packages';
+
   return (
     <StepContainer
-      title="Review Opportunities"
-      description={`Found ${opportunities.length} refactoring opportunities`}
-      icon={CheckSquare}
-      currentStep={4}
-      totalSteps={7}
       isLoading={false}
       data-testid="review-step-container"
     >
+      <StepHeader
+        title={activePackages.length > 0 ? packageName : "Review Opportunities"}
+        description={activePackages.length > 0 ? packageDescription : `Found ${opportunities.length} refactoring opportunities`}
+        icon={activePackages.length > 0 ? Package : CheckSquare}
+        currentStep={4}
+        totalSteps={6}
+      />
+
       {/* Stats Header with Actions */}
       <div className="flex items-center justify-between gap-6">
         {/* Selected Count */}
@@ -74,34 +111,18 @@ export default function ReviewStep() {
         {/* Action Buttons */}
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
-            {/* Skip to Execute (Legacy mode) */}
-            <button
-              onClick={() => {
-                // Auto-select all packages and skip to execute
-                const store = useRefactorStore.getState();
-                store.selectAllPackages();
-                store.setCurrentStep('execute');
-              }}
-              disabled={selectedOpportunities.size === 0}
-              className="px-4 py-2 text-sm bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              data-testid="skip-package-step-top"
-              title="Skip package selection and execute all refactorings"
-            >
-              Skip to Execute (Legacy)
-            </button>
-
             <button
               onClick={handleContinue}
               disabled={selectedOpportunities.size === 0}
               className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/30 disabled:shadow-none flex items-center space-x-2"
-              data-testid="continue-to-packages-top"
+              data-testid="continue-to-execute-top"
             >
-              <span>Continue to Packages</span>
+              <span>Continue to Execute</span>
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>
           <p className="text-gray-500 text-xs text-right">
-            Select opportunities below, then continue to package them strategically
+            Review and fine-tune selected issues before execution
           </p>
         </div>
       </div>
@@ -149,15 +170,8 @@ export default function ReviewStep() {
             onClick={handleSelectAll}
             className="px-4 py-2 text-sm bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-all"
             data-testid="select-all-opportunities"
-            title={
-              filterCategory !== 'all' || filterSeverity !== 'all'
-                ? `Select all ${filteredOpportunities.length} filtered opportunities`
-                : `Select all ${opportunities.length} opportunities`
-            }
           >
-            {filterCategory !== 'all' || filterSeverity !== 'all'
-              ? `Select Filtered (${filteredOpportunities.length})`
-              : 'Select All'}
+            Select All
           </button>
           <button
             onClick={clearSelection}
@@ -190,11 +204,12 @@ export default function ReviewStep() {
       {/* Bottom Actions */}
       <div className="flex items-center justify-between pt-4 border-t border-white/10">
         <button
-          onClick={() => setCurrentStep('scan')}
-          className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all"
-          data-testid="back-to-scan-button"
+          onClick={() => setCurrentStep('plan')}
+          className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all flex items-center gap-2"
+          data-testid="back-to-plan-button"
         >
-          Back
+          <ArrowLeft className="w-4 h-4" />
+          Back to Plan
         </button>
 
         <p className="text-gray-500 text-sm">

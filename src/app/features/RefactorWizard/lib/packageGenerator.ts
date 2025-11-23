@@ -3,12 +3,11 @@ import { RefactorOpportunity, RefactoringPackage, ProjectContext, PackagePhase }
 import { calculateExecutionLevels } from './dependencyAnalyzer';
 
 /**
- * Generate strategic refactoring packages using AI
- *
- * @param opportunities - All discovered refactoring opportunities
- * @param projectContext - Project context from CLAUDE.md, README, etc.
- * @param options - Generation options
- * @returns Array of strategic refactoring packages
+ * Generate strategic refactoring packages using Map-Reduce AI approach
+ * 
+ * 1. MAP: Cluster issues locally by Category, Module, and Pattern
+ * 2. REDUCE: Send cluster summaries to AI to generate high-level Package Definitions
+ * 3. ASSIGN: Map actual issues to the generated packages
  */
 export async function generatePackages(
   opportunities: RefactorOpportunity[],
@@ -31,578 +30,369 @@ export async function generatePackages(
     prioritizeCategory,
   } = options;
 
-  console.log('[packageGenerator] Starting package generation...');
+  console.log('[packageGenerator] Starting Map-Reduce package generation...');
   console.log('[packageGenerator] Total opportunities:', opportunities.length);
-  console.log('[packageGenerator] Target packages:', maxPackages);
 
   try {
-    // Step 1: Cluster opportunities by similarity
-    const clusters = clusterOpportunities(opportunities, {
-      minIssuesPerPackage,
-      maxIssuesPerPackage,
-    });
-    console.log('[packageGenerator] Created', clusters.size, 'initial clusters');
+    // ========================================================================
+    // STEP 1: MAP (Local Clustering)
+    // ========================================================================
+    console.log('[packageGenerator] Step 1: Local Clustering (Map)');
+    const clusters = generateClusters(opportunities);
+    const clusterSummaries = summarizeClusters(clusters);
 
-    // Step 2: Build AI prompt with context
-    const prompt = buildPackageGenerationPrompt(opportunities, projectContext, {
+    console.log(`[packageGenerator] Generated ${clusters.length} clusters`);
+
+    // ========================================================================
+    // STEP 2: REDUCE (AI Strategy Generation)
+    // ========================================================================
+    console.log('[packageGenerator] Step 2: AI Strategy Generation (Reduce)');
+    const prompt = buildStrategyPrompt(clusterSummaries, projectContext, {
       maxPackages,
-      minIssuesPerPackage,
-      clusters,
-      prioritizeCategory,
+      prioritizeCategory
     });
-
-
-    // Validate prompt
-    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
-      throw new Error('Failed to generate valid prompt for LLM');
-    }
-    // Step 3: Call LLM
-    console.log('[packageGenerator] Calling LLM for package analysis...');
-    console.log('[packageGenerator] Provider:', provider);
-    console.log('[packageGenerator] Model:', model);
-    console.log('[packageGenerator] Prompt length:', prompt?.length || 0);
-    console.log('[packageGenerator] Prompt type:', typeof prompt);
 
     const response = await llmManager.generate({
-      prompt: prompt,
+      prompt,
       provider: provider as any,
       model,
       temperature: 0.3,
       maxTokens: 8000,
     });
 
-    console.log('[packageGenerator] LLM response received');
-    console.log('[packageGenerator] Response success:', response.success);
-    console.log('[packageGenerator] Response error:', response.error);
-
-    // Step 4: Parse and validate response
     if (!response.success || !response.response) {
       throw new Error(response.error || 'LLM generation failed');
     }
-    const packages = parsePackageResponse(response.response, opportunities);
-    console.log('[packageGenerator] Parsed', packages.length, 'packages');
 
-    // Step 5: Optimize packages
-    const optimized = optimizePackages(packages, {
+    const packageDefinitions = parsePackageDefinitions(response.response);
+    console.log(`[packageGenerator] AI proposed ${packageDefinitions.length} packages`);
+
+    // ========================================================================
+    // STEP 3: ASSIGN (Map Issues to Packages)
+    // ========================================================================
+    console.log('[packageGenerator] Step 3: Assigning issues to packages');
+    const packages = assignIssuesToPackages(packageDefinitions, opportunities, clusters, {
       minIssuesPerPackage,
-      maxIssuesPerPackage,
+      maxIssuesPerPackage
     });
-    console.log('[packageGenerator] Optimized to', optimized.length, 'packages');
 
-    // Step 6: Calculate execution levels
-    const levels = calculateExecutionLevels(optimized);
-    for (const pkg of optimized) {
+    // ========================================================================
+    // STEP 4: OPTIMIZE & FINALIZE
+    // ========================================================================
+    console.log('[packageGenerator] Step 4: Optimization');
+
+    // Calculate execution levels
+    const levels = calculateExecutionLevels(packages);
+    for (const pkg of packages) {
       pkg.executionOrder = (levels.get(pkg.id) || 0) + 1;
     }
 
-    // Step 7: Resolve dependency references (replace package names with IDs)
-    resolvePackageDependencies(optimized);
+    // Resolve dependencies
+    resolvePackageDependencies(packages);
 
-    console.log('[packageGenerator] Package generation complete!');
-    return optimized;
+    console.log('[packageGenerator] Generation complete:', packages.length, 'packages');
+    return packages;
 
   } catch (error) {
     console.error('[packageGenerator] AI generation failed:', error);
     console.log('[packageGenerator] Falling back to rule-based packaging...');
-
-    // Fallback: Simple rule-based packaging
-    return generateFallbackPackages(opportunities, {
-      minIssuesPerPackage,
-      maxIssuesPerPackage,
-    });
+    return generateFallbackPackages(opportunities, { minIssuesPerPackage, maxIssuesPerPackage });
   }
 }
 
-/**
- * Cluster opportunities by category, file patterns, and similarity
- */
-function clusterOpportunities(
-  opportunities: RefactorOpportunity[],
-  options: { minIssuesPerPackage: number; maxIssuesPerPackage: number }
-): Map<string, RefactorOpportunity[]> {
-  const clusters = new Map<string, RefactorOpportunity[]>();
+// ============================================================================
+// LOCAL CLUSTERING LOGIC
+// ============================================================================
 
-  // Cluster 1: By category (code-quality, security, performance, etc.)
-  for (const opp of opportunities) {
-    const key = `category:${opp.category}`;
-    if (!clusters.has(key)) {
-      clusters.set(key, []);
-    }
-    clusters.get(key)!.push(opp);
-  }
-
-  // Cluster 2: By module (file path prefix)
-  for (const opp of opportunities) {
-    if (opp.files.length > 0) {
-      const modulePath = extractModulePath(opp.files[0]);
-      const key = `module:${modulePath}`;
-      if (!clusters.has(key)) {
-        clusters.set(key, []);
-      }
-      clusters.get(key)!.push(opp);
-    }
-  }
-
-  // Filter out small clusters
-  const filtered = new Map<string, RefactorOpportunity[]>();
-  for (const [key, opps] of clusters.entries()) {
-    if (opps.length >= options.minIssuesPerPackage) {
-      filtered.set(key, opps);
-    }
-  }
-
-  return filtered;
+interface IssueCluster {
+  id: string;
+  type: 'category' | 'module' | 'pattern';
+  name: string;
+  count: number;
+  sampleIssues: RefactorOpportunity[];
+  issueIds: Set<string>;
 }
 
-/**
- * Extract module path from file path (e.g., src/auth/login.tsx -> src/auth)
- */
-function extractModulePath(filePath: string): string {
-  const parts = filePath.split('/');
-  if (parts.length <= 2) return filePath;
-  return parts.slice(0, -1).join('/'); // Remove filename
-}
+function generateClusters(opportunities: RefactorOpportunity[]): IssueCluster[] {
+  const clusters = new Map<string, IssueCluster>();
 
-/**
- * Build AI prompt for package generation
- */
-function buildPackageGenerationPrompt(
-  opportunities: RefactorOpportunity[],
-  context: ProjectContext,
-  options: {
-    maxPackages: number;
-    minIssuesPerPackage: number;
-    clusters: Map<string, RefactorOpportunity[]>;
-    prioritizeCategory?: string;
-  }
-): string {
-  // Summarize opportunities (limit to avoid token overflow)
-  const issuesSummary = opportunities.slice(0, 200).map((opp) => ({
-    id: opp.id,
-    title: opp.title,
-    category: opp.category,
-    severity: opp.severity,
-    effort: opp.effort,
-    files: opp.files.slice(0, 3),
-    description: opp.description?.slice(0, 150),
-  }));
-
-  // Get cluster info
-  const clusterInfo = Array.from(options.clusters.entries())
-    .map(([key, opps]) => ({
-      type: key.split(':')[0],
-      name: key.split(':')[1],
-      count: opps.length,
-    }))
-    .slice(0, 20);
-
-  // Validate inputs
-  if (!opportunities || opportunities.length === 0) {
-    throw new Error('Cannot build prompt: no opportunities provided');
-  }
-
-  if (!context) {
-    throw new Error('Cannot build prompt: projectContext is required');
-  }
-
-  // Create safe context with defaults for all fields
-  const safeContext = {
-    projectType: context.projectType || 'unknown',
-    techStack: context.techStack || [],
-    architecture: context.architecture || 'Not specified',
-    priorities: context.priorities || [],
-    conventions: context.conventions || [],
-    claudeMd: context.claudeMd || '',
-    readme: context.readme || '',
+  const addToCluster = (type: 'category' | 'module' | 'pattern', name: string, opp: RefactorOpportunity) => {
+    const id = `${type}:${name}`;
+    if (!clusters.has(id)) {
+      clusters.set(id, {
+        id,
+        type,
+        name,
+        count: 0,
+        sampleIssues: [],
+        issueIds: new Set()
+      });
+    }
+    const cluster = clusters.get(id)!;
+    cluster.count++;
+    cluster.issueIds.add(opp.id);
+    if (cluster.sampleIssues.length < 3) {
+      cluster.sampleIssues.push(opp);
+    }
   };
 
-  const prompt = `You are a senior software architect creating a systematic refactoring plan.
+  for (const opp of opportunities) {
+    // 1. Cluster by Category
+    addToCluster('category', opp.category, opp);
+
+    // 2. Cluster by Module (Top-level directory)
+    if (opp.files.length > 0) {
+      const modulePath = extractModulePath(opp.files[0]);
+      addToCluster('module', modulePath, opp);
+    }
+
+    // 3. Cluster by Pattern (Title similarity - simplified)
+    // In a real implementation, we might use embeddings or strict pattern IDs
+    // Here we use the title as a proxy for pattern
+    addToCluster('pattern', opp.title, opp);
+  }
+
+  // Filter out insignificant clusters
+  return Array.from(clusters.values()).filter(c => c.count >= 3);
+}
+
+function extractModulePath(filePath: string): string {
+  // src/features/Auth/Login.tsx -> src/features/Auth
+  const parts = filePath.split('/');
+  if (parts.length > 3) return parts.slice(0, 3).join('/');
+  if (parts.length > 2) return parts.slice(0, 2).join('/');
+  return 'root';
+}
+
+function summarizeClusters(clusters: IssueCluster[]): any[] {
+  return clusters.map(c => ({
+    type: c.type,
+    name: c.name,
+    count: c.count,
+    examples: c.sampleIssues.map(i => i.title)
+  })).sort((a, b) => b.count - a.count); // Send largest clusters first
+}
+
+// ============================================================================
+// AI PROMPTING
+// ============================================================================
+
+function buildStrategyPrompt(
+  clusterSummaries: any[],
+  context: ProjectContext,
+  options: { maxPackages: number; prioritizeCategory?: string }
+): string {
+  return `You are a senior software architect creating a strategic refactoring plan.
 
 ## Project Context
+Type: ${context.projectType}
+Stack: ${context.techStack.join(', ')}
+Architecture: ${context.architecture.slice(0, 500)}
 
-**Project Type**: ${safeContext.projectType}
-**Technology Stack**: ${safeContext.techStack.join(', ')}
+## Issue Clusters (Map Phase Results)
+We have analyzed the codebase and grouped issues into the following clusters. 
+Use these clusters to form logical "Refactoring Packages".
 
-### Architecture
-${safeContext.architecture.slice(0, 1000)}
-
-### Priorities
-${safeContext.priorities.slice(0, 10).map(p => `- ${p}`).join('\n')}
-
-### Code Conventions
-${safeContext.conventions.slice(0, 10).map(c => `- ${c}`).join('\n')}
-
-${safeContext.claudeMd ? `### From CLAUDE.md (excerpt)\n${safeContext.claudeMd.slice(0, 2000)}` : ''}
-
----
-
-## Discovered Issues
-
-**Total**: ${opportunities.length} issues
-**Sample** (first 200):
-${JSON.stringify(issuesSummary, null, 2)}
-
-## Pre-computed Clusters
-
-These are initial groupings to help you understand patterns:
-${JSON.stringify(clusterInfo, null, 2)}
-
----
+${JSON.stringify(clusterSummaries.slice(0, 50), null, 2)}
 
 ## Task
+Create **${options.maxPackages}** strategic refactoring packages.
+${options.prioritizeCategory ? `**PRIORITY**: Focus on ${options.prioritizeCategory} issues first.` : ''}
 
-Create **${options.maxPackages}** strategic refactoring packages by grouping related issues.
+## Rules
+1. **Combine Clusters**: A package can target multiple related clusters (e.g., "Auth Module Cleanup" combines "module:src/auth" and "category:security").
+2. **Strategic Goals**: Each package must have a clear goal (e.g., "Migrate to TypeScript Strict Mode", "Secure API Endpoints").
+3. **Dependencies**: Identify which packages block others (Foundational -> Infrastructure -> Feature).
 
-${options.prioritizeCategory ? `**PRIORITY**: Focus on ${options.prioritizeCategory} issues first.\n` : ''}
-
-### Package Requirements
-
-Each package MUST:
-1. **Group issues with a coherent theme** (not random)
-   - Pattern-based: All issues of same type (e.g., "TypeScript strict mode")
-   - Module-based: All issues in specific folder/domain (e.g., "Authentication cleanup")
-   - Migration: Upgrade to new tech/pattern (e.g., "Next.js App Router migration")
-   - Tech-upgrade: Framework updates (e.g., "React 19 upgrade")
-
-2. **Have a clear strategic goal** (not just "fix stuff")
-   - Example: "Eliminate all implicit any types and enable strict null checks"
-   - NOT: "Fix various TypeScript issues"
-
-3. **Contain ${options.minIssuesPerPackage}-50 issues**
-   - Prefer 10-30 issues per package (manageable size)
-   - Split larger packages into phases
-
-4. **Have clear dependencies**
-   - Identify which packages must be completed first
-   - Foundational packages (shared utilities) come before leaf packages (UI components)
-
-5. **Have measurable outcomes**
-   - Example: "Zero 'any' types in shared utilities"
-   - Example: "100% explicit return types"
-
-### Package Types Priority
-
-1. **Foundational** (dependencies: none, execution order: 1)
-   - Shared utilities, core types, base configurations
-
-2. **Infrastructure** (dependencies: foundational, execution order: 2)
-   - API layer, data layer, state management
-
-3. **Feature** (dependencies: infrastructure, execution order: 3)
-   - UI components, feature modules, pages
-
-### Output Format
-
-Return ONLY valid JSON, no markdown, no explanations outside JSON:
-
+## Output Format (JSON Only)
 {
   "packages": [
     {
-      "name": "TypeScript Strict Mode Migration",
-      "description": "Comprehensive migration to TypeScript strict mode for improved type safety and maintainability",
+      "name": "Package Name",
+      "description": "Description",
+      "targetClusters": [
+        {"type": "module", "name": "src/auth"},
+        {"type": "category", "name": "security"}
+      ],
       "strategy": {
-        "type": "pattern-based",
-        "rationale": "All 'any' types and missing return types can be fixed systematically as a single initiative. This is foundational work that will improve type safety across the entire codebase.",
-        "approach": "Fix shared utilities first (no dependencies), then API layer, then UI components. Enable strict mode flags incrementally."
+        "type": "module-based",
+        "rationale": "Why this grouping?",
+        "approach": "Implementation steps"
       },
-      "category": "migration",
-      "scope": "project",
-      "modulePattern": null,
-      "opportunityIds": ["opp-1", "opp-5", "opp-12", "..."],
+      "category": "security",
       "impact": "high",
       "effort": "medium",
-      "estimatedHours": 8,
-      "dependsOn": [],
-      "enables": ["API Error Handling Package", "React Props Typing Package"],
-      "strategicGoal": "Eliminate all implicit any types and enable strict null checks across the codebase",
-      "expectedOutcomes": [
-        "Zero 'any' types in shared utilities",
-        "100% explicit return types in all functions",
-        "Type-safe API contracts",
-        "Reduced runtime errors by ~40%"
-      ],
-      "relatedDocs": ["tsconfig.json", ".claude/CLAUDE.md"],
-      "phases": [
-        {
-          "id": "phase-1-utils",
-          "name": "Phase 1: Shared Utilities",
-          "description": "Fix all type issues in src/lib/ and src/utils/",
-          "opportunityIds": ["opp-1", "opp-2", "opp-3"],
-          "order": 1
-        },
-        {
-          "id": "phase-2-api",
-          "name": "Phase 2: API Layer",
-          "description": "Add proper types to all API routes and responses",
-          "opportunityIds": ["opp-5", "opp-6"],
-          "order": 2,
-          "dependsOnPhase": "phase-1-utils"
-        }
-      ]
+      "dependsOn": [], 
+      "strategicGoal": "Goal description",
+      "expectedOutcomes": ["outcome 1", "outcome 2"]
     }
-  ],
-  "reasoning": "I organized packages into foundational (TypeScript strict mode), infrastructure (API error handling), and feature (component improvements) layers. The TypeScript package is first because it affects all other code. Security issues are bundled into a dedicated package given their high priority."
+  ]
+}`;
 }
 
-IMPORTANT:
-- Return ONLY the JSON object above
-- Do NOT wrap in markdown code blocks
-- Do NOT add explanatory text before/after JSON
-- Ensure all opportunityIds reference real IDs from the input
-- Package names in "dependsOn" and "enables" will be converted to IDs later
-`;
+// ============================================================================
+// PACKAGE ASSIGNMENT
+// ============================================================================
 
-  return prompt;
+interface PackageDefinition {
+  name: string;
+  description: string;
+  targetClusters: { type: string; name: string }[];
+  strategy: any;
+  category: any;
+  impact: any;
+  effort: any;
+  dependsOn: string[];
+  strategicGoal: string;
+  expectedOutcomes: string[];
 }
 
-/**
- * Parse AI response into RefactoringPackage objects
- */
-function parsePackageResponse(
-  response: string,
-  opportunities: RefactorOpportunity[]
-): RefactoringPackage[] {
+function parsePackageDefinitions(response: string): PackageDefinition[] {
   try {
-    console.log('[packageGenerator] Parsing AI response...');
-
-    // Extract JSON from response (handle markdown code blocks)
-    let jsonText = response.trim();
-
-    // Remove markdown code blocks if present
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
-    }
-
-    // Find JSON object
-    const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON object found in response');
-    }
-
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found');
     const parsed = JSON.parse(jsonMatch[0]);
-
-    if (!parsed.packages || !Array.isArray(parsed.packages)) {
-      throw new Error('Invalid response: missing packages array');
-    }
-
-    const packages: RefactoringPackage[] = [];
-    const opportunityMap = new Map(opportunities.map(o => [o.id, o]));
-
-    for (const pkgData of parsed.packages) {
-      // Map opportunity IDs to full opportunities
-      const pkgOpportunities: RefactorOpportunity[] = [];
-      for (const oppId of pkgData.opportunityIds || []) {
-        const opp = opportunityMap.get(oppId);
-        if (opp) {
-          pkgOpportunities.push(opp);
-        } else {
-          console.warn(`[packageGenerator] Opportunity ${oppId} not found`);
-        }
-      }
-
-      // Skip packages with no valid opportunities
-      if (pkgOpportunities.length === 0) {
-        console.warn(`[packageGenerator] Skipping package "${pkgData.name}" - no valid opportunities`);
-        continue;
-      }
-
-      // Parse phases if present
-      let phases: PackagePhase[] | undefined;
-      if (pkgData.phases && Array.isArray(pkgData.phases)) {
-        phases = pkgData.phases.map((phase: any) => ({
-          id: phase.id || `phase-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          name: phase.name,
-          description: phase.description,
-          opportunities: phase.opportunityIds
-            ?.map((id: string) => opportunityMap.get(id))
-            .filter((o: any) => o !== undefined) || [],
-          order: phase.order || 1,
-          dependsOnPhase: phase.dependsOnPhase,
-        }));
-      }
-
-      const pkg: RefactoringPackage = {
-        id: `pkg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        name: pkgData.name,
-        description: pkgData.description,
-        strategy: pkgData.strategy,
-        category: pkgData.category,
-        scope: pkgData.scope,
-        modulePattern: pkgData.modulePattern,
-        opportunities: pkgOpportunities,
-        issueCount: pkgOpportunities.length,
-        impact: pkgData.impact,
-        effort: pkgData.effort,
-        estimatedHours: pkgData.estimatedHours || 4,
-        dependsOn: Array.isArray(pkgData.dependsOn) ? pkgData.dependsOn : [],
-        enables: Array.isArray(pkgData.enables) ? pkgData.enables : [],
-        executionOrder: 0, // Will be calculated later
-        strategicGoal: pkgData.strategicGoal,
-        expectedOutcomes: pkgData.expectedOutcomes || [],
-        relatedDocs: pkgData.relatedDocs || [],
-        phases,
-        selected: false,
-        executed: false,
-      };
-
-      packages.push(pkg);
-    }
-
-    console.log('[packageGenerator] Successfully parsed', packages.length, 'packages');
-    return packages;
-
-  } catch (error) {
-    console.error('[packageGenerator] Failed to parse AI response:', error);
-    console.error('[packageGenerator] Response was:', response.slice(0, 500));
-    throw new Error(`Failed to parse package response: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return parsed.packages || [];
+  } catch (e) {
+    console.error('Failed to parse AI response', e);
+    return [];
   }
 }
 
-/**
- * Optimize packages (merge small, split large, validate)
- */
-function optimizePackages(
-  packages: RefactoringPackage[],
+function assignIssuesToPackages(
+  definitions: PackageDefinition[],
+  allOpportunities: RefactorOpportunity[],
+  clusters: IssueCluster[],
   options: { minIssuesPerPackage: number; maxIssuesPerPackage: number }
 ): RefactoringPackage[] {
-  console.log('[packageGenerator] Optimizing packages...');
-
-  const optimized: RefactoringPackage[] = [];
-
-  // Step 1: Split large packages into phases if not already phased
-  for (const pkg of packages) {
-    if (pkg.issueCount > options.maxIssuesPerPackage && !pkg.phases) {
-      console.log(`[packageGenerator] Splitting large package "${pkg.name}" (${pkg.issueCount} issues)`);
-
-      // Create phases (split by 30 issues each)
-      const phases: PackagePhase[] = [];
-      const chunkSize = 30;
-      for (let i = 0; i < pkg.opportunities.length; i += chunkSize) {
-        const chunk = pkg.opportunities.slice(i, i + chunkSize);
-        phases.push({
-          id: `phase-${i / chunkSize + 1}`,
-          name: `Phase ${i / chunkSize + 1}`,
-          description: `Issues ${i + 1} to ${Math.min(i + chunkSize, pkg.opportunities.length)}`,
-          opportunities: chunk,
-          order: i / chunkSize + 1,
-          dependsOnPhase: i > 0 ? `phase-${i / chunkSize}` : undefined,
-        });
-      }
-      pkg.phases = phases;
-    }
-    optimized.push(pkg);
-  }
-
-  // Step 2: Remove packages with too few issues (edge case)
-  const filtered = optimized.filter(pkg => {
-    if (pkg.issueCount < options.minIssuesPerPackage) {
-      console.warn(`[packageGenerator] Removing small package "${pkg.name}" (${pkg.issueCount} issues)`);
-      return false;
-    }
-    return true;
-  });
-
-  console.log('[packageGenerator] Optimization complete:', filtered.length, 'packages');
-  return filtered;
-}
-
-/**
- * Resolve package dependencies (convert package names to IDs)
- */
-function resolvePackageDependencies(packages: RefactoringPackage[]): void {
-  console.log('[packageGenerator] Resolving package dependencies...');
-
-  // Build name -> ID map
-  const nameToId = new Map<string, string>();
-  for (const pkg of packages) {
-    nameToId.set(pkg.name, pkg.id);
-  }
-
-  // Resolve dependsOn (currently package names, need IDs)
-  for (const pkg of packages) {
-    const resolvedDeps: string[] = [];
-    for (const dep of pkg.dependsOn) {
-      const depId = nameToId.get(dep);
-      if (depId) {
-        resolvedDeps.push(depId);
-      } else {
-        // Might already be an ID, keep it
-        if (packages.some(p => p.id === dep)) {
-          resolvedDeps.push(dep);
-        } else {
-          console.warn(`[packageGenerator] Package "${pkg.name}" depends on unknown package "${dep}"`);
-        }
-      }
-    }
-    pkg.dependsOn = resolvedDeps;
-
-    // Same for enables
-    const resolvedEnables: string[] = [];
-    for (const enable of pkg.enables) {
-      const enableId = nameToId.get(enable);
-      if (enableId) {
-        resolvedEnables.push(enableId);
-      } else if (packages.some(p => p.id === enable)) {
-        resolvedEnables.push(enable);
-      }
-    }
-    pkg.enables = resolvedEnables;
-  }
-
-  console.log('[packageGenerator] Dependencies resolved');
-}
-
-/**
- * Fallback: Generate packages using simple rules (no AI)
- */
-function generateFallbackPackages(
-  opportunities: RefactorOpportunity[],
-  options: { minIssuesPerPackage: number; maxIssuesPerPackage: number }
-): RefactoringPackage[] {
-  console.log('[packageGenerator] Using fallback packaging strategy');
-
   const packages: RefactoringPackage[] = [];
-  const byCategory = new Map<string, RefactorOpportunity[]>();
+  const assignedIssueIds = new Set<string>();
 
-  // Group by category
-  for (const opp of opportunities) {
-    if (!byCategory.has(opp.category)) {
-      byCategory.set(opp.category, []);
+  for (const def of definitions) {
+    const pkgIssues = new Set<RefactorOpportunity>();
+
+    // Find issues matching target clusters
+    for (const target of def.targetClusters) {
+      const cluster = clusters.find(c => c.type === target.type && c.name === target.name);
+      if (cluster) {
+        for (const issueId of cluster.issueIds) {
+          if (!assignedIssueIds.has(issueId)) {
+            const issue = allOpportunities.find(o => o.id === issueId);
+            if (issue) pkgIssues.add(issue);
+          }
+        }
+      }
     }
-    byCategory.get(opp.category)!.push(opp);
-  }
 
-  // Create packages from categories
-  for (const [category, opps] of byCategory.entries()) {
-    if (opps.length >= options.minIssuesPerPackage) {
+    const issuesArray = Array.from(pkgIssues);
+
+    if (issuesArray.length >= options.minIssuesPerPackage) {
+      // Mark as assigned
+      issuesArray.forEach(i => assignedIssueIds.add(i.id));
+
+      // Create Package Object
       packages.push({
-        id: `pkg-fallback-${category}-${Date.now()}`,
-        name: `${category.charAt(0).toUpperCase() + category.slice(1)} Improvements`,
-        description: `Address ${opps.length} ${category} issues`,
-        strategy: {
-          type: 'pattern-based',
-          rationale: `Grouped by ${category} category`,
-          approach: 'Fix issues systematically by priority',
-        },
-        category: 'cleanup',
-        scope: 'project',
-        opportunities: opps.slice(0, options.maxIssuesPerPackage),
-        issueCount: Math.min(opps.length, options.maxIssuesPerPackage),
-        impact: 'medium',
-        effort: 'medium',
-        estimatedHours: opps.length * 0.5,
-        dependsOn: [],
+        id: `pkg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        name: def.name,
+        description: def.description,
+        strategy: def.strategy,
+        category: def.category,
+        scope: 'project', // Default
+        opportunities: issuesArray,
+        issueCount: issuesArray.length,
+        impact: def.impact,
+        effort: def.effort,
+        estimatedHours: issuesArray.length * 0.5, // Rough estimate
+        dependsOn: def.dependsOn,
         enables: [],
-        executionOrder: 1,
-        strategicGoal: `Improve ${category} across the codebase`,
-        expectedOutcomes: [`${opps.length} ${category} issues resolved`],
+        executionOrder: 0,
+        strategicGoal: def.strategicGoal,
+        expectedOutcomes: def.expectedOutcomes,
         relatedDocs: [],
         selected: false,
-        executed: false,
+        executed: false
       });
     }
   }
 
-  console.log('[packageGenerator] Generated', packages.length, 'fallback packages');
+  // Create a "Leftovers" package if needed
+  const unassigned = allOpportunities.filter(o => !assignedIssueIds.has(o.id));
+  if (unassigned.length > options.minIssuesPerPackage) {
+    packages.push({
+      id: `pkg-misc-${Date.now()}`,
+      name: "Miscellaneous Improvements",
+      description: "Remaining issues that didn't fit into strategic packages",
+      strategy: { type: 'custom', rationale: 'Cleanup', approach: 'Batch fix' },
+      category: 'cleanup',
+      scope: 'project',
+      opportunities: unassigned,
+      issueCount: unassigned.length,
+      impact: 'low',
+      effort: 'small',
+      estimatedHours: unassigned.length * 0.5,
+      dependsOn: [],
+      enables: [],
+      executionOrder: 99,
+      strategicGoal: "Clean up remaining technical debt",
+      expectedOutcomes: ["Zero remaining issues"],
+      relatedDocs: [],
+      selected: false,
+      executed: false
+    });
+  }
+
   return packages;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function resolvePackageDependencies(packages: RefactoringPackage[]): void {
+  const nameToId = new Map(packages.map(p => [p.name, p.id]));
+
+  for (const pkg of packages) {
+    const resolvedDeps: string[] = [];
+    for (const depName of pkg.dependsOn) {
+      const id = nameToId.get(depName);
+      if (id) resolvedDeps.push(id);
+    }
+    pkg.dependsOn = resolvedDeps;
+  }
+}
+
+function generateFallbackPackages(
+  opportunities: RefactorOpportunity[],
+  options: { minIssuesPerPackage: number; maxIssuesPerPackage: number }
+): RefactoringPackage[] {
+  // Simple fallback: Group by Category
+  const byCategory = new Map<string, RefactorOpportunity[]>();
+  opportunities.forEach(o => {
+    if (!byCategory.has(o.category)) byCategory.set(o.category, []);
+    byCategory.get(o.category)!.push(o);
+  });
+
+  return Array.from(byCategory.entries())
+    .filter(([_, opps]) => opps.length >= options.minIssuesPerPackage)
+    .map(([cat, opps]) => ({
+      id: `pkg-fallback-${cat}`,
+      name: `${cat.charAt(0).toUpperCase() + cat.slice(1)} Fixes`,
+      description: `Fix all ${cat} issues`,
+      strategy: { type: 'pattern-based', rationale: 'Fallback grouping', approach: 'Direct fix' },
+      category: cat as any,
+      scope: 'project',
+      opportunities: opps,
+      issueCount: opps.length,
+      impact: 'medium',
+      effort: 'medium',
+      estimatedHours: opps.length * 0.5,
+      dependsOn: [],
+      enables: [],
+      executionOrder: 1,
+      strategicGoal: `Fix ${cat} issues`,
+      expectedOutcomes: [],
+      relatedDocs: [],
+      selected: false,
+      executed: false
+    }));
 }

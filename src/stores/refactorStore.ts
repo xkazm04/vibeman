@@ -42,7 +42,7 @@ interface RefactorState {
 
   // UI state
   isWizardOpen: boolean;
-  currentStep: 'settings' | 'scan' | 'config' | 'review' | 'package' | 'execute' | 'results';
+  currentStep: 'settings' | 'scan' | 'plan' | 'review' | 'package' | 'execute' | 'results';
 
   // ============================================================================
   // PACKAGE-BASED REFACTORING STATE (Phase 1)
@@ -195,7 +195,7 @@ export const useRefactorStore = create<RefactorState>()(
             opportunities: data.opportunities || [],
             analysisStatus: 'completed',
             analysisProgress: 100,
-            currentStep: data.wizardPlan ? 'config' : 'review',
+            currentStep: data.wizardPlan ? 'plan' : 'review',
           });
         } catch (error) {
           set({
