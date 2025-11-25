@@ -236,5 +236,30 @@ export const contextRepository = {
     `);
     const result = stmt.get(groupId) as { count: number };
     return result.count;
+  },
+
+  /**
+   * Increment the implemented_tasks counter for a context
+   */
+  incrementImplementedTasks: (contextId: string): DbContext | null => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE contexts
+      SET implemented_tasks = COALESCE(implemented_tasks, 0) + 1,
+          updated_at = ?
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(now, contextId);
+
+    if (result.changes === 0) {
+      return null; // Context not found
+    }
+
+    // Return the updated context
+    const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
+    return selectStmt.get(contextId) as DbContext;
   }
 };

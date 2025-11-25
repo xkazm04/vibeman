@@ -20,7 +20,8 @@ interface ContextOverviewInlineProps {
  * Does not render as modal portal, but as inline component
  */
 const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverviewInlineProps) => {
-  const { activeProjectId } = useActiveProjectStore();
+  const { activeProject } = useActiveProjectStore();
+  const activeProjectId = activeProject?.id;
   const [activeTab, setActiveTab] = useState<TabType>('manager');
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);
   const [currentTestScenario, setCurrentTestScenario] = useState<string | null>(null);

@@ -164,10 +164,6 @@ This will analyze the files and generate detailed, accurate descriptions.
 
 ## Implementation Notes
 
-- Use the project database at: \`${projectPath}/database/projects.db\`
-- Verify API responses for errors
-- Log progress for debugging
-- Use descriptive commit messages if making code changes
 - Test that all file paths are valid before creating contexts
 
 ---

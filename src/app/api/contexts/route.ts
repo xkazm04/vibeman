@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, groupId, name, description, filePaths } = body;
+    const { projectId, groupId, name, description, filePaths, testScenario } = body;
 
     if (!projectId || !name || !filePaths) {
       return createErrorResponse('Missing required fields', 400);
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
       name,
       description,
       filePaths,
+      testScenario,
     });
 
     return NextResponse.json({

@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    logger.error('Error fetching scans:', { error: error });
+    console.error('Error fetching scans:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch scans' },
       { status: 500 }
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ scan }, { status: 201 });
   } catch (error) {
-    logger.error('Error creating scan:', { error: error });
+    console.error('Error creating scan:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create scan' },
       { status: 500 }
@@ -134,7 +134,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ scan });
   } catch (error) {
-    logger.error('Error updating scan:', { error: error });
+    console.error('Error updating scan:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update scan' },
       { status: 500 }
@@ -171,7 +171,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('Error deleting scan:', { error: error });
+    console.error('Error deleting scan:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete scan' },
       { status: 500 }

@@ -3,31 +3,35 @@ import { persist } from 'zustand/middleware';
 
 export type OnboardingStep =
   | 'create-project'
-  | 'generate-docs'
-  | 'compose-context'
-  | 'scan-ideas'
+  | 'set-up-goals'
+  | 'scan-context'
+  | 'generate-ideas'
   | 'let-code';
 
-export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor';
+export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor' | 'manager' | 'storybook';
 
 interface OnboardingState {
-  completedSteps: OnboardingStep[];
+  // Project-specific completed steps: { projectId: [steps] }
+  completedSteps: Record<string, OnboardingStep[]>;
   currentStep: OnboardingStep | null;
   refreshTrigger: number; // Used to trigger re-checking
+  activeProjectId: string | null; // Track which project we're onboarding
 
   // Navigation state
   activeModule: AppModule;
   isControlPanelOpen: boolean;
   isBlueprintOpen: boolean;
 
-  // Actions
-  completeStep: (step: OnboardingStep) => void;
+  // Actions (now project-aware)
+  completeStep: (step: OnboardingStep, projectId?: string) => void;
   setCurrentStep: (step: OnboardingStep | null) => void;
-  isStepCompleted: (step: OnboardingStep) => boolean;
-  isStepActive: (step: OnboardingStep) => boolean;
-  getNextIncompleteStep: () => OnboardingStep | null;
-  resetOnboarding: () => void;
+  isStepCompleted: (step: OnboardingStep, projectId?: string) => boolean;
+  isStepActive: (step: OnboardingStep, projectId?: string) => boolean;
+  getNextIncompleteStep: (projectId?: string) => OnboardingStep | null;
+  resetOnboarding: (projectId?: string) => void;
   triggerRefresh: () => void; // Manually trigger condition re-check
+  setActiveProjectId: (projectId: string | null) => void;
+  getCompletedStepsForProject: (projectId: string) => OnboardingStep[];
 
   // Navigation actions
   setActiveModule: (module: AppModule) => void;
@@ -40,32 +44,54 @@ interface OnboardingState {
 
 const STEP_ORDER: OnboardingStep[] = [
   'create-project',
-  'generate-docs',
-  'compose-context',
-  'scan-ideas',
+  'set-up-goals',
+  'scan-context',
+  'generate-ideas',
   'let-code'
 ];
 
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
     (set, get) => ({
-      completedSteps: [],
+      completedSteps: {},
       currentStep: null,
       refreshTrigger: 0,
+      activeProjectId: null,
 
       // Navigation state
       activeModule: 'coder',
       isControlPanelOpen: false,
       isBlueprintOpen: false,
 
-      completeStep: (step: OnboardingStep) => {
-        const { completedSteps } = get();
-        if (!completedSteps.includes(step)) {
-          const newCompletedSteps = [...completedSteps, step];
-          set({ completedSteps: newCompletedSteps });
+      setActiveProjectId: (projectId: string | null) => {
+        set({ activeProjectId: projectId });
+      },
+
+      getCompletedStepsForProject: (projectId: string) => {
+        return get().completedSteps[projectId] || [];
+      },
+
+      completeStep: (step: OnboardingStep, projectId?: string) => {
+        const { completedSteps, activeProjectId } = get();
+        const targetProjectId = projectId || activeProjectId;
+
+        if (!targetProjectId) {
+          console.warn('No project ID provided for completing step');
+          return;
+        }
+
+        const projectSteps = completedSteps[targetProjectId] || [];
+        if (!projectSteps.includes(step)) {
+          const newProjectSteps = [...projectSteps, step];
+          set({
+            completedSteps: {
+              ...completedSteps,
+              [targetProjectId]: newProjectSteps,
+            },
+          });
 
           // Auto-update current step to next incomplete
-          const nextStep = get().getNextIncompleteStep();
+          const nextStep = get().getNextIncompleteStep(targetProjectId);
           set({ currentStep: nextStep });
         }
       },
@@ -74,20 +100,31 @@ export const useOnboardingStore = create<OnboardingState>()(
         set({ currentStep: step });
       },
 
-      isStepCompleted: (step: OnboardingStep) => {
-        return get().completedSteps.includes(step);
+      isStepCompleted: (step: OnboardingStep, projectId?: string) => {
+        const { completedSteps, activeProjectId } = get();
+        const targetProjectId = projectId || activeProjectId;
+
+        if (!targetProjectId) return false;
+
+        const projectSteps = completedSteps[targetProjectId] || [];
+        return projectSteps.includes(step);
       },
 
-      isStepActive: (step: OnboardingStep) => {
-        const { currentStep, completedSteps } = get();
+      isStepActive: (step: OnboardingStep, projectId?: string) => {
+        const { currentStep, completedSteps, activeProjectId } = get();
+        const targetProjectId = projectId || activeProjectId;
+
+        if (!targetProjectId) return false;
+
+        const projectSteps = completedSteps[targetProjectId] || [];
 
         // If no current step set, determine it
         if (currentStep === null) {
           const stepIndex = STEP_ORDER.indexOf(step);
           const allPreviousCompleted = STEP_ORDER
             .slice(0, stepIndex)
-            .every(s => completedSteps.includes(s));
-          const thisNotCompleted = !completedSteps.includes(step);
+            .every(s => projectSteps.includes(s));
+          const thisNotCompleted = !projectSteps.includes(step);
 
           return allPreviousCompleted && thisNotCompleted;
         }
@@ -95,11 +132,16 @@ export const useOnboardingStore = create<OnboardingState>()(
         return currentStep === step;
       },
 
-      getNextIncompleteStep: () => {
-        const { completedSteps } = get();
+      getNextIncompleteStep: (projectId?: string) => {
+        const { completedSteps, activeProjectId } = get();
+        const targetProjectId = projectId || activeProjectId;
+
+        if (!targetProjectId) return 'create-project';
+
+        const projectSteps = completedSteps[targetProjectId] || [];
 
         for (const step of STEP_ORDER) {
-          if (!completedSteps.includes(step)) {
+          if (!projectSteps.includes(step)) {
             return step;
           }
         }
@@ -107,8 +149,24 @@ export const useOnboardingStore = create<OnboardingState>()(
         return null; // All steps completed
       },
 
-      resetOnboarding: () => {
-        set({ completedSteps: [], currentStep: 'create-project' });
+      resetOnboarding: (projectId?: string) => {
+        const { completedSteps, activeProjectId } = get();
+        const targetProjectId = projectId || activeProjectId;
+
+        if (!targetProjectId) {
+          // Reset all projects
+          set({ completedSteps: {}, currentStep: 'create-project' });
+          return;
+        }
+
+        // Reset specific project
+        set({
+          completedSteps: {
+            ...completedSteps,
+            [targetProjectId]: [],
+          },
+          currentStep: 'create-project',
+        });
       },
 
       triggerRefresh: () => {
@@ -148,14 +206,16 @@ export const useOnboardingStore = create<OnboardingState>()(
 
 // Hook to check conditions and auto-complete steps
 export function useOnboardingConditions() {
-  const { completeStep, isStepCompleted } = useOnboardingStore();
+  const { completeStep, isStepCompleted, activeProjectId } = useOnboardingStore();
 
   const checkAndCompleteStep = (
     step: OnboardingStep,
-    condition: boolean
+    condition: boolean,
+    projectId?: string
   ) => {
-    if (condition && !isStepCompleted(step)) {
-      completeStep(step);
+    const targetProjectId = projectId || activeProjectId;
+    if (condition && targetProjectId && !isStepCompleted(step, targetProjectId)) {
+      completeStep(step, targetProjectId);
     }
   };
 

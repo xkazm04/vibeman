@@ -165,15 +165,14 @@ ${naturalLanguageDescription}
 Please analyze this request and generate the necessary code, tests, and documentation.`;
 
   try {
-    const response = await generateWithLLM({
-      prompt: userPrompt,
+    const response = await generateWithLLM(userPrompt, {
       systemPrompt,
       temperature: 0.3,
       maxTokens: 8000,
     });
 
     // Parse the JSON response
-    const result = parseCodeGenerationResponse(response);
+    const result = parseCodeGenerationResponse(response.response || '');
     return result;
   } catch (error) {
     // TODO: Integrate with proper logging service
@@ -236,7 +235,7 @@ function parseCodeGenerationResponse(response: string): CodeGenerationResult {
  */
 export async function loadProjectContexts(projectId: string) {
   try {
-    const contexts = contextDb.getByProjectId(projectId);
+    const contexts = contextDb.getContextsByProject(projectId);
     return contexts.map(ctx => ({
       name: ctx.name,
       description: ctx.description || '',

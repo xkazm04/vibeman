@@ -2,12 +2,15 @@
 
 /**
  * TTS Cache Management Component
- * Displays cache statistics and provides controls to manage cached audio
+ * Toggleable panel styled like Session History
  */
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Database, Trash2, RefreshCw } from 'lucide-react';
 import { getCacheStats, clearCache } from '../lib/ttsCache';
+import { AnnetteTheme } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface CacheStats {
   entryCount: number;
@@ -16,7 +19,12 @@ interface CacheStats {
   mostAccessed: number;
 }
 
-export function TTSCacheManager() {
+interface TTSCacheManagerProps {
+  theme: AnnetteTheme;
+}
+
+export default function TTSCacheManager({ theme }: TTSCacheManagerProps) {
+  const [showCache, setShowCache] = useState(false);
   const [stats, setStats] = useState<CacheStats>({
     entryCount: 0,
     totalSizeMB: 0,
@@ -25,6 +33,9 @@ export function TTSCacheManager() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
 
   const loadStats = async () => {
     setIsLoading(true);
@@ -65,76 +76,105 @@ export function TTSCacheManager() {
   };
 
   return (
-    <div className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/90 rounded-lg border border-cyan-500/20 shadow-lg">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Database className="w-5 h-5 text-cyan-400" />
-          <h3 className="text-lg font-semibold text-cyan-300">TTS Cache</h3>
-        </div>
+    <>
+      {/* Toggle Button */}
+      <motion.button
+        onClick={() => {
+          setShowCache(!showCache);
+          if (!showCache) loadStats();  // Load stats when opening
+        }}
+        whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.1)' }}
+        whileTap={{ scale: 0.95 }}
+        className={`
+          relative p-3 rounded-xl transition-all duration-300
+          ${showCache ? `bg-white/10 ${colors.text}` : 'text-gray-400 hover:text-white'}
+        `}
+        title="TTS Cache Manager"
+      >
+        <Database className="w-5 h-5" />
+        {stats.entryCount > 0 && (
+          <span className={`absolute top-2 right-2 w-2 h-2 ${colors.accent} rounded-full`} />
+        )}
+      </motion.button>
 
-        <div className="flex gap-2">
-          <button
-            onClick={loadStats}
-            disabled={isLoading}
-            className="px-3 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-md transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
-            data-testid="refresh-cache-stats-btn"
+      {/* Cache Panel */}
+      <AnimatePresence>
+        {showCache && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="absolute left-0 right-0 top-full mt-2 z-50"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+            <div className={`mx-4 p-4 bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl rounded-lg border ${colors.border} shadow-2xl`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Database className={`w-5 h-5 ${colors.text}`} />
+                  <h3 className={`text-sm font-semibold ${colors.text} font-mono uppercase tracking-wide`}>TTS Cache</h3>
+                </div>
 
-          <button
-            onClick={handleClearCache}
-            disabled={isClearing || stats.entryCount === 0}
-            className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-md transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
-            data-testid="clear-cache-btn"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear Cache
-          </button>
-        </div>
-      </div>
+                <div className="flex gap-2">
+                  <motion.button
+                    onClick={loadStats}
+                    disabled={isLoading}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-3 py-1.5 ${colors.bg} hover:${colors.bgHover} ${colors.text} rounded-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50 text-xs font-mono`}
+                    data-testid="refresh-cache-stats-btn"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </motion.button>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-slate-800/50 p-3 rounded-md border border-slate-700/50">
-          <div className="text-xs text-slate-400 mb-1">Cached Entries</div>
-          <div className="text-2xl font-bold text-cyan-300">
-            {isLoading ? '...' : stats.entryCount}
-          </div>
-        </div>
+                  <motion.button
+                    onClick={handleClearCache}
+                    disabled={isClearing || stats.entryCount === 0}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50 text-xs font-mono"
+                    data-testid="clear-cache-btn"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear
+                  </motion.button>
+                </div>
+              </div>
 
-        <div className="bg-slate-800/50 p-3 rounded-md border border-slate-700/50">
-          <div className="text-xs text-slate-400 mb-1">Total Size</div>
-          <div className="text-2xl font-bold text-cyan-300">
-            {isLoading ? '...' : `${stats.totalSizeMB.toFixed(2)} MB`}
-          </div>
-        </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`bg-slate-800/50 p-3 rounded-lg border ${colors.borderLight}`}>
+                  <div className="text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wide">Cached Entries</div>
+                  <div className={`text-xl font-bold ${colors.text} font-mono`}>
+                    {isLoading ? '...' : stats.entryCount}
+                  </div>
+                </div>
 
-        <div className="bg-slate-800/50 p-3 rounded-md border border-slate-700/50">
-          <div className="text-xs text-slate-400 mb-1">Oldest Entry</div>
-          <div className="text-sm font-medium text-slate-300">
-            {isLoading ? '...' : formatDate(stats.oldestEntry)}
-          </div>
-        </div>
+                <div className={`bg-slate-800/50 p-3 rounded-lg border ${colors.borderLight}`}>
+                  <div className="text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wide">Total Size</div>
+                  <div className={`text-xl font-bold ${colors.text} font-mono`}>
+                    {isLoading ? '...' : `${stats.totalSizeMB.toFixed(2)} MB`}
+                  </div>
+                </div>
 
-        <div className="bg-slate-800/50 p-3 rounded-md border border-slate-700/50">
-          <div className="text-xs text-slate-400 mb-1">Most Accessed</div>
-          <div className="text-2xl font-bold text-cyan-300">
-            {isLoading ? '...' : `${stats.mostAccessed}x`}
-          </div>
-        </div>
-      </div>
+                <div className={`bg-slate-800/50 p-3 rounded-lg border ${colors.borderLight} col-span-2`}>
+                  <div className="text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wide">Oldest Entry</div>
+                  <div className="text-xs font-medium text-slate-300 font-mono">
+                    {isLoading ? '...' : formatDate(stats.oldestEntry)}
+                  </div>
+                </div>
+              </div>
 
-      <div className="mt-3 text-xs text-slate-400 bg-slate-800/30 p-2 rounded border border-slate-700/30">
-        <p>
-          <strong className="text-cyan-400">Cache Benefits:</strong> Instant playback
-          for repeated phrases, reduced bandwidth usage, and ~50% latency reduction.
-        </p>
-        <p className="mt-1">
-          <strong className="text-cyan-400">Limits:</strong> Max 50 MB or 100 entries
-          (oldest/least-used evicted automatically)
-        </p>
-      </div>
-    </div>
+              <div className={`mt-3 text-[10px] text-slate-400 bg-slate-800/30 p-2 rounded border ${colors.borderLight} font-mono leading-relaxed`}>
+                <p>
+                  <strong className={colors.text}>Benefits:</strong> Instant playback for repeated phrases, reduced bandwidth.
+                </p>
+                <p className="mt-1">
+                  <strong className={colors.text}>Limits:</strong> Max 50 MB or 100 entries (auto-evicted).
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

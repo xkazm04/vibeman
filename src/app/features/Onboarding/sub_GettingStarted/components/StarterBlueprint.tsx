@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Caveat } from 'next/font/google';
 import { StarterBlueprintProps } from '../lib/types';
+import { useActiveOnboardingStep } from '../../lib/useOnboardingConditions';
 
 const caveat = Caveat({
   weight: ['400', '500', '600', '700'],
@@ -15,6 +16,8 @@ const caveat = Caveat({
  * Hand-written style button to open the full Blueprint view
  */
 export default function StarterBlueprint({ onOpenBlueprint }: StarterBlueprintProps) {
+  const { isSetUpGoalsActive, isScanContextActive } = useActiveOnboardingStep();
+  const shouldGlow = isSetUpGoalsActive || isScanContextActive;
   return (
     <>
       {/* Divider */}
@@ -44,6 +47,18 @@ export default function StarterBlueprint({ onOpenBlueprint }: StarterBlueprintPr
               textShadow: '0 0 20px rgba(34, 211, 238, 0.3)',
               transform: 'rotate(-2deg)',
             }}
+            animate={shouldGlow ? {
+              textShadow: [
+                '0 0 20px rgba(34, 211, 238, 0.3)',
+                '0 0 30px rgba(34, 211, 238, 0.6)',
+                '0 0 20px rgba(34, 211, 238, 0.3)',
+              ],
+            } : {}}
+            transition={shouldGlow ? {
+              duration: 2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            } : {}}
             whileHover={{
               textShadow: '0 0 30px rgba(34, 211, 238, 0.6)',
               letterSpacing: '0.05em',
@@ -77,9 +92,19 @@ export default function StarterBlueprint({ onOpenBlueprint }: StarterBlueprintPr
           →
         </motion.div>
 
-        {/* Glow effect on hover */}
+        {/* Glow effect on hover and when active step */}
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent rounded-xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent rounded-xl blur-2xl group-hover:opacity-100 transition-opacity duration-500"
+          animate={shouldGlow ? {
+            opacity: [0, 0.7, 0],
+          } : {
+            opacity: 0,
+          }}
+          transition={shouldGlow ? {
+            duration: 2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          } : {}}
         />
       </motion.button>
     </>

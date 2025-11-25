@@ -1,13 +1,21 @@
 /**
  * Execution prompts for Claude Code
  * Provides instructions for executing requirements with proper logging and documentation
+ *
+ * NOTE: This file now delegates to the centralized execution wrapper
+ * to ensure consistency across all requirement types (ideas, manager plans, manual requirements)
  */
+
+import { wrapRequirementForExecution, ExecutionWrapperConfig } from '@/lib/prompts/requirement_file';
 
 export interface ExecutionPromptConfig {
   requirementContent: string;
   projectPath: string;
   projectId?: string;
-  dbPath?: string; // Path to the SQLite database
+  contextId?: string; // Context ID if this requirement is related to a specific context
+  projectPort?: number; // Port number for dev server (required for screenshots)
+  runScript?: string; // Command to start dev server (e.g., "npm run dev")
+  dbPath?: string; // Path to the SQLite database (deprecated - not used by wrapper)
   gitEnabled?: boolean; // Whether git operations are enabled
   gitCommands?: string[]; // List of git commands to execute
   gitCommitMessage?: string; // Commit message template
@@ -15,217 +23,23 @@ export interface ExecutionPromptConfig {
 
 /**
  * Build the full execution prompt with enhanced instructions
+ *
+ * This function wraps the requirement content with execution instructions
+ * using the centralized execution wrapper for consistency.
  */
 export function buildExecutionPrompt(config: ExecutionPromptConfig): string {
-  const { requirementContent, projectPath, projectId, dbPath, gitEnabled, gitCommands, gitCommitMessage } = config;
+  // Map to wrapper config (omit deprecated dbPath)
+  const wrapperConfig: ExecutionWrapperConfig = {
+    requirementContent: config.requirementContent,
+    projectPath: config.projectPath,
+    projectId: config.projectId,
+    contextId: config.contextId,
+    projectPort: config.projectPort,
+    runScript: config.runScript,
+    gitEnabled: config.gitEnabled,
+    gitCommands: config.gitCommands,
+    gitCommitMessage: config.gitCommitMessage,
+  };
 
-  // Calculate the database path if not provided
-  const calculatedDbPath = dbPath || `${projectPath}/database/goals.db`;
-
-  return `You are an expert software engineer. Execute the following requirement immediately. Do not ask questions, do not wait for confirmation. Read the requirement carefully and implement all changes to the codebase as specified.
-
-REQUIREMENT TO EXECUTE NOW:
-
-${requirementContent}
-
-IMPORTANT INSTRUCTIONS:
-- Analyze the requirement thoroughly
-- Identify all files that need to be modified or created
-- Implement all changes specified in the requirement
-- Follow the implementation steps precisely
-- Create/modify files as needed
-- Run any tests if specified
-- Ensure all changes are complete before finishing
-
-## File Structure Guidelines (Next.js/React Projects)
-
-When creating new files in Next.js/React projects, follow this structure:
-
-**Feature-Specific Files** (use \`app/features/<feature>\` structure):
-- \`app/features/<feature>/components/\` - Feature-specific components and UI sections
-- \`app/features/<feature>/lib/\` - Feature-specific functions, utilities, and logical helpers
-- \`app/features/<feature>/\` - Main wrapper, index, or page file for the feature
-
-**Reusable UI Components** (use \`app/components/ui\` structure):
-- \`app/components/ui/\` - Shared, reusable UI elements used across multiple features
-
-**Theming and Styling**:
-- Before creating new UI components, examine existing components in the project
-- Match the color scheme, spacing, and visual patterns of existing components
-- Use consistent className patterns (Tailwind CSS classes)
-- Follow the app's design language (glassmorphism, gradients, shadows, etc.)
-- Pay attention to dark mode support if the app uses it
-
-Examples:
-- Feature component: \`app/features/tasks/components/TaskCard.tsx\`
-- Feature helper: \`app/features/tasks/lib/taskValidation.ts\`
-- Reusable UI: \`app/components/ui/Button.tsx\`
-
-## Test Coverage Preparation
-
-**IMPORTANT**: For all interactive UI components (buttons, inputs, forms, modals, etc.), add \`data-testid\` attributes to enable automated testing.
-
-**Guidelines**:
-- Add \`data-testid\` to all clickable elements (buttons, links, icons)
-- Use descriptive, kebab-case naming: \`data-testid="submit-form-btn"\`
-- Include component context in the ID: \`data-testid="goal-delete-btn"\`, \`data-testid="project-settings-modal"\`
-- Add to form inputs: \`data-testid="email-input"\`, \`data-testid="password-input"\`
-- Add to list items for testing selection: \`data-testid="task-item-123"\`
-
-**Examples**:
-\`\`\`tsx
-<button onClick={handleSubmit} data-testid="create-goal-btn">
-  Create Goal
-</button>
-
-<input
-  type="text"
-  value={title}
-  onChange={handleChange}
-  data-testid="goal-title-input"
-/>
-
-<div className="modal" data-testid="delete-confirmation-modal">
-  ...
-</div>
-\`\`\`
-
-## Implementation Logging
-
-**CRITICAL**: After completing the implementation, create a log entry in the SQLite database to track what was implemented.
-
-Database Path: \`${calculatedDbPath}\`
-Table: \`implementation_log\`
-${projectId ? `Project ID: \`${projectId}\`` : ''}
-
-Execute this SQL command after implementation (replace placeholders with actual values):
-
-\`\`\`sql
-INSERT INTO implementation_log (
-  id,
-  project_id,
-  requirement_name,
-  title,
-  overview,
-  tested,
-  created_at
-) VALUES (
-  '<generate-unique-uuid>',
-  '${projectId || '<project-id>'}',
-  '<requirement-name>',
-  '<short-descriptive-title>',
-  '<detailed-overview-of-changes>',
-  0,
-  datetime('now')
-);
-\`\`\`
-
-**Log Entry Guidelines**:
-- \`id\`: Generate a unique UUID (e.g., using \`crypto.randomUUID()\` or similar)
-- \`project_id\`: The project identifier${projectId ? ` (use: "${projectId}")` : ''}
-- \`requirement_name\`: Name of the requirement file being executed
-- \`title\`: Short, descriptive title (2-6 words, e.g., "Add User Authentication")
-- \`overview\`: Detailed paragraph describing:
-  - What was implemented
-  - Key files created or modified
-  - Major functionality added
-  - Any important patterns or decisions made
-- \`tested\`: Always set to 0 (false) initially
-- \`created_at\`: Use \`datetime('now')\` for current timestamp
-
-**Example Log Entry**:
-
-\`\`\`sql
-INSERT INTO implementation_log (
-  id,
-  project_id,
-  requirement_name,
-  title,
-  overview,
-  tested,
-  created_at
-) VALUES (
-  '550e8400-e29b-41d4-a716-446655440000',
-  'project-abc-123',
-  'implement-user-login',
-  'User Login System',
-  'Implemented complete user authentication system with login form, JWT token management, and session persistence. Created LoginForm.tsx component, authService.ts for API calls, and useAuth hook for state management. Added protected route wrapper and login/logout functionality. Integrated with existing theme using glassmorphism design.',
-  0,
-  datetime('now')
-);
-\`\`\`
-
-**How to Execute the SQL**:
-Use the sqlite3 command-line tool or Node.js better-sqlite3 library:
-
-\`\`\`bash
-sqlite3 "${calculatedDbPath}" "INSERT INTO implementation_log (...) VALUES (...);"
-\`\`\`
-
-Or in Node.js/TypeScript:
-\`\`\`typescript
-import Database from 'better-sqlite3';
-const db = new Database('${calculatedDbPath}');
-db.prepare(\`
-  INSERT INTO implementation_log (id, project_id, requirement_name, title, overview, tested, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-\`).run(id, projectId, requirementName, title, overview, 0);
-db.close();
-\`\`\`
-
-${gitEnabled ? `
-## Git Operations
-
-**IMPORTANT**: After completing all implementation and documentation tasks, execute the following git operations to commit and push your changes.
-
-**Git Commands to Execute (in order)**:
-${gitCommands?.map((cmd, idx) => `${idx + 1}. \`${cmd}\``).join('\n') || '1. `git add .`\n2. `git commit -m "{commitMessage}"`\n3. `git push`'}
-
-**Commit Message**: ${gitCommitMessage || 'Auto-commit: {requirementName}'}
-
-**Instructions**:
-1. Verify all changes are complete and tested
-2. Execute each git command in sequence using the Bash tool
-3. If a command fails, analyze the error:
-   - **Non-fatal errors** (e.g., "nothing to commit", "working tree clean"): Continue to next command
-   - **Merge conflicts**: Attempt to resolve them or report the conflict clearly
-   - **Authentication errors**: Report the issue - do not attempt to fix authentication
-   - **Branch protection errors**: Report the issue - do not attempt to bypass protection rules
-4. Report the outcome of git operations (success or specific errors encountered)
-
-**Error Handling**:
-- Check git status before committing: \`git status\`
-- If there are no changes to commit, that's OK - report it and continue
-- If push is rejected (e.g., non-fast-forward), fetch and rebase: \`git fetch && git rebase origin/main\`
-- Always provide clear feedback about what happened
-
-**Example workflow**:
-\`\`\`bash
-# Check status
-git status
-
-# Add changes (if any)
-git add .
-
-# Commit with the specified message
-git commit -m "${gitCommitMessage || 'Auto-commit: {requirementName}'}"
-
-# Push to remote
-git push
-\`\`\`
-
-**Note**: Only proceed with git operations after ALL other tasks are complete (implementation, testing, logging, context updates).
-` : ''}
-
-## Final Checklist
-
-Before finishing:
-- [ ] All code changes implemented
-- [ ] Test IDs added to interactive components
-- [ ] File structure follows guidelines
-- [ ] UI components match existing theme
-- [ ] Implementation log entry created in database
-- [ ] Tests run successfully (if specified)${gitEnabled ? '\n- [ ] Git operations executed (add, commit, push)' : ''}
-
-Begin implementation now.`;
+  return wrapRequirementForExecution(wrapperConfig);
 }

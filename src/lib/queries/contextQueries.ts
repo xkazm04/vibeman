@@ -205,6 +205,7 @@ export const contextQueries = {
     name: string;
     description?: string;
     filePaths: string[];
+    testScenario?: string;
   }): Promise<Context> => {
     return handleAsyncOperation(
       async () => {
@@ -215,6 +216,7 @@ export const contextQueries = {
           name: data.name,
           description: data.description,
           file_paths: data.filePaths,
+          test_scenario: data.testScenario,
         };
 
         const dbContext = contextDb.createContext(contextData);
@@ -230,6 +232,7 @@ export const contextQueries = {
     description?: string;
     filePaths?: string[];
     groupId?: string;
+    testScenario?: string;
   }): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
@@ -238,6 +241,7 @@ export const contextQueries = {
           description: updates.description,
           file_paths: updates.filePaths,
           group_id: updates.groupId,
+          test_scenario: updates.testScenario,
         };
 
         const dbContext = contextDb.updateContext(contextId, updateData);

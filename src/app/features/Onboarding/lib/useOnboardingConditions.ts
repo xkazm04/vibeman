@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useOnboardingStore, type OnboardingStep } from '@/stores/onboardingStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
@@ -24,9 +24,9 @@ interface ContextsResponse {
  */
 function completeStepIfNeeded(
   condition: boolean,
-  stepId: string,
-  isStepCompleted: (id: string) => boolean,
-  completeStep: (id: string) => void
+  stepId: OnboardingStep,
+  isStepCompleted: (id: OnboardingStep) => boolean,
+  completeStep: (id: OnboardingStep) => void
 ): void {
   if (condition && !isStepCompleted(stepId)) {
     completeStep(stepId);
@@ -35,61 +35,70 @@ function completeStepIfNeeded(
 
 /**
  * Hook to check all onboarding conditions and auto-complete steps
+ * Now project-specific: tracks progress for the active project only
  */
 export function useOnboardingAutoComplete() {
-  const { completeStep, isStepCompleted, refreshTrigger } = useOnboardingStore();
+  const { completeStep, isStepCompleted, refreshTrigger, setActiveProjectId } = useOnboardingStore();
   const { projects } = useProjectConfigStore();
   const { activeProject } = useActiveProjectStore();
 
   const [hasContexts, setHasContexts] = useState(false);
   const [hasIdeas, setHasIdeas] = useState(false);
   const [hasImplementedIdeas, setHasImplementedIdeas] = useState(false);
-  const [hasHighMd, setHasHighMd] = useState(false);
+  const [hasGoals, setHasGoals] = useState(false);
 
-  // Check Step 1: Create a project
+  // Sync active project ID to onboarding store
   useEffect(() => {
-    completeStepIfNeeded(projects.length > 0, 'create-project', isStepCompleted, completeStep);
-  }, [projects.length, completeStep, isStepCompleted]);
+    if (activeProject?.id) {
+      setActiveProjectId(activeProject.id);
+    }
+  }, [activeProject?.id, setActiveProjectId]);
 
-  // Check Step 2: Generate documentation (high.md exists)
+  // Check Step 1: Create a project (global check, not project-specific)
   useEffect(() => {
-    const checkHighMd = async () => {
-      if (!activeProject?.path) return;
+    if (projects.length > 0 && activeProject?.id) {
+      completeStepIfNeeded(true, 'create-project', isStepCompleted, completeStep);
+    }
+  }, [projects.length, activeProject?.id, completeStep, isStepCompleted]);
+
+  // Check Step 2: Set up goals (goals exist for project)
+  useEffect(() => {
+    const checkGoals = async () => {
+      if (!activeProject?.id) return;
 
       try {
-        const response = await fetch('/api/disk/check-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filePath: `${activeProject.path}/context/high.md`
-          })
-        });
-
+        const response = await fetch(`/api/goals?projectId=${activeProject.id}`);
         const data = await response.json();
-        const exists = data.exists === true;
-        setHasHighMd(exists);
 
-        completeStepIfNeeded(exists, 'generate-docs', isStepCompleted, completeStep);
+        if (data.success && data.goals) {
+          const hasAny = data.goals.length > 0;
+          setHasGoals(hasAny);
+
+          completeStepIfNeeded(hasAny, 'set-up-goals', isStepCompleted, completeStep);
+        }
       } catch {
-        // Silently fail - file check is non-critical
+        // Silently fail - goal check is non-critical
       }
     };
 
-    checkHighMd();
-  }, [activeProject?.path, completeStep, isStepCompleted]);
+    checkGoals();
+  }, [activeProject?.id, completeStep, isStepCompleted, refreshTrigger]);
 
-  // Check Step 3: Compose a context (runs on mount and when refreshTrigger changes)
+  // Check Step 3: Scan context (project-specific, runs on mount and when refreshTrigger changes)
   useEffect(() => {
     const checkContexts = async () => {
+      if (!activeProject?.id) return;
+
       try {
-        const response = await fetch('/api/contexts');
+        // Filter contexts by active project
+        const response = await fetch(`/api/contexts?projectId=${activeProject.id}`);
         const data = await response.json() as ContextsResponse;
 
         if (data.success && data.data.contexts) {
           const hasAny = data.data.contexts.length > 0;
           setHasContexts(hasAny);
 
-          completeStepIfNeeded(hasAny, 'compose-context', isStepCompleted, completeStep);
+          completeStepIfNeeded(hasAny, 'scan-context', isStepCompleted, completeStep);
         }
       } catch {
         // Silently fail - context check is non-critical
@@ -97,20 +106,23 @@ export function useOnboardingAutoComplete() {
     };
 
     checkContexts();
-  }, [completeStep, isStepCompleted, refreshTrigger]);
+  }, [activeProject?.id, completeStep, isStepCompleted, refreshTrigger]);
 
-  // Check Step 4: Scan for ideas (runs on mount and when refreshTrigger changes)
+  // Check Step 4: Generate ideas (project-specific, runs on mount and when refreshTrigger changes)
   useEffect(() => {
     const checkIdeas = async () => {
+      if (!activeProject?.id) return;
+
       try {
-        const response = await fetch('/api/ideas');
+        // Filter ideas by active project
+        const response = await fetch(`/api/ideas?projectId=${activeProject.id}`);
         const data = await response.json() as IdeasResponse;
 
-        if (data.success && data.ideas) {
+        if (data.ideas) {
           const hasAny = data.ideas.length > 0;
           setHasIdeas(hasAny);
 
-          completeStepIfNeeded(hasAny, 'scan-ideas', isStepCompleted, completeStep);
+          completeStepIfNeeded(hasAny, 'generate-ideas', isStepCompleted, completeStep);
 
           // Also check for implemented ideas (Step 5)
           const implemented = data.ideas.filter(
@@ -127,11 +139,11 @@ export function useOnboardingAutoComplete() {
     };
 
     checkIdeas();
-  }, [completeStep, isStepCompleted, refreshTrigger]);
+  }, [activeProject?.id, completeStep, isStepCompleted, refreshTrigger]);
 
   return {
     hasProjects: projects.length > 0,
-    hasHighMd,
+    hasGoals,
     hasContexts,
     hasIdeas,
     hasImplementedIdeas
@@ -146,9 +158,9 @@ export function useActiveOnboardingStep() {
 
   return {
     isCreateProjectActive: isStepActive('create-project'),
-    isGenerateDocsActive: isStepActive('generate-docs'),
-    isComposeContextActive: isStepActive('compose-context'),
-    isScanIdeasActive: isStepActive('scan-ideas'),
+    isSetUpGoalsActive: isStepActive('set-up-goals'),
+    isScanContextActive: isStepActive('scan-context'),
+    isGenerateIdeasActive: isStepActive('generate-ideas'),
     isLetCodeActive: isStepActive('let-code'),
   };
 }

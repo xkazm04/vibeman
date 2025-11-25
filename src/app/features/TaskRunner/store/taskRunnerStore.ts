@@ -747,7 +747,7 @@ function startPollingForTask(
   // Clear any existing polling interval for this task
   stopPollingForTask(requirementId);
 
-  const MAX_POLL_ATTEMPTS = 60; // 10 minutes at 10s intervals
+  const MAX_POLL_ATTEMPTS = 120; // 20 minutes at 10s intervals
   let attempts = 0;
 
   console.log(`🔄 Starting polling for task: ${requirementId}`);
@@ -797,6 +797,17 @@ function startPollingForTask(
             executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
           };
         });
+
+        // Update idea status to 'implemented' and increment context counter
+        try {
+          await fetch('/api/ideas/update-implementation-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requirementName: requirement.requirementName }),
+          });
+        } catch (err) {
+          console.warn('Failed to update idea implementation status:', err);
+        }
 
         // Clean up requirement file if needed
         try {

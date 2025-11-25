@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Project } from './types';
+import { Project } from '@/types';
 import { runDependencyScan, fetchScanData } from './api';
 
 /**

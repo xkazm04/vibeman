@@ -18,9 +18,10 @@ const caveat = Caveat({
 
 interface GoalReviewerProps {
   projectId: string;
+  onGoalSelect?: (goal: Goal | 'add') => void;
 }
 
-export default function GoalReviewer({ projectId }: GoalReviewerProps) {
+export default function GoalReviewer({ projectId, onGoalSelect }: GoalReviewerProps) {
   const { goals, loading, createGoal, updateGoal, fetchGoals } = useGoalContext();
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -28,8 +29,14 @@ export default function GoalReviewer({ projectId }: GoalReviewerProps) {
   const [showCandidatesModal, setShowCandidatesModal] = useState(false);
 
   const handleGoalClick = (goal: Goal) => {
-    setSelectedGoal(goal);
-    setShowDetailModal(true);
+    if (onGoalSelect) {
+      // If onGoalSelect callback is provided, use it (Blueprint layout mode)
+      onGoalSelect(goal);
+    } else {
+      // Otherwise, show modal (standalone mode)
+      setSelectedGoal(goal);
+      setShowDetailModal(true);
+    }
   };
 
   const handleGoalSave = async (goalId: string, updates: Partial<Goal>) => {
@@ -118,7 +125,15 @@ export default function GoalReviewer({ projectId }: GoalReviewerProps) {
           transition={{ delay: 0.7 }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            if (onGoalSelect) {
+              // If onGoalSelect callback is provided, use it (Blueprint layout mode)
+              onGoalSelect('add');
+            } else {
+              // Otherwise, show modal (standalone mode)
+              setShowAddModal(true);
+            }
+          }}
           data-testid="add-goal-manual-btn"
           className="group p-4 border-2 border-dashed border-gray-600/50 hover:border-cyan-500/50 rounded-lg transition-all flex items-center justify-center gap-2"
         >
@@ -149,8 +164,8 @@ export default function GoalReviewer({ projectId }: GoalReviewerProps) {
         </motion.button>
       </div>
 
-      {/* Goal Detail Modal */}
-      {selectedGoal && (
+      {/* Goal Detail Modal - Only show if not using onGoalSelect callback */}
+      {!onGoalSelect && selectedGoal && (
         <GoalModal
           mode="detail"
           goal={selectedGoal}

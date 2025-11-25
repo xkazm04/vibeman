@@ -29,7 +29,7 @@ const HorizontalContextBarHeader = React.memo(({
   onToggleExpanded
 }: HorizontalContextBarHeaderProps) => {
   // Onboarding
-  const { isComposeContextActive } = useActiveOnboardingStep();
+  const { isScanContextActive } = useActiveOnboardingStep();
   return (
     <div className="relative flex items-center justify-between px-8 py-6 bg-gradient-to-r from-gray-800/30 via-slate-900/20 to-gray-800/30 border-b border-gray-700/30 backdrop-blur-sm">
       <div className="flex items-center space-x-6">
@@ -135,11 +135,12 @@ const HorizontalContextBarHeader = React.memo(({
 
             {/* Add Context Button */}
             {groups.length > 0 && (
-              <GlowWrapper isActive={isComposeContextActive}>
+              <GlowWrapper isActive={isScanContextActive}>
                 <motion.button
                   onClick={onAddContextClick}
                   className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30"
                   title="Create new context"
+                  data-testid="add-context-btn"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >

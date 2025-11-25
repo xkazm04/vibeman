@@ -4,7 +4,7 @@ import React from 'react';
 import { Check, X, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useBadgeStore } from '@/stores/badgeStore';
-import WizardStepPanel, { WizardStepAction, WizardStepSeverity } from '@/app/components/ui/WizardStepPanel';
+import WizardStepPanel, { WizardStepAction, WizardStepSeverity } from '@/components/DecisionPanel/WizardStepPanel';
 
 // Map decision types to badge IDs
 const DECISION_BADGE_MAP: Record<string, string> = {
@@ -27,6 +27,7 @@ const SEVERITY_ICONS = {
   info: Info,
   warning: AlertTriangle,
   error: AlertCircle,
+  success: Check,
 };
 
 export default function DecisionPanel() {
@@ -56,8 +57,8 @@ export default function DecisionPanel() {
 
   // Check if this is a notification-only decision (no accept action needed)
   const isNotification = currentDecision.type.includes('error') ||
-                         currentDecision.type.includes('notification') ||
-                         currentDecision.type.includes('abort');
+    currentDecision.type.includes('notification') ||
+    currentDecision.type.includes('abort');
 
   // Check if this decision has custom content (e.g., file selection)
   // If so, don't show default action buttons - let custom content handle it
@@ -67,7 +68,7 @@ export default function DecisionPanel() {
   const actions: WizardStepAction[] = hasCustomContent
     ? [] // Custom content provides its own actions
     : isNotification
-    ? [
+      ? [
         {
           label: 'Close',
           icon: X,
@@ -77,7 +78,7 @@ export default function DecisionPanel() {
           testId: 'decision-close-btn',
         },
       ]
-    : [
+      : [
         {
           label: 'Reject',
           icon: X,

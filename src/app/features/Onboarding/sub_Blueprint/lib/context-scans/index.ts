@@ -3,4 +3,4 @@
  * All scans that require a selected context
  */
 
-export * from './blueprintSeparatorScan';
+export * from './blueprintContextReviewScan';

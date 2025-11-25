@@ -351,12 +351,12 @@ function extractImports(filePath: string, sourceCode: string): ImportInfo[] {
 /**
  * Resolve import path to absolute file path
  */
-function resolveImportPath(
+async function resolveImportPath(
   importPath: string,
   fromFile: string,
   projectPath: string,
   tsConfig?: any
-): string | null {
+): Promise<string | null> {
   try {
     // Handle relative imports
     if (importPath.startsWith('.')) {
@@ -366,8 +366,11 @@ function resolveImportPath(
       // Try with extensions
       for (const ext of ['.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts']) {
         const withExt = resolved + ext;
-        if (fs.access(withExt).then(() => true).catch(() => false)) {
+        try {
+          await fs.access(withExt);
           return withExt;
+        } catch {
+          // File doesn't exist with this extension, try next
         }
       }
 
@@ -382,8 +385,11 @@ function resolveImportPath(
       // Try with extensions
       for (const ext of ['.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts']) {
         const withExt = resolved + ext;
-        if (fs.access(withExt).then(() => true).catch(() => false)) {
+        try {
+          await fs.access(withExt);
           return withExt;
+        } catch {
+          // File doesn't exist with this extension, try next
         }
       }
 

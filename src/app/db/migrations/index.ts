@@ -98,6 +98,14 @@ export function runMigrations() {
     migrateContextsTargetFields();
     // Migration 20: Create test case management tables
     migrateTestCaseManagementTables();
+    // Migration 21: Add implemented_tasks column to contexts table
+    migrateContextsImplementedTasks();
+    // Migration 22: Add context_id column to implementation_log table
+    migrateImplementationLogContextId();
+    // Migration 23: Add screenshot column to implementation_log table
+    migrateImplementationLogScreenshot();
+    // Migration 24: Add overview_bullets column to implementation_log table
+    migrateImplementationLogOverviewBullets();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -208,9 +216,9 @@ function migrateContextsTable() {
             String(context.name),
             context.description as string | null,
             String(context.file_paths),
-            context.has_context_file || 0,
-            context.context_file_path || null,
-            context.preview || null,
+            Number(context.has_context_file) || 0,
+            (context.context_file_path as string) || null,
+            (context.preview as string) || null,
             String(context.created_at),
             String(context.updated_at)
           );
@@ -358,7 +366,7 @@ function migrateGoalsTable() {
           insertStmt.run(
             String(goal.id),
             String(goal.project_id),
-            goal.context_id || null,
+            (goal.context_id as string) || null,
             Number(goal.order_index),
             String(goal.title),
             goal.description as string | null,
@@ -501,18 +509,18 @@ function migrateIdeasCategoryConstraint() {
             String(idea.id),
             String(idea.scan_id),
             String(idea.project_id),
-            idea.context_id || null,
+            (idea.context_id as string) || null,
             String(idea.scan_type || 'overall'),
             String(idea.category || 'general'),
             String(idea.title),
-            idea.description || null,
-            idea.reasoning || null,
+            (idea.description as string) || null,
+            (idea.reasoning as string) || null,
             String(idea.status || 'pending'),
-            idea.user_feedback || null,
+            (idea.user_feedback as string) || null,
             Number(idea.user_pattern || 0),
-            idea.effort || null,
-            idea.impact || null,
-            idea.implemented_at || null,
+            (idea.effort as number) || null,
+            (idea.impact as number) || null,
+            (idea.implemented_at as string) || null,
             String(idea.created_at),
             String(idea.updated_at)
           );
@@ -1122,4 +1130,98 @@ function migrateTestCaseManagementTables() {
   }, migrationLogger);
 
   migrationLogger.success('Test case management tables created successfully');
+}
+
+/**
+ * Add implemented_tasks column to contexts table
+ * Tracks the count of implemented tasks for each context
+ */
+function migrateContextsImplementedTasks() {
+  safeMigration('contextsImplementedTasks', () => {
+    const db = getConnection();
+    const added = addColumnIfNotExists(
+      db,
+      'contexts',
+      'implemented_tasks',
+      'INTEGER DEFAULT 0',
+      migrationLogger
+    );
+
+    if (!added) {
+      migrationLogger.info('Contexts table already has implemented_tasks column');
+    } else {
+      migrationLogger.info('implemented_tasks column added to contexts table successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Add context_id column to implementation_log table
+ * Links implementation logs to specific contexts for better tracking
+ */
+function migrateImplementationLogContextId() {
+  safeMigration('implementationLogContextId', () => {
+    const db = getConnection();
+    const added = addColumnIfNotExists(
+      db,
+      'implementation_log',
+      'context_id',
+      'TEXT REFERENCES contexts(id) ON DELETE SET NULL',
+      migrationLogger
+    );
+
+    if (added) {
+      // Create index for better query performance
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_implementation_log_context_id ON implementation_log(context_id)`);
+      migrationLogger.info('context_id column added to implementation_log table successfully');
+    } else {
+      migrationLogger.info('implementation_log table already has context_id column');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Add screenshot column to implementation_log table
+ * Stores relative path to screenshot image captured during implementation
+ */
+function migrateImplementationLogScreenshot() {
+  safeMigration('implementationLogScreenshot', () => {
+    const db = getConnection();
+    const added = addColumnIfNotExists(
+      db,
+      'implementation_log',
+      'screenshot',
+      'TEXT',
+      migrationLogger
+    );
+
+    if (added) {
+      migrationLogger.info('screenshot column added to implementation_log table successfully');
+    } else {
+      migrationLogger.info('implementation_log table already has screenshot column');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Add overview_bullets column to implementation_log table
+ * Stores bullet point summary of key changes for easier visualization
+ */
+function migrateImplementationLogOverviewBullets() {
+  safeMigration('implementationLogOverviewBullets', () => {
+    const db = getConnection();
+    const added = addColumnIfNotExists(
+      db,
+      'implementation_log',
+      'overview_bullets',
+      'TEXT',
+      migrationLogger
+    );
+
+    if (added) {
+      migrationLogger.info('overview_bullets column added to implementation_log table successfully');
+    } else {
+      migrationLogger.info('implementation_log table already has overview_bullets column');
+    }
+  }, migrationLogger);
 }

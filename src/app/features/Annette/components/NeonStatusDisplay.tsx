@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import StatusChip, { StatusChipState, StatusChipTheme } from '@/app/components/ui/StatusChip';
+import StatusChip, { StatusChipState, StatusChipTheme } from '@/components/DecisionPanel/StatusChip';
 import { AnnetteTheme } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
 
 export type BotMoodState = 'idle' | 'listening' | 'speaking' | 'error';
@@ -17,7 +17,7 @@ interface NeonStatusDisplayProps {
 
 /**
  * @deprecated This component is a wrapper around StatusChip for backward compatibility.
- * Use StatusChip directly from @/app/components/ui/StatusChip instead.
+ * Use StatusChip directly from @/components/DecisionPanel/StatusChip instead.
  */
 export default function NeonStatusDisplay({
   message,

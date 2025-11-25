@@ -32,7 +32,7 @@ export class NextJSSelectorsAdapter extends BaseAdapter<SelectorsScanData> {
     const contextId = options?.contextId;
 
     if (!contextId) {
-      return this.createResult(false, undefined, 'No context ID provided');
+      return this.createResult<SelectorsScanData>(false, undefined, 'No context ID provided');
     }
 
     try {
@@ -50,7 +50,7 @@ export class NextJSSelectorsAdapter extends BaseAdapter<SelectorsScanData> {
 
       if (!apiResult.success) {
         this.error('API returned error:', apiResult.error);
-        return this.createResult(
+        return this.createResult<SelectorsScanData>(
           false,
           undefined,
           apiResult.error || 'API request failed'
@@ -59,7 +59,7 @@ export class NextJSSelectorsAdapter extends BaseAdapter<SelectorsScanData> {
 
       if (!apiResult.data?.success) {
         this.error('Scan failed:', apiResult.data);
-        return this.createResult(
+        return this.createResult<SelectorsScanData>(
           false,
           undefined,
           apiResult.data?.error || 'Selectors scan failed'
@@ -80,7 +80,7 @@ export class NextJSSelectorsAdapter extends BaseAdapter<SelectorsScanData> {
       });
     } catch (error) {
       this.error('Error executing selectors scan:', error);
-      return this.createResult(
+      return this.createResult<SelectorsScanData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

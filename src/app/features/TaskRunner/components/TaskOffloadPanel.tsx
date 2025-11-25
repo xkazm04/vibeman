@@ -10,6 +10,7 @@ import {
   useAvailableBatchesForOffload,
   useBatch,
 } from '../store';
+import BatchSelectionModal from '@/app/features/Onboarding/sub_Blueprint/components/BatchSelectionModal';
 
 interface TaskOffloadPanelProps {
   sourceBatchId: BatchId;
@@ -30,6 +31,7 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
 
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [targetBatchId, setTargetBatchId] = useState<BatchId | null>(null);
+  const [showBatchModal, setShowBatchModal] = useState(false);
 
   // Filter to only queued tasks (can't offload running/completed tasks)
   const queuedTasks = useMemo(
@@ -57,10 +59,17 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
     }
   };
 
-  const handleOffload = () => {
-    if (!targetBatchId || selectedTaskIds.size === 0) return;
+  const handleSelectBatch = () => {
+    if (selectedTaskIds.size === 0) return;
+    setShowBatchModal(true);
+  };
 
-    offloadTasks(sourceBatchId, targetBatchId, Array.from(selectedTaskIds));
+  const handleBatchSelected = (batchId: BatchId) => {
+    setTargetBatchId(batchId);
+    setShowBatchModal(false);
+
+    // Immediately offload to selected batch
+    offloadTasks(sourceBatchId, batchId, Array.from(selectedTaskIds));
 
     // Reset selection
     setSelectedTaskIds(new Set());
@@ -84,7 +93,7 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
   }
 
   const allSelected = selectedTaskIds.size === queuedTasks.length && queuedTasks.length > 0;
-  const canOffload = targetBatchId && selectedTaskIds.size > 0;
+  const canOffload = selectedTaskIds.size > 0;
 
   return (
     <motion.div
@@ -153,48 +162,33 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
         </div>
       </div>
 
-      {/* Target Batch Selection */}
-      <div className="mb-4">
-        <label className="block text-xs text-gray-400 mb-2">Target Batch</label>
-        <select
-          value={targetBatchId || ''}
-          onChange={(e) => setTargetBatchId(e.target.value as BatchId || null)}
-          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-cyan-500 transition-colors"
-          data-testid="target-batch-select"
-        >
-          <option value="">Select target batch...</option>
-          {availableBatches.map(batchId => (
-            <option key={batchId} value={batchId}>
-              {batchId}
-            </option>
-          ))}
-        </select>
-
-        {availableBatches.length === 0 && (
-          <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" />
+      {/* Info Message */}
+      {availableBatches.length === 0 && (
+        <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-300 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <p>
             No available batches. Create a new batch or wait for existing batches to have capacity.
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-2">
         <button
-          onClick={handleOffload}
-          disabled={!canOffload}
+          onClick={handleSelectBatch}
+          disabled={!canOffload || availableBatches.length === 0}
           className={`
             flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded font-medium text-sm
             transition-all duration-200
-            ${canOffload
+            ${canOffload && availableBatches.length > 0
               ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/50'
               : 'bg-gray-700 text-gray-400 cursor-not-allowed'
             }
           `}
-          data-testid="offload-tasks-btn"
+          data-testid="select-batch-btn"
         >
           <ArrowRight className="w-4 h-4" />
-          Offload {selectedTaskIds.size} Task{selectedTaskIds.size !== 1 ? 's' : ''}
+          Select Batch & Offload ({selectedTaskIds.size})
         </button>
 
         {onClose && (
@@ -208,19 +202,14 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
         )}
       </div>
 
-      {/* Info Message */}
-      {selectedTaskIds.size > 0 && targetBatchId && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="mt-3 p-2 bg-cyan-500/10 border border-cyan-500/30 rounded text-xs text-cyan-300"
-        >
-          <p>
-            {selectedTaskIds.size} task{selectedTaskIds.size !== 1 ? 's' : ''} will be moved to{' '}
-            <span className="font-semibold">{targetBatchId}</span> and will remain in queued state.
-          </p>
-        </motion.div>
-      )}
+      {/* Batch Selection Modal */}
+      <BatchSelectionModal
+        isOpen={showBatchModal}
+        onSelect={handleBatchSelected}
+        onCancel={() => setShowBatchModal(false)}
+        title="Select Target Batch"
+        description={`Choose which batch to move ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? 's' : ''} from ${sourceBatchId}`}
+      />
     </motion.div>
   );
 }

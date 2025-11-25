@@ -41,13 +41,13 @@ export class NextJSBuildAdapter extends BaseAdapter<BuildScanData> {
       });
 
       if (!result.success || !result.data) {
-        return this.createResult(false, undefined, result.error || 'Build scan failed');
+        return this.createResult<BuildScanData>(false, undefined, result.error || 'Build scan failed');
       }
 
       const data = result.data as any;
 
       if (!data.success) {
-        return this.createResult(false, undefined, data.error || 'Build scan failed');
+        return this.createResult<BuildScanData>(false, undefined, data.error || 'Build scan failed');
       }
 
       const buildData: BuildScanData = {
@@ -64,7 +64,7 @@ export class NextJSBuildAdapter extends BaseAdapter<BuildScanData> {
       return this.createResult(true, buildData);
     } catch (error) {
       this.error('Build scan failed:', error);
-      return this.createResult(
+      return this.createResult<BuildScanData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

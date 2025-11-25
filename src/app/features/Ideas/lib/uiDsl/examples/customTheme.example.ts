@@ -5,7 +5,8 @@
  * Copy and modify these examples to create your own themes.
  */
 
-import { ThemeConfig, defaultTheme } from '../theme';
+import { ThemeConfig } from '../types';
+import { defaultTheme } from '../theme';
 
 /**
  * Dark Mode Theme

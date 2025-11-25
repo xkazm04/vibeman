@@ -181,7 +181,7 @@ export const useContextStore = (() => {
       },
 
       // Move context to different group
-      moveContext: async (contextId: string, newGroupId: string) => {
+      moveContext: async (contextId: string, newGroupId: string | null) => {
         setState(prev => ({ ...prev, ...createLoadingState() }));
 
         try {

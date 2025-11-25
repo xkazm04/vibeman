@@ -2,9 +2,9 @@
 
 import { useRefactorStore } from '@/stores/refactorStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { ArrowRight, CheckCircle2, Shield, Zap, Wrench, Network, TestTube, Component, Info, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Shield, Zap, Wrench, Network, TestTube, Component, Info, Sparkles, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { StepContainer, CyberCard } from '@/components/ui/wizard';
+import { StepContainer, CyberCard, StepHeader } from '@/components/ui/wizard';
 import { SCAN_TECHNIQUE_GROUPS, getScanGroupsForProjectType, type ProjectType, type ScanTechniqueGroup } from '../lib/scanTechniques';
 import { useState, useEffect } from 'react';
 import ProviderSelector from '@/components/llm/ProviderSelector';
@@ -72,6 +72,28 @@ export default function SettingsStep() {
       error={null}
       data-testid="settings-step-container"
     >
+      {/* Top Navigation */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="text-sm text-gray-500">Step 1 of 7</div>
+        <button
+          onClick={handleContinue}
+          disabled={selectedScanGroups.size === 0}
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          data-testid="settings-continue-top"
+        >
+          Continue
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      <StepHeader
+        title="Configure Scan"
+        description="Select scan groups and AI provider for analysis"
+        icon={Settings}
+        currentStep={1}
+        totalSteps={7}
+      />
+
       {/* Project Type Info */}
       <CyberCard variant="glow" data-testid="project-type-info">
         <div className="flex items-center space-x-3">

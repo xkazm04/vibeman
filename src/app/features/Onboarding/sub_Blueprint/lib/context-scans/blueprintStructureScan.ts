@@ -102,7 +102,14 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
       data: result.data,
     };
 
-    return adapter.buildDecision(adapterResult, activeProject);
+    const decision = adapter.buildDecision(adapterResult, activeProject);
+
+    if (!decision) return null;
+
+    return {
+      ...decision,
+      onReject: decision.onReject || (async () => { }),
+    } as DecisionData;
   } catch {
     return null;
   }

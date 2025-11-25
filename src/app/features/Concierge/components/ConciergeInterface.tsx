@@ -180,6 +180,7 @@ export default function ConciergeInterface({
                 placeholder="Example: Add a dark mode toggle to the settings page with user preference persistence..."
                 className="w-full h-32 bg-gray-900/60 border border-gray-700/40 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
                 disabled={isSubmitting}
+                data-testid="concierge-description-input"
               />
             </div>
 
@@ -206,6 +207,7 @@ export default function ConciergeInterface({
                 className="mt-7 px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
                 whileTap={{ scale: isSubmitting ? 1 : 0.95 }}
+                data-testid="concierge-submit-btn"
               >
                 {isSubmitting ? (
                   <>
@@ -271,6 +273,7 @@ export default function ConciergeInterface({
                       className="flex-1 px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/40 rounded-lg font-medium flex items-center justify-center space-x-2"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      data-testid="concierge-approve-btn"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Approve & Commit</span>
@@ -281,6 +284,7 @@ export default function ConciergeInterface({
                       className="flex-1 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 rounded-lg font-medium flex items-center justify-center space-x-2"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      data-testid="concierge-reject-btn"
                     >
                       <XCircle className="w-4 h-4" />
                       <span>Reject</span>

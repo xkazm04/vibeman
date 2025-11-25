@@ -72,33 +72,33 @@ export async function executeScan(
       let result;
       try {
         // Dynamically load scan based on scan ID
-          if (buttonConfig.contextNeeded && contextId) {
-            // For context-dependent scans
-            if (scanId === 'selectors') {
-              const { executeSelectorsScan } = await import('../blueprintSelectorsScan');
-              result = await executeSelectorsScan(contextId);
-            } else if (scanId === 'photo') {
-              const { executePhotoScan } = await import('../context-scans/blueprintPhotoScan');
-              result = await executePhotoScan(contextId);
-            } else if (scanId === 'test') {
-              const { executeTestScan } = await import('../context-scans/blueprintTestScan');
-              result = await executeTestScan(contextId);
-            } else if (scanId === 'separator') {
-              const { executeSeparatorScan } = await import('../context-scans/blueprintSeparatorScan');
-              result = await executeSeparatorScan(contextId);
-            } else if (scanId === 'testDesign') {
-              const { executeTestDesignScan } = await import('../context-scans/blueprintTestDesign');
-              result = await executeTestDesignScan(contextId);
-            } else {
-              result = {
-                success: false,
-                error: `No scan implementation found for: ${scanId}`,
-              };
-            }
+        if (buttonConfig.contextNeeded && contextId) {
+          // For context-dependent scans
+          if (scanId === 'selectors') {
+            const { executeSelectorsScan } = await import('../blueprintSelectorsScan');
+            result = await executeSelectorsScan(contextId);
+          } else if (scanId === 'photo') {
+            const { executePhotoScan } = await import('../context-scans/blueprintPhotoScan');
+            result = await executePhotoScan(contextId);
+          } else if (scanId === 'test') {
+            const { executeTestScan } = await import('../context-scans/blueprintTestScan');
+            result = await executeTestScan(contextId);
+          } else if (scanId === 'contextreview') {
+            const { executeContextReviewScan } = await import('../context-scans/blueprintContextReviewScan');
+            result = await executeContextReviewScan(contextId);
+          } else if (scanId === 'testDesign') {
+            const { executeTestDesignScan } = await import('../context-scans/blueprintTestDesign');
+            result = await executeTestDesignScan(contextId);
           } else {
-            // For non-context scans, dynamically import based on scan ID
-            result = await executeScanById(scanId);
+            result = {
+              success: false,
+              error: `No scan implementation found for: ${scanId}`,
+            };
           }
+        } else {
+          // For non-context scans, dynamically import based on scan ID
+          result = await executeScanById(scanId);
+        }
       } catch (scanError) {
         // Catch execution errors and convert to failed result
         const errorMsg = scanError instanceof Error ? scanError.message : 'Scan execution failed';
@@ -109,9 +109,9 @@ export async function executeScan(
         };
       }
 
-      // Handle failure
-      if (!result.success) {
-        const errorMsg = result.error || 'Scan failed';
+      // Handle failure - with safety checks
+      if (!result || !result.success) {
+        const errorMsg = result?.error || 'Scan failed with no error message';
         console.error(`[Blueprint] Scan ${scanId} failed:`, errorMsg);
         callbacks.failScan(errorMsg);
         return;
@@ -124,23 +124,23 @@ export async function executeScan(
       let decisionData = null;
       try {
         if (buttonConfig.contextNeeded && contextId) {
-            // For context-dependent scans
-            if (scanId === 'separator') {
-              const { buildDecisionData } = await import('../context-scans/blueprintSeparatorScan');
-              decisionData = buildDecisionData(result);
-            } else if (scanId === 'testDesign') {
-              const { buildDecisionData } = await import('../context-scans/blueprintTestDesign');
-              decisionData = buildDecisionData(result);
-            } else if (scanId === 'photo') {
-              const { buildDecisionData } = await import('../context-scans/blueprintPhotoScan');
-              decisionData = buildDecisionData(result);
-            } else if (scanId === 'test') {
-              const { buildDecisionData } = await import('../context-scans/blueprintTestScan');
-              decisionData = buildDecisionData(result);
-            } else if (scanId === 'selectors') {
-              const { buildDecisionData } = await import('../blueprintSelectorsScan');
-              decisionData = buildDecisionData(result);
-            }
+          // For context-dependent scans
+          if (scanId === 'contextreview') {
+            const { buildDecisionData } = await import('../context-scans/blueprintContextReviewScan');
+            decisionData = buildDecisionData(result);
+          } else if (scanId === 'testDesign') {
+            const { buildDecisionData } = await import('../context-scans/blueprintTestDesign');
+            decisionData = buildDecisionData(result);
+          } else if (scanId === 'photo') {
+            const { buildDecisionData } = await import('../context-scans/blueprintPhotoScan');
+            decisionData = buildDecisionData(result);
+          } else if (scanId === 'test') {
+            const { buildDecisionData } = await import('../context-scans/blueprintTestScan');
+            decisionData = buildDecisionData(result);
+          } else if (scanId === 'selectors') {
+            const { buildDecisionData } = await import('../blueprintSelectorsScan');
+            decisionData = buildDecisionData(result);
+          }
         } else {
           // For non-context scans
           decisionData = await buildDecisionById(scanId, result);
@@ -175,7 +175,10 @@ export async function executeScan(
         };
 
         // Add to decision queue
-        callbacks.addDecision(decisionData);
+        callbacks.addDecision({
+          ...decisionData,
+          onReject: decisionData.onReject || (async () => { }),
+        });
       } else {
         // If no decision needed, create event immediately
         if (buttonConfig.eventTitle && activeProject) {
@@ -221,10 +224,24 @@ async function executeScanById(scanId: string): Promise<any> {
       const { executeUnusedScan } = await import('../blueprintUnusedScan');
       return await executeUnusedScan();
     }
+    case 'screencoverage': {
+      const { executeScreenCoverageScan } = await import('../blueprintScreenCoverage');
+      return await executeScreenCoverageScan();
+    }
+    // Context-dependent scans that were called without a context
+    case 'contextreview':
+    case 'photo':
+    case 'test':
+    case 'selectors':
+    case 'testDesign':
+      return {
+        success: false,
+        error: `Scan "${scanId}" requires a context to be selected. Please select a context first.`,
+      };
     default:
       return {
         success: false,
-        error: `No scan implementation found for: ${scanId}`,
+        error: `No scan implementation found for: ${scanId}. Make sure it's defined in stepperConfig.ts`,
       };
   }
 }
@@ -254,7 +271,20 @@ async function buildDecisionById(scanId: string, result: any): Promise<any> {
       const { buildDecisionData } = await import('../blueprintUnusedScan');
       return buildDecisionData(result);
     }
+    case 'screencoverage': {
+      const { buildDecisionData } = await import('../blueprintScreenCoverage');
+      return buildDecisionData(result);
+    }
+    // Context-dependent scans - should not reach here as they're handled separately
+    case 'contextreview':
+    case 'photo':
+    case 'test':
+    case 'selectors':
+    case 'testDesign':
+      console.warn(`[Blueprint] buildDecisionById called for context-dependent scan: ${scanId}`);
+      return null;
     default:
+      console.warn(`[Blueprint] No buildDecision implementation for scan: ${scanId}`);
       return null;
   }
 }

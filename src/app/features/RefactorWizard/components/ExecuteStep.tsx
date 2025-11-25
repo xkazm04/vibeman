@@ -1,25 +1,27 @@
 'use client';
 
-import { useRefactorStore } from '@/stores/refactorStore';
+import { useRefactorStore, RefactorOpportunity } from '@/stores/refactorStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { FileText, CheckCircle, Package, Sparkles, Play } from 'lucide-react';
-import { useState } from 'react';
+import { FileText, CheckCircle, Package, Sparkles, Play, AlertTriangle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import {
   StepContainer,
   CyberCard,
   ProgressBar,
   StatCard,
-  WizardActions,
+  StepHeader,
 } from '@/components/ui/wizard';
 import { motion } from 'framer-motion';
-import { generateStrategicRequirement, generatePackageSlug } from '../lib/strategicRequirementGenerator';
+import { generateStrategicRequirement, generatePackageSlug, generateSimpleRequirement } from '../lib/strategicRequirementGenerator';
 
 export default function ExecuteStep() {
   const {
     packages,
     selectedPackages,
     projectContext,
-    setCurrentStep
+    setCurrentStep,
+    opportunities,
+    selectedOpportunities,
   } = useRefactorStore();
   const activeProject = useActiveProjectStore(state => state.activeProject);
   const [isCreating, setIsCreating] = useState(false);
@@ -27,19 +29,32 @@ export default function ExecuteStep() {
   const [createdFiles, setCreatedFiles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if we're in "direct mode" (skip packaging) - determined by having no packages but having selected opportunities
+  const isDirectMode = packages.length === 0 && selectedOpportunities.size > 0;
+
   // Filter to selected packages and sort by execution order
   const selectedPkgs = packages
     .filter(pkg => selectedPackages.has(pkg.id))
     .sort((a, b) => a.executionOrder - b.executionOrder);
 
+  // Get selected opportunities for direct mode
+  const selectedOpps = useMemo(() =>
+    opportunities.filter(o => selectedOpportunities.has(o.id)),
+    [opportunities, selectedOpportunities]
+  );
+
+  // Group opportunities into chunks of 20 for direct mode
+  const opportunityChunks = useMemo(() => {
+    const chunks: RefactorOpportunity[][] = [];
+    for (let i = 0; i < selectedOpps.length; i += 20) {
+      chunks.push(selectedOpps.slice(i, i + 20));
+    }
+    return chunks;
+  }, [selectedOpps]);
+
   const createRequirementFiles = async () => {
     if (!activeProject?.path) {
       setError('No active project selected');
-      return;
-    }
-
-    if (!projectContext) {
-      setError('Project context not loaded');
       return;
     }
 
@@ -49,43 +64,75 @@ export default function ExecuteStep() {
     const created: string[] = [];
 
     try {
-      // Create a strategic requirement file for each selected package
-      for (let i = 0; i < selectedPkgs.length; i++) {
-        const pkg = selectedPkgs[i];
+      if (isDirectMode) {
+        // Direct mode: Create requirement files from opportunity chunks (no packaging)
+        for (let i = 0; i < opportunityChunks.length; i++) {
+          const chunk = opportunityChunks[i];
 
-        // Generate strategic requirement content
-        const content = generateStrategicRequirement(pkg, projectContext, {
-          projectName: activeProject.name || 'Project',
-          executionOrder: pkg.executionOrder,
-          totalPackages: selectedPkgs.length,
-        });
+          // Generate simple requirement content without project context dependency
+          const content = generateSimpleRequirement(chunk, {
+            projectName: activeProject.name || 'Project',
+            chunkIndex: i + 1,
+            totalChunks: opportunityChunks.length,
+          });
 
-        // Generate filename slug
-        const slug = generatePackageSlug(pkg.name);
-        const fileName = `package-${slug}`;
+          const fileName = `refactor-batch-${String(i + 1).padStart(2, '0')}`;
 
-        // Create the requirement file
-        const response = await fetch('/api/claude-code/requirement', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectPath: activeProject.path,
-            requirementName: fileName,
-            content,
-            overwrite: true,
-          }),
-        });
+          const response = await fetch('/api/claude-code/requirement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectPath: activeProject.path,
+              requirementName: fileName,
+              content,
+              overwrite: true,
+            }),
+          });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to create requirement file for ${pkg.name}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to create requirement file batch ${i + 1}`);
+          }
+
+          const data = await response.json();
+          created.push(data.fileName || `${fileName}.md`);
+          setProgress(((i + 1) / opportunityChunks.length) * 100);
         }
+      } else {
+        // Package mode: Create strategic requirement files (original behavior)
+        for (let i = 0; i < selectedPkgs.length; i++) {
+          const pkg = selectedPkgs[i];
 
-        const data = await response.json();
-        created.push(data.fileName || `${fileName}.md`);
+          // Generate strategic requirement content - projectContext is optional now
+          const content = generateStrategicRequirement(pkg, projectContext, {
+            projectName: activeProject.name || 'Project',
+            executionOrder: pkg.executionOrder,
+            totalPackages: selectedPkgs.length,
+          });
 
-        // Update progress
-        setProgress(((i + 1) / selectedPkgs.length) * 100);
+          const slug = generatePackageSlug(pkg.name);
+          const fileName = `package-${slug}`;
+
+          const response = await fetch('/api/claude-code/requirement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectPath: activeProject.path,
+              requirementName: fileName,
+              content,
+              overwrite: true,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to create requirement file for ${pkg.name}`);
+          }
+
+          const data = await response.json();
+          created.push(data.fileName || `${fileName}.md`);
+          setProgress(((i + 1) / selectedPkgs.length) * 100);
+        }
       }
 
       setCreatedFiles(created);
@@ -99,27 +146,104 @@ export default function ExecuteStep() {
 
   const isCompleted = createdFiles.length > 0 && !isCreating;
 
+  // Calculate stats for display
+  const totalItems = isDirectMode ? opportunityChunks.length : selectedPkgs.length;
+  const totalIssues = isDirectMode
+    ? selectedOpps.length
+    : selectedPkgs.reduce((sum, pkg) => sum + pkg.issueCount, 0);
+
+  // Determine if we can proceed
+  const canProceed = isDirectMode ? selectedOpps.length > 0 : selectedPkgs.length > 0;
+
+  // Missing context warning (non-blocking)
+  const showContextWarning = !isDirectMode && !projectContext;
+
   return (
     <StepContainer
-      title="Create Strategic Requirements"
-      description="Generate context-rich requirement files for each refactoring package"
-      icon={Play}
-      currentStep={6}
-      totalSteps={7}
-      isLoading={isCreating}
+      isLoading={false}
       error={error}
       onErrorDismiss={() => setError(null)}
       data-testid="execute-step-container"
     >
+      {/* Top Navigation */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => setCurrentStep(isDirectMode ? 'review' : 'package')}
+          disabled={isCreating}
+          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+          data-testid="execute-back-button"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+        <button
+          onClick={isCompleted ? () => setCurrentStep('results') : createRequirementFiles}
+          disabled={isCreating || !canProceed}
+          className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-all ${
+            isCompleted
+              ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+              : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          data-testid="execute-next-button"
+        >
+          {isCreating ? (
+            <>
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              Processing...
+            </>
+          ) : isCompleted ? (
+            <>
+              View Summary
+              <ArrowRight className="w-4 h-4" />
+            </>
+          ) : (
+            <>
+              Create Requirements
+              <FileText className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      </div>
 
-      {/* Package Info */}
+      <StepHeader
+        title={isDirectMode ? 'Create Batch Requirements' : 'Create Strategic Requirements'}
+        description={isDirectMode
+          ? `Generate requirement files (max 20 issues per file) for ${selectedOpps.length} selected opportunities`
+          : 'Generate context-rich requirement files for each refactoring package'
+        }
+        icon={Play}
+        currentStep={6}
+        totalSteps={7}
+      />
+
+      {/* Context Warning (non-blocking) */}
+      {showContextWarning && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm"
+        >
+          <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+          <div className="flex-1">
+            <span className="text-yellow-300">Project context not loaded.</span>
+            <span className="text-gray-400 ml-1">Requirements will be generated without CLAUDE.md context enrichment.</span>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Info Card */}
       <CyberCard data-testid="package-info-card">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-white font-medium mb-1">Strategic Refactoring Packages</h4>
+              <h4 className="text-white font-medium mb-1">
+                {isDirectMode ? 'Batch Refactoring Files' : 'Strategic Refactoring Packages'}
+              </h4>
               <p className="text-gray-400 text-sm">
-                Each package is a strategically-grouped set of refactorings with full project context
+                {isDirectMode
+                  ? `${selectedOpps.length} issues split into ${opportunityChunks.length} batch file(s)`
+                  : 'Each package is a strategically-grouped set of refactorings'
+                }
               </p>
             </div>
             <div className="p-3 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-lg border border-cyan-500/30">
@@ -130,20 +254,20 @@ export default function ExecuteStep() {
           {/* Stats Grid */}
           <div className="grid grid-cols-3 gap-3">
             <StatCard
-              label="Total Packages"
-              value={selectedPkgs.length}
+              label={isDirectMode ? 'Batch Files' : 'Packages'}
+              value={totalItems}
               icon={Package}
               variant="info"
             />
             <StatCard
               label="Total Issues"
-              value={selectedPkgs.reduce((sum, pkg) => sum + pkg.issueCount, 0)}
+              value={totalIssues}
               icon={FileText}
               variant="info"
             />
             <StatCard
-              label="Requirement Files"
-              value={selectedPkgs.length}
+              label="Requirements"
+              value={totalItems}
               icon={FileText}
               variant={isCompleted ? 'success' : 'info'}
             />
@@ -151,54 +275,96 @@ export default function ExecuteStep() {
         </div>
       </CyberCard>
 
-      {/* Package Breakdown */}
+      {/* Items Breakdown */}
       <CyberCard variant="dark" data-testid="package-breakdown-card">
         <h4 className="text-white font-medium mb-3 flex items-center gap-2">
           <Package className="w-4 h-4 text-cyan-400" />
-          Package Breakdown
+          {isDirectMode ? 'Batch Breakdown' : 'Package Breakdown'}
         </h4>
         <div className="space-y-2 max-h-64 overflow-y-auto pr-2" data-testid="package-list">
-          {selectedPkgs.map((pkg, index) => {
-            const isCreated = createdFiles.length > index;
-
-            return (
-              <motion.div
-                key={pkg.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className={`p-3 rounded-lg border transition-all ${
-                  isCreated
-                    ? 'bg-green-500/5 border-green-500/30'
-                    : 'bg-white/5 border-white/10'
-                }`}
-                data-testid={`package-item-${index}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
-                        #{pkg.executionOrder}
-                      </span>
-                      <span className="text-white font-medium text-sm">
-                        {pkg.name}
-                      </span>
+          {isDirectMode ? (
+            // Direct mode: show batches
+            opportunityChunks.map((chunk, index) => {
+              const isCreated = createdFiles.length > index;
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`p-3 rounded-lg border transition-all ${
+                    isCreated
+                      ? 'bg-green-500/5 border-green-500/30'
+                      : 'bg-white/5 border-white/10'
+                  }`}
+                  data-testid={`batch-item-${index}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+                          Batch {index + 1}
+                        </span>
+                        <span className="text-white font-medium text-sm">
+                          refactor-batch-{String(index + 1).padStart(2, '0')}.md
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span>{chunk.length} issues</span>
+                        <span>•</span>
+                        <span>{[...new Set(chunk.flatMap(o => o.files))].length} files</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-400">
-                      <span>{pkg.issueCount} issues</span>
-                      <span>•</span>
-                      <span className="capitalize">{pkg.category}</span>
-                      <span>•</span>
-                      <span className="capitalize">{pkg.impact} impact</span>
-                    </div>
+                    {isCreated && (
+                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    )}
                   </div>
-                  {isCreated && (
-                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            })
+          ) : (
+            // Package mode: show packages
+            selectedPkgs.map((pkg, index) => {
+              const isCreated = createdFiles.length > index;
+              return (
+                <motion.div
+                  key={pkg.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`p-3 rounded-lg border transition-all ${
+                    isCreated
+                      ? 'bg-green-500/5 border-green-500/30'
+                      : 'bg-white/5 border-white/10'
+                  }`}
+                  data-testid={`package-item-${index}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+                          #{pkg.executionOrder}
+                        </span>
+                        <span className="text-white font-medium text-sm">
+                          {pkg.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span>{pkg.issueCount} issues</span>
+                        <span>•</span>
+                        <span className="capitalize">{pkg.category}</span>
+                        <span>•</span>
+                        <span className="capitalize">{pkg.impact} impact</span>
+                      </div>
+                    </div>
+                    {isCreated && (
+                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
         </div>
       </CyberCard>
 
@@ -206,7 +372,7 @@ export default function ExecuteStep() {
       {isCreating && (
         <ProgressBar
           progress={progress}
-          label={`Creating strategic requirement files... (${createdFiles.length}/${selectedPkgs.length})`}
+          label={`Creating requirement files... (${createdFiles.length}/${totalItems})`}
           variant="cyan"
           data-testid="creation-progress-bar"
         />
@@ -224,10 +390,10 @@ export default function ExecuteStep() {
             <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <h4 className="text-green-300 font-medium mb-2">
-                Strategic Requirement Files Created Successfully!
+                Requirement Files Created Successfully!
               </h4>
               <p className="text-gray-300 text-sm mb-3">
-                {createdFiles.length} strategic package{createdFiles.length !== 1 ? 's have' : ' has'} been generated in <code className="px-1.5 py-0.5 bg-black/30 rounded text-xs font-mono">.claude/commands/</code>
+                {createdFiles.length} file{createdFiles.length !== 1 ? 's have' : ' has'} been generated in <code className="px-1.5 py-0.5 bg-black/30 rounded text-xs font-mono">.claude/commands/</code>
               </p>
               <div className="space-y-1 mb-3 max-h-32 overflow-y-auto pr-2">
                 {createdFiles.map((file, index) => (
@@ -242,28 +408,26 @@ export default function ExecuteStep() {
                   Next Steps:
                 </p>
                 <ul className="text-gray-400 text-sm space-y-1">
-                  <li>• Execute packages in order (starting with #1)</li>
-                  <li>• Each package includes full context from CLAUDE.md</li>
-                  <li>• Dependency information ensures safe execution</li>
-                  <li>• Use Claude Code to implement each package systematically</li>
+                  {isDirectMode ? (
+                    <>
+                      <li>• Execute batch files in order (01, 02, etc.)</li>
+                      <li>• Each file contains up to 20 related issues</li>
+                      <li>• Use Claude Code to implement each batch</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• Execute packages in order (starting with #1)</li>
+                      <li>• Each package includes full context from CLAUDE.md</li>
+                      <li>• Dependency information ensures safe execution</li>
+                      <li>• Use Claude Code to implement each package systematically</li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
           </div>
         </motion.div>
       )}
-
-      {/* Actions */}
-      <WizardActions
-        onBack={isCreating ? undefined : () => setCurrentStep('package')}
-        backDisabled={isCreating}
-        onNext={isCompleted ? () => setCurrentStep('results') : createRequirementFiles}
-        nextLabel={isCompleted ? 'View Summary' : 'Create Strategic Requirements'}
-        nextIcon={isCompleted ? CheckCircle : FileText}
-        nextDisabled={isCreating || selectedPkgs.length === 0}
-        nextLoading={isCreating}
-        nextVariant={isCompleted ? 'success' : 'primary'}
-      />
     </StepContainer>
   );
 }

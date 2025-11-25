@@ -1,9 +1,10 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, CheckCircle2, Circle, Clock, XCircle, HelpCircle } from 'lucide-react';
+import { Target, CheckCircle2, Circle, Clock, XCircle, HelpCircle, LayoutDashboard, Plus, ChevronRight } from 'lucide-react';
+import { Caveat } from 'next/font/google';
 
-import ProjectsLayout from '../../projects/ProjectsLayout';
+import ProjectsLayout from '@/app/projects/ProjectsLayout';
 import GoalModal from './sub_GoalModal/GoalModal';
 import { Goal } from '../../../types';
 import { GoalProvider, useGoalContext } from '@/contexts/GoalContext';
@@ -13,6 +14,12 @@ import { getNextOrder } from './sub_GoalModal/lib';
 import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList';
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
+
+const caveat = Caveat({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 interface GoalsLayoutProps {
   projectId: string | null;
@@ -28,10 +35,10 @@ const STATUS_ICONS = {
 
 const STATUS_COLORS = {
   open: 'text-blue-400',
-  in_progress: 'text-cyan-400',
+  in_progress: 'text-primary',
   done: 'text-green-400',
   rejected: 'text-red-400',
-  undecided: 'text-gray-400',
+  undecided: 'text-muted-foreground',
 };
 
 function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
@@ -42,8 +49,8 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // Filter goals for active project
-  const projectGoals = goals.filter(goal => goal.projectId === activeProject?.id);
+  // Goals are already filtered by projectId in the GoalProvider
+  const projectGoals = goals;
 
   const handleGoalClick = (goal: Goal) => {
     setSelectedGoal(goal);
@@ -66,117 +73,145 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
   };
 
   return (
-    <>
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
       {/* Projects Toolbar */}
-      <ProjectsLayout />
+      <div className="z-20">
+        <ProjectsLayout />
+      </div>
 
-      {/* Main Content */}
-      <div className="flex h-[calc(100vh-140px)]">
-        {/* Left Sidebar - Goals List */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-64 flex-shrink-0 bg-gray-900/50 border-r border-gray-700/50 overflow-y-auto"
-        >
-          {/* Header */}
-          <div className="sticky top-0 bg-gray-900/80 backdrop-blur-sm border-b border-gray-700/50 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-blue-400" />
-              <h2 className="text-sm font-semibold text-white">Goals</h2> 
-              <span className="ml-auto text-xs text-gray-500 font-mono">
-                {projectGoals.length}
+      {/* Main Content - Dashboard Grid */}
+      <div className="flex-1 p-6 overflow-hidden relative">
+        {/* Background Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/0 to-background/80 pointer-events-none" />
+        
+        {/* Ambient Glow */}
+        <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-primary/5 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 grid grid-cols-12 gap-6 h-full max-w-[1920px] mx-auto">
+          
+          {/* Left Column: Goals List (3 cols) */}
+          <div className="col-span-3 flex flex-col gap-4 h-full">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <LayoutDashboard className="w-5 h-5 text-primary" />
+                <h2 className={caveat.className + ' text-2xl font-bold text-primary tracking-wide'} style={{ textShadow: '0 0 15px rgba(59, 130, 246, 0.3)' }}>
+                  MISSION CONTROL
+                </h2>
+              </div>
+              <span className="px-2 py-1 rounded bg-primary/10 text-xs font-mono text-primary/70 border border-primary/20">
+                {projectGoals.length} OBJECTIVES
               </span>
             </div>
-          </div>
 
-          {/* Goals List */}
-          <div className="p-2 space-y-1">
-            <AnimatePresence>
-              {projectGoals.map((goal) => {
-                const StatusIcon = STATUS_ICONS[goal.status];
-                const statusColor = STATUS_COLORS[goal.status];
-
-                return (
-                  <motion.button
-                    key={goal.id}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    onClick={() => handleGoalClick(goal)}
-                    data-testid={`goal-item-${goal.id}`}
-                    className={`
-                      w-full text-left px-3 py-2 rounded-lg border transition-all
-                      ${selectedGoal?.id === goal.id
-                        ? 'bg-blue-500/10 border-blue-500/30'
-                        : 'bg-gray-800/30 border-gray-700/30 hover:bg-gray-800/50 hover:border-gray-600/50'
-                      }
-                    `}
+            <div className="flex-1 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.05)]">
+              <div className="p-4 border-b border-primary/10 bg-primary/5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-primary/50 uppercase tracking-wider">Active Goals</span>
+                  <button 
+                    onClick={() => setShowAddGoal(true)}
+                    className="p-1.5 hover:bg-primary/20 rounded-lg text-primary transition-colors"
                   >
-                    <div className="flex items-start gap-2">
-                      <StatusIcon className={`w-3.5 h-3.5 ${statusColor} flex-shrink-0 mt-0.5`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-white truncate" title={goal.title}>
-                          {goal.title}
-                        </p>
-                        {goal.description && (
-                          <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
-                            {goal.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </AnimatePresence>
-
-            {/* Empty State */}
-            {projectGoals.length === 0 && (
-              <div className="text-center py-8 px-4">
-                <Target className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">No goals yet</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  Click the Goal button in the toolbar to add one
-                </p>
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
-        </motion.div>
+              
+              <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                <AnimatePresence>
+                  {projectGoals.map((goal) => {
+                    const StatusIcon = STATUS_ICONS[goal.status];
+                    const statusColor = STATUS_COLORS[goal.status];
 
-        {/* Main Area - Implementation Logs, Events Bar Chart, and Screen Catalog */}
-        <div className="flex flex-col gap-4 overflow-hidden bg-gray-950/50 p-4">
-          {/* Top Row - Implementation Logs and Events Bar Chart */}
-          <div className="flex flex-row gap-4">
-            {/* Implementation Logs - Left */}
-            <div className="flex overflow-y-auto">
-              {projectId ? (
-                <ImplementationLogList projectId={projectId} limit={10} />
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-24"
-                >
-                  <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-400 mb-2">No Project Selected</h3>
-                  <p className="text-gray-500">
-                    Select a project from the toolbar above to view implementation logs
-                  </p>
-                </motion.div>
-              )}
+                    return (
+                      <motion.button
+                        key={goal.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        onClick={() => handleGoalClick(goal)}
+                        className={
+                          'w-full text-left px-4 py-3 rounded-xl border transition-all group relative overflow-hidden ' +
+                          (selectedGoal?.id === goal.id
+                            ? 'bg-primary/10 border-primary/30'
+                            : 'bg-transparent border-transparent hover:bg-primary/5 hover:border-primary/10')
+                        }
+                      >
+                        {selectedGoal?.id === goal.id && (
+                          <motion.div 
+                            layoutId="activeGoalGlow"
+                            className="absolute inset-0 bg-primary/5"
+                          />
+                        )}
+                        <div className="relative flex items-start gap-3">
+                          <StatusIcon className={'w-4 h-4 ' + statusColor + ' mt-0.5'} />
+                          <div className="flex-1 min-w-0">
+                            <p className={'text-sm font-medium truncate ' + (selectedGoal?.id === goal.id ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-primary')}>
+                              {goal.title}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] font-mono text-muted-foreground/60 uppercase">ID-{goal.id.slice(0,4)}</span>
+                            </div>
+                          </div>
+                          <ChevronRight className={'w-4 h-4 text-muted-foreground/60 transition-transform ' + (selectedGoal?.id === goal.id ? 'text-primary translate-x-1' : 'group-hover:text-muted-foreground')} />
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </AnimatePresence>
+                
+                {projectGoals.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-40 text-center p-4">
+                    <Target className="w-8 h-8 text-primary/20 mb-2" />
+                    <p className="text-sm text-primary/30">No active objectives</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Middle Column: Implementation Logs (5 cols) */}
+          <div className="col-span-5 flex flex-col gap-4 h-full">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className={caveat.className + ' text-xl font-bold text-primary/80 tracking-wide'}>System Logs</h2>
+            </div>
+            
+            <div className="flex-1 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden relative shadow-[0_0_30px_rgba(59,130,246,0.05)]">
+              <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] pointer-events-none" />
+              <div className="h-full overflow-y-auto p-4 custom-scrollbar">
+                {projectId ? (
+                  <ImplementationLogList projectId={projectId} limit={20} />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-primary/30">
+                    Select a project to view logs
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Analytics & Catalog (4 cols) */}
+          <div className="col-span-4 flex flex-col gap-6 h-full">
+            {/* Top: Events Chart */}
+            <div className="h-1/3 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.05)]">
+              <div className="p-4 border-b border-primary/10 bg-primary/5">
+                <h3 className="text-xs font-mono text-primary/50 uppercase tracking-wider">Activity Velocity</h3>
+              </div>
+              <div className="flex-1 p-4 relative">
+                {projectId && <EventsBarChart projectId={projectId} limit={10} />}
+              </div>
             </div>
 
-            {/* Events Bar Chart - Right */}
-            {projectId && (
-              <div className="flex overflow-y-auto">
-                <EventsBarChart projectId={projectId} limit={10} />
+            {/* Bottom: Screen Catalog */}
+            <div className="flex-1 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.05)]">
+              <div className="p-4 border-b border-primary/10 bg-primary/5">
+                <h3 className="text-xs font-mono text-primary/50 uppercase tracking-wider">Visual Assets</h3>
               </div>
-            )}
+              <div className="flex-1 overflow-hidden">
+                <ScreenCatalog projectId={projectId} />
+              </div>
+            </div>
           </div>
 
-          {/* Bottom Row - Screen Catalog */}
-          <ScreenCatalog projectId={projectId} />
         </div>
       </div>
 
@@ -202,7 +237,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
           onSave={updateGoal}
         />
       )}
-    </>
+    </div>
   );
 }
 

@@ -47,7 +47,7 @@ export class NextJSVisionAdapter extends BaseAdapter<VisionScanData> {
       const buildResult = await buildResponse.json();
 
       if (!buildResult.success || !buildResult.requirementContent) {
-        return this.createResult(
+        return this.createResult<VisionScanData>(
           false,
           undefined,
           buildResult.error || 'Failed to build requirement content'
@@ -71,7 +71,7 @@ export class NextJSVisionAdapter extends BaseAdapter<VisionScanData> {
       });
 
       if (!result.success) {
-        return this.createResult(
+        return this.createResult<VisionScanData>(
           false,
           undefined,
           result.error || 'Pipeline execution failed'
@@ -86,7 +86,7 @@ export class NextJSVisionAdapter extends BaseAdapter<VisionScanData> {
       });
     } catch (error) {
       this.error('Error executing vision scan:', error);
-      return this.createResult(
+      return this.createResult<VisionScanData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

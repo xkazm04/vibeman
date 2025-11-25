@@ -31,6 +31,7 @@ export default function ConciergeWidget(props: ConciergeWidgetProps) {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             title="AI Code Concierge"
+            data-testid="concierge-floating-btn"
           >
             <Sparkles className="w-6 h-6 text-white" />
           </motion.button>
@@ -49,6 +50,7 @@ export default function ConciergeWidget(props: ConciergeWidgetProps) {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            data-testid="concierge-widget-panel"
           >
             {/* Widget Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/40 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10">
@@ -63,6 +65,7 @@ export default function ConciergeWidget(props: ConciergeWidgetProps) {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   title={isFullscreen ? 'Minimize' : 'Maximize'}
+                  data-testid="concierge-maximize-btn"
                 >
                   <Maximize2 className="w-4 h-4 text-gray-400" />
                 </motion.button>
@@ -72,6 +75,7 @@ export default function ConciergeWidget(props: ConciergeWidgetProps) {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   title="Close"
+                  data-testid="concierge-close-btn"
                 >
                   <X className="w-4 h-4 text-gray-400" />
                 </motion.button>

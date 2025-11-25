@@ -12,30 +12,30 @@ interface ContextCardsProps {
 }
 
 const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScreenModal }: ContextCardsProps) => {
-    // Memoized layout configuration for performance
+    // Memoized layout configuration for performance with dynamic height
     const layout = useMemo(() => {
         const count = contexts.length;
         if (count === 1) return {
             gridCols: 'grid-cols-1',
-            cellHeight: 'h-64',
+            cellHeight: 'h-64', // Single card: large
             fontSize: 'text-4xl',
             showDividers: false
         };
         if (count === 2) return {
             gridCols: 'grid-cols-2',
-            cellHeight: 'h-64',
+            cellHeight: 'h-64', // Two cards: large
             fontSize: 'text-2xl',
             showDividers: true
         };
         if (count <= 4) return {
             gridCols: 'grid-cols-2',
-            cellHeight: 'h-32',
+            cellHeight: 'h-32', // 3-4 cards: medium
             fontSize: 'text-lg',
             showDividers: true
         };
         return {
             gridCols: 'grid-cols-3',
-            cellHeight: 'h-28',
+            cellHeight: 'h-28', // 5+ cards: compact
             fontSize: 'text-base',
             showDividers: true
         };
@@ -56,16 +56,16 @@ const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScr
                     showFullScreenModal={showFullScreenModal}
                 />
             ) : (
-                // Jail-Door Structure
+                // Jail-Door Structure with dynamic height
                 <div className="p-4">
-                    <div className={`grid gap-0 ${layout.gridCols} ${layout.cellHeight} relative`}>
+                    <div className={`grid gap-0 ${layout.gridCols} relative`} style={{ gridAutoRows: `minmax(${layout.cellHeight === 'h-64' ? '16rem' : layout.cellHeight === 'h-32' ? '8rem' : '7rem'}, auto)` }}>
                         {contexts.map((context, index) => {
                             const colCount = layout.gridCols === 'grid-cols-2' ? 2 : layout.gridCols === 'grid-cols-3' ? 3 : 1;
                             const showVerticalDivider = layout.showDividers && (index % colCount !== colCount - 1);
                             const showHorizontalDivider = layout.showDividers && (index < contexts.length - colCount);
-                            
+
                             return (
-                                <div key={context.id} className="relative">
+                                <div key={context.id} className={`relative ${layout.cellHeight}`}>
                                     <ContextJailCard
                                         context={context}
                                         group={group}

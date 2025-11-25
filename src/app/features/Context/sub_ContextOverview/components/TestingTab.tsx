@@ -1,6 +1,4 @@
 'use client';
-
-import React, { useState } from 'react';
 import ScreenshotTestEditor from './ScreenshotTestEditor';
 import TestCaseStepsEditor from './TestCaseStepsEditor';
 

@@ -34,6 +34,9 @@ export interface Context {
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
+  // Target / Goal
+  target?: string | null;
+  target_fulfillment?: string | null;
 }
 
 // Store State
@@ -63,9 +66,11 @@ export interface ContextStore extends ContextState {
     name?: string;
     description?: string;
     filePaths?: string[];
-    groupId?: string;
+    groupId?: string | null;
+    target?: string | null;
+    target_fulfillment?: string | null;
   }) => Promise<void>;
-  moveContext: (contextId: string, newGroupId: string) => Promise<void>;
+  moveContext: (contextId: string, newGroupId: string | null) => Promise<void>;
 
   // Group operations
   addGroup: (groupData: {

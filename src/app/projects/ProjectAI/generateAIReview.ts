@@ -1,15 +1,9 @@
 import { generateWithLLM, DefaultProviderStorage } from '../../../lib/llm';
 import { buildHighLevelDocsPrompt } from './lib/promptBuilder';
-
-interface ProjectAnalysis {
-  fileStructure?: unknown;
-  codeMetrics?: unknown;
-  dependencies?: unknown;
-  [key: string]: unknown;
-}
+import type { ProjectAnalysis } from '@/lib/projectAnalysis';
 
 // Generate AI documentation review
-export async function generateAIReview(projectName: string, analysis: ProjectAnalysis, projectId?: string, provider?: string, userVision?: string): Promise<string> {
+export async function generateAIReview(projectName: string, analysis: ProjectAnalysis | any, projectId?: string, provider?: string, userVision?: string): Promise<string> {
   // Use the standardized high-level docs prompt
   const promptResult = buildHighLevelDocsPrompt(projectName, analysis, userVision);
   const prompt = promptResult.fullPrompt;

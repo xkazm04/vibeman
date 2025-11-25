@@ -5,21 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { SupportedProvider } from '@/lib/llm/types';
-import { ScanState, QueueItem, ContextQueueItem } from '../lib/scanTypes';
-import { ScanType } from './lib/ScanTypeConfig';
+import { ScanState, QueueItem, ContextQueueItem, ScanType } from '../lib/scanTypes';
 import { getScanTypeConfig } from './lib/ScanTypeConfig';
 
 // Modular imports
 import { executeContextScan, getButtonColor, getButtonText } from './lib/scanHandlers';
 import {
-  initializeScanQueue,
-  initializeContextQueue,
   findNextPending,
   hasRunningItem,
   isQueueComplete,
   calculateQueueStats,
   updateQueueItem
 } from './lib/scanQueue';
+import { handleScan as handleScanOperation, handleBatchScan as handleBatchScanOperation } from './lib/scanOperations';
 
 // Component imports
 import ProviderSelector from '@/components/llm/ProviderSelector';
@@ -28,7 +26,6 @@ import BatchScanButton from './components/BatchScanButton';
 import ProgressBar from './ProgressBar';
 import ScanIdeaScoreboard from './components/ScanIdeaScoreboard';
 import ScanTypeSelector from './ScanTypeSelector';
-import VoicebotScanButton from '@/app/features/Annette/components/VoicebotScanButton';
 
 interface ScanInitiatorProps {
   onScanComplete: () => void;
@@ -63,12 +60,13 @@ export default function ScanInitiator({
   const { activeProject } = useActiveProjectStore();
   const { selectedContextIds, contexts, setSelectedContext, clearContextSelection } = useContextStore();
 
-  const currentSelectedContextId = selectedContextId ?? (selectedContextIds.length > 0 ? selectedContextIds[0] : null);
+  const currentSelectedContextId = selectedContextId ?? (selectedContextIds.size > 0 ? Array.from(selectedContextIds)[0] : null);
   const selectedContext = currentSelectedContextId
     ? contexts.find(c => c.id === currentSelectedContextId)
     : undefined;
 
-  // Get contexts for active project
+  // Get ALL contexts for active project
+  // NOTE: Batch scan will use ALL contexts regardless of UI selection
   const projectContexts = React.useMemo(() => {
     if (!activeProject) return [];
     return contexts.filter(c => c.projectId === activeProject.id);
@@ -76,49 +74,36 @@ export default function ScanInitiator({
 
 
   const handleScan = async () => {
-    if (!activeProject) {
-      setMessage('No active project selected');
-      setScanState('error');
-      setTimeout(() => setScanState('idle'), 3000);
-      return;
-    }
-
-    // Initialize queue with all selected scan types
-    const queue = initializeScanQueue(selectedScanTypes);
-
-    setScanQueue(queue);
-    setContextQueue([]);
-    setBatchMode(false);
-    setTotalIdeas(0);
-    setScanState('scanning');
-    setIsProcessingQueue(true);
-    setShowProviderPopup(false); // Close popup when starting scan
+    await handleScanOperation({
+      activeProject,
+      selectedScanTypes,
+      projectContexts,
+      setScanQueue,
+      setContextQueue,
+      setBatchMode,
+      setTotalIdeas,
+      setScanState,
+      setIsProcessingQueue,
+      setIsProcessingContextQueue,
+      setShowProviderPopup,
+      setMessage
+    });
   };
 
   const handleBatchScan = async () => {
-    if (!activeProject) {
-      setMessage('No active project selected');
-      setScanState('error');
-      setTimeout(() => setScanState('idle'), 3000);
-      return;
-    }
-
-    if (projectContexts.length === 0) {
-      setMessage('No contexts found for this project');
-      setScanState('error');
-      setTimeout(() => setScanState('idle'), 3000);
-      return;
-    }
-
-    // Initialize context queue with all contexts + full project × all scan types
-    const queue = initializeContextQueue(projectContexts, selectedScanTypes);
-
-    setContextQueue(queue);
-    setScanQueue([]);
-    setBatchMode(true);
-    setTotalIdeas(0);
-    setScanState('scanning');
-    setIsProcessingContextQueue(true);
+    await handleBatchScanOperation({
+      activeProject,
+      selectedScanTypes,
+      projectContexts,
+      setScanQueue,
+      setContextQueue,
+      setBatchMode,
+      setTotalIdeas,
+      setScanState,
+      setIsProcessingQueue,
+      setIsProcessingContextQueue,
+      setMessage
+    });
   };
 
   // Process scan queue automatically when it changes
@@ -317,7 +302,7 @@ export default function ScanInitiator({
           </div>
 
           {/* Batch Ideas Button - Next to Generate Button */}
-          {activeProject && projectContexts.length > 0 && (
+          {activeProject && (
             <BatchScanButton
               onClick={onBatchScan || handleBatchScan}
               disabled={scanState === 'scanning' || !activeProject}
@@ -327,14 +312,6 @@ export default function ScanInitiator({
             />
           )}
 
-          {/* Voicebot Scan Briefing Button */}
-          {activeProject && (
-            <VoicebotScanButton
-              projectId={activeProject.id}
-              variant="quick"
-              disabled={!activeProject}
-            />
-          )}
         </div>
       </div>
 

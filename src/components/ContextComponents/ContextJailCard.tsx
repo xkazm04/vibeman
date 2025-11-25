@@ -1,13 +1,12 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Code, Camera } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 export interface ContextJailCardProps {
   context: {
     id: string;
     name: string;
-    updatedAt?: string | Date;
-    testUpdated?: string | Date;
+    implemented_tasks?: number;
     [key: string]: any;
   };
   group?: {
@@ -24,7 +23,7 @@ export interface ContextJailCardProps {
 
 /**
  * Reusable ContextJailCard component
- * Displays a context with jail-like bars and time indicators
+ * Displays a context with jail-like bars and implemented tasks indicator
  *
  * Usage:
  * - In Context Groups: with tooltip toggle on click, context menu on right-click
@@ -75,25 +74,10 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
     damping: 30
   }), [index]);
 
-  // Calculate days from last update
-  const daysFromUpdate = useMemo(() => {
-    if (!context.updatedAt) return null;
-    const now = new Date();
-    const updated = new Date(context.updatedAt);
-    const diffMs = now.getTime() - updated.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays;
-  }, [context.updatedAt]);
-
-  // Calculate days from last test
-  const daysFromTest = useMemo(() => {
-    if (!context.testUpdated) return null;
-    const now = new Date();
-    const tested = new Date(context.testUpdated);
-    const diffMs = now.getTime() - tested.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays;
-  }, [context.testUpdated]);
+  // Get implemented tasks count
+  const implementedTasks = useMemo(() => {
+    return context.implemented_tasks ?? 0;
+  }, [context.implemented_tasks]);
 
   const defaultColor = '#06b6d4'; // cyan-500
   const groupColor = group?.color || defaultColor;
@@ -116,28 +100,20 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
         style={{ borderColor: `${groupColor}60` }}
       >
 
-        {/* Time Indicators in Upper Left Corner */}
-        {(daysFromUpdate !== null || daysFromTest !== null) && (
+        {/* Implemented Tasks Indicator in Upper Left Corner */}
+        {implementedTasks > 0 && (
           <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5">
-            {/* Days from last update */}
-            {daysFromUpdate !== null && (
-              <div
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-semibold ${
-                  daysFromUpdate > 7 ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-700/50 text-gray-400'
-                }`}
-              >
-                <Code className="w-3 h-3" />
-                <span>{daysFromUpdate}</span>
-              </div>
-            )}
-
-            {/* Days from last test */}
-            {daysFromTest !== null && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-semibold bg-teal-500/20 text-teal-400">
-                <Camera className="w-3 h-3" />
-                <span>{daysFromTest}D</span>
-              </div>
-            )}
+            <div
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-mono font-semibold ${
+                implementedTasks >= 5 ? 'bg-green-500/20 text-green-400' :
+                implementedTasks >= 2 ? 'bg-cyan-500/20 text-cyan-400' :
+                'bg-blue-500/20 text-blue-400'
+              }`}
+              title={`${implementedTasks} task${implementedTasks !== 1 ? 's' : ''} implemented`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{implementedTasks}</span>
+            </div>
           </div>
         )}
 

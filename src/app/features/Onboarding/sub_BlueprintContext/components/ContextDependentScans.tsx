@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Camera, TestTube, Layers, Scissors, FileEdit } from 'lucide-react';
+import { Target, Camera, TestTube, Layers, FileCheck, FileEdit } from 'lucide-react';
 import IlluminatedButton from '@/app/features/Onboarding/sub_Blueprint/components/IlluminatedButton';
 
 export interface ContextDependentScansProps {
@@ -63,10 +63,10 @@ export default function ContextDependentScans({
       color: 'amber' as const,
     },
     {
-      id: 'separator',
+      id: 'contextreview',
       groupId: 'quality',
-      label: 'Separator',
-      icon: Scissors,
+      label: 'Context Review',
+      icon: FileCheck,
       color: 'purple' as const,
     },
   ];
@@ -168,7 +168,7 @@ export default function ContextDependentScans({
                     </span>
 
                     {/* Days ago badge */}
-                    {daysAgo !== null && (
+                    {typeof daysAgo === 'number' && (
                       <span
                         className={`
                           text-xs font-mono px-1.5 py-0.5 rounded

@@ -56,7 +56,19 @@
       "Bash(node fix-context-loader.js:*)",
       "Bash(node fix-package-generator.js:*)",
       "Bash(node fix-safe-context.js:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm run build:*)",
+      "Bash(git restore:*)",
+      "Bash(sqlite3:*)",
+      "Bash(nul)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout 15 2:*)",
+      "Bash(exit 0)",
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(dir:*)",
+      "Bash(git rm:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

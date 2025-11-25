@@ -139,7 +139,7 @@ export default function AdvisorPanel({
         });
 
         // Use 'response' field from LLMResponse
-        const responseText = result.response || result.text;
+        const responseText = result.response || '';
 
         if (result.success && responseText) {
           try {

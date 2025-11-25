@@ -1,28 +1,5 @@
 import { ideaDb, goalDb, contextDb } from '@/app/db';
-
-export interface DbIdea {
-  id: string;
-  title: string;
-  status: string;
-  category?: string;
-  effort?: number;
-  impact?: number;
-  description?: string;
-  reasoning?: string;
-  scan_type?: string;
-  goal_id?: string | null;
-  context_id?: string | null;
-  requirement_id?: string | null;
-  project_id: string;
-  created_at: string;
-}
-
-export interface DbGoal {
-  id: string;
-  title: string;
-  status: string;
-  description?: string;
-}
+import type { DbIdea, DbGoal } from '@/app/db/models/types';
 
 export interface IdeaStatus {
   pendingIdeasCount: number;
@@ -80,10 +57,8 @@ export function markIdeaAsImplemented(ideaId: string): {
       };
     }
 
-    const now = new Date().toISOString();
     ideaDb.updateIdea(ideaId, {
       status: 'implemented',
-      implemented_at: now,
     });
 
     return { success: true };

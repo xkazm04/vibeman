@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, Calendar, Wrench, BookOpen, Users, TestTube } from 'lucide-react';
+import { X, FileText, Calendar, Wrench, BookOpen, Users, TestTube, Lightbulb, Vault, FolderOpen } from 'lucide-react';
 
-export type TabType = 'manager' | 'docs' | 'advisors' | 'testing';
+export type TabType = 'manager' | 'docs' | 'advisors' | 'testing' | 'files';
 
 interface Tab {
   id: TabType;
@@ -17,6 +17,8 @@ interface ContextOverviewHeaderProps {
   groupColor: string;
   fileCount: number;
   createdAt?: string;
+  implementedIdeas?: number;
+  testScenario?: string | null;
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
   onClose?: () => void;
@@ -26,6 +28,7 @@ interface ContextOverviewHeaderProps {
 const TABS: Tab[] = [
   { id: 'manager', label: 'Manager', icon: Wrench },
   { id: 'testing', label: 'Testing', icon: TestTube },
+  { id: 'files', label: 'Files', icon: FolderOpen },
   { id: 'docs', label: 'Docs', icon: BookOpen },
   { id: 'advisors', label: 'Advisors', icon: Users },
 ];
@@ -35,6 +38,8 @@ export default function ContextOverviewHeader({
   groupColor,
   fileCount,
   createdAt,
+  implementedIdeas = 0,
+  testScenario,
   activeTab,
   onTabChange,
   onClose,
@@ -73,13 +78,28 @@ export default function ContextOverviewHeader({
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
             >
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1" title="Number of files">
                 <FileText className="w-4 h-4" style={{ color: groupColor }} />
                 <span>{fileCount} files</span>
               </div>
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1" title="Created date">
                 <Calendar className="w-4 h-4" style={{ color: groupColor }} />
                 <span>{createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown'}</span>
+              </div>
+              {implementedIdeas > 0 && (
+                <div className="flex items-center space-x-1" title="Implemented ideas">
+                  <Lightbulb className="w-4 h-4" style={{ color: groupColor }} />
+                  <span>{implementedIdeas}</span>
+                </div>
+              )}
+              <div
+                className="flex items-center"
+                title={testScenario ? "Has test scenario" : "No test scenario"}
+              >
+                <Vault
+                  className="w-4 h-4"
+                  style={{ color: testScenario ? '#10b981' : '#6b7280' }}
+                />
               </div>
             </motion.div>
           </div>
@@ -123,11 +143,12 @@ export default function ContextOverviewHeader({
               style={{
                 backgroundColor: isActive ? `${groupColor}20` : undefined,
                 borderColor: isActive ? groupColor : 'transparent',
+                color: isActive ? groupColor : undefined,
               }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Icon className="w-4 h-4" style={{ color: isActive ? groupColor : undefined }} />
+              <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
             </motion.button>
           );

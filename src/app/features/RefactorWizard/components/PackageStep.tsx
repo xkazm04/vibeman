@@ -1,235 +1,364 @@
 'use client';
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Package, Filter, CheckCircle2, XCircle, GitBranch, AlertCircle } from 'lucide-react';
 import { useRefactorStore } from '@/stores/refactorStore';
-import PackageCard from './PackageCard';
-import { validatePackageSelection } from '../lib/dependencyAnalyzer';
+import { Package, Box, Layers, ArrowRight, ArrowLeft, CheckCircle2, Sparkles, Loader2, FolderTree, FileCode, AlertTriangle } from 'lucide-react';
+import {
+  StepContainer,
+  CyberCard,
+  StepHeader
+} from '@/components/ui/wizard';
+import { motion } from 'framer-motion';
+import ProviderSelector from '@/components/llm/ProviderSelector';
 
-interface PackageStepProps {
-  onNext: () => void;
-  onBack: () => void;
-}
-
-export default function PackageStep({ onNext, onBack }: PackageStepProps) {
+export default function PackageStep() {
   const {
     packages,
     selectedPackages,
-    packageDependencies,
-    packageFilter,
     togglePackageSelection,
-    selectPackagesWithDependencies,
-    setPackageFilter,
     selectAllPackages,
     clearPackageSelection,
-    selectPackagesByCategory,
     selectFoundationalPackages,
+    packageFilter,
+    setPackageFilter,
+    generatePackages,
+    packageGenerationStatus,
+    packageGenerationError,
+    llmProvider,
+    setLLMProvider,
+    llmModel,
+    setLLMModel,
+    setCurrentStep,
+    selectedFolders,
+    selectedOpportunities,
+    opportunities,
   } = useRefactorStore();
 
-  // Filter packages
-  const filteredPackages = useMemo(() => {
-    return packages.filter(pkg => {
-      if (packageFilter.category !== 'all' && pkg.category !== packageFilter.category) {
-        return false;
-      }
-      if (packageFilter.impact !== 'all' && pkg.impact !== packageFilter.impact) {
-        return false;
-      }
-      if (packageFilter.effort !== 'all' && pkg.effort !== packageFilter.effort) {
-        return false;
-      }
-      return true;
-    });
-  }, [packages, packageFilter]);
+  // Get the opportunities that were selected in the review step
+  const selectedOpps = opportunities.filter(o => selectedOpportunities.has(o.id));
+  const selectedOppCount = selectedOpps.length;
 
-  // Validate selection
-  const missingDependencies = useMemo(() => {
-    return validatePackageSelection(selectedPackages, packages);
-  }, [selectedPackages, packages]);
-
-  const handleSelectWithDeps = (packageId: string) => {
-    selectPackagesWithDependencies(packageId);
+  const handleGeneratePackages = async () => {
+    await generatePackages();
   };
 
-  const canProceed = selectedPackages.size > 0 && missingDependencies.length === 0;
+  // If no packages exist yet, show generation view
+  if (packages.length === 0) {
+    const isGenerating = packageGenerationStatus === 'generating';
 
-  return (
-    <div className="space-y-6" data-testid="package-step">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Package className="w-6 h-6 text-cyan-400" />
-            Select Refactoring Packages
-          </h2>
-          <p className="text-gray-400 mt-1">
-            Choose strategic packages to implement ({packages.length} available)
-          </p>
+    return (
+      <StepContainer
+        isLoading={false}
+        error={packageGenerationError}
+        onErrorDismiss={() => useRefactorStore.setState({ packageGenerationError: null })}
+        data-testid="package-step-generation"
+      >
+        {/* Top Navigation */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => setCurrentStep('review')}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            data-testid="package-back-button"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
         </div>
 
-        <div className="text-sm text-gray-400">
-          {selectedPackages.size} / {packages.length} selected
-        </div>
-      </div>
+        <StepHeader
+          title="Strategic Packaging"
+          description="Group selected opportunities into logical, executable packages"
+          icon={Package}
+          currentStep={5}
+          totalSteps={7}
+        />
 
-      {/* Quick actions */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={selectAllPackages}
-          className="px-3 py-2 text-sm rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 transition-colors flex items-center gap-2"
-          data-testid="select-all-packages"
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          Select All
-        </button>
-
-        <button
-          onClick={clearPackageSelection}
-          className="px-3 py-2 text-sm rounded bg-red-500/10 hover:bg-red-500/20 text-red-300 transition-colors flex items-center gap-2"
-          data-testid="clear-package-selection"
-        >
-          <XCircle className="w-4 h-4" />
-          Clear Selection
-        </button>
-
-        <button
-          onClick={selectFoundationalPackages}
-          className="px-3 py-2 text-sm rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 transition-colors flex items-center gap-2"
-          data-testid="select-foundational"
-        >
-          <GitBranch className="w-4 h-4" />
-          Select Foundational
-        </button>
-
-        <button
-          onClick={() => selectPackagesByCategory('security')}
-          className="px-3 py-2 text-sm rounded bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 transition-colors"
-          data-testid="select-security"
-        >
-          Select Security
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 p-4 bg-gray-800/30 rounded-lg border border-gray-700">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-400">Filters:</span>
-        </div>
-
-        <select
-          value={packageFilter.category}
-          onChange={(e) => setPackageFilter({ category: e.target.value as any })}
-          className="px-3 py-1 text-sm rounded bg-gray-700 text-white border border-gray-600"
-          data-testid="filter-category"
-        >
-          <option value="all">All Categories</option>
-          <option value="migration">Migration</option>
-          <option value="cleanup">Cleanup</option>
-          <option value="security">Security</option>
-          <option value="performance">Performance</option>
-          <option value="architecture">Architecture</option>
-        </select>
-
-        <select
-          value={packageFilter.impact}
-          onChange={(e) => setPackageFilter({ impact: e.target.value as any })}
-          className="px-3 py-1 text-sm rounded bg-gray-700 text-white border border-gray-600"
-          data-testid="filter-impact"
-        >
-          <option value="all">All Impact Levels</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-
-        <select
-          value={packageFilter.effort}
-          onChange={(e) => setPackageFilter({ effort: e.target.value as any })}
-          className="px-3 py-1 text-sm rounded bg-gray-700 text-white border border-gray-600"
-          data-testid="filter-effort"
-        >
-          <option value="all">All Effort Levels</option>
-          <option value="small">Small</option>
-          <option value="medium">Medium</option>
-          <option value="large">Large</option>
-          <option value="extra-large">Extra Large</option>
-        </select>
-      </div>
-
-      {/* Validation warning */}
-      {missingDependencies.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-orange-500/10 border border-orange-500 rounded-lg text-orange-300"
-        >
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <div>
-              <div className="font-semibold">Missing Dependencies</div>
-              <div className="text-sm mt-1">
-                Some selected packages have unselected dependencies.
-                Click "Select with Dependencies" on those packages or select them manually.
+        {/* Context Summary */}
+        <CyberCard variant="dark" className="!p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6 text-sm">
+              {selectedFolders.length > 0 && (
+                <div className="flex items-center gap-2 text-cyan-400">
+                  <FolderTree className="w-4 h-4" />
+                  <span>{selectedFolders.length} folder(s) scoped</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-green-400">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{selectedOppCount} opportunities selected</span>
               </div>
             </div>
+            {selectedOppCount === 0 && (
+              <button
+                onClick={() => setCurrentStep('review')}
+                className="text-xs text-yellow-400 hover:underline"
+              >
+                Go back to select opportunities
+              </button>
+            )}
           </div>
-        </motion.div>
-      )}
-      {/* Package grid */}
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-3">
-          Packages ({filteredPackages.length})
-        </h3>
+        </CyberCard>
 
-        {filteredPackages.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            No packages match the current filters
+        <CyberCard className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center border border-blue-500/30 mb-4">
+            <Package className="w-10 h-10 text-blue-400" />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredPackages.map(pkg => (
-              <PackageCard
-                key={pkg.id}
-                package={pkg}
-                isSelected={selectedPackages.has(pkg.id)}
-                onToggleSelect={() => togglePackageSelection(pkg.id)}
-                onSelectWithDependencies={() => handleSelectWithDeps(pkg.id)}
-                dependencyCount={pkg.dependsOn.length}
-                enabledCount={pkg.enables.length}
-              />
-            ))}
+
+          <div className="max-w-md space-y-2">
+            <h3 className="text-xl font-bold text-white">Generate Refactoring Packages</h3>
+            <p className="text-gray-400">
+              AI will analyze your {selectedOppCount > 0 ? selectedOppCount : ''} selected opportunities and group them into logical packages based on dependencies, risk, and impact.
+            </p>
+          </div>
+
+          <div className="w-full max-w-md bg-black/20 p-6 rounded-xl border border-white/5 text-left">
+            <h4 className="text-sm font-medium text-gray-300 mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              AI Configuration
+            </h4>
+            <ProviderSelector
+              selectedProvider={llmProvider as any}
+              onSelectProvider={(provider) => setLLMProvider(provider)}
+              selectedModel={llmModel}
+              onSelectModel={(model) => setLLMModel(model)}
+              compact={false}
+              showAllProviders={true}
+            />
+          </div>
+
+          <button
+            onClick={handleGeneratePackages}
+            disabled={isGenerating || selectedOppCount === 0}
+            className="w-full max-w-md py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-gray-700 disabled:to-gray-800 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Generating Packages...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
+                <span>Generate Packages{selectedOppCount > 0 ? ` (${selectedOppCount} issues)` : ''}</span>
+              </>
+            )}
+          </button>
+
+          {selectedOppCount === 0 && (
+            <p className="text-sm text-yellow-400">
+              Please go back and select opportunities to package
+            </p>
+          )}
+
+          {isGenerating && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-sm text-blue-400 animate-pulse"
+            >
+              Analyzing dependencies and grouping changes...
+            </motion.p>
+          )}
+        </CyberCard>
+      </StepContainer>
+    );
+  }
+
+  // Existing Package Selection View
+  const filteredPackages = packages.filter(pkg => {
+    if (packageFilter === 'all') return true;
+    if (packageFilter === 'high-impact') return pkg.impact === 'high';
+    if (packageFilter === 'quick-wins') return pkg.effort === 'low';
+    if (packageFilter === 'foundational') return pkg.executionOrder === 1;
+    return true;
+  });
+
+  const selectedCount = selectedPackages.size;
+  const totalCount = packages.length;
+
+  return (
+    <StepContainer
+      isLoading={false}
+      error={null}
+      onErrorDismiss={() => { }}
+      data-testid="package-step-container"
+    >
+      {/* Top Navigation */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => setCurrentStep('review')}
+          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+          data-testid="package-back-button"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+        <button
+          onClick={() => setCurrentStep('execute')}
+          disabled={selectedCount === 0}
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          data-testid="package-continue-button"
+        >
+          Continue
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      <StepHeader
+        title="Select Packages"
+        description="Choose which refactoring packages to execute"
+        icon={Package}
+        currentStep={5}
+        totalSteps={7}
+      />
+
+      {/* Stats & Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <CyberCard variant="dark" className="!p-4 flex flex-col justify-between">
+          <span className="text-gray-400 text-xs uppercase tracking-wider">Selected</span>
+          <div className="flex items-end justify-between">
+            <span className="text-2xl font-bold text-cyan-400">{selectedCount}</span>
+            <span className="text-gray-500 text-sm">/ {totalCount}</span>
+          </div>
+        </CyberCard>
+
+        <div className="md:col-span-3 flex gap-2 overflow-x-auto pb-2 md:pb-0">
+          {[
+            { id: 'all', label: 'All Packages' },
+            { id: 'foundational', label: 'Foundational' },
+            { id: 'high-impact', label: 'High Impact' },
+            { id: 'quick-wins', label: 'Quick Wins' },
+          ].map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setPackageFilter(filter.id as any)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${packageFilter === filter.id
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'bg-black/20 text-gray-400 border border-white/5 hover:bg-black/40'
+                }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex gap-3 mb-4">
+        <button
+          onClick={selectAllPackages}
+          className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+        >
+          Select All
+        </button>
+        <span className="text-gray-600">|</span>
+        <button
+          onClick={clearPackageSelection}
+          className="text-xs text-gray-400 hover:text-white transition-colors"
+        >
+          Clear Selection
+        </button>
+        <span className="text-gray-600">|</span>
+        <button
+          onClick={selectFoundationalPackages}
+          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+        >
+          Select Foundational
+        </button>
+      </div>
+
+      {/* Packages List */}
+      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent">
+        {filteredPackages.map((pkg) => {
+          const isSelected = selectedPackages.has(pkg.id);
+          return (
+            <motion.div
+              key={pkg.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`relative group cursor-pointer rounded-xl border transition-all duration-200 ${isSelected
+                  ? 'bg-cyan-950/30 border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
+                  : 'bg-black/20 border-white/5 hover:border-white/10'
+                }`}
+              onClick={() => togglePackageSelection(pkg.id)}
+            >
+              <div className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className={`font-semibold ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                        {pkg.name}
+                      </h4>
+                      {pkg.executionOrder === 1 && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                          FOUNDATIONAL
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${pkg.impact === 'critical' || pkg.impact === 'high'
+                          ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                          : pkg.impact === 'medium'
+                            ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                            : 'bg-green-500/10 text-green-400 border-green-500/20'
+                        }`}>
+                        {pkg.impact.toUpperCase()} IMPACT
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-400 line-clamp-2 mb-3">
+                      {pkg.description}
+                    </p>
+
+                    {/* Metrics */}
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Box className="w-3 h-3" />
+                        <span>{pkg.files?.length || 0} files</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Layers className="w-3 h-3" />
+                        <span>{pkg.dependsOn?.length || 0} dependencies</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <FileCode className="w-3 h-3" />
+                        <span>{pkg.opportunities?.length || 0} issues</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${isSelected
+                      ? 'bg-cyan-500 border-cyan-500'
+                      : 'border-gray-600 group-hover:border-gray-500'
+                    }`}>
+                    {isSelected && <CheckCircle2 className="w-4 h-4 text-black" />}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+
+        {filteredPackages.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
+            <p>No packages found matching filter</p>
           </div>
         )}
       </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between pt-6 border-t border-gray-700">
+      {/* Bottom Info */}
+      <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-4">
+        <p className="text-gray-500 text-sm">
+          {selectedCount > 0
+            ? `${selectedCount} of ${totalCount} packages selected`
+            : 'Select packages to continue'}
+        </p>
         <button
-          onClick={onBack}
-          className="px-6 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
-          data-testid="package-back"
+          onClick={() => setCurrentStep('execute')}
+          disabled={selectedCount === 0}
+          className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:from-gray-700 disabled:to-gray-800 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-lg shadow-cyan-500/20 disabled:shadow-none transition-all flex items-center gap-2"
         >
-          ← Back
-        </button>
-
-        <button
-          onClick={onNext}
-          disabled={!canProceed}
-          className={`
-            px-6 py-3 rounded-lg font-semibold transition-all
-            ${canProceed
-              ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white'
-              : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            }
-          `}
-          data-testid="package-next"
-        >
-          Continue to Execute →
+          <span>Create Requirements</span>
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
-    </div>
+    </StepContainer>
   );
 }

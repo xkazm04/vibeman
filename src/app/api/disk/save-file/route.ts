@@ -1,67 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { join, dirname } from 'path';
 
 export async function POST(request: NextRequest) {
   try {
-    const { folderPath, fileName, content, projectPath } = await request.json();
-    
-    if (!folderPath || !fileName || content === undefined) {
+    const { filePath, content } = await request.json();
+
+    if (!filePath) {
       return NextResponse.json(
-        { success: false, error: 'Folder path, file name, and content are required' },
+        { success: false, error: 'File path is required' },
+        { status: 400 }
+      );
+    }
+
+    if (content === undefined || content === null) {
+      return NextResponse.json(
+        { success: false, error: 'Content is required' },
         { status: 400 }
       );
     }
 
     // Security check - prevent directory traversal
-    if (folderPath.includes('..') || fileName.includes('..') || folderPath.includes('~') || fileName.includes('~')) {
+    if (filePath.includes('..') || filePath.includes('~')) {
       return NextResponse.json(
         { success: false, error: 'Invalid file path' },
         { status: 403 }
       );
     }
 
-    // Construct the full path - use projectPath if provided, otherwise use current working directory
-    const baseDir = projectPath || process.cwd();
-    const fullFolderPath = join(baseDir, folderPath);
-    const fullFilePath = join(fullFolderPath, fileName);
-    
-    // Security check - ensure the path is within the base directory
-    if (!fullFilePath.startsWith(baseDir)) {
+    // Additional security - only allow saving within specific directories
+    const allowedPaths = [
+      'src/app/projects/ProjectAI/ScanIdeas/prompts',
+      '.claude/requirements',
+      'context'
+    ];
+
+    const isAllowed = allowedPaths.some(allowed =>
+      filePath.startsWith(allowed) || filePath.includes(`/${allowed}/`) || filePath.includes(`\\${allowed}\\`)
+    );
+
+    if (!isAllowed) {
       return NextResponse.json(
-        { success: false, error: 'Invalid file path' },
+        { success: false, error: 'Writing to this directory is not allowed' },
         { status: 403 }
       );
+    }
+
+    // Handle both absolute and relative paths
+    let fullPath: string;
+    const projectRoot = process.cwd();
+
+    // Check if it's an absolute path (Windows: C:\ or D:\ or Unix: /)
+    const isAbsolutePath = /^[A-Za-z]:[\\/]/.test(filePath) || filePath.startsWith('/');
+
+    if (isAbsolutePath) {
+      fullPath = filePath;
+    } else {
+      fullPath = join(projectRoot, filePath);
     }
 
     try {
-      // Ensure the directory exists
-      if (!existsSync(fullFolderPath)) {
-        await mkdir(fullFolderPath, { recursive: true });
-      }
+      // Ensure directory exists
+      const dirPath = dirname(fullPath);
+      await mkdir(dirPath, { recursive: true });
 
       // Write the file
-      await writeFile(fullFilePath, content, 'utf-8');
-      
+      await writeFile(fullPath, content, 'utf-8');
+
       return NextResponse.json({
         success: true,
-        filePath: join(folderPath, fileName),
-        message: 'File saved successfully'
+        message: 'File saved successfully',
+        filePath: fullPath
       });
     } catch (fileError) {
+      const errorCode = (fileError as NodeJS.ErrnoException).code;
+
+      // Handle specific error codes
+      if (errorCode === 'EACCES' || errorCode === 'EPERM') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Permission denied - cannot write to file',
+            filePath: fullPath
+          },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: `Failed to save file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
-          filePath: join(folderPath, fileName)
+          filePath: fullPath
         },
         { status: 500 }
       );
     }
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
+      },
       { status: 500 }
     );
   }

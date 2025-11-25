@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
       project_id: projectId,
       scan_type: 'tech_debt',
       summary: `Technical debt scan: ${scanTypes.join(', ')}`,
-      input_tokens: null,
-      output_tokens: null
+      input_tokens: undefined,
+      output_tokens: undefined
     });
 
     // Configure scan
@@ -55,8 +55,17 @@ export async function POST(request: NextRequest) {
     // Prepare issues for database
     const techDebtItems = prepareIssuesForDatabase(detectedIssues, projectId, scanId);
 
-    // Insert into database
-    const createdItems = techDebtItems.map((item) => techDebtDb.createTechDebt(item));
+    // Insert into database - parse JSON fields before creating
+    const createdItems = techDebtItems.map((item) => {
+      return techDebtDb.createTechDebt({
+        ...item,
+        impact_scope: item.impact_scope ? JSON.parse(item.impact_scope) : null,
+        detection_details: item.detection_details ? JSON.parse(item.detection_details) : null,
+        file_paths: item.file_paths ? JSON.parse(item.file_paths) : null,
+        remediation_plan: item.remediation_plan ? JSON.parse(item.remediation_plan) : null,
+        remediation_steps: item.remediation_steps ? JSON.parse(item.remediation_steps) : null,
+      });
+    });
 
     // Optionally create backlog items
     if (autoCreateBacklog) {

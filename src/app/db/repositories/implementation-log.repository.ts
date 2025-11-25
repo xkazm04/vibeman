@@ -47,31 +47,76 @@ export const implementationLogRepository = {
   },
 
   /**
+   * Get untested implementation logs for a project
+   */
+  getUntestedLogsByProject: (projectId: string): DbImplementationLog[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE project_id = ? AND tested = 0
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(projectId) as DbImplementationLog[];
+  },
+
+  /**
+   * Get untested implementation logs for a specific context
+   */
+  getUntestedLogsByContext: (contextId: string): DbImplementationLog[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE context_id = ? AND tested = 0
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(contextId) as DbImplementationLog[];
+  },
+
+  /**
+   * Get all implementation logs for a specific context
+   */
+  getLogsByContext: (contextId: string): DbImplementationLog[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE context_id = ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(contextId) as DbImplementationLog[];
+  },
+
+  /**
    * Create a new implementation log
    */
   createLog: (log: {
     id: string;
     project_id: string;
+    context_id?: string;
     requirement_name: string;
     title: string;
     overview: string;
+    overview_bullets?: string;
     tested?: boolean;
+    screenshot?: string;
   }): DbImplementationLog => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO implementation_log (id, project_id, requirement_name, title, overview, tested, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO implementation_log (id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested, screenshot, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
       log.id,
       log.project_id,
+      log.context_id || null,
       log.requirement_name,
       log.title,
       log.overview,
+      log.overview_bullets || null,
       log.tested ? 1 : 0,
+      log.screenshot || null,
       now
     );
 
@@ -81,17 +126,20 @@ export const implementationLogRepository = {
   },
 
   /**
-   * Update an implementation log (e.g., mark as tested)
+   * Update an implementation log (e.g., mark as tested, update context, add screenshot)
    */
   updateLog: (id: string, updates: {
     tested?: boolean;
     overview?: string;
+    overview_bullets?: string | null;
+    context_id?: string | null;
+    screenshot?: string | null;
   }): DbImplementationLog | null => {
     const db = getDatabase();
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: (string | number)[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.tested !== undefined) {
       updateFields.push('tested = ?');
@@ -100,6 +148,18 @@ export const implementationLogRepository = {
     if (updates.overview !== undefined) {
       updateFields.push('overview = ?');
       values.push(updates.overview);
+    }
+    if (updates.overview_bullets !== undefined) {
+      updateFields.push('overview_bullets = ?');
+      values.push(updates.overview_bullets);
+    }
+    if (updates.screenshot !== undefined) {
+      updateFields.push('screenshot = ?');
+      values.push(updates.screenshot);
+    }
+    if (updates.context_id !== undefined) {
+      updateFields.push('context_id = ?');
+      values.push(updates.context_id);
     }
 
     if (updateFields.length === 0) {
@@ -122,6 +182,19 @@ export const implementationLogRepository = {
     // Return updated log
     const selectStmt = db.prepare('SELECT * FROM implementation_log WHERE id = ?');
     return selectStmt.get(id) as DbImplementationLog | null;
+  },
+
+  /**
+   * Get all untested implementation logs across all projects
+   */
+  getAllUntestedLogs: (): DbImplementationLog[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE tested = 0
+      ORDER BY created_at DESC
+    `);
+    return stmt.all() as DbImplementationLog[];
   },
 
   /**

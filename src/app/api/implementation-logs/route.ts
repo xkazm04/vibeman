@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, project_id, requirement_name, title, overview, tested } = body;
+    const { id, project_id, requirement_name, title, overview, overview_bullets, tested } = body;
 
     if (!id || !project_id || !requirement_name || !title || !overview) {
       return NextResponse.json(
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       requirement_name,
       title,
       overview,
+      overview_bullets,
       tested: tested || false,
     });
 
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, tested, overview } = body;
+    const { id, tested, overview, overview_bullets } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -90,6 +91,7 @@ export async function PATCH(request: NextRequest) {
     const log = implementationLogDb.updateLog(id, {
       tested: tested !== undefined ? tested : undefined,
       overview: overview !== undefined ? overview : undefined,
+      overview_bullets: overview_bullets !== undefined ? overview_bullets : undefined,
     });
 
     if (!log) {

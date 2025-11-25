@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ techDebt });
   } catch (error) {
-    logger.error('Failed to fetch tech debt', { error });
+    console.error('Failed to fetch tech debt', error);
     return NextResponse.json(
       { error: 'Failed to fetch tech debt', details: String(error) },
       { status: 500 }
@@ -66,7 +66,7 @@ interface CreateTechDebtBody {
   impactScope?: string;
   technicalImpact?: string;
   businessImpact?: string;
-  detectedBy: string;
+  detectedBy: 'automated_scan' | 'manual_entry' | 'ai_analysis';
   detectionDetails?: string;
   filePaths?: string;
   status?: TechDebtStatus;
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!validateTechDebtBody(body)) {
-      logger.warn('Missing required fields for tech debt creation', { body });
+      console.warn('Missing required fields for tech debt creation', body);
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -121,24 +121,24 @@ export async function POST(request: NextRequest) {
       severity: body.severity,
       risk_score: body.riskScore,
       estimated_effort_hours: body.estimatedEffortHours || null,
-      impact_scope: body.impactScope || null,
+      impact_scope: body.impactScope ? JSON.parse(body.impactScope) : null,
       technical_impact: body.technicalImpact || null,
       business_impact: body.businessImpact || null,
       detected_by: body.detectedBy,
-      detection_details: body.detectionDetails || null,
-      file_paths: body.filePaths || null,
+      detection_details: body.detectionDetails ? (typeof body.detectionDetails === 'string' ? JSON.parse(body.detectionDetails) : body.detectionDetails) : null,
+      file_paths: body.filePaths ? JSON.parse(body.filePaths) : null,
       status: body.status || 'detected',
-      remediation_plan: body.remediationPlan || null,
-      remediation_steps: body.remediationSteps || null,
+      remediation_plan: body.remediationPlan ? (typeof body.remediationPlan === 'string' ? JSON.parse(body.remediationPlan) : body.remediationPlan) : null,
+      remediation_steps: body.remediationSteps ? (typeof body.remediationSteps === 'string' ? JSON.parse(body.remediationSteps) : body.remediationSteps) : null,
       estimated_completion_date: body.estimatedCompletionDate || null,
       backlog_item_id: body.backlogItemId || null,
       goal_id: body.goalId || null
     });
 
-    logger.info('Created tech debt item', { id, projectId: body.projectId });
+    console.log('Created tech debt item', { id, projectId: body.projectId });
     return NextResponse.json({ techDebt: newTechDebt }, { status: 201 });
   } catch (error) {
-    logger.error('Failed to create tech debt', { error });
+    console.error('Failed to create tech debt', error);
     return NextResponse.json(
       { error: 'Failed to create tech debt', details: String(error) },
       { status: 500 }
@@ -207,10 +207,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    logger.info('Updated tech debt item', { id });
+    console.log('Updated tech debt item', id);
     return NextResponse.json({ techDebt: updatedTechDebt });
   } catch (error) {
-    logger.error('Failed to update tech debt', { error });
+    console.error('Failed to update tech debt', error);
     return NextResponse.json(
       { error: 'Failed to update tech debt', details: String(error) },
       { status: 500 }
@@ -243,10 +243,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    logger.info('Deleted tech debt item', { id });
+    console.log('Deleted tech debt item', id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('Failed to delete tech debt', { error });
+    console.error('Failed to delete tech debt', error);
     return NextResponse.json(
       { error: 'Failed to delete tech debt', details: String(error) },
       { status: 500 }

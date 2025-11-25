@@ -38,6 +38,7 @@ export interface ToolDefinition {
     }>;
     required: string[];
   };
+  execute?: (params: any) => Promise<any>;
 }
 
 export interface AnalysisResult {
@@ -75,7 +76,7 @@ export interface LangGraphResponse {
   needsConfirmation: boolean;
   confirmationType?: 'yes_no' | 'clarification';
   confirmationQuestion?: string;
-  toolsToUse?: Array<{name: string; parameters: Record<string, unknown>}>;
+  toolsToUse?: Array<{ name: string; parameters: Record<string, unknown> }>;
   reasoning?: string;
   alternatives?: string[];
   steps?: string[];
@@ -88,7 +89,7 @@ export interface ConfirmationState {
   isWaiting: boolean;
   question: string;
   type: 'yes_no' | 'clarification';
-  toolsToUse: Array<{name: string; parameters: Record<string, unknown>}>;
+  toolsToUse: Array<{ name: string; parameters: Record<string, unknown> }>;
   originalMessage: string;
   projectContext: Record<string, unknown>;
 }

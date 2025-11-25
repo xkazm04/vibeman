@@ -4,8 +4,29 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveProject } from '@/lib/project_database';
+import { projectDb, DbProject } from '@/lib/project_database';
 import { getInitializedRegistry } from '@/app/features/Onboarding/sub_Blueprint/lib/adapters';
+import { Project } from '@/types';
+
+// Convert DbProject to Project type
+function toProject(dbProject: DbProject): Project {
+  return {
+    id: dbProject.id,
+    name: dbProject.name,
+    path: dbProject.path,
+    port: dbProject.port,
+    type: dbProject.type as 'nextjs' | 'fastapi' | 'other',
+    relatedProjectId: dbProject.related_project_id || undefined,
+    git: dbProject.git_repository ? {
+      repository: dbProject.git_repository,
+      branch: dbProject.git_branch,
+    } : undefined,
+    runScript: dbProject.run_script,
+    allowMultipleInstances: Boolean(dbProject.allow_multiple_instances),
+    basePort: dbProject.base_port || undefined,
+    instanceOf: dbProject.instance_of || undefined,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,15 +41,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Get project from database or construct from provided data
-    const project = projectId
-      ? getActiveProject(projectId)
-      : { id: projectId, path: projectPath, type: projectType };
-
-    if (!project) {
-      return NextResponse.json(
-        { success: false, error: 'Project not found' },
-        { status: 404 }
-      );
+    let project: Project;
+    if (projectId) {
+      const dbProject = projectDb.getProject(projectId);
+      if (!dbProject) {
+        return NextResponse.json(
+          { success: false, error: 'Project not found' },
+          { status: 404 }
+        );
+      }
+      project = toProject(dbProject);
+    } else {
+      project = {
+        id: projectId,
+        name: projectId,
+        path: projectPath,
+        port: 3000,
+        type: projectType as 'nextjs' | 'fastapi' | 'other'
+      };
     }
 
     // Execute contexts scan using adapter system

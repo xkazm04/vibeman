@@ -33,5 +33,5 @@ export type {
 } from './ModalTransition.types';
 export { default as ModalTransitionDemo } from './ModalTransitionDemo';
 export { default as LoadingSpinner } from './LoadingSpinner';
-export { default as StatusChip } from '@/app/components/ui/StatusChip';
-export type { StatusChipState, StatusChipTheme, StatusChipSize } from '@/app/components/ui/StatusChip';
+export { default as StatusChip } from '@/components/DecisionPanel/StatusChip';
+export type { StatusChipState, StatusChipTheme, StatusChipSize } from '@/components/DecisionPanel/StatusChip';

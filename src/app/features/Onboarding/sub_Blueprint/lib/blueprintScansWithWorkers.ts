@@ -190,7 +190,7 @@ export async function executeStructureScanWithWorker(
 
     return {
       success: true,
-      data: data,
+      data: data as any,
       violations: (data as any)?.violations || [],
     };
   } catch (error) {

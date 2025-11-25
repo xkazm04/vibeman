@@ -10,6 +10,7 @@ import ContextDescription from './components/ContextDescription';
 import ContextPreviewManager from '@/app/features/Context/sub_ContextPreview/ContextPreviewManager';
 import AdvisorPanel from './AdvisorPanel';
 import TestingTab from './components/TestingTab';
+import FilesTab from './components/FilesTab';
 
 interface ContextOverviewProps {
   mode?: 'modal' | 'embedded';
@@ -35,7 +36,8 @@ const ContextOverview = ({
     updateContext
   } = useTooltipStore();
 
-  const { activeProjectId } = useActiveProjectStore();
+  const { activeProject } = useActiveProjectStore();
+  const activeProjectId = activeProject?.id;
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('manager');
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);
@@ -68,7 +70,7 @@ const ContextOverview = ({
 
     try {
       const contents = await Promise.all(
-        context.filePaths.slice(0, 10).map(async (filePath) => {
+        context.filePaths.slice(0, 10).map(async (filePath: string) => {
           try {
             const response = await fetch('/api/disk/read-file', {
               method: 'POST',
@@ -140,6 +142,8 @@ const ContextOverview = ({
                   groupColor={groupColor}
                   fileCount={context.filePaths?.length || 0}
                   createdAt={context.createdAt}
+                  implementedIdeas={context.implemented_ideas || 0}
+                  testScenario={context.testScenario || currentTestScenario}
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
                   onClose={handleClose}
@@ -202,6 +206,21 @@ const ContextOverview = ({
                           onPreviewUpdate={(previewPath) => {
                             handlePreviewUpdate(previewPath, currentTestScenario);
                           }}
+                        />
+                      </motion.div>
+                    )}
+
+                    {activeTab === 'files' && (
+                      <motion.div
+                        key="files"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <FilesTab
+                          filePaths={context.filePaths || []}
+                          groupColor={groupColor}
                         />
                       </motion.div>
                     )}

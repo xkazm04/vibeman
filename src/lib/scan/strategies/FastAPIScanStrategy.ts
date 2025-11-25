@@ -59,43 +59,58 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
   }
 
   /**
-   * Detect FastAPI-specific opportunities
-   * FIXED: Now respects selectedGroups parameter
+   * Detect FastAPI-specific opportunities (ASYNC)
+   * FIXED: Now async with progress callbacks and event loop yielding
    */
-  detectOpportunities(files: FileAnalysis[], selectedGroups?: string[]): RefactorOpportunity[] {
+  async detectOpportunities(
+    files: FileAnalysis[],
+    selectedGroups?: string[],
+    onProgress?: import('../ScanStrategy').ProgressCallback
+  ): Promise<RefactorOpportunity[]> {
     const opportunities: RefactorOpportunity[] = [];
+    const opportunitiesRef = { count: 0 };
 
-    for (const file of files) {
-      // Maintainability checks
-      if (this.shouldRunGroup('maintainability', selectedGroups)) {
-        this.checkLargeFile(file, opportunities);
-        this.checkLongFunctions(file, opportunities);
-        this.checkPydanticModels(file, opportunities);
-        this.checkErrorHandling(file, opportunities);
-      }
+    // Process files in batches to avoid blocking the event loop
+    await this.processFilesInBatches(
+      files,
+      async (file) => {
+        // Maintainability checks
+        if (this.shouldRunGroup('maintainability', selectedGroups)) {
+          this.checkLargeFile(file, opportunities);
+          this.checkLongFunctions(file, opportunities);
+          this.checkPydanticModels(file, opportunities);
+          this.checkErrorHandling(file, opportunities);
+        }
 
-      // Code Quality checks
-      if (this.shouldRunGroup('code-quality', selectedGroups)) {
-        this.checkPrintStatements(file, opportunities);
-        this.checkTypeAnnotations(file, opportunities);
-        this.checkUnusedImports(file, opportunities);
-      }
+        // Code Quality checks
+        if (this.shouldRunGroup('code-quality', selectedGroups)) {
+          this.checkPrintStatements(file, opportunities);
+          this.checkTypeAnnotations(file, opportunities);
+          this.checkUnusedImports(file, opportunities);
+        }
 
-      // Architecture checks
-      if (this.shouldRunGroup('architecture', selectedGroups)) {
-        this.checkDependencyInjection(file, opportunities);
-      }
+        // Architecture checks
+        if (this.shouldRunGroup('architecture', selectedGroups)) {
+          this.checkDependencyInjection(file, opportunities);
+        }
 
-      // Performance checks
-      if (this.shouldRunGroup('performance', selectedGroups)) {
-        this.checkAsyncEndpoints(file, opportunities);
-      }
+        // Performance checks
+        if (this.shouldRunGroup('performance', selectedGroups)) {
+          this.checkAsyncEndpoints(file, opportunities);
+        }
 
-      // Security checks
-      if (this.shouldRunGroup('security', selectedGroups)) {
-        this.checkCORSConfiguration(file, opportunities);
-      }
-    }
+        // Security checks
+        if (this.shouldRunGroup('security', selectedGroups)) {
+          this.checkCORSConfiguration(file, opportunities);
+        }
+
+        // Update opportunities count
+        opportunitiesRef.count = opportunities.length;
+      },
+      10, // Process 10 files at a time
+      onProgress,
+      opportunitiesRef
+    );
 
     return opportunities;
   }
@@ -145,20 +160,40 @@ export class FastAPIScanStrategy extends BaseScanStrategy {
     file: FileAnalysis,
     opportunities: RefactorOpportunity[]
   ): void {
-    if (file.lines <= 500) return;
+    // Stricter threshold: 200 lines (was 500)
+    if (file.lines <= 200) return;
+
+    // Escalate severity based on size
+    let severity: RefactorOpportunity['severity'] = 'low';
+    let effort: RefactorOpportunity['effort'] = 'medium';
+    let estimatedTime = '1-2 hours';
+
+    if (file.lines > 500) {
+      severity = 'high';
+      effort = 'high';
+      estimatedTime = '3-5 hours';
+    } else if (file.lines > 350) {
+      severity = 'medium';
+      effort = 'high';
+      estimatedTime = '2-4 hours';
+    } else if (file.lines > 200) {
+      severity = 'low';
+      effort = 'medium';
+      estimatedTime = '1-2 hours';
+    }
 
     opportunities.push(
       this.createOpportunity(
         `long-file-${file.path}`,
         `Large file detected: ${file.path}`,
-        `This file has ${file.lines} lines. Consider splitting it into smaller modules.`,
+        `This file has ${file.lines} lines. Consider splitting it into smaller modules. Target: Keep files under 200 lines for better maintainability.`,
         'maintainability',
-        file.lines > 1000 ? 'high' : 'medium',
-        'Improves code organization and maintainability',
-        'high',
+        severity,
+        'Improves code organization, readability, and maintainability',
+        effort,
         [file.path],
         false,
-        '2-4 hours'
+        estimatedTime
       )
     );
   }

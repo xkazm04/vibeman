@@ -11,7 +11,7 @@ interface ProjectResponse {
 
 async function getProjectPath(
   request: NextRequest,
-  session: { project_path?: string; project_id: string }
+  session: { project_path?: string | null; project_id: string }
 ): Promise<string> {
   if (session.project_path) {
     return session.project_path;

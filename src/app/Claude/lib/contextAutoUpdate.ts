@@ -417,7 +417,7 @@ async function updateExistingContext(
 
     // Update context
     const updatedContext = await contextQueries.updateContext(context.id, {
-      file_paths: updatedFilePaths,
+      filePaths: updatedFilePaths,
       description: newDescription,
     });
 

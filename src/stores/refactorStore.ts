@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useActiveProjectStore } from './activeProjectStore';
 import type { WizardPlan } from '@/app/features/RefactorWizard/lib/wizardOptimizer';
 import type { ScanTechniqueGroup } from '@/app/features/RefactorWizard/lib/scanTechniques';
 import type { RefactoringPackage, DependencyGraph, ProjectContext, PackageFilter } from '@/app/features/RefactorWizard/lib/types';
@@ -26,6 +27,9 @@ interface RefactorState {
   analysisStatus: AnalysisStatus;
   analysisProgress: number;
   analysisError: string | null;
+  analysisProgressMessage: string | null;
+  currentQueueId: string | null;
+  pollingInterval: NodeJS.Timeout | null;
 
   // Opportunities
   opportunities: RefactorOpportunity[];
@@ -37,6 +41,7 @@ interface RefactorState {
   wizardPlan: WizardPlan | null;
   selectedScanGroups: Set<string>;
   techniqueOverrides: Map<string, boolean>; // techniqueId -> enabled
+  selectedFolders: string[]; // Folders to scan (empty = scan all)
   llmProvider: string;
   llmModel: string;
 
@@ -57,9 +62,10 @@ interface RefactorState {
   projectContext: ProjectContext | null;
 
   // Actions
-  startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string, projectType?: string) => Promise<void>;
+  startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string, projectType?: string, selectedFolders?: string[]) => Promise<void>;
   setAnalysisStatus: (status: AnalysisStatus, progress?: number) => void;
   setAnalysisError: (error: string | null) => void;
+  stopPolling: () => void;
   setOpportunities: (opportunities: RefactorOpportunity[]) => void;
   toggleOpportunity: (id: string) => void;
   selectAllOpportunities: () => void;
@@ -73,6 +79,7 @@ interface RefactorState {
   toggleTechnique: (groupId: string, techniqueId: string) => void;
   selectAllGroups: () => void;
   clearGroupSelection: () => void;
+  setSelectedFolders: (folders: string[]) => void;
   setLLMProvider: (provider: string) => void;
   setLLMModel: (model: string) => void;
 
@@ -99,6 +106,7 @@ interface RefactorState {
   clearPackageSelection: () => void;
   selectPackagesByCategory: (category: string) => void;
   selectFoundationalPackages: () => void;
+  generatePackages: () => Promise<void>;
 }
 
 export const useRefactorStore = create<RefactorState>()(
@@ -108,6 +116,9 @@ export const useRefactorStore = create<RefactorState>()(
       analysisStatus: 'idle',
       analysisProgress: 0,
       analysisError: null,
+      analysisProgressMessage: null,
+      currentQueueId: null,
+      pollingInterval: null,
       opportunities: [],
       selectedOpportunities: new Set(),
       filterCategory: 'all',
@@ -115,6 +126,7 @@ export const useRefactorStore = create<RefactorState>()(
       wizardPlan: null,
       selectedScanGroups: new Set(),
       techniqueOverrides: new Map(),
+      selectedFolders: [],
       llmProvider: 'gemini',
       llmModel: '',
       isWizardOpen: false,
@@ -130,77 +142,157 @@ export const useRefactorStore = create<RefactorState>()(
       projectContext: null,
 
       // Actions
-      startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string, projectType?: string) => {
+      startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string, projectType?: string, selectedFolders?: string[]) => {
+        // Stop any existing polling
+        get().stopPolling();
+
+        // Get selectedFolders from store if not provided
+        const foldersToScan = selectedFolders !== undefined ? selectedFolders : get().selectedFolders;
+
         set({
-          analysisStatus: 'generating-plan',
-          analysisProgress: 10,
+          analysisStatus: 'scanning',
+          analysisProgress: 0,
           analysisError: null,
+          analysisProgressMessage: foldersToScan.length > 0
+            ? `Initializing analysis for ${foldersToScan.length} folder(s)...`
+            : 'Initializing analysis for entire project...',
           opportunities: [],
           selectedOpportunities: new Set()
         });
 
         try {
-          // Get selected groups to pass to the API
-          const { selectedScanGroups } = get();
-          const selectedGroupsArray = Array.from(selectedScanGroups);
+          // Step 1: Create scan queue item
+          const queueId = `queue-refactor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-          const response = await fetch('/api/refactor/analyze', {
+          const queueResponse = await fetch('/api/scan-queue', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              projectId,
+              scanType: 'refactor_analysis',
+              triggerType: 'manual',
+              priority: 10,
+            }),
+          });
+
+          if (!queueResponse.ok) {
+            throw new Error('Failed to create scan queue item');
+          }
+
+          const { queueItem } = await queueResponse.json();
+          const actualQueueId = queueItem.id;
+
+          set({ currentQueueId: actualQueueId });
+
+          // Step 2: Start background analysis
+          const { selectedScanGroups } = get();
+          const selectedGroupsArray = Array.from(selectedScanGroups);
+
+          // Fire and forget - don't wait for completion
+          fetch('/api/refactor/analyze-background', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              queueId: actualQueueId,
               projectId,
               projectPath,
               useAI,
               provider,
               model,
               selectedGroups: selectedGroupsArray,
-              projectType
+              projectType,
+              selectedFolders: foldersToScan // Pass selected folders for scoping
             }),
+          }).catch(error => {
+            console.error('[RefactorStore] Background analysis request failed:', error);
           });
 
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Analysis failed');
-          }
+          // Step 3: Start polling for progress
+          const pollInterval = setInterval(async () => {
+            try {
+              const statusResponse = await fetch(`/api/scan-queue/${actualQueueId}`);
+              if (!statusResponse.ok) {
+                throw new Error('Failed to fetch queue status');
+              }
 
-          const data = await response.json();
+              const { queueItem: updatedItem } = await statusResponse.json();
 
-          // Set wizard plan if available
-          if (data.wizardPlan) {
-            set({
-              wizardPlan: data.wizardPlan,
-              selectedScanGroups: new Set(data.wizardPlan.recommendedGroups.map((g: any) => g.id)),
-            });
-          }
+              // Update progress
+              set({
+                analysisProgress: updatedItem.progress || 0,
+                analysisProgressMessage: updatedItem.progress_message || null,
+              });
 
-          // NEW: Store packages if generated
-          if (data.packages && data.packages.length > 0) {
-            console.log('[RefactorStore] Storing', data.packages.length, 'packages');
-            set({
-              packages: data.packages,
-              projectContext: data.context,
-              packageGenerationStatus: 'completed',
-              packageGenerationError: null
-            });
+              // Check if completed or failed
+              if (updatedItem.status === 'completed') {
+                // Stop polling
+                clearInterval(pollInterval);
+                set({ pollingInterval: null });
 
-            if (data.dependencyGraph) {
-              set({ packageDependencies: data.dependencyGraph });
+                // Fetch the full results
+                const resultsResponse = await fetch(`/api/refactor/results/${actualQueueId}`);
+
+                if (resultsResponse.ok) {
+                  const data = await resultsResponse.json();
+
+                  // Set wizard plan if available
+                  if (data.wizardPlan) {
+                    set({
+                      wizardPlan: data.wizardPlan,
+                      selectedScanGroups: new Set(data.wizardPlan.recommendedGroups.map((g: any) => g.id)),
+                    });
+                  }
+
+                  // Store packages if generated
+                  if (data.packages && data.packages.length > 0) {
+                    console.log('[RefactorStore] Storing', data.packages.length, 'packages');
+                    set({
+                      packages: data.packages,
+                      projectContext: data.context,
+                      packageGenerationStatus: 'completed',
+                      packageGenerationError: null
+                    });
+
+                    if (data.dependencyGraph) {
+                      set({ packageDependencies: data.dependencyGraph });
+                    }
+
+                    // Auto-select foundational packages
+                    get().selectFoundationalPackages();
+                  }
+
+                  set({
+                    opportunities: data.opportunities || [],
+                    analysisStatus: 'completed',
+                    analysisProgress: 100,
+                    analysisProgressMessage: 'Analysis completed',
+                    currentStep: data.wizardPlan ? 'plan' : 'review',
+                  });
+                }
+              } else if (updatedItem.status === 'failed') {
+                // Stop polling
+                clearInterval(pollInterval);
+                set({ pollingInterval: null });
+
+                set({
+                  analysisStatus: 'error',
+                  analysisError: updatedItem.error_message || 'Analysis failed',
+                  analysisProgressMessage: null,
+                });
+              }
+            } catch (error) {
+              console.error('[RefactorStore] Polling error:', error);
+              // Continue polling - don't stop on transient errors
             }
+          }, 2000); // Poll every 2 seconds
 
-            // Auto-select foundational packages (optional)
-            get().selectFoundationalPackages();
-          }
+          set({ pollingInterval: pollInterval });
 
-          set({
-            opportunities: data.opportunities || [],
-            analysisStatus: 'completed',
-            analysisProgress: 100,
-            currentStep: data.wizardPlan ? 'plan' : 'review',
-          });
         } catch (error) {
           set({
             analysisStatus: 'error',
             analysisError: error instanceof Error ? error.message : 'Unknown error',
+            analysisProgressMessage: null,
           });
         }
       },
@@ -214,6 +306,14 @@ export const useRefactorStore = create<RefactorState>()(
 
       setAnalysisError: (error: string | null) => {
         set({ analysisError: error });
+      },
+
+      stopPolling: () => {
+        const { pollingInterval } = get();
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          set({ pollingInterval: null });
+        }
       },
 
       setOpportunities: (opportunities: RefactorOpportunity[]) => {
@@ -289,6 +389,10 @@ export const useRefactorStore = create<RefactorState>()(
         set({ selectedScanGroups: new Set() });
       },
 
+      setSelectedFolders: (folders: string[]) => {
+        set({ selectedFolders: folders });
+      },
+
       setLLMProvider: (provider: string) => {
         set({ llmProvider: provider });
       },
@@ -319,10 +423,15 @@ export const useRefactorStore = create<RefactorState>()(
       },
 
       resetWizard: () => {
+        // Stop polling first
+        get().stopPolling();
+
         set({
           analysisStatus: 'idle',
           analysisProgress: 0,
           analysisError: null,
+          analysisProgressMessage: null,
+          currentQueueId: null,
           selectedOpportunities: new Set(),
           wizardPlan: null,
           selectedScanGroups: new Set(),
@@ -425,6 +534,72 @@ export const useRefactorStore = create<RefactorState>()(
             .map(p => p.id)
         );
         set({ selectedPackages: selected });
+      },
+      // NEW: Generate packages on demand
+      generatePackages: async () => {
+        const { opportunities, selectedOpportunities, llmProvider, llmModel, selectedFolders } = get();
+        const activeProject = useActiveProjectStore.getState().activeProject;
+
+        if (!activeProject?.path) {
+          set({ packageGenerationError: 'No active project selected' });
+          return;
+        }
+
+        // Use only the selected opportunities for package generation
+        const oppsToPackage = selectedOpportunities.size > 0
+          ? opportunities.filter(o => selectedOpportunities.has(o.id))
+          : opportunities;
+
+        if (oppsToPackage.length === 0) {
+          set({ packageGenerationError: 'No opportunities selected for packaging' });
+          return;
+        }
+
+        set({
+          packageGenerationStatus: 'generating',
+          packageGenerationError: null
+        });
+
+        try {
+          const response = await fetch('/api/refactor/generate-packages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              opportunities: oppsToPackage,
+              projectPath: activeProject.path,
+              selectedFolders: selectedFolders, // Pass folder context
+              userPreferences: {
+                provider: llmProvider,
+                model: llmModel,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to generate packages');
+          }
+
+          const data = await response.json();
+
+          set({
+            packages: data.packages || [],
+            projectContext: data.context || null,
+            packageDependencies: data.dependencyGraph || null,
+            packageGenerationStatus: 'completed',
+            packageGenerationError: null
+          });
+
+          // Auto-select foundational packages
+          get().selectFoundationalPackages();
+
+        } catch (error) {
+          console.error('[RefactorStore] Package generation failed:', error);
+          set({
+            packageGenerationStatus: 'error',
+            packageGenerationError: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
       },
     }),
     {

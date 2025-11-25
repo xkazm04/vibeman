@@ -68,7 +68,6 @@ function PreviewMode({ markdownContent }: { markdownContent: string }) {
     <div className="h-full overflow-auto p-6">
       <MarkdownViewer
         content={markdownContent}
-        theme="dark"
       />
     </div>
   );

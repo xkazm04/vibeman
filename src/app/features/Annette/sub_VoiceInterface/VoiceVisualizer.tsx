@@ -102,7 +102,7 @@ export default function VoiceVisualizer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [waveformHistory, setWaveformHistory] = useState<WaveformSegment[]>([]);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const lastUpdateTimeRef = useRef<number>(0);
 
   const colors = THEME_GRADIENTS[theme];

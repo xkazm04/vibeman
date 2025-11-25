@@ -170,7 +170,7 @@ function BatchDisplay({
 
         <div className="relative p-3 flex items-center gap-4">
           {/* Left Side: Batch Info and Controls */}
-          <div className="w-80 flex-shrink-0 space-y-2">
+          <div className="w-64 flex-shrink-0 space-y-2">
             {/* Header Row */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -191,28 +191,6 @@ function BatchDisplay({
                 >
                   <X className="w-3 h-3" />
                 </button>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="space-y-1">
-              <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
-                  className={`h-full ${
-                    isCompleted
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                      : 'bg-gradient-to-r from-cyan-500 to-blue-500'
-                  }`}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[10px]">
-                <span className={isRunning ? 'text-blue-400 font-medium' : 'text-gray-500'}>
-                  {batch.completedCount} / {batch.taskIds.length}
-                </span>
-                <span className="text-gray-500">{Math.round(progress)}%</span>
               </div>
             </div>
 
@@ -288,8 +266,31 @@ function BatchDisplay({
             </div>
           </div>
 
-          {/* Right Side: Queue Items */}
-          <div className="flex-1 min-w-0 border-l border-gray-700/30 pl-4">
+          {/* Right Side: Progress Bar and Queue Items */}
+          <div className="flex-1 min-w-0 border-l border-gray-700/30 pl-4 space-y-2">
+            {/* Progress Bar - Full Width */}
+            <div className="space-y-1">
+              <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.3 }}
+                  className={`h-full ${
+                    isCompleted
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                      : 'bg-gradient-to-r from-cyan-500 to-blue-500'
+                  }`}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className={isRunning ? 'text-blue-400 font-medium' : 'text-gray-500'}>
+                  {batch.completedCount} / {batch.taskIds.length}
+                </span>
+                <span className="text-gray-500">{Math.round(progress)}%</span>
+              </div>
+            </div>
+
+            {/* Queue Items */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
               <AnimatePresence mode="popLayout">
                 {displayItems.map((item) => {

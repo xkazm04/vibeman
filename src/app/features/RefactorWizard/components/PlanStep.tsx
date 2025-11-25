@@ -1,9 +1,9 @@
 'use client';
 
 import { useRefactorStore } from '@/stores/refactorStore';
-import { StepContainer } from '@/components/ui/wizard';
+import { StepContainer, CyberCard } from '@/components/ui/wizard';
 import { StepHeader } from '@/components/ui/wizard/StepHeader';
-import { Map, ArrowRight, Layers, Box } from 'lucide-react';
+import { Map, ArrowRight, ArrowLeft, Layers, Box, AlertCircle, FileCode } from 'lucide-react';
 import PackageCard from './PackageCard';
 
 export default function PlanStep() {
@@ -14,27 +14,80 @@ export default function PlanStep() {
         togglePackageSelection,
         selectPackagesWithDependencies,
         analysisStatus,
-        setCurrentStep
+        setCurrentStep,
+        opportunities,
     } = useRefactorStore();
 
     const isAnalyzing = analysisStatus === 'generating-plan' || analysisStatus === 'analyzing';
 
-    // If no plan exists, show loading or empty state
+    // If no plan and no packages but we have opportunities, show option to skip to review
     if (!wizardPlan && !isAnalyzing && packages.length === 0) {
         return (
             <StepContainer
                 isLoading={false}
                 data-testid="plan-step-empty"
             >
-                <div className="text-center py-12">
-                    <p className="text-gray-400">No plan generated yet.</p>
+                {/* Top Navigation */}
+                <div className="flex items-center justify-between mb-6">
                     <button
                         onClick={() => setCurrentStep('scan')}
-                        className="mt-4 text-cyan-400 hover:underline"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                        data-testid="plan-back-button"
                     >
-                        Go back to Scan
+                        <ArrowLeft className="w-4 h-4" />
+                        Back
                     </button>
+                    {opportunities.length > 0 && (
+                        <button
+                            onClick={() => setCurrentStep('review')}
+                            className="flex items-center gap-2 px-4 py-2 text-sm bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 rounded-lg transition-all"
+                            data-testid="plan-continue-button"
+                        >
+                            Continue
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
+
+                <StepHeader
+                    title="Refactoring Strategy"
+                    description="AI-generated strategic plan for your refactoring"
+                    icon={Map}
+                    currentStep={3}
+                    totalSteps={7}
+                />
+
+                <CyberCard className="text-center py-12">
+                    {opportunities.length > 0 ? (
+                        <>
+                            <FileCode className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
+                            <p className="text-gray-300 mb-2">
+                                {opportunities.length} opportunities found
+                            </p>
+                            <p className="text-gray-500 text-sm mb-6">
+                                AI packaging was not generated. You can proceed directly to review the opportunities.
+                            </p>
+                            <button
+                                onClick={() => setCurrentStep('review')}
+                                className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                Review Opportunities
+                                <ArrowRight className="w-4 h-4" />
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                            <p className="text-gray-400 mb-4">No plan generated yet.</p>
+                            <button
+                                onClick={() => setCurrentStep('scan')}
+                                className="text-cyan-400 hover:underline"
+                            >
+                                Go back to Scan
+                            </button>
+                        </>
+                    )}
+                </CyberCard>
             </StepContainer>
         );
     }
@@ -48,12 +101,33 @@ export default function PlanStep() {
             isLoading={isAnalyzing}
             data-testid="plan-step-container"
         >
+            {/* Top Navigation */}
+            <div className="flex items-center justify-between mb-6">
+                <button
+                    onClick={() => setCurrentStep('scan')}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                    data-testid="plan-back-button"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
+                </button>
+                <button
+                    onClick={handleContinue}
+                    disabled={selectedPackages.size === 0}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid="plan-continue-button"
+                >
+                    Continue
+                    <ArrowRight className="w-4 h-4" />
+                </button>
+            </div>
+
             <StepHeader
                 title="Refactoring Strategy"
                 description="AI-generated strategic plan for your refactoring"
                 icon={Map}
                 currentStep={3}
-                totalSteps={6}
+                totalSteps={7}
             />
 
             {/* Plan Overview */}
@@ -103,14 +177,19 @@ export default function PlanStep() {
                 </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-end pt-6 border-t border-white/10">
+            {/* Bottom Info */}
+            <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                <p className="text-gray-500 text-sm">
+                    {selectedPackages.size > 0
+                        ? `${selectedPackages.size} packages selected`
+                        : 'Select packages to continue'}
+                </p>
                 <button
                     onClick={handleContinue}
                     disabled={selectedPackages.size === 0}
                     className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
-                    <span>Review Selected Packages</span>
+                    <span>Review Opportunities</span>
                     <ArrowRight className="w-4 h-4" />
                 </button>
             </div>

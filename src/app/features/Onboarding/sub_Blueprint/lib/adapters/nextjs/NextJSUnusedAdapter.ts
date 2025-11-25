@@ -54,7 +54,7 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
       });
 
       if (!response.body) {
-        return this.createResult(false, undefined, 'No response body received');
+        return this.createResult<UnusedScanData>(false, undefined, 'No response body received');
       }
 
       // Read streaming response
@@ -92,7 +92,7 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
             } else if (message.type === 'complete') {
               finalResult = message.result;
             } else if (message.type === 'error') {
-              return this.createResult(false, undefined, message.error);
+              return this.createResult<UnusedScanData>(false, undefined, message.error);
             }
           } catch (parseError) {
             this.error('Failed to parse message:', line);
@@ -101,11 +101,11 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
       }
 
       if (!finalResult) {
-        return this.createResult(false, undefined, 'No result received from scan');
+        return this.createResult<UnusedScanData>(false, undefined, 'No result received from scan');
       }
 
       if (!finalResult.success) {
-        return this.createResult(
+        return this.createResult<UnusedScanData>(
           false,
           undefined,
           finalResult.error || 'Unused code scan failed'
@@ -130,7 +130,7 @@ export class NextJSUnusedAdapter extends BaseAdapter<UnusedScanData> {
       });
     } catch (error) {
       this.error('Error executing unused scan:', error);
-      return this.createResult(
+      return this.createResult<UnusedScanData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

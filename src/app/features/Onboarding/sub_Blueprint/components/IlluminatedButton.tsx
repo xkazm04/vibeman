@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { Caveat } from 'next/font/google';
 import { LucideIcon } from 'lucide-react';
 
@@ -18,87 +18,97 @@ export interface IlluminatedButtonProps {
   color?: 'blue' | 'cyan' | 'purple' | 'amber' | 'green' | 'red' | 'pink' | 'indigo';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
-  selected?: boolean; // Button is selected for scan (shows in decision panel)
-  hasError?: boolean; // Button shows red when last scan failed
+  selected?: boolean;
+  hasError?: boolean;
   glowing?: boolean;
   scanning?: boolean;
-  progress?: number; // 0-100
-  daysAgo?: number | null; // null if never run
-  showDaysAgo?: boolean; // Show days ago indicator (only if scan has handler)
-  redirectMode?: boolean; // Show exit icon for navigation buttons
-  showProgress?: boolean; // Show progress text instead of icon (for Tasker button)
-  progressText?: string; // Progress text to display (e.g., "3/10")
-  recommended?: boolean; // Button is recommended by Annette AI (pulses with its color)
+  progress?: number;
+  daysAgo?: number | null;
+  showDaysAgo?: boolean;
+  redirectMode?: boolean;
+  showProgress?: boolean;
+  progressText?: string;
+  recommended?: boolean;
+  cycleBlue?: boolean; // Cycles through blue colorMap to highlight the button
 }
 
 const colorMap = {
   blue: {
-    bg: 'from-blue-600/40 to-blue-400/40',
-    border: 'border-blue-400/60',
-    text: 'text-blue-300',
-    glow: 'shadow-blue-500/50',
-    shine: 'from-blue-400/30',
+    bg: 'from-blue-600/20 to-blue-900/40',
+    border: 'border-blue-400/50',
+    text: 'text-blue-200',
+    glow: 'shadow-blue-500/40',
+    shine: 'from-blue-300/20',
+    ring: 'ring-blue-500/30',
   },
   cyan: {
-    bg: 'from-cyan-600/40 to-cyan-400/40',
-    border: 'border-cyan-400/60',
-    text: 'text-cyan-300',
-    glow: 'shadow-cyan-500/50',
-    shine: 'from-cyan-400/30',
+    bg: 'from-cyan-600/20 to-cyan-900/40',
+    border: 'border-cyan-400/50',
+    text: 'text-cyan-200',
+    glow: 'shadow-cyan-500/40',
+    shine: 'from-cyan-300/20',
+    ring: 'ring-cyan-500/30',
   },
   purple: {
-    bg: 'from-purple-600/40 to-purple-400/40',
-    border: 'border-purple-400/60',
-    text: 'text-purple-300',
-    glow: 'shadow-purple-500/50',
-    shine: 'from-purple-400/30',
+    bg: 'from-purple-600/20 to-purple-900/40',
+    border: 'border-purple-400/50',
+    text: 'text-purple-200',
+    glow: 'shadow-purple-500/40',
+    shine: 'from-purple-300/20',
+    ring: 'ring-purple-500/30',
   },
   amber: {
-    bg: 'from-amber-600/40 to-amber-400/40',
-    border: 'border-amber-400/60',
-    text: 'text-amber-300',
-    glow: 'shadow-amber-500/50',
-    shine: 'from-amber-400/30',
+    bg: 'from-amber-600/20 to-amber-900/40',
+    border: 'border-amber-400/50',
+    text: 'text-amber-200',
+    glow: 'shadow-amber-500/40',
+    shine: 'from-amber-300/20',
+    ring: 'ring-amber-500/30',
   },
   green: {
-    bg: 'from-green-600/40 to-green-400/40',
-    border: 'border-green-400/60',
-    text: 'text-green-300',
-    glow: 'shadow-green-500/50',
-    shine: 'from-green-400/30',
+    bg: 'from-green-600/20 to-green-900/40',
+    border: 'border-green-400/50',
+    text: 'text-green-200',
+    glow: 'shadow-green-500/40',
+    shine: 'from-green-300/20',
+    ring: 'ring-green-500/30',
   },
   red: {
-    bg: 'from-red-600/40 to-red-400/40',
-    border: 'border-red-400/60',
-    text: 'text-red-300',
-    glow: 'shadow-red-500/50',
-    shine: 'from-red-400/30',
+    bg: 'from-red-600/20 to-red-900/40',
+    border: 'border-red-400/50',
+    text: 'text-red-200',
+    glow: 'shadow-red-500/40',
+    shine: 'from-red-300/20',
+    ring: 'ring-red-500/30',
   },
   pink: {
-    bg: 'from-pink-600/40 to-pink-400/40',
-    border: 'border-pink-400/60',
-    text: 'text-pink-300',
-    glow: 'shadow-pink-500/50',
-    shine: 'from-pink-400/30',
+    bg: 'from-pink-600/20 to-pink-900/40',
+    border: 'border-pink-400/50',
+    text: 'text-pink-200',
+    glow: 'shadow-pink-500/40',
+    shine: 'from-pink-300/20',
+    ring: 'ring-pink-500/30',
   },
   indigo: {
-    bg: 'from-indigo-600/40 to-indigo-400/40',
-    border: 'border-indigo-400/60',
-    text: 'text-indigo-300',
-    glow: 'shadow-indigo-500/50',
-    shine: 'from-indigo-400/30',
+    bg: 'from-indigo-600/20 to-indigo-900/40',
+    border: 'border-indigo-400/50',
+    text: 'text-indigo-200',
+    glow: 'shadow-indigo-500/40',
+    shine: 'from-indigo-300/20',
+    ring: 'ring-indigo-500/30',
   },
   gray: {
-    bg: 'from-gray-500/50 to-gray-600/20',
+    bg: 'from-gray-700/30 to-gray-900/50',
     border: 'border-gray-600/30',
-    text: 'text-gray-500',
-    glow: 'shadow-gray-700/30',
-    shine: 'from-gray-600/10',
+    text: 'text-gray-400',
+    glow: 'shadow-gray-700/20',
+    shine: 'from-gray-500/10',
+    ring: 'ring-gray-500/20',
   },
 };
 
 const sizeMap = {
-  xs: { button: 'w-[51px] h-[51px]', icon: 'w-6 h-6', label: 'text-sm', labelY: 'top-[58px]' }, // 20% smaller than sm, icon stays same size
+  xs: { button: 'w-[52px] h-[52px]', icon: 'w-5 h-5', label: 'text-sm', labelY: 'top-[60px]' },
   sm: { button: 'w-16 h-16', icon: 'w-6 h-6', label: 'text-sm', labelY: 'top-20' },
   md: { button: 'w-20 h-20', icon: 'w-7 h-7', label: 'text-base', labelY: 'top-24' },
   lg: { button: 'w-24 h-24', icon: 'w-8 h-8', label: 'text-lg', labelY: 'top-28' },
@@ -122,22 +132,36 @@ export default function IlluminatedButton({
   showProgress = false,
   progressText = '',
   recommended = false,
+  cycleBlue = false,
 }: IlluminatedButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [wasRecommended, setWasRecommended] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Log when recommended state changes (not on every render)
-  useEffect(() => {
-    if (recommended && !wasRecommended) {
-      console.log(`[IlluminatedButton] ${label} is NOW recommended, color: ${color}`);
-      setWasRecommended(true);
-    } else if (!recommended && wasRecommended) {
-      console.log(`[IlluminatedButton] ${label} is NO LONGER recommended`);
-      setWasRecommended(false);
+  // Magnetic effect
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springConfig = { damping: 15, stiffness: 150, mass: 0.1 };
+  const springX = useSpring(x, springConfig);
+  const springY = useSpring(y, springConfig);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      x.set((e.clientX - centerX) * 0.2);
+      y.set((e.clientY - centerY) * 0.2);
     }
-  }, [recommended, wasRecommended, label, color]);
+  };
 
-  // Color priority: scanning > disabled > hasError > selected > recommended > gray (default)
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    x.set(0);
+    y.set(0);
+  };
+
+  // Color logic
   const effectiveColor = scanning
     ? 'green'
     : disabled
@@ -147,140 +171,155 @@ export default function IlluminatedButton({
         : selected
           ? color
           : recommended
-            ? color // Show assigned color when recommended
+            ? color
             : 'gray';
 
-  // On hover (and not disabled/scanning), preview the assigned color
   const displayColor = !disabled && !scanning && isHovered ? color : effectiveColor;
   const colors = colorMap[displayColor] || colorMap[color];
   const sizes = sizeMap[size];
 
-
   return (
-    <div className="relative inline-flex items-center gap-3">
+    <div className="relative inline-flex flex-col items-center group/container">
       {/* Main Button */}
       <motion.button
+        ref={buttonRef}
         onClick={onClick}
         disabled={disabled}
+        onMouseMove={handleMouseMove}
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        whileTap={{ scale: disabled ? 1 : 0.95 }}
-        className={`group relative ${sizes.button} cursor-pointer bg-gradient-to-br ${colors.bg}  rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all ease-linear duration-300`}
+        onMouseLeave={handleMouseLeave}
+        style={{ x: springX, y: springY }}
+        whileTap={{ scale: disabled ? 1 : 0.9 }}
+        className={`
+          relative ${sizes.button} rounded-full 
+          flex items-center justify-center
+          transition-all duration-300 ease-out
+          backdrop-blur-md
+          ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+        `}
         data-testid={`blueprint-button-${label.toLowerCase().replace(/\s+/g, '-')}`}
       >
-
-        {/* Glass shine effect */}
-        <div
-          className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.shine} via-transparent to-transparent opacity-60 group-hover:opacity-60 transition-opacity duration-300`}
+        {/* Background Gradient & Border */}
+        <motion.div
+          className={`
+            absolute inset-0 rounded-full
+            bg-gradient-to-br ${colors.bg}
+            border ${colors.border}
+            shadow-lg ${colors.glow}
+            transition-all duration-300
+            ${selected ? 'border-opacity-100 ring-2 ' + colors.ring : 'border-opacity-60'}
+            ${isHovered && !disabled ? 'scale-105 border-opacity-100' : ''}
+          `}
+          animate={cycleBlue ? {
+            borderColor: [
+              'rgba(96, 165, 250, 0.5)',   // blue-400
+              'rgba(147, 197, 253, 0.7)',  // blue-300
+              'rgba(96, 165, 250, 0.5)',   // blue-400
+            ],
+            boxShadow: [
+              '0 0 15px rgba(96, 165, 250, 0.4)',
+              '0 0 25px rgba(147, 197, 253, 0.6)',
+              '0 0 15px rgba(96, 165, 250, 0.4)',
+            ],
+          } : {}}
+          transition={cycleBlue ? {
+            duration: 2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          } : {}}
         />
 
-        {/* Icon or Progress Text */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        {/* Glass Shine */}
+        <div className={`
+          absolute inset-0 rounded-full 
+          bg-gradient-to-br ${colors.shine} via-transparent to-transparent 
+          opacity-40 group-hover/container:opacity-60 
+          transition-opacity duration-500
+        `} />
+
+        {/* Scanning Pulse/Rotate Effect */}
+        {scanning && (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className={`absolute inset-[-4px] rounded-full border-t-2 border-r-2 border-transparent ${colors.border} opacity-80`}
+          />
+        )}
+
+        {/* Recommended Pulse (Subtle) */}
+        {recommended && !scanning && !disabled && !selected && (
+          <motion.div
+            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className={`absolute inset-0 rounded-full bg-${color}-500/20 -z-10`}
+          />
+        )}
+
+        {/* Icon / Content */}
+        <div className="relative z-10 flex items-center justify-center">
           {showProgress ? (
-            <span className={`text-sm font-mono font-bold ${colors.text} drop-shadow-lg`}>
+            <span className={`text-xs font-mono font-bold ${colors.text} drop-shadow-md`}>
               {progressText}
             </span>
           ) : (
-            <Icon className={`${sizes.icon} ${colors.text} drop-shadow-lg`} />
+            <Icon className={`${sizes.icon} ${colors.text} drop-shadow-md transition-transform duration-300 ${isHovered && !disabled ? 'scale-110' : ''}`} />
           )}
         </div>
 
-        {/* Cross-out X for disabled buttons */}
+        {/* Disabled Cross */}
         {disabled && (
-          <div className="absolute inset-0 opacity-10 flex items-center justify-center">
-            <svg
-              className="w-full h-full"
-              viewBox="0 0 100 100"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <line
-                x1="20"
-                y1="20"
-                x2="80"
-                y2="80"
-                stroke="currentColor"
-                strokeWidth="4"
-                strokeLinecap="round"
-                className="text-red-500/80"
-              />
-              <line
-                x1="80"
-                y1="20"
-                x2="20"
-                y2="80"
-                stroke="currentColor"
-                strokeWidth="4"
-                strokeLinecap="round"
-                className="text-red-500/80"
-              />
-            </svg>
+          <div className="absolute inset-0 flex items-center justify-center opacity-30">
+            <div className="w-2/3 h-0.5 bg-gray-400 rotate-45 absolute" />
+            <div className="w-2/3 h-0.5 bg-gray-400 -rotate-45 absolute" />
           </div>
         )}
-
-        {/* Outer glow - Static version (removed infinite animation) */}
-        <div
-          className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.bg} blur-md ${colors.glow} transition-opacity duration-300 -z-10 ${
-            glowing || recommended ? 'opacity-60' : 'opacity-0 group-hover:opacity-100'
-          }`}
-        />
-
-        {/* Recommended indicator - Static version (removed pulse animation) */}
-        {recommended && !scanning && !disabled && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full border-2 border-gray-900 shadow-lg shadow-yellow-500/50" />
-        )}
-
       </motion.button>
 
-      {/* Days ago indicator (top left of button) */}
+      {/* Days Ago Indicator (Integrated) */}
       {showDaysAgo && daysAgo !== null && (
-        <div className="absolute -left-8 top-1/2 -translate-y-1/2">
-          <span className={`text-xs font-mono ${daysAgo > 7 ? 'text-orange-500' : 'text-green-500'}`}>
-            {daysAgo}d
-          </span>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className={`
+            absolute -top-1 -right-1 
+            flex items-center justify-center
+            w-5 h-5 rounded-full 
+            bg-gray-900 border border-gray-700 
+            shadow-sm z-20
+          `}
+          title={`${daysAgo} days ago`}
+        >
+          <div className={`w-2 h-2 rounded-full ${daysAgo > 7 ? 'bg-orange-500' : 'bg-green-500'}`} />
+        </motion.div>
       )}
 
-      {/* Hand-written label */}
+      {/* Label */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className={`absolute ${sizes.labelY} left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none`}
+        className={`
+          absolute ${sizes.labelY} 
+          whitespace-nowrap pointer-events-none z-20
+        `}
       >
-        <span
-          className={`uppercase text-2xl ${colors.text} ${caveat.className} font-semibold`}
-        >
+        <span className={`
+          ${caveat.className} text-xl font-bold tracking-wide
+          ${colors.text} drop-shadow-lg
+          transition-colors duration-300
+        `}>
           {label}
         </span>
       </motion.div>
 
-      {/* Pin marker effect (for map themes) */}
-      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-3 bg-gradient-to-b from-white/20 to-transparent rounded-full" />
-
-      {/* Exit icon for redirect mode (bottom right of button) */}
+      {/* Redirect Icon */}
       {redirectMode && !scanning && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-          className="absolute -bottom-2 -right-2"
-        >
-          <div className="relative p-1.5 bg-gray-900/90 rounded-full border-2 border-cyan-400/60 shadow-lg shadow-cyan-500/30">
-            <svg
-              className="w-3 h-3 text-cyan-400"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
+        <div className="absolute -bottom-1 -right-1 pointer-events-none z-20">
+          <div className="bg-gray-900/80 rounded-full p-1 border border-gray-700">
+            <svg className="w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );

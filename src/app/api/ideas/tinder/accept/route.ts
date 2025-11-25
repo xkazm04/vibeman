@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, goalDb, contextDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
+import { wrapRequirementForExecution } from '@/lib/prompts/requirement_file';
 import { createErrorResponse, createSuccessResponse } from '../utils';
 
 interface AcceptIdeaRequest {
@@ -108,9 +109,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Build requirement content using unified builder
-    let content: string;
+    let requirementContent: string;
     try {
-      content = buildRequirementFromIdea({
+      requirementContent = buildRequirementFromIdea({
         idea,
         goal,
         context,
@@ -126,9 +127,30 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Failed to generate requirement content', error);
     }
 
+    // Wrap requirement content with execution instructions
+    let wrappedContent: string;
+    try {
+      wrappedContent = wrapRequirementForExecution({
+        requirementContent,
+        projectPath,
+        projectId: idea.project_id,
+        contextId: idea.context_id || undefined,
+        // Note: projectPort and runScript would come from project config if needed
+      });
+    } catch (error) {
+      console.error('[API] Failed to wrap requirement content:', error);
+      // Rollback status change
+      try {
+        ideaDb.updateIdea(ideaId, { status: 'pending' });
+      } catch (rollbackError) {
+        console.error('[API] Failed to rollback status:', rollbackError);
+      }
+      return createErrorResponse('Failed to wrap requirement content', error);
+    }
+
     // Create requirement file (overwrite if exists)
     try {
-      createRequirementFile(projectPath, requirementName, content);
+      createRequirementFile(projectPath, requirementName, wrappedContent);
     } catch (error) {
       console.error('[API] Failed to create requirement file:', error);
       // Rollback status change

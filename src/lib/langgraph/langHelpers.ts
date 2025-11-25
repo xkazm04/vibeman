@@ -174,6 +174,11 @@ function buildEndpointConfig(
 /**
  * Executes a tool by making API calls to internal endpoints
  */
+import { AVAILABLE_TOOLS } from './langTools';
+
+/**
+ * Executes a tool by making API calls to internal endpoints or calling the execute method directly
+ */
 export async function executeTool(
   toolName: string,
   parameters: Record<string, unknown>
@@ -181,6 +186,18 @@ export async function executeTool(
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
   try {
+    // Check if tool has direct execution method
+    const toolDef = AVAILABLE_TOOLS.find(t => t.name === toolName);
+    if (toolDef?.execute) {
+      const result = await toolDef.execute(parameters);
+      return {
+        name: toolName,
+        description: `Successfully executed ${toolName}`,
+        parameters,
+        result
+      };
+    }
+
     const { endpoint, method, body } = buildEndpointConfig(toolName, parameters, baseUrl);
 
     const fetchOptions: RequestInit = {
@@ -226,10 +243,10 @@ export async function executeTool(
 export async function executeTools(
   toolsToUse: Array<{ name: string; parameters: Record<string, unknown> }>
 ): Promise<ToolCall[]> {
-  const toolPromises = toolsToUse.map(tool => 
+  const toolPromises = toolsToUse.map(tool =>
     executeTool(tool.name, tool.parameters)
   );
-  
+
   return Promise.all(toolPromises);
 }
 
@@ -245,13 +262,13 @@ export function parseJsonResponse(response: string): {
     // Try to extract JSON from markdown code blocks
     const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
     const jsonString = jsonMatch ? jsonMatch[1] : response;
-    
+
     // Clean up common issues
     const cleaned = jsonString
       .trim()
-      .replace(/^[^{]*({)/,  '$1') // Remove text before first {
+      .replace(/^[^{]*({)/, '$1') // Remove text before first {
       .replace(/(})[^}]*$/, '$1'); // Remove text after last }
-    
+
     const data = JSON.parse(cleaned);
     return { success: true, data };
   } catch (error) {
@@ -273,7 +290,7 @@ export async function generateLLMResponse(
 ): Promise<{ success: boolean; response?: string; error?: string }> {
   try {
     const client = getLLMClient(provider);
-    
+
     const result = await client.generate({
       prompt,
       model,
@@ -325,18 +342,18 @@ export function validateRequest(request: Record<string, unknown>): {
   if (!request.message || typeof request.message !== 'string') {
     return { valid: false, error: 'Message is required and must be a string' };
   }
-  
+
   if (!request.projectId || typeof request.projectId !== 'string') {
     return { valid: false, error: 'Project ID is required and must be a string' };
   }
-  
+
   if (!request.provider || typeof request.provider !== 'string' || !['ollama', 'openai', 'anthropic', 'gemini'].includes(request.provider)) {
     return { valid: false, error: 'Valid provider is required (ollama, openai, anthropic, or gemini)' };
   }
-  
+
   if (!request.model || typeof request.model !== 'string') {
     return { valid: false, error: 'Model is required and must be a string' };
   }
-  
+
   return { valid: true };
 }

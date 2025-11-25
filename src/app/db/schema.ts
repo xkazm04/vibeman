@@ -56,6 +56,7 @@ export function initializeTables() {
       test_updated TEXT, -- Last time screenshot was taken
       target TEXT, -- Goal/target functionality of this context
       target_fulfillment TEXT, -- Current progress toward target
+      implemented_tasks INTEGER DEFAULT 0, -- Counter for implemented tasks in this context
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (group_id) REFERENCES context_groups(id) ON DELETE SET NULL
@@ -139,11 +140,15 @@ export function initializeTables() {
     CREATE TABLE IF NOT EXISTS implementation_log (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
+      context_id TEXT,
       requirement_name TEXT NOT NULL,
       title TEXT NOT NULL,
       overview TEXT NOT NULL,
+      overview_bullets TEXT,
       tested INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      screenshot TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
     );
   `);
 

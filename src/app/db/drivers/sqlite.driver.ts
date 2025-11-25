@@ -34,7 +34,7 @@ class SqliteConnection implements DbConnection {
   }
 
   pragma(pragma: string, options?: { simple?: boolean }): Record<string, unknown> | string | number | boolean {
-    return this.db.pragma(pragma, options);
+    return this.db.pragma(pragma, options) as Record<string, unknown> | string | number | boolean;
   }
 
   close(): void {

@@ -26,7 +26,8 @@ export const useControlPanel = () => useContext(ControlPanelContext);
 
 export default function ControlPanelProvider({ children }: { children: ReactNode }) {
   const {
-    completedSteps,
+    activeProjectId,
+    getCompletedStepsForProject,
     isControlPanelOpen,
     isBlueprintOpen,
     toggleControlPanel,
@@ -36,7 +37,10 @@ export default function ControlPanelProvider({ children }: { children: ReactNode
 
   useOnboardingAutoComplete();
 
-  const completedTasks = completedSteps.length;
+  // Get completed tasks count for the active project
+  const completedTasks = activeProjectId
+    ? getCompletedStepsForProject(activeProjectId).length
+    : 0;
 
   // Global keyboard shortcut: Ctrl+B to toggle Blueprint
   useEffect(() => {

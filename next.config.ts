@@ -12,20 +12,18 @@ const nextConfig: NextConfig = {
             value: [
               // Default source - self only
               "default-src 'self'",
-              // Script sources - allow self and inline scripts (needed for Next.js)
-              // unsafe-inline is required for React hydration
-              // unsafe-eval is required for Next.js dev mode
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              // Style sources - allow self and inline styles (needed for styled-components/CSS-in-JS)
+              // Script sources - allow self, inline scripts, and localhost (for remotes)
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*",
+              // Style sources - allow self and inline styles
               "style-src 'self' 'unsafe-inline'",
               // Image sources - allow self, data URIs, and blob URIs
               "img-src 'self' data: blob: https:",
               // Font sources - allow self and data URIs
               "font-src 'self' data:",
-              // Media sources - allow self and blob URIs (for audio/video playback)
+              // Media sources - allow self and blob URIs
               "media-src 'self' blob:",
-              // Connect sources - allow self (for API calls)
-              "connect-src 'self'",
+              // Connect sources - allow self and localhost (for remotes)
+              "connect-src 'self' http://localhost:*",
               // Frame sources - disallow all frames
               "frame-src 'none'",
               // Object sources - disallow plugins
@@ -63,6 +61,30 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+  },
+  webpack(config, options) {
+    const { isServer } = options;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const NextFederationPlugin = require('@module-federation/nextjs-mf');
+
+    config.plugins.push(
+      new NextFederationPlugin({
+        name: 'vibeman',
+        filename: 'static/chunks/remoteEntry.js',
+        remotes: {
+          // Remotes will be loaded dynamically, but we can define static ones here if needed
+        },
+        shared: {
+          // react: { singleton: true, eager: true, requiredVersion: false },
+          // 'react-dom': { singleton: true, eager: true, requiredVersion: false },
+        },
+        extraOptions: {
+          automaticAsyncBoundary: true,
+        },
+      })
+    );
+
+    return config;
   },
 };
 

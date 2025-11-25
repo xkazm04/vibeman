@@ -2,7 +2,6 @@
 export { default as ContextSection } from './ContextSection';
 export { default as ContextCards } from './ContextCards';
 export { default as ContextJailCard } from './ContextJailCard';
-export { default as GroupManagementModal } from './GroupManagementModal';
 
 // Modular sub-components
 export { default as ContextSectionEmpty } from './ContextSectionEmpty';

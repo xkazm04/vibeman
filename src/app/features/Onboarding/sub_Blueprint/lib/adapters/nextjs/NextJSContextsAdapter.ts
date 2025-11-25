@@ -54,13 +54,13 @@ export class NextJSContextsAdapter extends BaseAdapter<ContextsScanData> {
       });
 
       if (!response.success || !response.data) {
-        return this.createResult(false, undefined, response.error || 'Context scan failed');
+        return this.createResult<ContextsScanData>(false, undefined, response.error || 'Context scan failed');
       }
 
       const result = response.data as any;
 
       if (!result.success) {
-        return this.createResult(false, undefined, result.error || 'Context scan failed');
+        return this.createResult<ContextsScanData>(false, undefined, result.error || 'Context scan failed');
       }
 
       const data: ContextsScanData = {
@@ -79,7 +79,7 @@ export class NextJSContextsAdapter extends BaseAdapter<ContextsScanData> {
       return this.createResult(true, data);
     } catch (error) {
       this.error('Context scan failed:', error);
-      return this.createResult(
+      return this.createResult<ContextsScanData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

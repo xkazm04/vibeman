@@ -67,6 +67,7 @@ export interface DbContext {
   test_updated: string | null; // Last time screenshot was taken
   target: string | null; // Goal/target functionality of this context
   target_fulfillment: string | null; // Current progress toward target
+  implemented_tasks: number; // Counter for implemented tasks in this context
   created_at: string;
   updated_at: string;
 }
@@ -128,10 +129,13 @@ export interface DbIdeaWithColor extends DbIdea {
 export interface DbImplementationLog {
   id: string;
   project_id: string;
+  context_id: string | null;
   requirement_name: string;
   title: string;
   overview: string;
+  overview_bullets: string | null; // Newline-separated bullet points for card display
   tested: number; // SQLite boolean (0 or 1)
+  screenshot: string | null; // Relative path from project/public to screenshot image
   created_at: string;
 }
 

@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import IlluminatedButton from './IlluminatedButton';
 import { StepperConfig } from '../lib/stepperConfig';
+import { useActiveOnboardingStep } from '../../lib/useOnboardingConditions';
 
 export interface ScanButtonsBarProps {
   config: StepperConfig;
@@ -32,6 +33,8 @@ export default function ScanButtonsBar({
   isRecommended,
   className = '',
 }: ScanButtonsBarProps) {
+  const { isScanContextActive } = useActiveOnboardingStep();
+
   // Memoize expensive computation of scan buttons to avoid recalculating on every render
   const scanButtons = useMemo(() => {
     return config.groups
@@ -51,10 +54,25 @@ export default function ScanButtonsBar({
   }
 
   return (
-    <div
-      className={`flex items-center justify-center gap-16 ${className}`}
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className={`
+        relative flex items-center justify-center gap-8 px-8 py-4
+        bg-gray-950/40 backdrop-blur-xl
+        border border-gray-800/50 rounded-full
+        shadow-2xl shadow-black/50
+        ${className}
+      `}
       data-testid="scan-buttons-bar"
     >
+      {/* Glass Reflection Top */}
+      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/5 to-transparent rounded-t-full pointer-events-none" />
+
+      {/* Bottom Glow */}
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+
       {scanButtons.map((button, index) => {
         const status = getScanStatus?.(button.id);
         const daysAgo = getDaysAgo?.(button.id);
@@ -63,38 +81,35 @@ export default function ScanButtonsBar({
         return (
           <motion.div
             key={button.id}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="relative"
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{
+              delay: index * 0.1,
+              type: "spring",
+              stiffness: 200,
+              damping: 20
+            }}
+            className="relative z-10"
           >
-            {/* Days ago indicator - Top of button */}
-            {daysAgo !== null && (
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2">
-                <span className={`text-xs font-mono opacity-50 ${daysAgo > 7 ? 'text-orange-500' : 'text-green-500'}`}>
-                  {daysAgo}d
-                </span>
-              </div>
-            )}
-
             <IlluminatedButton
               label={button.label}
               icon={button.icon}
               onClick={() => onScanSelect(button.groupId, button.id)}
               color={button.color}
-              size="xs" // Extra small - 20% smaller than sm but with same icon size
+              size="sm"
               disabled={false}
               selected={button.id === selectedScanId}
               hasError={status?.hasError}
               scanning={status?.isRunning}
               progress={status?.progress}
-              daysAgo={null} // Don't show days ago in button (shown above)
-              showDaysAgo={false}
+              daysAgo={daysAgo}
+              showDaysAgo={true}
               recommended={recommended}
+              cycleBlue={button.id === 'contexts' && isScanContextActive}
             />
           </motion.div>
         );
       })}
-    </div>
+    </motion.div>
   );
 }

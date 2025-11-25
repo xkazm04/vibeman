@@ -30,7 +30,7 @@ export class NextJSPhotoAdapter extends BaseAdapter<PhotoScanData> {
     const contextId = options?.contextId;
 
     if (!contextId) {
-      return this.createResult(false, undefined, 'No context ID provided');
+      return this.createResult<PhotoScanData>(false, undefined, 'No context ID provided');
     }
 
     try {
@@ -47,7 +47,7 @@ export class NextJSPhotoAdapter extends BaseAdapter<PhotoScanData> {
       });
 
       if (!apiResult.success || !apiResult.data?.success) {
-        return this.createResult(
+        return this.createResult<PhotoScanData>(
           false,
           undefined,
           apiResult.data?.error || apiResult.error || 'Failed to check test scenario'
@@ -68,7 +68,7 @@ export class NextJSPhotoAdapter extends BaseAdapter<PhotoScanData> {
       });
     } catch (error) {
       this.error('Error executing photo scan:', error);
-      return this.createResult(
+      return this.createResult<PhotoScanData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

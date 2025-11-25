@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { motion } from 'framer-motion';
+import { lazy, Suspense, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import BlueprintBackground from './components/BlueprintBackground';
 import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import DecisionPanel from './components/DecisionPanel';
@@ -16,13 +17,17 @@ import BlueprintTestCompact from './components/BlueprintTestCompact';
 import ContextGroupSelector from '../sub_BlueprintContext/components/ContextGroupSelector';
 import BlueprintContextSelector from '../sub_BlueprintContext/components/BlueprintContextSelector';
 import ContextDependentScans from '../sub_BlueprintContext/components/ContextDependentScans';
+import GoalReviewer from '../sub_GoalDrawer/GoalReviewer';
+import GoalDetailPanel from '../sub_GoalDrawer/GoalDetailPanel';
+import GoalAddPanel from '../sub_GoalDrawer/GoalAddPanel';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useBadgeStore } from '@/stores/badgeStore';
 import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShortcuts';
-import { executeScan } from './lib/blueprint-scan';
+import { useBlueprintData } from './hooks/useBlueprintData';
+import { useBlueprintSelection } from './hooks/useBlueprintSelection';
+import { Goal } from '@/types';
 
 // Lazy load heavy components for better initial load performance
 const StepperConfigPanel = lazy(() => import('./components/StepperConfigPanel'));
@@ -31,261 +36,70 @@ const ContextOverview = lazy(() => import('../../Context/sub_ContextOverview/Con
 // Loading fallback component
 const SuspenseFallback = () => (
   <div className="flex items-center justify-center h-full">
-    <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+    <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
   </div>
 );
 
-export default function DarkBlueprint() {
-  const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
-  const [selectedContextGroupId, setSelectedContextGroupId] = useState<string | null>(null);
-  const [selectedContextId, setSelectedContextId] = useState<string | null>(null);
-  const [selectedContext, setSelectedContext] = useState<any>(null);
-  const [contextGroups, setContextGroups] = useState<any[]>([]);
+interface DarkBlueprintProps {
+  isGoalReviewerOpen?: boolean;
+  onCloseGoalReviewer?: () => void;
+}
 
-  const {
-    startScan,
-    completeScan,
-    failScan,
-    getDaysAgo,
-    loadScanEvents,
-    stepperConfig,
-    initStepperConfig,
-    toggleGroup,
-    getScanStatus,
-    isRecommended,
-    recommendedScans, // Subscribe to recommendedScans for reactivity
-  } = useBlueprintStore();
-
-  // Log when recommendedScans changes
-  useEffect(() => {
-    if (Object.keys(recommendedScans).length > 0) {
-      console.log('[DarkBlueprintLayout] recommendedScans updated:', recommendedScans);
-    }
-  }, [recommendedScans]);
-
-  const { closeBlueprint } = useOnboardingStore();
-  const { currentDecision, addDecision, queue } = useDecisionQueueStore();
+export default function DarkBlueprint({
+  isGoalReviewerOpen = false,
+  onCloseGoalReviewer
+}: DarkBlueprintProps = {}) {
   const { activeProject } = useActiveProjectStore();
-  const { awardBadge, earnedBadges } = useBadgeStore();
+  const { closeBlueprint } = useOnboardingStore();
+  const { currentDecision } = useDecisionQueueStore();
+  const { toggleGroup } = useBlueprintStore();
 
-  // Initialize stepper config when active project changes
-  useEffect(() => {
+  // Goal panel state - can be a Goal object (edit mode) or 'add' (add mode) or null (closed)
+  const [selectedGoal, setSelectedGoal] = useState<Goal | 'add' | null>(null);
+
+  // Handler for adding new goal
+  const handleAddGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
     if (!activeProject) return;
 
-    const projectType = activeProject.type || 'other';
-    initStepperConfig(projectType);
-  }, [activeProject, initStepperConfig]);
-
-  // Check if onboarding is complete (no more decisions and has some badges)
-  useEffect(() => {
-    if (!currentDecision && queue.length === 0 && earnedBadges.length >= 3) {
-      // Award the completion badge
-      awardBadge('blueprint-master');
-    }
-  }, [currentDecision, queue.length, earnedBadges.length, awardBadge]);
-
-  // Load scan events when active project changes
-  useEffect(() => {
-    if (!activeProject || !stepperConfig) return;
-
-    // Build event title map from stepper config
-    const eventTitles: Record<string, string> = {};
-    for (const group of stepperConfig.groups) {
-      for (const technique of group.techniques) {
-        if (technique.eventTitle) {
-          eventTitles[technique.id] = technique.eventTitle;
-        }
-      }
-    }
-
-    loadScanEvents(activeProject.id, eventTitles);
-  }, [activeProject, stepperConfig, loadScanEvents]);
-
-  // Load context groups when active project changes
-  useEffect(() => {
-    if (!activeProject) {
-      setContextGroups([]);
-      return;
-    }
-
-    const loadGroups = async () => {
-      try {
-        const response = await fetch(`/api/context-groups?projectId=${activeProject.id}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            setContextGroups(result.data);
-          }
-        }
-      } catch (error) {
-        console.error('[Blueprint] Error loading context groups:', error);
-      }
-    };
-
-    loadGroups();
-  }, [activeProject]);
-
-  // Reset context selection when group changes
-  useEffect(() => {
-    setSelectedContextId(null);
-    setSelectedContext(null);
-  }, [selectedContextGroupId]);
-
-  // Memoize event handlers to prevent unnecessary re-renders
-  const handleSelectScan = useCallback((groupId: string, scanId: string) => {
-    // For context-dependent scans, check if context is selected
-    const contextDependentScans = ['selectors', 'photo', 'test', 'separator', 'testDesign'];
-    if (contextDependentScans.includes(scanId) && !selectedContextId) {
-      console.warn(`[Blueprint] Scan ${scanId} requires a context to be selected`);
-      return;
-    }
-
-    // If already selected, deselect
-    if (selectedScanId === scanId) {
-      setSelectedScanId(null);
-      return;
-    }
-
-    // Find scan label from stepper config
-    let scanLabel = scanId;
-    if (stepperConfig) {
-      for (const group of stepperConfig.groups) {
-        const technique = group.techniques.find(t => t.id === scanId);
-        if (technique) {
-          scanLabel = technique.label;
-          break;
-        }
-      }
-    }
-
-    // Select the scan
-    setSelectedScanId(scanId);
-
-    // For context-dependent scans, use the already-selected context
-    if (contextDependentScans.includes(scanId) && selectedContextId && selectedContext) {
-      addDecision({
-        type: 'pre-scan',
-        title: `Execute ${scanLabel} Scan?`,
-        description: `Context: "${selectedContext.name}"\n\nClick Accept to start the ${scanLabel.toLowerCase()} scan for this context.`,
-        severity: 'info' as const,
-        data: { scanId, contextId: selectedContextId },
-        onAccept: async () => {
-          setSelectedScanId(null);
-          await handleScan(scanId, selectedContextId);
-        },
-        onReject: async () => {
-          setSelectedScanId(null);
-        },
-      });
-      return;
-    }
-
-    // For non-context scans, add standard pre-scan decision
-    addDecision({
-      type: 'pre-scan',
-      title: `Execute ${scanLabel} Scan?`,
-      description: `Click Accept to start the ${scanLabel.toLowerCase()} scan for this project.`,
-      severity: 'info' as const,
-      data: { scanId },
-      onAccept: async () => {
-        setSelectedScanId(null);
-        await handleScan(scanId);
-      },
-      onReject: async () => {
-        setSelectedScanId(null);
-      },
-    });
-  }, [selectedContextId, selectedScanId, stepperConfig, selectedContext, addDecision]);
-
-  const handleScan = useCallback(async (scanId: string, contextId?: string) => {
-    // Use extracted scan execution logic
-    await executeScan(
-      scanId,
-      stepperConfig,
-      {
-        startScan,
-        completeScan,
-        failScan,
-        addDecision,
-      },
-      activeProject,
-      contextId
-    );
-
-    // Reload scan events after scan completes
-    if (activeProject && stepperConfig) {
-      const eventTitles: Record<string, string> = {};
-      for (const group of stepperConfig.groups) {
-        for (const technique of group.techniques) {
-          if (technique.eventTitle) {
-            eventTitles[technique.id] = technique.eventTitle;
-          }
-        }
-      }
-      await loadScanEvents(activeProject.id, eventTitles);
-    }
-  }, [stepperConfig, startScan, completeScan, failScan, addDecision, activeProject, loadScanEvents]);
-
-  const handleBlueprintContextSelect = useCallback((contextId: string, context: any) => {
-    setSelectedContextId(contextId);
-    setSelectedContext(context);
-  }, []);
-
-  const handlePreviewUpdated = useCallback(async (
-    newPreview: string | null,
-    testScenario: string | null,
-    target?: string | null,
-    targetFulfillment?: string | null
-  ) => {
-    if (!selectedContext || !activeProject) return;
-
     try {
-      // Update context with new preview, test scenario, and target fields
-      const response = await fetch('/api/contexts', {
-        method: 'PUT',
+      const response = await fetch('/api/goals', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contextId: selectedContext.id,
-          updates: {
-            preview: newPreview,
-            testScenario: testScenario,
-            testUpdated: testScenario ? new Date().toISOString() : selectedContext.testUpdated,
-            target: target,
-            target_fulfillment: targetFulfillment,
-          },
+          ...newGoal,
+          projectId: activeProject.id,
         }),
       });
 
       if (response.ok) {
-        // Update local state
-        setSelectedContext({
-          ...selectedContext,
-          preview: newPreview,
-          testScenario: testScenario,
-          target: target,
-          target_fulfillment: targetFulfillment,
-        });
+        // Close the panel after successful creation
+        setSelectedGoal(null);
       }
     } catch (error) {
-      console.error('[Blueprint] Error updating context preview:', error);
+      // Error handling could be improved here
     }
-  }, [selectedContext, activeProject]);
+  };
 
-  // Memoize expensive computed values
-  const selectedGroupColor = useMemo(() => {
-    if (!selectedContextGroupId) return '#06b6d4';
-    return contextGroups.find(g => g.id === selectedContextGroupId)?.color || '#06b6d4';
-  }, [selectedContextGroupId, contextGroups]);
+  // Custom Hooks
+  const { contextGroups, stepperConfig } = useBlueprintData(activeProject);
 
-  // Memoize scan status callback to prevent unnecessary re-renders
-  const getScanStatusMemoized = useCallback((techniqueId: string) => {
-    const status = getScanStatus(techniqueId);
-    return {
-      isRunning: status.isRunning,
-      progress: status.progress,
-      hasError: status.hasError,
-    };
-  }, [getScanStatus]);
+  const {
+    selectedScanId,
+    setSelectedScanId,
+    selectedContextGroupId,
+    setSelectedContextGroupId,
+    selectedContextId,
+    setSelectedContextId,
+    selectedContext,
+    setSelectedContext,
+    handleSelectScan,
+    handleBlueprintContextSelect,
+    handlePreviewUpdated,
+    selectedGroupColor,
+    getScanStatusMemoized,
+    getDaysAgo,
+    isRecommended,
+  } = useBlueprintSelection(activeProject, contextGroups, stepperConfig);
 
   // Keyboard shortcuts
   useBlueprintKeyboardShortcuts({
@@ -297,6 +111,20 @@ export default function DarkBlueprint() {
     onClose: closeBlueprint,
   });
 
+  const handleRetryScan = (scanId: string) => {
+    const scanGroupMap: Record<string, string> = {
+      'vision': 'vision',
+      'contexts': 'knowledge',
+      'structure': 'structure',
+      'build': 'quality',
+      'photo': 'nextjs-ui'
+    };
+    const groupId = scanGroupMap[scanId];
+    if (groupId) {
+      handleSelectScan(groupId, scanId);
+    }
+  };
+
   const bg = "/patterns/bg_blueprint.jpg";
 
   return (
@@ -304,156 +132,278 @@ export default function DarkBlueprint() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-      className="relative w-full h-full bg-gradient-to-br from-gray-950 via-blue-950/30 to-gray-950 overflow-hidden"
+      transition={{ duration: 0.8 }}
+      className="relative w-full h-full bg-gray-950 overflow-hidden"
       data-testid="blueprint-layout"
     >
-      {/* Background pattern with opacity */}
-      <div 
-        style={{ 
-          backgroundImage: `url(${bg})`, 
-          backgroundSize: 'cover', 
-          backgroundPosition: 'center',
-          opacity: 0.1
-        }}
-        className="absolute inset-0 pointer-events-none"
-      />
-      {/* Background elements */}
+      {/* Dynamic Background Layer */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Deep Space Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-[#050a14] to-gray-950" />
+
+        {/* Animated Mesh Gradient (Simulated with blobs) */}
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            opacity: [0.2, 0.3, 0.2],
+            rotate: [0, 5, 0]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-blue-900/20 blur-[120px] rounded-full"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.1, 0.2, 0.1],
+            rotate: [0, -5, 0]
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-cyan-900/20 blur-[120px] rounded-full"
+        />
+
+        {/* Pattern Overlay */}
+        <div
+          style={{
+            backgroundImage: `url(${bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.08,
+            mixBlendMode: 'overlay'
+          }}
+          className="absolute inset-0"
+        />
+      </div>
+
+      {/* Background UI Elements */}
       <BlueprintBackground />
-
-      {/* Corner labels */}
       <BlueprintCornerLabels />
-
-      {/* Keyboard shortcuts help */}
       <BlueprintKeyboardShortcuts />
-      
-      {/* Blueprint Configuration Button */}
       <BlueprintConfigButton />
 
-      {/* Scan Progress Bars - Top of screen */}
-      <ScanProgressBars />
+      {/* Top UI Layer */}
+      <div className="relative z-10 h-full flex flex-col pointer-events-none">
+        {/* Header Area */}
+        <div className="w-full h-24 pointer-events-auto">
+          <ScanProgressBars />
+          <ScanErrorBanner onRetry={handleRetryScan} />
 
-      {/* Scan Error Banner - Top Right */}
-      <ScanErrorBanner onRetry={handleSelectScan} />
-
-
-      {/* Decision Panel - Top Center */}
-      {currentDecision && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-8">
-          <DecisionPanel />
+          {/* Scan Buttons Bar - Centered Top */}
+          {stepperConfig && (
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40">
+              <ScanButtonsBar
+                config={stepperConfig}
+                selectedScanId={selectedScanId}
+                onScanSelect={handleSelectScan}
+                getDaysAgo={getDaysAgo}
+                getScanStatus={getScanStatusMemoized}
+                isRecommended={isRecommended}
+              />
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Task Progress Panel */}
-      <TaskProgressPanel />
+        {/* Main Content Area */}
+        <div className="flex-1 relative pointer-events-auto">
 
-      {/* Blueprint Test Panel */}
-      <BlueprintTestPanel />
+          {/* Decision Panel - Floating Top Center */}
+          <AnimatePresence>
+            {currentDecision && (
+              <motion.div
+                initial={{ opacity: 0, y: -50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -50 }}
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-8"
+              >
+                <DecisionPanel />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {/* Stepper Configuration Panel - Lazy loaded */}
-      {stepperConfig && (
-        <Suspense fallback={<SuspenseFallback />}>
-          <StepperConfigPanel
-            groups={stepperConfig.groups}
-            onToggle={toggleGroup}
-          />
-        </Suspense>
-      )}
+          {/* Task Progress Panel */}
+          <TaskProgressPanel />
 
-      {/* Scan Buttons Bar - Top */}
-      {stepperConfig && (
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-40">
-          <ScanButtonsBar
-            config={stepperConfig}
-            selectedScanId={selectedScanId}
-            onScanSelect={handleSelectScan}
-            getDaysAgo={getDaysAgo}
-            getScanStatus={getScanStatusMemoized}
-            isRecommended={isRecommended}
+          {/* Blueprint Test Panel */}
+          <BlueprintTestPanel />
+
+          {/* Stepper Config Panel */}
+          {stepperConfig && (
+            <Suspense fallback={<SuspenseFallback />}>
+              <StepperConfigPanel
+                groups={stepperConfig.groups}
+                onToggle={toggleGroup}
+              />
+            </Suspense>
+          )}
+
+          {/* Context Sidebar (Left) */}
+          <AnimatePresence>
+            {selectedContextGroupId && (
+              <motion.div
+                initial={{ opacity: 0, x: -100 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -100 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute left-6 top-4 bottom-24 z-30 w-72"
+                data-testid="blueprint-context-sidebar"
+              >
+                <div className="h-full bg-gray-950/40 backdrop-blur-xl border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden">
+                  <BlueprintContextSelector
+                    selectedGroupId={selectedContextGroupId}
+                    groupColor={selectedGroupColor}
+                    selectedContextId={selectedContextId}
+                    onSelectContext={handleBlueprintContextSelect}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Right Sidebar (Split) */}
+          <AnimatePresence>
+            {selectedContextGroupId && (
+              <motion.div
+                initial={{ opacity: 0, x: 100 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 100 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute right-6 top-4 bottom-24 z-30 w-64 flex flex-col gap-4"
+                data-testid="right-sidebar-split"
+              >
+                {/* Upper Half - Context-Dependent Scans */}
+                <div className="flex-1 bg-gray-950/40 backdrop-blur-xl border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden">
+                  <ContextDependentScans
+                    selectedContextId={selectedContextId}
+                    selectedScanId={selectedScanId}
+                    onScanSelect={handleSelectScan}
+                    getDaysAgo={getDaysAgo}
+                    getScanStatus={getScanStatusMemoized}
+                    isRecommended={isRecommended}
+                  />
+                </div>
+
+                {/* Bottom Half - Test Results */}
+                <div className="flex-1 bg-gray-950/40 backdrop-blur-xl border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden">
+                  <BlueprintTestCompact />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Context Overview - Center */}
+          <AnimatePresence>
+            {selectedContext && !isGoalReviewerOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
+                className="absolute top-4 left-80 right-72 bottom-24 z-40"
+                data-testid="blueprint-context-preview"
+              >
+                <div className="w-full h-full bg-gray-950/20 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+                  <Suspense fallback={<SuspenseFallback />}>
+                    <ContextOverview
+                      mode="embedded"
+                      contextData={selectedContext}
+                      groupColorProp={selectedGroupColor}
+                      onClose={() => {
+                        setSelectedContextId(null);
+                        setSelectedContext(null);
+                      }}
+                      onPreviewUpdated={handlePreviewUpdated}
+                    />
+                  </Suspense>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Goal Reviewer Panel */}
+          <AnimatePresence>
+            {isGoalReviewerOpen && !selectedContextGroupId && activeProject && (
+              <>
+                {/* Left Panel - Goal List */}
+                <motion.div
+                  initial={{ opacity: 0, x: -50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 250 }}
+                  className={`absolute pl-[10%] max-w-[1000px] top-16 left-8 bottom-24 z-50 ${selectedGoal ? 'right-1/2 mr-4' : 'right-8'} transition-all duration-300`}
+                  data-testid="blueprint-goal-reviewer"
+                >
+                  <div className="relative justify-center h-full bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden">
+                    {/* Decorative corner elements */}
+                    <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-cyan-500/10 to-transparent pointer-events-none" />
+
+                    <div className="relative h-full overflow-y-auto overflow-x-hidden">
+                      <div className="relative p-8">
+                        {onCloseGoalReviewer && (
+                          <button
+                            onClick={onCloseGoalReviewer}
+                            className="absolute top-4 right-4 p-2 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition-colors z-10"
+                          >
+                            <X className="w-5 h-5 text-gray-400 hover:text-white" />
+                          </button>
+                        )}
+                        <GoalReviewer
+                          projectId={activeProject.id}
+                          onGoalSelect={setSelectedGoal}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Right Panel - Goal Detail or Add */}
+                {selectedGoal && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 50 }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 250 }}
+                    className="absolute top-16 right-8 bottom-24 left-1/2 ml-4 z-50"
+                    data-testid={selectedGoal === 'add' ? 'blueprint-goal-add' : 'blueprint-goal-detail'}
+                  >
+                    <div className="relative h-full bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden">
+                      <div className="relative h-full overflow-y-auto">
+                        <div className="relative p-8">
+                          <button
+                            onClick={() => setSelectedGoal(null)}
+                            className="absolute top-4 right-4 p-2 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition-colors z-10"
+                          >
+                            <X className="w-5 h-5 text-gray-400 hover:text-white" />
+                          </button>
+                          {selectedGoal === 'add' ? (
+                            <GoalAddPanel
+                              projectId={activeProject.id}
+                              onSubmit={handleAddGoal}
+                              onClose={() => setSelectedGoal(null)}
+                              projectPath={activeProject.path}
+                            />
+                          ) : (
+                            <GoalDetailPanel
+                              goal={selectedGoal}
+                              projectId={activeProject.id}
+                              onClose={() => setSelectedGoal(null)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Footer Area */}
+        <div className="relative h-24 pointer-events-auto flex items-center justify-center">
+          <ContextGroupSelector
+            selectedGroupId={selectedContextGroupId}
+            onSelectGroup={setSelectedContextGroupId}
           />
         </div>
-      )}
-
-      {/* Blueprint Context Selector - Left Sidebar */}
-      {selectedContextGroupId && (
-        <motion.div
-          initial={{ opacity: 0, x: -300 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -300 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="absolute left-4 top-24 bottom-24 z-30 w-64"
-          data-testid="blueprint-context-sidebar"
-        >
-          <div className="h-full bg-gray-950/10 backdrop-blur-sm border border-cyan-500/20 rounded-xl shadow-2xl overflow-hidden">
-            <BlueprintContextSelector
-              selectedGroupId={selectedContextGroupId}
-              groupColor={selectedGroupColor}
-              selectedContextId={selectedContextId}
-              onSelectContext={handleBlueprintContextSelect}
-            />
-          </div>
-        </motion.div>
-      )}
-
-      {/* Right Sidebar - Split in half for Context Scans and Test Results */}
-      {selectedContextGroupId && (
-        <motion.div
-          initial={{ opacity: 0, x: 300 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 300 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="absolute right-4 top-24 bottom-24 z-30 w-48 flex flex-col gap-4"
-          data-testid="right-sidebar-split"
-        >
-          {/* Upper Half - Context-Dependent Scans */}
-          <div className="flex-1 bg-gray-950/10 backdrop-blur-sm border border-cyan-500/20 rounded-xl shadow-2xl overflow-hidden">
-            <ContextDependentScans
-              selectedContextId={selectedContextId}
-              selectedScanId={selectedScanId}
-              onScanSelect={handleSelectScan}
-              getDaysAgo={getDaysAgo}
-              getScanStatus={getScanStatusMemoized}
-              isRecommended={isRecommended}
-            />
-          </div>
-
-          {/* Bottom Half - Test Results */}
-          <div className="flex-1 bg-gray-950/10 backdrop-blur-sm border border-cyan-500/20 rounded-xl shadow-2xl overflow-hidden">
-            <BlueprintTestCompact />
-          </div>
-        </motion.div>
-      )}
-
-      {/* Context Overview - Center (with margins for both sidebars) - Lazy loaded */}
-      {selectedContext && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="absolute top-24 left-72 right-56 bottom-24 z-40"
-          data-testid="blueprint-context-preview"
-        >
-          <Suspense fallback={<SuspenseFallback />}>
-            <ContextOverview
-              mode="embedded"
-              contextData={selectedContext}
-              groupColorProp={selectedGroupColor}
-            onClose={() => {
-              setSelectedContextId(null);
-              setSelectedContext(null);
-            }}
-            onPreviewUpdated={handlePreviewUpdated}
-            />
-          </Suspense>
-        </motion.div>
-      )}
-
-      {/* Context Group Selector - Bottom */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl px-8">
-        <ContextGroupSelector
-          selectedGroupId={selectedContextGroupId}
-          onSelectGroup={setSelectedContextGroupId}
-        />
       </div>
     </motion.div>
   );

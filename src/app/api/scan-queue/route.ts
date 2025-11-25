@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ queueItems });
   } catch (error) {
-    logger.error('Error fetching queue items:', { error: error });
+    console.error('Error fetching queue items:', error);
     return NextResponse.json(
       { error: 'Failed to fetch queue items', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -71,12 +71,13 @@ export async function POST(request: NextRequest) {
       'feature_scout',
       'onboarding_optimizer',
       'ai_integration_scout',
-      'delight_designer'
+      'delight_designer',
+      'refactor_analysis'
     ];
 
     if (!validScanTypes.includes(scanType)) {
       return NextResponse.json(
-        { error: 'Invalid scan type' },
+        { error: `Invalid scan type: ${scanType}. Valid types: ${validScanTypes.join(', ')}` },
         { status: 400 }
       );
     }
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ queueItem }, { status: 201 });
   } catch (error) {
-    logger.error('Error creating queue item:', { error: error });
+    console.error('Error creating queue item:', error);
     return NextResponse.json(
       { error: 'Failed to create queue item', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

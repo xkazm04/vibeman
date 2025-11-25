@@ -68,7 +68,7 @@ export const testScenarioRepository = {
       WHERE project_id = ?
       ORDER BY created_at DESC
     `);
-    const rows = stmt.all(projectId) as DbTestScenario[];
+    const rows = stmt.all(projectId) as unknown as DbTestScenario[];
     return rows.map(parseTestScenario);
   },
 
@@ -82,7 +82,7 @@ export const testScenarioRepository = {
       WHERE context_id = ?
       ORDER BY created_at DESC
     `);
-    const rows = stmt.all(contextId) as DbTestScenario[];
+    const rows = stmt.all(contextId) as unknown as DbTestScenario[];
     return rows.map(parseTestScenario);
   },
 
@@ -144,7 +144,7 @@ export const testScenarioRepository = {
     if (!existing) return null;
 
     const updates: string[] = [];
-    const values: unknown[] = [];
+    const values: (string | number | boolean | null)[] = [];
 
     if (input.name !== undefined) {
       updates.push('name = ?');
@@ -213,7 +213,7 @@ export const testScenarioRepository = {
       WHERE project_id = ? AND status = ?
       ORDER BY created_at DESC
     `);
-    const rows = stmt.all(projectId, status) as DbTestScenario[];
+    const rows = stmt.all(projectId, status) as unknown as DbTestScenario[];
     return rows.map(parseTestScenario);
   }
 };
@@ -231,7 +231,7 @@ export const testExecutionRepository = {
       WHERE scenario_id = ?
       ORDER BY created_at DESC
     `);
-    const rows = stmt.all(scenarioId) as DbTestExecution[];
+    const rows = stmt.all(scenarioId) as unknown as DbTestExecution[];
     return rows.map(parseTestExecution);
   },
 
@@ -289,7 +289,7 @@ export const testExecutionRepository = {
     if (!existing) return null;
 
     const updates: string[] = [];
-    const values: unknown[] = [];
+    const values: (string | number | boolean | null)[] = [];
 
     if (data.status !== undefined) {
       updates.push('status = ?');
@@ -343,7 +343,7 @@ export const testExecutionRepository = {
       ORDER BY created_at DESC
       LIMIT ?
     `);
-    const rows = stmt.all(projectId, limit) as DbTestExecution[];
+    const rows = stmt.all(projectId, limit) as unknown as DbTestExecution[];
     return rows.map(parseTestExecution);
   }
 };
@@ -361,7 +361,7 @@ export const visualDiffRepository = {
       WHERE execution_id = ?
       ORDER BY created_at ASC
     `);
-    const rows = stmt.all(executionId) as DbVisualDiff[];
+    const rows = stmt.all(executionId) as unknown as DbVisualDiff[];
     return rows.map(parseVisualDiff);
   },
 
@@ -449,7 +449,7 @@ export const visualDiffRepository = {
       WHERE execution_id = ? AND reviewed = 0
       ORDER BY created_at ASC
     `);
-    const rows = stmt.all(executionId) as DbVisualDiff[];
+    const rows = stmt.all(executionId) as unknown as DbVisualDiff[];
     return rows.map(parseVisualDiff);
   },
 
@@ -463,7 +463,7 @@ export const visualDiffRepository = {
       WHERE execution_id = ? AND has_differences = 1
       ORDER BY diff_percentage DESC
     `);
-    const rows = stmt.all(executionId) as DbVisualDiff[];
+    const rows = stmt.all(executionId) as unknown as DbVisualDiff[];
     return rows.map(parseVisualDiff);
   }
 };

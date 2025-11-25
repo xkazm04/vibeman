@@ -15,7 +15,7 @@ interface KillProcessRequest {
  */
 function validateRequest(body: unknown): body is KillProcessRequest {
   const req = body as KillProcessRequest;
-  return req.pid && typeof req.pid === 'number';
+  return !!(req.pid && typeof req.pid === 'number');
 }
 
 /**

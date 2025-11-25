@@ -139,7 +139,7 @@ function buildBlueprintColumns(): ColumnConfig[] {
                 {
                   success: result.success,
                   error: result.error,
-                  data: result.data,
+                  data: result.data as any,
                 },
                 activeProject
               );
@@ -182,7 +182,7 @@ function buildBlueprintColumns(): ColumnConfig[] {
                 buildDecision: (result: ScanResult) => {
                   if (!activeProject) return null;
                   return selectorsAdapter.buildDecision(
-                    { success: result.success, error: result.error, data: result.data },
+                    { success: result.success, error: result.error, data: result.data as any },
                     activeProject
                   );
                 },
@@ -227,7 +227,7 @@ function buildBlueprintColumns(): ColumnConfig[] {
                 buildDecision: (result: ScanResult) => {
                   if (!activeProject) return null;
                   return unusedAdapter.buildDecision(
-                    { success: result.success, error: result.error, data: result.data },
+                    { success: result.success, error: result.error, data: result.data as any },
                     activeProject
                   );
                 },

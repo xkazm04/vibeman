@@ -73,11 +73,11 @@ export async function getProjectKnowledgeSummary(projectId: string): Promise<Kno
   try {
     // Fetch all data in parallel
     const [goals, contexts, contextGroups, backlogItems, ideas] = await Promise.all([
-      goalDb.getByProject(projectId),
-      contextDb.getByProject(projectId),
-      contextGroupDb.getByProject(projectId),
-      backlogDb.getByProject(projectId),
-      ideaDb.getByProject(projectId)
+      goalDb.getGoalsByProject(projectId),
+      contextDb.getContextsByProject(projectId),
+      contextGroupDb.getGroupsByProject(projectId),
+      backlogDb.getBacklogItemsByProject(projectId),
+      ideaDb.getIdeasByProject(projectId)
     ]);
 
     // Calculate statistics
@@ -96,12 +96,12 @@ export async function getProjectKnowledgeSummary(projectId: string): Promise<Kno
       backlog: {
         total: backlogItems.length,
         pending: backlogItems.filter(b => b.status === 'pending').length,
-        completed: backlogItems.filter(b => b.status === 'completed').length
+        completed: backlogItems.filter(b => b.status === 'accepted').length
       },
       ideas: {
         total: ideas.length,
         pending: ideas.filter(i => i.status === 'pending').length,
-        approved: ideas.filter(i => i.status === 'approved').length
+        approved: ideas.filter(i => i.status === 'accepted').length
       },
       documentation: {
         available: false,
@@ -156,8 +156,8 @@ export async function getProjectKnowledgeSummary(projectId: string): Promise<Kno
  */
 export async function getContextOverviews(projectId: string, limit = 5): Promise<ContextOverview[]> {
   try {
-    const contexts = await contextDb.getByProject(projectId);
-    const groups = await contextGroupDb.getByProject(projectId);
+    const contexts = await contextDb.getContextsByProject(projectId);
+    const groups = await contextGroupDb.getGroupsByProject(projectId);
 
     // Create group lookup
     const groupLookup = new Map(groups.map(g => [g.id, g.name]));
@@ -170,7 +170,7 @@ export async function getContextOverviews(projectId: string, limit = 5): Promise
       return {
         id: ctx.id,
         name: ctx.name,
-        description: ctx.description,
+        description: ctx.description ?? undefined,
         fileCount: Array.isArray(filePaths) ? filePaths.length : 0,
         groupName: ctx.group_id ? groupLookup.get(ctx.group_id) : undefined,
         hasDocumentation: Boolean(ctx.has_context_file),
@@ -188,7 +188,7 @@ export async function getContextOverviews(projectId: string, limit = 5): Promise
  */
 export async function getGoalOverviews(projectId: string, statusFilter?: string, limit = 5): Promise<GoalOverview[]> {
   try {
-    let goals = await goalDb.getByProject(projectId);
+    let goals = await goalDb.getGoalsByProject(projectId);
 
     // Apply status filter if provided
     if (statusFilter) {
@@ -196,15 +196,15 @@ export async function getGoalOverviews(projectId: string, statusFilter?: string,
     }
 
     // Get context names for goals with context_id
-    const contexts = await contextDb.getByProject(projectId);
+    const contexts = await contextDb.getContextsByProject(projectId);
     const contextLookup = new Map(contexts.map(c => [c.id, c.name]));
 
     return goals.slice(0, limit).map(goal => ({
       id: goal.id,
       title: goal.title,
-      description: goal.description,
+      description: goal.description ?? undefined,
       status: goal.status,
-      priority: goal.priority,
+      priority: undefined,
       contextName: goal.context_id ? contextLookup.get(goal.context_id) : undefined,
       completionDate: goal.status === 'done' ? goal.updated_at : undefined
     }));
@@ -302,9 +302,9 @@ export async function quickSearch(projectId: string, query: string): Promise<{
     const searchTerm = query.toLowerCase();
 
     const [goals, contexts, ideas] = await Promise.all([
-      goalDb.getByProject(projectId),
-      contextDb.getByProject(projectId),
-      ideaDb.getByProject(projectId)
+      goalDb.getGoalsByProject(projectId),
+      contextDb.getContextsByProject(projectId),
+      ideaDb.getIdeasByProject(projectId)
     ]);
 
     // Search goals
@@ -326,7 +326,7 @@ export async function quickSearch(projectId: string, query: string): Promise<{
     );
 
     // Get context groups for matching contexts
-    const groups = await contextGroupDb.getByProject(projectId);
+    const groups = await contextGroupDb.getGroupsByProject(projectId);
     const groupLookup = new Map(groups.map(g => [g.id, g.name]));
 
     const contextOverviews = matchingContexts.map(ctx => {
@@ -337,7 +337,7 @@ export async function quickSearch(projectId: string, query: string): Promise<{
       return {
         id: ctx.id,
         name: ctx.name,
-        description: ctx.description,
+        description: ctx.description ?? undefined,
         fileCount: Array.isArray(filePaths) ? filePaths.length : 0,
         groupName: ctx.group_id ? groupLookup.get(ctx.group_id) : undefined,
         hasDocumentation: Boolean(ctx.has_context_file),
@@ -351,9 +351,9 @@ export async function quickSearch(projectId: string, query: string): Promise<{
     const goalOverviews = matchingGoals.map(goal => ({
       id: goal.id,
       title: goal.title,
-      description: goal.description,
+      description: goal.description ?? undefined,
       status: goal.status,
-      priority: goal.priority,
+      priority: undefined,
       contextName: goal.context_id ? contextLookup.get(goal.context_id) : undefined,
       completionDate: goal.status === 'done' ? goal.updated_at : undefined
     }));
@@ -364,7 +364,7 @@ export async function quickSearch(projectId: string, query: string): Promise<{
       ideas: matchingIdeas.slice(0, 5).map(i => ({
         id: i.id,
         title: i.title || 'Untitled Idea',
-        description: i.description
+        description: i.description ?? undefined
       }))
     };
   } catch (error) {
@@ -385,9 +385,9 @@ export async function getRecentActivity(projectId: string, limit = 5): Promise<A
 }>> {
   try {
     const [implementations, goals, ideas] = await Promise.all([
-      implementationLogDb.getByProject(projectId),
-      goalDb.getByProject(projectId),
-      ideaDb.getByProject(projectId)
+      implementationLogDb.getLogsByProject(projectId),
+      goalDb.getGoalsByProject(projectId),
+      ideaDb.getIdeasByProject(projectId)
     ]);
 
     const activities: Array<{

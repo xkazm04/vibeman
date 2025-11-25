@@ -15,9 +15,11 @@ const navigationItems: NavigationItem[] = [
   { module: 'ideas', label: 'Ideas' },
   { module: 'tinder', label: 'Tinder' },
   { module: 'tasker', label: 'Tasker' },
+  { module: 'manager', label: 'Manager' },
   { module: 'reflector', label: 'Reflector' },
   { module: 'docs', label: 'Docs' },
   { module: 'refactor', label: 'Wizard' },
+  { module: 'storybook', label: 'Storybook' },
 ];
 
 // Navigation item component
@@ -47,11 +49,10 @@ function NavItem({ item, index, isActive, onClick }: NavItemProps) {
         data-testid={`nav-item-${item.module}`}
       >
         <span
-          className={`relative z-10 transition-all duration-300 ${
-            isActive
+          className={`relative z-10 transition-all duration-300 ${isActive
               ? 'text-white'
               : 'text-gray-400 group-hover:text-white'
-          }`}
+            }`}
         >
           {item.label}
         </span>
@@ -78,11 +79,10 @@ function NavItem({ item, index, isActive, onClick }: NavItemProps) {
         />
 
         {/* Subtle glow effect */}
-        <div className={`absolute inset-0 rounded-lg transition-all duration-300 ${
-          isActive
+        <div className={`absolute inset-0 rounded-lg transition-all duration-300 ${isActive
             ? 'shadow-lg shadow-purple-500/20'
             : 'group-hover:shadow-md group-hover:shadow-white/10'
-        }`} />
+          }`} />
       </button>
     </motion.div>
   );

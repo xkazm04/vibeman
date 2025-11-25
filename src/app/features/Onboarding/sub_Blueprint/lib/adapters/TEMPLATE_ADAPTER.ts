@@ -19,18 +19,15 @@
  */
 
 import { Project } from '@/types';
-import { BaseAdapter } from '../BaseAdapter';
-import { ScanContext, ScanResult, DecisionData } from '../types';
+import { BaseAdapter } from './BaseAdapter';
+import { ScanContext, ScanResult, DecisionData } from './types';
 
 /**
  * Define the data structure returned by your scan
  */
 interface TEMPLATE_Data {
-  // Add your scan result fields here
-  // Examples:
-  // totalIssues: number;
-  // errors: Array<{ file: string; message: string }>;
-  // warnings: string[];
+  totalIssues: number;
+  errors: Array<{ file: string; message: string }>;
 }
 
 /**
@@ -71,7 +68,7 @@ export class TEMPLATE_Adapter extends BaseAdapter<TEMPLATE_Data> {
    * Options: 'build', 'structure', 'contexts', 'dependencies', 'vision',
    *          'photo', 'ideas', 'prototype', 'contribute', 'fix', 'custom'
    */
-  public readonly category = 'TEMPLATE_CATEGORY';
+  public readonly category = 'custom';
 
   /**
    * Priority (higher = preferred when multiple adapters match)
@@ -111,13 +108,14 @@ export class TEMPLATE_Adapter extends BaseAdapter<TEMPLATE_Data> {
       });
 
       if (!response.success) {
-        return this.createResult(false, undefined, response.error);
+        return this.createResult<TEMPLATE_Data>(false, undefined, response.error);
       }
 
       // Example: Parse response data
       const data: TEMPLATE_Data = {
         // Map response to your data structure
-        // totalIssues: response.data.totalIssues || 0,
+        totalIssues: response.data.totalIssues || 0,
+        errors: response.data.errors || [],
       };
 
       this.log(`✅ Scan completed with ${data.totalIssues} issues`);
@@ -125,7 +123,7 @@ export class TEMPLATE_Adapter extends BaseAdapter<TEMPLATE_Data> {
       return this.createResult(true, data);
     } catch (error) {
       this.error('Scan failed:', error);
-      return this.createResult(
+      return this.createResult<TEMPLATE_Data>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

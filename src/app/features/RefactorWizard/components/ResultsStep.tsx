@@ -1,12 +1,12 @@
 'use client';
 
 import { useRefactorStore } from '@/stores/refactorStore';
-import { CheckCircle, FileText, Package, Sparkles, AlertCircle, TrendingUp, Target, List as ListIcon } from 'lucide-react';
+import { CheckCircle, FileText, Package, Sparkles, AlertCircle, TrendingUp, Target, List as ListIcon, ArrowLeft, RotateCcw } from 'lucide-react';
 import {
   StepContainer,
   CyberCard,
   StatCard,
-  WizardActions,
+  StepHeader,
 } from '@/components/ui/wizard';
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -21,7 +21,8 @@ export default function ResultsStep() {
     packages,
     selectedPackages,
     closeWizard,
-    resetWizard
+    resetWizard,
+    setCurrentStep,
   } = useRefactorStore();
   const [showHeroBadge, setShowHeroBadge] = useState(false);
 
@@ -84,16 +85,54 @@ export default function ResultsStep() {
     setTimeout(() => resetWizard(), 300);
   };
 
+  // Check if we're in direct mode (batched from review, not packaged)
+  const isDirectMode = packages.length === 0 && selectedOpportunities.size > 0;
+
   return (
     <StepContainer
-      title="Strategic Refactoring Plan Complete"
-      description="Review your package-based refactoring strategy and next steps"
-      icon={Target}
-      currentStep={7}
-      totalSteps={7}
       isLoading={false}
       data-testid="results-step-container"
     >
+      {/* Top Navigation */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => setCurrentStep('execute')}
+          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+          data-testid="results-back-button"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => resetWizard()}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            title="Start over with a new scan"
+          >
+            <RotateCcw className="w-4 h-4" />
+            New Scan
+          </button>
+          <button
+            onClick={handleFinish}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-all"
+            data-testid="results-finish-button"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Finish
+          </button>
+        </div>
+      </div>
+
+      <StepHeader
+        title="Refactoring Plan Complete"
+        description={isDirectMode
+          ? 'Review your batch requirement files and next steps'
+          : 'Review your package-based refactoring strategy and next steps'
+        }
+        icon={Target}
+        currentStep={7}
+        totalSteps={7}
+      />
 
       {/* Success Banner */}
       <motion.div
@@ -282,13 +321,22 @@ export default function ResultsStep() {
         </div>
       </CyberCard>
 
-      {/* Actions */}
-      <WizardActions
-        onNext={handleFinish}
-        nextLabel="Finish"
-        nextIcon={CheckCircle}
-        nextVariant="success"
-      />
+      {/* Bottom Action */}
+      <div className="flex items-center justify-between pt-4 border-t border-white/10">
+        <p className="text-gray-500 text-sm">
+          {summary.packageCount > 0
+            ? `${summary.packageCount} requirement files ready for execution`
+            : `${Math.ceil(selectedOpps.length / 20)} batch files ready for execution`
+          }
+        </p>
+        <button
+          onClick={handleFinish}
+          className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-medium rounded-lg shadow-lg shadow-green-500/20 transition-all flex items-center gap-2"
+        >
+          <CheckCircle className="w-4 h-4" />
+          Close Wizard
+        </button>
+      </div>
 
       {/* Hero Badge */}
       <HeroBadge

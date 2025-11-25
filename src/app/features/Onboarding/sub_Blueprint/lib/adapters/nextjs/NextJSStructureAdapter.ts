@@ -41,13 +41,13 @@ export class NextJSStructureAdapter extends BaseAdapter<StructureScanData> {
       });
 
       if (!response.success || !response.data) {
-        return this.createResult(false, undefined, response.error || 'Structure scan failed');
+        return this.createResult<StructureScanData>(false, undefined, response.error || 'Structure scan failed');
       }
 
       const result = response.data as any;
 
       if (!result.success) {
-        return this.createResult(false, undefined, result.error || 'Structure scan failed');
+        return this.createResult<StructureScanData>(false, undefined, result.error || 'Structure scan failed');
       }
 
       const violations = result.violations || [];
@@ -68,7 +68,7 @@ export class NextJSStructureAdapter extends BaseAdapter<StructureScanData> {
       return this.createResult(true, data);
     } catch (error) {
       this.error('Structure scan failed:', error);
-      return this.createResult(
+      return this.createResult<StructureScanData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

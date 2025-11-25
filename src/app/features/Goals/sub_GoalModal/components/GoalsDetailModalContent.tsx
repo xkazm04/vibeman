@@ -1,9 +1,9 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { Hash, Calendar, Save, Edit3, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import {  Save, Edit3, Trash2 } from 'lucide-react';
 import { Goal } from '../../../../../types';
 import { useGoals } from '../../../../../hooks/useGoals';
-import { getStatusConfig, formatDate, validateGoalData } from '../lib';
+import { getStatusConfig, validateGoalData } from '../lib';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface GoalsDetailModalContentProps {
@@ -109,103 +109,8 @@ export default function GoalsDetailModalContent({
   return (
     <div className="space-y-6">
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Status & Metadata */}
-        <div className="space-y-6">
-          {/* Status */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-5 shadow-lg">
-            <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2 tracking-wide uppercase">
-              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-              <span>Status</span>
-            </h3>
-            {isEditing ? (
-              <UniversalSelect
-                value={editedGoal.status}
-                onChange={(value) => setEditedGoal(prev => ({ ...prev, status: value as Goal['status'] }))}
-                options={[
-                  { value: 'open', label: 'Open' },
-                  { value: 'in_progress', label: 'In Progress' },
-                  { value: 'done', label: 'Completed' },
-                  { value: 'undecided', label: 'Under Review' },
-                  { value: 'rejected', label: 'Archived' },
-                ]}
-                variant="default"
-              />
-            ) : (
-              <div className={`bg-gradient-to-r ${statusConfig.gradient} backdrop-blur-xl border ${statusConfig.borderColor} rounded-lg p-3.5 ${statusConfig.glow} shadow-lg`}>
-                <div className="flex items-center space-x-3">
-                  <StatusIcon className={`w-5 h-5 ${statusConfig.textColor}`} />
-                  <span className={`font-medium text-sm ${statusConfig.textColor}`}>
-                    {statusConfig.text}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Metadata */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-5 shadow-lg">
-            <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2 tracking-wide uppercase">
-              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-              <span>Information</span>
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
-                <div className="flex items-center space-x-2 text-white/60">
-                  <Hash className="w-4 h-4" />
-                  <span className="text-sm">Order</span>
-                </div>
-                <span className="text-white/90 font-medium text-sm">#{editedGoal.order}</span>
-              </div>
-              {editedGoal.created_at && (
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
-                  <div className="flex items-center space-x-2 text-white/60">
-                    <Calendar className="w-4 h-4" />
-                    <span className="text-sm">Created</span>
-                  </div>
-                  <span className="text-white/90 font-medium text-sm">
-                    {formatDate(editedGoal.created_at)}
-                  </span>
-                </div>
-              )}
-              {editedGoal.updated_at && (
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
-                  <div className="flex items-center space-x-2 text-white/60">
-                    <Calendar className="w-4 h-4" />
-                    <span className="text-sm">Updated</span>
-                  </div>
-                  <span className="text-white/90 font-medium text-sm">
-                    {formatDate(editedGoal.updated_at)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Right Column - Title & Description */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Title */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-5 shadow-lg">
-            <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2 tracking-wide uppercase">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              <span>Title</span>
-            </h3>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedGoal.title}
-                onChange={(e) => setEditedGoal(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-lg text-white/90 placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all text-base"
-                placeholder="Enter goal title..."
-              />
-            ) : (
-              <h4 className="text-lg font-medium text-white/90 leading-relaxed">
-                {editedGoal.title}
-              </h4>
-            )}
-          </div>
-
           {/* Description */}
           <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-5 shadow-lg">
             <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2 tracking-wide uppercase">
@@ -216,12 +121,12 @@ export default function GoalsDetailModalContent({
               <textarea
                 value={editedGoal.description || ''}
                 onChange={(e) => setEditedGoal(prev => ({ ...prev, description: e.target.value }))}
-                rows={10}
+                rows={5}
                 className="w-full p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-lg text-white/90 placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all resize-none text-sm"
                 placeholder="Describe your goal in detail..."
               />
             ) : (
-              <div className="min-h-[240px] p-4 bg-white/5 rounded-lg border border-white/10">
+              <div className="min-h-[120px] p-4 bg-white/5 rounded-lg border border-white/10">
                 <p className="text-white/80 leading-relaxed whitespace-pre-wrap text-sm">
                   {editedGoal.description || (
                     <span className="text-white/40 italic">No description provided</span>
@@ -230,7 +135,6 @@ export default function GoalsDetailModalContent({
               </div>
             )}
           </div>
-        </div>
       </div>
 
       {/* Error Message */}

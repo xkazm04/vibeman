@@ -1,13 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2 } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { RequirementViewer } from '@/components/RequirementViewer';
 import type { ProjectRequirement } from './lib/types';
-import ContextMenu from '@/components/ContextMenu';
+import ContextMenu from '@/components/ContextMenu.tsx';
 
 interface TaskItemProps {
   requirement: ProjectRequirement;
@@ -25,12 +25,15 @@ export default function TaskItem({
   projectPath,
 }: TaskItemProps) {
   const { requirementName, status } = requirement;
-  const contextMenu = useContextMenu();
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const { showFullScreenModal } = useGlobalModal();
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    contextMenu.show(e);
+    e.stopPropagation();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setContextMenuOpen(true);
   };
 
   const handleEdit = () => {
@@ -51,33 +54,17 @@ export default function TaskItem({
     );
   };
 
-  const contextMenuItems: ContextMenuItem[] = [
+  const contextMenuItems = [
     {
-      id: 'edit',
       label: 'Edit Requirement',
       icon: Edit2,
-      iconColor: 'text-cyan-400',
-      hoverColors: {
-        from: 'cyan-500/10',
-        to: 'blue-500/10',
-        border: 'cyan-500/30',
-        text: 'cyan-300',
-      },
-      action: handleEdit,
+      onClick: handleEdit,
     },
     {
-      id: 'divider',
-      label: '',
-      icon: FileCode, // Unused for divider
-      isDivider: true,
-      action: () => {},
-    },
-    {
-      id: 'delete',
       label: 'Delete Requirement',
       icon: Trash2,
-      isDanger: true,
-      action: onDelete,
+      destructive: true,
+      onClick: onDelete,
     },
   ];
 
@@ -147,9 +134,9 @@ export default function TaskItem({
 
       {/* Context Menu */}
       <ContextMenu
-        isVisible={contextMenu.isVisible}
-        position={contextMenu.position}
-        onClose={contextMenu.hide}
+        isOpen={contextMenuOpen}
+        position={contextMenuPosition}
+        onClose={() => setContextMenuOpen(false)}
         items={contextMenuItems}
       />
     </>

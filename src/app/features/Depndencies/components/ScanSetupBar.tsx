@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Network, Check, AlertCircle } from 'lucide-react';
 import { GradientButton } from '@/components/ui';
-import { Project } from '../lib/types';
+import { Project } from '@/types';
 import { useScanContext } from '../lib/ScanContext';
 
 interface ScanSetupBarProps {

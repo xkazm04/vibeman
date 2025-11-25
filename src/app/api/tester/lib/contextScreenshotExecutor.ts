@@ -3,7 +3,8 @@
  * Parses test scenarios from context and executes them with Playwright
  */
 
-import { Browser } from 'playwright';
+// Type import for browser - playwright is an optional dependency
+type Browser = any;
 import { join } from 'path';
 
 export interface ContextScenarioInput {

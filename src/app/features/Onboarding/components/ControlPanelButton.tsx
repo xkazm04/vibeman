@@ -36,6 +36,7 @@ export default function ControlPanelButton({
       whileHover={{ scale: 1.05, x: isOpen ? -5 : 5 }}
       whileTap={{ scale: 0.95 }}
       className="relative group cursor-pointer"
+      data-testid="control-panel-button"
     >
       {/* Button container */}
       <div

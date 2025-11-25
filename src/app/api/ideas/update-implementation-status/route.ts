@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaDb, contextDb } from '@/app/db';
 
 /**
  * POST /api/ideas/update-implementation-status
  * Update idea status to 'implemented' based on requirement name
+ * Also increments the context's implemented_tasks counter if applicable
  */
 export async function POST(request: NextRequest) {
   try {
@@ -34,9 +35,17 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to update idea status');
     }
 
+    // Increment context's implemented_tasks counter if idea has a context
+    let contextUpdated = false;
+    if (idea.context_id) {
+      const updatedContext = contextDb.incrementImplementedTasks(idea.context_id);
+      contextUpdated = updatedContext !== null;
+    }
+
     return NextResponse.json({
       updated: true,
       ideaId: idea.id,
+      contextUpdated,
       message: 'Idea status updated to implemented',
     });
   } catch (error) {

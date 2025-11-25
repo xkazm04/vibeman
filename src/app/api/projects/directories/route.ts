@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat } from 'fs/promises';
 import { join } from 'path';
 
+// Force dynamic rendering to prevent static analysis of file paths
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const currentAppPath = process.cwd();

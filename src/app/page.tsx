@@ -9,12 +9,16 @@ import IdeasLayout from './features/Ideas/IdeasLayout';
 import TinderLayout from './features/tinder/TinderLayout';
 import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
 import ReflectorLayout from './features/Reflector/ReflectorLayout';
+import ManagerLayout from './features/Manager/ManagerLayout';
 import DocsPage from './docs/page';
 import RefactorPage from './refactor/page';
 import FrozenComponent from '../components/FrozenComponent';
 import LazyContentSection from '../components/Navigation/LazyContentSection';
 import { HorizontalContextBar } from './features/Context';
 import GoalsLayout from './features/Goals/GoalsLayout';
+import GlobalTaskBar from '@/components/GlobalTaskBar';
+import { Toaster } from 'sonner';
+import StorybookLayout from './features/Storybook/StorybookLayout';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -49,6 +53,10 @@ export default function Home() {
         return <DocsPage key="docs" />;
       case 'refactor':
         return <RefactorPage key="refactor" />;
+      case 'manager':
+        return <ManagerLayout key="manager" />;
+      case 'storybook':
+        return <StorybookLayout key="storybook" />;
       default:
         return <GoalsLayout key="coder" projectId={projectId} />;
     }
@@ -73,6 +81,12 @@ export default function Home() {
           </AnimatePresence>
         </FrozenComponent>
       </LazyContentSection>
+
+      {/* Global Task Bar - visible across all modules */}
+      <GlobalTaskBar />
+
+      {/* Toast notifications */}
+      <Toaster position="top-right" richColors />
     </main>
   );
 }

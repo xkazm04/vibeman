@@ -9,10 +9,11 @@ import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
  * Helper to create error response
  */
 function errorResponse(message: string, status: number, details?: unknown) {
-  return NextResponse.json(
-    { error: message, ...(details && { details }) },
-    { status }
-  );
+  const response: Record<string, unknown> = { error: message };
+  if (details) {
+    response.details = details;
+  }
+  return NextResponse.json(response, { status });
 }
 
 /**

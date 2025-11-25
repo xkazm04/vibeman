@@ -10,7 +10,7 @@ import {
   DependencyColumnView,
   SecurityPipelineButton
 } from './components';
-import EmptyState from '@/app/components/ui/EmptyState';
+import EmptyState from '@/components/DecisionPanel/EmptyState';
 
 export default function DependenciesTab() {
   const [scanData, setScanData] = useState<ScanData | null>(null);

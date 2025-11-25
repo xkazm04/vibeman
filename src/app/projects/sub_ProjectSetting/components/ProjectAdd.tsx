@@ -29,6 +29,7 @@ export default function ProjectAdd({ isOpen, onClose, onProjectAdded }: ProjectA
     setError('');
 
     try {
+      // Step 1: Save project to database
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -38,6 +39,30 @@ export default function ProjectAdd({ isOpen, onClose, onProjectAdded }: ProjectA
       const result = await response.json();
 
       if (result.success) {
+        // Step 2: Initialize Claude Code folder structure
+        try {
+          const initResponse = await fetch('/api/claude-code/initialize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectPath: data.path,
+              projectName: data.name,
+              projectId: data.id,
+              projectType: data.type,
+            }),
+          });
+
+          const initResult = await initResponse.json();
+
+          if (!initResponse.ok) {
+            // Log warning but don't fail the project creation
+            console.warn('Claude Code initialization failed:', initResult.error);
+          }
+        } catch (initError) {
+          // Log error but continue - project was created successfully
+          console.error('Claude Code initialization error:', initError);
+        }
+
         onProjectAdded();
         onClose();
       } else {

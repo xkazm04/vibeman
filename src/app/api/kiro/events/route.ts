@@ -8,11 +8,13 @@ interface EventQueryParams {
   type?: string;
 }
 
+type EventType = 'info' | 'warning' | 'error' | 'success' | 'proposal_accepted' | 'proposal_rejected';
+
 interface CreateEventBody {
   project_id: string;
   title: string;
   description: string;
-  type: string;
+  type: EventType;
   agent?: string;
   message?: string;
 }

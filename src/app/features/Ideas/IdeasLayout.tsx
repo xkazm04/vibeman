@@ -1,8 +1,6 @@
 'use client';
-
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Database, FileText, RefreshCw } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { Context } from '@/lib/queries/contextQueries';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
@@ -16,7 +14,6 @@ import IdeaDetailModal from '@/app/features/Ideas/components/IdeaDetailModal';
 import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector';
 import ScanInitiator from '@/app/features/Ideas/sub_IdeasSetup/ScanInitiator';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
-import ProjectToolbar, { ToolbarAction } from '@/components/ui/ProjectToolbar';
 
 // Handlers and utilities
 import { fetchIdeas, deleteIdea } from '@/app/features/Ideas/lib/ideasHandlers';
@@ -143,42 +140,10 @@ const IdeasLayout = () => {
     return getProjectName(projectId, projects);
   }, [projects]);
 
-  // Toolbar actions
-  const toolbarActions: ToolbarAction[] = React.useMemo(() => [
-    {
-      icon: Database,
-      label: 'Sync database',
-      onClick: async () => {
-        await loadIdeas();
-      },
-      colorScheme: 'blue',
-      tooltip: 'Refresh ideas from database',
-    },
-    {
-      icon: FileText,
-      label: 'View documentation',
-      onClick: () => {
-        window.open('/docs', '_blank');
-      },
-      colorScheme: 'cyan',
-      tooltip: 'View project documentation',
-    },
-    {
-      icon: RefreshCw,
-      label: 'Refresh view',
-      onClick: () => {
-        loadIdeas();
-      },
-      colorScheme: 'green',
-      tooltip: 'Reload all ideas',
-    },
-  ], []);
 
   return (
     <ProcessingIdeaProvider>
       <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
-        {/* Project Toolbar */}
-        {/* <ProjectToolbar actions={toolbarActions} position="top-center" styled /> */}
         {/* Header with Project Filter */}
         <LazyContentSection delay={0}>
           <IdeasHeaderWithFilter

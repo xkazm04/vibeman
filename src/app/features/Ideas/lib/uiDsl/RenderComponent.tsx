@@ -28,7 +28,10 @@ export function RenderComponent({
   context: RenderContext;
   index?: number;
 }) {
-  const { data, theme, handlers, processingState } = context;
+  const { theme, handlers, processingState } = context;
+
+  // Type assertion for data - assumes it has id and status properties
+  const data = context.data as { id?: string; status?: string; [key: string]: unknown };
 
   // Determine variant based on processing state and data status
   let variantName = descriptor.variant || 'pending';
@@ -72,10 +75,10 @@ export function RenderComponent({
     <motion.div
       data-testid={`idea-sticky-note-${data.id}`}
       className={baseClasses}
-      initial={animation.initial}
-      animate={animation.animate}
-      transition={animation.transition}
-      whileHover={hoverAnimation}
+      initial={animation.initial as any}
+      animate={animation.animate as any}
+      transition={animation.transition as any}
+      whileHover={hoverAnimation as any}
       onClick={handlers?.onClick}
     >
       {/* Decorations */}
@@ -157,12 +160,12 @@ function renderContent(
         return (
           <motion.div
             className={className}
-            initial={content.animation.initial}
-            animate={content.animation.animate}
+            initial={content.animation.initial as any}
+            animate={content.animation.animate as any}
             transition={{
               ...content.animation.transition,
-              delay: (content.animation.transition?.delay || 0) + index * 0.05,
-            }}
+              delay: ((content.animation.transition?.delay as number) || 0) + index * 0.05,
+            } as any}
           >
             {formatted}
           </motion.div>
@@ -179,12 +182,12 @@ function renderContent(
         return (
           <motion.div
             className={className}
-            initial={content.animation.initial}
-            animate={content.animation.animate}
+            initial={content.animation.initial as any}
+            animate={content.animation.animate as any}
             transition={{
               ...content.animation.transition,
-              delay: (content.animation.transition?.delay || 0) + index * 0.05,
-            }}
+              delay: ((content.animation.transition?.delay as number) || 0) + index * 0.05,
+            } as any}
           >
             {emoji}
           </motion.div>
@@ -254,7 +257,7 @@ function renderContent(
         );
       }
 
-      return typeof content.value === 'function' ? content.value(data) : content.value;
+      return (typeof content.value === 'function' ? content.value(data) : content.value) as React.ReactNode;
     }
 
     default:
@@ -282,14 +285,14 @@ function Badge({
 
   // Get configuration based on badge type
   if (badge.type === 'effort' && data.effort) {
-    const config = getBadgeConfig(theme, 'effort', data.effort);
+    const config = getBadgeConfig(theme, 'effort', data.effort) as any;
     if (config && 'label' in config) {
       label = config.label;
       colorClass = config.color;
       iconComponent = EffortIcon;
     }
   } else if (badge.type === 'impact' && data.impact) {
-    const config = getBadgeConfig(theme, 'impact', data.impact);
+    const config = getBadgeConfig(theme, 'impact', data.impact) as any;
     if (config && 'label' in config) {
       label = config.label;
       colorClass = config.color;
@@ -299,7 +302,7 @@ function Badge({
     const config = getCategoryConfig(data.category);
     return <span className={`text-2xl ${className}`}>{config.emoji}</span>;
   } else if (badge.type === 'status' && data.status) {
-    const config = getBadgeConfig(theme, 'status', data.status);
+    const config = getBadgeConfig(theme, 'status', data.status) as any;
     if (config && 'label' in config) {
       label = config.label;
       colorClass = config.color;

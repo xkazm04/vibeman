@@ -1,6 +1,6 @@
 import { ideaDb, goalDb } from '@/app/db';
 import { OllamaClient } from '@/lib/llm/providers/ollama-client';
-import { DbIdea, DbGoal } from './ideaHelpers';
+import type { DbIdea, DbGoal } from '@/app/db/models/types';
 
 export interface IdeaEvaluationResult {
   selectedIdeaId: string | null;

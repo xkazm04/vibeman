@@ -45,13 +45,13 @@ export class FastAPIBuildAdapter extends BaseAdapter<FastAPIBuildData> {
       });
 
       if (!response.success || !response.data) {
-        return this.createResult(false, undefined, response.error || 'FastAPI build scan failed');
+        return this.createResult<FastAPIBuildData>(false, undefined, response.error || 'FastAPI build scan failed');
       }
 
       const result = response.data as any;
 
       if (!result.success) {
-        return this.createResult(false, undefined, result.error || 'FastAPI build scan failed');
+        return this.createResult<FastAPIBuildData>(false, undefined, result.error || 'FastAPI build scan failed');
       }
 
       const data: FastAPIBuildData = {
@@ -74,7 +74,7 @@ export class FastAPIBuildAdapter extends BaseAdapter<FastAPIBuildData> {
       return this.createResult(true, data);
     } catch (error) {
       this.error('FastAPI build scan failed:', error);
-      return this.createResult(
+      return this.createResult<FastAPIBuildData>(
         false,
         undefined,
         error instanceof Error ? error.message : 'Unknown error'

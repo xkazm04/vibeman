@@ -113,7 +113,6 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
       <ContextEditModal
         context={context}
         availableGroups={availableGroups}
-        selectedFilePaths={selectedFilePaths}
         onSave={() => {
           // Context will be updated via the store
         }}
@@ -222,7 +221,7 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleContextMenu}
-
+        data-testid={`context-card-${context.id}`}
         className={`group relative rounded-2xl p-4 cursor-move transition-all duration-300 min-w-[280px] h-fit backdrop-blur-sm ${isSelectedForBacklog
             ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-2 border-green-400/60 hover:from-green-500/30 hover:to-emerald-500/30 shadow-lg shadow-green-500/20'
             : 'bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-600/40 hover:from-gray-800/80 hover:to-gray-900/80 hover:border-gray-500/60'

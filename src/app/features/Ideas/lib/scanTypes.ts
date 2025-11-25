@@ -14,7 +14,8 @@ export type ScanType =
   | 'feature_scout'
   | 'onboarding_optimizer'
   | 'ai_integration_scout'
-  | 'delight_designer';
+  | 'delight_designer'
+  | 'refactor_analysis';
 
 export type ScanState = 'idle' | 'scanning' | 'success' | 'error';
 

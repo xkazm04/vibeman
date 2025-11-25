@@ -14,7 +14,10 @@ import {
   detectConsoleStatements,
   detectAnyTypes,
   detectUnusedImports,
-} from '@/app/features/RefactorWizard/lib/patternDetectors';
+  detectComplexConditionals,
+  detectMagicNumbers,
+  detectReactHookDeps,
+} from '@/lib/scan/patterns';
 
 export class ReactNativeScanStrategy extends BaseScanStrategy {
   readonly name = 'React Native Scanner';
@@ -60,27 +63,57 @@ export class ReactNativeScanStrategy extends BaseScanStrategy {
   }
 
   /**
-   * Detect React Native-specific opportunities
+   * Detect React Native-specific opportunities (ASYNC)
+   * FIXED: Now async with progress callbacks, event loop yielding, and group filtering
    */
-  detectOpportunities(files: FileAnalysis[], selectedGroups?: string[]): RefactorOpportunity[] {
+  async detectOpportunities(
+    files: FileAnalysis[],
+    selectedGroups?: string[],
+    onProgress?: import('../ScanStrategy').ProgressCallback
+  ): Promise<RefactorOpportunity[]> {
     const opportunities: RefactorOpportunity[] = [];
+    const opportunitiesRef = { count: 0 };
 
-    for (const file of files) {
-      // Generic checks
-      this.checkLargeFile(file, opportunities);
-      this.checkDuplication(file, opportunities);
-      this.checkLongFunctions(file, opportunities);
-      this.checkConsoleStatements(file, opportunities);
-      this.checkAnyTypes(file, opportunities);
-      this.checkUnusedImports(file, opportunities);
+    // Process files in batches to avoid blocking the event loop
+    await this.processFilesInBatches(
+      files,
+      async (file) => {
+        // Code Quality & Maintainability
+        if (this.shouldRunGroup('maintainability', selectedGroups)) {
+          this.checkLargeFile(file, opportunities);
+          this.checkDuplication(file, opportunities);
+          this.checkLongFunctions(file, opportunities);
+          this.checkComplexConditionals(file, opportunities);
+          this.checkMagicNumbers(file, opportunities);
+        }
 
-      // React Native specific checks
-      this.checkFlatListOptimization(file, opportunities);
-      this.checkImageOptimization(file, opportunities);
-      this.checkMemoryLeaks(file, opportunities);
-      this.checkPlatformSpecific(file, opportunities);
-      this.checkAccessibility(file, opportunities);
-    }
+        if (this.shouldRunGroup('code-quality', selectedGroups)) {
+          this.checkConsoleStatements(file, opportunities);
+          this.checkAnyTypes(file, opportunities);
+          this.checkUnusedImports(file, opportunities);
+        }
+
+        // React-specific checks
+        if (this.shouldRunGroup('react-specific', selectedGroups) || this.shouldRunGroup('react-native-specific', selectedGroups)) {
+          this.checkReactHookDeps(file, opportunities);
+        }
+
+        // React Native specific checks
+        if (this.shouldRunGroup('react-native-specific', selectedGroups)) {
+          this.checkFlatListOptimization(file, opportunities);
+          this.checkImageOptimization(file, opportunities);
+          this.checkMemoryLeaks(file, opportunities);
+          this.checkPlatformSpecific(file, opportunities);
+          this.checkAccessibility(file, opportunities);
+        }
+
+        // Update opportunities count
+        opportunitiesRef.count = opportunities.length;
+      },
+      10, // Process 10 files at a time
+      onProgress,
+      opportunitiesRef
+    );
 
     return opportunities;
   }
@@ -130,20 +163,40 @@ export class ReactNativeScanStrategy extends BaseScanStrategy {
     file: FileAnalysis,
     opportunities: RefactorOpportunity[]
   ): void {
-    if (file.lines <= 500) return;
+    // Stricter threshold: 200 lines (was 500)
+    if (file.lines <= 200) return;
+
+    // Escalate severity based on size
+    let severity: RefactorOpportunity['severity'] = 'low';
+    let effort: RefactorOpportunity['effort'] = 'medium';
+    let estimatedTime = '1-2 hours';
+
+    if (file.lines > 500) {
+      severity = 'high';
+      effort = 'high';
+      estimatedTime = '3-5 hours';
+    } else if (file.lines > 350) {
+      severity = 'medium';
+      effort = 'high';
+      estimatedTime = '2-4 hours';
+    } else if (file.lines > 200) {
+      severity = 'low';
+      effort = 'medium';
+      estimatedTime = '1-2 hours';
+    }
 
     opportunities.push(
       this.createOpportunity(
         `long-file-${file.path}`,
         `Large file detected: ${file.path}`,
-        `This file has ${file.lines} lines. Consider splitting it into smaller components.`,
+        `This file has ${file.lines} lines. Consider splitting it into smaller components. Target: Keep files under 200 lines for better maintainability.`,
         'maintainability',
-        file.lines > 1000 ? 'high' : 'medium',
-        'Improves code organization and maintainability',
-        'high',
+        severity,
+        'Improves code organization, readability, and maintainability',
+        effort,
         [file.path],
         false,
-        '2-4 hours'
+        estimatedTime
       )
     );
   }
@@ -445,6 +498,156 @@ export class ReactNativeScanStrategy extends BaseScanStrategy {
           '30-60 minutes'
         )
       );
+    }
+  }
+
+  private checkComplexConditionals(
+    file: FileAnalysis,
+    opportunities: RefactorOpportunity[]
+  ): void {
+    const issues = detectComplexConditionals(file.content);
+    if (issues.length === 0) return;
+
+    const deepNesting = issues.filter(i => i.type === 'deep-nesting');
+    const complexBoolean = issues.filter(i => i.type === 'complex-boolean');
+
+    if (deepNesting.length > 0) {
+      const lines = deepNesting.map(i => i.line);
+      opportunities.push({
+        id: `complex-nesting-${file.path}`,
+        title: `Deep conditional nesting in ${file.path}`,
+        description: `Found ${deepNesting.length} deeply nested conditional blocks (>3 levels). Consider using early returns or extracting to functions.`,
+        category: 'maintainability',
+        severity: deepNesting.some(i => i.severity === 'high') ? 'high' : 'medium',
+        impact: 'Improves code readability',
+        effort: 'medium',
+        files: [file.path],
+        lineNumbers: { [file.path]: lines },
+        autoFixAvailable: false,
+        estimatedTime: '1-2 hours',
+      });
+    }
+
+    if (complexBoolean.length > 0) {
+      const lines = complexBoolean.map(i => i.line);
+      opportunities.push({
+        id: `complex-boolean-${file.path}`,
+        title: `Complex boolean expressions in ${file.path}`,
+        description: `Found ${complexBoolean.length} complex conditions. Consider extracting to named boolean variables.`,
+        category: 'maintainability',
+        severity: 'medium',
+        impact: 'Improves code readability',
+        effort: 'low',
+        files: [file.path],
+        lineNumbers: { [file.path]: lines },
+        autoFixAvailable: true,
+        estimatedTime: '30-60 minutes',
+      });
+    }
+  }
+
+  private checkMagicNumbers(
+    file: FileAnalysis,
+    opportunities: RefactorOpportunity[]
+  ): void {
+    const magicNumbers = detectMagicNumbers(file.content);
+    if (magicNumbers.length === 0) return;
+
+    const highSeverity = magicNumbers.filter(m => m.severity === 'high');
+    const mediumSeverity = magicNumbers.filter(m => m.severity === 'medium');
+    const total = magicNumbers.length;
+
+    if (total > 0) {
+      const lines = magicNumbers.map(m => m.line);
+      const suggestedNames = magicNumbers
+        .filter(m => m.suggestedName)
+        .map(m => m.suggestedName)
+        .slice(0, 3);
+
+      const severity = highSeverity.length > 0 ? 'high' : mediumSeverity.length > 0 ? 'medium' : 'low';
+
+      opportunities.push({
+        id: `magic-numbers-${file.path}`,
+        title: `Magic numbers in ${file.path}`,
+        description: `Found ${total} magic numbers that should be extracted to named constants.${
+          suggestedNames.length > 0 ? ` Suggested: ${suggestedNames.join(', ')}` : ''
+        }`,
+        category: 'maintainability',
+        severity,
+        impact: 'Improves maintainability',
+        effort: total > 10 ? 'medium' : 'low',
+        files: [file.path],
+        lineNumbers: { [file.path]: lines },
+        autoFixAvailable: true,
+        estimatedTime: total > 10 ? '1-2 hours' : '30-60 minutes',
+      });
+    }
+  }
+
+  private checkReactHookDeps(
+    file: FileAnalysis,
+    opportunities: RefactorOpportunity[]
+  ): void {
+    if (!file.path.endsWith('.tsx') && !file.path.endsWith('.jsx')) {
+      return;
+    }
+
+    const issues = detectReactHookDeps(file.content);
+    if (issues.length === 0) return;
+
+    const missingDeps = issues.filter(i => i.issueType === 'missing-dependency');
+    const unnecessaryDeps = issues.filter(i => i.issueType === 'unnecessary-dependency');
+    const missingArray = issues.filter(i => i.issueType === 'missing-array');
+
+    if (missingDeps.length > 0) {
+      const lines = missingDeps.map(i => i.line);
+      opportunities.push({
+        id: `missing-hook-deps-${file.path}`,
+        title: `Missing React Hook dependencies in ${file.path}`,
+        description: `Found ${missingDeps.length} hooks with missing dependencies that can cause bugs.`,
+        category: 'code-quality',
+        severity: 'high',
+        impact: 'Prevents bugs from stale closures',
+        effort: 'low',
+        files: [file.path],
+        lineNumbers: { [file.path]: lines },
+        autoFixAvailable: true,
+        estimatedTime: '15-30 minutes',
+      });
+    }
+
+    if (missingArray.length > 0) {
+      const lines = missingArray.map(i => i.line);
+      opportunities.push({
+        id: `missing-deps-array-${file.path}`,
+        title: `Missing dependency arrays in ${file.path}`,
+        description: `Found ${missingArray.length} hooks without dependency arrays.`,
+        category: 'code-quality',
+        severity: 'high',
+        impact: 'Prevents infinite loops',
+        effort: 'low',
+        files: [file.path],
+        lineNumbers: { [file.path]: lines },
+        autoFixAvailable: true,
+        estimatedTime: '15-30 minutes',
+      });
+    }
+
+    if (unnecessaryDeps.length > 0) {
+      const lines = unnecessaryDeps.map(i => i.line);
+      opportunities.push({
+        id: `unnecessary-hook-deps-${file.path}`,
+        title: `Unnecessary React Hook dependencies in ${file.path}`,
+        description: `Found ${unnecessaryDeps.length} hooks with unnecessary dependencies causing re-renders.`,
+        category: 'performance',
+        severity: 'low',
+        impact: 'Reduces unnecessary re-renders',
+        effort: 'low',
+        files: [file.path],
+        lineNumbers: { [file.path]: lines },
+        autoFixAvailable: true,
+        estimatedTime: '10-15 minutes',
+      });
     }
   }
 

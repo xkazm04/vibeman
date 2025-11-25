@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
-import { ScanType, SCAN_TYPES } from './lib/ScanTypeConfig';
+import { useState } from 'react';
+import { SCAN_TYPES } from './lib/ScanTypeConfig';
+import { ScanType } from '../lib/scanTypes';
+import PromptEditorModal from './components/PromptEditorModal';
 
 export type { ScanType };
 
@@ -10,6 +13,8 @@ interface ScanTypeSelectorProps {
 }
 
 export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSelectorProps) {
+  const [editingPrompt, setEditingPrompt] = useState<{ scanType: ScanType; label: string } | null>(null);
+
   const handleToggle = (type: ScanType) => {
     if (selectedTypes.includes(type)) {
       // Deselect - but keep at least one selected
@@ -20,6 +25,11 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
       // Select - add to array
       onChange([...selectedTypes, type]);
     }
+  };
+
+  const handleRightClick = (e: React.MouseEvent, type: ScanType, label: string) => {
+    e.preventDefault(); // Prevent default context menu
+    setEditingPrompt({ scanType: type, label });
   };
 
   return (
@@ -38,6 +48,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
             <motion.button
               key={type.value}
               onClick={() => handleToggle(type.value)}
+              onContextMenu={(e) => handleRightClick(e, type.value, type.label)}
               className={`relative px-4 py-3 rounded-lg border-2 transition-all duration-300 ${
                 isSelected
                   ? type.color
@@ -45,6 +56,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
               }`}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
+              title="Right-click to edit prompt"
             >
               {/* Selected indicator */}
               {isSelected && (
@@ -72,6 +84,16 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
           );
         })}
       </div>
+
+      {/* Prompt Editor Modal */}
+      {editingPrompt && (
+        <PromptEditorModal
+          isOpen={true}
+          onClose={() => setEditingPrompt(null)}
+          scanType={editingPrompt.scanType}
+          promptLabel={editingPrompt.label}
+        />
+      )}
     </div>
   );
 }

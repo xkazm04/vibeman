@@ -32,7 +32,7 @@ import * as buildScan from './blueprintBuildScan';
 import * as selectorsScan from './blueprintSelectorsScan';
 import * as unusedScan from './blueprintUnusedScan';
 import * as testScan from './context-scans/blueprintTestScan';
-import * as separatorScan from './context-scans/blueprintSeparatorScan';
+import * as contextReviewScan from './context-scans/blueprintContextReviewScan';
 import * as testDesignScan from './context-scans/blueprintTestDesign';
 
 /**
@@ -176,7 +176,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       requiredForCompletion: true,
       scanHandler: {
         execute: visionScan.executeVisionScan,
-        buildDecision: visionScan.buildDecisionData,
+        buildDecision: (result) => visionScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
@@ -192,7 +192,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       requiredForCompletion: true,
       scanHandler: {
         execute: contextsScan.executeContextsScan,
-        buildDecision: contextsScan.buildDecisionData,
+        buildDecision: (result) => contextsScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
 
@@ -209,7 +209,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       estimatedTime: '2-4 min',
       scanHandler: {
         execute: structureScan.executeStructureScan,
-        buildDecision: structureScan.buildDecisionData,
+        buildDecision: (result) => structureScan.buildDecisionData({ ...result, data: result.data as any, violations: (result.data as any)?.violations }),
       },
     }),
     createScanState({
@@ -224,7 +224,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       estimatedTime: '1-2 min',
       scanHandler: {
         execute: buildScan.executeBuildScan,
-        buildDecision: buildScan.buildDecisionData,
+        buildDecision: (result) => buildScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
@@ -239,7 +239,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       estimatedTime: '2-3 min',
       scanHandler: {
         execute: unusedScan.executeUnusedScan,
-        buildDecision: unusedScan.buildDecisionData,
+        buildDecision: (result) => unusedScan.buildDecisionData({ success: result.success, error: result.error, unusedFiles: (result.data as any)?.unusedFiles, stats: (result.data as any)?.stats }),
       },
     }),
 
@@ -256,8 +256,11 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       contextNeeded: true,
       estimatedTime: '3-5 min',
       scanHandler: {
-        execute: photoScan.executePhotoScan,
-        buildDecision: photoScan.buildDecisionData,
+        execute: async (contextId?: string) => {
+          if (!contextId) throw new Error("Context ID required");
+          return photoScan.executePhotoScan(contextId);
+        },
+        buildDecision: (result) => photoScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
@@ -276,7 +279,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
           success: false,
           error: 'Context ID is required for this scan',
         }),
-        buildDecision: selectorsScan.buildDecisionData,
+        buildDecision: (result) => selectorsScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
@@ -295,7 +298,7 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
           success: false,
           error: 'Context ID is required for this scan',
         }),
-        buildDecision: testScan.buildDecisionData,
+        buildDecision: (result) => testScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
@@ -303,31 +306,37 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       label: 'Test Design',
       description: 'Design and generate test scenarios for comprehensive coverage',
       icon: FileEdit,
-      color: 'yellow',
+      color: 'amber',
       group: 'quality-assurance',
       order: 9,
       eventTitle: 'Test Design Scan Completed',
       contextNeeded: true,
       estimatedTime: '4-6 min',
       scanHandler: {
-        execute: testDesignScan.executeTestDesignScan,
-        buildDecision: testDesignScan.buildDecisionData,
+        execute: async (contextId?: string) => {
+          if (!contextId) throw new Error("Context ID required");
+          return testDesignScan.executeTestDesignScan(contextId);
+        },
+        buildDecision: (result) => testDesignScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
-      id: 'separator',
-      label: 'Separator',
-      description: 'Intelligently separate contexts into smaller, focused units',
+      id: 'contextreview',
+      label: 'Context Review',
+      description: 'Review context for dead files, new files, and optionally split if needed',
       icon: Scissors,
       color: 'purple',
       group: 'quality-assurance',
       order: 10,
-      eventTitle: 'Separator Scan Completed',
+      eventTitle: 'Context Review Completed',
       contextNeeded: true,
       estimatedTime: '3-5 min',
       scanHandler: {
-        execute: separatorScan.executeSeparatorScan,
-        buildDecision: separatorScan.buildDecisionData,
+        execute: async (contextId?: string) => {
+          if (!contextId) throw new Error("Context ID required");
+          return contextReviewScan.executeContextReviewScan(contextId);
+        },
+        buildDecision: (result) => contextReviewScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
 
@@ -371,14 +380,14 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
       'photo',
       'selectors',
       'test',
-      'separator',
+      'contextreview',
       'prototype',
       'tasker',
       'fix',
       'completed',
     ]),
-    // Add skip transition from separator to completed
-    { id: 't13', fromState: 'separator', toState: 'completed', condition: 'skip' },
+    // Add skip transition from contextreview to completed
+    { id: 't13', fromState: 'contextreview', toState: 'completed', condition: 'skip' },
   ],
 };
 
@@ -411,7 +420,7 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
       requiredForCompletion: true,
       scanHandler: {
         execute: visionScan.executeVisionScan,
-        buildDecision: visionScan.buildDecisionData,
+        buildDecision: (result) => visionScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
@@ -427,7 +436,7 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
       requiredForCompletion: true,
       scanHandler: {
         execute: contextsScan.executeContextsScan,
-        buildDecision: contextsScan.buildDecisionData,
+        buildDecision: (result) => contextsScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
 
@@ -444,7 +453,7 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
       estimatedTime: '2-4 min',
       scanHandler: {
         execute: structureScan.executeStructureScan,
-        buildDecision: structureScan.buildDecisionData,
+        buildDecision: (result) => structureScan.buildDecisionData({ ...result, data: result.data as any, violations: (result.data as any)?.violations }),
       },
     }),
     createScanState({
@@ -459,7 +468,7 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
       estimatedTime: '1-2 min',
       scanHandler: {
         execute: buildScan.executeBuildScan,
-        buildDecision: buildScan.buildDecisionData,
+        buildDecision: (result) => buildScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({
@@ -474,7 +483,7 @@ export const DEFAULT_FASTAPI_STATE_MACHINE: StateMachineConfig = {
       estimatedTime: '2-3 min',
       scanHandler: {
         execute: unusedScan.executeUnusedScan,
-        buildDecision: unusedScan.buildDecisionData,
+        buildDecision: (result) => unusedScan.buildDecisionData({ success: result.success, error: result.error, unusedFiles: (result.data as any)?.unusedFiles, stats: (result.data as any)?.stats }),
       },
     }),
 

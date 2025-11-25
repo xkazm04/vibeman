@@ -1,4 +1,4 @@
-import { Goal } from '../../../../types';
+import { Goal } from '@/types';
 
 /**
  * Sort goals by order

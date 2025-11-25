@@ -1,5 +1,5 @@
 import { CheckCircle, Clock, Circle, XCircle, AlertCircle } from 'lucide-react';
-import { Goal } from '../../../../types';
+import { Goal } from '@/types';
 
 /**
  * Status configuration interface

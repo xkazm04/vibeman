@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import type React from 'react';
+import type { WizardStepAction } from '@/components/DecisionPanel/WizardStepPanel';
 
-export type DecisionType = 'structure-scan' | 'build-fix' | 'context-scan';
+export type DecisionType = 'structure-scan' | 'build-fix' | 'context-scan' | 'pre-scan';
 
 export interface DecisionItem {
   id: string;
@@ -13,6 +15,8 @@ export interface DecisionItem {
   projectPath: string;
   projectType?: 'nextjs' | 'fastapi';
   data?: Record<string, unknown>; // Type-specific data to complete the action
+  customContent?: React.ReactNode; // Optional custom UI content
+  titleActions?: WizardStepAction[]; // Optional title bar action buttons
   onAccept: () => Promise<void>;
   onReject?: () => Promise<void>; // Optional - some decisions are info-only
   createdAt: number;

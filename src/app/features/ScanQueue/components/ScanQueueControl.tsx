@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, Settings, FileSearch } from 'lucide-react';
-import VoicebotScanButton from '@/app/features/Annette/components/VoicebotScanButton';
-import StatusChip from '@/app/components/ui/StatusChip';
+import { Play, Pause, FileSearch } from 'lucide-react';
+import StatusChip from '@/components/DecisionPanel/StatusChip';
 
 interface ScanQueueControlProps {
   projectId: string;
@@ -82,11 +81,10 @@ export function ScanQueueControl({ projectId, projectPath }: ScanQueueControlPro
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={toggleWorker}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-          workerRunning
-            ? 'bg-green-500/10 border-green-500/50 text-green-400 hover:bg-green-500/20'
-            : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:bg-gray-700/50'
-        }`}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${workerRunning
+          ? 'bg-green-500/10 border-green-500/50 text-green-400 hover:bg-green-500/20'
+          : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:bg-gray-700/50'
+          }`}
       >
         {workerRunning ? (
           <>
@@ -106,20 +104,16 @@ export function ScanQueueControl({ projectId, projectPath }: ScanQueueControlPro
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={toggleFileWatch}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-          fileWatchEnabled
-            ? 'bg-blue-500/10 border-blue-500/50 text-blue-400 hover:bg-blue-500/20'
-            : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:bg-gray-700/50'
-        }`}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${fileWatchEnabled
+          ? 'bg-blue-500/10 border-blue-500/50 text-blue-400 hover:bg-blue-500/20'
+          : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:bg-gray-700/50'
+          }`}
       >
         <FileSearch className="w-4 h-4" />
         <span className="text-sm font-medium">
           {fileWatchEnabled ? 'File Watch On' : 'File Watch Off'}
         </span>
       </motion.button>
-
-      {/* Voicebot Scan Briefing */}
-      <VoicebotScanButton projectId={projectId} variant="full" />
 
       {/* Status Indicator - Using StatusChip */}
       <div className="ml-auto">

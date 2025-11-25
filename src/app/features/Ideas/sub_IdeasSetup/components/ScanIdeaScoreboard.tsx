@@ -8,8 +8,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { getScanTypeConfig } from '../lib/ScanTypeConfig';
-import { QueueItem, ContextQueueItem } from '../../lib/scanTypes';
-import { ScanType } from '../lib/ScanTypeConfig';
+import { QueueItem, ContextQueueItem, ScanType } from '../../lib/scanTypes';
 
 interface ScanIdeaScoreboardProps {
   items: (QueueItem | ContextQueueItem)[];
