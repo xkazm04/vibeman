@@ -6,7 +6,7 @@
 import { scanQueueDb, ideaDb } from '@/app/db';
 import { DbScanQueueItem } from '@/app/db/models/types';
 import { executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/scanHandlers';
-import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { ScanType, getScanTypeName } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 
@@ -305,28 +305,11 @@ class ScanQueueWorker {
   }
 
   /**
-   * Scan type display names mapping
-   */
-  private readonly SCAN_TYPE_NAMES: Readonly<Record<string, string>> = {
-    zen_architect: 'Zen Architect',
-    bug_hunter: 'Bug Hunter',
-    perf_optimizer: 'Performance Optimizer',
-    security_protector: 'Security Protector',
-    insight_synth: 'Insight Synthesizer',
-    ambiguity_guardian: 'Ambiguity Guardian',
-    business_visionary: 'Business Visionary',
-    ui_perfectionist: 'UI Perfectionist',
-    feature_scout: 'Feature Scout',
-    onboarding_optimizer: 'Onboarding Optimizer',
-    ai_integration_scout: 'AI Integration Scout',
-    delight_designer: 'Delight Designer'
-  };
-
-  /**
    * Get human-readable scan type name
+   * Uses centralized config from scanTypes.ts
    */
   private getScanTypeName(scanType: string): string {
-    return this.SCAN_TYPE_NAMES[scanType] || scanType;
+    return getScanTypeName(scanType as ScanType);
   }
 
   /**

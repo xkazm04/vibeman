@@ -324,7 +324,7 @@ export function createFileWatchPoller<T = unknown>(
       const currentModified = fileResult?.lastModified || fileResult?.timestamp || Date.now();
 
       if (lastModified !== null && currentModified > lastModified && onChangeDetected) {
-        onChangeDetected(result as T);
+        onChangeDetected(result as unknown as T);
       }
 
       lastModified = currentModified;

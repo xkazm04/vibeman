@@ -118,8 +118,6 @@ export default function PackageStep() {
             <ProviderSelector
               selectedProvider={llmProvider as any}
               onSelectProvider={(provider) => setLLMProvider(provider)}
-              selectedModel={llmModel}
-              onSelectModel={(model) => setLLMModel(model)}
               compact={false}
               showAllProviders={true}
             />
@@ -165,10 +163,18 @@ export default function PackageStep() {
 
   // Existing Package Selection View
   const filteredPackages = packages.filter(pkg => {
-    if (packageFilter === 'all') return true;
-    if (packageFilter === 'high-impact') return pkg.impact === 'high';
-    if (packageFilter === 'quick-wins') return pkg.effort === 'low';
-    if (packageFilter === 'foundational') return pkg.executionOrder === 1;
+    // Filter by impact
+    if (packageFilter.impact !== 'all' && pkg.impact !== packageFilter.impact) {
+      return false;
+    }
+    // Filter by effort
+    if (packageFilter.effort !== 'all' && pkg.effort !== packageFilter.effort) {
+      return false;
+    }
+    // Filter by category
+    if (packageFilter.category !== 'all' && pkg.category !== packageFilter.category) {
+      return false;
+    }
     return true;
   });
 
@@ -223,15 +229,15 @@ export default function PackageStep() {
 
         <div className="md:col-span-3 flex gap-2 overflow-x-auto pb-2 md:pb-0">
           {[
-            { id: 'all', label: 'All Packages' },
-            { id: 'foundational', label: 'Foundational' },
-            { id: 'high-impact', label: 'High Impact' },
-            { id: 'quick-wins', label: 'Quick Wins' },
+            { impact: 'all' as const, label: 'All Packages' },
+            { impact: 'high' as const, label: 'High Impact' },
+            { impact: 'critical' as const, label: 'Critical' },
+            { impact: 'medium' as const, label: 'Medium' },
           ].map((filter) => (
             <button
-              key={filter.id}
-              onClick={() => setPackageFilter(filter.id as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${packageFilter === filter.id
+              key={filter.impact}
+              onClick={() => setPackageFilter({ impact: filter.impact })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${packageFilter.impact === filter.impact
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                   : 'bg-black/20 text-gray-400 border border-white/5 hover:bg-black/40'
                 }`}
@@ -310,7 +316,7 @@ export default function PackageStep() {
                     <div className="flex items-center gap-4 text-xs text-gray-500">
                       <div className="flex items-center gap-1">
                         <Box className="w-3 h-3" />
-                        <span>{pkg.files?.length || 0} files</span>
+                        <span>{pkg.issueCount || 0} issues</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Layers className="w-3 h-3" />
@@ -318,7 +324,7 @@ export default function PackageStep() {
                       </div>
                       <div className="flex items-center gap-1">
                         <FileCode className="w-3 h-3" />
-                        <span>{pkg.opportunities?.length || 0} issues</span>
+                        <span>{pkg.estimatedHours || 0}h effort</span>
                       </div>
                     </div>
                   </div>

@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
-import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { ALL_SCAN_TYPES, isValidScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,26 +58,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate scan type
-    const validScanTypes: ScanType[] = [
-      'zen_architect',
-      'bug_hunter',
-      'perf_optimizer',
-      'security_protector',
-      'insight_synth',
-      'ambiguity_guardian',
-      'business_visionary',
-      'ui_perfectionist',
-      'feature_scout',
-      'onboarding_optimizer',
-      'ai_integration_scout',
-      'delight_designer',
-      'refactor_analysis'
-    ];
-
-    if (!validScanTypes.includes(scanType)) {
+    // Validate scan type using centralized config
+    if (!isValidScanType(scanType)) {
       return NextResponse.json(
-        { error: `Invalid scan type: ${scanType}. Valid types: ${validScanTypes.join(', ')}` },
+        { error: `Invalid scan type: ${scanType}. Valid types: ${ALL_SCAN_TYPES.join(', ')}` },
         { status: 400 }
       );
     }

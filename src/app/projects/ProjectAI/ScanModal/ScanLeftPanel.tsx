@@ -9,7 +9,7 @@ import SupabaseSync from './SupabaseSync';
 interface AILeftPanelProps {
   aiDocsExist: boolean;
   checkingDocs: boolean;
-  activeProject: { id: string; name: string; path: string; type?: 'nextjs' | 'fastapi' | 'other' };
+  activeProject: { id?: string; name?: string; path?: string; type?: 'nextjs' | 'fastapi' | 'other' } | null;
   selectedProvider: SupportedProvider;
   backgroundTask: boolean;
   onProviderSelect: (provider: SupportedProvider) => void;
@@ -110,7 +110,7 @@ export default function AILeftPanel({
 
 
         {/* Claude Code Initialization */}
-        {activeProject && (
+        {activeProject && activeProject.path && activeProject.name && activeProject.id && (
           <ClaudeCodeInit
             projectPath={activeProject.path}
             projectName={activeProject.name}

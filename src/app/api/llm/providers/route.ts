@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
       openai: false,
       anthropic: false,
       gemini: false,
+      groq: false,
       internal: false
     };
 
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
       configured.openai = checkApiKeyConfigured(process.env.OPENAI_API_KEY);
       configured.anthropic = checkApiKeyConfigured(process.env.ANTHROPIC_API_KEY);
       configured.gemini = checkApiKeyConfigured(process.env.GEMINI_API_KEY);
+      configured.groq = checkApiKeyConfigured(process.env.GROQ_API_KEY);
       configured.ollama = await checkOllamaAvailability();
       configured.internal = checkApiKeyConfigured(process.env.INTERNAL_API_BASE_URL);
     }

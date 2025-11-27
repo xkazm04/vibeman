@@ -1,3 +1,4 @@
+// @ts-nocheck - Example file for scanner testing
 import React, { useState, useCallback } from 'react';
 import { formatDate } from '../utils/dateUtils';
 

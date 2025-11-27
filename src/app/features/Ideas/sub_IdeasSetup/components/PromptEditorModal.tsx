@@ -223,7 +223,8 @@ function getPromptFileName(scanType: ScanType): string {
     feature_scout: 'featureScoutPrompt.ts',
     onboarding_optimizer: 'onboardingOptimizerPrompt.ts',
     ai_integration_scout: 'aiIntegrationScoutPrompt.ts',
-    delight_designer: 'delightDesignerPrompt.ts'
+    delight_designer: 'delightDesignerPrompt.ts',
+    refactor_analysis: 'refactorAnalysisPrompt.ts'
   };
 
   return fileMap[scanType] || 'zenArchitectPrompt.ts';

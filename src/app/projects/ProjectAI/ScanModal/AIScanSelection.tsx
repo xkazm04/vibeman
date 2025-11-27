@@ -9,7 +9,7 @@ interface AIScanSelectionProps {
   aiDocsExist: boolean;
   selectedProvider: SupportedProvider;
   backgroundTask: boolean;
-  onSelectMode: (mode: 'docs' | 'code' | 'file-scanner', backgroundTask?: boolean) => void;
+  onSelectMode: (mode: 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'file-scanner', backgroundTask?: boolean) => void;
 }
 
 export default function AIScanSelection({

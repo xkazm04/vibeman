@@ -15,5 +15,6 @@ export const LLM_PROVIDERS: LLMProviderConfig[] = [
   { value: 'ollama' as SupportedProvider, icon: '/llm_icons/ollama.svg', name: 'Ollama' },
   { value: 'anthropic' as SupportedProvider, icon: '/llm_icons/claude.svg', name: 'Claude' },
   { value: 'gemini' as SupportedProvider, icon: '/llm_icons/gemini.svg', name: 'Gemini' },
-  { value: 'openai' as SupportedProvider, icon: '/llm_icons/openai.svg', name: 'OpenAI' }
+  { value: 'openai' as SupportedProvider, icon: '/llm_icons/openai.svg', name: 'OpenAI' },
+  { value: 'groq' as SupportedProvider, icon: '/llm_icons/groq.svg', name: 'Groq' }
 ];

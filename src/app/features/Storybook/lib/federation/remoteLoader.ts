@@ -111,7 +111,6 @@ export async function loadRemoteComponent<T = any>(
 
     // @ts-expect-error - container init
     await container.init(__webpack_share_scopes__.default);
-    // @ts-expect-error - container get
     const factory = await container.get(componentName);
     const Module = factory();
     return Module;

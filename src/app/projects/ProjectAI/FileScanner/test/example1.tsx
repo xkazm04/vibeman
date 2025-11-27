@@ -1,3 +1,4 @@
+// @ts-nocheck - Example file for scanner testing
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../components/Button';

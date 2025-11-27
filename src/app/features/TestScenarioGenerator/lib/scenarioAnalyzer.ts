@@ -43,15 +43,14 @@ Focus on:
 
 Return ONLY the JSON object, no explanation.`;
 
-    const response = await generateWithLLM({
-      prompt,
+    const response = await generateWithLLM(prompt, {
       provider: 'gemini',
       model: 'gemini-2.0-flash-exp',
       temperature: 0.3
     });
 
     // Parse the JSON response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    const jsonMatch = (response.response || '').match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('Failed to extract JSON from AI response');
       return null;
@@ -147,15 +146,14 @@ Return a JSON array of scenarios. Example format:
 Return ONLY the JSON array, no explanation or markdown.`;
 
   try {
-    const response = await generateWithLLM({
-      prompt,
+    const response = await generateWithLLM(prompt, {
       provider: 'gemini',
       model: 'gemini-2.0-flash-exp',
       temperature: 0.4
     });
 
     // Extract JSON from response
-    const jsonMatch = response.match(/\[[\s\S]*\]/);
+    const jsonMatch = (response.response || '').match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('Failed to extract JSON array from AI response');
     }
@@ -217,14 +215,13 @@ Focus on:
 
 Return ONLY the JSON object.`;
 
-    const response = await generateWithLLM({
-      prompt,
+    const response = await generateWithLLM(prompt, {
       provider: 'gemini',
       model: 'gemini-2.0-flash-exp',
       temperature: 0.3
     });
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    const jsonMatch = (response.response || '').match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('Failed to extract JSON from AI response');
     }

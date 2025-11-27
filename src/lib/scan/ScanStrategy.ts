@@ -37,7 +37,7 @@ export interface ScanStrategy {
 
   getScanPatterns(): string[];
   getIgnorePatterns(): string[];
-  scanProjectFiles(projectPath: string): Promise<FileAnalysis[]>;
+  scanProjectFiles(projectPath: string, selectedFolders?: string[]): Promise<FileAnalysis[]>;
 
   /**
    * Detect tech-specific refactoring opportunities (ASYNC)

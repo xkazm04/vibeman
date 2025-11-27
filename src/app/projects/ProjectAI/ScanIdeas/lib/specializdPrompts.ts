@@ -4,9 +4,9 @@
  * Each scan type focuses on a specific dimension of code analysis
  */
 
-import { ScanType } from "@/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector";
+import { ScanType } from "@/app/features/Ideas/lib/scanTypes";
 
-
+type ExtendedScanType = ScanType | 'overall';
 
 interface SpecializedPromptConfig {
   focusArea: string;
@@ -14,7 +14,7 @@ interface SpecializedPromptConfig {
   outputCategories: string[];
 }
 
-export const SPECIALIZED_PROMPTS: Record<ScanType, SpecializedPromptConfig> = {
+export const SPECIALIZED_PROMPTS: Partial<Record<ExtendedScanType, SpecializedPromptConfig>> = {
   overall: {
     focusArea: 'Comprehensive Multi-Dimensional Analysis',
     analysisInstructions: `Analyze the codebase from ALL perspectives:
@@ -213,7 +213,7 @@ Generate ideas that identify specific components to extract, improve existing co
  * Build specialized prompt based on scan type
  */
 export function buildSpecializedPrompt(options: {
-  scanType: ScanType;
+  scanType: ExtendedScanType;
   projectName: string;
   aiDocsSection: string;
   contextSection: string;
@@ -223,6 +223,10 @@ export function buildSpecializedPrompt(options: {
 }): string {
   const { scanType, projectName, aiDocsSection, contextSection, existingIdeasSection, codeSection, hasContext } = options;
   const config = SPECIALIZED_PROMPTS[scanType];
+
+  if (!config) {
+    throw new Error(`No specialized prompt configuration found for scan type: ${scanType}`);
+  }
 
   return `You are performing a specialized code analysis scan for the project: ${projectName}.
 

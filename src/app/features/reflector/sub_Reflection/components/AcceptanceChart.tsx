@@ -75,8 +75,8 @@ export default function AcceptanceChart({ scanTypeStats }: AcceptanceChartProps)
               }}
               labelStyle={{ color: '#e5e7eb', fontWeight: 600 }}
               itemStyle={{ color: '#d1d5db' }}
-              formatter={(value: number, name: string, props: { payload: { total: number } }) => [
-                `${value}% (${props.payload.total} ideas)`,
+              formatter={(value: number, name: string, props: { payload?: { total: number } }) => [
+                `${value}% (${props.payload?.total ?? 0} ideas)`,
                 'Acceptance Ratio'
               ]}
             />

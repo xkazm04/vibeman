@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Get additional context data
-    const filesCount = context.files ? JSON.parse(context.files).length : 0;
+    const filesCount = context.file_paths ? JSON.parse(context.file_paths).length : 0;
 
     // Get untested logs for this context
     const untestedLogsForContext = implementationLogDb

@@ -6,6 +6,7 @@
 import type {
   TechDebtCategory,
   TechDebtSeverity,
+  TechDebtStatus,
   DbTechDebt,
   TechDebtScanConfig
 } from '@/app/db/models/tech-debt.types';
@@ -283,6 +284,31 @@ async function scanAccessibility(config: TechDebtScanConfig): Promise<DetectedIs
   ];
 }
 
+// Input type for createTechDebt that uses arrays/objects before serialization
+interface TechDebtCreateInput {
+  id: string;
+  project_id: string;
+  scan_id: string | null;
+  category: TechDebtCategory;
+  title: string;
+  description: string;
+  severity: TechDebtSeverity;
+  risk_score: number;
+  estimated_effort_hours: number | null;
+  impact_scope: Array<Record<string, unknown>> | null;
+  technical_impact: string | null;
+  business_impact: string | null;
+  detected_by: 'automated_scan' | 'manual_entry' | 'ai_analysis';
+  detection_details: Record<string, unknown> | null;
+  file_paths: string[] | null;
+  status: TechDebtStatus;
+  remediation_plan: Record<string, unknown> | null;
+  remediation_steps: Array<Record<string, unknown>> | null;
+  estimated_completion_date: string | null;
+  backlog_item_id: string | null;
+  goal_id: string | null;
+}
+
 /**
  * Convert detected issues to database format
  */
@@ -290,7 +316,7 @@ export function prepareIssuesForDatabase(
   issues: DetectedIssue[],
   projectId: string,
   scanId: string | null
-): Omit<DbTechDebt, 'created_at' | 'updated_at' | 'resolved_at' | 'dismissed_at' | 'dismissal_reason'>[] {
+): TechDebtCreateInput[] {
   return issues.map((issue) => {
     const riskScore = calculateRiskScore({
       severity: severityToWeight(issue.severity),
@@ -312,15 +338,15 @@ export function prepareIssuesForDatabase(
       severity: issue.severity,
       risk_score: riskScore,
       estimated_effort_hours: remediationPlan.estimatedEffort,
-      impact_scope: JSON.stringify([issue.category]),
+      impact_scope: [{ category: issue.category }],
       technical_impact: issue.technicalImpact,
       business_impact: issue.businessImpact,
-      detected_by: 'automated_scan',
-      detection_details: JSON.stringify(issue.detectionDetails),
-      file_paths: JSON.stringify(issue.filePaths),
-      status: 'detected',
-      remediation_plan: JSON.stringify(remediationPlan),
-      remediation_steps: JSON.stringify(remediationPlan.steps),
+      detected_by: 'automated_scan' as const,
+      detection_details: issue.detectionDetails as Record<string, unknown>,
+      file_paths: issue.filePaths,
+      status: 'detected' as const,
+      remediation_plan: remediationPlan as unknown as Record<string, unknown>,
+      remediation_steps: remediationPlan.steps as unknown as Array<Record<string, unknown>>,
       estimated_completion_date: null,
       backlog_item_id: null,
       goal_id: null

@@ -50,7 +50,7 @@ export interface APIKeyConfig {
   organization?: string;
 }
 
-export type SupportedProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini' | 'internal';
+export type SupportedProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'internal';
 
 export interface ProviderConfig {
   provider: SupportedProvider;

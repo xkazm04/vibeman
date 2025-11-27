@@ -70,8 +70,8 @@ async function runScheduledScan(config: SchedulerConfig): Promise<void> {
       project_id: config.projectId,
       scan_type: 'tech_debt_scheduled',
       summary: `Scheduled tech debt scan (${config.interval})`,
-      input_tokens: null,
-      output_tokens: null
+      input_tokens: undefined,
+      output_tokens: undefined
     });
 
     // Configure and run scan

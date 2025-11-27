@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FileText, CheckCircle } from 'lucide-react';
+import { FileText, CheckCircle, Search } from 'lucide-react';
 
 export interface ScanStats {
   filesProcessed: number;

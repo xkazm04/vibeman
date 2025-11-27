@@ -1,8 +1,27 @@
 import { generateWithLLM } from '@/lib/llm';
-import type { RefactorOpportunity, RefactorAction, RefactorScript } from '@/stores/refactorStore';
+import type { RefactorOpportunity } from '@/stores/refactorStore';
 import { v4 as uuidv4 } from 'uuid';
 
 type LLMProvider = 'gemini' | 'openai' | 'anthropic' | 'ollama';
+
+// Local types for script generation (not exported from store)
+interface RefactorAction {
+  type: 'replace' | 'insert' | 'delete';
+  file: string;
+  oldContent?: string;
+  newContent?: string;
+  lineStart?: number;
+  lineEnd?: number;
+  description?: string;
+}
+
+interface RefactorScript {
+  id: string;
+  opportunityId: string;
+  actions: RefactorAction[];
+  generatedAt: string;
+  status: 'generated' | 'executed' | 'failed';
+}
 
 interface ParsedAction {
   type?: string;
@@ -18,8 +37,7 @@ interface ParsedAction {
  * Call LLM with typed provider
  */
 async function callLLM(prompt: string, provider: string, model: string, temperature: number, maxTokens: number) {
-  return generateWithLLM({
-    prompt,
+  return generateWithLLM(prompt, {
     provider: provider as LLMProvider,
     model,
     temperature,
@@ -40,16 +58,14 @@ export async function generateRefactorScript(
   try {
     const response = await callLLM(prompt, provider, model, 0.2, 8000);
 
-    const actions = parseScriptResponse(response.text);
+    const actions = parseScriptResponse(response.response || '');
 
     return {
       id: uuidv4(),
-      title: `Refactor ${opportunities.length} opportunities`,
-      description: `Automated refactoring for: ${opportunities.map(o => o.title).join(', ')}`,
-      opportunities: opportunities.map(o => o.id),
+      opportunityId: opportunities[0]?.id || '',
       actions,
-      status: 'pending',
-      progress: 0,
+      generatedAt: new Date().toISOString(),
+      status: 'generated',
     };
   } catch (error) {
     throw new Error(`Failed to generate script: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -70,7 +86,7 @@ export async function generateSingleOpportunityScript(
   try {
     const response = await callLLM(prompt, provider, model, 0.1, 4000);
 
-    return parseScriptResponse(response.text);
+    return parseScriptResponse(response.response || '');
   } catch (error) {
     return [];
   }
@@ -193,15 +209,14 @@ function parseScriptResponse(response: string): RefactorAction[] {
 
     const parsed: ParsedAction[] = JSON.parse(jsonMatch[0]);
 
-    return parsed.map((item) => ({
-      id: uuidv4(),
-      type: item.type || 'replace',
+    return parsed.map((item): RefactorAction => ({
+      type: (item.type as RefactorAction['type']) || 'replace',
       file: item.file || '',
       oldContent: item.oldContent,
       newContent: item.newContent,
       lineStart: item.lineStart,
       lineEnd: item.lineEnd,
-      description: item.description || 'Refactor action',
+      description: item.description,
     }));
   } catch (error) {
     return [];

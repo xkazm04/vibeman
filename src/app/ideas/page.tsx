@@ -194,7 +194,6 @@ export default function IdeasPage() {
             onSelectProject={handleProjectSelect}
             selectedContextId={filterContext}
             onSelectContext={setFilterContext}
-            stats={stats}
             selectedProjectPath={selectedProject?.path}
             onIdeaImplemented={loadIdeas}
           />

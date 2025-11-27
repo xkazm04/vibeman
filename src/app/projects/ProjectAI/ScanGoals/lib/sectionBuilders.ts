@@ -3,7 +3,7 @@
  * Constructs different sections of the LLM prompt from project data
  */
 
-import { DbGoal } from '../../../../../lib/database';
+import { DbGoal } from '@/app/db/models/types';
 
 /**
  * Build the project analysis data section

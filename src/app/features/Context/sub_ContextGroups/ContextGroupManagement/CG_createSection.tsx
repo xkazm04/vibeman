@@ -1,7 +1,10 @@
 'use client';
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Plus, Code, Database, Layers, Grid, Activity, Cpu, Zap, Settings } from 'lucide-react';
+import {
+  Sparkles, Plus, Code, Database, Layers, Grid, Activity, Cpu, Zap, Settings,
+  Globe, Shield, Users, FileText, Box, Terminal, Workflow, Server
+} from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
 
@@ -19,6 +22,7 @@ interface CreateGroupSectionProps {
 }
 
 const iconOptions = [
+  // Row 1 - Original icons
   { name: 'Code', icon: Code },
   { name: 'Database', icon: Database },
   { name: 'Layers', icon: Layers },
@@ -27,6 +31,15 @@ const iconOptions = [
   { name: 'Cpu', icon: Cpu },
   { name: 'Zap', icon: Zap },
   { name: 'Settings', icon: Settings },
+  // Row 2 - Extended icons for feature sets
+  { name: 'Globe', icon: Globe },
+  { name: 'Shield', icon: Shield },
+  { name: 'Users', icon: Users },
+  { name: 'FileText', icon: FileText },
+  { name: 'Box', icon: Box },
+  { name: 'Terminal', icon: Terminal },
+  { name: 'Workflow', icon: Workflow },
+  { name: 'Server', icon: Server },
 ];
 
 export default function CreateGroupSection({
@@ -58,13 +71,13 @@ export default function CreateGroupSection({
             <h3 className="text-xl font-bold text-white font-mono">Create New Group</h3>
           </div>
           
-          {/* Compact Color Swatches */}
-          <div className="flex items-center gap-1.5">
+          {/* Color Swatches - Two Rows of 9 */}
+          <div className="flex flex-wrap gap-1.5" style={{ width: '246px' }}>
             {CONTEXT_GROUP_COLORS.map((color) => (
               <motion.button
                 key={color}
                 onClick={() => setSelectedColor(color)}
-                className={`w-6 h-6 rounded-lg border transition-all ${
+                className={`w-6 h-6 rounded-lg border transition-all flex-shrink-0 ${
                   selectedColor === color ? 'border-white scale-110 shadow-lg' : 'border-gray-600/50 hover:border-gray-400'
                 }`}
                 style={{ backgroundColor: color }}
@@ -105,10 +118,10 @@ export default function CreateGroupSection({
             />
           </div>
           
-          {/* Icon Selection - Compact Grid */}
+          {/* Icon Selection - Two Row Grid */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3 font-mono">Icon Selection</label>
-            <div className="flex flex-row gap-1.5">
+            <div className="grid grid-cols-8 gap-1.5">
               {iconOptions.map(({ name, icon: Icon }) => (
                 <motion.button
                   key={name}

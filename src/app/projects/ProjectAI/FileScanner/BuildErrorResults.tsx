@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertCircle, AlertTriangle, FileText, Code, Wrench, Zap, HelpCircle } from 'lucide-react';
-import { BuildError, BuildScanStats } from '../../../lib/scanner/buildErrorScanner';
+import { BuildError, BuildScanStats } from '@/lib/scanner/buildErrorScanner';
 
 interface BuildErrorResultsProps {
   isOpen: boolean;

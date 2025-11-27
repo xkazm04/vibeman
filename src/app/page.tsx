@@ -8,7 +8,7 @@ import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import IdeasLayout from './features/Ideas/IdeasLayout';
 import TinderLayout from './features/tinder/TinderLayout';
 import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
-import ReflectorLayout from './features/Reflector/ReflectorLayout';
+import ReflectorLayout from './features/reflector/ReflectorLayout';
 import ManagerLayout from './features/Manager/ManagerLayout';
 import DocsPage from './docs/page';
 import RefactorPage from './refactor/page';
@@ -40,7 +40,7 @@ export default function Home() {
       case 'coder':
         return <GoalsLayout key="coder" projectId={projectId} />;
       case 'contexts':
-        return <HorizontalContextBar key="contexts" />;
+        return <HorizontalContextBar key="contexts" selectedFilesCount={0} />;
       case 'ideas':
         return <IdeasLayout key="ideas" />;
       case 'tinder':

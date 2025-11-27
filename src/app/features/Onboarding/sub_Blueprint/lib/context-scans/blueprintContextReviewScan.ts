@@ -12,61 +12,25 @@ import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerSt
 import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { toast } from 'sonner';
 import FeatureScanBatchSelector from '../../components/FeatureScanBatchSelector';
+import {
+  type ScanResult,
+  type DecisionData,
+  PROGRESS,
+  FILE_THRESHOLDS,
+  UNTESTED_LOGS_THRESHOLDS,
+  DEFAULT_PROJECT_PORT,
+  fetchContextDetails,
+  fetchUntestedLogs,
+  parseFilePaths,
+  formatDateSafe,
+  createBlueprintEvent,
+  createRequirementFile,
+  buildTaskId,
+  sanitizeRequirementName,
+} from './scanUtils';
 
-export interface ScanResult {
-  success: boolean;
-  error?: string;
-  data?: Record<string, unknown>;
-}
-
-export interface DecisionData {
-  type: string;
-  title: string;
-  description: string;
-  count?: number;
-  severity?: 'info' | 'warning' | 'error';
-  projectId?: string;
-  projectPath?: string;
-  contextId?: string;
-  data?: Record<string, unknown>;
-  customContent?: React.ReactNode;
-  onAccept: () => Promise<void>;
-  onReject: () => Promise<void>;
-}
-
-/**
- * Fetch context details from database
- */
-async function fetchContextDetails(contextId: string, projectId: string) {
-  const response = await fetch(`/api/contexts/detail?contextId=${contextId}&projectId=${projectId}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch context details: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to fetch context details');
-  }
-
-  return result.data;
-}
-
-/**
- * Fetch untested implementation logs for a context
- */
-async function fetchUntestedLogs(contextId: string) {
-  const response = await fetch(`/api/implementation-logs/untested?contextId=${contextId}`);
-
-  if (!response.ok) {
-    console.warn('Failed to fetch untested logs, continuing without them');
-    return [];
-  }
-
-  const result = await response.json();
-  return result.success ? result.data : [];
-}
+// Re-export types for consumers
+export type { ScanResult, DecisionData };
 
 /**
  * Execute context review scan - Pre-scan phase
@@ -91,14 +55,14 @@ export async function executeContextReviewScan(contextId: string): Promise<ScanR
 
   try {
     // Update progress
-    useBlueprintStore.getState().updateScanProgress(10);
+    useBlueprintStore.getState().updateScanProgress(PROGRESS.INITIAL);
 
     // Fetch context details
     console.log('[Context Review] Fetching context details for:', contextId, 'project:', activeProject.id);
     const context = await fetchContextDetails(contextId, activeProject.id);
     console.log('[Context Review] Context fetched:', context);
 
-    useBlueprintStore.getState().updateScanProgress(30);
+    useBlueprintStore.getState().updateScanProgress(PROGRESS.CONTEXT_FETCHED);
 
     if (!context) {
       console.error('[Context Review] Context not found');
@@ -108,17 +72,17 @@ export async function executeContextReviewScan(contextId: string): Promise<ScanR
       };
     }
 
-    // Get file paths (API returns filePaths in camelCase, already parsed)
-    const filePaths = Array.isArray(context.filePaths) ? context.filePaths : [];
+    // Get file paths using shared utility
+    const filePaths = parseFilePaths(context);
     console.log('[Context Review] FilePaths:', filePaths, 'Length:', filePaths.length);
 
-    useBlueprintStore.getState().updateScanProgress(50);
+    useBlueprintStore.getState().updateScanProgress(PROGRESS.FILE_PATHS_PARSED);
 
     // Fetch untested implementation logs
     const untestedLogs = await fetchUntestedLogs(contextId);
     console.log('[Context Review] Fetched untested logs:', untestedLogs.length, 'logs');
 
-    useBlueprintStore.getState().updateScanProgress(70);
+    useBlueprintStore.getState().updateScanProgress(PROGRESS.LOGS_FETCHED);
 
     // Format date (updatedAt is already a Date object from API)
     const updatedAtStr = context.updatedAt
@@ -152,11 +116,11 @@ export async function executeContextReviewScan(contextId: string): Promise<ScanR
  */
 async function createContextReviewRequirement(
   contextId: string,
-  context: any,
+  context: { name: string; description?: string; updatedAt?: Date | string; filePaths?: string[] },
   projectPath: string
 ): Promise<{ requirementName: string; requirementPath: string }> {
-  // Get file paths (API returns filePaths in camelCase, already parsed)
-  const filePaths = Array.isArray(context.filePaths) ? context.filePaths : [];
+  // Get file paths using shared utility
+  const filePaths = parseFilePaths(context);
 
   // Fetch untested implementation logs
   const untestedLogs = await fetchUntestedLogs(contextId);
@@ -168,7 +132,7 @@ async function createContextReviewRequirement(
 
   // Get active project to access port
   const { activeProject } = useActiveProjectStore.getState();
-  const projectPort = activeProject?.port || 3000; // Default to 3000 if not found
+  const projectPort = activeProject?.port || DEFAULT_PROJECT_PORT;
 
   // Build context review prompt
   const promptContent = contextReviewPrompt({
@@ -183,30 +147,10 @@ async function createContextReviewRequirement(
     untestedLogs: Array.isArray(untestedLogs) ? untestedLogs : [],
   });
 
-  const requirementName = `context-review-${context.name.toLowerCase().replace(/\s+/g, '-')}`;
+  const requirementName = sanitizeRequirementName(context.name, 'context-review');
 
-  // Create requirement file only (don't execute yet)
-  const response = await fetch('/api/claude-code/requirement', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectPath,
-      requirementName,
-      content: promptContent,
-      overwrite: true,
-    }),
-  });
-
-  const result = await response.json();
-
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to create requirement file');
-  }
-
-  return {
-    requirementName,
-    requirementPath: result.filePath,
-  };
+  // Use shared utility to create requirement file
+  return createRequirementFile(projectPath, requirementName, promptContent);
 }
 
 /**
@@ -217,18 +161,13 @@ async function createContextReviewEvent(
   contextName: string,
   taskId: string
 ): Promise<void> {
-  await fetch('/api/blueprint/events', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      project_id: projectId,
-      title: 'Context Review Queued',
-      description: `Context review for "${contextName}" has been added to background task queue. Check the TaskRunner or bottom task bar for progress.`,
-      type: 'info',
-      agent: 'blueprint',
-      message: `Task ID: ${taskId}`,
-    }),
-  });
+  await createBlueprintEvent(
+    projectId,
+    'Context Review Queued',
+    `Context review for "${contextName}" has been added to background task queue. Check the TaskRunner or bottom task bar for progress.`,
+    'info',
+    `Task ID: ${taskId}`
+  );
 }
 
 /**
@@ -257,8 +196,8 @@ async function executeContextReview(
     // Add to TaskRunner for background execution
     const taskRunnerStore = useTaskRunnerStore.getState();
 
-    // Build task ID (format: projectId:requirementName)
-    const taskId = `${projectId}:${requirementName}`;
+    // Build task ID using shared utility
+    const taskId = buildTaskId(projectId, requirementName);
 
     // Ensure batch exists
     let batch = taskRunnerStore.batches[batchId];
@@ -350,32 +289,19 @@ export function buildDecisionData(result: ScanResult): DecisionData | null {
 
   console.log('[Context Review] Destructured values:', { contextId, contextName, fileCount, updatedAt, untestedLogsCount });
 
-  // Format date with safety check
-  let lastUpdated = 'Unknown';
-  try {
-    if (updatedAt) {
-      const date = new Date(updatedAt);
-      if (!isNaN(date.getTime())) {
-        lastUpdated = date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-      } else {
-        console.warn('[Context Review] Invalid date:', updatedAt);
-      }
-    } else {
-      console.warn('[Context Review] updatedAt is missing');
-    }
-  } catch (e) {
-    console.error('[Context Review] Date parsing error:', e);
-  }
+  // Format date using shared utility
+  const lastUpdated = formatDateSafe(updatedAt);
   console.log('[Context Review] Formatted lastUpdated:', lastUpdated);
 
   // Determine severity based on file count and untested logs
+  const hasLargeFileCount = fileCount > FILE_THRESHOLDS.LARGE;
+  const hasMediumFileCount = fileCount > FILE_THRESHOLDS.MEDIUM;
+  const hasHighUntestedLogs = untestedLogsCount > UNTESTED_LOGS_THRESHOLDS.HIGH;
+  const hasUntestedLogs = untestedLogsCount > 0;
+
   const severity: 'info' | 'warning' | 'error' =
-    fileCount > 20 || untestedLogsCount > 5 ? 'warning' :
-    fileCount > 10 || untestedLogsCount > 0 ? 'info' :
+    hasLargeFileCount || hasHighUntestedLogs ? 'warning' :
+    hasMediumFileCount || hasUntestedLogs ? 'info' :
     'info';
 
   const description = `📦 **Context**: ${contextName}
@@ -385,8 +311,8 @@ ${untestedLogsCount > 0 ? `🔬 **Untested Changes**: ${untestedLogsCount} imple
 
 The review will:
 ✅ **Primary**: Check for dead/removed files and detect new files that should be included
-${untestedLogsCount > 0 ? '✅ Analyze recent untested implementation changes\n' : ''}${fileCount > 10
-  ? `✅ **Secondary**: Optionally split into smaller contexts (current: ${fileCount} files, recommended: max 10 per context)\n`
+${hasUntestedLogs ? '✅ Analyze recent untested implementation changes\n' : ''}${hasMediumFileCount
+  ? `✅ **Secondary**: Optionally split into smaller contexts (current: ${fileCount} files, recommended: max ${FILE_THRESHOLDS.MEDIUM} per context)\n`
   : ''
 }
 Click **Select Batch & Start** to choose a batch and start the intelligent review process.`;

@@ -58,7 +58,17 @@ export default function ScanInitiator({
   const [batchMode, setBatchMode] = React.useState(false);
 
   const { activeProject } = useActiveProjectStore();
-  const { selectedContextIds, contexts, setSelectedContext, clearContextSelection } = useContextStore();
+  const { selectedContextIds, contexts, loadProjectData } = useContextStore();
+
+  // Load contexts for active project when it changes
+  // Note: loadProjectData is excluded from deps as it's recreated on each render
+  // but internally uses stable closure state
+  React.useEffect(() => {
+    if (activeProject?.id) {
+      loadProjectData(activeProject.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProject?.id]);
 
   const currentSelectedContextId = selectedContextId ?? (selectedContextIds.size > 0 ? Array.from(selectedContextIds)[0] : null);
   const selectedContext = currentSelectedContextId

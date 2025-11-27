@@ -13,6 +13,61 @@ export interface ScanSelectionCallbacks {
   executeScan: (scanId: string, contextId?: string) => Promise<void>;
 }
 
+interface ButtonConfig {
+  id: string;
+  label: string;
+  contextNeeded?: boolean;
+}
+
+/**
+ * Find button config in column buttons
+ */
+function findButtonInColumns(
+  scanId: string,
+  columns: ColumnConfig[]
+): ButtonConfig | null {
+  for (const column of columns) {
+    const button = column.buttons.find(b => b.id === scanId);
+    if (button) {
+      return button;
+    }
+  }
+  return null;
+}
+
+/**
+ * Find button config in stepper config
+ */
+function findButtonInStepper(
+  scanId: string,
+  stepperConfig: StepperConfig | null
+): ButtonConfig | null {
+  if (!stepperConfig) return null;
+
+  for (const group of stepperConfig.groups) {
+    const technique = group.techniques.find(t => t.id === scanId);
+    if (technique) {
+      return {
+        id: technique.id,
+        label: technique.label,
+        contextNeeded: technique.contextNeeded,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Find button config from all sources
+ */
+function findButtonConfig(
+  scanId: string,
+  columns: ColumnConfig[],
+  stepperConfig: StepperConfig | null
+): ButtonConfig | null {
+  return findButtonInColumns(scanId, columns) || findButtonInStepper(scanId, stepperConfig);
+}
+
 /**
  * Handle scan selection
  * Checks if context is needed and shows appropriate UI
@@ -31,40 +86,15 @@ export function handleScanSelection(
     return;
   }
 
-  // Find button config
-  let buttonConfig = null;
-  let buttonLabel = scanId;
-
-  // Search in columns first
-  for (const column of columns) {
-    const button = column.buttons.find(b => b.id === scanId);
-    if (button) {
-      buttonConfig = button;
-      buttonLabel = button.label;
-      break;
-    }
-  }
-
-  // If not found, search in stepper config
-  if (!buttonConfig && stepperConfig) {
-    for (const group of stepperConfig.groups) {
-      const technique = group.techniques.find(t => t.id === scanId);
-      if (technique) {
-        buttonConfig = {
-          id: technique.id,
-          label: technique.label,
-          contextNeeded: technique.contextNeeded,
-        };
-        buttonLabel = technique.label;
-        break;
-      }
-    }
-  }
+  // Find button config using helper function
+  const buttonConfig = findButtonConfig(scanId, columns, stepperConfig);
 
   if (!buttonConfig) {
     console.error(`[Blueprint] No button config found for scan: ${scanId}`);
     return;
   }
+
+  const buttonLabel = buttonConfig.label;
 
   // Select the scan
   setSelectedScanId(scanId);
@@ -113,28 +143,9 @@ export function handleContextSelection(
 
   const scanId = pendingScanId;
 
-  // Find button config
-  let buttonLabel = scanId;
-
-  // Search in columns
-  for (const column of columns) {
-    const button = column.buttons.find(b => b.id === scanId);
-    if (button) {
-      buttonLabel = button.label;
-      break;
-    }
-  }
-
-  // Search in stepper config if not found
-  if (buttonLabel === scanId && stepperConfig) {
-    for (const group of stepperConfig.groups) {
-      const technique = group.techniques.find(t => t.id === scanId);
-      if (technique) {
-        buttonLabel = technique.label;
-        break;
-      }
-    }
-  }
+  // Find button config using shared helper
+  const buttonConfig = findButtonConfig(scanId, columns, stepperConfig);
+  const buttonLabel = buttonConfig?.label || scanId;
 
   // Add pre-scan decision with context info
   callbacks.addDecision({

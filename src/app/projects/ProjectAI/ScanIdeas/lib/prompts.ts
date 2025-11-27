@@ -6,7 +6,7 @@
  */
 
 import { buildPrompt, PromptOptions, PROMPT_BUILDERS } from '../prompts';
-import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
+import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 // Re-export for backward compatibility
 export type { PromptOptions };

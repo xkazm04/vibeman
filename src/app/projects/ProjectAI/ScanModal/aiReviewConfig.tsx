@@ -2,6 +2,7 @@ import React from 'react';
 import { AIReviewMode } from '@/lib/api/aiProjectReviewApi';
 import { AIDocsDisplay } from '../sub_ScanHigh';
 import { ContextResultDisplay } from '../Context';
+import { Project } from '@/types';
 
 interface RenderComponentProps {
   data: unknown;
@@ -11,7 +12,7 @@ interface RenderComponentProps {
   previewMode?: boolean;
   onPreviewModeChange?: (mode: boolean) => void;
   onContentChange?: (content: string) => void;
-  activeProject: unknown;
+  activeProject: Project | undefined;
 }
 
 export interface AIReviewModeConfig {
@@ -25,7 +26,7 @@ export interface AIReviewModeConfig {
   renderComponent: (props: RenderComponentProps) => React.ReactElement;
 }
 
-export const AI_REVIEW_MODE_CONFIG: Record<AIReviewMode, AIReviewModeConfig> = {
+export const AI_REVIEW_MODE_CONFIG: Partial<Record<AIReviewMode, AIReviewModeConfig>> = {
   docs: {
     mode: 'docs',
     loadingKey: 'docsLoading',
@@ -36,14 +37,8 @@ export const AI_REVIEW_MODE_CONFIG: Record<AIReviewMode, AIReviewModeConfig> = {
     setDataKey: 'setDocsContent',
     renderComponent: (props) => (
       <AIDocsDisplay
-        content={props.data}
-        loading={props.loading}
-        error={props.error}
-        onBack={props.onBack}
-        previewMode={props.previewMode}
-        onPreviewModeChange={props.onPreviewModeChange}
-        onContentChange={props.onContentChange}
         activeProject={props.activeProject}
+        onBack={props.onBack}
       />
     ),
   },
@@ -57,11 +52,11 @@ export const AI_REVIEW_MODE_CONFIG: Record<AIReviewMode, AIReviewModeConfig> = {
     setDataKey: 'setContexts',
     renderComponent: (props) => (
       <ContextResultDisplay
-        contexts={props.data}
+        contexts={props.data as Array<{ filename: string; content: string }>}
         loading={props.loading}
         error={props.error}
         onBack={props.onBack}
-        activeProject={props.activeProject}
+        activeProject={props.activeProject as { id: string; name: string; path: string } | null}
       />
     ),
   }

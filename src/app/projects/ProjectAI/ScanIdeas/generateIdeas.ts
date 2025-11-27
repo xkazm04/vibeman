@@ -92,8 +92,9 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       : ideaDb.getIdeasByProject(projectId);
 
     // 4. Build prompt using specialized prompt builder
-    logger.info('Building prompt', { scanType });
-    const promptResult = buildIdeaGenerationPrompt(scanType, {
+    const effectiveScanType: ScanType = scanType ?? 'zen_architect';
+    logger.info('Building prompt', { scanType: effectiveScanType });
+    const promptResult = buildIdeaGenerationPrompt(effectiveScanType, {
       projectId,
       projectName,
       aiDocs: aiDocsContent,
@@ -127,13 +128,14 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     // 7. Parse JSON response using robust parser
     let parsedIdeas: GeneratedIdea[];
     try {
-      parsedIdeas = parseAIJsonResponse(result.response);
+      const parseResult = parseAIJsonResponse(result.response);
 
       // Validate that we got an array
-      if (!Array.isArray(parsedIdeas)) {
-        logger.error('Parsed result is not an array', { type: typeof parsedIdeas });
-        throw new Error('Expected JSON array, got ' + typeof parsedIdeas);
+      if (!Array.isArray(parseResult)) {
+        logger.error('Parsed result is not an array', { type: typeof parseResult });
+        throw new Error('Expected JSON array, got ' + typeof parseResult);
       }
+      parsedIdeas = parseResult as GeneratedIdea[];
 
       logger.info('Successfully parsed ideas', { count: parsedIdeas.length });
 
@@ -161,8 +163,8 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       project_id: projectId,
       scan_type: scanCategory,
       summary: scanSummary,
-      input_tokens: result.inputTokens,
-      output_tokens: result.outputTokens
+      input_tokens: result.usage?.prompt_tokens,
+      output_tokens: result.usage?.completion_tokens
     });
 
     // 9. Save ideas to database
@@ -187,10 +189,10 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
         const title = idea.title.trim();
         const description = idea.description && typeof idea.description === 'string' && idea.description.trim() !== ''
           ? idea.description.trim()
-          : null;
+          : undefined;
         const reasoning = idea.reasoning && typeof idea.reasoning === 'string' && idea.reasoning.trim() !== ''
           ? idea.reasoning.trim()
-          : null;
+          : undefined;
 
         // Validate and sanitize effort (must be 1-3 or null, default to 1 if invalid)
         const validateEffortImpact = (value: any): number | null => {
@@ -231,7 +233,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           scan_id: scanId,
           project_id: projectId,
           context_id: validatedContextId,
-          scan_type: scanType,
+          scan_type: effectiveScanType,
           category,
           title,
           description,

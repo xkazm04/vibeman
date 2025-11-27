@@ -192,7 +192,6 @@ export default function DocsViewer({
                 <div className="max-w-5xl mx-auto">
                   <MarkdownViewer
                     content={content}
-                    theme="dark"
                   />
                 </div>
               ) : (

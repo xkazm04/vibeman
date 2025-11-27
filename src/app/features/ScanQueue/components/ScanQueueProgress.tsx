@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { DbScanQueueItem } from '@/app/db/models/types';
 import { Loader2, CheckCircle2, XCircle, Clock, Zap } from 'lucide-react';
+import { getScanTypeName, type ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 interface ScanQueueProgressProps {
   projectId: string;
@@ -116,24 +117,7 @@ interface QueueItemCardProps {
 }
 
 function QueueItemCard({ item, compact = false }: QueueItemCardProps) {
-  const getScanTypeName = (scanType: string): string => {
-    const names: Record<string, string> = {
-      zen_architect: 'Zen Architect',
-      bug_hunter: 'Bug Hunter',
-      perf_optimizer: 'Performance Optimizer',
-      security_protector: 'Security Protector',
-      insight_synth: 'Insight Synthesizer',
-      ambiguity_guardian: 'Ambiguity Guardian',
-      business_visionary: 'Business Visionary',
-      ui_perfectionist: 'UI Perfectionist',
-      feature_scout: 'Feature Scout',
-      onboarding_optimizer: 'Onboarding Optimizer',
-      ai_integration_scout: 'AI Integration Scout',
-      delight_designer: 'Delight Designer'
-    };
-
-    return names[scanType] || scanType;
-  };
+  // Use centralized getScanTypeName from scanTypes.ts
 
   const getStatusIcon = () => {
     switch (item.status) {
@@ -177,7 +161,7 @@ function QueueItemCard({ item, compact = false }: QueueItemCardProps) {
           {getStatusIcon()}
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-medium text-white truncate">
-              {getScanTypeName(item.scan_type)}
+              {getScanTypeName(item.scan_type as ScanType)}
             </h4>
             {!compact && item.progress_message && (
               <p className="text-xs text-gray-400 mt-1">{item.progress_message}</p>

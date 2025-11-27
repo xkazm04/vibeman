@@ -193,7 +193,7 @@ export default function ContextResultDisplay({
       console.log(`Successfully saved ${result.successCount} context files`);
       
       if (result.failureCount > 0) {
-        console.warn(`${result.failureCount} contexts failed to save:`, result.results.filter(r => !r.success));
+        console.warn(`${result.failureCount} contexts failed to save:`, result.results.filter((r: { success: boolean }) => !r.success));
         alert(`Saved ${result.successCount} contexts successfully, but ${result.failureCount} failed. Check console for details.`);
       }
       

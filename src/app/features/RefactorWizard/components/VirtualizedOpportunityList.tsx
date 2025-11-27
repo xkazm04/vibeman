@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, CSSProperties, ReactElement } from 'react';
-import { List } from '@/components/ui/VirtualList';
+import { useMemo, ReactElement } from 'react';
+import { List, RowComponentProps } from '@/components/ui/VirtualList';
 import { OpportunityCard } from './OpportunityCard';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 
@@ -20,19 +20,9 @@ interface RowPropsData {
 }
 
 // Row component function - keyed by opportunity ID for optimal rendering
-function OpportunityRow(props: {
-  index: number;
-  style: CSSProperties;
-  ariaAttributes: {
-    'aria-posinset': number;
-    'aria-setsize': number;
-    role: 'listitem';
-  };
-  opportunities: RefactorOpportunity[];
-  selectedOpportunities: Set<string>;
-  onToggle: (id: string) => void;
-}): ReactElement {
-  const { index, style, opportunities, selectedOpportunities, onToggle } = props;
+function OpportunityRow(props: RowComponentProps<RowPropsData>): ReactElement {
+  const { index, style, data } = props;
+  const { opportunities, selectedOpportunities, onToggle } = data!;
   const opp = opportunities[index];
 
   return (

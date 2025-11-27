@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, CSSProperties, ReactElement } from 'react';
-import { List } from '@/components/ui/VirtualList';
+import { useMemo, ReactElement } from 'react';
+import { List, RowComponentProps } from '@/components/ui/VirtualList';
 import { SuggestionCard } from './SuggestionCard';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 
@@ -19,12 +19,9 @@ interface RowPropsData {
  * Row component function - keyed by opportunity ID for optimal rendering
  * Memoized to prevent unnecessary re-renders
  */
-function SuggestionRow(props: {
-  index: number;
-  style: CSSProperties;
-  opportunities: RefactorOpportunity[];
-}): ReactElement {
-  const { index, style, opportunities } = props;
+function SuggestionRow(props: RowComponentProps<RowPropsData>): ReactElement {
+  const { index, style, data } = props;
+  const { opportunities } = data!;
   const opp = opportunities[index];
 
   return (

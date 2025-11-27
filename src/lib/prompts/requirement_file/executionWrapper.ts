@@ -83,8 +83,6 @@ function buildExecutionInstructions(config: ExecutionWrapperConfig): string {
 function buildCoreGuidelines(): string {
   return `## Implementation Guidelines
 
-**IMPORTANT**: Execute the requirement immediately without asking for confirmation or approval.
-
 **Steps**:
 1. Analyze the requirement thoroughly
 2. Identify all files that need to be modified or created
@@ -180,81 +178,55 @@ function buildDocumentationPolicy(): string {
 }
 
 /**
- * Implementation logging instructions - SIMPLIFIED and CLEAR
+ * Implementation logging instructions - SIMPLIFIED to use direct API call
  */
 function buildImplementationLogging(config: ExecutionWrapperConfig): string {
   const { projectId, contextId } = config;
 
   return `## Implementation Logging
 
-**CRITICAL**: After completing the implementation, create ONE log entry using the implementation-log repository.
+After completing the implementation, log your work via a simple API call.
 
 **DO NOT**:
-- ❌ Create standalone SQL scripts
-- ❌ Create separate logging files
-- ❌ Insert SQL directly into project databases
-- ❌ Use \`sqlite3\` commands
+- ❌ Create separate script files for logging
+- ❌ Create SQL scripts or use sqlite3
+- ❌ Create documentation files (.md, README.md)
 
-**DO**:
-- ✅ Use the repository function directly in a simple Node.js script
-- ✅ Run the script once to create the log entry
-- ✅ Delete the script after execution
-
-**Step 1**: Create a simple logging script
-
-\`\`\`typescript
-// create-log.ts (or create-log.mjs with import syntax)
-import { implementationLogDb } from '@/app/db';
-import { randomUUID } from 'crypto';
-
-implementationLogDb.createLog({
-  id: randomUUID(),
-  project_id: '${projectId || '<project-id>'}',${contextId ? `\n  context_id: '${contextId}',` : ''}
-  requirement_name: '<requirement-file-name-without-.md>',
-  title: '<2-6 words describing what was done>',
-  overview: '<1-2 paragraphs: What was implemented, key files modified/created, major functionality added>',
-  overview_bullets: '<bullet1>\\n<bullet2>\\n<bullet3>',
-  tested: false,${contextId ? `\n  screenshot: null, // Will be populated if screenshot succeeds` : ''}
-});
-
-console.log('✅ Implementation log created');
-\`\`\`
-
-**Step 2**: Run the script
+**DO**: Make ONE API call to log your implementation:
 
 \`\`\`bash
-npx tsx create-log.ts
-# or
-node create-log.mjs
-\`\`\`
-
-**Step 3**: Delete the script
-
-\`\`\`bash
-rm create-log.ts
-# or del create-log.ts on Windows
+curl -X POST "http://localhost:3000/api/implementation-log" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "projectId": "${projectId || '<project-id>'}",${contextId ? `
+    "contextId": "${contextId}",` : ''}
+    "requirementName": "<requirement-filename-without-.md>",
+    "title": "<2-6 word summary>",
+    "overview": "<1-2 paragraphs describing implementation>",
+    "overviewBullets": "<bullet1>\\n<bullet2>\\n<bullet3>"
+  }'
 \`\`\`
 
 **Field Guidelines**:
-- \`id\`: Use \`randomUUID()\` or \`crypto.randomUUID()\`
-- \`requirement_name\`: Requirement filename WITHOUT .md extension
+- \`requirementName\`: Requirement filename WITHOUT .md extension
 - \`title\`: 2-6 words (e.g., "User Authentication System")
 - \`overview\`: 1-2 paragraphs describing what was done
-- \`overview_bullets\`: 3-5 bullets separated by \\n (e.g., "Added OAuth flow\\nCreated auth context\\nUpdated login UI")
-- \`tested\`: Always \`false\` initially
+- \`overviewBullets\`: 3-5 key points separated by \\n
 
 **Example**:
-\`\`\`typescript
-implementationLogDb.createLog({
-  id: randomUUID(),
-  project_id: 'proj-123',
-  requirement_name: 'implement-dark-mode',
-  title: 'Dark Mode Implementation',
-  overview: 'Implemented global dark mode toggle with theme persistence. Added theme context provider, updated all UI components to support dark mode, and created settings panel for theme switching.',
-  overview_bullets: 'Created ThemeProvider context\\nUpdated 25+ components with dark mode styles\\nAdded theme toggle in settings\\nImplemented localStorage persistence',
-  tested: false
-});
-\`\`\``;
+\`\`\`bash
+curl -X POST "http://localhost:3000/api/implementation-log" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "projectId": "proj-123",
+    "requirementName": "implement-dark-mode",
+    "title": "Dark Mode Implementation",
+    "overview": "Implemented global dark mode toggle with theme persistence.",
+    "overviewBullets": "Created ThemeProvider\\nUpdated components\\nAdded toggle in settings"
+  }'
+\`\`\`
+
+**If the API call fails**: Report the error and continue - logging failures are non-blocking.`;
 }
 
 /**
@@ -330,7 +302,7 @@ screenshot: screenshotPath || null
 }
 
 /**
- * Git operations instructions
+ * Git operations instructions - NON-BLOCKING
  */
 function buildGitInstructions(config: ExecutionWrapperConfig): string {
   const { gitCommands, gitCommitMessage } = config;
@@ -341,19 +313,27 @@ function buildGitInstructions(config: ExecutionWrapperConfig): string {
     'git push'
   ];
 
-  return `## Git Operations
+  return `## Git Operations (NON-BLOCKING)
 
-**Execute AFTER all implementation and logging tasks are complete**:
+**IMPORTANT**: Git operations are NON-BLOCKING. If they fail, report the error and CONTINUE.
+Do NOT let git failures prevent task completion.
+
+**Execute AFTER all implementation and logging are complete**:
 
 ${defaultCommands.map((cmd, idx) => `${idx + 1}. \`${cmd}\``).join('\n')}
 
 **Commit Message**: ${gitCommitMessage || 'Auto-commit: {requirementName}'}
 
-**Error Handling**:
-- Check \`git status\` before committing
-- If nothing to commit, report and continue
-- If push rejected, fetch and rebase: \`git fetch && git rebase origin/main\`
-- Do not attempt to fix authentication or bypass branch protection`;
+**Error Handling** (all errors are non-blocking):
+- Check \`git status\` first - if nothing to commit, skip and continue
+- If commit fails → report error, continue to next step
+- If push fails → try once: \`git pull --rebase && git push\`
+- If push still fails → report "Git push failed" and CONTINUE (do not block)
+- Authentication errors → report and continue (do not attempt to fix)
+- Branch protection errors → report and continue
+
+**Success**: Report "Git operations completed"
+**Failure**: Report specific error, then continue with task completion`;
 }
 
 /**

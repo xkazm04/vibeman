@@ -7,6 +7,7 @@ import { AnthropicClient } from './providers/anthropic-client';
 import { GeminiClient } from './providers/gemini-client';
 import { OllamaClient } from './providers/ollama-client';
 import { InternalClient } from './providers/internal-client';
+import { GroqClient } from './providers/groq-client';
 
 export class LLMManager {
   private providers: Map<SupportedProvider, LLMProvider> = new Map();
@@ -56,6 +57,15 @@ export class LLMManager {
         baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
       }));
 
+      // Initialize Groq client
+      const groqApiKey = process.env.GROQ_API_KEY;
+      if (groqApiKey) {
+        this.providers.set('groq', new GroqClient({
+          apiKey: groqApiKey,
+          baseUrl: process.env.GROQ_BASE_URL
+        }));
+      }
+
       // Initialize Internal client
       const internalBaseUrl = process.env.INTERNAL_API_BASE_URL;
       if (internalBaseUrl) {
@@ -86,6 +96,12 @@ export class LLMManager {
       const ollamaConfig = ProviderConfigStorage.getProviderConfig('ollama');
       this.providers.set('ollama', new OllamaClient({
         baseUrl: ollamaConfig?.baseUrl || 'http://localhost:11434'
+      }));
+
+      const groqConfig = APIKeyStorage.getAPIKey('groq');
+      this.providers.set('groq', new GroqClient({
+        apiKey: groqConfig?.apiKey,
+        baseUrl: groqConfig?.baseUrl
       }));
 
       const internalConfig = ProviderConfigStorage.getProviderConfig('internal');
@@ -160,8 +176,8 @@ export class LLMManager {
    */
   async checkAllProvidersAvailability(): Promise<Record<SupportedProvider, boolean>> {
     const results: Record<SupportedProvider, boolean> = {} as Record<SupportedProvider, boolean>;
-    
-    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'internal'];
+
+    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'groq', 'internal'];
     
     await Promise.all(
       providers.map(async (provider) => {
@@ -194,8 +210,8 @@ export class LLMManager {
    */
   async getAllProviderModels(): Promise<Record<SupportedProvider, string[]>> {
     const results: Record<SupportedProvider, string[]> = {} as Record<SupportedProvider, string[]>;
-    
-    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'internal'];
+
+    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'groq', 'internal'];
     
     await Promise.all(
       providers.map(async (provider) => {
@@ -255,9 +271,10 @@ export class LLMManager {
   getDefaultModel(provider: SupportedProvider): string {
     const defaultModels: Record<SupportedProvider, string> = {
       ollama: 'gpt-oss:20b',
-      openai: 'gpt-4o',
-      anthropic: 'claude-sonnet-4-20250514',
-      gemini: 'gemini-2.0-flash-exp',
+      openai: 'gpt-5.1',
+      anthropic: 'claude-sonnet-4-5',
+      gemini: 'gemini-flash-latest',
+      groq: 'qwen/qwen3-32b',
       internal: 'default'
     };
     return defaultModels[provider] || defaultModels.gemini;

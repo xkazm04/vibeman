@@ -10,15 +10,16 @@ TaskRunner is a batch execution system for running Claude Code tasks automatical
 
 The TaskRunner uses two complementary execution patterns:
 
-1. **Zustand Store** (`store/taskRunnerStore.ts`) - Primary state management
+1. **Zustand Store** (`store/taskRunnerStore.ts`) - **Primary state management (ACTIVE)**
    - Persists to localStorage via zustand/middleware
    - Manages batches, tasks, and execution state
    - Handles polling recovery after page refresh
+   - Uses module-level requirements cache for task continuation
 
-2. **Task Executor** (`lib/taskExecutor.ts`) - Legacy execution logic
+2. **Task Executor** (`lib/taskExecutor.ts`) - **Legacy execution logic (DEPRECATED)**
    - Provides `executeNextRequirement()` for queue-based execution
    - Includes retry logic and health checks
-   - Maintained for backward compatibility
+   - ⚠️ **DO NOT USE** - Maintained only for backward compatibility reference
 
 ### Key Components
 
@@ -339,3 +340,131 @@ Custom hooks for component integration:
 | `useBatch()` | Get specific batch | `store/useTaskRunnerHooks.ts` |
 | `useStoreRecovery()` | Trigger recovery on mount | `store/useTaskRunnerHooks.ts` |
 | `useOverallProgress()` | Get combined progress | `store/useTaskRunnerHooks.ts` |
+
+---
+
+## Known Issues & Critical Bugs
+
+### ✅ FIXED: "Requirement not found" Error on Subsequent Tasks
+
+**Status**: FIXED (2025-11-27)
+
+**Original Issue**: After the first task in a batch completes, all subsequent tasks failed with "Requirement not found" error.
+
+**Root Cause**: The `startPollingForTask()` function was passing only the completed requirement `[requirement]` instead of the full requirements array to `executeNextTask()`.
+
+**Fix Applied**:
+1. Added module-level requirements cache (`cachedRequirements`) in `taskRunnerStore.ts`
+2. `setCachedRequirements()` is called when batch execution starts (in `useStartBatchExecution` hook)
+3. `getCachedRequirements()` is used in polling callbacks to get full requirements array
+4. Recovery function also caches requirements on startup
+
+**Files Modified**:
+- `store/taskRunnerStore.ts` - Added cache and updated polling callbacks
+- `store/useTaskRunnerHooks.ts` - Updated `useStartBatchExecution` to cache requirements
+
+### ✅ FIXED: Git Operations Can Block Execution
+
+**Status**: FIXED (2025-11-27)
+
+**Original Issue**: Git operations (commit, push) could hang or fail, blocking subsequent task execution.
+
+**Fix Applied**: Updated `executionWrapper.ts` git instructions to be explicitly non-blocking:
+- Added "NON-BLOCKING" header to git section
+- Clear instructions that git failures should be reported and continued
+- Error handling guidance for all failure modes
+
+### ✅ FIXED: Implementation Logs Generated in Codebase
+
+**Status**: FIXED (2025-11-27)
+
+**Original Issue**: Claude sometimes created logging scripts directly in the target project instead of using the internal logging API.
+
+**Fix Applied**:
+1. Simplified logging instructions in `executionWrapper.ts` to use direct API call
+2. Created new simplified endpoint `/api/implementation-log` with camelCase fields
+3. Auto-generates UUID for log entries
+4. Clear "DO NOT create script files" instructions
+
+---
+
+## Prompt Builder Architecture
+
+### Execution Wrapper Flow
+
+```
+Idea/Goal/Manual Requirement
+        |
+reqFileBuilder.ts (buildRequirementFromIdea)
+        |
+requirement_file/executionWrapper.ts (wrapRequirementForExecution)
+        |
+Final Prompt to Claude Code CLI
+```
+
+### Execution Wrapper Sections Analysis
+
+| Section | Purpose | Clarity Issues |
+|---------|---------|----------------|
+| Core Guidelines | Immediate execution instructions | Clear |
+| File Structure | Next.js/React folder conventions | Clear |
+| Test Selectors | data-testid attribute requirements | Clear |
+| Theming | Match existing UI patterns | Clear |
+| Documentation Policy | When to create docs | May conflict with other sections |
+| Implementation Logging | Create log entry via API | Too complex, causes confusion |
+| Screenshot Capture | Conditional screenshot workflow | Complex multi-step process |
+| Git Operations | Post-implementation git commands | Should be non-blocking |
+| Final Checklist | Verification steps | Clear |
+
+---
+
+## Optimization Recommendations
+
+### 1. Fix Requirements Array Bug (Priority: CRITICAL)
+
+Store a reference to the full requirements array that can be accessed during polling callbacks.
+
+### 2. Simplify Implementation Logging (Priority: HIGH)
+
+Replace the complex multi-step logging with a single API call instruction.
+
+### 3. Make Git Operations Non-Blocking (Priority: MEDIUM)
+
+Add explicit non-blocking instructions with timeout handling.
+
+### 4. Reduce Prompt Redundancy (Priority: MEDIUM)
+
+The current prompt has some redundant sections that should be consolidated.
+
+```
+
+---
+
+## Fixes Applied (2025-11-27)
+
+All optimization recommendations have been implemented:
+
+### 1. Requirements Array Bug - FIXED
+
+**Files Modified**:
+- `store/taskRunnerStore.ts`: Added `cachedRequirements` module-level variable with `setCachedRequirements()` and `getCachedRequirements()` exports
+- `store/useTaskRunnerHooks.ts`: Updated `useStartBatchExecution` to call `setCachedRequirements(requirements)`
+- Polling callbacks now use `getCachedRequirements()` for task continuation
+
+### 2. Implementation Logging - SIMPLIFIED
+
+**Files Modified**:
+- `lib/prompts/requirement_file/executionWrapper.ts`: Replaced complex script-based logging with single API call
+  
+**New Endpoint Created**:
+- `api/implementation-log/route.ts`: POST endpoint with simplified JSON body, auto-generates UUID
+
+### 3. Git Operations - NON-BLOCKING
+
+**Files Modified**:
+- `lib/prompts/requirement_file/executionWrapper.ts`: Added "(NON-BLOCKING)" header, clear failure handling instructions
+
+### 4. Core Guidelines - STREAMLINED
+
+**Files Modified**:
+- `lib/prompts/requirement_file/executionWrapper.ts`: Removed duplicate instructions

@@ -16,6 +16,16 @@ import { buildFeatureScoutPrompt } from './featureScoutPrompt';
 import { buildOnboardingOptimizerPrompt } from './onboardingOptimizerPrompt';
 import { buildAiIntegrationScoutPrompt } from './aiIntegrationScoutPrompt';
 import { buildDelightDesignerPrompt } from './delightDesignerPrompt';
+// People's Choice - User First Approach
+import { buildUserEmpathyChampionPrompt } from './userEmpathyChampionPrompt';
+import { buildAccessibilityAdvocatePrompt } from './accessibilityAdvocatePrompt';
+// Mastermind - Ambitious Opportunities
+import { buildParadigmShifterPrompt } from './paradigmShifterPrompt';
+import { buildMoonshotArchitectPrompt } from './moonshotArchitectPrompt';
+// Gap Coverage
+import { buildDevExperienceEngineerPrompt } from './devExperienceEngineerPrompt';
+import { buildDataFlowOptimizerPrompt } from './dataFlowOptimizerPrompt';
+
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 export interface PromptOptions {
@@ -32,7 +42,8 @@ export type PromptBuilder = (options: PromptOptions) => string;
 /**
  * Map of scan types to their prompt builders
  */
-export const PROMPT_BUILDERS: Record<ScanType, PromptBuilder> = {
+export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
+  // Original scan types
   zen_architect: buildZenArchitectPrompt,
   bug_hunter: buildBugHunterPrompt,
   perf_optimizer: buildPerfOptimizerPrompt,
@@ -45,20 +56,30 @@ export const PROMPT_BUILDERS: Record<ScanType, PromptBuilder> = {
   onboarding_optimizer: buildOnboardingOptimizerPrompt,
   ai_integration_scout: buildAiIntegrationScoutPrompt,
   delight_designer: buildDelightDesignerPrompt,
+  // People's Choice - User First Approach
+  user_empathy_champion: buildUserEmpathyChampionPrompt,
+  accessibility_advocate: buildAccessibilityAdvocatePrompt,
+  // Mastermind - Ambitious Opportunities
+  paradigm_shifter: buildParadigmShifterPrompt,
+  moonshot_architect: buildMoonshotArchitectPrompt,
+  // Gap Coverage
+  dev_experience_engineer: buildDevExperienceEngineerPrompt,
+  data_flow_optimizer: buildDataFlowOptimizerPrompt,
 };
 
 /**
  * Get the appropriate prompt builder for a scan type
  */
-export function getPromptBuilder(scanType: ScanType): PromptBuilder {
+export function getPromptBuilder(scanType: ScanType): PromptBuilder | undefined {
   return PROMPT_BUILDERS[scanType];
 }
 
 /**
  * Build a prompt for a given scan type
+ * Falls back to zen_architect prompt if no specific builder exists
  */
 export function buildPrompt(scanType: ScanType, options: PromptOptions): string {
-  const builder = getPromptBuilder(scanType);
+  const builder = getPromptBuilder(scanType) ?? buildZenArchitectPrompt;
   return builder(options);
 }
 
@@ -77,4 +98,13 @@ export {
   buildOnboardingOptimizerPrompt,
   buildAiIntegrationScoutPrompt,
   buildDelightDesignerPrompt,
+  // People's Choice
+  buildUserEmpathyChampionPrompt,
+  buildAccessibilityAdvocatePrompt,
+  // Mastermind
+  buildParadigmShifterPrompt,
+  buildMoonshotArchitectPrompt,
+  // Gap Coverage
+  buildDevExperienceEngineerPrompt,
+  buildDataFlowOptimizerPrompt,
 };

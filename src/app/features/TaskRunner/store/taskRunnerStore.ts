@@ -26,6 +26,32 @@ import { getContextIdFromRequirement, triggerScreenshotCapture } from '../sub_Sc
 const activePollingIntervals = new Map<string, NodeJS.Timeout>();
 
 // ============================================================================
+// Requirements Cache (Fix for batch continuation bug)
+// ============================================================================
+
+/**
+ * Module-level requirements cache to ensure polling callbacks have access
+ * to the full requirements array, not just the single completed requirement.
+ * This fixes the "Requirement not found" error on subsequent tasks.
+ */
+let cachedRequirements: ProjectRequirement[] = [];
+
+/**
+ * Update the requirements cache. Call this when starting batch execution.
+ */
+export function setCachedRequirements(requirements: ProjectRequirement[]): void {
+  cachedRequirements = [...requirements];
+  console.log(`📦 Requirements cache updated: ${cachedRequirements.length} requirements`);
+}
+
+/**
+ * Get the cached requirements array.
+ */
+export function getCachedRequirements(): ProjectRequirement[] {
+  return cachedRequirements;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -617,6 +643,9 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       recoverFromStorage: (requirements) => {
         const state = get();
 
+        // Cache requirements for polling callbacks to access
+        setCachedRequirements(requirements);
+
         // For each batch, verify that tasks still exist in requirements
         const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
 
@@ -816,8 +845,9 @@ function startPollingForTask(
           console.warn('Failed to delete requirement file:', err);
         }
 
-        // Continue with next task
-        setTimeout(() => state.executeNextTask(batchId, [requirement]), 500);
+        // Continue with next task using cached requirements (FIX: was passing [requirement] causing "Requirement not found")
+        const allRequirements = getCachedRequirements();
+        setTimeout(() => state.executeNextTask(batchId, allRequirements), 500);
         return;
 
       } else if (taskStatus.status === 'failed' || taskStatus.status === 'session-limit') {
@@ -845,8 +875,9 @@ function startPollingForTask(
           };
         });
 
-        // Continue with next task
-        setTimeout(() => state.executeNextTask(batchId, [requirement]), 1000);
+        // Continue with next task using cached requirements (FIX: was passing [requirement] causing "Requirement not found")
+        const allRequirements = getCachedRequirements();
+        setTimeout(() => state.executeNextTask(batchId, allRequirements), 1000);
         return;
       }
 

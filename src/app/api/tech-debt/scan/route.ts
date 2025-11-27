@@ -55,17 +55,8 @@ export async function POST(request: NextRequest) {
     // Prepare issues for database
     const techDebtItems = prepareIssuesForDatabase(detectedIssues, projectId, scanId);
 
-    // Insert into database - parse JSON fields before creating
-    const createdItems = techDebtItems.map((item) => {
-      return techDebtDb.createTechDebt({
-        ...item,
-        impact_scope: item.impact_scope ? JSON.parse(item.impact_scope) : null,
-        detection_details: item.detection_details ? JSON.parse(item.detection_details) : null,
-        file_paths: item.file_paths ? JSON.parse(item.file_paths) : null,
-        remediation_plan: item.remediation_plan ? JSON.parse(item.remediation_plan) : null,
-        remediation_steps: item.remediation_steps ? JSON.parse(item.remediation_steps) : null,
-      });
-    });
+    // Insert into database - items are already in the correct format
+    const createdItems = techDebtItems.map((item) => techDebtDb.createTechDebt(item));
 
     // Optionally create backlog items
     if (autoCreateBacklog) {

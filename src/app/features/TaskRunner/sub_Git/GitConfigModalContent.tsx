@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, RotateCcw } from 'lucide-react';
 import { useGitConfig, GitConfig } from './useGitConfig';
-import { ProjectOverviewItem } from '@/app/features/ProjectManager/types';
+import { ProjectOverviewItem } from '@/app/runner/types';
 
 interface GitConfigModalContentProps {
   onClose: () => void;

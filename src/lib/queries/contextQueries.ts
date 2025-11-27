@@ -26,9 +26,12 @@ export interface Context {
   hasContextFile?: boolean;
   contextFilePath?: string;
   // Preview and testing configuration
-  preview?: string;
-  testScenario?: string;
-  testUpdated?: string;
+  preview?: string | null;
+  testScenario?: string | null;
+  testUpdated?: string | null;
+  // Target / Goal
+  target?: string | null;
+  target_fulfillment?: string | null;
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
