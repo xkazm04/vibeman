@@ -7,6 +7,14 @@ import { useCallback, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaskRunnerStore, type BatchId, type BatchState, type TaskState, setCachedRequirements } from './taskRunnerStore';
 import type { ProjectRequirement } from '../lib/types';
+import {
+  isBatchIdle,
+  isBatchRunning,
+  isTaskQueued,
+  isTaskRunning,
+  isTaskCompleted,
+  isTaskFailed,
+} from '../lib/types';
 
 // ============================================================================
 // Batch Hooks
@@ -147,7 +155,7 @@ export function useAutoExecution(batchId: BatchId, requirements: ProjectRequirem
   const canStartTask = useTaskRunnerStore((state) => state.canStartTask(batchId));
 
   useEffect(() => {
-    if (!batch || batch.status !== 'running') return;
+    if (!batch || !isBatchRunning(batch.status)) return;
     if (!canStartTask) return;
 
     // Try to start next task
@@ -169,11 +177,11 @@ export function useExecutionMonitor(batchId: BatchId, requirements: ProjectRequi
   const canStartTask = useTaskRunnerStore((state) => state.canStartTask(batchId));
 
   useEffect(() => {
-    if (!batch || batch.status !== 'running') return;
+    if (!batch || !isBatchRunning(batch.status)) return;
 
     // Check if we can start a new task
-    const hasQueuedTasks = tasks.some(t => t.status === 'queued');
-    const hasRunningTask = tasks.some(t => t.status === 'running');
+    const hasQueuedTasks = tasks.some(t => isTaskQueued(t.status));
+    const hasRunningTask = tasks.some(t => isTaskRunning(t.status));
 
     if (hasQueuedTasks && !hasRunningTask && canStartTask) {
       // Start next task after a short delay
@@ -233,7 +241,7 @@ export function useOverallProgress() {
 
     (Object.keys(state.batches) as BatchId[]).forEach(batchId => {
       const batch = state.batches[batchId];
-      if (!batch || batch.status === 'idle') return;
+      if (!batch || isBatchIdle(batch.status)) return;
 
       // Count tasks by status
       batch.taskIds.forEach(taskId => {
@@ -241,8 +249,8 @@ export function useOverallProgress() {
         if (!task) return;
 
         totalTasks++;
-        if (task.status === 'completed') completedTasks++;
-        if (task.status === 'failed') failedTasks++;
+        if (isTaskCompleted(task.status)) completedTasks++;
+        if (isTaskFailed(task.status)) failedTasks++;
       });
     });
 
@@ -278,7 +286,7 @@ export function useAvailableBatchesForOffload(excludeBatchId?: BatchId): BatchId
     if (!batch) return false;
 
     // Include idle batches or running batches that can accept more tasks
-    return batch.status === 'idle' || (batch.status === 'running' && canStartTask(batchId));
+    return isBatchIdle(batch.status) || (isBatchRunning(batch.status) && canStartTask(batchId));
   });
 }
 

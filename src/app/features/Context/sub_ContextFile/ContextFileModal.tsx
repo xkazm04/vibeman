@@ -1,3 +1,10 @@
+/**
+ * Context File Modal Component
+ *
+ * Modal for viewing and editing context file content.
+ * Uses centralized context metadata cache for real-time sync.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context } from '../../../../stores/contextStore';
@@ -7,10 +14,12 @@ import { generatePlaceholderContent } from './ContextPlaceholder';
 import ContextModalHeader from './ContextModalHeader';
 import ContextModalContent from './ContextModalContent';
 import ContextFileFooter from './ContextFileFooter';
-import { 
-  loadContextFile as loadContextFileApi, 
-  saveContextFile as saveContextFileApi
-} from '../lib';
+import { saveContextFile as saveContextFileApi } from '../lib';
+import {
+  useContextFileContent,
+  useInvalidateContextFileCache
+} from '@/lib/queries/contextFileQueries';
+import { useContextWithCache } from '@/hooks/useContextMetadata';
 
 interface ContextFileModalProps {
   isOpen: boolean;
@@ -18,11 +27,16 @@ interface ContextFileModalProps {
   context: Context;
 }
 
-export default function ContextFileModal({ isOpen, onClose, context }: ContextFileModalProps) {
+export default function ContextFileModal({ isOpen, onClose, context: propContext }: ContextFileModalProps) {
   const { activeProject } = useActiveProjectStore();
+
+  // Get cached context with real-time updates
+  const { context: cachedContext } = useContextWithCache(propContext.id);
+
+  // Use cached context if available, fallback to prop
+  const context = cachedContext ?? propContext;
   const [isEditing, setIsEditing] = useState(false);
   const [markdownContent, setMarkdownContent] = useState('');
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('preview');
   const [generating, setGenerating] = useState(false);
@@ -30,25 +44,26 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { invalidateFile } = useInvalidateContextFileCache();
 
-  // Check if context file exists and load content
+  // Use TanStack Query for cached context file loading
+  const {
+    data: cachedContent,
+    isLoading: loading,
+    error: loadError,
+  } = useContextFileContent(context.id, {
+    enabled: isOpen && context.hasContextFile,
+  });
+
+  // Update local state when cached content changes
   useEffect(() => {
-    if (isOpen && context.hasContextFile) {
-      loadContextFile();
-    }
-  }, [isOpen, context.hasContextFile]);
-
-  const loadContextFile = async () => {
-    setLoading(true);
-    try {
-      const content = await loadContextFileApi(context.id);
-      setMarkdownContent(content);
-    } catch (error) {
+    if (cachedContent) {
+      setMarkdownContent(cachedContent);
+    } else if (loadError && context.hasContextFile) {
+      // Fallback to placeholder on error
       setMarkdownContent(generatePlaceholderContent(context));
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [cachedContent, loadError, context]);
 
   const handleSave = () => {
     setShowSaveDialog(true);
@@ -61,6 +76,8 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
 
     try {
       await saveContextFileApi(folderPath, fileName, markdownContent, activeProject.path);
+      // Invalidate cache to ensure fresh content on next load
+      invalidateFile(context.id);
       setIsEditing(false);
       setPreviewMode('preview');
       setShowSaveDialog(false);
@@ -95,6 +112,7 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={handleClose}
+        data-testid="context-file-modal-backdrop"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -103,6 +121,7 @@ export default function ContextFileModal({ isOpen, onClose, context }: ContextFi
           transition={{ duration: 0.2 }}
           className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
+          data-testid="context-file-modal"
         >
           {/* Header */}
           <ContextModalHeader

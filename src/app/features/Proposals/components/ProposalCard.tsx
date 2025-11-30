@@ -6,6 +6,7 @@ import { Proposal } from '../types';
 import { ProposalCardHeader } from './ProposalCardHeader';
 import { ProposalCardContent } from './ProposalCardContent';
 import { ProposalCardActions } from './ProposalCardActions';
+import { useThemeStore } from '@/stores/themeStore';
 
 export interface ProposalCardProps {
   proposal: Proposal;
@@ -26,6 +27,9 @@ export const ProposalCard = React.memo(({
   onDecline, 
   isProcessing = false 
 }: ProposalCardProps) => {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   // Animation properties based on card state
   const scale = isMain ? 1 : 0.75;
   const opacity = isMain ? 1 : 0.5;
@@ -85,7 +89,7 @@ export const ProposalCard = React.memo(({
     >
       <div className={`relative bg-gradient-to-br from-gray-900/95 via-slate-900/20 to-blue-900/30 backdrop-blur-xl border border-gray-700/40 rounded-3xl shadow-2xl overflow-hidden ${isMain ? 'w-[600px]' : 'w-[500px]'} max-w-[90vw]`}>
         {/* Neural Background Effects */}
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5 rounded-3xl" />
+        <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgLight} via-slate-500/5 to-blue-500/5 rounded-3xl`} />
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-3xl" />
         
         {/* Animated Grid Pattern */}
@@ -112,7 +116,7 @@ export const ProposalCard = React.memo(({
         {isMain && Array.from({ length: 8 }).map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-cyan-400/30 rounded-full"
+            className={`absolute w-1 h-1 ${colors.border.replace('border-', 'bg-')} rounded-full`}
             style={{
               left: `${10 + i * 10}%`,
               top: `${15 + (i % 3) * 25}%`,

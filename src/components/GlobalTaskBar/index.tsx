@@ -6,6 +6,16 @@ import { ChevronUp, ChevronDown, Zap, CheckCircle, XCircle, Minimize2 } from 'lu
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import TaskProgressItem from './TaskProgressItem';
 import type { TaskState } from '@/app/features/TaskRunner/store/taskRunnerStore';
+import {
+  isTaskRunning,
+  isTaskQueued,
+  isTaskCompleted,
+  isTaskFailed,
+  isBatchRunning,
+  isBatchPaused,
+  isBatchCompleted,
+  isBatchIdle,
+} from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 
 interface GlobalTaskBarProps {
@@ -28,21 +38,21 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
   // Get task lists
   const runningTasks = useMemo(() =>
     Object.values(tasks).filter((t): t is TaskState =>
-      Boolean(t && t.id && (t.status === 'running' || t.status === 'queued'))
+      Boolean(t && t.id && (isTaskRunning(t.status) || isTaskQueued(t.status)))
     ),
     [tasks]
   );
 
   const completedTasks = useMemo(() =>
     Object.values(tasks).filter((t): t is TaskState =>
-      Boolean(t && t.id && t.status === 'completed')
+      Boolean(t && t.id && isTaskCompleted(t.status))
     ),
     [tasks]
   );
 
   const failedTasks = useMemo(() =>
     Object.values(tasks).filter((t): t is TaskState =>
-      Boolean(t && t.id && t.status === 'failed')
+      Boolean(t && t.id && isTaskFailed(t.status))
     ),
     [tasks]
   );
@@ -50,16 +60,22 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
   // Filter recently completed/failed tasks (within last 5 minutes)
   const recentlyCompletedTasks = useMemo(() => {
     const now = Date.now();
-    return completedTasks.filter(task =>
-      task.completedAt && (now - task.completedAt) < TOAST_TIME_THRESHOLD
-    );
+    return completedTasks.filter(task => {
+      if (isTaskCompleted(task.status)) {
+        return (now - task.status.completedAt) < TOAST_TIME_THRESHOLD;
+      }
+      return false;
+    });
   }, [completedTasks, TOAST_TIME_THRESHOLD]);
 
   const recentlyFailedTasks = useMemo(() => {
     const now = Date.now();
-    return failedTasks.filter(task =>
-      task.completedAt && (now - task.completedAt) < TOAST_TIME_THRESHOLD
-    );
+    return failedTasks.filter(task => {
+      if (isTaskFailed(task.status)) {
+        return (now - task.status.completedAt) < TOAST_TIME_THRESHOLD;
+      }
+      return false;
+    });
   }, [failedTasks, TOAST_TIME_THRESHOLD]);
 
   const hasRunningTasks = runningTasks.length > 0;
@@ -188,9 +204,9 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                   <div className="text-xs text-gray-300 font-mono">
                     {requirementName}
                   </div>
-                  {task.error && (
+                  {isTaskFailed(task.status) && task.status.error && (
                     <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                      {task.error}
+                      {task.status.error}
                     </div>
                   )}
                 </div>
@@ -354,9 +370,9 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                   const batchTasks = Object.values(tasks).filter(
                     (t): t is TaskState => Boolean(t && t.id && t.batchId === batchId)
                   );
-                  const batchRunning = batchTasks.filter(t => t.status === 'running' || t.status === 'queued');
-                  const batchCompleted = batchTasks.filter(t => t.status === 'completed');
-                  const batchFailed = batchTasks.filter(t => t.status === 'failed');
+                  const batchRunning = batchTasks.filter(t => isTaskRunning(t.status) || isTaskQueued(t.status));
+                  const batchCompleted = batchTasks.filter(t => isTaskCompleted(t.status));
+                  const batchFailed = batchTasks.filter(t => isTaskFailed(t.status));
 
                   return (
                     <div
@@ -372,12 +388,12 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                             </span>
                             {batch && (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                batch.status === 'running' ? 'bg-cyan-500/20 text-cyan-400' :
-                                batch.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                                batch.status === 'paused' ? 'bg-amber-500/20 text-amber-400' :
+                                isBatchRunning(batch.status) ? 'bg-cyan-500/20 text-cyan-400' :
+                                isBatchCompleted(batch.status) ? 'bg-green-500/20 text-green-400' :
+                                isBatchPaused(batch.status) ? 'bg-amber-500/20 text-amber-400' :
                                 'bg-gray-500/20 text-gray-400'
                               }`}>
-                                {batch.status}
+                                {batch.status.type}
                               </span>
                             )}
                           </div>

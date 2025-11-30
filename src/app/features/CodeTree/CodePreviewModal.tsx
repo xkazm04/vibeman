@@ -1,8 +1,16 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Loader2, FileCode } from 'lucide-react';
+import { X, Save, Loader2, FileCode, Eye } from 'lucide-react';
 import MonacoEditor from '@/components/editor/MonacoEditor';
+import FileErrorDisplay from './components/FileErrorDisplay';
+import { classifyFileError } from './lib/fileOperationErrors';
+
+interface FileOperationState {
+  errorMessage: string | null;
+  statusCode?: number;
+  operation: 'read' | 'write';
+}
 
 interface CodePreviewModalProps {
   isOpen: boolean;
@@ -19,42 +27,61 @@ export default function CodePreviewModal({
   const [originalContent, setOriginalContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [fileError, setFileError] = useState<FileOperationState | null>(null);
 
   // Load file content
-  useEffect(() => {
-    if (!isOpen || !filePath) return;
+  const loadFileContent = useCallback(async () => {
+    if (!filePath) return;
 
     setIsLoading(true);
-    setError(null);
+    setFileError(null);
 
-    fetch('/api/disk/read-file', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePath }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setContent(data.content || '');
-          setOriginalContent(data.content || '');
-          setHasChanges(false);
-        } else {
-          setError(data.error || 'Failed to load file');
-        }
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load file');
-      })
-      .finally(() => {
-        setIsLoading(false);
+    try {
+      const res = await fetch('/api/disk/read-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath }),
       });
-  }, [isOpen, filePath]);
+
+      const statusCode = res.status;
+      const data = await res.json();
+
+      if (data.success) {
+        setContent(data.content || '');
+        setOriginalContent(data.content || '');
+        setHasChanges(false);
+        setFileError(null);
+      } else {
+        setFileError({
+          errorMessage: data.error || 'Failed to load file',
+          statusCode,
+          operation: 'read',
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load file';
+      setFileError({
+        errorMessage,
+        operation: 'read',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filePath]);
+
+  useEffect(() => {
+    if (!isOpen || !filePath) return;
+    setIsReadOnly(false);
+    loadFileContent();
+  }, [isOpen, filePath, loadFileContent]);
 
   const handleSave = async () => {
+    if (isReadOnly) return;
+
     setIsSaving(true);
-    setError(null);
+    setFileError(null);
 
     try {
       const res = await fetch('/api/disk/write-file', {
@@ -63,21 +90,55 @@ export default function CodePreviewModal({
         body: JSON.stringify({ filePath, content }),
       });
 
+      const statusCode = res.status;
       const data = await res.json();
 
       if (data.success) {
         setOriginalContent(content);
         setHasChanges(false);
+        setFileError(null);
       } else {
-        setError(data.error || 'Failed to save file');
+        setFileError({
+          errorMessage: data.error || 'Failed to save file',
+          statusCode,
+          operation: 'write',
+        });
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save file';
-      setError(errorMessage);
+      setFileError({
+        errorMessage,
+        operation: 'write',
+      });
     } finally {
       setIsSaving(false);
     }
   };
+
+  const handleRetry = useCallback(() => {
+    if (fileError?.operation === 'read') {
+      loadFileContent();
+    } else if (fileError?.operation === 'write') {
+      handleSave();
+    }
+  }, [fileError, loadFileContent]);
+
+  const handleDiscardChanges = useCallback(() => {
+    setContent(originalContent);
+    setHasChanges(false);
+    setFileError(null);
+  }, [originalContent]);
+
+  const handleSwitchToReadOnly = useCallback(() => {
+    setIsReadOnly(true);
+    setFileError(null);
+    // Reload the file to get the latest version
+    loadFileContent();
+  }, [loadFileContent]);
+
+  const handleDismissError = useCallback(() => {
+    setFileError(null);
+  }, []);
 
   const handleContentChange = (newContent: string) => {
     setContent(newContent);
@@ -164,30 +225,38 @@ export default function CodePreviewModal({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {hasChanges && (
+                  {isReadOnly && (
+                    <span className="text-sm text-blue-400 flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 rounded-md border border-blue-500/20">
+                      <Eye className="w-3.5 h-3.5" />
+                      Read-only
+                    </span>
+                  )}
+                  {hasChanges && !isReadOnly && (
                     <span className="text-sm text-amber-400 flex items-center gap-1">
                       <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
                       Unsaved changes
                     </span>
                   )}
-                  <button
-                    data-testid="code-preview-save-button"
-                    onClick={handleSave}
-                    disabled={!hasChanges || isSaving}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save
-                      </>
-                    )}
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      data-testid="code-preview-save-button"
+                      onClick={handleSave}
+                      disabled={!hasChanges || isSaving}
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Save
+                        </>
+                      )}
+                    </button>
+                  )}
                   <button
                     data-testid="code-preview-close-button"
                     onClick={handleClose}
@@ -198,10 +267,20 @@ export default function CodePreviewModal({
                 </div>
               </div>
 
-              {/* Error Message */}
-              {error && (
-                <div className="px-6 py-3 bg-red-500/10 border-b border-red-500/20">
-                  <p className="text-sm text-red-400">{error}</p>
+              {/* Error Display */}
+              {fileError && (
+                <div className="px-6 py-4 border-b border-gray-700/50">
+                  <FileErrorDisplay
+                    errorMessage={fileError.errorMessage || ''}
+                    filePath={filePath}
+                    operation={fileError.operation}
+                    statusCode={fileError.statusCode}
+                    onRetry={handleRetry}
+                    onDismiss={handleDismissError}
+                    onDiscardChanges={hasChanges ? handleDiscardChanges : undefined}
+                    onSwitchToReadOnly={fileError.operation === 'write' ? handleSwitchToReadOnly : undefined}
+                    hasUnsavedChanges={hasChanges}
+                  />
                 </div>
               )}
 
@@ -214,13 +293,17 @@ export default function CodePreviewModal({
                       <p className="text-sm text-gray-400">Loading file...</p>
                     </div>
                   </div>
+                ) : fileError?.operation === 'read' ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">Unable to display file content</p>
+                  </div>
                 ) : (
                   <MonacoEditor
                     height={'500px'}
                     value={content}
                     language={getLanguage(filePath)}
                     onChange={handleContentChange}
-                    readOnly={false}
+                    readOnly={isReadOnly}
                   />
                 )}
               </div>
@@ -228,8 +311,15 @@ export default function CodePreviewModal({
               {/* Footer */}
               <div className="px-6 py-3 border-t border-gray-700/50 bg-gray-900/50">
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <div>
-                    Language: <span className="text-gray-400 font-mono">{getLanguage(filePath)}</span>
+                  <div className="flex items-center gap-4">
+                    <span>
+                      Language: <span className="text-gray-400 font-mono">{getLanguage(filePath)}</span>
+                    </span>
+                    {isReadOnly && (
+                      <span className="text-blue-400/70">
+                        (Read-only mode)
+                      </span>
+                    )}
                   </div>
                   <div>
                     Lines: <span className="text-gray-400">{content.split('\n').length}</span>

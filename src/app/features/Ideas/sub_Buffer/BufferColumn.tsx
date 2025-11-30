@@ -27,10 +27,6 @@ const BufferColumn = React.memo(function BufferColumn({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteAll = async () => {
-    if (!contextId) {
-      return;
-    }
-
     if (!onContextDelete) {
       return;
     }
@@ -47,7 +43,8 @@ const BufferColumn = React.memo(function BufferColumn({
     
     setIsDeleting(true);
     try {
-      await onContextDelete(contextId);
+      // Pass contextId or 'no-context' for General ideas (null context_id)
+      await onContextDelete(contextId ?? 'no-context');
     } catch (error) {
       alert('Failed to delete ideas');
     } finally {
@@ -74,12 +71,17 @@ const BufferColumn = React.memo(function BufferColumn({
 
   return (
     <motion.div
-      className="flex flex-col bg-gray-900/40 border border-gray-700/40 rounded-lg overflow-hidden"
+      className="flex flex-col bg-gray-900/40 border border-gray-700/40 rounded-lg overflow-hidden transition-all duration-200 hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-lg hover:shadow-black/20"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8, x: -100 }}
       transition={{ duration: 0.3 }}
+      whileHover={{
+        y: -2,
+        transition: { duration: 0.2, ease: 'easeOut' }
+      }}
       layout
+      data-testid={`buffer-column-${contextId || 'no-context'}`}
     >
       {/* Header */}
       <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
@@ -91,16 +93,17 @@ const BufferColumn = React.memo(function BufferColumn({
             <span className="text-[10px] text-gray-500 font-mono">
               {ideas.length}
             </span>
-            {/* Always show if there's a contextId and ideas */}
-            {contextId && ideas.length > 0 && (
+            {/* Show delete button for any column with ideas (including General/no-context) */}
+            {ideas.length > 0 && (
               <motion.button
-                data-testid="buffer-column-delete-all-button"
+                data-testid={`buffer-column-delete-all-${contextId || 'no-context'}`}
                 onClick={handleDeleteAll}
                 disabled={isDeleting}
-                className="p-1 hover:bg-red-500/20 rounded transition-colors disabled:opacity-50 cursor-pointer"
+                className="p-1 hover:bg-red-500/20 rounded transition-all duration-200 disabled:opacity-50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 title={`Delete all ideas in ${contextName}`}
+                aria-label={`Delete all ${ideas.length} ideas in ${contextName}`}
               >
                 <Trash2 className="w-3 h-3 text-red-400" />
               </motion.button>

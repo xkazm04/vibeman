@@ -17,13 +17,14 @@ import type { ProjectRequirement } from '../lib/types';
 import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
 import { getContextIdFromRequirement, triggerScreenshotCapture } from '../sub_Screenshot/screenshotApi';
-
-// ============================================================================
-// Global Polling Management
-// ============================================================================
-
-// Track active polling intervals to enable reconnection after page refresh
-const activePollingIntervals = new Map<string, NodeJS.Timeout>();
+import {
+  startPolling,
+  stopPolling,
+  cleanupAllPolling,
+  recoverActivePolling,
+  isPollingActive,
+  type PollingCallback,
+} from '../lib/pollingManager';
 
 // ============================================================================
 // Requirements Cache (Fix for batch continuation bug)
@@ -55,17 +56,43 @@ export function getCachedRequirements(): ProjectRequirement[] {
 // Types
 // ============================================================================
 
+import type {
+  TaskStatusUnion,
+  BatchStatusUnion,
+  TaskStatusType,
+  BatchStatusType,
+} from '../lib/types';
+
+import {
+  createQueuedStatus,
+  createRunningStatus,
+  createCompletedStatus,
+  createFailedStatus,
+  createIdleBatchStatus,
+  createRunningBatchStatus,
+  createPausedBatchStatus,
+  createCompletedBatchStatus,
+  isTaskQueued,
+  isTaskRunning,
+  isTaskCompleted,
+  isTaskFailed,
+  isBatchIdle,
+  isBatchRunning,
+  isBatchPaused,
+  isBatchCompleted,
+} from '../lib/types';
+
 export type BatchId = 'batch1' | 'batch2' | 'batch3' | 'batch4';
-export type BatchStatus = 'idle' | 'running' | 'paused' | 'completed';
-export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+// Re-export type aliases for backward compatibility
+export type BatchStatus = BatchStatusType;
+export type TaskStatus = TaskStatusType;
 
 export interface BatchState {
   id: string;
   name: string;
   taskIds: string[]; // Tasks assigned to this batch
-  status: BatchStatus;
-  startedAt: number | null;
-  completedAt?: number | null;
+  status: BatchStatusUnion; // Now uses discriminated union
   completedCount: number;
   failedCount: number;
 }
@@ -73,10 +100,7 @@ export interface BatchState {
 export interface TaskState {
   id: string; // requirement ID
   batchId: BatchId; // Which batch owns this task
-  status: TaskStatus;
-  error?: string;
-  startedAt?: number;
-  completedAt?: number;
+  status: TaskStatusUnion; // Now uses discriminated union
 }
 
 export interface GitConfig {
@@ -115,7 +139,7 @@ interface TaskRunnerState {
 
   // Actions - Task Execution
   executeNextTask: (batchId: BatchId, requirements: ProjectRequirement[]) => Promise<void>;
-  updateTaskStatus: (taskId: string, status: TaskStatus, error?: string) => void;
+  updateTaskStatus: (taskId: string, status: TaskStatusUnion) => void;
 
   // Actions - Global
   setGitConfig: (config: GitConfig | null) => void;
@@ -162,8 +186,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             id: `batch_${Date.now()}`,
             name,
             taskIds: [...taskIds],
-            status: 'idle',
-            startedAt: null,
+            status: createIdleBatchStatus(),
             completedCount: 0,
             failedCount: 0,
           };
@@ -174,7 +197,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             newTasks[taskId] = {
               id: taskId,
               batchId,
-              status: 'queued',
+              status: createQueuedStatus(),
             };
           });
 
@@ -191,15 +214,19 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       startBatch: (batchId) => {
         set((state) => {
           const batch = state.batches[batchId];
-          if (!batch || batch.status === 'running') return state;
+          if (!batch || isBatchRunning(batch.status)) return state;
+
+          // Get the startedAt from previous status if available
+          const startedAt = isBatchPaused(batch.status)
+            ? batch.status.startedAt
+            : Date.now();
 
           return {
             batches: {
               ...state.batches,
               [batchId]: {
                 ...batch,
-                status: 'running',
-                startedAt: batch.startedAt || Date.now(),
+                status: createRunningBatchStatus(startedAt),
               },
             },
           };
@@ -209,14 +236,14 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       pauseBatch: (batchId) => {
         set((state) => {
           const batch = state.batches[batchId];
-          if (!batch || batch.status !== 'running') return state;
+          if (!batch || !isBatchRunning(batch.status)) return state;
 
           return {
             batches: {
               ...state.batches,
               [batchId]: {
                 ...batch,
-                status: 'paused',
+                status: createPausedBatchStatus(batch.status.startedAt),
               },
             },
           };
@@ -226,14 +253,14 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       resumeBatch: (batchId) => {
         set((state) => {
           const batch = state.batches[batchId];
-          if (!batch || batch.status !== 'paused') return state;
+          if (!batch || !isBatchPaused(batch.status)) return state;
 
           return {
             batches: {
               ...state.batches,
               [batchId]: {
                 ...batch,
-                status: 'running',
+                status: createRunningBatchStatus(batch.status.startedAt),
               },
             },
           };
@@ -253,13 +280,19 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             failed: progress.failed,
           });
 
+          // Get startedAt from the batch status
+          const startedAt = isBatchRunning(batch.status)
+            ? batch.status.startedAt
+            : isBatchPaused(batch.status)
+            ? batch.status.startedAt
+            : Date.now();
+
           return {
             batches: {
               ...state.batches,
               [batchId]: {
                 ...batch,
-                status: 'completed',
-                completedAt: Date.now(),
+                status: createCompletedBatchStatus(startedAt),
               },
             },
           };
@@ -312,7 +345,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
               [taskId]: {
                 id: taskId,
                 batchId,
-                status: 'queued',
+                status: createQueuedStatus(),
               },
             },
           };
@@ -350,7 +383,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
 
           // Don't allow moving running tasks
           const task = state.tasks[taskId];
-          if (task?.status === 'running') return state;
+          if (task && isTaskRunning(task.status)) return state;
 
           return {
             batches: {
@@ -369,7 +402,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
               [taskId]: {
                 ...state.tasks[taskId],
                 batchId: toBatchId,
-                status: 'queued', // Reset to queued when moved
+                status: createQueuedStatus(), // Reset to queued when moved
               },
             },
           };
@@ -386,7 +419,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           // Filter to only queued tasks
           const queuedTaskIds = taskIds.filter(taskId => {
             const task = state.tasks[taskId];
-            return task && task.status === 'queued' && fromBatch.taskIds.includes(taskId);
+            return task && isTaskQueued(task.status) && fromBatch.taskIds.includes(taskId);
           });
 
           if (queuedTaskIds.length === 0) return state;
@@ -425,7 +458,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         const batch = state.batches[batchId];
 
         // Check if batch can execute
-        if (!batch || batch.status !== 'running') return;
+        if (!batch || !isBatchRunning(batch.status)) return;
         if (state.isPaused) return;
 
         // Check if batch already has a running task
@@ -463,7 +496,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         if (!requirement) {
           console.error(`❌ Requirement not found for task: ${nextTask.id}`);
           console.error(`Available requirements:`, requirements.map(r => `${r.projectId}:${r.requirementName}`));
-          state.updateTaskStatus(nextTask.id, 'failed', 'Requirement not found');
+          state.updateTaskStatus(nextTask.id, createFailedStatus('Requirement not found'));
 
           // Remove from executing set (task was never actually started)
           set((state) => ({
@@ -502,8 +535,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             ...state.tasks,
             [nextTask.id]: {
               ...state.tasks[nextTask.id],
-              status: 'running',
-              startedAt: Date.now(),
+              status: createRunningStatus(),
             },
           },
           executingTasks: new Set([...state.executingTasks, nextTask.id]),
@@ -518,12 +550,12 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             state.gitConfig || undefined
           );
 
-          // Start polling for completion (using setInterval for reconnection support)
-          startPollingForTask(result.taskId, nextTask.id, batchId, requirement, state);
+          // Start polling for completion using the polling manager
+          startTaskPolling(result.taskId, nextTask.id, batchId, requirement, state);
 
         } catch (error) {
           console.error(`Error executing task ${nextTask.id}:`, error);
-          state.updateTaskStatus(nextTask.id, 'failed', error instanceof Error ? error.message : 'Unknown error');
+          state.updateTaskStatus(nextTask.id, createFailedStatus(error instanceof Error ? error.message : 'Unknown error'));
 
           // Remove from executing set
           set((state) => ({
@@ -551,15 +583,13 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         }
       },
 
-      updateTaskStatus: (taskId, status, error) => {
+      updateTaskStatus: (taskId, status) => {
         set((state) => ({
           tasks: {
             ...state.tasks,
             [taskId]: {
               ...state.tasks[taskId],
               status,
-              error,
-              completedAt: status === 'completed' || status === 'failed' ? Date.now() : undefined,
             },
           },
         }));
@@ -584,7 +614,10 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       getActiveBatches: () => {
         const state = get();
         return (Object.keys(state.batches) as BatchId[]).filter(
-          batchId => state.batches[batchId]?.status === 'running'
+          batchId => {
+            const batch = state.batches[batchId];
+            return batch && isBatchRunning(batch.status);
+          }
         );
       },
 
@@ -597,8 +630,8 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         }
 
         const tasks = batch.taskIds.map(id => state.tasks[id]).filter(Boolean);
-        const completed = tasks.filter(t => t.status === 'completed').length;
-        const failed = tasks.filter(t => t.status === 'failed').length;
+        const completed = tasks.filter(t => isTaskCompleted(t.status)).length;
+        const failed = tasks.filter(t => isTaskFailed(t.status)).length;
 
         return {
           total: batch.taskIds.length,
@@ -620,18 +653,18 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
 
       getNextTaskForBatch: (batchId) => {
         const tasks = get().getTasksForBatch(batchId);
-        return tasks.find(t => t.status === 'queued') || null;
+        return tasks.find(t => isTaskQueued(t.status)) || null;
       },
 
       canStartTask: (batchId) => {
         const state = get();
         const batch = state.batches[batchId];
 
-        if (!batch || batch.status !== 'running') return false;
+        if (!batch || !isBatchRunning(batch.status)) return false;
 
         // Check if batch already has a running task
         const tasks = state.getTasksForBatch(batchId);
-        const hasRunningTask = tasks.some(t => t.status === 'running');
+        const hasRunningTask = tasks.some(t => isTaskRunning(t.status));
 
         return !hasRunningTask;
       },
@@ -651,7 +684,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
 
         batchIds.forEach(batchId => {
           const batch = state.batches[batchId];
-          if (!batch || batch.status === 'completed') return;
+          if (!batch || isBatchCompleted(batch.status)) return;
 
           // Filter to only include tasks that still exist
           const validTaskIds = batch.taskIds.filter(taskId => {
@@ -691,13 +724,19 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           }
 
           // If batch was running, reconnect to running tasks and resume execution
-          if (batch.status === 'running') {
+          if (isBatchRunning(batch.status)) {
             console.log(`🔄 Recovering batch ${batchId} - reconnecting to running tasks`);
+
+            // Collect tasks that need polling recovery
+            const tasksToRecover: Array<{
+              taskId: string;
+              callback: PollingCallback;
+            }> = [];
 
             // Reconnect to any tasks that were running before page refresh
             validTaskIds.forEach(taskId => {
               const task = state.tasks[taskId];
-              if (task && task.status === 'running') {
+              if (task && isTaskRunning(task.status)) {
                 // Find the requirement for this task
                 const [taskProjectId, taskRequirementName] = taskId.includes(':')
                   ? taskId.split(':')
@@ -712,12 +751,23 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
                 });
 
                 if (requirement) {
-                  console.log(`🔌 Reconnecting polling for task: ${taskId}`);
-                  // Restart polling for this task (uses requirementName as taskId)
-                  startPollingForTask(requirement.requirementName, taskId, batchId, requirement, state);
+                  // Build the polling callback for this task
+                  const callback = createPollingCallback(
+                    requirement.requirementName,
+                    taskId,
+                    batchId,
+                    requirement,
+                    state
+                  );
+                  tasksToRecover.push({ taskId, callback });
                 }
               }
             });
+
+            // Recover polling for all running tasks at once
+            if (tasksToRecover.length > 0) {
+              recoverActivePolling(tasksToRecover);
+            }
 
             // Also resume execution for queued tasks
             state.executeNextTask(batchId, requirements);
@@ -726,12 +776,8 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       },
 
       clearAll: () => {
-        // Stop all active polling intervals
-        activePollingIntervals.forEach((interval, taskId) => {
-          clearInterval(interval);
-          console.log(`⏹️ Stopped polling for task: ${taskId}`);
-        });
-        activePollingIntervals.clear();
+        // Stop all active polling using the polling manager
+        cleanupAllPolling();
 
         set({
           batches: {
@@ -764,51 +810,32 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
 // ============================================================================
 
 /**
- * Start polling for task completion using setInterval (survives page refresh)
+ * Create a polling callback for a task
+ * This callback is used by the polling manager to check task status
  */
-function startPollingForTask(
+function createPollingCallback(
   taskId: string,
   requirementId: string,
   batchId: BatchId,
   requirement: ProjectRequirement,
   state: TaskRunnerState
-): void {
-  // Clear any existing polling interval for this task
-  stopPollingForTask(requirementId);
-
-  const MAX_POLL_ATTEMPTS = 120; // 20 minutes at 10s intervals
-  let attempts = 0;
-
-  console.log(`🔄 Starting polling for task: ${requirementId}`);
-
-  const pollInterval = setInterval(async () => {
-    attempts++;
-
+): PollingCallback {
+  return async () => {
     try {
       const taskStatus = await getTaskStatus(taskId);
 
       // Handle case where task is not found yet
       if (!taskStatus) {
         console.log(`⏳ Task ${taskId} not found yet, will retry...`);
-
-        // Stop polling if we've exceeded max attempts
-        if (attempts >= MAX_POLL_ATTEMPTS) {
-          console.error(`⏰ Polling timeout for task: ${requirementId}`);
-          state.updateTaskStatus(requirementId, 'failed', 'Polling timeout - task took too long');
-          stopPollingForTask(requirementId);
-        }
-        return;
+        return { done: false };
       }
 
-      console.log(`📊 Task status poll #${attempts}: ${taskStatus.status}`);
+      console.log(`📊 Task status: ${taskStatus.status}`);
 
       if (taskStatus.status === 'completed') {
         // Task completed successfully
         console.log(`✅ Task ${requirementId} completed successfully`);
-        state.updateTaskStatus(requirementId, 'completed');
-
-        // Stop polling
-        stopPollingForTask(requirementId);
+        state.updateTaskStatus(requirementId, createCompletedStatus());
 
         // Update batch progress using setState
         useTaskRunnerStore.setState((state) => {
@@ -845,18 +872,20 @@ function startPollingForTask(
           console.warn('Failed to delete requirement file:', err);
         }
 
-        // Continue with next task using cached requirements (FIX: was passing [requirement] causing "Requirement not found")
+        // Continue with next task using cached requirements
         const allRequirements = getCachedRequirements();
         setTimeout(() => state.executeNextTask(batchId, allRequirements), 500);
-        return;
+
+        return { done: true, success: true };
 
       } else if (taskStatus.status === 'failed' || taskStatus.status === 'session-limit') {
         // Task failed
         console.error(`❌ Task ${requirementId} failed: ${taskStatus.error || 'Unknown error'}`);
-        state.updateTaskStatus(requirementId, 'failed', taskStatus.error || 'Task failed');
-
-        // Stop polling
-        stopPollingForTask(requirementId);
+        const isSessionLimit = taskStatus.status === 'session-limit';
+        state.updateTaskStatus(
+          requirementId,
+          createFailedStatus(taskStatus.error || 'Task failed', Date.now(), isSessionLimit)
+        );
 
         // Update batch failed count using setState
         useTaskRunnerStore.setState((state) => {
@@ -875,32 +904,45 @@ function startPollingForTask(
           };
         });
 
-        // Continue with next task using cached requirements (FIX: was passing [requirement] causing "Requirement not found")
+        // Continue with next task using cached requirements
         const allRequirements = getCachedRequirements();
         setTimeout(() => state.executeNextTask(batchId, allRequirements), 1000);
-        return;
+
+        return { done: true, success: false, error: taskStatus.error || 'Task failed' };
       }
 
       // Task still running, continue polling
+      return { done: false };
 
     } catch (error) {
       console.error('Error polling task status:', error);
       // Continue polling despite error - will retry on next interval
+      return { done: false };
     }
-  }, 10000); // Poll every 10 seconds
-
-  // Store the interval ID so we can stop it later
-  activePollingIntervals.set(requirementId, pollInterval);
+  };
 }
 
 /**
- * Stop polling for a specific task
+ * Start polling for task completion using the polling manager
  */
-function stopPollingForTask(requirementId: string): void {
-  const interval = activePollingIntervals.get(requirementId);
-  if (interval) {
-    clearInterval(interval);
-    activePollingIntervals.delete(requirementId);
-    console.log(`⏹️ Stopped polling for task: ${requirementId}`);
-  }
+function startTaskPolling(
+  taskId: string,
+  requirementId: string,
+  batchId: BatchId,
+  requirement: ProjectRequirement,
+  state: TaskRunnerState
+): void {
+  console.log(`🔄 Starting polling for task: ${requirementId}`);
+
+  const callback = createPollingCallback(taskId, requirementId, batchId, requirement, state);
+
+  startPolling(requirementId, callback, {
+    intervalMs: 10000, // Poll every 10 seconds
+    maxAttempts: 120,  // 20 minutes at 10s intervals
+    onAttempt: (attempt) => {
+      if (attempt % 6 === 0) { // Log every minute
+        console.log(`⏳ Polling attempt #${attempt} for task: ${requirementId}`);
+      }
+    },
+  });
 }

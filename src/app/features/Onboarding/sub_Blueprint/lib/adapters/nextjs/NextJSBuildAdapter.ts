@@ -3,6 +3,9 @@
  *
  * Scans for build errors and warnings in NextJS projects.
  * Creates requirement files for fixing detected issues.
+ *
+ * Uses centralized error handling for consistent error messages
+ * and automatic retry logic for transient failures.
  */
 
 import { Project } from '@/types';
@@ -24,52 +27,68 @@ export class NextJSBuildAdapter extends BaseAdapter<BuildScanData> {
   public readonly category = 'build';
   public readonly priority = 100; // High priority for NextJS projects
 
+  /** Custom retry config for build scans - longer timeout due to potentially long builds */
+  protected override readonly retryConfig = {
+    maxRetries: 2, // Build scans are expensive, limit retries
+    initialDelayMs: 2000,
+    maxDelayMs: 30000,
+  };
+
+  protected override readonly defaultTimeoutMs = 120000; // 2 minute timeout for builds
+
   public async execute(context: ScanContext): Promise<ScanResult<BuildScanData>> {
-    const { project, options } = context;
+    const { project } = context;
 
     this.log('Executing build scan...', project.path);
 
-    try {
-      const scanOnly = options?.scanOnly ?? true;
+    // Use centralized error handling with automatic retry
+    return this.executeWithErrorHandling(
+      async () => {
+        const result = await this.fetchApi<any>(
+          '/api/build-fixer?scanOnly=true',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectPath: project.path,
+            }),
+          },
+          { serviceName: 'Build Fixer API' }
+        );
 
-      const result = await this.fetchApi('/api/build-fixer?scanOnly=true', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectPath: project.path,
-        }),
-      });
+        if (!result.success || !result.data) {
+          return this.createResult<BuildScanData>(
+            false,
+            undefined,
+            result.error || 'Build scan failed'
+          );
+        }
 
-      if (!result.success || !result.data) {
-        return this.createResult<BuildScanData>(false, undefined, result.error || 'Build scan failed');
-      }
+        const data = result.data;
 
-      const data = result.data as any;
+        if (!data.success) {
+          return this.createResult<BuildScanData>(
+            false,
+            undefined,
+            data.error || 'Build scan failed'
+          );
+        }
 
-      if (!data.success) {
-        return this.createResult<BuildScanData>(false, undefined, data.error || 'Build scan failed');
-      }
+        const buildData: BuildScanData = {
+          totalErrors: data.totalErrors || 0,
+          totalWarnings: data.totalWarnings || 0,
+          errorGroups: data.errorGroups || [],
+          buildCommand: data.buildCommand || 'npm run build',
+        };
 
-      const buildData: BuildScanData = {
-        totalErrors: data.totalErrors || 0,
-        totalWarnings: data.totalWarnings || 0,
-        errorGroups: data.errorGroups || [],
-        buildCommand: data.buildCommand || 'npm run build',
-      };
+        this.log(
+          `✅ Build scan complete: ${buildData.totalErrors} errors, ${buildData.totalWarnings} warnings`
+        );
 
-      this.log(
-        `✅ Build scan complete: ${buildData.totalErrors} errors, ${buildData.totalWarnings} warnings`
-      );
-
-      return this.createResult(true, buildData);
-    } catch (error) {
-      this.error('Build scan failed:', error);
-      return this.createResult<BuildScanData>(
-        false,
-        undefined,
-        error instanceof Error ? error.message : 'Unknown error'
-      );
-    }
+        return this.createResult(true, buildData);
+      },
+      { operation: 'build-scan' }
+    );
   }
 
   public buildDecision(result: ScanResult<BuildScanData>, project: Project): DecisionData | null {

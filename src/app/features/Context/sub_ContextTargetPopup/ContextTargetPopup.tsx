@@ -4,6 +4,10 @@
  * Allows users to define strategic goals and assess current fulfillment
  * for software contexts, with AI-assisted generation focused on user value
  * and productivity gains.
+ *
+ * Uses centralized context metadata cache for:
+ * - Reading cached context data
+ * - Real-time sync with other components
  */
 
 'use client';
@@ -12,6 +16,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Context } from '@/stores/context/contextStoreTypes';
 import { SupportedProvider } from '@/lib/llm/types';
+import { useContextWithCache } from '@/hooks/useContextMetadata';
 
 // Library imports
 import { generateContextAnalysisPrompt, generateContextAnalysis } from './lib';
@@ -36,13 +41,19 @@ interface ContextTargetPopupProps {
 }
 
 export default function ContextTargetPopup({
-  context,
+  context: propContext,
   onSave,
   onSkip,
   onClose,
   queueLength,
   currentIndex,
 }: ContextTargetPopupProps) {
+  // Get cached context with real-time updates
+  const { context: cachedContext } = useContextWithCache(propContext.id);
+
+  // Use cached context if available, fallback to prop
+  const context = cachedContext ?? propContext;
+
   // Form state
   const [target, setTarget] = useState(context.target || '');
   const [fulfillment, setFulfillment] = useState(context.target_fulfillment || '');
@@ -55,7 +66,7 @@ export default function ContextTargetPopup({
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationProgress, setGenerationProgress] = useState<string>('');
 
-  // Reset state when context changes
+  // Reset state when context changes (either from prop or cache)
   useEffect(() => {
     setTarget(context.target || '');
     setFulfillment(context.target_fulfillment || '');
@@ -63,7 +74,7 @@ export default function ContextTargetPopup({
     setGenerationProgress('');
     setIsGenerating(false);
     setShowProviderSelector(false);
-  }, [context]);
+  }, [context.id, context.target, context.target_fulfillment]);
 
   // Handle save action
   const handleSave = async () => {

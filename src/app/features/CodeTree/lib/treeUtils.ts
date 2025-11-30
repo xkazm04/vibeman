@@ -1,4 +1,12 @@
 import { TreeNode } from '../../../../types';
+import {
+  SearchResult,
+  SearchRankingStrategy,
+  RankingContext,
+  DEFAULT_STRATEGY,
+  createFileSearchStrategy,
+  createContextSearchStrategy,
+} from './searchRankingStrategy';
 
 /**
  * Count total nodes in a tree structure
@@ -63,26 +71,94 @@ export function searchTreeNodes(
 }
 
 /**
- * Sort search results by relevance
+ * Options for sorting search results with strategy pattern
+ */
+export interface SortSearchResultsOptions {
+  /** Custom ranking strategy to use */
+  strategy?: SearchRankingStrategy;
+  /** Additional context for ranking (recent files, etc.) */
+  context?: RankingContext;
+  /** Maximum number of results (overrides strategy limit if provided) */
+  limit?: number;
+}
+
+/**
+ * Sort search results by relevance using a configurable ranking strategy
+ *
+ * @param results - Array of search results to sort
+ * @param searchTerm - The search term used
+ * @param limitOrOptions - Either a number (legacy limit) or options object
+ * @returns Sorted and limited array of search results
+ *
+ * @example
+ * // Basic usage (backward compatible)
+ * sortSearchResults(results, 'search', 5);
+ *
+ * @example
+ * // With custom strategy
+ * sortSearchResults(results, 'search', {
+ *   strategy: createContextSearchStrategy(),
+ *   limit: 10
+ * });
+ *
+ * @example
+ * // With ranking context
+ * sortSearchResults(results, 'search', {
+ *   context: { recentFiles: ['path/to/recent.ts'] }
+ * });
  */
 export function sortSearchResults(
-  results: Array<{ node: TreeNode; path: string; matchType: 'name' | 'description' }>,
+  results: SearchResult[],
   searchTerm: string,
-  limit: number = 5
-): Array<{ node: TreeNode; path: string; matchType: 'name' | 'description' }> {
-  const searchLower = searchTerm.toLowerCase();
-  
-  return results
-    .sort((a, b) => {
-      const aExact = a.node.name.toLowerCase() === searchLower;
-      const bExact = b.node.name.toLowerCase() === searchLower;
-      
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      
-      return a.path.length - b.path.length;
-    })
-    .slice(0, limit);
+  limitOrOptions: number | SortSearchResultsOptions = 5
+): SearchResult[] {
+  // Handle legacy signature (just a number for limit)
+  if (typeof limitOrOptions === 'number') {
+    const strategy = DEFAULT_STRATEGY;
+    const ranked = strategy.rank(results, searchTerm);
+    return ranked.slice(0, limitOrOptions);
+  }
+
+  // Handle new options-based signature
+  const { strategy = DEFAULT_STRATEGY, context, limit } = limitOrOptions;
+  const ranked = strategy.rank(results, searchTerm, context);
+
+  // Apply custom limit if provided, otherwise use strategy's limit
+  if (limit !== undefined) {
+    return ranked.slice(0, limit);
+  }
+
+  return ranked;
+}
+
+/**
+ * Sort search results optimized for file search
+ * Uses exact match priority and path depth weighting
+ */
+export function sortSearchResultsForFileSearch(
+  results: SearchResult[],
+  searchTerm: string,
+  options?: Omit<SortSearchResultsOptions, 'strategy'>
+): SearchResult[] {
+  return sortSearchResults(results, searchTerm, {
+    ...options,
+    strategy: createFileSearchStrategy(),
+  });
+}
+
+/**
+ * Sort search results optimized for context search
+ * Prioritizes name matches over description matches
+ */
+export function sortSearchResultsForContextSearch(
+  results: SearchResult[],
+  searchTerm: string,
+  options?: Omit<SortSearchResultsOptions, 'strategy'>
+): SearchResult[] {
+  return sortSearchResults(results, searchTerm, {
+    ...options,
+    strategy: createContextSearchStrategy(),
+  });
 }
 
 /**

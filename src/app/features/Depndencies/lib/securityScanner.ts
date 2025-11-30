@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { executeCommand } from '@/lib/command';
 import { VulnerabilityInfo } from '@/app/db/models/security-patch.types';
 
 interface VulnVia {
@@ -98,51 +98,17 @@ function createPipVulnerability(
 }
 
 /**
- * Helper to execute a command and collect output
- */
-interface SpawnResult {
-  stdout: string;
-  stderr: string;
-}
-
-function executeCommand(
-  command: string,
-  args: string[],
-  cwd: string
-): Promise<SpawnResult> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, { cwd, shell: true });
-
-    let stdout = '';
-    let stderr = '';
-
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    proc.on('close', () => {
-      resolve({ stdout, stderr });
-    });
-
-    proc.on('error', (error) => {
-      reject(error);
-    });
-  });
-}
-
-/**
  * Run npm audit on a project
  */
 export async function runNpmAudit(projectPath: string): Promise<SecurityScanResult> {
   try {
-    const { stdout } = await executeCommand('npm', ['audit', '--json'], projectPath);
-
     // npm audit returns non-zero exit code when vulnerabilities are found
-    // This is expected behavior, so we don't reject on non-zero codes
+    // This is expected behavior, so we accept non-zero codes
+    const { stdout } = await executeCommand('npm', ['audit', '--json'], {
+      cwd: projectPath,
+      acceptNonZero: true
+    });
+
     const auditData: NpmAuditOutput = JSON.parse(stdout);
 
     const vulnerabilities: VulnerabilityInfo[] = [];
@@ -179,7 +145,10 @@ export async function runNpmAudit(projectPath: string): Promise<SecurityScanResu
  */
 export async function runPipAudit(projectPath: string): Promise<SecurityScanResult> {
   try {
-    const { stdout } = await executeCommand('pip-audit', ['--format', 'json'], projectPath);
+    const { stdout } = await executeCommand('pip-audit', ['--format', 'json'], {
+      cwd: projectPath,
+      acceptNonZero: true
+    });
 
     const auditData: PipAuditOutput = JSON.parse(stdout);
 

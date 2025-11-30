@@ -1,18 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Plus, Layers } from 'lucide-react';
+import { Save, Plus } from 'lucide-react';
 import { Caveat } from 'next/font/google';
-import {
-  DndContext,
-  DragOverlay,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  DragStartEvent,
-  DragEndEvent,
-  defaultDropAnimationSideEffects,
-  DropAnimation
-} from '@dnd-kit/core';
+import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { useContextStore } from '../../../stores/contextStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
@@ -24,6 +14,7 @@ import { GroupDetailView, useContextDetail } from './sub_ContextDetail';
 import ContextTargetPopup from './sub_ContextTargetPopup/ContextTargetPopup';
 import { Context as StoreContext } from '@/stores/context/contextStoreTypes';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
+import { useDragDropContext, useDropZoneValidator, DEFAULT_TARGET_TRANSFORMS } from '@/hooks/dnd';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -44,9 +35,35 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
   const [isExpanded, setIsExpanded] = useState(true);
   const lastProjectIdRef = useRef<string | null>(null);
 
-  // DnD State
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [isDragActive, setIsDragActive] = useState(false);
+  // Drop zone validator with target transforms for synthetic group
+  const { transformTarget } = useDropZoneValidator({
+    targetTransforms: DEFAULT_TARGET_TRANSFORMS.UNGROUPED,
+  });
+
+  // DnD Context hook - replaces manual sensor setup and state management
+  const {
+    sensors,
+    activeId,
+    isDragActive,
+    handleDragStart,
+    handleDragEnd,
+    dropAnimation,
+  } = useDragDropContext({
+    onDrop: async (contextId, groupId) => {
+      if (!groupId) return;
+      // Transform synthetic-to-group to null for ungrouped
+      const targetGroupId = transformTarget(groupId);
+      try {
+        await moveContext(contextId, targetGroupId);
+      } catch (error) {
+        console.error('Failed to move context:', error);
+      }
+    },
+    sensorOptions: {
+      delay: 500,
+      tolerance: 5,
+    },
+  });
 
   // Context Target Popup State
   const [targetQueue, setTargetQueue] = useState<StoreContext[]>([]);
@@ -105,53 +122,6 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     ungroupedContexts.length > 0 ? [syntheticToGroup, ...groups] : groups,
     [ungroupedContexts.length, syntheticToGroup, groups]
   );
-
-  // DnD Sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        delay: 500, // 500ms hold to drag
-        tolerance: 5, // 5px tolerance
-      },
-    })
-  );
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-    setIsDragActive(true);
-  }, []);
-
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    setActiveId(null);
-    setIsDragActive(false);
-
-    if (over && active.id !== over.id) {
-      // Check if dropped on a group
-      const contextId = active.id as string;
-      const groupId = over.id as string;
-
-      // Handle "Unsorted" group (synthetic-to-group)
-      const targetGroupId = groupId === 'synthetic-to-group' ? null : groupId;
-
-      try {
-        await moveContext(contextId, targetGroupId);
-      } catch (error) {
-        console.error('Failed to move context:', error);
-      }
-    }
-  }, [moveContext]);
-
-  const dropAnimation: DropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: {
-        active: {
-          opacity: '0.5',
-        },
-      },
-    }),
-  };
 
   // Memoized callbacks for performance
   const handleSaveClick = useCallback(() => {

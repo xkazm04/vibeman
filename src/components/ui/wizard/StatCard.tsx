@@ -1,7 +1,7 @@
 'use client';
 
-import { ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface StatCardProps {
   label: string;
@@ -29,12 +29,15 @@ export default function StatCard({
   className = '',
   subtitle
 }: StatCardProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const variants = {
     default: 'text-white',
     success: 'text-green-400',
     warning: 'text-yellow-400',
     error: 'text-red-400',
-    info: 'text-cyan-400',
+    info: colors.text,
   };
 
   const iconVariants = {
@@ -42,7 +45,7 @@ export default function StatCard({
     success: 'text-green-400',
     warning: 'text-yellow-400',
     error: 'text-red-400',
-    info: 'text-cyan-400',
+    info: colors.text,
   };
 
   return (

@@ -12,7 +12,7 @@ interface ImplementationLogListProps {
 
 export default function ImplementationLogList({
   projectId,
-  limit = 10,
+  limit = 40,
 }: ImplementationLogListProps) {
   const [logs, setLogs] = useState<ImplementationLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);

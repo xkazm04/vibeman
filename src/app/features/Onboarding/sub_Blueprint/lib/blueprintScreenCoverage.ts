@@ -8,6 +8,7 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBlueprintStore } from '../store/blueprintStore';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
+import { isBatchRunning } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 import ScreenCoverageWithBatchSelection from '../components/ScreenCoverageWithBatchSelection';
 
@@ -375,7 +376,7 @@ This scan identifies contexts that don't have test scenarios and generates requi
 
       // Re-fetch current batch state before starting
       batch = useTaskRunnerStore.getState().batches[batchId];
-      if (batch?.status !== 'running' && taskIds.length > 0) {
+      if (batch && !isBatchRunning(batch.status) && taskIds.length > 0) {
         taskRunnerStore.startBatch(batchId);
         console.log('[Screen Coverage] Started batch:', batchId);
       }

@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 export interface StyledCheckboxProps {
   /** Checkbox checked state */
@@ -45,40 +46,45 @@ const sizeConfig = {
 };
 
 /**
- * Color scheme configurations
+ * Get color scheme configurations with theme support
  */
-const colorSchemes = {
-  cyan: {
-    bg: 'bg-cyan-500',
-    border: 'border-cyan-500/50',
-    borderHover: 'hover:border-cyan-400',
-    shadow: 'shadow-cyan-500/20',
-  },
-  blue: {
-    bg: 'bg-blue-500',
-    border: 'border-blue-500/50',
-    borderHover: 'hover:border-blue-400',
-    shadow: 'shadow-blue-500/20',
-  },
-  green: {
-    bg: 'bg-green-500',
-    border: 'border-green-500/50',
-    borderHover: 'hover:border-green-400',
-    shadow: 'shadow-green-500/20',
-  },
-  purple: {
-    bg: 'bg-purple-500',
-    border: 'border-purple-500/50',
-    borderHover: 'hover:border-purple-400',
-    shadow: 'shadow-purple-500/20',
-  },
-  red: {
-    bg: 'bg-red-500',
-    border: 'border-red-500/50',
-    borderHover: 'hover:border-red-400',
-    shadow: 'shadow-red-500/20',
-  },
-};
+function getColorSchemes() {
+  const { getThemeColors } = useThemeStore.getState();
+  const themeColors = getThemeColors();
+  
+  return {
+    cyan: {
+      bg: `bg-[${themeColors.baseColor}]`,
+      border: themeColors.borderHover,
+      borderHover: `hover:${themeColors.borderHover}`,
+      shadow: themeColors.shadow,
+    },
+    blue: {
+      bg: 'bg-blue-500',
+      border: 'border-blue-500/50',
+      borderHover: 'hover:border-blue-400',
+      shadow: 'shadow-blue-500/20',
+    },
+    green: {
+      bg: 'bg-green-500',
+      border: 'border-green-500/50',
+      borderHover: 'hover:border-green-400',
+      shadow: 'shadow-green-500/20',
+    },
+    purple: {
+      bg: 'bg-purple-500',
+      border: 'border-purple-500/50',
+      borderHover: 'hover:border-purple-400',
+      shadow: 'shadow-purple-500/20',
+    },
+    red: {
+      bg: 'bg-red-500',
+      border: 'border-red-500/50',
+      borderHover: 'hover:border-red-400',
+      shadow: 'shadow-red-500/20',
+    },
+  };
+}
 
 /**
  * StyledCheckbox - A custom checkbox component matching the app's design language
@@ -109,8 +115,16 @@ export default function StyledCheckbox({
   colorScheme = 'cyan',
   title,
 }: StyledCheckboxProps) {
+  const { getThemeColors } = useThemeStore();
+  const themeColors = getThemeColors();
   const sizeClasses = sizeConfig[size];
-  const colors = colorSchemes[colorScheme];
+  const colorSchemes = getColorSchemes();
+  const colors = colorScheme === 'cyan' ? {
+    bg: `bg-[${themeColors.baseColor}]`,
+    border: themeColors.borderHover,
+    borderHover: `hover:${themeColors.borderHover}`,
+    shadow: themeColors.shadow,
+  } : colorSchemes[colorScheme];
 
   const handleClick = () => {
     if (!disabled) {

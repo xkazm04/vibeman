@@ -11,8 +11,8 @@ interface IdeasHeaderWithFilterProps {
   projects: Array<{ id: string; name: string }>;
   selectedProjectId: string;
   onSelectProject: (projectId: string) => void;
-  selectedContextId?: string | null;
-  onSelectContext?: (contextId: string | null) => void;
+  selectedContextIds: string[];
+  onSelectContexts: (contextIds: string[]) => void;
   onBatchScanAllContexts?: () => void;
   selectedProjectPath?: string;
   onIdeaImplemented?: () => void;
@@ -22,8 +22,8 @@ export default function IdeasHeaderWithFilter({
   projects,
   selectedProjectId,
   onSelectProject,
-  selectedContextId,
-  onSelectContext,
+  selectedContextIds,
+  onSelectContexts,
   onBatchScanAllContexts,
   selectedProjectPath,
   onIdeaImplemented,
@@ -88,8 +88,8 @@ export default function IdeasHeaderWithFilter({
             <ContextRowSelection
               contexts={contexts}
               contextGroups={contextGroups}
-              selectedContextId={selectedContextId}
-              onSelectContext={onSelectContext || (() => {})}
+              selectedContextIds={selectedContextIds}
+              onSelectContexts={onSelectContexts}
             />
           )}
         </div>

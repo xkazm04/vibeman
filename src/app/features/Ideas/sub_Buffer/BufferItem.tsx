@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Trash2, Edit2 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
@@ -39,17 +39,18 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete }: B
   const categoryConfig = getCategoryConfig(idea.category);
   const isProcessing = processingIdeaId === idea.id;
 
-  // Get status-based styling
+  // Get status-based styling with dark-mode friendly colors and high-contrast hover states
   const getStatusClasses = () => {
+    const baseClasses = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900';
     switch (idea.status) {
       case 'accepted':
-        return 'border-green-500/40 bg-green-900/10 hover:bg-green-900/20';
+        return `${baseClasses} border-green-500/40 bg-green-900/10 hover:bg-green-800/30 hover:border-green-400/60 focus-visible:ring-green-400/70`;
       case 'rejected':
-        return 'border-red-500/40 bg-red-900/10 hover:bg-red-900/20';
+        return `${baseClasses} border-red-500/40 bg-red-900/10 hover:bg-red-800/30 hover:border-red-400/60 focus-visible:ring-red-400/70`;
       case 'implemented':
-        return 'border-amber-500/40 bg-amber-900/10 hover:bg-amber-900/20';
+        return `${baseClasses} border-amber-500/40 bg-amber-900/10 hover:bg-amber-800/30 hover:border-amber-400/60 focus-visible:ring-amber-400/70`;
       default:
-        return 'border-gray-600/40 bg-gray-800/20 hover:bg-gray-800/40';
+        return `${baseClasses} border-gray-600/40 bg-gray-800/20 hover:bg-gray-700/40 hover:border-gray-500/60 focus-visible:ring-blue-400/70`;
     }
   };
 
@@ -80,17 +81,37 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete }: B
   const effortConfig = getEffortConfig(idea.effort);
   const impactConfig = getImpactConfig(idea.impact);
 
+  // Handle keyboard navigation for accessibility
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  }, [onClick]);
+
   return (
     <>
       <motion.div
         data-testid={`buffer-item-${idea.id}`}
-        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-colors ${getStatusClasses()} ${
+        tabIndex={0}
+        role="button"
+        aria-label={`${idea.title} - ${idea.status}`}
+        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-all duration-200 ease-out ${getStatusClasses()} ${
           isProcessing ? 'ring-2 ring-yellow-500/50' : ''
         }`}
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        whileHover={{ x: 2 }}
+        whileHover={{
+          x: 3,
+          transition: { duration: 0.15, ease: 'easeOut' }
+        }}
+        whileFocus={{
+          scale: 1.01,
+          transition: { duration: 0.15 }
+        }}
+        whileTap={{ scale: 0.98 }}
         onClick={onClick}
+        onKeyDown={handleKeyDown}
         onContextMenu={handleContextMenu}
       >
         {/* Badges */}

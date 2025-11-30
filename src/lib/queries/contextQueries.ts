@@ -1,4 +1,6 @@
-import { contextDb, contextGroupDb, DbContext, DbContextGroup } from '@/app/db'
+import { contextDb, contextGroupDb, contextGroupRelationshipDb, DbContext, DbContextGroup } from '@/app/db'
+import type { ContextGroupLayerType } from '@/app/db/repositories/context-group.repository'
+import { DbContextGroupRelationship } from '@/app/db/models/types'
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors'
 
 // Context Group Types
@@ -8,8 +10,19 @@ export interface ContextGroup {
   name: string;
   color: string;
   position: number;
+  type: 'pages' | 'client' | 'server' | 'external' | null;
+  icon: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Context Group Relationship Types
+export interface ContextGroupRelationship {
+  id: string;
+  projectId: string;
+  sourceGroupId: string;
+  targetGroupId: string;
+  createdAt: Date;
 }
 
 // Context Types
@@ -32,6 +45,7 @@ export interface Context {
   // Target / Goal
   target?: string | null;
   target_fulfillment?: string | null;
+  target_rating?: number | null; // Rating 1-5 for target progress visualization
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
@@ -69,8 +83,21 @@ function dbContextGroupToContextGroup(dbGroup: DbContextGroup): ContextGroup {
     name: dbGroup.name,
     color: dbGroup.color,
     position: dbGroup.position,
+    type: dbGroup.type || null,
+    icon: dbGroup.icon || null,
     createdAt: new Date(dbGroup.created_at),
     updatedAt: new Date(dbGroup.updated_at),
+  };
+}
+
+// Helper function to convert DB relationship to app relationship
+function dbRelationshipToRelationship(dbRel: DbContextGroupRelationship): ContextGroupRelationship {
+  return {
+    id: dbRel.id,
+    projectId: dbRel.project_id,
+    sourceGroupId: dbRel.source_group_id,
+    targetGroupId: dbRel.target_group_id,
+    createdAt: new Date(dbRel.created_at),
   };
 }
 
@@ -88,6 +115,9 @@ function dbContextToContext(dbContext: DbContext & { group_name?: string; group_
     preview: dbContext.preview || undefined,
     testScenario: dbContext.test_scenario || undefined,
     testUpdated: dbContext.test_updated || undefined,
+    target: dbContext.target || undefined,
+    target_fulfillment: dbContext.target_fulfillment || undefined,
+    target_rating: dbContext.target_rating || undefined,
     createdAt: new Date(dbContext.created_at),
     updatedAt: new Date(dbContext.updated_at),
     groupName: dbContext.group_name,
@@ -113,12 +143,13 @@ export const contextGroupQueries = {
     projectId: string;
     name: string;
     color?: string;
+    icon?: string;
   }): Promise<ContextGroup> => {
     try {
       // Check if we've reached the maximum number of groups (9)
       const groupCount = contextGroupDb.getGroupCount(data.projectId);
-      if (groupCount >= 9) {
-        throw new Error('Maximum of 9 context groups allowed');
+      if (groupCount >= 20) {
+        throw new Error('Maximum of 20 context groups allowed');
       }
 
       // Get the next position
@@ -133,6 +164,7 @@ export const contextGroupQueries = {
         name: data.name,
         color,
         position: maxPosition + 1,
+        icon: data.icon,
       };
 
       const dbGroup = contextGroupDb.createGroup(groupData);
@@ -148,6 +180,8 @@ export const contextGroupQueries = {
     name?: string;
     color?: string;
     position?: number;
+    type?: 'pages' | 'client' | 'server' | 'external' | null;
+    icon?: string | null;
   }): Promise<ContextGroup | null> => {
     return handleAsyncOperation(
       async () => {
@@ -155,6 +189,17 @@ export const contextGroupQueries = {
         return dbGroup ? dbContextGroupToContextGroup(dbGroup) : null;
       },
       'Failed to update context group'
+    );
+  },
+
+  // Get context groups with assigned types for Architecture Explorer
+  getGroupsWithType: async (projectId: string): Promise<ContextGroup[]> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbGroups = contextGroupDb.getGroupsWithType(projectId);
+        return dbGroups.map(dbContextGroupToContextGroup);
+      },
+      'Failed to fetch architecture groups'
     );
   },
 
@@ -173,6 +218,60 @@ export const contextGroupQueries = {
     } catch (error) {
       logger.error('Failed to get group count:', error);
       return 0;
+    }
+  },
+};
+
+// Context Group Relationship Queries
+export const contextGroupRelationshipQueries = {
+  // Get all relationships for a project
+  getByProject: async (projectId: string): Promise<ContextGroupRelationship[]> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbRels = contextGroupRelationshipDb.getByProject(projectId);
+        return dbRels.map(dbRelationshipToRelationship);
+      },
+      'Failed to fetch context group relationships'
+    );
+  },
+
+  // Create a new relationship
+  create: async (data: {
+    projectId: string;
+    sourceGroupId: string;
+    targetGroupId: string;
+  }): Promise<ContextGroupRelationship | null> => {
+    return handleAsyncOperation(
+      async () => {
+        const relData = {
+          id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          project_id: data.projectId,
+          source_group_id: data.sourceGroupId,
+          target_group_id: data.targetGroupId,
+        };
+
+        const dbRel = contextGroupRelationshipDb.create(relData);
+        return dbRel ? dbRelationshipToRelationship(dbRel) : null;
+      },
+      'Failed to create context group relationship'
+    );
+  },
+
+  // Delete a relationship
+  delete: async (id: string): Promise<boolean> => {
+    return handleAsyncOperation(
+      async () => contextGroupRelationshipDb.delete(id),
+      'Failed to delete context group relationship'
+    );
+  },
+
+  // Check if relationship exists
+  exists: async (sourceGroupId: string, targetGroupId: string): Promise<boolean> => {
+    try {
+      return contextGroupRelationshipDb.exists(sourceGroupId, targetGroupId);
+    } catch (error) {
+      logger.error('Failed to check relationship existence:', error);
+      return false;
     }
   },
 };
@@ -236,6 +335,8 @@ export const contextQueries = {
     filePaths?: string[];
     groupId?: string;
     testScenario?: string;
+    target?: string | null;
+    target_rating?: number | null;
   }): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
@@ -245,6 +346,8 @@ export const contextQueries = {
           file_paths: updates.filePaths,
           group_id: updates.groupId,
           test_scenario: updates.testScenario,
+          target: updates.target,
+          target_rating: updates.target_rating,
         };
 
         const dbContext = contextDb.updateContext(contextId, updateData);
@@ -281,6 +384,24 @@ export const contextQueries = {
       logger.error('Failed to get context count:', error);
       return 0;
     }
+  },
+
+  // Batch move contexts to new groups
+  batchMoveContexts: async (moves: Array<{ contextId: string; newGroupId: string | null }>): Promise<Context[]> => {
+    return handleAsyncOperation(
+      async () => {
+        const results: Context[] = [];
+        for (const move of moves) {
+          const updateData = { group_id: move.newGroupId };
+          const dbContext = contextDb.updateContext(move.contextId, updateData);
+          if (dbContext) {
+            results.push(dbContextToContext(dbContext));
+          }
+        }
+        return results;
+      },
+      'Failed to batch move contexts'
+    );
   },
 };
 

@@ -47,9 +47,21 @@ export interface DbContextGroup {
   project_id: string;
   name: string;
   color: string;
+  accent_color: string | null; // Optional accent color for gradient transitions
   position: number;
+  type: 'pages' | 'client' | 'server' | 'external' | null; // Architecture layer type
+  icon: string | null; // Icon name for visual representation
   created_at: string;
   updated_at: string;
+}
+
+// Context group relationship types
+export interface DbContextGroupRelationship {
+  id: string;
+  project_id: string;
+  source_group_id: string;
+  target_group_id: string;
+  created_at: string;
 }
 
 // Context types
@@ -67,6 +79,7 @@ export interface DbContext {
   test_updated: string | null; // Last time screenshot was taken
   target: string | null; // Goal/target functionality of this context
   target_fulfillment: string | null; // Current progress toward target
+  target_rating: number | null; // Rating 1-5 for target progress visualization
   implemented_tasks: number; // Counter for implemented tasks in this context
   created_at: string;
   updated_at: string;
@@ -254,6 +267,57 @@ export interface DbTestCaseStep {
   step_name: string;
   expected_result: string;
   test_selector_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Idea Execution Outcome types (for Self-Optimizing Development Cycle)
+export interface DbIdeaExecutionOutcome {
+  id: string;
+  idea_id: string;
+  project_id: string;
+  predicted_effort: number | null; // 1-3 scale
+  predicted_impact: number | null; // 1-3 scale
+  actual_effort: number | null; // 1-3 scale (based on execution metrics)
+  actual_impact: number | null; // 1-3 scale (based on success/failure)
+  execution_time_ms: number | null; // Time to execute
+  files_changed: number | null; // Number of files modified
+  lines_added: number | null;
+  lines_removed: number | null;
+  success: number; // Boolean flag (0 or 1)
+  error_type: string | null; // Type of error if failed
+  user_feedback_score: number | null; // User rating 1-5
+  category: string; // Idea category for pattern analysis
+  scan_type: string; // Scan type that generated the idea
+  executed_at: string;
+  created_at: string;
+}
+
+// Scoring Weight Configuration
+export interface DbScoringWeight {
+  id: string;
+  project_id: string;
+  category: string; // Idea category or 'default'
+  scan_type: string; // Scan type or 'default'
+  effort_accuracy_weight: number; // Weight for effort prediction accuracy
+  impact_accuracy_weight: number; // Weight for impact prediction accuracy
+  success_rate_weight: number; // Weight for success rate
+  execution_time_factor: number; // Factor for execution time normalization
+  sample_count: number; // Number of samples used for this weight
+  last_calibrated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Scoring Threshold Configuration
+export interface DbScoringThreshold {
+  id: string;
+  project_id: string;
+  threshold_type: 'auto_accept' | 'auto_reject' | 'priority_boost';
+  min_score: number | null; // Minimum score threshold
+  max_score: number | null; // Maximum score threshold
+  min_confidence: number | null; // Minimum confidence level
+  enabled: number; // Boolean flag (0 or 1)
   created_at: string;
   updated_at: string;
 }

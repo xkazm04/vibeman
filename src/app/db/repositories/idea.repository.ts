@@ -276,6 +276,29 @@ export const ideaRepository = {
   },
 
   /**
+   * Get ideas with null context_id (General ideas)
+   */
+  getIdeasWithNullContext: (): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE context_id IS NULL
+      ORDER BY created_at DESC
+    `);
+    return stmt.all() as DbIdea[];
+  },
+
+  /**
+   * Delete all ideas with null context_id (General ideas)
+   */
+  deleteIdeasWithNullContext: (): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM ideas WHERE context_id IS NULL');
+    const result = stmt.run();
+    return result.changes;
+  },
+
+  /**
    * Delete all ideas for a specific project
    */
   deleteIdeasByProject: (projectId: string): number => {

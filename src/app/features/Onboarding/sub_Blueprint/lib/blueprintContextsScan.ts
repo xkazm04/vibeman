@@ -8,6 +8,7 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { singleFeatureContextsScanPrompt } from './prompts/singleFeatureContextsScanPrompt';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
+import { isBatchRunning } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 import FeatureScanBatchSelector from '../components/FeatureScanBatchSelector';
 
@@ -253,7 +254,7 @@ async function executeFeatureScan(
 
     // Re-fetch current batch state before starting
     batch = useTaskRunnerStore.getState().batches[batchId];
-    if (batch?.status !== 'running' && taskIds.length > 0) {
+    if (batch && !isBatchRunning(batch.status) && taskIds.length > 0) {
       taskRunnerStore.startBatch(batchId);
       console.log('[Feature Scan] Started batch:', batchId);
     }

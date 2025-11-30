@@ -1,8 +1,8 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, GitCompare } from 'lucide-react';
-import { ComparisonFilterState } from '../lib/types';
+import { Filter, X, GitCompare, Clock } from 'lucide-react';
+import { ComparisonFilterState, TimeWindow } from '../lib/types';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface FilterPanelProps {
@@ -11,6 +11,14 @@ interface FilterPanelProps {
   projects: Array<{ id: string; name: string }>;
   contexts: Array<{ id: string; name: string; project_id: string }>;
 }
+
+const TIME_WINDOW_OPTIONS: Array<{ value: TimeWindow; label: string }> = [
+  { value: 'all', label: 'All Time' },
+  { value: 'week', label: 'Last Week' },
+  { value: 'month', label: 'Last Month' },
+  { value: 'quarter', label: 'Last Quarter' },
+  { value: 'year', label: 'Last Year' }
+];
 
 export default function FilterPanel({
   filters,
@@ -28,7 +36,8 @@ export default function FilterPanel({
       contextId: null,
       comparisonMode: false,
       period1: undefined,
-      period2: undefined
+      period2: undefined,
+      timeWindow: 'all'
     });
   };
 
@@ -41,7 +50,7 @@ export default function FilterPanel({
     });
   };
 
-  const hasFilters = filters.projectId || filters.contextId || filters.comparisonMode;
+  const hasFilters = filters.projectId || filters.contextId || filters.comparisonMode || (filters.timeWindow && filters.timeWindow !== 'all');
 
   return (
     <motion.div
@@ -62,6 +71,7 @@ export default function FilterPanel({
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                 : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/40 border border-transparent'
             }`}
+            data-testid="filter-comparison-toggle-btn"
           >
             <GitCompare className="w-3 h-3" />
             Compare Periods
@@ -70,6 +80,7 @@ export default function FilterPanel({
             <button
               onClick={clearFilters}
               className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/40 rounded transition-colors"
+              data-testid="filter-clear-btn"
             >
               <X className="w-3 h-3" />
               Clear
@@ -78,7 +89,7 @@ export default function FilterPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Project Filter */}
         <div>
           <label className="block text-xs text-gray-500 mb-2">Project</label>
@@ -99,6 +110,7 @@ export default function FilterPanel({
               }))
             ]}
             variant="default"
+            data-testid="filter-project-select"
           />
         </div>
 
@@ -125,6 +137,31 @@ export default function FilterPanel({
             ]}
             disabled={!filters.projectId}
             variant="default"
+            data-testid="filter-context-select"
+          />
+        </div>
+
+        {/* Time Window Filter */}
+        <div>
+          <label className="block text-xs text-gray-500 mb-2 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            Time Window
+          </label>
+          <UniversalSelect
+            value={filters.timeWindow || 'all'}
+            onChange={(value) =>
+              onFilterChange({
+                ...filters,
+                timeWindow: value as TimeWindow
+              })
+            }
+            options={TIME_WINDOW_OPTIONS.map(opt => ({
+              value: opt.value,
+              label: opt.label
+            }))}
+            variant="default"
+            disabled={filters.comparisonMode}
+            data-testid="filter-time-window-select"
           />
         </div>
       </div>

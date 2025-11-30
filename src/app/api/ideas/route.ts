@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, DbIdea, DbIdeaWithColor } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  validateIdeasRequired,
+  handleIdeasApiError,
+  isValidIdeaStatus,
+} from '@/app/features/Ideas/lib/ideasHandlers';
+import { analyticsAggregationService } from '@/lib/services/analyticsAggregation';
 
 /**
  * GET /api/ideas
@@ -74,11 +82,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ ideas });
   } catch (error) {
-    logger.error('Error fetching ideas:', { error: error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch ideas' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error, IdeasErrorCode.DATABASE_ERROR);
   }
 }
 
@@ -103,12 +107,11 @@ export async function POST(request: NextRequest) {
       user_pattern
     } = body;
 
-    if (!scan_id || !project_id || !category || !title) {
-      return NextResponse.json(
-        { error: 'scan_id, project_id, category, and title are required' },
-        { status: 400 }
-      );
-    }
+    const validationError = validateIdeasRequired(
+      { scan_id, project_id, category, title },
+      ['scan_id', 'project_id', 'category', 'title']
+    );
+    if (validationError) return validationError;
 
     const idea = ideaDb.createIdea({
       id: uuidv4(),
@@ -125,13 +128,12 @@ export async function POST(request: NextRequest) {
       user_pattern
     });
 
+    // Invalidate analytics cache for this project
+    analyticsAggregationService.invalidateCacheForProject(project_id);
+
     return NextResponse.json({ idea }, { status: 201 });
   } catch (error) {
-    logger.error('Error creating idea:', { error: error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create idea' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error, IdeasErrorCode.CREATE_FAILED);
   }
 }
 
@@ -152,11 +154,15 @@ export async function PATCH(request: NextRequest) {
       reasoning
     } = body;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: 'id is required' },
-        { status: 400 }
-      );
+    const validationError = validateIdeasRequired({ id }, ['id']);
+    if (validationError) return validationError;
+
+    // Validate status if provided
+    if (status && !isValidIdeaStatus(status)) {
+      return createIdeasErrorResponse(IdeasErrorCode.INVALID_STATUS, {
+        field: 'status',
+        details: `Invalid status value: ${status}`,
+      });
     }
 
     const idea = ideaDb.updateIdea(id, {
@@ -169,19 +175,17 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (!idea) {
-      return NextResponse.json(
-        { error: 'Idea not found' },
-        { status: 404 }
-      );
+      return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {
+        details: `No idea found with id: ${id}`,
+      });
     }
+
+    // Invalidate analytics cache for this project
+    analyticsAggregationService.invalidateCacheForProject(idea.project_id);
 
     return NextResponse.json({ idea });
   } catch (error) {
-    logger.error('Error updating idea:', { error: error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update idea' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error, IdeasErrorCode.UPDATE_FAILED);
   }
 }
 
@@ -203,6 +207,9 @@ export async function DELETE(request: NextRequest) {
       const deletedCount = ideaDb.deleteAllIdeas();
       logger.info(`[DELETE ALL IDEAS] Deleted ${deletedCount} ideas from database`);
 
+      // Invalidate all analytics cache
+      analyticsAggregationService.invalidateCache();
+
       return NextResponse.json({
         success: true,
         deletedCount,
@@ -212,27 +219,29 @@ export async function DELETE(request: NextRequest) {
 
     // Delete single idea
     if (!id) {
-      return NextResponse.json(
-        { error: 'id parameter is required (or use all=true to delete all)' },
-        { status: 400 }
-      );
+      return createIdeasErrorResponse(IdeasErrorCode.MISSING_REQUIRED_FIELD, {
+        field: 'id',
+        message: 'id parameter is required (or use all=true to delete all)',
+      });
     }
 
+    // Get idea before deletion to access project_id
+    const ideaToDelete = ideaDb.getIdeaById(id);
     const success = ideaDb.deleteIdea(id);
 
     if (!success) {
-      return NextResponse.json(
-        { error: 'Idea not found' },
-        { status: 404 }
-      );
+      return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {
+        details: `No idea found with id: ${id}`,
+      });
+    }
+
+    // Invalidate analytics cache for this project
+    if (ideaToDelete) {
+      analyticsAggregationService.invalidateCacheForProject(ideaToDelete.project_id);
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('Error deleting idea:', { error: error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to delete idea' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error, IdeasErrorCode.DELETE_FAILED);
   }
 }

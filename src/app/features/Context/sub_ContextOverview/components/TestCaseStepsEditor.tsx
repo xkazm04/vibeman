@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Loader2 } from 'lucide-react';
 import TestSelectorsPanel from '@/app/features/Context/sub_ContextPreview/components/TestSelectorsPanel';
+import ErrorDisplay from '@/app/features/Context/components/ErrorDisplay';
 
 interface TestCaseScenario {
   id: string;
@@ -37,49 +38,119 @@ export default function TestCaseStepsEditor({
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
   const [steps, setSteps] = useState<TestCaseStep[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stepsLoading, setStepsLoading] = useState(false);
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [stepsError, setStepsError] = useState<string | null>(null);
 
   // Load scenarios for this context
   useEffect(() => {
     loadScenarios();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextId]);
 
   // Load steps when scenario changes
   useEffect(() => {
-    if (scenarios.length > 0) {
+    if (scenarios.length > 0 && scenarios[currentScenarioIndex]) {
       loadSteps(scenarios[currentScenarioIndex].id);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentScenarioIndex, scenarios]);
 
   const loadScenarios = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      const response = await fetch(`/api/test-case-scenarios?contextId=${contextId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.scenarios) {
-          setScenarios(data.scenarios);
-        }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(`/api/test-case-scenarios?contextId=${contextId}`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to load scenarios (${response.status})`);
       }
-    } catch (error) {
-      console.error('[TestCaseStepsEditor] Error loading scenarios:', error);
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load scenarios');
+      }
+
+      if (data.scenarios && Array.isArray(data.scenarios)) {
+        setScenarios(data.scenarios);
+        // Reset to first scenario when context changes
+        setCurrentScenarioIndex(0);
+      } else {
+        setScenarios([]);
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          setError('Request timed out. Please try again.');
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError('An unexpected error occurred while loading scenarios');
+      }
+      console.error('[TestCaseStepsEditor] Error loading scenarios:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const loadSteps = async (scenarioId: string) => {
+    if (!scenarioId) return;
+
+    setStepsLoading(true);
+    setStepsError(null);
+
     try {
-      const response = await fetch(`/api/test-case-steps?scenarioId=${scenarioId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.steps) {
-          setSteps(data.steps);
-        }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(`/api/test-case-steps?scenarioId=${scenarioId}`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to load steps (${response.status})`);
       }
-    } catch (error) {
-      console.error('[TestCaseStepsEditor] Error loading steps:', error);
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load steps');
+      }
+
+      if (data.steps && Array.isArray(data.steps)) {
+        setSteps(data.steps);
+      } else {
+        setSteps([]);
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          setStepsError('Request timed out. Please try again.');
+        } else {
+          setStepsError(err.message);
+        }
+      } else {
+        setStepsError('An unexpected error occurred while loading steps');
+      }
+      console.error('[TestCaseStepsEditor] Error loading steps:', err);
+    } finally {
+      setStepsLoading(false);
     }
   };
 
@@ -104,23 +175,61 @@ export default function TestCaseStepsEditor({
     }
   };
 
+  const handleRetry = () => {
+    loadScenarios();
+  };
+
+  const handleRetrySteps = () => {
+    if (scenarios.length > 0 && scenarios[currentScenarioIndex]) {
+      loadSteps(scenarios[currentScenarioIndex].id);
+    }
+  };
+
+  // Loading state
   if (loading) {
     return (
-      <div className="text-center py-8 text-gray-500 font-mono text-sm">
+      <div className="flex items-center justify-center py-8 text-gray-500 font-mono text-sm" data-testid="loading-scenarios">
+        <Loader2 className="w-4 h-4 animate-spin mr-2" />
         Loading test scenarios...
       </div>
     );
   }
 
+  // Error state
+  if (error) {
+    return (
+      <ErrorDisplay
+        error={error}
+        context="Failed to load test scenarios"
+        onRetry={handleRetry}
+        onDismiss={() => setError(null)}
+      />
+    );
+  }
+
+  // Empty state
   if (scenarios.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500 font-mono text-sm">
-        No test case scenarios found for this context.
+      <div className="text-center py-8 text-gray-500 font-mono text-sm" data-testid="no-scenarios">
+        <p>No test case scenarios found for this context.</p>
+        <p className="text-xs mt-2 text-gray-600">Create a test scenario to get started.</p>
       </div>
     );
   }
 
-  const currentScenario = scenarios[currentScenarioIndex];
+  // Validate current scenario index
+  const safeIndex = Math.min(currentScenarioIndex, scenarios.length - 1);
+  const currentScenario = scenarios[safeIndex];
+
+  if (!currentScenario) {
+    return (
+      <ErrorDisplay
+        error="Invalid scenario state"
+        context="Scenario Error"
+        onRetry={handleRetry}
+      />
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -130,7 +239,7 @@ export default function TestCaseStepsEditor({
         <div className="flex items-center justify-between p-3 bg-gray-900/50 border border-gray-700/50 rounded-lg">
           <button
             onClick={handlePreviousScenario}
-            disabled={currentScenarioIndex === 0}
+            disabled={safeIndex === 0}
             className="p-1 rounded hover:bg-gray-800/50 disabled:opacity-30 disabled:cursor-not-allowed"
             data-testid="previous-scenario-btn"
           >
@@ -138,17 +247,17 @@ export default function TestCaseStepsEditor({
           </button>
 
           <div className="flex-1 text-center">
-            <div className="text-sm font-mono text-gray-300">
-              {currentScenario.name}
+            <div className="text-sm font-mono text-gray-300" data-testid="scenario-name">
+              {currentScenario.name || 'Unnamed Scenario'}
             </div>
             <div className="text-xs font-mono text-gray-500">
-              {currentScenarioIndex + 1} / {scenarios.length}
+              {safeIndex + 1} / {scenarios.length}
             </div>
           </div>
 
           <button
             onClick={handleNextScenario}
-            disabled={currentScenarioIndex === scenarios.length - 1}
+            disabled={safeIndex === scenarios.length - 1}
             className="p-1 rounded hover:bg-gray-800/50 disabled:opacity-30 disabled:cursor-not-allowed"
             data-testid="next-scenario-btn"
           >
@@ -166,10 +275,26 @@ export default function TestCaseStepsEditor({
           </div>
         )}
 
+        {/* Steps Error */}
+        {stepsError && (
+          <ErrorDisplay
+            error={stepsError}
+            context="Failed to load steps"
+            onRetry={handleRetrySteps}
+            onDismiss={() => setStepsError(null)}
+            compact
+          />
+        )}
+
         {/* Test Steps List */}
         <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 space-y-2 max-h-96 overflow-y-auto">
-          {steps.length === 0 ? (
-            <div className="text-center py-4 text-gray-500 font-mono text-xs">
+          {stepsLoading ? (
+            <div className="flex items-center justify-center py-4 text-gray-500 font-mono text-xs" data-testid="loading-steps">
+              <Loader2 className="w-3 h-3 animate-spin mr-2" />
+              Loading steps...
+            </div>
+          ) : steps.length === 0 ? (
+            <div className="text-center py-4 text-gray-500 font-mono text-xs" data-testid="no-steps">
               No steps defined for this scenario
             </div>
           ) : (
@@ -197,10 +322,10 @@ export default function TestCaseStepsEditor({
                   </div>
                   <div className="flex-1 space-y-1">
                     <div className="text-sm font-mono text-gray-300">
-                      {step.step_name}
+                      {step.step_name || 'Unnamed step'}
                     </div>
                     <div className="text-xs font-mono text-gray-500">
-                      Expected: {step.expected_result}
+                      Expected: {step.expected_result || 'No expected result defined'}
                     </div>
                     {step.test_selector_id && (
                       <div className="text-xs font-mono text-cyan-400">

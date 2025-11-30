@@ -45,37 +45,37 @@ export default function StorybookLayout() {
     }, [remotes]);
 
     return (
-        <div className="flex h-full bg-gray-900 text-white">
+        <div className="flex h-full bg-gray-900 text-white" data-testid="storybook-layout">
             {/* Sidebar */}
-            <div className="w-64 border-r border-gray-800 p-4 overflow-y-auto">
+            <div className="w-64 border-r border-gray-800 p-4 overflow-y-auto" data-testid="storybook-sidebar">
                 <h2 className="text-xl font-bold mb-4 text-purple-400">Storybook</h2>
 
-                {loading && <div className="text-sm text-gray-400">Scanning remotes...</div>}
+                {loading && <div className="text-sm text-gray-400" data-testid="storybook-loading">Scanning remotes...</div>}
 
-                <div className="space-y-2">
+                <div className="space-y-2" data-testid="storybook-remotes-list">
                     {statuses.map(status => (
-                        <div key={status.name} className="p-3 rounded bg-gray-800/50 border border-gray-700">
+                        <div key={status.name} className="p-3 rounded bg-gray-800/50 border border-gray-700" data-testid={`storybook-remote-${status.name}`}>
                             <div className="flex items-center justify-between mb-1">
                                 <span className="font-medium truncate" title={status.name}>{status.name}</span>
-                                <div className={`w-2 h-2 rounded-full ${status.isAvailable ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <div className={`w-2 h-2 rounded-full ${status.isAvailable ? 'bg-green-500' : 'bg-red-500'}`} data-testid={`storybook-status-${status.name}`} />
                             </div>
                             <div className="text-xs text-gray-500 truncate">
                                 {status.isLocal ? 'Local' : 'Production'} • {status.isAvailable ? 'Online' : 'Offline'}
                             </div>
                             {status.error && (
-                                <div className="text-xs text-red-400 mt-1">{status.error}</div>
+                                <div className="text-xs text-red-400 mt-1" data-testid={`storybook-error-${status.name}`}>{status.error}</div>
                             )}
                         </div>
                     ))}
 
                     {!loading && statuses.length === 0 && (
-                        <div className="text-sm text-gray-500 italic">No Next.js projects found.</div>
+                        <div className="text-sm text-gray-500 italic" data-testid="storybook-empty-state">No Next.js projects found.</div>
                     )}
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 p-8 flex items-center justify-center">
+            <div className="flex-1 p-8 flex items-center justify-center" data-testid="storybook-main-content">
                 <div className="text-center">
                     <h1 className="text-3xl font-bold text-gray-700 mb-2">Select a Component</h1>
                     <p className="text-gray-500">Choose a project and component from the sidebar to preview.</p>

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
+import {
+  IdeasErrorCode,
+  handleIdeasApiError,
+  isValidIdeaStatus,
+  createIdeasErrorResponse,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
 /**
  * GET /api/ideas/tinder
@@ -9,9 +15,26 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const offsetParam = searchParams.get('offset') || '0';
+    const limitParam = searchParams.get('limit') || '20';
     const status = searchParams.get('status') || 'pending';
+
+    // Validate pagination parameters
+    const offset = parseInt(offsetParam, 10);
+    const limit = parseInt(limitParam, 10);
+    if (isNaN(offset) || isNaN(limit) || offset < 0 || limit < 1) {
+      return createIdeasErrorResponse(IdeasErrorCode.INVALID_PAGINATION, {
+        details: `Invalid offset (${offsetParam}) or limit (${limitParam})`,
+      });
+    }
+
+    // Validate status parameter
+    if (!isValidIdeaStatus(status)) {
+      return createIdeasErrorResponse(IdeasErrorCode.INVALID_STATUS, {
+        field: 'status',
+        details: `Invalid status value: ${status}`,
+      });
+    }
 
     // Get all ideas
     let allIdeas = projectId && projectId !== 'all'
@@ -36,9 +59,6 @@ export async function GET(request: NextRequest) {
       total: sortedIdeas.length,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch ideas' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error, IdeasErrorCode.DATABASE_ERROR);
   }
 }

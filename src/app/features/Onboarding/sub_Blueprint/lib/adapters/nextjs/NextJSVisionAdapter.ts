@@ -4,6 +4,9 @@
  *
  * Note: While placed in nextjs folder, this adapter works with any project type
  * It's framework-agnostic and could be moved to a generic adapter folder in the future
+ *
+ * Uses centralized error handling for consistent error messages
+ * and automatic retry logic for transient failures.
  */
 
 import { Project } from '@/types';
@@ -24,74 +27,85 @@ export class NextJSVisionAdapter extends BaseAdapter<VisionScanData> {
   public readonly category = 'vision';
   public readonly priority = 100;
 
+  /** Vision scans use Claude Code pipeline, longer timeout needed */
+  protected override readonly retryConfig = {
+    maxRetries: 1, // Pipeline operations are expensive, minimal retries
+    initialDelayMs: 3000,
+    maxDelayMs: 30000,
+  };
+
+  protected override readonly defaultTimeoutMs = 300000; // 5 minute timeout for vision scans
+
   /**
    * Execute vision scan using Claude Code pipeline
    */
   public async execute(context: ScanContext): Promise<ScanResult<VisionScanData>> {
     const { project } = context;
 
-    try {
-      this.log('Building requirement with codebase context...');
+    // Use centralized error handling
+    return this.executeWithErrorHandling(
+      async () => {
+        this.log('Building requirement with codebase context...');
 
-      // Build requirement content via API (server-side)
-      const buildResponse = await fetch('/api/blueprint/vision-requirement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectName: project.name,
-          projectPath: project.path,
-          projectId: project.id,
-        }),
-      });
-
-      const buildResult = await buildResponse.json();
-
-      if (!buildResult.success || !buildResult.requirementContent) {
-        return this.createResult<VisionScanData>(
-          false,
-          undefined,
-          buildResult.error || 'Failed to build requirement content'
+        // Build requirement content via API (server-side)
+        const buildResponse = await this.fetchApi<any>(
+          '/api/blueprint/vision-requirement',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectName: project.name,
+              projectPath: project.path,
+              projectId: project.id,
+            }),
+          },
+          { serviceName: 'Vision Requirement Builder' }
         );
-      }
 
-      this.log('Starting Claude Code pipeline...');
+        if (!buildResponse.success || !buildResponse.data?.success || !buildResponse.data?.requirementContent) {
+          return this.createResult<VisionScanData>(
+            false,
+            undefined,
+            buildResponse.error || buildResponse.data?.error || 'Failed to build requirement content'
+          );
+        }
 
-      // Execute pipeline with progress tracking
-      const result = await executePipeline({
-        projectPath: project.path,
-        projectId: project.id,
-        requirementName: 'vision-scan',
-        requirementContent: buildResult.requirementContent,
-        onProgress: (progress, message) => {
-          // Update progress
-          const { useBlueprintStore } = require('../../../store/blueprintStore');
-          useBlueprintStore.getState().updateScanProgress(progress);
-          this.log(`Progress: ${progress}% - ${message}`);
-        },
-      });
+        this.log('Starting Claude Code pipeline...');
 
-      if (!result.success) {
-        return this.createResult<VisionScanData>(
-          false,
-          undefined,
-          result.error || 'Pipeline execution failed'
+        // Execute pipeline with progress tracking (wrapped in error handling)
+        const result = await this.withErrorHandling(
+          () => executePipeline({
+            projectPath: project.path,
+            projectId: project.id,
+            requirementName: 'vision-scan',
+            requirementContent: buildResponse.data.requirementContent,
+            onProgress: (progress, message) => {
+              // Update progress
+              const { useBlueprintStore } = require('../../../store/blueprintStore');
+              useBlueprintStore.getState().updateScanProgress(progress);
+              this.log(`Progress: ${progress}% - ${message}`);
+            },
+          }),
+          { operation: 'claude-code-pipeline' }
         );
-      }
 
-      this.log('Documentation generated successfully');
+        if (!result.success) {
+          return this.createResult<VisionScanData>(
+            false,
+            undefined,
+            result.error || 'Pipeline execution failed'
+          );
+        }
 
-      return this.createResult(true, {
-        taskId: result.taskId || '',
-        requirementPath: result.requirementPath || '',
-      });
-    } catch (error) {
-      this.error('Error executing vision scan:', error);
-      return this.createResult<VisionScanData>(
-        false,
-        undefined,
-        error instanceof Error ? error.message : 'Unknown error'
-      );
-    }
+        this.log('Documentation generated successfully');
+
+        return this.createResult(true, {
+          taskId: result.taskId || '',
+          requirementPath: result.requirementPath || '',
+        });
+      },
+      { operation: 'vision-scan' }
+    );
   }
 
   /**

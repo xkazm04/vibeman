@@ -9,9 +9,10 @@ interface ContextCardsProps {
     group?: ContextGroup;
     availableGroups: ContextGroup[];
     showFullScreenModal: (title: string, content: React.ReactNode, options?: any) => void;
+    onMoveContext?: (contextId: string, groupId: string | null) => void;
 }
 
-const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScreenModal }: ContextCardsProps) => {
+const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScreenModal, onMoveContext }: ContextCardsProps) => {
     // Memoized layout configuration for performance with dynamic height
     const layout = useMemo(() => {
         const count = contexts.length;
@@ -72,6 +73,7 @@ const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScr
                                         index={index}
                                         fontSize={layout.fontSize}
                                         availableGroups={availableGroups}
+                                        onMoveContext={onMoveContext}
                                     />
 
                                     {/* Optimized Dividers */}

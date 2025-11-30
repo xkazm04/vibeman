@@ -1,23 +1,91 @@
 /**
  * Voice Session Storage using IndexedDB
  * Stores and retrieves voice session data for replay functionality
+ *
+ * Uses centralized error handling from indexedDBErrors.ts for:
+ * - Quota exceeded recovery
+ * - Corrupt data recovery
+ * - In-memory fallback when IndexedDB is unavailable
  */
 
 import { VoiceSession, VoiceSessionInteraction } from './voicebotTypes';
+import {
+  IndexedDBError,
+  IndexedDBErrorCode,
+  withIndexedDBErrorHandler,
+  isIndexedDBAvailable,
+  getInMemoryCache,
+  cleanupQuota,
+  reinitializeDatabase
+} from './indexedDBErrors';
 
 const DB_NAME = 'AnnetteVoiceSessions';
 const DB_VERSION = 1;
 const SESSIONS_STORE = 'sessions';
 
+// In-memory fallback cache
+const memoryCache = getInMemoryCache<SerializedSession>(DB_NAME, 50);
+
+interface SerializedInteraction {
+  id: string;
+  timestamp: string;
+  userText: string;
+  assistantText: string;
+  audioUrl?: string;
+  sources?: Array<{
+    type: 'context' | 'goal' | 'backlog' | 'documentation' | 'idea';
+    id: string;
+    name: string;
+    description?: string;
+  }>;
+  insights?: string[];
+  nextSteps?: string[];
+  toolsUsed?: Array<{
+    name: string;
+    description?: string;
+  }>;
+  timing?: {
+    llmMs?: number;
+    ttsMs?: number;
+    totalMs?: number;
+  };
+}
+
+interface SerializedSession {
+  id: string;
+  projectId: string;
+  projectName: string;
+  startTime: string;
+  endTime?: string;
+  interactions: SerializedInteraction[];
+  totalInteractions: number;
+  conversationId?: string;
+}
+
 /**
- * Initialize IndexedDB database
+ * Initialize IndexedDB database with error handling
  */
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    if (!isIndexedDBAvailable()) {
+      reject(new IndexedDBError({
+        code: IndexedDBErrorCode.NOT_SUPPORTED,
+        message: 'IndexedDB is not available',
+        dbName: DB_NAME,
+        recoverable: false
+      }));
+      return;
+    }
+
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => {
-      reject(new Error('Failed to open IndexedDB'));
+      const error = IndexedDBError.fromDOMException(
+        request.error as DOMException,
+        { dbName: DB_NAME, operation: 'open' }
+      );
+      console.error('[VoiceSessionStorage] Failed to open database:', error.message);
+      reject(error);
     };
 
     request.onsuccess = () => {
@@ -37,13 +105,17 @@ function openDatabase(): Promise<IDBDatabase> {
         objectStore.createIndex('endTime', 'endTime', { unique: false });
       }
     };
+
+    request.onblocked = () => {
+      console.warn('[VoiceSessionStorage] Database upgrade blocked by another connection');
+    };
   });
 }
 
 /**
  * Serialize VoiceSession for storage (convert Dates to ISO strings)
  */
-function serializeSession(session: VoiceSession): any {
+function serializeSession(session: VoiceSession): SerializedSession {
   return {
     ...session,
     startTime: session.startTime.toISOString(),
@@ -58,12 +130,12 @@ function serializeSession(session: VoiceSession): any {
 /**
  * Deserialize VoiceSession from storage (convert ISO strings to Dates)
  */
-function deserializeSession(data: any): VoiceSession {
+function deserializeSession(data: SerializedSession): VoiceSession {
   return {
     ...data,
     startTime: new Date(data.startTime),
     endTime: data.endTime ? new Date(data.endTime) : undefined,
-    interactions: data.interactions.map((interaction: any) => ({
+    interactions: data.interactions.map((interaction) => ({
       ...interaction,
       timestamp: new Date(interaction.timestamp),
     })),
@@ -71,141 +143,271 @@ function deserializeSession(data: any): VoiceSession {
 }
 
 /**
- * Save a voice session to IndexedDB
+ * Handle quota exceeded by cleaning up old sessions
+ */
+async function handleQuotaExceeded(): Promise<void> {
+  try {
+    const db = await openDatabase();
+    await cleanupQuota(db, SESSIONS_STORE, 5);
+    db.close();
+    console.log('[VoiceSessionStorage] Cleaned up old sessions to free quota');
+  } catch (error) {
+    console.error('[VoiceSessionStorage] Failed to clean up quota:', error);
+  }
+}
+
+/**
+ * Save a voice session to IndexedDB with error handling
  */
 export async function saveVoiceSession(session: VoiceSession): Promise<void> {
-  const db = await openDatabase();
+  const serialized = serializeSession(session);
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([SESSIONS_STORE], 'readwrite');
-    const objectStore = transaction.objectStore(SESSIONS_STORE);
-    const serializedSession = serializeSession(session);
+  // Always update in-memory cache
+  memoryCache.set(session.id, serialized);
 
-    const request = objectStore.put(serializedSession);
+  if (!isIndexedDBAvailable()) {
+    console.warn('[VoiceSessionStorage] IndexedDB not available, using memory cache only');
+    return;
+  }
 
-    request.onsuccess = () => {
-      resolve();
-    };
+  const result = await withIndexedDBErrorHandler<void>(
+    async () => {
+      const db = await openDatabase();
 
-    request.onerror = () => {
-      reject(new Error('Failed to save voice session'));
-    };
+      return new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([SESSIONS_STORE], 'readwrite');
+        const objectStore = transaction.objectStore(SESSIONS_STORE);
+        const request = objectStore.put(serialized);
 
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: SESSIONS_STORE,
+      operation: 'saveVoiceSession',
+      onError: async (error) => {
+        if (error.code === IndexedDBErrorCode.QUOTA_EXCEEDED) {
+          await handleQuotaExceeded();
+        } else if (error.code === IndexedDBErrorCode.CORRUPT_DATA) {
+          await reinitializeDatabase(DB_NAME);
+        }
+      }
+    }
+  );
+
+  if (!result.success) {
+    console.warn('[VoiceSessionStorage] Failed to save to IndexedDB, using memory cache');
+  }
 }
 
 /**
- * Get a specific voice session by ID
+ * Get a specific voice session by ID with error handling
  */
 export async function getVoiceSession(sessionId: string): Promise<VoiceSession | null> {
-  const db = await openDatabase();
+  // Check in-memory cache first
+  const cached = memoryCache.get(sessionId);
+  if (cached) {
+    return deserializeSession(cached);
+  }
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([SESSIONS_STORE], 'readonly');
-    const objectStore = transaction.objectStore(SESSIONS_STORE);
-    const request = objectStore.get(sessionId);
+  if (!isIndexedDBAvailable()) {
+    return null;
+  }
 
-    request.onsuccess = () => {
-      if (request.result) {
-        resolve(deserializeSession(request.result));
-      } else {
-        resolve(null);
-      }
-    };
+  const result = await withIndexedDBErrorHandler<SerializedSession | null>(
+    async () => {
+      const db = await openDatabase();
 
-    request.onerror = () => {
-      reject(new Error('Failed to get voice session'));
-    };
+      return new Promise<SerializedSession | null>((resolve, reject) => {
+        const transaction = db.transaction([SESSIONS_STORE], 'readonly');
+        const objectStore = transaction.objectStore(SESSIONS_STORE);
+        const request = objectStore.get(sessionId);
 
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+        request.onsuccess = () => {
+          resolve(request.result || null);
+        };
+
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: SESSIONS_STORE,
+      operation: 'getVoiceSession'
+    }
+  );
+
+  if (result.success && result.data) {
+    memoryCache.set(sessionId, result.data);
+    return deserializeSession(result.data);
+  }
+
+  return null;
 }
 
 /**
- * Get all voice sessions for a specific project
+ * Get all voice sessions for a specific project with error handling
  */
 export async function getProjectVoiceSessions(projectId: string): Promise<VoiceSession[]> {
-  const db = await openDatabase();
+  // Check memory cache for any matching sessions
+  const memorySessions = memoryCache.getAll()
+    .filter(s => s.projectId === projectId)
+    .map(deserializeSession);
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([SESSIONS_STORE], 'readonly');
-    const objectStore = transaction.objectStore(SESSIONS_STORE);
-    const index = objectStore.index('projectId');
-    const request = index.getAll(projectId);
+  if (!isIndexedDBAvailable()) {
+    return memorySessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+  }
 
-    request.onsuccess = () => {
-      const sessions = request.result.map(deserializeSession);
-      // Sort by start time (most recent first)
-      sessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
-      resolve(sessions);
-    };
+  const result = await withIndexedDBErrorHandler<SerializedSession[]>(
+    async () => {
+      const db = await openDatabase();
 
-    request.onerror = () => {
-      reject(new Error('Failed to get project voice sessions'));
-    };
+      return new Promise<SerializedSession[]>((resolve, reject) => {
+        const transaction = db.transaction([SESSIONS_STORE], 'readonly');
+        const objectStore = transaction.objectStore(SESSIONS_STORE);
+        const index = objectStore.index('projectId');
+        const request = index.getAll(projectId);
 
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+        request.onsuccess = () => {
+          resolve(request.result || []);
+        };
+
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: SESSIONS_STORE,
+      operation: 'getProjectVoiceSessions'
+    }
+  );
+
+  if (result.success && result.data) {
+    // Update memory cache with results
+    result.data.forEach(s => memoryCache.set(s.id, s));
+
+    const sessions = result.data.map(deserializeSession);
+    // Sort by start time (most recent first)
+    return sessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+  }
+
+  // Fall back to memory cache on error
+  return memorySessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 }
 
 /**
- * Get all voice sessions (across all projects)
+ * Get all voice sessions (across all projects) with error handling
  */
 export async function getAllVoiceSessions(): Promise<VoiceSession[]> {
-  const db = await openDatabase();
+  // Get all from memory cache as fallback
+  const memorySessions = memoryCache.getAll().map(deserializeSession);
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([SESSIONS_STORE], 'readonly');
-    const objectStore = transaction.objectStore(SESSIONS_STORE);
-    const request = objectStore.getAll();
+  if (!isIndexedDBAvailable()) {
+    return memorySessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+  }
 
-    request.onsuccess = () => {
-      const sessions = request.result.map(deserializeSession);
-      // Sort by start time (most recent first)
-      sessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
-      resolve(sessions);
-    };
+  const result = await withIndexedDBErrorHandler<SerializedSession[]>(
+    async () => {
+      const db = await openDatabase();
 
-    request.onerror = () => {
-      reject(new Error('Failed to get all voice sessions'));
-    };
+      return new Promise<SerializedSession[]>((resolve, reject) => {
+        const transaction = db.transaction([SESSIONS_STORE], 'readonly');
+        const objectStore = transaction.objectStore(SESSIONS_STORE);
+        const request = objectStore.getAll();
 
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+        request.onsuccess = () => {
+          resolve(request.result || []);
+        };
+
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: SESSIONS_STORE,
+      operation: 'getAllVoiceSessions'
+    }
+  );
+
+  if (result.success && result.data) {
+    // Update memory cache
+    result.data.forEach(s => memoryCache.set(s.id, s));
+
+    const sessions = result.data.map(deserializeSession);
+    // Sort by start time (most recent first)
+    return sessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+  }
+
+  // Fall back to memory cache on error
+  return memorySessions.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 }
 
 /**
- * Delete a voice session
+ * Delete a voice session with error handling
  */
 export async function deleteVoiceSession(sessionId: string): Promise<void> {
-  const db = await openDatabase();
+  // Always remove from memory cache
+  memoryCache.delete(sessionId);
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([SESSIONS_STORE], 'readwrite');
-    const objectStore = transaction.objectStore(SESSIONS_STORE);
-    const request = objectStore.delete(sessionId);
+  if (!isIndexedDBAvailable()) {
+    return;
+  }
 
-    request.onsuccess = () => {
-      resolve();
-    };
+  const result = await withIndexedDBErrorHandler<void>(
+    async () => {
+      const db = await openDatabase();
 
-    request.onerror = () => {
-      reject(new Error('Failed to delete voice session'));
-    };
+      return new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([SESSIONS_STORE], 'readwrite');
+        const objectStore = transaction.objectStore(SESSIONS_STORE);
+        const request = objectStore.delete(sessionId);
 
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: SESSIONS_STORE,
+      operation: 'deleteVoiceSession'
+    }
+  );
+
+  if (!result.success) {
+    console.warn('[VoiceSessionStorage] Failed to delete from IndexedDB');
+  }
 }
 
 /**
@@ -217,7 +419,7 @@ export async function updateVoiceSession(session: VoiceSession): Promise<void> {
 }
 
 /**
- * Add an interaction to an existing session
+ * Add an interaction to an existing session with error handling
  */
 export async function addInteractionToSession(
   sessionId: string,
@@ -226,7 +428,8 @@ export async function addInteractionToSession(
   const session = await getVoiceSession(sessionId);
 
   if (!session) {
-    throw new Error('Session not found');
+    console.warn(`[VoiceSessionStorage] Session ${sessionId} not found`);
+    return;
   }
 
   session.interactions.push(interaction);
@@ -236,26 +439,99 @@ export async function addInteractionToSession(
 }
 
 /**
- * Clear all voice sessions (use with caution)
+ * Clear all voice sessions with error handling
  */
 export async function clearAllVoiceSessions(): Promise<void> {
-  const db = await openDatabase();
+  // Clear memory cache
+  memoryCache.clear();
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([SESSIONS_STORE], 'readwrite');
-    const objectStore = transaction.objectStore(SESSIONS_STORE);
-    const request = objectStore.clear();
+  if (!isIndexedDBAvailable()) {
+    return;
+  }
 
-    request.onsuccess = () => {
-      resolve();
+  const result = await withIndexedDBErrorHandler<void>(
+    async () => {
+      const db = await openDatabase();
+
+      return new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([SESSIONS_STORE], 'readwrite');
+        const objectStore = transaction.objectStore(SESSIONS_STORE);
+        const request = objectStore.clear();
+
+        request.onsuccess = () => {
+          console.log('[VoiceSessionStorage] Cleared all sessions');
+          resolve();
+        };
+
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: SESSIONS_STORE,
+      operation: 'clearAllVoiceSessions'
+    }
+  );
+
+  if (!result.success) {
+    console.warn('[VoiceSessionStorage] Failed to clear IndexedDB');
+  }
+}
+
+/**
+ * Get storage statistics
+ */
+export async function getVoiceSessionStorageStats(): Promise<{
+  totalSessions: number;
+  inMemorySessions: number;
+  indexedDBAvailable: boolean;
+}> {
+  const inMemoryCount = memoryCache.size();
+  const available = isIndexedDBAvailable();
+
+  if (!available) {
+    return {
+      totalSessions: inMemoryCount,
+      inMemorySessions: inMemoryCount,
+      indexedDBAvailable: false
     };
+  }
 
-    request.onerror = () => {
-      reject(new Error('Failed to clear voice sessions'));
-    };
+  const result = await withIndexedDBErrorHandler<number>(
+    async () => {
+      const db = await openDatabase();
 
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+      return new Promise<number>((resolve, reject) => {
+        const transaction = db.transaction([SESSIONS_STORE], 'readonly');
+        const objectStore = transaction.objectStore(SESSIONS_STORE);
+        const request = objectStore.count();
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: SESSIONS_STORE,
+      operation: 'getStorageStats'
+    }
+  );
+
+  return {
+    totalSessions: result.success ? (result.data || 0) : inMemoryCount,
+    inMemorySessions: inMemoryCount,
+    indexedDBAvailable: available
+  };
 }

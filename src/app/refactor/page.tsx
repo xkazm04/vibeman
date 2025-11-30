@@ -3,11 +3,14 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRefactorStore } from '@/stores/refactorStore';
+import { useThemeStore } from '@/stores/themeStore';
 import RefactorWizardLayout from '../features/RefactorWizard/RefactorWizardLayout';
 import { Sparkles, Zap, TrendingUp, Shield } from 'lucide-react';
 
 export default function RefactorPage() {
   const { openWizard } = useRefactorStore();
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
 
   return (
     <div className="min-h-screen pt-24 px-6 pb-12">
@@ -20,8 +23,8 @@ export default function RefactorPage() {
           className="text-center mb-12"
         >
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="p-3 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl">
-              <Sparkles className="w-8 h-8 text-cyan-400" />
+            <div className={`p-3 bg-gradient-to-br ${colors.bgHover} to-blue-500/20 rounded-xl`}>
+              <Sparkles className={`w-8 h-8 ${colors.textDark}`} />
             </div>
             <h1 className="text-4xl font-light text-white tracking-wide">
               AI-Powered Refactor Wizard
@@ -40,10 +43,10 @@ export default function RefactorPage() {
           className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12"
         >
           {/* Feature 1 */}
-          <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-cyan-500/20 rounded-xl p-6 hover:border-cyan-500/40 transition-all duration-300">
+          <div className={`bg-gradient-to-br from-white/5 to-white/[0.02] border ${colors.borderLight} rounded-xl p-6 hover:${colors.borderHover} transition-all duration-300`}>
             <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-cyan-500/20 rounded-lg">
-                <Zap className="w-6 h-6 text-cyan-400" />
+              <div className={`p-2 ${colors.bgHover} rounded-lg`}>
+                <Zap className={`w-6 h-6 ${colors.textDark}`} />
               </div>
               <h3 className="text-xl font-medium text-white">Intelligent Analysis</h3>
             </div>
@@ -101,7 +104,7 @@ export default function RefactorPage() {
         >
           <button
             onClick={openWizard}
-            className="px-12 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white text-lg font-medium rounded-xl transition-all duration-300 shadow-2xl shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105"
+            className={`px-12 py-4 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white text-lg font-medium rounded-xl transition-all duration-300 shadow-2xl ${colors.glow} hover:scale-105`}
             data-testid="open-refactor-wizard"
           >
             <span className="flex items-center space-x-3">
@@ -136,8 +139,8 @@ export default function RefactorPage() {
                 key={item.step}
                 className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl p-4 text-center"
               >
-                <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center">
-                  <span className="text-cyan-400 text-xl font-medium">{item.step}</span>
+                <div className={`w-12 h-12 mx-auto mb-3 bg-gradient-to-br ${colors.bgHover} to-blue-500/20 rounded-full flex items-center justify-center`}>
+                  <span className={`${colors.textDark} text-xl font-medium`}>{item.step}</span>
                 </div>
                 <h4 className="text-white font-medium mb-1">{item.title}</h4>
                 <p className="text-gray-400 text-xs">{item.description}</p>

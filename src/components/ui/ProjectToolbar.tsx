@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon, Database, FileText, RefreshCw } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 /**
  * Individual toolbar action button configuration
@@ -36,49 +37,51 @@ export interface ProjectToolbarProps {
 }
 
 /**
- * Color scheme configurations for toolbar buttons
+ * Get color scheme configurations for toolbar buttons with theme support
  */
-const colorSchemes: Record<
-  string,
-  { bg: string; hover: string; text: string; glow: string }
-> = {
-  blue: {
-    bg: 'bg-blue-600/20',
-    hover: 'hover:bg-blue-500/30',
-    text: 'text-blue-400',
-    glow: 'hover:shadow-blue-500/30',
-  },
-  cyan: {
-    bg: 'bg-cyan-600/20',
-    hover: 'hover:bg-cyan-500/30',
-    text: 'text-cyan-400',
-    glow: 'hover:shadow-cyan-500/30',
-  },
-  purple: {
-    bg: 'bg-purple-600/20',
-    hover: 'hover:bg-purple-500/30',
-    text: 'text-purple-400',
-    glow: 'hover:shadow-purple-500/30',
-  },
-  green: {
-    bg: 'bg-green-600/20',
-    hover: 'hover:bg-green-500/30',
-    text: 'text-green-400',
-    glow: 'hover:shadow-green-500/30',
-  },
-  orange: {
-    bg: 'bg-orange-600/20',
-    hover: 'hover:bg-orange-500/30',
-    text: 'text-orange-400',
-    glow: 'hover:shadow-orange-500/30',
-  },
-  slate: {
-    bg: 'bg-slate-600/20',
-    hover: 'hover:bg-slate-500/30',
-    text: 'text-slate-400',
-    glow: 'hover:shadow-slate-500/30',
-  },
-};
+function getColorSchemes() {
+  const { getThemeColors } = useThemeStore.getState();
+  const themeColors = getThemeColors();
+  
+  return {
+    blue: {
+      bg: 'bg-blue-600/20',
+      hover: 'hover:bg-blue-500/30',
+      text: 'text-blue-400',
+      glow: 'hover:shadow-blue-500/30',
+    },
+    cyan: {
+      bg: themeColors.bg,
+      hover: `hover:${themeColors.bgHover}`,
+      text: themeColors.text,
+      glow: `hover:${themeColors.shadow}`,
+    },
+    purple: {
+      bg: 'bg-purple-600/20',
+      hover: 'hover:bg-purple-500/30',
+      text: 'text-purple-400',
+      glow: 'hover:shadow-purple-500/30',
+    },
+    green: {
+      bg: 'bg-green-600/20',
+      hover: 'hover:bg-green-500/30',
+      text: 'text-green-400',
+      glow: 'hover:shadow-green-500/30',
+    },
+    orange: {
+      bg: 'bg-orange-600/20',
+      hover: 'hover:bg-orange-500/30',
+      text: 'text-orange-400',
+      glow: 'hover:shadow-orange-500/30',
+    },
+    slate: {
+      bg: 'bg-slate-600/20',
+      hover: 'hover:bg-slate-500/30',
+      text: 'text-slate-400',
+      glow: 'hover:shadow-slate-500/30',
+    },
+  };
+}
 
 /**
  * Position configurations
@@ -95,6 +98,7 @@ const positionClasses: Record<string, string> = {
 const ToolbarButton: React.FC<{
   action: ToolbarAction;
 }> = ({ action }) => {
+  const colorSchemes = getColorSchemes();
   const scheme = colorSchemes[action.colorScheme || 'slate'];
   const Icon = action.icon;
 

@@ -28,7 +28,10 @@ export default function VibemanControl({
         {/* Toggle Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full px-4 py-2 flex items-center justify-between bg-gray-800/60 hover:bg-gray-800/80 transition-colors border-b border-gray-700/40"
+          className="w-full px-4 py-2 flex items-center justify-between bg-gray-800/60 hover:bg-gray-700/70 transition-all duration-200 border-b border-gray-700/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400/70"
+          data-testid="vibeman-control-toggle-btn"
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? 'Collapse Vibeman panel' : 'Expand Vibeman panel'}
         >
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

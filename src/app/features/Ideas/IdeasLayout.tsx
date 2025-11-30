@@ -9,19 +9,14 @@ import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 
 // Components
 import IdeasHeaderWithFilter from '@/app/features/Ideas/components/IdeasHeaderWithFilter';
-import BufferView from '@/app/features/Ideas/sub_Buffer/BufferView';
+import BufferView, { useInvalidateIdeas } from '@/app/features/Ideas/sub_Buffer/BufferView';
 import IdeaDetailModal from '@/app/features/Ideas/components/IdeaDetailModal';
 import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector';
 import ScanInitiator from '@/app/features/Ideas/sub_IdeasSetup/ScanInitiator';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 // Handlers and utilities
-import { fetchIdeas, deleteIdea } from '@/app/features/Ideas/lib/ideasHandlers';
-import {
-  getProjectName,
-  groupIdeasByProjectAndContext,
-  calculateIdeaStats
-} from '@/app/features/Ideas/lib/ideasUtils';
+import { getProjectName } from '@/app/features/Ideas/lib/ideasUtils';
 import {
   fetchContextsForProjects,
   getContextNameFromMap
@@ -29,66 +24,52 @@ import {
 import { ProcessingIdeaProvider } from '@/app/features/Ideas/lib/ProcessingIdeaContext';
 
 const IdeasLayout = () => {
-  const [ideas, setIdeas] = React.useState<DbIdea[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
-  const [filterContext, setFilterContext] = React.useState<string | null>(null);
+  const [filterContextIds, setFilterContextIds] = React.useState<string[]>([]);
   const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
   const [contextsMap, setContextsMap] = React.useState<Record<string, Context[]>>({});
+  const [loadedProjectIds, setLoadedProjectIds] = React.useState<string[]>([]);
 
   const { projects, initializeProjects, getProject } = useProjectConfigStore();
   const { setActiveProject } = useActiveProjectStore();
   const { selectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
+  const invalidateIdeas = useInvalidateIdeas();
 
   // Initialize projects on mount
   React.useEffect(() => {
     initializeProjects();
   }, [initializeProjects]);
 
-  // Fetch ideas on mount
+  // Load contexts when projects change
   React.useEffect(() => {
-    loadIdeas();
-  }, []);
+    const loadContexts = async () => {
+      const projectIds = projects.map(p => p.id);
 
-  // Load contexts for all projects when ideas change
-  React.useEffect(() => {
-    const loadContextsForIdeas = async () => {
-      // Get unique project IDs from ideas
-      const projectIds = [...new Set(ideas.map(idea => idea.project_id))];
+      // Only reload if project list actually changed
+      if (JSON.stringify(projectIds.sort()) === JSON.stringify(loadedProjectIds.sort())) {
+        return;
+      }
 
       if (projectIds.length > 0) {
         const contexts = await fetchContextsForProjects(projectIds);
         setContextsMap(contexts);
+        setLoadedProjectIds(projectIds);
       }
     };
 
-    if (ideas.length > 0) {
-      loadContextsForIdeas();
+    if (projects.length > 0) {
+      loadContexts();
     }
-  }, [ideas]);
-
-  const loadIdeas = async () => {
-    setLoading(true);
-    const fetchedIdeas = await fetchIdeas();
-    setIdeas(fetchedIdeas);
-    setLoading(false);
-  };
+  }, [projects, loadedProjectIds]);
 
   const handleIdeaUpdate = React.useCallback(async (updatedIdea: DbIdea) => {
-    setIdeas(prevIdeas => prevIdeas.map(idea => idea.id === updatedIdea.id ? updatedIdea : idea));
     setSelectedIdea(updatedIdea);
+    // Cache invalidation is handled by IdeaDetailModal via useInvalidateIdeas
   }, []);
 
   const handleIdeaDelete = React.useCallback(async (deletedIdeaId: string) => {
-    setIdeas(prevIdeas => prevIdeas.filter(idea => idea.id !== deletedIdeaId));
     setSelectedIdea(null);
-  }, []);
-
-  const handleQuickDelete = React.useCallback(async (ideaId: string) => {
-    const success = await deleteIdea(ideaId);
-    if (success) {
-      setIdeas(prevIdeas => prevIdeas.filter(idea => idea.id !== ideaId));
-    }
+    // Cache invalidation is handled by IdeaDetailModal via useInvalidateIdeas
   }, []);
 
   const handleIdeaClose = React.useCallback(() => {
@@ -96,13 +77,14 @@ const IdeasLayout = () => {
   }, []);
 
   const handleScanComplete = React.useCallback(() => {
-    loadIdeas();
-  }, []);
+    // Invalidate React Query cache to refetch ideas
+    invalidateIdeas();
+  }, [invalidateIdeas]);
 
   const handleProjectSelect = React.useCallback((projectId: string) => {
     // Update unified store
     setSelectedProjectId(projectId);
-    setFilterContext(null); // Reset context filter when project changes
+    setFilterContextIds([]); // Reset context filter when project changes
 
     // Update active project in store (skip if 'all' is selected)
     if (projectId !== 'all') {
@@ -115,20 +97,6 @@ const IdeasLayout = () => {
 
   // Get selected project details
   const selectedProject = selectedProjectId !== 'all' ? getProject(selectedProjectId) : null;
-
-  // Filter ideas to only show Pending and Accepted
-  const filteredIdeas = React.useMemo(() =>
-    ideas.filter(idea => idea.status === 'pending' || idea.status === 'accepted'),
-    [ideas]
-  );
-
-  // Compute grouped ideas and stats
-  const groupedIdeas = React.useMemo(() =>
-    groupIdeasByProjectAndContext(filteredIdeas, 'all', selectedProjectId),
-    [filteredIdeas, selectedProjectId]
-  );
-
-  const stats = React.useMemo(() => calculateIdeaStats(ideas), [ideas]);
 
   // Helper function to get context name using the loaded contexts map
   const getContextName = React.useCallback((contextId: string) => {
@@ -150,10 +118,10 @@ const IdeasLayout = () => {
             projects={projects}
             selectedProjectId={selectedProjectId}
             onSelectProject={handleProjectSelect}
-            selectedContextId={filterContext}
-            onSelectContext={setFilterContext}
+            selectedContextIds={filterContextIds}
+            onSelectContexts={setFilterContextIds}
             selectedProjectPath={selectedProject?.path}
-            onIdeaImplemented={loadIdeas}
+            onIdeaImplemented={handleScanComplete}
           />
         </LazyContentSection>
 
@@ -164,23 +132,20 @@ const IdeasLayout = () => {
               onScanComplete={handleScanComplete}
               selectedScanTypes={selectedScanTypes}
               onScanTypesChange={setSelectedScanTypes}
-              selectedContextId={filterContext}
+              selectedContextIds={filterContextIds}
             />
           </div>
         </LazyContentSection>
 
-        {/* Content */}
+        {/* Content - BufferView now uses React Query internally */}
         <LazyContentSection delay={0.2}>
           <div className="w-full px-6 py-8">
-            {/* Ideas Display */}
             <BufferView
-              loading={loading}
-              ideas={filteredIdeas}
-              groupedIdeas={groupedIdeas}
+              filterProject={selectedProjectId}
               getProjectName={getProjectNameCallback}
               getContextName={getContextName}
               onIdeaClick={setSelectedIdea}
-              onIdeaDelete={handleQuickDelete}
+              onScanComplete={handleScanComplete}
             />
           </div>
         </LazyContentSection>

@@ -3,6 +3,7 @@
 import { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Badge from './Badge';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface StepHeaderProps {
   /** Step title */
@@ -33,6 +34,9 @@ export function StepHeader({
   totalSteps,
   'data-testid': testId = 'step-header',
 }: StepHeaderProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -47,10 +51,10 @@ export function StepHeader({
           {/* Icon */}
           {Icon && (
             <div
-              className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-lg flex items-center justify-center border border-cyan-500/30"
+              className={`flex-shrink-0 w-10 h-10 bg-gradient-to-br ${colors.bgHover} to-blue-500/20 rounded-lg flex items-center justify-center border ${colors.border}`}
               data-testid={`${testId}-icon`}
             >
-              <Icon className="w-5 h-5 text-cyan-400" />
+              <Icon className={`w-5 h-5 ${colors.text}`} />
             </div>
           )}
 

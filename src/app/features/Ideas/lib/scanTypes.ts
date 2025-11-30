@@ -16,6 +16,7 @@ export type ScanType =
   | 'ai_integration_scout'
   | 'delight_designer'
   | 'refactor_analysis'
+  | 'code_refactor'
   // People's Choice - User First Approach
   | 'user_empathy_champion'
   | 'accessibility_advocate'
@@ -135,6 +136,15 @@ export const SCAN_TYPE_CONFIGS: ScanTypeConfig[] = [
     description: 'Developer productivity & codebase joy',
     category: 'technical',
     agentFile: 'dev_experience_engineer.md'
+  },
+  {
+    value: 'code_refactor',
+    label: 'Code Refactor',
+    emoji: '🧹',
+    color: 'bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 border-emerald-500/40 text-emerald-300',
+    description: 'Code cleanup, dead code removal & structure',
+    category: 'technical',
+    agentFile: 'code_refactor.md'
   },
 
   // User Focus

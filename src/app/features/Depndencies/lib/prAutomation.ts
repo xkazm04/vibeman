@@ -1,16 +1,10 @@
-import { spawn } from 'child_process';
+import { executeCommand, executeCommandWithTiming, executeCommandWithJsonOutput } from '@/lib/command';
 import { VulnerabilityInfo } from '@/app/db/models/security-patch.types';
 import { PatchProposal } from './patchGenerator';
 
 interface StatusCheck {
   state?: string;
   conclusion?: string;
-}
-
-interface CommandResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
 }
 
 export interface PrCreationResult {
@@ -27,34 +21,6 @@ export interface TestResult {
   output: string;
   exitCode: number;
   duration: number;
-}
-
-/**
- * Execute a shell command and return the result
- */
-function execCommand(
-  command: string,
-  args: string[],
-  cwd: string
-): Promise<CommandResult> {
-  return new Promise((resolve) => {
-    const proc = spawn(command, args, { cwd, shell: true });
-
-    let stdout = '';
-    let stderr = '';
-
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    proc.on('close', (exitCode) => {
-      resolve({ stdout, stderr, exitCode: exitCode || 0 });
-    });
-  });
 }
 
 /**
@@ -88,11 +54,11 @@ async function applyPackageUpdates(
  */
 async function createBranch(projectPath: string, branchName: string): Promise<void> {
   // Ensure we're on a clean branch
-  await execCommand('git', ['checkout', 'main'], projectPath);
-  await execCommand('git', ['pull', 'origin', 'main'], projectPath);
+  await executeCommand('git', ['checkout', 'main'], { cwd: projectPath });
+  await executeCommand('git', ['pull', 'origin', 'main'], { cwd: projectPath });
 
   // Create and checkout new branch
-  await execCommand('git', ['checkout', '-b', branchName], projectPath);
+  await executeCommand('git', ['checkout', '-b', branchName], { cwd: projectPath });
 }
 
 /**
@@ -102,12 +68,12 @@ async function commitChanges(
   projectPath: string,
   message: string
 ): Promise<string> {
-  await execCommand('git', ['add', 'package.json', 'package-lock.json'], projectPath);
+  await executeCommand('git', ['add', 'package.json', 'package-lock.json'], { cwd: projectPath });
 
-  const commitResult = await execCommand('git', ['commit', '-m', message], projectPath);
+  await executeCommand('git', ['commit', '-m', message], { cwd: projectPath });
 
   // Get commit SHA
-  const shaResult = await execCommand('git', ['rev-parse', 'HEAD'], projectPath);
+  const shaResult = await executeCommand('git', ['rev-parse', 'HEAD'], { cwd: projectPath });
 
   return shaResult.stdout.trim();
 }
@@ -116,7 +82,7 @@ async function commitChanges(
  * Push branch to remote
  */
 async function pushBranch(projectPath: string, branchName: string): Promise<void> {
-  await execCommand('git', ['push', '-u', 'origin', branchName], projectPath);
+  await executeCommand('git', ['push', '-u', 'origin', branchName], { cwd: projectPath });
 }
 
 /**
@@ -127,10 +93,10 @@ async function createGitHubPr(
   title: string,
   body: string
 ): Promise<{ prNumber: number; prUrl: string }> {
-  const result = await execCommand(
+  const result = await executeCommand(
     'gh',
     ['pr', 'create', '--title', title, '--body', body],
-    projectPath
+    { cwd: projectPath }
   );
 
   // Extract PR URL from output
@@ -144,37 +110,39 @@ async function createGitHubPr(
 }
 
 /**
- * Helper to run a command and return test result
+ * Run tests for the project
  */
-async function runCommandWithTiming(
-  command: string,
-  args: string[],
-  projectPath: string
-): Promise<TestResult> {
-  const startTime = Date.now();
-  const result = await execCommand(command, args, projectPath);
-  const duration = Date.now() - startTime;
+export async function runTests(projectPath: string): Promise<TestResult> {
+  const result = await executeCommandWithTiming(
+    'npm',
+    ['test', '--', '--passWithNoTests'],
+    { cwd: projectPath }
+  );
 
   return {
     success: result.exitCode === 0,
     output: result.stdout + '\n' + result.stderr,
     exitCode: result.exitCode,
-    duration
+    duration: result.duration
   };
-}
-
-/**
- * Run tests for the project
- */
-export async function runTests(projectPath: string): Promise<TestResult> {
-  return runCommandWithTiming('npm', ['test', '--', '--passWithNoTests'], projectPath);
 }
 
 /**
  * Run build for the project
  */
 export async function runBuild(projectPath: string): Promise<TestResult> {
-  return runCommandWithTiming('npm', ['run', 'build'], projectPath);
+  const result = await executeCommandWithTiming(
+    'npm',
+    ['run', 'build'],
+    { cwd: projectPath }
+  );
+
+  return {
+    success: result.exitCode === 0,
+    output: result.stdout + '\n' + result.stderr,
+    exitCode: result.exitCode,
+    duration: result.duration
+  };
 }
 
 /**
@@ -214,7 +182,7 @@ async function executePrSteps(
   await applyPackageUpdates(projectPath, vulnerabilities);
 
   // Install dependencies
-  await execCommand('npm', ['install'], projectPath);
+  await executeCommand('npm', ['install'], { cwd: projectPath });
 
   // Commit changes
   const commitMessage = generateSecurityCommitMessage(vulnerabilities);
@@ -276,13 +244,12 @@ export async function mergePrIfTestsPass(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Get PR status
-    const statusResult = await execCommand(
+    const { data: prStatus } = await executeCommandWithJsonOutput<{ statusCheckRollup?: StatusCheck[] }>(
       'gh',
       ['pr', 'view', prNumber.toString(), '--json', 'statusCheckRollup'],
-      projectPath
+      { cwd: projectPath, acceptNonZero: true }
     );
 
-    const prStatus = JSON.parse(statusResult.stdout) as { statusCheckRollup?: StatusCheck[] };
     const checks = prStatus.statusCheckRollup || [];
 
     // Check if all checks passed
@@ -291,10 +258,10 @@ export async function mergePrIfTestsPass(
     }
 
     // Merge PR
-    await execCommand(
+    await executeCommand(
       'gh',
       ['pr', 'merge', prNumber.toString(), '--auto', '--squash'],
-      projectPath
+      { cwd: projectPath }
     );
 
     return { success: true };

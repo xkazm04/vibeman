@@ -6,7 +6,7 @@ export { default as FileAdd } from './FileAdd';
 export { default as ModalContent } from './ModalContent';
 export { default as ModalHeader } from './ModalHeader';
 export { default as SaveFileDialog } from './SaveFileDialog';
-export { default as UniversalSelect } from './UniversalSelect';
+export { UniversalSelect } from './UniversalSelect';
 export { default as AIErrorBoundary } from './AIErrorBoundary';
 export { default as AIErrorDisplay } from './AIErrorDisplay';
 export { default as GradientButton } from './buttons/GradientButton';

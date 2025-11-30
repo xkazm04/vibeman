@@ -1,13 +1,30 @@
 /**
  * IndexedDB-based TTS Audio Cache
  * Stores generated TTS audio blobs to reduce network latency and bandwidth
+ *
+ * Uses centralized error handling from indexedDBErrors.ts for:
+ * - Quota exceeded recovery (auto-cleanup of oldest entries)
+ * - Corrupt data recovery (database reinitialization)
+ * - In-memory fallback when IndexedDB is unavailable
  */
+
+import {
+  IndexedDBErrorCode,
+  withIndexedDBErrorHandler,
+  isIndexedDBAvailable,
+  cleanupQuota,
+  reinitializeDatabase
+} from './indexedDBErrors';
 
 const DB_NAME = 'tts-cache';
 const DB_VERSION = 1;
 const STORE_NAME = 'audio';
 const MAX_CACHE_SIZE_MB = 50; // Maximum cache size in megabytes
 const MAX_CACHE_ENTRIES = 100; // Maximum number of cached entries
+
+// In-memory fallback for audio blobs (limited due to memory constraints)
+const memoryCache = new Map<string, { blob: Blob; timestamp: number; accessCount: number }>();
+const MAX_MEMORY_ENTRIES = 20; // Keep memory usage low for audio blobs
 
 interface CacheEntry {
   text: string;           // The text that was spoken (used as key)
@@ -19,13 +36,22 @@ interface CacheEntry {
 }
 
 /**
- * Initialize IndexedDB database
+ * Initialize IndexedDB database with error handling
  */
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    if (!isIndexedDBAvailable()) {
+      reject(new Error('IndexedDB is not available'));
+      return;
+    }
+
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onerror = () => reject(request.error);
+    request.onerror = () => {
+      console.error('[TTSCache] Failed to open database:', request.error?.message);
+      reject(request.error);
+    };
+
     request.onsuccess = () => resolve(request.result);
 
     request.onupgradeneeded = (event) => {
@@ -41,6 +67,10 @@ function openDatabase(): Promise<IDBDatabase> {
         store.createIndex('accessCount', 'accessCount', { unique: false });
       }
     };
+
+    request.onblocked = () => {
+      console.warn('[TTSCache] Database upgrade blocked by another connection');
+    };
   });
 }
 
@@ -53,84 +83,188 @@ function generateCacheKey(text: string): string {
 }
 
 /**
- * Get cached audio for given text
+ * Handle quota exceeded by cleaning up old entries
  */
-export async function getCachedAudio(text: string): Promise<Blob | null> {
+async function handleQuotaExceeded(): Promise<void> {
   try {
     const db = await openDatabase();
-    const key = generateCacheKey(text);
-
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.get(key);
-
-      request.onsuccess = () => {
-        const entry = request.result as CacheEntry | undefined;
-
-        if (entry) {
-          // Update access statistics
-          entry.accessCount += 1;
-          entry.lastAccessed = Date.now();
-          store.put(entry);
-
-          resolve(entry.audioBlob);
-        } else {
-          resolve(null);
-        }
-      };
-
-      request.onerror = () => reject(request.error);
-
-      transaction.oncomplete = () => db.close();
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
-      };
-    });
+    await cleanupQuota(db, STORE_NAME, 20); // Clean up 20 oldest entries
+    db.close();
+    console.log('[TTSCache] Cleaned up old entries to free quota');
   } catch (error) {
-    console.error('Failed to get cached audio:', error);
-    return null;
+    console.error('[TTSCache] Failed to clean up quota:', error);
   }
 }
 
 /**
- * Cache audio blob for given text
+ * Evict oldest entries from memory cache if at capacity
+ */
+function evictMemoryCache(): void {
+  if (memoryCache.size < MAX_MEMORY_ENTRIES) {
+    return;
+  }
+
+  // Find and remove oldest entry
+  let oldestKey: string | null = null;
+  let oldestTime = Infinity;
+  const entries = Array.from(memoryCache.entries());
+
+  for (const [key, entry] of entries) {
+    if (entry.timestamp < oldestTime) {
+      oldestTime = entry.timestamp;
+      oldestKey = key;
+    }
+  }
+
+  if (oldestKey) {
+    memoryCache.delete(oldestKey);
+  }
+}
+
+/**
+ * Get cached audio for given text with error handling
+ */
+export async function getCachedAudio(text: string): Promise<Blob | null> {
+  const key = generateCacheKey(text);
+
+  // Check in-memory cache first
+  const memoryCached = memoryCache.get(key);
+  if (memoryCached) {
+    memoryCached.accessCount++;
+    console.log(`[TTSCache] Memory cache hit for: "${text.substring(0, 30)}..."`);
+    return memoryCached.blob;
+  }
+
+  if (!isIndexedDBAvailable()) {
+    return null;
+  }
+
+  const result = await withIndexedDBErrorHandler<CacheEntry | null>(
+    async () => {
+      const db = await openDatabase();
+
+      return new Promise<CacheEntry | null>((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.get(key);
+
+        request.onsuccess = () => {
+          const entry = request.result as CacheEntry | undefined;
+
+          if (entry) {
+            // Update access statistics
+            entry.accessCount += 1;
+            entry.lastAccessed = Date.now();
+            store.put(entry);
+
+            resolve(entry);
+          } else {
+            resolve(null);
+          }
+        };
+
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: STORE_NAME,
+      operation: 'getCachedAudio'
+    }
+  );
+
+  if (result.success && result.data) {
+    // Update memory cache
+    evictMemoryCache();
+    memoryCache.set(key, {
+      blob: result.data.audioBlob,
+      timestamp: result.data.timestamp,
+      accessCount: result.data.accessCount
+    });
+
+    console.log(`[TTSCache] IndexedDB hit for: "${text.substring(0, 30)}..."`);
+    return result.data.audioBlob;
+  }
+
+  return null;
+}
+
+/**
+ * Cache audio blob for given text with error handling
  */
 export async function setCachedAudio(text: string, audioBlob: Blob): Promise<void> {
-  try {
-    const db = await openDatabase();
-    const key = generateCacheKey(text);
+  const key = generateCacheKey(text);
+  const now = Date.now();
 
-    // Check cache size and evict if necessary
-    await evictIfNeeded(db);
+  // Update memory cache
+  evictMemoryCache();
+  memoryCache.set(key, {
+    blob: audioBlob,
+    timestamp: now,
+    accessCount: 1
+  });
 
-    const entry: CacheEntry = {
-      text: key,
-      audioBlob,
-      timestamp: Date.now(),
-      size: audioBlob.size,
-      accessCount: 1,
-      lastAccessed: Date.now()
-    };
+  if (!isIndexedDBAvailable()) {
+    console.warn('[TTSCache] IndexedDB not available, using memory cache only');
+    return;
+  }
 
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(entry);
+  const result = await withIndexedDBErrorHandler<void>(
+    async () => {
+      const db = await openDatabase();
 
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      // Check cache size and evict if necessary
+      await evictIfNeeded(db);
 
-      transaction.oncomplete = () => db.close();
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
+      const entry: CacheEntry = {
+        text: key,
+        audioBlob,
+        timestamp: now,
+        size: audioBlob.size,
+        accessCount: 1,
+        lastAccessed: now
       };
-    });
-  } catch (error) {
-    console.error('Failed to cache audio:', error);
-    // Don't throw - caching failure shouldn't break TTS functionality
+
+      return new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.put(entry);
+
+        request.onsuccess = () => {
+          console.log(`[TTSCache] Cached audio for: "${text.substring(0, 30)}..." (${(audioBlob.size / 1024).toFixed(1)} KB)`);
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: STORE_NAME,
+      operation: 'setCachedAudio',
+      onError: async (error) => {
+        if (error.code === IndexedDBErrorCode.QUOTA_EXCEEDED) {
+          await handleQuotaExceeded();
+        } else if (error.code === IndexedDBErrorCode.CORRUPT_DATA) {
+          await reinitializeDatabase(DB_NAME);
+        }
+      }
+    }
+  );
+
+  if (!result.success) {
+    console.warn('[TTSCache] Failed to store in IndexedDB, using memory cache only');
   }
 }
 
@@ -177,139 +311,204 @@ async function evictIfNeeded(db: IDBDatabase): Promise<void> {
         }
 
         store.delete(entry.text);
+        memoryCache.delete(entry.text);
         currentSize -= entry.size;
         currentCount -= 1;
         deleteCount += 1;
       }
 
       if (deleteCount > 0) {
-        console.log(`TTS Cache: Evicted ${deleteCount} entries`);
+        console.log(`[TTSCache] Evicted ${deleteCount} entries`);
       }
 
       resolve();
     };
 
     request.onerror = () => reject(request.error);
-
     transaction.onerror = () => reject(transaction.error);
   });
 }
 
 /**
- * Get cache statistics
+ * Get cache statistics with error handling
  */
 export async function getCacheStats(): Promise<{
   entryCount: number;
   totalSizeMB: number;
   oldestEntry: number | null;
   mostAccessed: number;
+  inMemoryEntries: number;
+  indexedDBAvailable: boolean;
 }> {
-  try {
-    const db = await openDatabase();
+  const inMemoryCount = memoryCache.size;
+  const available = isIndexedDBAvailable();
 
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const entries = request.result as CacheEntry[];
-
-        if (entries.length === 0) {
-          resolve({
-            entryCount: 0,
-            totalSizeMB: 0,
-            oldestEntry: null,
-            mostAccessed: 0
-          });
-          return;
-        }
-
-        const totalSize = entries.reduce((sum, e) => sum + e.size, 0);
-        const oldestTimestamp = Math.min(...entries.map(e => e.timestamp));
-        const maxAccessCount = Math.max(...entries.map(e => e.accessCount));
-
-        resolve({
-          entryCount: entries.length,
-          totalSizeMB: totalSize / (1024 * 1024),
-          oldestEntry: oldestTimestamp,
-          mostAccessed: maxAccessCount
-        });
-      };
-
-      request.onerror = () => reject(request.error);
-
-      transaction.oncomplete = () => db.close();
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
-      };
-    });
-  } catch (error) {
-    console.error('Failed to get cache stats:', error);
+  if (!available) {
     return {
-      entryCount: 0,
+      entryCount: inMemoryCount,
       totalSizeMB: 0,
       oldestEntry: null,
-      mostAccessed: 0
+      mostAccessed: 0,
+      inMemoryEntries: inMemoryCount,
+      indexedDBAvailable: false
     };
   }
+
+  const result = await withIndexedDBErrorHandler<CacheEntry[]>(
+    async () => {
+      const db = await openDatabase();
+
+      return new Promise<CacheEntry[]>((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+          resolve(request.result as CacheEntry[]);
+        };
+
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: STORE_NAME,
+      operation: 'getCacheStats'
+    }
+  );
+
+  if (result.success && result.data) {
+    const entries = result.data;
+
+    if (entries.length === 0) {
+      return {
+        entryCount: 0,
+        totalSizeMB: 0,
+        oldestEntry: null,
+        mostAccessed: 0,
+        inMemoryEntries: inMemoryCount,
+        indexedDBAvailable: true
+      };
+    }
+
+    const totalSize = entries.reduce((sum, e) => sum + e.size, 0);
+    const oldestTimestamp = Math.min(...entries.map(e => e.timestamp));
+    const maxAccessCount = Math.max(...entries.map(e => e.accessCount));
+
+    return {
+      entryCount: entries.length,
+      totalSizeMB: totalSize / (1024 * 1024),
+      oldestEntry: oldestTimestamp,
+      mostAccessed: maxAccessCount,
+      inMemoryEntries: inMemoryCount,
+      indexedDBAvailable: true
+    };
+  }
+
+  // Fallback on error
+  return {
+    entryCount: inMemoryCount,
+    totalSizeMB: 0,
+    oldestEntry: null,
+    mostAccessed: 0,
+    inMemoryEntries: inMemoryCount,
+    indexedDBAvailable: available
+  };
 }
 
 /**
- * Clear all cached audio
+ * Clear all cached audio with error handling
  */
 export async function clearCache(): Promise<void> {
-  try {
-    const db = await openDatabase();
+  // Clear memory cache
+  memoryCache.clear();
 
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.clear();
+  if (!isIndexedDBAvailable()) {
+    return;
+  }
 
-      request.onsuccess = () => {
-        console.log('TTS Cache cleared');
-        resolve();
-      };
-      request.onerror = () => reject(request.error);
+  const result = await withIndexedDBErrorHandler<void>(
+    async () => {
+      const db = await openDatabase();
 
-      transaction.oncomplete = () => db.close();
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
-      };
-    });
-  } catch (error) {
-    console.error('Failed to clear cache:', error);
-    throw error;
+      return new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.clear();
+
+        request.onsuccess = () => {
+          console.log('[TTSCache] Cleared all entries');
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: STORE_NAME,
+      operation: 'clearCache'
+    }
+  );
+
+  if (!result.success) {
+    console.warn('[TTSCache] Failed to clear IndexedDB');
+    throw result.error;
   }
 }
 
 /**
- * Delete specific cached entry
+ * Delete specific cached entry with error handling
  */
 export async function deleteCachedAudio(text: string): Promise<void> {
-  try {
-    const db = await openDatabase();
-    const key = generateCacheKey(text);
+  const key = generateCacheKey(text);
 
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.delete(key);
+  // Remove from memory cache
+  memoryCache.delete(key);
 
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+  if (!isIndexedDBAvailable()) {
+    return;
+  }
 
-      transaction.oncomplete = () => db.close();
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
-      };
-    });
-  } catch (error) {
-    console.error('Failed to delete cached audio:', error);
-    throw error;
+  const result = await withIndexedDBErrorHandler<void>(
+    async () => {
+      const db = await openDatabase();
+
+      return new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.delete(key);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+
+        transaction.oncomplete = () => db.close();
+        transaction.onerror = () => {
+          db.close();
+          reject(transaction.error);
+        };
+      });
+    },
+    {
+      dbName: DB_NAME,
+      storeName: STORE_NAME,
+      operation: 'deleteCachedAudio'
+    }
+  );
+
+  if (!result.success) {
+    console.warn('[TTSCache] Failed to delete from IndexedDB');
+    throw result.error;
   }
 }

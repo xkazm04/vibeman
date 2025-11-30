@@ -4,6 +4,7 @@
 
 import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from './types';
+import { isRequirementRunning, isRequirementQueued } from './types';
 import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
 import type { GitConfig } from '../sub_Git/useGitConfig';
 import { getContextIdFromRequirement, triggerScreenshotCapture } from '../sub_Screenshot/screenshotApi';
@@ -139,7 +140,7 @@ export async function executeNextRequirement(config: TaskExecutorConfig): Promis
   // Find which batches are currently executing
   const runningBatchIds = new Set<string>();
   requirements.forEach(req => {
-    if (req.status === 'running' && req.batchId) {
+    if (isRequirementRunning(req.status) && req.batchId) {
       runningBatchIds.add(req.batchId);
     }
   });

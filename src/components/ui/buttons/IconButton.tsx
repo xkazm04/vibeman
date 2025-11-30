@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 /**
  * Color schemes for IconButton
@@ -89,17 +90,20 @@ const colorSchemes: Record<
       hover: 'hover:from-cyan-500/50 hover:to-blue-500/50',
       text: 'text-cyan-300',
       border: 'border-cyan-500/30',
+      // Theme-aware: uses theme tokens when rendered
     },
     ghost: {
       bg: 'bg-transparent',
       hover: 'hover:bg-cyan-500/20',
       text: 'text-cyan-400',
+      // Theme-aware: uses theme tokens when rendered
     },
     outline: {
       bg: 'bg-transparent',
       hover: 'hover:bg-cyan-500/20',
       text: 'text-cyan-400',
       border: 'border-cyan-500/40',
+      // Theme-aware: uses theme tokens when rendered
     },
   },
   indigo: {
@@ -359,7 +363,37 @@ export default function IconButton({
   animate = true,
   variant = 'ghost',
 }: IconButtonProps) {
-  const scheme = colorSchemes[colorScheme][variant];
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
+  // Get theme-aware scheme for cyan color scheme
+  const getScheme = () => {
+    if (colorScheme === 'cyan') {
+      const themeSchemes = {
+        solid: {
+          bg: `bg-gradient-to-r ${colors.primaryFrom} to-blue-600/40`,
+          hover: 'hover:opacity-80',
+          text: colors.textLight,
+          border: colors.border,
+        },
+        ghost: {
+          bg: 'bg-transparent',
+          hover: `hover:${colors.bg}`,
+          text: colors.text,
+        },
+        outline: {
+          bg: 'bg-transparent',
+          hover: `hover:${colors.bg}`,
+          text: colors.text,
+          border: colors.borderHover,
+        },
+      };
+      return themeSchemes[variant];
+    }
+    return colorSchemes[colorScheme][variant];
+  };
+  
+  const scheme = getScheme();
   const sizeConfig = sizeClasses[size];
 
   const baseClasses = `

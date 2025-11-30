@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, FolderOpen, File, ChevronRight, ChevronDown } from 'lucide-react';
 import { useActiveProjectStore } from '../stores/activeProjectStore';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface FolderNode {
   name: string;
@@ -19,6 +20,8 @@ interface FolderSelectorProps {
 
 export default function FolderSelector({ onSelect, selectedPath, className = '' }: FolderSelectorProps) {
   const { activeProject } = useActiveProjectStore();
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
   const [folderTree, setFolderTree] = useState<FolderNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -109,7 +112,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
           className={`
             flex items-center space-x-2 py-1.5 px-2 rounded-md cursor-pointer
             hover:bg-gray-800/50 transition-colors duration-200
-            ${isSelected ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-300'}
+            ${isSelected ? `${colors.bg} ${colors.text}` : 'text-gray-300'}
           `}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
@@ -179,7 +182,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
     return (
       <div className={`p-4 ${className}`}>
         <div className="flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+          <div className={`w-6 h-6 border-2 ${colors.text} border-t-transparent rounded-full animate-spin`}></div>
           <span className="ml-2 text-gray-400 text-sm">Loading folders...</span>
         </div>
       </div>
@@ -195,7 +198,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
       {selectedPath && (
         <div className="mt-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700">
           <div className="text-sm text-gray-400 mb-1">Selected folder:</div>
-          <div className="text-sm font-mono text-cyan-400">{selectedPath}</div>
+          <div className={`text-sm font-mono ${colors.text}`}>{selectedPath}</div>
         </div>
       )}
     </div>

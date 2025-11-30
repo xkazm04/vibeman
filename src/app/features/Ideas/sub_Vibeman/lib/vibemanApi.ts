@@ -117,3 +117,93 @@ export async function getAutomationStatus(
     'Failed to get automation status'
   );
 }
+
+/**
+ * Record execution outcome for adaptive learning
+ */
+export async function recordExecutionOutcome(
+  ideaId: string,
+  result: {
+    success: boolean;
+    executionTimeMs?: number;
+    filesChanged?: number;
+    linesAdded?: number;
+    linesRemoved?: number;
+    errorType?: string;
+  }
+): Promise<{ outcome: unknown }> {
+  const response = await fetch('/api/ideas/adaptive-learning', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'record-outcome',
+      ideaId,
+      ...result,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to record execution outcome');
+  }
+
+  return await response.json();
+}
+
+/**
+ * Result from refactor scan
+ */
+export interface RefactorScanResult {
+  success: boolean;
+  scanId: string;
+  suggestionsFound: number;
+  ideasGenerated: number;
+  summary: {
+    antiPatterns: number;
+    duplications: number;
+    couplingIssues: number;
+    complexityIssues: number;
+    cleanCodeViolations: number;
+  };
+  topSuggestions: Array<{
+    title: string;
+    severity: string;
+    category: string;
+    files: string[];
+  }>;
+}
+
+/**
+ * Trigger automatic refactor scan after implementation
+ * Called by the automation cycle to find new refactoring opportunities
+ */
+export async function triggerRefactorScan(
+  projectId: string,
+  projectPath: string,
+  changedFiles?: string[]
+): Promise<RefactorScanResult | null> {
+  try {
+    const response = await fetch('/api/refactor-suggestions/auto-scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectId,
+        projectPath,
+        triggerSource: 'idea-implement',
+        changedFiles,
+        autoGenerateIdeas: true,
+        maxSuggestions: 10,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[VibemanAPI] Refactor scan failed:', response.statusText);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[VibemanAPI] Error triggering refactor scan:', error);
+    return null;
+  }
+}

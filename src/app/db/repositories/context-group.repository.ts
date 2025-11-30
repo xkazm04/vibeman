@@ -1,6 +1,9 @@
 import { getDatabase } from '../connection';
 import { DbContextGroup } from '../models/types';
 
+// Valid layer types for architecture explorer
+export type ContextGroupLayerType = 'pages' | 'client' | 'server' | 'external';
+
 /**
  * Helper function to get a context group by ID
  */
@@ -29,6 +32,32 @@ export const contextGroupRepository = {
   },
 
   /**
+   * Get context groups by layer type for Architecture Explorer
+   */
+  getGroupsByType: (projectId: string, type: ContextGroupLayerType): DbContextGroup[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM context_groups
+      WHERE project_id = ? AND type = ?
+      ORDER BY name ASC
+    `);
+    return stmt.all(projectId, type) as DbContextGroup[];
+  },
+
+  /**
+   * Get all context groups with assigned types (for Architecture Explorer)
+   */
+  getGroupsWithType: (projectId: string): DbContextGroup[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM context_groups
+      WHERE project_id = ? AND type IS NOT NULL
+      ORDER BY name ASC
+    `);
+    return stmt.all(projectId) as DbContextGroup[];
+  },
+
+  /**
    * Create a new context group
    */
   createGroup: (group: {
@@ -37,13 +66,15 @@ export const contextGroupRepository = {
     name: string;
     color: string;
     position: number;
+    icon?: string;
+    type?: ContextGroupLayerType;
   }): DbContextGroup => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO context_groups (id, project_id, name, color, position, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO context_groups (id, project_id, name, color, position, icon, type, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -52,6 +83,8 @@ export const contextGroupRepository = {
       group.name,
       group.color,
       group.position,
+      group.icon || null,
+      group.type || null,
       now,
       now
     );
@@ -67,13 +100,15 @@ export const contextGroupRepository = {
     name?: string;
     color?: string;
     position?: number;
+    icon?: string | null;
+    type?: ContextGroupLayerType | null;
   }): DbContextGroup | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     // Build dynamic update query
     const updateFields: string[] = [];
-    const values: Array<string | number> = [];
+    const values: Array<string | number | null> = [];
 
     if (updates.name !== undefined) {
       updateFields.push('name = ?');
@@ -86,6 +121,14 @@ export const contextGroupRepository = {
     if (updates.position !== undefined) {
       updateFields.push('position = ?');
       values.push(updates.position);
+    }
+    if (updates.icon !== undefined) {
+      updateFields.push('icon = ?');
+      values.push(updates.icon);
+    }
+    if (updates.type !== undefined) {
+      updateFields.push('type = ?');
+      values.push(updates.type);
     }
 
     if (updateFields.length === 0) {

@@ -1,6 +1,11 @@
 import { ideaDb, goalDb } from '@/app/db';
 import { OllamaClient } from '@/lib/llm/providers/ollama-client';
 import type { DbIdea, DbGoal } from '@/app/db/models/types';
+import {
+  calculateAdaptiveScore,
+  checkThresholds,
+  type AdaptiveScore,
+} from '@/app/features/Ideas/sub_Vibeman/lib/adaptiveLearning';
 
 export interface IdeaEvaluationResult {
   selectedIdeaId: string | null;
@@ -30,16 +35,27 @@ Selection criteria (in order of priority):
 You must respond with ONLY valid JSON in the exact format specified. No additional text or explanation outside the JSON.`;
 }
 
+interface IdeaWithScore {
+  idea: DbIdea;
+  adaptiveScore: AdaptiveScore;
+}
+
 /**
- * Format idea for prompt
+ * Format idea for prompt with adaptive score
  */
-function formatIdea(idea: DbIdea, index: number): string {
+function formatIdea(idea: DbIdea, index: number, adaptiveScore?: AdaptiveScore): string {
+  const scoreInfo = adaptiveScore
+    ? `
+- **Adaptive Score**: ${adaptiveScore.adjustedScore.toFixed(1)} (confidence: ${adaptiveScore.confidence}%)
+- **Score Breakdown**: Effort adj: ${adaptiveScore.breakdown.effortAdjustment.toFixed(2)}, Impact adj: ${adaptiveScore.breakdown.impactAdjustment.toFixed(2)}, Success bonus: ${adaptiveScore.breakdown.successRateBonus.toFixed(2)}`
+    : '';
+
   return `
 ### Idea ${index + 1}: ${idea.title}
 - **ID**: ${idea.id}
 - **Category**: ${idea.category}
 - **Effort**: ${idea.effort || 'N/A'} (1=low, 2=medium, 3=high)
-- **Impact**: ${idea.impact || 'N/A'} (1=low, 2=medium, 3=high)
+- **Impact**: ${idea.impact || 'N/A'} (1=low, 2=medium, 3=high)${scoreInfo}
 - **Status**: ${idea.status}
 - **Description**: ${idea.description || 'No description'}
 - **Reasoning**: ${idea.reasoning || 'No reasoning provided'}
@@ -59,10 +75,12 @@ function formatGoal(goal: DbGoal, index: number): string {
 }
 
 /**
- * Build the main evaluation prompt
+ * Build the main evaluation prompt with adaptive scores
  */
-function buildEvaluationPrompt(ideas: DbIdea[], goals: DbGoal[]): string {
-  const ideasSection = ideas.map(formatIdea).join('\n');
+function buildEvaluationPrompt(ideasWithScores: IdeaWithScore[], goals: DbGoal[]): string {
+  const ideasSection = ideasWithScores
+    .map((iws, idx) => formatIdea(iws.idea, idx, iws.adaptiveScore))
+    .join('\n');
   const goalsSection = goals.length > 0
     ? goals.map(formatGoal).join('\n')
     : 'No open goals currently defined for this project.';
@@ -77,12 +95,13 @@ ${ideasSection}
 
 # Your Task
 
-Analyze all ${ideas.length} pending ideas and select the SINGLE BEST idea to implement next based on:
+Analyze all ${ideasWithScores.length} pending ideas and select the SINGLE BEST idea to implement next based on:
 
-1. **Effort-to-Impact Ratio**: Calculate value = impact / effort. Higher is better.
-2. **Goal Alignment**: Does this idea support current project goals?
-3. **Implementation Risk**: Is this idea well-defined and achievable?
-4. **Priority**: Consider category and business value
+1. **Adaptive Score**: Ideas with higher adaptive scores (learned from past executions) are preferred
+2. **Effort-to-Impact Ratio**: Calculate value = impact / effort. Higher is better.
+3. **Goal Alignment**: Does this idea support current project goals?
+4. **Implementation Risk**: Is this idea well-defined and achievable?
+5. **Priority**: Consider category and business value
 
 **CRITICAL: You MUST use the EXACT full ID from the list above, not the index number.**
 
@@ -129,12 +148,14 @@ function cleanJsonResponse(response: string): string {
 }
 
 /**
- * Find fallback idea based on effort/impact ratio
+ * Find fallback idea based on adaptive score
  */
-function findFallbackIdea(ideas: DbIdea[]): DbIdea | undefined {
-  return ideas
-    .filter(i => i.effort && i.impact)
-    .sort((a, b) => (b.impact! / b.effort!) - (a.impact! / a.effort!))[0];
+function findFallbackIdea(ideasWithScores: IdeaWithScore[]): DbIdea | undefined {
+  // Sort by adaptive score descending
+  const sorted = [...ideasWithScores].sort(
+    (a, b) => b.adaptiveScore.adjustedScore - a.adaptiveScore.adjustedScore
+  );
+  return sorted[0]?.idea;
 }
 
 /**
@@ -142,16 +163,16 @@ function findFallbackIdea(ideas: DbIdea[]): DbIdea | undefined {
  */
 function validateSelectedIdea(
   evaluation: IdeaEvaluationResult,
-  pendingIdeas: DbIdea[]
+  ideasWithScores: IdeaWithScore[]
 ): IdeaEvaluationResult {
   if (!evaluation.selectedIdeaId) {
     return evaluation;
   }
 
-  const selectedIdea = pendingIdeas.find(i => i.id === evaluation.selectedIdeaId);
+  const selectedIdea = ideasWithScores.find(iws => iws.idea.id === evaluation.selectedIdeaId);
 
   if (!selectedIdea) {
-    const fallbackIdea = findFallbackIdea(pendingIdeas);
+    const fallbackIdea = findFallbackIdea(ideasWithScores);
 
     if (fallbackIdea) {
       return {
@@ -188,7 +209,7 @@ async function callLLMForEvaluation(
 }
 
 /**
- * Main evaluation function
+ * Main evaluation function with adaptive learning integration
  */
 export async function evaluateAndSelectIdea(
   projectId: string,
@@ -206,29 +227,84 @@ export async function evaluateAndSelectIdea(
       };
     }
 
-    // 2. Get all open goals for context
+    // 2. Calculate adaptive scores for all pending ideas
+    const ideasWithScores: IdeaWithScore[] = pendingIdeas.map(idea => ({
+      idea,
+      adaptiveScore: calculateAdaptiveScore(idea, projectId),
+    }));
+
+    // 3. Check for auto-accept/reject based on thresholds
+    for (const iws of ideasWithScores) {
+      const thresholdResult = checkThresholds(projectId, iws.adaptiveScore);
+
+      if (thresholdResult.action === 'auto_accept') {
+        return {
+          selectedIdeaId: iws.idea.id,
+          reasoning: `Auto-selected based on high adaptive score (${iws.adaptiveScore.adjustedScore.toFixed(1)}) exceeding threshold (${thresholdResult.threshold?.value})`,
+        };
+      }
+    }
+
+    // 4. Filter out auto-rejected ideas
+    const viableIdeas = ideasWithScores.filter(iws => {
+      const thresholdResult = checkThresholds(projectId, iws.adaptiveScore);
+      return thresholdResult.action !== 'auto_reject';
+    });
+
+    if (viableIdeas.length === 0) {
+      return {
+        selectedIdeaId: null,
+        reasoning: 'All pending ideas were filtered out by adaptive learning thresholds',
+      };
+    }
+
+    // 5. Sort by adaptive score and take top candidates for LLM evaluation
+    const sortedIdeas = [...viableIdeas].sort(
+      (a, b) => b.adaptiveScore.adjustedScore - a.adaptiveScore.adjustedScore
+    );
+
+    // Limit to top 10 ideas for LLM context
+    const topIdeas = sortedIdeas.slice(0, 10);
+
+    // 6. Get all open goals for context
     const allGoals = goalDb.getGoalsByProject(projectId);
     const openGoals = allGoals.filter(g => g.status === 'open' || g.status === 'in_progress');
 
-    // 3. Build evaluation prompt
-    const prompt = buildEvaluationPrompt(pendingIdeas, openGoals);
+    // 7. Build evaluation prompt with adaptive scores
+    const prompt = buildEvaluationPrompt(topIdeas, openGoals);
 
-    // 4. Call Ollama LLM for evaluation
+    // 8. Call Ollama LLM for evaluation
     const response = await callLLMForEvaluation(prompt, projectId);
 
     if (!response.success || !response.response) {
+      // Fallback to highest adaptive score if LLM fails
+      const fallbackIdea = findFallbackIdea(topIdeas);
+      if (fallbackIdea) {
+        return {
+          selectedIdeaId: fallbackIdea.id,
+          reasoning: `LLM evaluation failed, falling back to highest adaptive score idea`,
+        };
+      }
       throw new Error(response.error || 'LLM evaluation failed');
     }
 
-    // 5. Parse LLM response
+    // 9. Parse LLM response
     let evaluation: IdeaEvaluationResult;
     try {
       const cleanedResponse = cleanJsonResponse(response.response);
       evaluation = JSON.parse(cleanedResponse);
 
-      // 6. Validate that the selected ID exists and is pending
-      evaluation = validateSelectedIdea(evaluation, pendingIdeas);
+      // 10. Validate that the selected ID exists and is pending
+      evaluation = validateSelectedIdea(evaluation, topIdeas);
     } catch (parseError) {
+      // Fallback to highest adaptive score on parse error
+      const fallbackIdea = findFallbackIdea(topIdeas);
+      if (fallbackIdea) {
+        return {
+          selectedIdeaId: fallbackIdea.id,
+          reasoning: `Failed to parse LLM response, falling back to highest adaptive score idea`,
+        };
+      }
       throw new Error('Failed to parse LLM evaluation response');
     }
 

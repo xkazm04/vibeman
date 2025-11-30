@@ -10,14 +10,16 @@ interface ContextSectionContentProps {
   selectedFilePaths: string[];
   showFullScreenModal: (title: string, content: React.ReactNode, options?: any) => void;
   isExpanded: boolean;
+  onMoveContext?: (contextId: string, groupId: string | null) => void;
 }
 
-const ContextSectionContent = React.memo(({ 
-  group, 
-  contexts, 
-  availableGroups, 
+const ContextSectionContent = React.memo(({
+  group,
+  contexts,
+  availableGroups,
   showFullScreenModal,
-  isExpanded 
+  isExpanded,
+  onMoveContext,
 }: ContextSectionContentProps) => {
   return (
     <>
@@ -82,6 +84,7 @@ const ContextSectionContent = React.memo(({
           group={group}
           availableGroups={availableGroups}
           showFullScreenModal={showFullScreenModal}
+          onMoveContext={onMoveContext}
         />
       )}
     </>

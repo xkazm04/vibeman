@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useGitConfig, GitConfig } from './useGitConfig';
+import { validateGitCommand, validateCommitMessageTemplate } from './lib/gitConfigValidator';
 import { ProjectOverviewItem } from '@/app/runner/types';
 
 interface GitConfigModalContentProps {
@@ -31,6 +32,30 @@ export default function GitConfigModalContent({ onClose }: GitConfigModalContent
     setLocalTemplate(gitConfig.commitMessageTemplate);
   }, [gitConfig]);
 
+  // Real-time validation for commands
+  const commandValidation = useMemo(() => {
+    return localCommands.map((cmd, index) => validateGitCommand(cmd, index));
+  }, [localCommands]);
+
+  // Real-time validation for template
+  const templateValidation = useMemo(() => {
+    return validateCommitMessageTemplate(localTemplate);
+  }, [localTemplate]);
+
+  // Overall validation status
+  const isConfigValid = useMemo(() => {
+    const allCommandsValid = commandValidation.every(v => v.valid);
+    return allCommandsValid && templateValidation.valid;
+  }, [commandValidation, templateValidation]);
+
+  // Collect all warnings
+  const allWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    commandValidation.forEach(v => warnings.push(...v.warnings));
+    warnings.push(...templateValidation.warnings);
+    return warnings;
+  }, [commandValidation, templateValidation]);
+
   useEffect(() => {
     // Fetch projects
     const fetchProjects = async () => {
@@ -51,9 +76,14 @@ export default function GitConfigModalContent({ onClose }: GitConfigModalContent
   }, []);
 
   const handleSave = () => {
+    // Only save if configuration is valid
+    if (!isConfigValid) {
+      return;
+    }
+
     setGitConfig({
-      commands: localCommands,
-      commitMessageTemplate: localTemplate
+      commands: localCommands.filter(cmd => cmd.trim() !== ''),
+      commitMessageTemplate: localTemplate.trim()
     });
     onClose();
   };
@@ -91,15 +121,41 @@ export default function GitConfigModalContent({ onClose }: GitConfigModalContent
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Commit Message Template
           </label>
-          <input
-            type="text"
-            value={localTemplate}
-            onChange={(e) => setLocalTemplate(e.target.value)}
-            placeholder="Auto-commit: {requirementName}"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={localTemplate}
+              onChange={(e) => setLocalTemplate(e.target.value)}
+              placeholder="Auto-commit: {requirementName}"
+              data-testid="git-commit-message-template-input"
+              className={`w-full px-3 py-2 pr-10 bg-gray-800 border rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none transition-colors ${
+                !templateValidation.valid
+                  ? 'border-red-500 focus:border-red-400'
+                  : 'border-gray-700 focus:border-purple-500'
+              }`}
+            />
+            {localTemplate && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {templateValidation.valid ? (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                )}
+              </div>
+            )}
+          </div>
+          {templateValidation.errors.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {templateValidation.errors.map((error, idx) => (
+                <p key={idx} className="text-sm text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                  {error}
+                </p>
+              ))}
+            </div>
+          )}
           <p className="text-sm text-gray-500 mt-1">
-            Use <code className="text-purple-400">{'{requirementName}'}</code> and <code className="text-purple-400">{'{projectName}'}</code> as placeholders
+            Use <code className="text-purple-400">{'{requirementName}'}</code>, <code className="text-purple-400">{'{projectName}'}</code>, or <code className="text-purple-400">{'{branch}'}</code> as placeholders
           </p>
         </div>
 
@@ -118,38 +174,94 @@ export default function GitConfigModalContent({ onClose }: GitConfigModalContent
             </button>
           </div>
 
-          <div className="space-y-2">
-            {localCommands.map((cmd, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div className="flex items-center justify-center w-6 h-6 bg-gray-800 border border-gray-700 rounded text-sm text-gray-500">
-                  {index + 1}
+          <div className="space-y-3">
+            {localCommands.map((cmd, index) => {
+              const validation = commandValidation[index];
+              const hasErrors = validation && !validation.valid;
+              const hasWarnings = validation && validation.warnings.length > 0;
+
+              return (
+                <div key={index} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className={`flex items-center justify-center w-6 h-6 border rounded text-sm ${
+                      hasErrors
+                        ? 'bg-red-500/20 border-red-500 text-red-400'
+                        : hasWarnings
+                        ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
+                        : 'bg-gray-800 border-gray-700 text-gray-500'
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        value={cmd}
+                        onChange={(e) => updateCommand(index, e.target.value)}
+                        placeholder="git command..."
+                        data-testid={`git-command-input-${index}`}
+                        className={`w-full px-3 py-2 pr-10 bg-gray-800 border rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none transition-colors font-mono text-sm ${
+                          hasErrors
+                            ? 'border-red-500 focus:border-red-400'
+                            : 'border-gray-700 focus:border-purple-500'
+                        }`}
+                      />
+                      {cmd && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {hasErrors ? (
+                            <AlertCircle className="w-4 h-4 text-red-500" />
+                          ) : hasWarnings ? (
+                            <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeCommand(index)}
+                      className="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-gray-500"
+                      title="Remove command"
+                      data-testid={`git-command-remove-${index}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {/* Display validation errors for this command */}
+                  {hasErrors && validation.errors.map((error, errorIdx) => (
+                    <p key={errorIdx} className="text-xs text-red-400 ml-8 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      {error.replace(/^Command \d+: /, '')}
+                    </p>
+                  ))}
                 </div>
-                <input
-                  type="text"
-                  value={cmd}
-                  onChange={(e) => updateCommand(index, e.target.value)}
-                  placeholder="git command..."
-                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors font-mono text-sm"
-                />
-                <button
-                  onClick={() => removeCommand(index)}
-                  className="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-gray-500"
-                  title="Remove command"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <button
             onClick={addCommand}
             className="mt-2 flex items-center gap-2 px-3 py-2 text-sm text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors"
+            data-testid="git-add-command-btn"
           >
             <Plus className="w-4 h-4" />
             Add Command
           </button>
         </div>
+
+        {/* Warnings Display */}
+        {allWarnings.length > 0 && (
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-yellow-400 mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Warnings
+            </h3>
+            <ul className="text-sm text-gray-400 space-y-1">
+              {allWarnings.map((warning, idx) => (
+                <li key={idx}>• {warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Info Box */}
         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
@@ -163,19 +275,42 @@ export default function GitConfigModalContent({ onClose }: GitConfigModalContent
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-700">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors font-medium"
-          >
-            Save Configuration
-          </button>
+        <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-700">
+          {/* Validation Status */}
+          <div className="flex items-center gap-2">
+            {isConfigValid ? (
+              <span className="text-sm text-green-400 flex items-center gap-1">
+                <CheckCircle className="w-4 h-4" />
+                Configuration valid
+              </span>
+            ) : (
+              <span className="text-sm text-red-400 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                Fix errors to save
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
+              data-testid="git-config-cancel-btn"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!isConfigValid}
+              className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${
+                isConfigValid
+                  ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              }`}
+              data-testid="git-config-save-btn"
+            >
+              Save Configuration
+            </button>
+          </div>
         </div>
       </div>
 

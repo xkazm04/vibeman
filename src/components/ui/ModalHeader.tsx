@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Edit3, Save, Eye } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface ModalHeaderProps {
   title: string;
@@ -26,6 +27,9 @@ export default function ModalHeader({
   onSave,
   onClose
 }: ModalHeaderProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   return (
     <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
       <div className="flex items-center space-x-3">
@@ -76,7 +80,7 @@ export default function ModalHeader({
           <button
             onClick={onSave}
             disabled={saving}
-            className="flex items-center space-x-2 px-3 py-1.5 bg-cyan-500/20 text-cyan-400 rounded-md hover:bg-cyan-500/30 transition-colors disabled:opacity-50 text-sm font-mono"
+            className={`flex items-center space-x-2 px-3 py-1.5 ${colors.bg} ${colors.text} rounded-md hover:${colors.bgHover} transition-colors disabled:opacity-50 text-sm font-mono`}
           >
             <Save className="w-3 h-3" />
             <span>{saving ? 'Saving...' : 'Save'}</span>

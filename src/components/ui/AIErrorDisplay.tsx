@@ -1,9 +1,16 @@
 'use client';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, RefreshCw, X, Bug, WifiOff, Zap } from 'lucide-react';
 
+interface ErrorLike {
+  message: string;
+  name?: string;
+  stack?: string;
+}
+
 interface AIErrorDisplayProps {
-  error: Error;
+  error: Error | ErrorLike;
   onRetry: () => void;
   onDismiss?: () => void;
   compact?: boolean;
@@ -13,14 +20,14 @@ interface AIErrorDisplayProps {
 type ErrorType = 'network' | 'api' | 'timeout' | 'validation' | 'unknown';
 
 interface ErrorDetails {
-  icon: JSX.Element;
+  icon: React.ReactNode;
   title: string;
   subtitle: string;
   message: string;
   suggestions: string[];
 }
 
-function categorizeError(error: Error): ErrorType {
+function categorizeError(error: Error | ErrorLike): ErrorType {
   const message = error.message.toLowerCase();
 
   if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
@@ -40,7 +47,7 @@ function categorizeError(error: Error): ErrorType {
 }
 
 // Get contextual error details based on error type
-function getErrorDetails(errorType: ErrorType, error: Error): ErrorDetails {
+function getErrorDetails(errorType: ErrorType, error: Error | ErrorLike): ErrorDetails {
   switch (errorType) {
     case 'network':
       return {
@@ -218,7 +225,7 @@ function SuggestedActions({ suggestions }: { suggestions: string[] }) {
 }
 
 // Technical details section
-function TechnicalDetails({ error }: { error: Error }) {
+function TechnicalDetails({ error }: { error: Error | ErrorLike }) {
   return (
     <details className="mb-4">
       <summary className="text-sm font-semibold text-red-300/60 uppercase tracking-wide cursor-pointer hover:text-red-300/80 transition-colors">

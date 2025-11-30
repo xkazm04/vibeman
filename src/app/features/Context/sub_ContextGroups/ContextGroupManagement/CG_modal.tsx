@@ -40,6 +40,7 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
         projectId,
         name: newGroupName.trim(),
         color: selectedColor,
+        icon: selectedIcon,
       });
       
       setNewGroupName('');

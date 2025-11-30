@@ -62,11 +62,14 @@
     "@types/node": "^20",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
+    "@vitest/coverage-v8": "^4.0.14",
     "eslint": "^9.38.0",
     "eslint-config-next": "16.0.3",
+    "fast-check": "^4.3.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.14"
   },
   "overrides": {
     "@types/react": "19.2.2",

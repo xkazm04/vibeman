@@ -224,7 +224,14 @@ function getPromptFileName(scanType: ScanType): string {
     onboarding_optimizer: 'onboardingOptimizerPrompt.ts',
     ai_integration_scout: 'aiIntegrationScoutPrompt.ts',
     delight_designer: 'delightDesignerPrompt.ts',
-    refactor_analysis: 'refactorAnalysisPrompt.ts'
+    refactor_analysis: 'refactorAnalysisPrompt.ts',
+    code_refactor: 'codeRefactorPrompt.ts',
+    user_empathy_champion: 'userEmpathyChampionPrompt.ts',
+    accessibility_advocate: 'accessibilityAdvocatePrompt.ts',
+    paradigm_shifter: 'paradigmShifterPrompt.ts',
+    moonshot_architect: 'moonshotArchitectPrompt.ts',
+    dev_experience_engineer: 'devExperienceEngineerPrompt.ts',
+    data_flow_optimizer: 'dataFlowOptimizerPrompt.ts'
   };
 
   return fileMap[scanType] || 'zenArchitectPrompt.ts';

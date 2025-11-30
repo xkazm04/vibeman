@@ -14,6 +14,14 @@ const createRequirementStep: PipelineStep = {
   execute: async (config: PipelineConfig, context: PipelineContext) => {
     context.updateProgress(10, 'Creating requirement file...');
 
+    console.log('[Pipeline] Step 1: Creating requirement file');
+    console.log('[Pipeline] Request body:', JSON.stringify({
+      projectPath: config.projectPath,
+      requirementName: config.requirementName,
+      contentLength: config.requirementContent.length,
+      overwrite: true,
+    }));
+
     const response = await fetch('/api/claude-code/requirement', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -25,7 +33,9 @@ const createRequirementStep: PipelineStep = {
       }),
     });
 
+    console.log('[Pipeline] Step 1 response status:', response.status);
     const result = await response.json();
+    console.log('[Pipeline] Step 1 result:', JSON.stringify(result));
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to create requirement file');
@@ -45,6 +55,14 @@ const executeRequirementStep: PipelineStep = {
   execute: async (config: PipelineConfig, context: PipelineContext) => {
     context.updateProgress(30, 'Starting Claude Code execution...');
 
+    console.log('[Pipeline] Step 2: Execute requirement async');
+    console.log('[Pipeline] Request body:', JSON.stringify({
+      action: 'execute-requirement-async',
+      projectPath: config.projectPath,
+      projectId: config.projectId,
+      requirementName: config.requirementName,
+    }));
+
     const response = await fetch('/api/claude-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,7 +74,9 @@ const executeRequirementStep: PipelineStep = {
       }),
     });
 
+    console.log('[Pipeline] Step 2 response status:', response.status);
     const result = await response.json();
+    console.log('[Pipeline] Step 2 result:', JSON.stringify(result));
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to execute requirement');

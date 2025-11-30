@@ -1,11 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDroppable } from '@dnd-kit/core';
-import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
+import { Context, ContextGroup } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import ContextSectionEmpty from './ContextSectionEmpty';
 import ContextSectionHeader from './ContextSectionHeader';
 import ContextSectionContent from './ContextSectionContent';
+import { generateGlassGradient } from './lib/gradientUtils';
+import { useDroppableZone } from '@/hooks/dnd';
 
 interface ContextSectionProps {
   group?: ContextGroup;
@@ -17,6 +18,7 @@ interface ContextSectionProps {
   availableGroups: ContextGroup[];
   openGroupDetail: (groupId: string) => void;
   isDragActive?: boolean;
+  onMoveContext?: (contextId: string, groupId: string | null) => void;
 }
 
 const ContextSection = React.memo(({
@@ -28,16 +30,19 @@ const ContextSection = React.memo(({
   onCreateGroup,
   availableGroups,
   openGroupDetail,
-  isDragActive = false
+  isDragActive = false,
+  onMoveContext,
 }: ContextSectionProps) => {
   const { showFullScreenModal } = useGlobalModal();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
 
-  // DnD Droppable
-  const { setNodeRef, isOver } = useDroppable({
+  // DnD Droppable - using reusable hook
+  const { ref: setNodeRef, isOver, zoneState, testId } = useDroppableZone({
     id: group?.id || 'synthetic-to-group',
-    data: { group }
+    data: { group },
+    isDragActive,
+    applyStyles: false, // We use custom styling
   });
 
   // Empty slot - show create group button
@@ -50,15 +55,22 @@ const ContextSection = React.memo(({
     );
   }
 
-  // Visual state for "Areas Mode"
-  const showAreaMode = isDragActive;
-  const isTargeted = isOver;
+  // Visual state for "Areas Mode" - derived from zoneState
+  const showAreaMode = zoneState === 'ready' || zoneState === 'hover';
+  const isTargeted = zoneState === 'hover';
+
+  // Generate glass gradient based on group colors
+  const glassStyle = useMemo(() => {
+    if (!group?.color) return null;
+    return generateGlassGradient(group.color, group.accentColor);
+  }, [group?.color, group?.accentColor]);
 
   // Group exists
   return (
     <motion.div
       ref={setNodeRef}
-      className={`${className} relative overflow-hidden rounded-2xl border transition-all duration-300 
+      data-testid={testId}
+      className={`${className} relative overflow-hidden rounded-2xl border transition-all duration-300
         ${isTargeted
           ? 'border-cyan-500/60 bg-cyan-500/10 shadow-[0_0_40px_rgba(6,182,212,0.3)] scale-[1.02]'
           : showAreaMode
@@ -75,14 +87,29 @@ const ContextSection = React.memo(({
       }}
       transition={{ duration: 0.3 }}
     >
+      {/* Dynamic Glass Gradient Effect */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none transition-all duration-500"
+        style={{
+          background: glassStyle?.background || 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(255,255,255,0.02) 100%)',
+        }}
+        animate={{
+          opacity: isHovered ? 1.2 : 1,
+        }}
+        transition={{ duration: 0.3 }}
+      />
+
       {/* Glass Reflection Effect */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
 
-      {/* Animated Border Glow */}
+      {/* Animated Border Glow with Gradient */}
       <motion.div
         className="absolute inset-0 rounded-2xl opacity-0 pointer-events-none"
         style={{
-          boxShadow: `inset 0 0 20px ${group?.color}20`,
+          boxShadow: `inset 0 0 20px ${glassStyle?.shadowColor || group?.color + '20'}`,
+          background: group?.accentColor
+            ? `linear-gradient(135deg, ${group.color}10 0%, ${group.accentColor}05 100%)`
+            : undefined,
         }}
         animate={{ opacity: isHovered || isTargeted ? 1 : 0 }}
         transition={{ duration: 0.3 }}
@@ -122,6 +149,7 @@ const ContextSection = React.memo(({
           showFullScreenModal={showFullScreenModal}
           isExpanded={isExpanded}
           selectedFilePaths={[]}
+          onMoveContext={onMoveContext}
         />
       </AnimatePresence>
 

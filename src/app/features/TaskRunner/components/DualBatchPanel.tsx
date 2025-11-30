@@ -4,7 +4,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import type { BatchState, BatchId } from '../store';
-import { useAutoExecution, useExecutionMonitor } from '../store';
+import {
+  useAutoExecution,
+  useExecutionMonitor,
+  isBatchRunning,
+  isBatchPaused,
+  isBatchCompleted,
+  // ProjectRequirement status helpers
+  isRequirementQueued,
+  isRequirementRunning,
+  isRequirementCompleted,
+  isRequirementFailed,
+} from '../store';
 import type { ProjectRequirement } from '../lib/types';
 import { TaskOffloadButton } from './TaskOffloadPanel';
 
@@ -94,10 +105,10 @@ function BatchDisplay({
   };
 
   const queueItems = getBatchQueueItems();
-  const queuedCount = queueItems.filter(r => r.status === 'queued').length;
-  const runningCount = queueItems.filter(r => r.status === 'running').length;
-  const completedCount = queueItems.filter(r => r.status === 'completed').length;
-  const failedCount = queueItems.filter(r => r.status === 'failed' || r.status === 'session-limit').length;
+  const queuedCount = queueItems.filter(r => isRequirementQueued(r.status)).length;
+  const runningCount = queueItems.filter(r => isRequirementRunning(r.status)).length;
+  const completedCount = queueItems.filter(r => isRequirementCompleted(r.status)).length;
+  const failedCount = queueItems.filter(r => isRequirementFailed(r.status)).length;
 
   if (!batch) {
     return (
@@ -136,16 +147,16 @@ function BatchDisplay({
   const progress = batch.taskIds.length > 0
     ? (batch.completedCount / batch.taskIds.length) * 100
     : 0;
-  const isRunning = batch.status === 'running';
-  const isPaused = batch.status === 'paused';
-  const isCompleted = batch.status === 'completed';
+  const isRunning = isBatchRunning(batch.status);
+  const isPaused = isBatchPaused(batch.status);
+  const isCompleted = isBatchCompleted(batch.status);
 
   // Show running/queued items + last 3 completed/failed
   const displayItems = [
-    ...queueItems.filter(r => r.status === 'running'),
-    ...queueItems.filter(r => r.status === 'queued'),
-    ...queueItems.filter(r => r.status === 'completed').slice(-2),
-    ...queueItems.filter(r => r.status === 'failed' || r.status === 'session-limit').slice(-2),
+    ...queueItems.filter(r => isRequirementRunning(r.status)),
+    ...queueItems.filter(r => isRequirementQueued(r.status)),
+    ...queueItems.filter(r => isRequirementCompleted(r.status)).slice(-2),
+    ...queueItems.filter(r => isRequirementFailed(r.status)).slice(-2),
   ].slice(0, 6);
 
   return (
@@ -324,7 +335,7 @@ function BatchDisplay({
                       </div>
 
                       {/* Running pulse effect */}
-                      {item.status === 'running' && (
+                      {isRequirementRunning(item.status) && (
                         <motion.div
                           className="absolute inset-0 rounded border border-blue-500/30"
                           animate={{
@@ -382,7 +393,7 @@ export default function DualBatchPanel({
     ];
 
     batches.forEach(({ batch, id }) => {
-      if (batch?.status === 'completed') {
+      if (batch && isBatchCompleted(batch.status)) {
         const timer = setTimeout(() => {
           onClearBatch(id);
         }, 3000);
@@ -393,11 +404,11 @@ export default function DualBatchPanel({
 
   // Determine which batches to show based on running state
   const anyBatchRunning = [batch1, batch2, batch3, batch4].some(
-    (b: BatchState | null | undefined) => b?.status === 'running'
+    (b: BatchState | null | undefined) => b && isBatchRunning(b.status)
   );
 
   // Show batch2 if: batch1 is running, batch2 exists, or any batch is running
-  const showBatch2 = batch1?.status === 'running' || batch2 !== null || anyBatchRunning;
+  const showBatch2 = (batch1 && isBatchRunning(batch1.status)) || batch2 !== null || anyBatchRunning;
 
   // Show batch3 if: any batch is running or batch3 exists
   const showBatch3 = anyBatchRunning || batch3 !== null;

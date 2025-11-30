@@ -106,6 +106,22 @@ export function runMigrations() {
     migrateImplementationLogScreenshot();
     // Migration 24: Add overview_bullets column to implementation_log table
     migrateImplementationLogOverviewBullets();
+    // Migration 25: Create marketplace tables for refactoring patterns
+    migrateMarketplaceTables();
+    // Migration 26: Create adaptive learning tables for self-optimizing development cycle
+    migrateAdaptiveLearningTables();
+    // Migration 27: Create debt prediction and prevention tables
+    migrateDebtPredictionTables();
+    // Migration 28: Create lifecycle automation tables
+    migrateLifecycleTables();
+    // Migration 29: Add target_rating column to contexts table
+    migrateContextsTargetRating();
+    // Migration 30: Add type and icon columns to context_groups table
+    migrateContextGroupsArchitectureFields();
+    // Migration 31: Create context_group_relationships table
+    migrateContextGroupRelationshipsTable();
+    // Migration 32: Create security intelligence dashboard tables
+    migrateSecurityIntelligenceTables();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -1224,4 +1240,1017 @@ function migrateImplementationLogOverviewBullets() {
       migrationLogger.info('implementation_log table already has overview_bullets column');
     }
   }, migrationLogger);
+}
+
+/**
+ * Create marketplace tables for refactoring pattern marketplace
+ * Enables sharing, rating, and discovering refactoring strategies
+ */
+function migrateMarketplaceTables() {
+  const db = getConnection();
+
+  // Create marketplace_users table
+  safeMigration('marketplaceUsersTable', () => {
+    const created = createTableIfNotExists(db, 'marketplace_users', `
+      CREATE TABLE marketplace_users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        email TEXT,
+        avatar_url TEXT,
+        bio TEXT,
+        reputation_score INTEGER NOT NULL DEFAULT 0,
+        total_patterns INTEGER NOT NULL DEFAULT 0,
+        total_downloads INTEGER NOT NULL DEFAULT 0,
+        total_likes INTEGER NOT NULL DEFAULT 0,
+        joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`CREATE INDEX idx_marketplace_users_username ON marketplace_users(username)`);
+      db.exec(`CREATE INDEX idx_marketplace_users_reputation ON marketplace_users(reputation_score DESC)`);
+      migrationLogger.info('marketplace_users table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create refactoring_patterns table
+  safeMigration('refactoringPatternsTable', () => {
+    const created = createTableIfNotExists(db, 'refactoring_patterns', `
+      CREATE TABLE refactoring_patterns (
+        id TEXT PRIMARY KEY,
+        author_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        version TEXT NOT NULL DEFAULT '1.0.0',
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        detailed_description TEXT,
+        problem_statement TEXT NOT NULL,
+        solution_approach TEXT NOT NULL,
+        category TEXT NOT NULL CHECK (category IN (
+          'migration', 'cleanup', 'security', 'performance',
+          'architecture', 'testing', 'accessibility', 'modernization', 'best-practices'
+        )),
+        scope TEXT NOT NULL CHECK (scope IN ('file', 'module', 'project', 'framework')),
+        tags TEXT NOT NULL DEFAULT '[]',
+        language TEXT,
+        framework TEXT,
+        min_version TEXT,
+        detection_rules TEXT NOT NULL DEFAULT '[]',
+        transformation_rules TEXT NOT NULL DEFAULT '[]',
+        example_before TEXT,
+        example_after TEXT,
+        estimated_effort TEXT NOT NULL CHECK (estimated_effort IN ('low', 'medium', 'high')),
+        risk_level TEXT NOT NULL CHECK (risk_level IN ('low', 'medium', 'high')),
+        requires_review INTEGER NOT NULL DEFAULT 1,
+        automated INTEGER NOT NULL DEFAULT 0,
+        download_count INTEGER NOT NULL DEFAULT 0,
+        apply_count INTEGER NOT NULL DEFAULT 0,
+        success_rate REAL,
+        rating_average REAL NOT NULL DEFAULT 0.0,
+        rating_count INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'featured', 'deprecated', 'archived')),
+        parent_pattern_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        published_at TEXT,
+        FOREIGN KEY (author_id) REFERENCES marketplace_users(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_pattern_id) REFERENCES refactoring_patterns(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_refactoring_patterns_author ON refactoring_patterns(author_id);
+        CREATE INDEX idx_refactoring_patterns_slug ON refactoring_patterns(slug);
+        CREATE INDEX idx_refactoring_patterns_category ON refactoring_patterns(category);
+        CREATE INDEX idx_refactoring_patterns_status ON refactoring_patterns(status);
+        CREATE INDEX idx_refactoring_patterns_rating ON refactoring_patterns(rating_average DESC);
+        CREATE INDEX idx_refactoring_patterns_downloads ON refactoring_patterns(download_count DESC);
+        CREATE INDEX idx_refactoring_patterns_language ON refactoring_patterns(language);
+        CREATE INDEX idx_refactoring_patterns_framework ON refactoring_patterns(framework);
+      `);
+      migrationLogger.info('refactoring_patterns table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create pattern_versions table
+  safeMigration('patternVersionsTable', () => {
+    const created = createTableIfNotExists(db, 'pattern_versions', `
+      CREATE TABLE pattern_versions (
+        id TEXT PRIMARY KEY,
+        pattern_id TEXT NOT NULL,
+        version TEXT NOT NULL,
+        changelog TEXT NOT NULL,
+        detection_rules TEXT NOT NULL,
+        transformation_rules TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (pattern_id) REFERENCES refactoring_patterns(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_pattern_versions_pattern ON pattern_versions(pattern_id);
+        CREATE UNIQUE INDEX idx_pattern_versions_unique ON pattern_versions(pattern_id, version);
+      `);
+      migrationLogger.info('pattern_versions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create pattern_ratings table
+  safeMigration('patternRatingsTable', () => {
+    const created = createTableIfNotExists(db, 'pattern_ratings', `
+      CREATE TABLE pattern_ratings (
+        id TEXT PRIMARY KEY,
+        pattern_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        review TEXT,
+        helpful_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (pattern_id) REFERENCES refactoring_patterns(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES marketplace_users(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_pattern_ratings_pattern ON pattern_ratings(pattern_id);
+        CREATE INDEX idx_pattern_ratings_user ON pattern_ratings(user_id);
+        CREATE UNIQUE INDEX idx_pattern_ratings_unique ON pattern_ratings(pattern_id, user_id);
+      `);
+      migrationLogger.info('pattern_ratings table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create pattern_applications table
+  safeMigration('patternApplicationsTable', () => {
+    const created = createTableIfNotExists(db, 'pattern_applications', `
+      CREATE TABLE pattern_applications (
+        id TEXT PRIMARY KEY,
+        pattern_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        files_modified INTEGER NOT NULL DEFAULT 0,
+        lines_added INTEGER NOT NULL DEFAULT 0,
+        lines_removed INTEGER NOT NULL DEFAULT 0,
+        success INTEGER NOT NULL DEFAULT 1,
+        outcome_notes TEXT,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (pattern_id) REFERENCES refactoring_patterns(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES marketplace_users(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_pattern_applications_pattern ON pattern_applications(pattern_id);
+        CREATE INDEX idx_pattern_applications_user ON pattern_applications(user_id);
+        CREATE INDEX idx_pattern_applications_project ON pattern_applications(project_id);
+        CREATE INDEX idx_pattern_applications_applied ON pattern_applications(applied_at DESC);
+      `);
+      migrationLogger.info('pattern_applications table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create badges table
+  safeMigration('badgesTable', () => {
+    const created = createTableIfNotExists(db, 'badges', `
+      CREATE TABLE badges (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK (type IN (
+          'contributor', 'pioneer', 'popular', 'quality',
+          'helpful', 'expert', 'mentor', 'innovator'
+        )),
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        color TEXT NOT NULL,
+        threshold INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`CREATE INDEX idx_badges_type ON badges(type)`);
+
+      // Insert default badges
+      db.exec(`
+        INSERT INTO badges (id, type, name, description, icon, color, threshold) VALUES
+        ('badge_contributor_1', 'contributor', 'First Contribution', 'Published your first pattern', '🌱', 'text-green-400', 1),
+        ('badge_contributor_5', 'contributor', 'Active Contributor', 'Published 5 patterns', '🌿', 'text-green-500', 5),
+        ('badge_contributor_10', 'contributor', 'Prolific Contributor', 'Published 10 patterns', '🌳', 'text-green-600', 10),
+        ('badge_pioneer', 'pioneer', 'Pioneer', 'Among the first 100 contributors', '🚀', 'text-purple-500', 1),
+        ('badge_popular_100', 'popular', 'Rising Star', 'Patterns downloaded 100+ times', '⭐', 'text-yellow-400', 100),
+        ('badge_popular_1000', 'popular', 'Community Favorite', 'Patterns downloaded 1000+ times', '🌟', 'text-yellow-500', 1000),
+        ('badge_quality', 'quality', 'Quality Craftsman', 'Average rating above 4.5 stars', '💎', 'text-cyan-400', 1),
+        ('badge_helpful_10', 'helpful', 'Helpful Reviewer', 'Reviews marked helpful 10+ times', '🤝', 'text-blue-400', 10),
+        ('badge_helpful_50', 'helpful', 'Community Guide', 'Reviews marked helpful 50+ times', '🧭', 'text-blue-500', 50),
+        ('badge_expert', 'expert', 'Domain Expert', 'Published 5+ patterns in one category', '🎯', 'text-orange-500', 5),
+        ('badge_mentor', 'mentor', 'Mentor', 'Helped 10+ users apply patterns', '👨‍🏫', 'text-pink-500', 10),
+        ('badge_innovator', 'innovator', 'Innovator', 'Created a highly-rated unique pattern', '💡', 'text-amber-500', 1)
+      `);
+
+      migrationLogger.info('badges table created with default badges');
+    }
+  }, migrationLogger);
+
+  // Create user_badges table
+  safeMigration('userBadgesTable', () => {
+    const created = createTableIfNotExists(db, 'user_badges', `
+      CREATE TABLE user_badges (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        badge_id TEXT NOT NULL,
+        earned_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (user_id) REFERENCES marketplace_users(id) ON DELETE CASCADE,
+        FOREIGN KEY (badge_id) REFERENCES badges(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_user_badges_user ON user_badges(user_id);
+        CREATE INDEX idx_user_badges_badge ON user_badges(badge_id);
+        CREATE UNIQUE INDEX idx_user_badges_unique ON user_badges(user_id, badge_id);
+      `);
+      migrationLogger.info('user_badges table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create pattern_favorites table
+  safeMigration('patternFavoritesTable', () => {
+    const created = createTableIfNotExists(db, 'pattern_favorites', `
+      CREATE TABLE pattern_favorites (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        pattern_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (user_id) REFERENCES marketplace_users(id) ON DELETE CASCADE,
+        FOREIGN KEY (pattern_id) REFERENCES refactoring_patterns(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_pattern_favorites_user ON pattern_favorites(user_id);
+        CREATE INDEX idx_pattern_favorites_pattern ON pattern_favorites(pattern_id);
+        CREATE UNIQUE INDEX idx_pattern_favorites_unique ON pattern_favorites(user_id, pattern_id);
+      `);
+      migrationLogger.info('pattern_favorites table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create pattern_collections table
+  safeMigration('patternCollectionsTable', () => {
+    const created = createTableIfNotExists(db, 'pattern_collections', `
+      CREATE TABLE pattern_collections (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_public INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (user_id) REFERENCES marketplace_users(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_pattern_collections_user ON pattern_collections(user_id);
+        CREATE INDEX idx_pattern_collections_public ON pattern_collections(is_public);
+      `);
+      migrationLogger.info('pattern_collections table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create collection_patterns table
+  safeMigration('collectionPatternsTable', () => {
+    const created = createTableIfNotExists(db, 'collection_patterns', `
+      CREATE TABLE collection_patterns (
+        id TEXT PRIMARY KEY,
+        collection_id TEXT NOT NULL,
+        pattern_id TEXT NOT NULL,
+        added_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (collection_id) REFERENCES pattern_collections(id) ON DELETE CASCADE,
+        FOREIGN KEY (pattern_id) REFERENCES refactoring_patterns(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_collection_patterns_collection ON collection_patterns(collection_id);
+        CREATE INDEX idx_collection_patterns_pattern ON collection_patterns(pattern_id);
+        CREATE UNIQUE INDEX idx_collection_patterns_unique ON collection_patterns(collection_id, pattern_id);
+      `);
+      migrationLogger.info('collection_patterns table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Marketplace tables created successfully');
+}
+
+/**
+ * Create adaptive learning tables for self-optimizing development cycle
+ * Enables tracking of idea execution outcomes and adaptive weight adjustment
+ */
+function migrateAdaptiveLearningTables() {
+  const db = getConnection();
+
+  // Create idea_execution_outcomes table
+  safeMigration('ideaExecutionOutcomesTable', () => {
+    const created = createTableIfNotExists(db, 'idea_execution_outcomes', `
+      CREATE TABLE idea_execution_outcomes (
+        id TEXT PRIMARY KEY,
+        idea_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        predicted_effort INTEGER CHECK (predicted_effort IS NULL OR (predicted_effort >= 1 AND predicted_effort <= 3)),
+        predicted_impact INTEGER CHECK (predicted_impact IS NULL OR (predicted_impact >= 1 AND predicted_impact <= 3)),
+        actual_effort INTEGER CHECK (actual_effort IS NULL OR (actual_effort >= 1 AND actual_effort <= 3)),
+        actual_impact INTEGER CHECK (actual_impact IS NULL OR (actual_impact >= 1 AND actual_impact <= 3)),
+        execution_time_ms INTEGER,
+        files_changed INTEGER,
+        lines_added INTEGER,
+        lines_removed INTEGER,
+        success INTEGER NOT NULL DEFAULT 0,
+        error_type TEXT,
+        user_feedback_score INTEGER CHECK (user_feedback_score IS NULL OR (user_feedback_score >= 1 AND user_feedback_score <= 5)),
+        category TEXT NOT NULL,
+        scan_type TEXT NOT NULL,
+        executed_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (idea_id) REFERENCES ideas(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_execution_outcomes_idea_id ON idea_execution_outcomes(idea_id);
+        CREATE INDEX idx_execution_outcomes_project_id ON idea_execution_outcomes(project_id);
+        CREATE INDEX idx_execution_outcomes_category ON idea_execution_outcomes(project_id, category);
+        CREATE INDEX idx_execution_outcomes_scan_type ON idea_execution_outcomes(project_id, scan_type);
+        CREATE INDEX idx_execution_outcomes_executed_at ON idea_execution_outcomes(project_id, executed_at DESC);
+        CREATE INDEX idx_execution_outcomes_success ON idea_execution_outcomes(project_id, success);
+      `);
+      migrationLogger.info('idea_execution_outcomes table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create scoring_weights table
+  safeMigration('scoringWeightsTable', () => {
+    const created = createTableIfNotExists(db, 'scoring_weights', `
+      CREATE TABLE scoring_weights (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'default',
+        scan_type TEXT NOT NULL DEFAULT 'default',
+        effort_accuracy_weight REAL NOT NULL DEFAULT 1.0,
+        impact_accuracy_weight REAL NOT NULL DEFAULT 1.5,
+        success_rate_weight REAL NOT NULL DEFAULT 2.0,
+        execution_time_factor REAL NOT NULL DEFAULT 0.5,
+        sample_count INTEGER NOT NULL DEFAULT 0,
+        last_calibrated_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_scoring_weights_project_id ON scoring_weights(project_id);
+        CREATE UNIQUE INDEX idx_scoring_weights_unique ON scoring_weights(project_id, category, scan_type);
+      `);
+      migrationLogger.info('scoring_weights table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create scoring_thresholds table
+  safeMigration('scoringThresholdsTable', () => {
+    const created = createTableIfNotExists(db, 'scoring_thresholds', `
+      CREATE TABLE scoring_thresholds (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        threshold_type TEXT NOT NULL CHECK (threshold_type IN ('auto_accept', 'auto_reject', 'priority_boost')),
+        min_score REAL,
+        max_score REAL,
+        min_confidence REAL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_scoring_thresholds_project_id ON scoring_thresholds(project_id);
+        CREATE UNIQUE INDEX idx_scoring_thresholds_unique ON scoring_thresholds(project_id, threshold_type);
+      `);
+      migrationLogger.info('scoring_thresholds table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Adaptive learning tables created successfully');
+}
+
+/**
+ * Create debt prediction and prevention tables
+ * Enables predictive refactoring before technical debt accumulates
+ */
+function migrateDebtPredictionTables() {
+  const db = getConnection();
+
+  // Create debt_patterns table (learned patterns from history)
+  safeMigration('debtPatternsTable', () => {
+    const created = createTableIfNotExists(db, 'debt_patterns', `
+      CREATE TABLE debt_patterns (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        pattern_type TEXT NOT NULL CHECK (pattern_type IN (
+          'complexity', 'duplication', 'coupling', 'smell', 'security', 'performance'
+        )),
+        severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+        category TEXT NOT NULL,
+        detection_rules TEXT NOT NULL DEFAULT '[]',
+        file_patterns TEXT NOT NULL DEFAULT '[]',
+        code_signatures TEXT NOT NULL DEFAULT '[]',
+        occurrence_count INTEGER NOT NULL DEFAULT 0,
+        false_positive_rate REAL NOT NULL DEFAULT 0.0,
+        avg_time_to_debt REAL NOT NULL DEFAULT 30.0,
+        prevention_success_rate REAL NOT NULL DEFAULT 0.0,
+        source TEXT NOT NULL DEFAULT 'learned' CHECK (source IN ('learned', 'predefined', 'imported')),
+        learned_from_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_debt_patterns_project_id ON debt_patterns(project_id);
+        CREATE INDEX idx_debt_patterns_type ON debt_patterns(project_id, pattern_type);
+        CREATE INDEX idx_debt_patterns_severity ON debt_patterns(project_id, severity);
+        CREATE INDEX idx_debt_patterns_category ON debt_patterns(category);
+      `);
+      migrationLogger.info('debt_patterns table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create debt_predictions table
+  safeMigration('debtPredictionsTable', () => {
+    const created = createTableIfNotExists(db, 'debt_predictions', `
+      CREATE TABLE debt_predictions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        context_id TEXT,
+        pattern_id TEXT,
+        file_path TEXT NOT NULL,
+        line_start INTEGER NOT NULL,
+        line_end INTEGER NOT NULL,
+        code_snippet TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        prediction_type TEXT NOT NULL CHECK (prediction_type IN (
+          'emerging', 'accelerating', 'imminent', 'exists'
+        )),
+        confidence_score INTEGER NOT NULL CHECK (confidence_score >= 0 AND confidence_score <= 100),
+        urgency_score INTEGER NOT NULL CHECK (urgency_score >= 0 AND urgency_score <= 100),
+        complexity_trend TEXT NOT NULL DEFAULT 'stable' CHECK (complexity_trend IN (
+          'stable', 'increasing', 'decreasing'
+        )),
+        complexity_delta REAL NOT NULL DEFAULT 0.0,
+        velocity REAL NOT NULL DEFAULT 0.0,
+        suggested_action TEXT NOT NULL,
+        micro_refactoring TEXT,
+        estimated_prevention_effort TEXT NOT NULL CHECK (estimated_prevention_effort IN (
+          'trivial', 'small', 'medium', 'large'
+        )),
+        estimated_cleanup_effort TEXT NOT NULL CHECK (estimated_cleanup_effort IN (
+          'small', 'medium', 'large', 'major'
+        )),
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN (
+          'active', 'dismissed', 'addressed', 'escalated'
+        )),
+        dismissed_reason TEXT,
+        addressed_at TEXT,
+        first_detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL,
+        FOREIGN KEY (pattern_id) REFERENCES debt_patterns(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_debt_predictions_project_id ON debt_predictions(project_id);
+        CREATE INDEX idx_debt_predictions_context_id ON debt_predictions(context_id);
+        CREATE INDEX idx_debt_predictions_file_path ON debt_predictions(project_id, file_path);
+        CREATE INDEX idx_debt_predictions_status ON debt_predictions(project_id, status);
+        CREATE INDEX idx_debt_predictions_urgency ON debt_predictions(project_id, urgency_score DESC);
+        CREATE INDEX idx_debt_predictions_type ON debt_predictions(project_id, prediction_type);
+      `);
+      migrationLogger.info('debt_predictions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create complexity_history table
+  safeMigration('complexityHistoryTable', () => {
+    const created = createTableIfNotExists(db, 'complexity_history', `
+      CREATE TABLE complexity_history (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        cyclomatic_complexity INTEGER NOT NULL DEFAULT 0,
+        lines_of_code INTEGER NOT NULL DEFAULT 0,
+        dependency_count INTEGER NOT NULL DEFAULT 0,
+        coupling_score INTEGER NOT NULL DEFAULT 0,
+        cohesion_score INTEGER NOT NULL DEFAULT 100,
+        commit_hash TEXT,
+        change_type TEXT NOT NULL CHECK (change_type IN ('create', 'modify', 'refactor')),
+        measured_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_complexity_history_project ON complexity_history(project_id);
+        CREATE INDEX idx_complexity_history_file ON complexity_history(project_id, file_path);
+        CREATE INDEX idx_complexity_history_measured ON complexity_history(project_id, measured_at DESC);
+      `);
+      migrationLogger.info('complexity_history table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create opportunity_cards table
+  safeMigration('opportunityCardsTable', () => {
+    const created = createTableIfNotExists(db, 'opportunity_cards', `
+      CREATE TABLE opportunity_cards (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        prediction_id TEXT NOT NULL,
+        card_type TEXT NOT NULL CHECK (card_type IN (
+          'prevention', 'quick-win', 'warning', 'suggestion'
+        )),
+        priority INTEGER NOT NULL CHECK (priority >= 1 AND priority <= 10),
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        action_type TEXT NOT NULL CHECK (action_type IN (
+          'micro-refactor', 'extract', 'rename', 'restructure', 'review'
+        )),
+        action_description TEXT NOT NULL,
+        estimated_time_minutes INTEGER NOT NULL DEFAULT 5,
+        affected_files TEXT NOT NULL DEFAULT '[]',
+        related_patterns TEXT NOT NULL DEFAULT '[]',
+        shown_count INTEGER NOT NULL DEFAULT 0,
+        clicked INTEGER NOT NULL DEFAULT 0,
+        acted_upon INTEGER NOT NULL DEFAULT 0,
+        feedback TEXT CHECK (feedback IN ('helpful', 'not-helpful', 'dismissed', NULL)),
+        expires_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (prediction_id) REFERENCES debt_predictions(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_opportunity_cards_project ON opportunity_cards(project_id);
+        CREATE INDEX idx_opportunity_cards_prediction ON opportunity_cards(prediction_id);
+        CREATE INDEX idx_opportunity_cards_priority ON opportunity_cards(project_id, priority DESC);
+        CREATE INDEX idx_opportunity_cards_type ON opportunity_cards(project_id, card_type);
+      `);
+      migrationLogger.info('opportunity_cards table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create prevention_actions table
+  safeMigration('preventionActionsTable', () => {
+    const created = createTableIfNotExists(db, 'prevention_actions', `
+      CREATE TABLE prevention_actions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        prediction_id TEXT NOT NULL,
+        opportunity_card_id TEXT,
+        action_type TEXT NOT NULL CHECK (action_type IN (
+          'micro-refactor', 'full-refactor', 'dismiss', 'escalate', 'defer'
+        )),
+        action_description TEXT NOT NULL,
+        files_modified INTEGER NOT NULL DEFAULT 0,
+        lines_changed INTEGER NOT NULL DEFAULT 0,
+        time_spent_minutes INTEGER,
+        success INTEGER NOT NULL DEFAULT 1,
+        prevented_debt_score REAL,
+        user_satisfaction INTEGER CHECK (user_satisfaction IS NULL OR (user_satisfaction >= 1 AND user_satisfaction <= 5)),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (prediction_id) REFERENCES debt_predictions(id) ON DELETE CASCADE,
+        FOREIGN KEY (opportunity_card_id) REFERENCES opportunity_cards(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_prevention_actions_project ON prevention_actions(project_id);
+        CREATE INDEX idx_prevention_actions_prediction ON prevention_actions(prediction_id);
+        CREATE INDEX idx_prevention_actions_created ON prevention_actions(project_id, created_at DESC);
+      `);
+      migrationLogger.info('prevention_actions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create code_change_events table
+  safeMigration('codeChangeEventsTable', () => {
+    const created = createTableIfNotExists(db, 'code_change_events', `
+      CREATE TABLE code_change_events (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        change_type TEXT NOT NULL CHECK (change_type IN ('create', 'modify', 'delete', 'rename')),
+        lines_added INTEGER NOT NULL DEFAULT 0,
+        lines_removed INTEGER NOT NULL DEFAULT 0,
+        complexity_before INTEGER,
+        complexity_after INTEGER,
+        patterns_triggered TEXT NOT NULL DEFAULT '[]',
+        predictions_created TEXT NOT NULL DEFAULT '[]',
+        commit_hash TEXT,
+        author TEXT,
+        detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_code_change_events_project ON code_change_events(project_id);
+        CREATE INDEX idx_code_change_events_file ON code_change_events(project_id, file_path);
+        CREATE INDEX idx_code_change_events_detected ON code_change_events(project_id, detected_at DESC);
+      `);
+      migrationLogger.info('code_change_events table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Debt prediction tables created successfully');
+}
+
+/**
+ * Create lifecycle automation tables
+ * Enables AI-driven code quality lifecycle orchestration
+ */
+function migrateLifecycleTables() {
+  const db = getConnection();
+
+  // Create lifecycle_configs table
+  safeMigration('lifecycleConfigsTable', () => {
+    const created = createTableIfNotExists(db, 'lifecycle_configs', `
+      CREATE TABLE lifecycle_configs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL UNIQUE,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        triggers TEXT NOT NULL DEFAULT '["manual"]',
+        watch_patterns TEXT NOT NULL DEFAULT '["src/**/*.ts","src/**/*.tsx"]',
+        ignore_patterns TEXT NOT NULL DEFAULT '["node_modules/**"]',
+        scan_types TEXT NOT NULL DEFAULT '["bug_hunter","security_protector","perf_optimizer"]',
+        provider TEXT NOT NULL DEFAULT 'gemini',
+        max_concurrent_scans INTEGER NOT NULL DEFAULT 1,
+        auto_resolve INTEGER NOT NULL DEFAULT 0,
+        max_auto_implementations INTEGER NOT NULL DEFAULT 3,
+        require_approval INTEGER NOT NULL DEFAULT 1,
+        priority_threshold INTEGER NOT NULL DEFAULT 70,
+        quality_gates TEXT NOT NULL DEFAULT '["type_check","lint","build"]',
+        gate_timeout_ms INTEGER NOT NULL DEFAULT 300000,
+        fail_fast INTEGER NOT NULL DEFAULT 1,
+        auto_deploy INTEGER NOT NULL DEFAULT 0,
+        deployment_targets TEXT NOT NULL DEFAULT '["local"]',
+        deploy_on_weekend INTEGER NOT NULL DEFAULT 0,
+        deploy_during_business_hours INTEGER NOT NULL DEFAULT 1,
+        min_cycle_interval_ms INTEGER NOT NULL DEFAULT 60000,
+        cooldown_on_failure_ms INTEGER NOT NULL DEFAULT 300000,
+        notify_on_success INTEGER NOT NULL DEFAULT 1,
+        notify_on_failure INTEGER NOT NULL DEFAULT 1,
+        notification_channels TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`CREATE INDEX idx_lifecycle_configs_project_id ON lifecycle_configs(project_id)`);
+      migrationLogger.info('lifecycle_configs table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create lifecycle_cycles table
+  safeMigration('lifecycleCyclesTable', () => {
+    const created = createTableIfNotExists(db, 'lifecycle_cycles', `
+      CREATE TABLE lifecycle_cycles (
+        id TEXT PRIMARY KEY,
+        config_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        phase TEXT NOT NULL CHECK (phase IN (
+          'idle', 'detecting', 'scanning', 'resolving', 'testing', 'validating', 'deploying', 'completed', 'failed'
+        )),
+        trigger TEXT NOT NULL CHECK (trigger IN (
+          'code_change', 'git_push', 'git_commit', 'scheduled', 'manual', 'scan_complete', 'idea_implemented'
+        )),
+        trigger_metadata TEXT,
+        progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+        current_step TEXT NOT NULL DEFAULT 'Initializing',
+        total_steps INTEGER NOT NULL DEFAULT 5,
+        scans_completed INTEGER NOT NULL DEFAULT 0,
+        scans_total INTEGER NOT NULL DEFAULT 0,
+        ideas_generated INTEGER NOT NULL DEFAULT 0,
+        ideas_resolved INTEGER NOT NULL DEFAULT 0,
+        quality_gates_passed INTEGER NOT NULL DEFAULT 0,
+        quality_gates_total INTEGER NOT NULL DEFAULT 0,
+        gate_results TEXT NOT NULL DEFAULT '[]',
+        deployment_status TEXT CHECK (deployment_status IN (
+          'pending', 'in_progress', 'completed', 'failed', 'skipped', NULL
+        )),
+        deployment_details TEXT,
+        started_at TEXT NOT NULL,
+        completed_at TEXT,
+        duration_ms INTEGER,
+        error_message TEXT,
+        error_phase TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (config_id) REFERENCES lifecycle_configs(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_lifecycle_cycles_project ON lifecycle_cycles(project_id);
+        CREATE INDEX idx_lifecycle_cycles_config ON lifecycle_cycles(config_id);
+        CREATE INDEX idx_lifecycle_cycles_phase ON lifecycle_cycles(project_id, phase);
+        CREATE INDEX idx_lifecycle_cycles_started ON lifecycle_cycles(project_id, started_at DESC);
+      `);
+      migrationLogger.info('lifecycle_cycles table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create lifecycle_events table
+  safeMigration('lifecycleEventsTable', () => {
+    const created = createTableIfNotExists(db, 'lifecycle_events', `
+      CREATE TABLE lifecycle_events (
+        id TEXT PRIMARY KEY,
+        cycle_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN (
+          'phase_change', 'scan_start', 'scan_complete', 'idea_resolved',
+          'gate_start', 'gate_complete', 'deploy_start', 'deploy_complete',
+          'error', 'warning', 'info'
+        )),
+        phase TEXT NOT NULL CHECK (phase IN (
+          'idle', 'detecting', 'scanning', 'resolving', 'testing', 'validating', 'deploying', 'completed', 'failed'
+        )),
+        message TEXT NOT NULL,
+        details TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (cycle_id) REFERENCES lifecycle_cycles(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_lifecycle_events_cycle ON lifecycle_events(cycle_id);
+        CREATE INDEX idx_lifecycle_events_project ON lifecycle_events(project_id);
+        CREATE INDEX idx_lifecycle_events_type ON lifecycle_events(project_id, event_type);
+        CREATE INDEX idx_lifecycle_events_created ON lifecycle_events(project_id, created_at DESC);
+      `);
+      migrationLogger.info('lifecycle_events table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Lifecycle automation tables created successfully');
+}
+
+/**
+ * Add target_rating column to contexts table
+ * Rating 1-5 for target progress visualization
+ */
+function migrateContextsTargetRating() {
+  safeMigration('contextsTargetRating', () => {
+    const db = getConnection();
+    const added = addColumnIfNotExists(
+      db,
+      'contexts',
+      'target_rating',
+      'INTEGER CHECK (target_rating IS NULL OR (target_rating >= 1 AND target_rating <= 5))',
+      migrationLogger
+    );
+
+    if (!added) {
+      migrationLogger.info('Contexts table already has target_rating column');
+    } else {
+      migrationLogger.info('target_rating column added to contexts table successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Add type and icon columns to context_groups table
+ * type: pages/client/server/external for Architecture Explorer
+ * icon: icon name for visual representation
+ */
+function migrateContextGroupsArchitectureFields() {
+  safeMigration('contextGroupsArchitectureFields', () => {
+    const db = getConnection();
+    const added = addColumnsIfNotExist(db, 'context_groups', [
+      { name: 'type', definition: "TEXT CHECK (type IS NULL OR type IN ('pages', 'client', 'server', 'external'))" },
+      { name: 'icon', definition: 'TEXT' }
+    ], migrationLogger);
+
+    if (added === 0) {
+      migrationLogger.info('Context groups table already has architecture fields');
+    } else {
+      migrationLogger.info(`Added ${added} architecture field(s) to context_groups table`);
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Create context_group_relationships table
+ * Defines connections between context groups for Architecture Explorer
+ */
+function migrateContextGroupRelationshipsTable() {
+  safeMigration('contextGroupRelationshipsTable', () => {
+    const db = getConnection();
+    const created = createTableIfNotExists(db, 'context_group_relationships', `
+      CREATE TABLE context_group_relationships (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        source_group_id TEXT NOT NULL,
+        target_group_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (source_group_id) REFERENCES context_groups(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_group_id) REFERENCES context_groups(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_context_group_rel_project ON context_group_relationships(project_id);
+        CREATE INDEX idx_context_group_rel_source ON context_group_relationships(source_group_id);
+        CREATE INDEX idx_context_group_rel_target ON context_group_relationships(target_group_id);
+        CREATE UNIQUE INDEX idx_context_group_rel_unique ON context_group_relationships(source_group_id, target_group_id);
+      `);
+      migrationLogger.info('context_group_relationships table created successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Create security intelligence dashboard tables
+ * Enables cross-project security monitoring, alerts, and community scoring
+ */
+function migrateSecurityIntelligenceTables() {
+  const db = getConnection();
+
+  // Create security_intelligence table
+  safeMigration('securityIntelligenceTable', () => {
+    const created = createTableIfNotExists(db, 'security_intelligence', `
+      CREATE TABLE security_intelligence (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL UNIQUE,
+        project_name TEXT NOT NULL,
+        project_path TEXT NOT NULL,
+        total_vulnerabilities INTEGER NOT NULL DEFAULT 0,
+        critical_count INTEGER NOT NULL DEFAULT 0,
+        high_count INTEGER NOT NULL DEFAULT 0,
+        medium_count INTEGER NOT NULL DEFAULT 0,
+        low_count INTEGER NOT NULL DEFAULT 0,
+        patch_health_score INTEGER NOT NULL DEFAULT 100 CHECK (patch_health_score >= 0 AND patch_health_score <= 100),
+        ci_status TEXT NOT NULL DEFAULT 'unknown' CHECK (ci_status IN ('passing', 'failing', 'unknown', 'pending')),
+        ci_last_run TEXT,
+        risk_score INTEGER NOT NULL DEFAULT 0 CHECK (risk_score >= 0 AND risk_score <= 100),
+        risk_trend TEXT NOT NULL DEFAULT 'stable' CHECK (risk_trend IN ('improving', 'stable', 'degrading')),
+        last_scan_at TEXT,
+        patches_pending INTEGER NOT NULL DEFAULT 0,
+        patches_applied INTEGER NOT NULL DEFAULT 0,
+        stale_branches_count INTEGER NOT NULL DEFAULT 0,
+        community_score INTEGER CHECK (community_score IS NULL OR (community_score >= 0 AND community_score <= 100)),
+        last_community_update TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_security_intelligence_risk ON security_intelligence(risk_score DESC);
+        CREATE INDEX idx_security_intelligence_patch ON security_intelligence(patch_health_score);
+        CREATE INDEX idx_security_intelligence_ci ON security_intelligence(ci_status);
+      `);
+      migrationLogger.info('security_intelligence table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create security_alerts table
+  safeMigration('securityAlertsTable', () => {
+    const created = createTableIfNotExists(db, 'security_alerts', `
+      CREATE TABLE security_alerts (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        alert_type TEXT NOT NULL CHECK (alert_type IN (
+          'critical_vulnerability', 'new_vulnerability', 'patch_available',
+          'ci_failure', 'risk_threshold', 'stale_branch'
+        )),
+        severity TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low', 'info')),
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        source TEXT NOT NULL,
+        acknowledged INTEGER NOT NULL DEFAULT 0,
+        acknowledged_at TEXT,
+        acknowledged_by TEXT,
+        resolved INTEGER NOT NULL DEFAULT 0,
+        resolved_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_security_alerts_project ON security_alerts(project_id);
+        CREATE INDEX idx_security_alerts_severity ON security_alerts(severity);
+        CREATE INDEX idx_security_alerts_acknowledged ON security_alerts(acknowledged);
+        CREATE INDEX idx_security_alerts_resolved ON security_alerts(resolved);
+        CREATE INDEX idx_security_alerts_created ON security_alerts(created_at DESC);
+      `);
+      migrationLogger.info('security_alerts table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create stale_branches table
+  safeMigration('staleBranchesTable', () => {
+    const created = createTableIfNotExists(db, 'stale_branches', `
+      CREATE TABLE stale_branches (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        branch_name TEXT NOT NULL,
+        last_commit_at TEXT NOT NULL,
+        last_commit_author TEXT,
+        days_stale INTEGER NOT NULL DEFAULT 0,
+        has_vulnerabilities INTEGER NOT NULL DEFAULT 0,
+        vulnerability_count INTEGER NOT NULL DEFAULT 0,
+        auto_close_eligible INTEGER NOT NULL DEFAULT 0,
+        auto_closed INTEGER NOT NULL DEFAULT 0,
+        auto_closed_at TEXT,
+        manually_preserved INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_stale_branches_project ON stale_branches(project_id);
+        CREATE INDEX idx_stale_branches_stale ON stale_branches(days_stale DESC);
+        CREATE INDEX idx_stale_branches_eligible ON stale_branches(auto_close_eligible);
+        CREATE UNIQUE INDEX idx_stale_branches_unique ON stale_branches(project_id, branch_name);
+      `);
+      migrationLogger.info('stale_branches table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create community_security_scores table
+  safeMigration('communitySecurityScoresTable', () => {
+    const created = createTableIfNotExists(db, 'community_security_scores', `
+      CREATE TABLE community_security_scores (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        package_name TEXT NOT NULL,
+        package_version TEXT NOT NULL,
+        community_score INTEGER NOT NULL DEFAULT 50 CHECK (community_score >= 0 AND community_score <= 100),
+        total_votes INTEGER NOT NULL DEFAULT 0,
+        positive_votes INTEGER NOT NULL DEFAULT 0,
+        negative_votes INTEGER NOT NULL DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'internal' CHECK (source IN ('internal', 'npm', 'github', 'snyk', 'other')),
+        notes TEXT,
+        last_updated TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_community_scores_project ON community_security_scores(project_id);
+        CREATE INDEX idx_community_scores_package ON community_security_scores(package_name);
+        CREATE INDEX idx_community_scores_score ON community_security_scores(community_score DESC);
+        CREATE UNIQUE INDEX idx_community_scores_unique ON community_security_scores(project_id, package_name, package_version);
+      `);
+      migrationLogger.info('community_security_scores table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Security intelligence tables created successfully');
 }

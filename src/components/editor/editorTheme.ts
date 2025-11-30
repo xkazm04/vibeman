@@ -1,9 +1,9 @@
-import * as monaco from 'monaco-editor';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * Defines the custom Vibeman dark theme for Monaco Editor
  */
-export function defineVibemanTheme(monacoInstance: typeof monaco) {
+export function defineVibemanTheme(monacoInstance: any) {
   monacoInstance.editor.defineTheme('vibeman-dark', {
     base: 'vs-dark',
     inherit: true,
@@ -37,8 +37,8 @@ export function defineVibemanTheme(monacoInstance: typeof monaco) {
  * Clears error markers for TypeScript and JavaScript models
  */
 export function clearErrorMarkers(
-  monacoInstance: typeof monaco,
-  model: monaco.editor.ITextModel | null
+  monacoInstance: any,
+  model: any
 ) {
   if (!model) return;
 
@@ -50,9 +50,9 @@ export function clearErrorMarkers(
  * Sets up a listener to continuously clear error markers
  */
 export function setupMarkerClearer(
-  monacoInstance: typeof monaco,
-  model: monaco.editor.ITextModel
-): monaco.IDisposable {
+  monacoInstance: any,
+  model: any
+): any {
   return monacoInstance.editor.onDidChangeMarkers(() => {
     clearErrorMarkers(monacoInstance, model);
   });

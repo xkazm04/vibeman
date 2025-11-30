@@ -8,6 +8,14 @@ import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import { loadRequirements, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
+import {
+  taskStatusToLegacy,
+  isTaskRunning,
+  isTaskQueued,
+  isRequirementRunning,
+  isRequirementQueued,
+  isRequirementCompleted,
+} from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
@@ -90,16 +98,16 @@ const TaskRunnerLayout = () => {
     `${req.projectId}:${req.requirementName}`;
 
   // Merge requirements with store task status for real-time updates
-  const requirementsWithStatus = useMemo(() => {
+  const requirementsWithStatus = useMemo((): ProjectRequirement[] => {
     return requirements.map((req) => {
       const reqId = getRequirementId(req);
       const task = storeTasks[reqId];
 
-      // If task exists in store, use its status
+      // If task exists in store, convert discriminated union to legacy string status
       if (task) {
         return {
           ...req,
-          status: task.status,
+          status: taskStatusToLegacy(task.status),
         };
       }
 
@@ -123,7 +131,7 @@ const TaskRunnerLayout = () => {
 
   const toggleSelection = (reqId: string) => {
     const req = requirementsWithStatus.find((r) => getRequirementId(r) === reqId);
-    if (!req || req.status === 'running' || req.status === 'queued') return;
+    if (!req || isRequirementRunning(req.status) || isRequirementQueued(req.status)) return;
 
     setSelectedRequirements((prev) => {
       const newSet = new Set(prev);
@@ -139,7 +147,7 @@ const TaskRunnerLayout = () => {
   const toggleProjectSelection = (projectId: string) => {
     const projectReqs = groupedRequirements[projectId] || [];
     const selectableReqs = projectReqs.filter(
-      (req) => req.status !== 'running' && req.status !== 'queued'
+      (req) => !isRequirementRunning(req.status) && !isRequirementQueued(req.status)
     );
 
     // Check if all selectable requirements are selected
@@ -189,7 +197,7 @@ const TaskRunnerLayout = () => {
   const handleOpenLogViewer = () => {
     // Get the first requirement with logs (or most recently run)
     // For now, use the first completed requirement
-    const completedReq = requirementsWithStatus.find(req => req.status === 'completed');
+    const completedReq = requirementsWithStatus.find(req => isRequirementCompleted(req.status));
     const logRequirement = completedReq || requirementsWithStatus[0];
 
     if (logRequirement) {

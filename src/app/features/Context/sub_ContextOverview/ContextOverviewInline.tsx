@@ -6,7 +6,6 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import ContextOverviewHeader, { TabType } from './components/ContextOverviewHeader';
 import ContextDescription from './components/ContextDescription';
 import ContextPreviewManager from '@/app/features/Context/sub_ContextPreview/ContextPreviewManager';
-import AdvisorPanel from './AdvisorPanel';
 import TestingTab from './components/TestingTab';
 
 interface ContextOverviewInlineProps {
@@ -27,7 +26,6 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
   const [currentTestScenario, setCurrentTestScenario] = useState<string | null>(null);
   const [currentTarget, setCurrentTarget] = useState<string | null>(null);
   const [currentTargetFulfillment, setCurrentTargetFulfillment] = useState<string | null>(null);
-  const [fileContents, setFileContents] = useState<Array<{ path: string; content: string }>>([]);
 
   useEffect(() => {
     if (context) {
@@ -35,45 +33,8 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
       setCurrentTestScenario(context.testScenario || null);
       setCurrentTarget(context.target || null);
       setCurrentTargetFulfillment(context.target_fulfillment || null);
-      // Load file contents for AI analysis
-      loadFileContents();
     }
   }, [context]);
-
-  const loadFileContents = async () => {
-    if (!context?.filePaths || context.filePaths.length === 0 || !activeProjectId) {
-      setFileContents([]);
-      return;
-    }
-
-    try {
-      const contents = await Promise.all(
-        context.filePaths.slice(0, 10).map(async (filePath: string) => {
-          try {
-            const response = await fetch('/api/disk/read-file', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                filePath,
-                projectId: activeProjectId
-              }),
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              return { path: filePath, content: data.content || '' };
-            }
-          } catch (error) {
-          }
-          return null;
-        })
-      );
-
-      setFileContents(contents.filter((c): c is { path: string; content: string } => c !== null));
-    } catch (error) {
-      setFileContents([]);
-    }
-  };
 
   const refreshContextFromDB = async () => {
     if (!context?.id || !activeProjectId) return;
@@ -204,23 +165,6 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
             >
               <ContextDescription
                 description={context.description || ''}
-                groupColor={groupColor}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'advisors' && (
-            <motion.div
-              key="advisors"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
-            >
-              <AdvisorPanel
-                contextDescription={context.description || ''}
-                filePaths={context.filePaths || []}
-                fileContents={fileContents}
                 groupColor={groupColor}
               />
             </motion.div>

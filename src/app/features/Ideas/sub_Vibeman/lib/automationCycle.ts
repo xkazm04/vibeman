@@ -1,6 +1,8 @@
 /**
  * Vibeman Automation Cycle
  * Main automation logic for evaluating and implementing ideas
+ * Now integrated with adaptive learning for self-optimization
+ * and automatic refactor scanning after implementations
  */
 
 import { getTaskStatus } from '@/app/Claude/lib/requirementApi';
@@ -9,6 +11,8 @@ import {
   getFirstAcceptedIdea,
   implementIdea,
   markIdeaAsImplemented,
+  recordExecutionOutcome,
+  triggerRefactorScan,
 } from './vibemanApi';
 
 export type AutomationStatus = 'idle' | 'evaluating' | 'generating' | 'executing' | 'success' | 'error';
@@ -25,6 +29,9 @@ export interface AutomationConfig {
   projectPath: string;
   isRunningRef: React.MutableRefObject<boolean>;
   currentTaskIdRef: React.MutableRefObject<string | null>;
+  currentIdeaIdRef?: React.MutableRefObject<string | null>;
+  executionStartTimeRef?: React.MutableRefObject<number | null>;
+  enableRefactorScanning?: boolean; // Enable post-implementation refactor scanning
 }
 
 /**
@@ -37,7 +44,14 @@ export async function runAutomationCycle(
   config: AutomationConfig,
   callbacks: AutomationCallbacks
 ): Promise<void> {
-  const { projectId, projectPath, isRunningRef, currentTaskIdRef } = config;
+  const {
+    projectId,
+    projectPath,
+    isRunningRef,
+    currentTaskIdRef,
+    currentIdeaIdRef,
+    executionStartTimeRef,
+  } = config;
   const { onStatusChange, onSuccess, onFailure, onIdeaImplemented } = callbacks;
 
   if (!isRunningRef.current) {    return;
@@ -75,13 +89,23 @@ export async function runAutomationCycle(
 
     onStatusChange('evaluating', `Selected: ${selectionReasoning}`);
 
+    // Track current idea for learning
+    if (currentIdeaIdRef) {
+      currentIdeaIdRef.current = selectedIdeaId;
+    }
+
     // Wait a moment before generating requirement
     await sleep(1000);
 
     if (!isRunningRef.current) {      return;
     }
 
-    // Step 2: Implement the selected idea    onStatusChange('generating', 'Generating requirement file...');
+    // Step 2: Implement the selected idea
+    // Track execution start time for learning
+    if (executionStartTimeRef) {
+      executionStartTimeRef.current = Date.now();
+    }
+    onStatusChange('generating', 'Generating requirement file...');
 
     const implementation = await implementIdea(projectId, projectPath, selectedIdeaId);
 
@@ -96,8 +120,39 @@ export async function runAutomationCycle(
     // Poll task status
     const taskSuccess = await monitorTaskExecution(implementation.taskId!, isRunningRef);
 
+    // Calculate execution time for learning
+    const executionTimeMs = executionStartTimeRef?.current
+      ? Date.now() - executionStartTimeRef.current
+      : undefined;
+
     if (taskSuccess) {
-      // Step 4: Mark idea as implemented      await markIdeaAsImplemented(selectedIdeaId);
+      // Step 4: Mark idea as implemented
+      await markIdeaAsImplemented(selectedIdeaId);
+
+      // Record successful outcome for adaptive learning
+      try {
+        await recordExecutionOutcome(selectedIdeaId, {
+          success: true,
+          executionTimeMs,
+        });
+      } catch (learningError) {
+        // Non-blocking - learning failures shouldn't stop automation
+        console.warn('Failed to record execution outcome:', learningError);
+      }
+
+      // Step 5: Trigger automatic refactor scan (if enabled)
+      if (config.enableRefactorScanning !== false) {
+        try {
+          onStatusChange('success', 'Running post-implementation refactor scan...');
+          const scanResult = await triggerRefactorScan(projectId, projectPath);
+          if (scanResult && scanResult.ideasGenerated > 0) {
+            console.log(`[AutomationCycle] Refactor scan generated ${scanResult.ideasGenerated} new ideas`);
+          }
+        } catch (scanError) {
+          // Non-blocking - scan failures shouldn't stop automation
+          console.warn('Post-implementation refactor scan failed:', scanError);
+        }
+      }
 
       onSuccess();
       onStatusChange('success', 'Implementation successful! Finding next idea...');
@@ -114,7 +169,19 @@ export async function runAutomationCycle(
       } else {
         onStatusChange('idle', 'Automation stopped');
       }
-    } else {      onFailure();
+    } else {
+      // Record failed outcome for adaptive learning
+      try {
+        await recordExecutionOutcome(selectedIdeaId, {
+          success: false,
+          executionTimeMs,
+          errorType: 'execution_failed',
+        });
+      } catch (learningError) {
+        console.warn('Failed to record execution outcome:', learningError);
+      }
+
+      onFailure();
       onStatusChange('error', 'Implementation failed. Trying next idea...');
 
       // Wait before next cycle

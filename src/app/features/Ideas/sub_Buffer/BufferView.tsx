@@ -1,47 +1,66 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, Loader2 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferColumn from './BufferColumn';
 import { GroupedIdeas } from '../lib/ideasUtils';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import {
+  useBufferIdeas,
+  useDeleteIdea,
+  useDeleteContextIdeas,
+} from '@/lib/queries/ideaQueries';
 
 interface BufferViewProps {
-  loading: boolean;
-  ideas: DbIdea[];
-  groupedIdeas: GroupedIdeas;
+  filterProject?: string;
   getProjectName: (projectId: string) => string;
   getContextName: (contextId: string) => string;
   onIdeaClick: (idea: DbIdea) => void;
-  onIdeaDelete: (ideaId: string) => void;
-  onContextDelete?: (contextId: string) => void;
+  onScanComplete?: () => void;
 }
 
 export default function BufferView({
-  loading,
-  ideas,
-  groupedIdeas,
+  filterProject = 'all',
   getProjectName,
   getContextName,
   onIdeaClick,
-  onIdeaDelete,
-  onContextDelete,
+  onScanComplete,
 }: BufferViewProps) {
-  const [localIdeas, setLocalIdeas] = useState<DbIdea[]>(ideas);
   const { getProject } = useProjectConfigStore();
 
-  // Sync local state with props
-  React.useEffect(() => {
-    setLocalIdeas(ideas);
-  }, [ideas]);
+  // Use React Query for fetching and caching ideas
+  const {
+    ideas,
+    isLoading,
+    refetch,
+  } = useBufferIdeas();
 
-  // Create a derived groupedIdeas from localIdeas that filters out empty contexts
-  const localGroupedIdeas = React.useMemo(() => {
+  // Mutations with optimistic updates
+  const deleteIdeaMutation = useDeleteIdea();
+  const deleteContextIdeasMutation = useDeleteContextIdeas();
+
+  // Refetch when scan completes
+  React.useEffect(() => {
+    if (onScanComplete) {
+      // The parent can call refetch after scan completion
+    }
+  }, [onScanComplete]);
+
+  // Filter ideas by project if needed
+  const filteredIdeas = React.useMemo(() => {
+    if (filterProject === 'all') {
+      return ideas;
+    }
+    return ideas.filter((idea) => idea.project_id === filterProject);
+  }, [ideas, filterProject]);
+
+  // Group ideas by project and context
+  const groupedIdeas = React.useMemo(() => {
     const grouped: GroupedIdeas = {};
 
-    localIdeas.forEach((idea) => {
+    filteredIdeas.forEach((idea) => {
       const projectId = idea.project_id;
       const contextId = idea.context_id || 'no-context';
 
@@ -57,73 +76,68 @@ export default function BufferView({
     });
 
     return grouped;
-  }, [localIdeas]);
+  }, [filteredIdeas]);
 
-  const handleIdeaDelete = React.useCallback(async (ideaId: string) => {
-    // Optimistically update local state
-    setLocalIdeas(prev => prev.filter(idea => idea.id !== ideaId));
-
-    // Call parent handler
-    try {
-      await onIdeaDelete(ideaId);
-    } catch (error) {
-      // Revert on error - find the idea from the original ideas prop
-      const deletedIdea = ideas.find(idea => idea.id === ideaId);
-      if (deletedIdea) {
-        setLocalIdeas(prev => [...prev, deletedIdea]);
-      }
-    }
-  }, [ideas, onIdeaDelete]);
-
-  const handleContextDelete = React.useCallback(async (contextId: string) => {
-    // If parent provided a handler, use it
-    if (onContextDelete) {
-      await onContextDelete(contextId);
-      return;
-    }
-
-    // Otherwise, handle it ourselves
-    const contextIdeas = localIdeas.filter(idea => idea.context_id === contextId);
-    const projectId = contextIdeas[0]?.project_id;
-    const project = projectId ? getProject(projectId) : null;
-
-    // Optimistically update UI
-    setLocalIdeas(prev => prev.filter(idea => idea.context_id !== contextId));
-
-    try {
-      const response = await fetch(
-        `/api/contexts/ideas?contextId=${encodeURIComponent(contextId)}${project?.path ? `&projectPath=${encodeURIComponent(project.path)}` : ''}`,
-        { method: 'DELETE' }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-      } else {
-        const errorData = await response.json();
-        // Revert on error
-        setLocalIdeas(prev => [...prev, ...contextIdeas]);
-        alert(`Failed to delete ideas: ${errorData.error}`);
-      }
-    } catch (error) {
-      // Revert on error
-      setLocalIdeas(prev => [...prev, ...contextIdeas]);
-      alert('Failed to delete ideas. Please refresh the page.');
-    }
-  }, [localIdeas, onContextDelete, getProject]);
-
-  // Memoize sorted context entries to avoid re-sorting on every render
-  // MUST be before conditional returns to maintain hook order
+  // Memoize sorted context entries
   const sortedGroupedIdeas = React.useMemo(() => {
-    return Object.entries(localGroupedIdeas).map(([projectId, contexts]) => ({
+    return Object.entries(groupedIdeas).map(([projectId, contexts]) => ({
       projectId,
-      contexts: Object.entries(contexts)
-        .sort(([, ideasA], [, ideasB]) => ideasB.length - ideasA.length)
+      contexts: Object.entries(contexts).sort(
+        ([, ideasA], [, ideasB]) => ideasB.length - ideasA.length
+      ),
     }));
-  }, [localGroupedIdeas]);
+  }, [groupedIdeas]);
 
-  if (loading) {
+  const handleIdeaDelete = React.useCallback(
+    async (ideaId: string) => {
+      try {
+        await deleteIdeaMutation.mutateAsync(ideaId);
+      } catch (error) {
+        // Error handling is done in the mutation hook with rollback
+        console.error('Failed to delete idea:', error);
+      }
+    },
+    [deleteIdeaMutation]
+  );
+
+  const handleContextDelete = React.useCallback(
+    async (contextId: string) => {
+      // Handle 'no-context' for General ideas (null context_id)
+      const isGeneralContext = contextId === 'no-context';
+      
+      // Find the project for this context
+      const contextIdeas = filteredIdeas.filter((idea) =>
+        isGeneralContext
+          ? idea.context_id === null
+          : idea.context_id === contextId
+      );
+      const projectId = contextIdeas[0]?.project_id;
+      const project = projectId ? getProject(projectId) : null;
+
+      try {
+        await deleteContextIdeasMutation.mutateAsync({
+          contextId,
+          projectPath: project?.path,
+        });
+      } catch (error) {
+        // Error handling is done in the mutation hook with rollback
+        console.error('Failed to delete context ideas:', error);
+        alert(
+          error instanceof Error
+            ? error.message
+            : 'Failed to delete ideas. Please refresh the page.'
+        );
+      }
+    },
+    [filteredIdeas, getProject, deleteContextIdeasMutation]
+  );
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
+      <div
+        className="flex items-center justify-center py-24"
+        data-testid="buffer-loading"
+      >
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -134,15 +148,18 @@ export default function BufferView({
     );
   }
 
-  if (localIdeas.length === 0) {
+  if (filteredIdeas.length === 0) {
     return (
       <motion.div
         className="text-center py-24"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        data-testid="buffer-empty"
       >
         <Lightbulb className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-400 mb-2">No ideas yet</h3>
+        <h3 className="text-xl font-semibold text-gray-400 mb-2">
+          No ideas yet
+        </h3>
         <p className="text-gray-500">
           Use the Generate Ideas button above to analyze your codebase
         </p>
@@ -151,7 +168,7 @@ export default function BufferView({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="buffer-view">
       {/* Project Sections */}
       {sortedGroupedIdeas.map(({ projectId, contexts }) => (
         <motion.div
@@ -159,6 +176,7 @@ export default function BufferView({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          data-testid={`buffer-project-${projectId}`}
         >
           {/* Project Header */}
           <div className="mb-4 flex items-center space-x-2">
@@ -167,7 +185,8 @@ export default function BufferView({
               {getProjectName(projectId)}
             </h2>
             <span className="text-sm text-gray-500 font-mono">
-              ({contexts.reduce((sum, [, ideas]) => sum + ideas.length, 0)} ideas)
+              ({contexts.reduce((sum, [, ideas]) => sum + ideas.length, 0)}{' '}
+              ideas)
             </span>
           </div>
 
@@ -177,7 +196,11 @@ export default function BufferView({
               {contexts.map(([contextId, contextIdeas]) => (
                 <BufferColumn
                   key={`${projectId}-${contextId}`}
-                  contextName={contextId === 'no-context' ? 'General' : getContextName(contextId)}
+                  contextName={
+                    contextId === 'no-context'
+                      ? 'General'
+                      : getContextName(contextId)
+                  }
                   contextId={contextId === 'no-context' ? null : contextId}
                   projectName={getProjectName(projectId)}
                   ideas={contextIdeas}
@@ -193,3 +216,6 @@ export default function BufferView({
     </div>
   );
 }
+
+// Export refetch hook for parent components
+export { useBufferIdeas, useInvalidateIdeas } from '@/lib/queries/ideaQueries';

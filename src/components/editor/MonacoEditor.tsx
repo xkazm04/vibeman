@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useRef, useEffect, useState } from 'react';
 import Editor, { OnMount, OnChange } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
 import { defineVibemanTheme, clearErrorMarkers, setupMarkerClearer } from './editorTheme';
 
 interface MonacoEditorProps {
@@ -11,8 +11,8 @@ interface MonacoEditorProps {
   readOnly?: boolean;
   height?: string | number;
   width?: string | number;
-  options?: monaco.editor.IStandaloneEditorConstructionOptions;
-  onMount?: (editor: monaco.editor.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => void;
+  options?: any;
+  onMount?: (editor: any, monaco: any) => void;
   loading?: React.ReactNode;
   className?: string;
 }
@@ -30,11 +30,11 @@ export default function MonacoEditor({
   loading,
   className = '',
 }: MonacoEditorProps) {
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<any>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
 
   // Default editor options with best practices
-  const defaultOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
+  const defaultOptions: any = {
     minimap: { enabled: true },
     fontSize: 14,
     fontFamily: 'JetBrains Mono, Fira Code, Monaco, Consolas, monospace',
@@ -148,4 +148,4 @@ export default function MonacoEditor({
 }
 
 // Export the editor instance type for external use
-export type EditorInstance = monaco.editor.IStandaloneCodeEditor;
+export type EditorInstance = any;

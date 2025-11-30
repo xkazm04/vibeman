@@ -146,7 +146,6 @@ export default function ScanHighModalContent({
             {content ? (
               <MarkdownViewer
                 content={content}
-                theme="dark"
               />
             ) : (
               <div className="flex items-center justify-center h-full text-slate-500">

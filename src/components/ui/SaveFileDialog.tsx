@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Folder, FileText, AlertCircle } from 'lucide-react';
 import FolderSelector from '../FolderSelector';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface SaveFileDialogProps {
   isOpen: boolean;
@@ -42,6 +43,8 @@ export default function SaveFileDialog({
   defaultFolder = 'docs',
   fileExtension = '.md'
 }: SaveFileDialogProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
   const [selectedFolder, setSelectedFolder] = useState<string>(defaultFolder);
   const [fileName, setFileName] = useState(defaultFileName);
   const [saving, setSaving] = useState(false);
@@ -120,7 +123,7 @@ export default function SaveFileDialog({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
             <div className="flex items-center space-x-3">
-              <Save className="w-5 h-5 text-cyan-400" />
+              <Save className={`w-5 h-5 ${colors.text}`} />
               <div>
                 <h2 className="text-lg font-semibold text-white font-mono">
                   {title}
@@ -165,12 +168,12 @@ export default function SaveFileDialog({
                   onChange={(e) => setFileName(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={saving}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:opacity-50"
+                  className={`w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[${colors.baseColor}] focus:border-transparent disabled:opacity-50`}
                   placeholder="Enter file name..."
                 />
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                File will be saved as: <span className="font-mono text-cyan-400">{finalFileName}</span>
+                File will be saved as: <span className={`font-mono ${colors.text}`}>{finalFileName}</span>
               </p>
             </form>
 
@@ -198,7 +201,7 @@ export default function SaveFileDialog({
               <div className="text-sm text-gray-500">
                 {selectedFolder ? (
                   <span>
-                    Saving to: <span className="font-mono text-cyan-400">{selectedFolder}/{finalFileName}</span>
+                    Saving to: <span className={`font-mono ${colors.text}`}>{selectedFolder}/{finalFileName}</span>
                   </span>
                 ) : (
                   <span>Select a folder to continue</span>
@@ -217,11 +220,11 @@ export default function SaveFileDialog({
                 <button
                   onClick={handleSave}
                   disabled={!selectedFolder || !fileName.trim() || saving}
-                  className="flex items-center space-x-2 px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`flex items-center space-x-2 px-4 py-2 ${colors.bg} ${colors.text} rounded-lg hover:${colors.bgHover} transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {saving ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                      <div className={`w-4 h-4 border-2 ${colors.text} border-t-transparent rounded-full animate-spin`}></div>
                       <span>Saving...</span>
                     </>
                   ) : (

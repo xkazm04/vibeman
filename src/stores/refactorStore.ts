@@ -4,6 +4,7 @@ import { useActiveProjectStore } from './activeProjectStore';
 import type { WizardPlan } from '@/app/features/RefactorWizard/lib/wizardOptimizer';
 import type { ScanTechniqueGroup } from '@/app/features/RefactorWizard/lib/scanTechniques';
 import type { RefactoringPackage, DependencyGraph, ProjectContext, PackageFilter } from '@/app/features/RefactorWizard/lib/types';
+import type { RefactorSpec, ExecutionResult, RefactorTemplate } from '@/app/features/RefactorWizard/lib/dslTypes';
 
 export type RefactorOpportunity = {
   id: string;
@@ -48,6 +49,28 @@ interface RefactorState {
   // UI state
   isWizardOpen: boolean;
   currentStep: 'settings' | 'scan' | 'plan' | 'review' | 'package' | 'execute' | 'results';
+
+  // ============================================================================
+  // DSL MODE STATE
+  // ============================================================================
+
+  /** Whether DSL mode is active (vs traditional wizard) */
+  isDSLMode: boolean;
+
+  /** Current DSL specification being edited */
+  currentSpec: RefactorSpec | null;
+
+  /** DSL execution status */
+  dslExecutionStatus: 'idle' | 'previewing' | 'executing' | 'completed' | 'failed';
+
+  /** DSL execution result */
+  dslExecutionResult: ExecutionResult | null;
+
+  /** Recently used specs */
+  recentSpecs: { name: string; spec: RefactorSpec; timestamp: string }[];
+
+  /** Saved spec templates */
+  savedSpecs: RefactorSpec[];
 
   // ============================================================================
   // PACKAGE-BASED REFACTORING STATE (Phase 1)
@@ -107,6 +130,40 @@ interface RefactorState {
   selectPackagesByCategory: (category: string) => void;
   selectFoundationalPackages: () => void;
   generatePackages: () => Promise<void>;
+
+  // ============================================================================
+  // DSL MODE ACTIONS
+  // ============================================================================
+
+  /** Toggle DSL mode on/off */
+  setDSLMode: (enabled: boolean) => void;
+
+  /** Set current spec */
+  setCurrentSpec: (spec: RefactorSpec | null) => void;
+
+  /** Update current spec */
+  updateCurrentSpec: (updates: Partial<RefactorSpec>) => void;
+
+  /** Set DSL execution status */
+  setDSLExecutionStatus: (status: RefactorState['dslExecutionStatus']) => void;
+
+  /** Set DSL execution result */
+  setDSLExecutionResult: (result: ExecutionResult | null) => void;
+
+  /** Save current spec to saved list */
+  saveCurrentSpec: () => void;
+
+  /** Load a saved spec */
+  loadSpec: (spec: RefactorSpec) => void;
+
+  /** Delete a saved spec */
+  deleteSavedSpec: (name: string) => void;
+
+  /** Add to recent specs */
+  addToRecentSpecs: (spec: RefactorSpec) => void;
+
+  /** Execute DSL spec */
+  executeDSLSpec: (spec: RefactorSpec) => Promise<void>;
 }
 
 export const useRefactorStore = create<RefactorState>()(
@@ -140,6 +197,14 @@ export const useRefactorStore = create<RefactorState>()(
       packageGenerationStatus: 'idle',
       packageGenerationError: null,
       projectContext: null,
+
+      // DSL Mode state
+      isDSLMode: false,
+      currentSpec: null,
+      dslExecutionStatus: 'idle',
+      dslExecutionResult: null,
+      recentSpecs: [],
+      savedSpecs: [],
 
       // Actions
       startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string, projectType?: string, selectedFolders?: string[]) => {
@@ -601,6 +666,118 @@ export const useRefactorStore = create<RefactorState>()(
           });
         }
       },
+
+      // ============================================================================
+      // DSL MODE ACTIONS
+      // ============================================================================
+
+      setDSLMode: (enabled: boolean) => {
+        set({ isDSLMode: enabled });
+      },
+
+      setCurrentSpec: (spec: RefactorSpec | null) => {
+        set({ currentSpec: spec });
+      },
+
+      updateCurrentSpec: (updates: Partial<RefactorSpec>) => {
+        const current = get().currentSpec;
+        if (current) {
+          set({ currentSpec: { ...current, ...updates } });
+        }
+      },
+
+      setDSLExecutionStatus: (status) => {
+        set({ dslExecutionStatus: status });
+      },
+
+      setDSLExecutionResult: (result) => {
+        set({ dslExecutionResult: result });
+      },
+
+      saveCurrentSpec: () => {
+        const { currentSpec, savedSpecs } = get();
+        if (!currentSpec) return;
+
+        // Check if spec with same name exists
+        const existingIndex = savedSpecs.findIndex(s => s.name === currentSpec.name);
+        if (existingIndex >= 0) {
+          // Update existing
+          const updated = [...savedSpecs];
+          updated[existingIndex] = currentSpec;
+          set({ savedSpecs: updated });
+        } else {
+          // Add new
+          set({ savedSpecs: [...savedSpecs, currentSpec] });
+        }
+      },
+
+      loadSpec: (spec: RefactorSpec) => {
+        set({ currentSpec: spec, isDSLMode: true });
+        // Add to recent
+        get().addToRecentSpecs(spec);
+      },
+
+      deleteSavedSpec: (name: string) => {
+        const { savedSpecs } = get();
+        set({ savedSpecs: savedSpecs.filter(s => s.name !== name) });
+      },
+
+      addToRecentSpecs: (spec: RefactorSpec) => {
+        const { recentSpecs } = get();
+        const entry = {
+          name: spec.name,
+          spec,
+          timestamp: new Date().toISOString(),
+        };
+
+        // Remove existing entry with same name
+        const filtered = recentSpecs.filter(r => r.name !== spec.name);
+
+        // Add to front, keep only last 10
+        set({ recentSpecs: [entry, ...filtered].slice(0, 10) });
+      },
+
+      executeDSLSpec: async (spec: RefactorSpec) => {
+        const activeProject = useActiveProjectStore.getState().activeProject;
+
+        if (!activeProject?.path) {
+          set({ dslExecutionStatus: 'failed' });
+          return;
+        }
+
+        set({ dslExecutionStatus: 'executing' });
+
+        try {
+          const response = await fetch('/api/refactor/execute-dsl', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              spec,
+              projectPath: activeProject.path,
+              projectId: activeProject.id,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to execute DSL spec');
+          }
+
+          const data = await response.json();
+
+          set({
+            dslExecutionStatus: 'completed',
+            dslExecutionResult: data.result,
+          });
+
+          // Add to recent
+          get().addToRecentSpecs(spec);
+
+        } catch (error) {
+          console.error('[RefactorStore] DSL execution failed:', error);
+          set({ dslExecutionStatus: 'failed' });
+        }
+      },
     }),
     {
       name: 'refactor-wizard-storage',
@@ -612,6 +789,9 @@ export const useRefactorStore = create<RefactorState>()(
         packages: state.packages,
         selectedPackages: Array.from(state.selectedPackages), // Convert Set to Array
         packageFilter: state.packageFilter,
+        // DSL Mode persistence
+        savedSpecs: state.savedSpecs,
+        recentSpecs: state.recentSpecs,
       }),
       merge: (persistedState: any, currentState) => ({
         ...currentState,

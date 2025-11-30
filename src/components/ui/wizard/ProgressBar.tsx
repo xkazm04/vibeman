@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface ProgressBarProps {
   progress: number; // 0-100
@@ -30,8 +31,11 @@ export default function ProgressBar({
   className = '',
   'data-testid': dataTestId,
 }: ProgressBarProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const variants = {
-    cyan: 'from-cyan-500 to-blue-500',
+    cyan: `${colors.primaryFrom} ${colors.primaryTo}`,
     green: 'from-green-500 to-emerald-500',
     blue: 'from-blue-500 to-indigo-500',
     purple: 'from-purple-500 to-pink-500',
@@ -49,7 +53,7 @@ export default function ProgressBar({
         <div className="flex items-center justify-between text-sm">
           {label && <span className="text-gray-300">{label}</span>}
           {showPercentage && (
-            <span className="text-cyan-400 font-medium">{progress}%</span>
+            <span className={`${colors.text} font-medium`}>{progress}%</span>
           )}
         </div>
       )}

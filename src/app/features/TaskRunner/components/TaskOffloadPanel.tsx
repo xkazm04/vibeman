@@ -9,6 +9,7 @@ import {
   useOffloadTasks,
   useAvailableBatchesForOffload,
   useBatch,
+  isTaskQueued,
 } from '../store';
 import BatchSelectionModal from '@/app/features/Onboarding/sub_Blueprint/components/BatchSelectionModal';
 
@@ -35,7 +36,7 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
 
   // Filter to only queued tasks (can't offload running/completed tasks)
   const queuedTasks = useMemo(
-    () => tasks.filter(task => task.status === 'queued'),
+    () => tasks.filter(task => isTaskQueued(task.status)),
     [tasks]
   );
 
@@ -155,7 +156,7 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
               />
               <span className="text-sm text-gray-300 truncate flex-1">{task.id}</span>
               <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-800 rounded">
-                {task.status}
+                {task.status.type}
               </span>
             </label>
           ))}
@@ -221,7 +222,7 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
 export function TaskOffloadButton({ sourceBatchId }: { sourceBatchId: BatchId }) {
   const [isOpen, setIsOpen] = useState(false);
   const tasks = useBatchTasks(sourceBatchId);
-  const queuedTaskCount = tasks.filter(t => t.status === 'queued').length;
+  const queuedTaskCount = tasks.filter(t => isTaskQueued(t.status)).length;
 
   if (queuedTaskCount === 0) return null;
 

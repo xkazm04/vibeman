@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Folder } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 export interface Context {
   id: string;
@@ -48,9 +49,11 @@ function ContextButton({
   label,
   backgroundColor
 }: ContextButtonProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
   const baseClasses = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0';
   const selectedClasses = isSelected
-    ? 'text-cyan-300 border border-cyan-500/40'
+    ? `${colors.textLight} border ${colors.borderHover}`
     : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300';
 
   return (
@@ -77,6 +80,9 @@ export default function ContextSelector({
   disabled = false,
   showFullProjectButton = true
 }: ContextSelectorProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   if (contexts.length === 0) {
     return null;
   }
@@ -105,8 +111,8 @@ export default function ContextSelector({
   return (
     <div className="w-full">
       <div className="flex items-center space-x-2 mb-2">
-        <Folder className="w-3.5 h-3.5 text-cyan-400" />
-        <span className="text-sm font-semibold text-cyan-300">Context Filter</span>
+        <Folder className={`w-3.5 h-3.5 ${colors.text}`} />
+        <span className={`text-sm font-semibold ${colors.textLight}`}>Context Filter</span>
       </div>
 
       <div className="flex flex-wrap gap-2">

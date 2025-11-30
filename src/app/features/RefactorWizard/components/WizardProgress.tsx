@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRefactorStore } from '@/stores/refactorStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { Check, Settings, Scan, Lightbulb, Eye, Package, Play, BarChart3 } from 'lucide-react';
 
 const steps = [
@@ -16,6 +17,8 @@ const steps = [
 
 export default function WizardProgress() {
   const { currentStep, analysisProgress, analysisStatus } = useRefactorStore();
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
   const currentIndex = steps.findIndex(s => s.id === currentStep);
 
   // Calculate overall progress
@@ -27,13 +30,13 @@ export default function WizardProgress() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-medium text-white/40 uppercase tracking-widest">Journey</h3>
-          <span className="text-xs font-mono text-cyan-400/60">{overallProgress}%</span>
+          <span className={`text-xs font-mono ${colors.textDark} opacity-60`}>{overallProgress}%</span>
         </div>
 
         {/* Overall progress bar */}
         <div className="h-1 bg-black/50 rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500"
+            className={`h-full bg-gradient-to-r ${colors.primary}`}
             initial={{ width: '0%' }}
             animate={{ width: `${overallProgress}%` }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -48,7 +51,7 @@ export default function WizardProgress() {
 
         {/* Completed progress overlay */}
         <motion.div
-          className="absolute left-[18px] top-6 w-[2px] bg-gradient-to-b from-cyan-500 to-blue-500 rounded-full"
+          className={`absolute left-[18px] top-6 w-[2px] bg-gradient-to-b ${colors.primaryFrom} to-blue-500 rounded-full`}
           initial={{ height: 0 }}
           animate={{
             height: currentIndex > 0 ? `${(currentIndex / (steps.length - 1)) * 100}%` : 0
@@ -73,7 +76,7 @@ export default function WizardProgress() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className={`relative flex items-center gap-3 py-3 px-2 rounded-lg transition-all duration-300
-                  ${isCurrent ? 'bg-gradient-to-r from-cyan-500/10 to-transparent' : ''}
+                  ${isCurrent ? `bg-gradient-to-r ${colors.bgLight} to-transparent` : ''}
                   ${isPending ? 'opacity-40' : 'opacity-100'}
                 `}
               >
@@ -82,13 +85,13 @@ export default function WizardProgress() {
                   <motion.div
                     initial={false}
                     animate={{
-                      backgroundColor: isCompleted ? '#06b6d4' : 'rgba(0,0,0,0.8)',
-                      borderColor: isCompleted ? '#06b6d4' : isCurrent ? '#06b6d4' : 'rgba(255,255,255,0.1)',
+                      backgroundColor: isCompleted ? colors.baseColor : 'rgba(0,0,0,0.8)',
+                      borderColor: isCompleted ? colors.baseColor : isCurrent ? colors.baseColor : 'rgba(255,255,255,0.1)',
                       scale: isCurrent ? 1.1 : 1,
                     }}
                     transition={{ duration: 0.2 }}
                     className={`w-9 h-9 rounded-xl border-2 flex items-center justify-center
-                      ${isCurrent ? 'shadow-[0_0_20px_rgba(6,182,212,0.4)]' : ''}
+                      ${isCurrent ? `shadow-[0_0_20px_${colors.baseColor}66]` : ''}
                     `}
                   >
                     {isCompleted ? (
@@ -101,10 +104,10 @@ export default function WizardProgress() {
                       </motion.div>
                     ) : isCurrent ? (
                       <div className="relative">
-                        <Icon className="w-4 h-4 text-cyan-400" />
+                        <Icon className={`w-4 h-4 ${colors.textDark}`} />
                         {isRunning && (
                           <motion.div
-                            className="absolute -inset-2 border-2 border-cyan-400/50 rounded-xl"
+                            className={`absolute -inset-2 border-2 ${colors.borderHover} rounded-xl`}
                             animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
                             transition={{ duration: 1.5, repeat: Infinity }}
                           />
@@ -120,7 +123,7 @@ export default function WizardProgress() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h4 className={`text-sm font-medium truncate ${
-                      isCurrent ? 'text-cyan-400' : isCompleted ? 'text-white' : 'text-white/50'
+                      isCurrent ? colors.textDark : isCompleted ? 'text-white' : 'text-white/50'
                     }`}>
                       {step.label}
                     </h4>
@@ -130,14 +133,14 @@ export default function WizardProgress() {
                         animate={{ opacity: [0.3, 1, 0.3] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       >
-                        <span className="w-1 h-1 bg-cyan-400 rounded-full" />
-                        <span className="w-1 h-1 bg-cyan-400 rounded-full" />
-                        <span className="w-1 h-1 bg-cyan-400 rounded-full" />
+                        <span className={`w-1 h-1 ${colors.accent} rounded-full`} />
+                        <span className={`w-1 h-1 ${colors.accent} rounded-full`} />
+                        <span className={`w-1 h-1 ${colors.accent} rounded-full`} />
                       </motion.div>
                     )}
                   </div>
                   <p className={`text-xs truncate ${
-                    isCurrent ? 'text-cyan-400/60' : 'text-white/30'
+                    isCurrent ? `${colors.textDark} opacity-60` : 'text-white/30'
                   }`}>
                     {isRunning ? `${analysisProgress}% complete` : step.description}
                   </p>
@@ -145,7 +148,7 @@ export default function WizardProgress() {
 
                 {/* Step number badge */}
                 <div className={`flex-shrink-0 text-[10px] font-mono ${
-                  isCompleted ? 'text-cyan-400/50' : isCurrent ? 'text-cyan-400' : 'text-white/20'
+                  isCompleted ? `${colors.textDark} opacity-50` : isCurrent ? colors.textDark : 'text-white/20'
                 }`}>
                   {String(index + 1).padStart(2, '0')}
                 </div>
@@ -166,7 +169,7 @@ export default function WizardProgress() {
           >
             <div className="flex items-center justify-between text-xs">
               <span className="text-white/30">Steps completed</span>
-              <span className="font-mono text-cyan-400">
+              <span className={`font-mono ${colors.textDark}`}>
                 {currentIndex} / {steps.length}
               </span>
             </div>

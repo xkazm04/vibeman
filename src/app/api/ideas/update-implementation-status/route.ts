@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, contextDb } from '@/app/db';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  validateIdeasRequired,
+  handleIdeasApiError,
+  createIdeasSuccessResponse,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
 /**
  * POST /api/ideas/update-implementation-status
@@ -11,20 +18,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { requirementName } = body;
 
-    if (!requirementName) {
-      return NextResponse.json(
-        { error: 'requirementName is required' },
-        { status: 400 }
-      );
-    }
+    const validationError = validateIdeasRequired({ requirementName }, ['requirementName']);
+    if (validationError) return validationError;
 
     // Find idea by requirement_id
     const idea = ideaDb.getIdeaByRequirementId(requirementName);
 
     if (!idea) {
-      return NextResponse.json({
-        updated: false,
-        message: 'No idea found with this requirement_id',
+      return createIdeasErrorResponse(IdeasErrorCode.REQUIREMENT_NOT_FOUND, {
+        details: `No idea found with requirement_id: ${requirementName}`,
       });
     }
 
@@ -32,7 +34,9 @@ export async function POST(request: NextRequest) {
     const updatedIdea = ideaDb.updateIdea(idea.id, { status: 'implemented' });
 
     if (!updatedIdea) {
-      throw new Error('Failed to update idea status');
+      return createIdeasErrorResponse(IdeasErrorCode.UPDATE_FAILED, {
+        details: `Failed to update idea status for id: ${idea.id}`,
+      });
     }
 
     // Increment context's implemented_tasks counter if idea has a context
@@ -42,19 +46,11 @@ export async function POST(request: NextRequest) {
       contextUpdated = updatedContext !== null;
     }
 
-    return NextResponse.json({
-      updated: true,
-      ideaId: idea.id,
-      contextUpdated,
-      message: 'Idea status updated to implemented',
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: 'Failed to update idea status',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+    return createIdeasSuccessResponse(
+      { updated: true, ideaId: idea.id, contextUpdated },
+      'Idea status updated to implemented'
     );
+  } catch (error) {
+    return handleIdeasApiError(error, IdeasErrorCode.UPDATE_FAILED);
   }
 }

@@ -12,7 +12,6 @@ Cache keys are generated from:
 - **Message content** (normalized: lowercase, trimmed)
 - **Conversation history** (last 3 messages for context)
 - **Provider** (e.g., 'ollama', 'openai', 'anthropic', 'gemini')
-- **Model** (e.g., 'gpt-4', 'claude-sonnet')
 
 This ensures that the same command in the same context returns the cached response, while different contexts generate new requests.
 

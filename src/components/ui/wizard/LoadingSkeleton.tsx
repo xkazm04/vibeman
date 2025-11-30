@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface LoadingSkeletonProps {
   /** Test ID for automated testing */
@@ -16,6 +17,9 @@ interface LoadingSkeletonProps {
 export function LoadingSkeleton({
   'data-testid': testId = 'loading-skeleton',
 }: LoadingSkeletonProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -32,14 +36,14 @@ export function LoadingSkeleton({
           className="absolute inset-0 opacity-5 pointer-events-none"
           style={{
             backgroundImage:
-              'linear-gradient(cyan 1px, transparent 1px), linear-gradient(90deg, cyan 1px, transparent 1px)',
+              `linear-gradient(${colors.baseColor} 1px, transparent 1px), linear-gradient(90deg, ${colors.baseColor} 1px, transparent 1px)`,
             backgroundSize: '20px 20px',
           }}
         />
 
         {/* Animated gradient overlay */}
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent"
+          className={`absolute inset-0 bg-gradient-to-r from-transparent ${colors.bg} to-transparent`}
           animate={{
             x: ['-100%', '200%'],
           }}
@@ -82,7 +86,8 @@ export function LoadingSkeleton({
       <div className="flex items-center justify-center py-4">
         <div className="flex items-center gap-2">
           <motion.div
-            className="w-2 h-2 bg-cyan-400 rounded-full"
+            className={`w-2 h-2 rounded-full`}
+            style={{ backgroundColor: colors.baseColor }}
             animate={{
               scale: [1, 1.5, 1],
               opacity: [1, 0.5, 1],
@@ -94,7 +99,8 @@ export function LoadingSkeleton({
             }}
           />
           <motion.div
-            className="w-2 h-2 bg-cyan-400 rounded-full"
+            className={`w-2 h-2 rounded-full`}
+            style={{ backgroundColor: colors.baseColor }}
             animate={{
               scale: [1, 1.5, 1],
               opacity: [1, 0.5, 1],
@@ -106,7 +112,8 @@ export function LoadingSkeleton({
             }}
           />
           <motion.div
-            className="w-2 h-2 bg-cyan-400 rounded-full"
+            className={`w-2 h-2 rounded-full`}
+            style={{ backgroundColor: colors.baseColor }}
             animate={{
               scale: [1, 1.5, 1],
               opacity: [1, 0.5, 1],

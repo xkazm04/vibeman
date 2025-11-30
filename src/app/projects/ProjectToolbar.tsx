@@ -7,6 +7,7 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useProjectsToolbarStore } from '@/stores/projectsToolbarStore';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
+import { useThemeStore } from '@/stores/themeStore';
 import { deleteProject } from './sub_ProjectSetting/lib/projectApi';
 import ProjectSelectionModal from './sub_ProjectSetting/components/ProjectSelectionModal';
 import GlowWrapper from '@/app/features/Onboarding/components/GlowWrapper';
@@ -36,6 +37,8 @@ export default function ProjectToolbar() {
     setShowStructure,
   } = useProjectsToolbarStore();
   const { showFullScreenModal, hideModal } = useGlobalModal();
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
 
   // Fetch projects from API instead of store
   const [projects, setProjects] = React.useState<Project[]>([]);
@@ -83,8 +86,8 @@ export default function ProjectToolbar() {
         {
           subtitle: 'Choose a project to work with',
           icon: FolderOpen,
-          iconBgColor: 'from-cyan-600/20 to-blue-600/20',
-          iconColor: 'text-cyan-400',
+          iconBgColor: `${colors.primaryFrom}/20 to-blue-600/20`,
+          iconColor: colors.text,
           maxWidth: 'max-w-6xl',
           maxHeight: 'max-h-[85vh]'
         }
@@ -151,13 +154,14 @@ export default function ProjectToolbar() {
     }
   };
 
+  // Theme-aware color scheme using theme tokens for primary color
   const colorSchemes = {
     cyan: {
-      bg: 'from-cyan-600/20 to-cyan-400/20',
-      hover: 'hover:from-cyan-600/30 hover:to-cyan-400/30',
-      border: 'border-cyan-500/30',
-      text: 'text-cyan-400',
-      glow: 'shadow-cyan-500/20',
+      bg: `${colors.primaryFrom}/20 ${colors.primaryTo}/20`.replace('from-', 'from-').replace('to-', 'to-'),
+      hover: `hover:${colors.primaryFrom}/30 hover:${colors.primaryTo}/30`.replace('from-', 'from-').replace('to-', 'to-'),
+      border: colors.border,
+      text: colors.textDark,
+      glow: colors.glow.replace('shadow-', 'shadow-').replace('/50', '/20'),
     },
     blue: {
       bg: 'from-blue-600/20 to-blue-400/20',
@@ -315,13 +319,13 @@ export default function ProjectToolbar() {
         {activeProject ? (
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 animate-pulse shadow-lg shadow-cyan-500/50" />
+              <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${colors.primary} animate-pulse shadow-lg ${colors.glow}`} />
               <h2 className="text-lg font-semibold text-white font-mono">
                 {activeProject.name}
               </h2>
             </div>
             {activeProject.type && (
-              <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 rounded text-[10px] font-medium text-cyan-400 uppercase tracking-wider">
+              <span className={`px-2 py-0.5 ${colors.bg} border ${colors.border} rounded text-[10px] font-medium ${colors.textDark} uppercase tracking-wider`}>
                 {activeProject.type}
               </span>
             )}

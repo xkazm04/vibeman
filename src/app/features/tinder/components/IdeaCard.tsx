@@ -15,6 +15,7 @@ import { Calendar, Tag, Target } from 'lucide-react';
 interface IdeaCardProps {
   idea: DbIdea;
   projectName: string;
+  contextName?: string;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   style?: React.CSSProperties;
@@ -23,6 +24,7 @@ interface IdeaCardProps {
 export default function IdeaCard({
   idea,
   projectName,
+  contextName = 'General',
   onSwipeLeft,
   onSwipeRight,
   style,
@@ -207,6 +209,8 @@ export default function IdeaCard({
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
               <span className="text-sm text-gray-400">{projectName}</span>
+              <span className="text-sm text-gray-500">•</span>
+              <span className="text-sm text-gray-400">{contextName}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Calendar className="w-3 h-3" />

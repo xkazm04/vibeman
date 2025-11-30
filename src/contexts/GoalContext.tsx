@@ -134,7 +134,6 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
         title: goalData.title,
         description: goalData.description,
         status: goalData.status,
-        orderIndex: goalData.order,
         contextId: goalData.contextId,
       });
       return result;

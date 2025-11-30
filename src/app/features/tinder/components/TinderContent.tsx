@@ -10,6 +10,8 @@ import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import ActionButtons from './TinderButtons';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
+import { Context } from '@/lib/queries/contextQueries';
+import { getContextNameFromMap } from '@/app/features/Ideas/lib/contextLoader';
 
 interface TinderContentProps {
   ideas: DbIdea[];
@@ -22,6 +24,7 @@ interface TinderContentProps {
   onDelete: () => Promise<void>;
   onStartOver: () => void;
   onFlushComplete?: () => void;
+  contextsMap?: Record<string, Context[]>;
 }
 
 export default function TinderContent({
@@ -35,6 +38,7 @@ export default function TinderContent({
   onDelete,
   onStartOver,
   onFlushComplete,
+  contextsMap = {},
 }: TinderContentProps) {
   const { getProject, projects } = useProjectConfigStore();
   const { selectedProjectId } = useUnifiedProjectStore();
@@ -188,12 +192,16 @@ export default function TinderContent({
         <AnimatePresence>
           {ideas.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((idea, index) => {
             const projectName = getProject(idea.project_id)?.name || 'Unknown Project';
+            const contextName = idea.context_id
+              ? getContextNameFromMap(idea.context_id, contextsMap)
+              : 'General';
 
             return (
               <IdeaCard
                 key={idea.id}
                 idea={idea}
                 projectName={projectName}
+                contextName={contextName}
                 onSwipeLeft={index === 0 ? onReject : () => {}}
                 onSwipeRight={index === 0 ? onAccept : () => {}}
                 style={{

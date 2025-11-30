@@ -1,4 +1,5 @@
 import React from 'react';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface GlowCardProps {
   children: React.ReactNode;
@@ -13,8 +14,11 @@ export const GlowCard: React.FC<GlowCardProps> = ({
   glow = false, 
   glowColor = 'cyan' 
 }) => {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const glowColors = {
-    cyan: 'shadow-cyan-500/50',
+    cyan: colors.glow,
     blue: 'shadow-blue-500/50',
     green: 'shadow-green-500/50',
     red: 'shadow-red-500/50'

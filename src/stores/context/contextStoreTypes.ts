@@ -9,7 +9,10 @@ export interface ContextGroup {
   projectId: string;
   name: string;
   color: string;
+  accentColor?: string; // Optional accent color for gradient transitions
   position: number;
+  type?: 'pages' | 'client' | 'server' | 'external' | null; // Architecture layer type
+  icon?: string | null; // Icon name for visual representation
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,17 +74,22 @@ export interface ContextStore extends ContextState {
     target_fulfillment?: string | null;
   }) => Promise<void>;
   moveContext: (contextId: string, newGroupId: string | null) => Promise<void>;
+  flushPendingMoves: () => Promise<void>;
 
   // Group operations
   addGroup: (groupData: {
     projectId: string;
     name: string;
     color?: string;
+    icon?: string;
   }) => Promise<void>;
   removeGroup: (groupId: string) => Promise<void>;
   updateGroup: (groupId: string, updates: {
     name?: string;
     color?: string;
+    accentColor?: string;
+    type?: 'pages' | 'client' | 'server' | 'external' | null;
+    icon?: string | null;
   }) => Promise<void>;
 
   // Context selection for backlog generation

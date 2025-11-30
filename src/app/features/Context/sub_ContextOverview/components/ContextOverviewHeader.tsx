@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, Calendar, Wrench, BookOpen, Users, TestTube, Lightbulb, Vault, FolderOpen } from 'lucide-react';
+import { X, FileText, Calendar, Wrench, BookOpen, TestTube, Lightbulb, Vault, FolderOpen } from 'lucide-react';
 
-export type TabType = 'manager' | 'docs' | 'advisors' | 'testing' | 'files';
+export type TabType = 'manager' | 'docs' | 'testing' | 'files';
 
 interface Tab {
   id: TabType;
@@ -30,7 +30,6 @@ const TABS: Tab[] = [
   { id: 'testing', label: 'Testing', icon: TestTube },
   { id: 'files', label: 'Files', icon: FolderOpen },
   { id: 'docs', label: 'Docs', icon: BookOpen },
-  { id: 'advisors', label: 'Advisors', icon: Users },
 ];
 
 export default function ContextOverviewHeader({

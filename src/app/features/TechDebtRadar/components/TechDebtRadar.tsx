@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Target, Scan, Filter } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Target, Scan, Filter, Puzzle, ChevronRight } from 'lucide-react';
 import TechDebtCard from './TechDebtCard';
 import TechDebtDetailModal from './TechDebtDetailModal';
 import TechDebtStatsPanel from './TechDebtStatsPanel';
+import PluginManager from './PluginManager';
 import type { DbTechDebt, TechDebtStats, TechDebtCategory, TechDebtSeverity, TechDebtStatus } from '@/app/db/models/tech-debt.types';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
@@ -50,6 +51,8 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
   const [severityFilter, setSeverityFilter] = useState<TechDebtSeverity[]>([]);
   const [statusFilter, setStatusFilter] = useState<TechDebtStatus[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showPlugins, setShowPlugins] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<{ value: string; label: string }[]>([]);
 
   // Load tech debt
   const loadTechDebt = async () => {
@@ -81,11 +84,46 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
     }
   };
 
+  // Load available categories (including plugin categories)
+  const loadCategories = async () => {
+    try {
+      const res = await fetch('/api/tech-debt/plugins/categories');
+      if (res.ok) {
+        const data = await res.json();
+        const categories = data.categories.map((cat: { id: string; label: string }) => ({
+          value: cat.id,
+          label: cat.label
+        }));
+        setAvailableCategories(categories);
+      }
+    } catch (error) {
+      // Fall back to default categories
+      setAvailableCategories([
+        { value: 'code_quality', label: 'Code Quality' },
+        { value: 'security', label: 'Security' },
+        { value: 'performance', label: 'Performance' },
+        { value: 'maintainability', label: 'Maintainability' },
+        { value: 'testing', label: 'Testing' },
+        { value: 'documentation', label: 'Documentation' },
+        { value: 'dependencies', label: 'Dependencies' },
+        { value: 'architecture', label: 'Architecture' },
+        { value: 'accessibility', label: 'Accessibility' }
+      ]);
+    }
+  };
+
   useEffect(() => {
     if (projectId) {
       loadTechDebt();
+      loadCategories();
     }
   }, [projectId, categoryFilter, severityFilter, statusFilter]);
+
+  // Handle plugin changes
+  const handlePluginChange = () => {
+    loadCategories();
+    loadTechDebt();
+  };
 
   // Run scan
   const runScan = async () => {
@@ -159,6 +197,20 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowPlugins(!showPlugins)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg
+              border transition-all ${
+                showPlugins
+                  ? 'bg-purple-500/20 border-purple-500/50 text-purple-400'
+                  : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
+              }`}
+            data-testid="toggle-plugins-btn"
+          >
+            <Puzzle className="w-4 h-4" />
+            Plugins
+          </button>
+
+          <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg
               border transition-all ${
@@ -166,6 +218,7 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
                   ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
                   : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
               }`}
+            data-testid="toggle-filters-btn"
           >
             <Filter className="w-4 h-4" />
             Filters
@@ -179,12 +232,29 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
               hover:from-emerald-600 hover:to-teal-600
               text-white font-medium transition-all
               disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="run-scan-btn"
           >
             <Scan className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} />
             {isScanning ? 'Scanning...' : 'Run Scan'}
           </button>
         </div>
       </div>
+
+      {/* Plugin Manager Panel */}
+      <AnimatePresence>
+        {showPlugins && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-gray-700/50 overflow-hidden"
+          >
+            <div className="p-6">
+              <PluginManager onPluginChange={handlePluginChange} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stats Panel */}
       {stats && (
@@ -202,12 +272,12 @@ export default function TechDebtRadar({ projectId }: TechDebtRadarProps) {
           className="p-6 border-b border-gray-700/50 bg-gray-800/30"
         >
           <div className="grid grid-cols-3 gap-4">
-            {/* Category Filter */}
+            {/* Category Filter - now includes plugin categories */}
             <FilterSelect
               label="Category"
               value={categoryFilter}
               onChange={(values) => setCategoryFilter(values as TechDebtCategory[])}
-              options={[
+              options={availableCategories.length > 0 ? availableCategories : [
                 { value: 'code_quality', label: 'Code Quality' },
                 { value: 'security', label: 'Security' },
                 { value: 'performance', label: 'Performance' },

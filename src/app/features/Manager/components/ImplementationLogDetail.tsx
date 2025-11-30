@@ -5,16 +5,19 @@
 
 'use client';
 
+import { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, FileCode2 } from 'lucide-react';
 import { EnrichedImplementationLog } from '../lib/types';
 import UserInputPanel from './UserInputPanel';
+import ImplementationProposalBridge from './ImplementationProposalBridge';
 
 interface ImplementationLogDetailProps {
   log: EnrichedImplementationLog;
   onClose: () => void;
   onAccept: () => void;
-  onRequirementCreated: (requirementName: string) => void;
+  onRequirementCreated: (requirementName: string, content?: string) => void;
+  onTriggerClaudeCode?: (requirementName: string, content: string) => void;
   projectPath?: string;
 }
 
@@ -23,8 +26,45 @@ export default function ImplementationLogDetail({
   onClose,
   onAccept,
   onRequirementCreated,
+  onTriggerClaudeCode,
   projectPath,
 }: ImplementationLogDetailProps) {
+  /**
+   * Handle proposal acceptance - creates a new requirement
+   * Requirements: 2.3
+   */
+  const handleProposalAccepted = useCallback(
+    (proposalId: string, requirementName: string, content: string) => {
+      onRequirementCreated(requirementName, content);
+    },
+    [onRequirementCreated]
+  );
+
+  /**
+   * Handle proposal acceptance with code - triggers Claude Code pipeline
+   * Requirements: 2.4
+   */
+  const handleProposalAcceptedWithCode = useCallback(
+    (proposalId: string, requirementName: string, content: string) => {
+      if (onTriggerClaudeCode) {
+        onTriggerClaudeCode(requirementName, content);
+      } else {
+        // Fallback to regular requirement creation
+        onRequirementCreated(requirementName, content);
+      }
+    },
+    [onTriggerClaudeCode, onRequirementCreated]
+  );
+
+  /**
+   * Handle proposal decline - records the decline action
+   * Requirements: 2.5
+   */
+  const handleProposalDeclined = useCallback((proposalId: string) => {
+    // Log decline for analytics (could be extended to persist)
+    console.log('[ImplementationLogDetail] Proposal declined:', proposalId);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -130,6 +170,15 @@ export default function ImplementationLogDetail({
                 </p>
               </div>
             </div>
+
+            {/* Improvement Proposals - Requirements: 2.1 */}
+            <ImplementationProposalBridge
+              implementationLog={log}
+              projectPath={projectPath}
+              onProposalAccepted={handleProposalAccepted}
+              onProposalAcceptedWithCode={onTriggerClaudeCode ? handleProposalAcceptedWithCode : undefined}
+              onProposalDeclined={handleProposalDeclined}
+            />
 
             {/* Implementation Details */}
             <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700/50">

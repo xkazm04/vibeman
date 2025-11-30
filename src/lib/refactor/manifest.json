@@ -1,0 +1,206 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2025-11-29T16:39:39.119Z",
+  "files": [
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\ContextComponents\\ContextJailCard.tsx",
+      "status": "pending",
+      "lineCount": 220,
+      "colorReplacements": 2,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\ContextMenu\\ContextMenu.tsx",
+      "status": "pending",
+      "lineCount": 224,
+      "colorReplacements": 3,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\ContextMenu.tsx",
+      "status": "pending",
+      "lineCount": 219,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\DecisionPanel\\DecisionCard.tsx",
+      "status": "pending",
+      "lineCount": 436,
+      "colorReplacements": 10,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\DecisionPanel\\ScanProgressBar.tsx",
+      "status": "pending",
+      "lineCount": 237,
+      "colorReplacements": 2,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\DecisionPanel\\WizardStepPanel.tsx",
+      "status": "pending",
+      "lineCount": 380,
+      "colorReplacements": 10,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\editor\\FileTab.tsx",
+      "status": "pending",
+      "lineCount": 77,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\editor\\MonacoDiffEditor.tsx",
+      "status": "pending",
+      "lineCount": 138,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\editor\\MonacoEditor.tsx",
+      "status": "pending",
+      "lineCount": 151,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\editor\\MultiFileEditor.tsx",
+      "status": "pending",
+      "lineCount": 344,
+      "colorReplacements": 2,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\GlobalTaskBar\\index.tsx",
+      "status": "pending",
+      "lineCount": 464,
+      "colorReplacements": 11,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\GlobalTaskBar\\TaskProgressItem.tsx",
+      "status": "pending",
+      "lineCount": 202,
+      "colorReplacements": 8,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\idea\\IdeaDetailActions.tsx",
+      "status": "pending",
+      "lineCount": 148,
+      "colorReplacements": 3,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\idea\\IdeaDetailDescription.tsx",
+      "status": "pending",
+      "lineCount": 114,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\idea\\IdeaDetailFeedback.tsx",
+      "status": "pending",
+      "lineCount": 69,
+      "colorReplacements": 4,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\idea\\IdeaDetailHeader.tsx",
+      "status": "pending",
+      "lineCount": 45,
+      "colorReplacements": 2,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\idea\\IdeaDetailModal.tsx",
+      "status": "pending",
+      "lineCount": 337,
+      "colorReplacements": 2,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\markdown\\InteractiveContent.tsx",
+      "status": "pending",
+      "lineCount": 205,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\markdown\\MarkdownViewer.tsx",
+      "status": "pending",
+      "lineCount": 442,
+      "colorReplacements": 2,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\markdown\\mdHelpers.ts",
+      "status": "pending",
+      "lineCount": 492,
+      "colorReplacements": 13,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\markdown\\MdList.tsx",
+      "status": "pending",
+      "lineCount": 31,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\markdown\\SimplePlantUML.tsx",
+      "status": "pending",
+      "lineCount": 350,
+      "colorReplacements": 2,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\markdown\\TableOfContents.tsx",
+      "status": "pending",
+      "lineCount": 171,
+      "colorReplacements": 3,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\RequirementViewer\\RequirementViewer.tsx",
+      "status": "pending",
+      "lineCount": 212,
+      "colorReplacements": 5,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\Tooltip.tsx",
+      "status": "pending",
+      "lineCount": 266,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\ui\\buttons\\IconButton.tsx",
+      "status": "pending",
+      "lineCount": 473,
+      "colorReplacements": 13,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\ui\\buttons\\MotionButton.tsx",
+      "status": "pending",
+      "lineCount": 410,
+      "colorReplacements": 17,
+      "extractedComponents": []
+    }
+  ],
+  "summary": {
+    "byCategory": {
+      "text": 33,
+      "border": 28,
+      "background": 22,
+      "shadow": 7,
+      "gradient": 32
+    },
+    "filesOver200Lines": 18
+  },
+  "totalFiles": 27
+}

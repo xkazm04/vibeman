@@ -9,6 +9,7 @@ import { goalRepository } from './repositories/goal.repository';
 import { goalCandidateRepository } from './repositories/goal-candidate.repository';
 import { backlogRepository } from './repositories/backlog.repository';
 import { contextGroupRepository } from './repositories/context-group.repository';
+import { contextGroupRelationshipRepository } from './repositories/context-group-relationship.repository';
 import { contextRepository } from './repositories/context.repository';
 import { eventRepository } from './repositories/event.repository';
 import { scanRepository } from './repositories/scan.repository';
@@ -34,6 +35,35 @@ import {
   scanPredictionRepository,
   fileChangePatternRepository,
 } from './repositories/scan-prediction.repository';
+import {
+  marketplaceUserRepository,
+  refactoringPatternRepository,
+  patternRatingRepository,
+  patternApplicationRepository,
+  badgeRepository,
+  patternFavoriteRepository,
+  patternCollectionRepository,
+  patternVersionRepository,
+} from './repositories/marketplace.repository';
+import {
+  ideaExecutionOutcomeRepository,
+  scoringWeightRepository,
+  scoringThresholdRepository,
+} from './repositories/adaptive-learning.repository';
+import {
+  debtPatternRepository,
+  debtPredictionRepository,
+  complexityHistoryRepository,
+  opportunityCardRepository,
+  preventionActionRepository,
+  codeChangeEventRepository,
+} from './repositories/debt-prediction.repository';
+import {
+  securityIntelligenceRepository,
+  securityAlertRepository,
+  staleBranchRepository,
+  communitySecurityScoreRepository,
+} from './repositories/security-intelligence.repository';
 
 // Export types
 export * from './models/types';
@@ -43,6 +73,9 @@ export * from './models/tech-debt.types';
 export * from './models/security-patch.types';
 export * from './models/test-scenario.types';
 export * from './models/scan-prediction.types';
+export * from './models/marketplace.types';
+export * from './models/debt-prediction.types';
+export * from './models/security-intelligence.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -93,6 +126,15 @@ export const backlogDb = {
  */
 export const contextGroupDb = {
   ...contextGroupRepository,
+  close: closeDatabase
+};
+
+/**
+ * Context Group Relationship Database Operations
+ * Handles connections between context groups for Architecture Explorer
+ */
+export const contextGroupRelationshipDb = {
+  ...contextGroupRelationshipRepository,
   close: closeDatabase
 };
 
@@ -264,6 +306,195 @@ export const scanPredictionDb = {
  */
 export const fileChangePatternDb = {
   ...fileChangePatternRepository,
+  close: closeDatabase
+};
+
+/**
+ * Marketplace User Database Operations
+ * Handles marketplace user profiles and reputation
+ */
+export const marketplaceUserDb = {
+  ...marketplaceUserRepository,
+  close: closeDatabase
+};
+
+/**
+ * Refactoring Pattern Database Operations
+ * Handles community refactoring patterns
+ */
+export const refactoringPatternDb = {
+  ...refactoringPatternRepository,
+  close: closeDatabase
+};
+
+/**
+ * Pattern Rating Database Operations
+ * Handles pattern ratings and reviews
+ */
+export const patternRatingDb = {
+  ...patternRatingRepository,
+  close: closeDatabase
+};
+
+/**
+ * Pattern Application Database Operations
+ * Handles pattern application tracking
+ */
+export const patternApplicationDb = {
+  ...patternApplicationRepository,
+  close: closeDatabase
+};
+
+/**
+ * Badge Database Operations
+ * Handles badges and achievements
+ */
+export const badgeDb = {
+  ...badgeRepository,
+  close: closeDatabase
+};
+
+/**
+ * Pattern Favorite Database Operations
+ * Handles user pattern favorites
+ */
+export const patternFavoriteDb = {
+  ...patternFavoriteRepository,
+  close: closeDatabase
+};
+
+/**
+ * Pattern Collection Database Operations
+ * Handles pattern collections
+ */
+export const patternCollectionDb = {
+  ...patternCollectionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Pattern Version Database Operations
+ * Handles pattern version history
+ */
+export const patternVersionDb = {
+  ...patternVersionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Idea Execution Outcome Database Operations
+ * Tracks idea execution results for adaptive learning
+ */
+export const ideaExecutionOutcomeDb = {
+  ...ideaExecutionOutcomeRepository,
+  close: closeDatabase
+};
+
+/**
+ * Scoring Weight Database Operations
+ * Manages adaptive scoring weights per category/scan type
+ */
+export const scoringWeightDb = {
+  ...scoringWeightRepository,
+  close: closeDatabase
+};
+
+/**
+ * Scoring Threshold Database Operations
+ * Manages auto-accept/reject/priority thresholds
+ */
+export const scoringThresholdDb = {
+  ...scoringThresholdRepository,
+  close: closeDatabase
+};
+
+/**
+ * Debt Pattern Database Operations
+ * Manages learned patterns that predict technical debt
+ */
+export const debtPatternDb = {
+  ...debtPatternRepository,
+  close: closeDatabase
+};
+
+/**
+ * Debt Prediction Database Operations
+ * Manages real-time debt predictions for code
+ */
+export const debtPredictionDb = {
+  ...debtPredictionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Complexity History Database Operations
+ * Tracks file complexity metrics over time
+ */
+export const complexityHistoryDb = {
+  ...complexityHistoryRepository,
+  close: closeDatabase
+};
+
+/**
+ * Opportunity Card Database Operations
+ * Manages real-time refactoring opportunity cards
+ */
+export const opportunityCardDb = {
+  ...opportunityCardRepository,
+  close: closeDatabase
+};
+
+/**
+ * Prevention Action Database Operations
+ * Tracks actions taken to prevent debt
+ */
+export const preventionActionDb = {
+  ...preventionActionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Code Change Event Database Operations
+ * Tracks code changes for pattern detection
+ */
+export const codeChangeEventDb = {
+  ...codeChangeEventRepository,
+  close: closeDatabase
+};
+
+/**
+ * Security Intelligence Database Operations
+ * Manages cross-project security metrics and risk scores
+ */
+export const securityIntelligenceDb = {
+  ...securityIntelligenceRepository,
+  close: closeDatabase
+};
+
+/**
+ * Security Alert Database Operations
+ * Manages security alerts and notifications
+ */
+export const securityAlertDb = {
+  ...securityAlertRepository,
+  close: closeDatabase
+};
+
+/**
+ * Stale Branch Database Operations
+ * Tracks and manages stale branches across projects
+ */
+export const staleBranchDb = {
+  ...staleBranchRepository,
+  close: closeDatabase
+};
+
+/**
+ * Community Security Score Database Operations
+ * Manages community-driven security scoring
+ */
+export const communitySecurityScoreDb = {
+  ...communitySecurityScoreRepository,
   close: closeDatabase
 };
 

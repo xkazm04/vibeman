@@ -7,6 +7,7 @@ import { useContextStore } from '@/stores/contextStore';
 import { SupportedProvider } from '@/lib/llm/types';
 import { ScanState, QueueItem, ContextQueueItem, ScanType } from '../lib/scanTypes';
 import { getScanTypeConfig } from './lib/ScanTypeConfig';
+import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 
 // Modular imports
 import { executeContextScan, getButtonColor, getButtonText } from './lib/scanHandlers';
@@ -18,11 +19,14 @@ import {
   updateQueueItem
 } from './lib/scanQueue';
 import { handleScan as handleScanOperation, handleBatchScan as handleBatchScanOperation } from './lib/scanOperations';
+import { executeClaudeIdeas } from './lib/claudeIdeasHandler';
 
 // Component imports
 import ProviderSelector from '@/components/llm/ProviderSelector';
 import ScanButton from './components/ScanButton';
 import BatchScanButton from './components/BatchScanButton';
+import ClaudeIdeasButton from './components/ClaudeIdeasButton';
+import BatchSelectionModal from '@/app/features/Onboarding/sub_Blueprint/components/BatchSelectionModal';
 import ProgressBar from './ProgressBar';
 import ScanIdeaScoreboard from './components/ScanIdeaScoreboard';
 import ScanTypeSelector from './ScanTypeSelector';
@@ -31,7 +35,7 @@ interface ScanInitiatorProps {
   onScanComplete: () => void;
   selectedScanTypes: ScanType[];
   onScanTypesChange?: (types: ScanType[]) => void;
-  selectedContextId?: string | null;
+  selectedContextIds: string[];
   onBatchScan?: () => void;
 }
 
@@ -39,7 +43,7 @@ export default function ScanInitiator({
   onScanComplete,
   selectedScanTypes,
   onScanTypesChange,
-  selectedContextId,
+  selectedContextIds: propSelectedContextIds,
   onBatchScan
 }: ScanInitiatorProps) {
   const [scanState, setScanState] = React.useState<ScanState>('idle');
@@ -57,6 +61,10 @@ export default function ScanInitiator({
   const [isProcessingContextQueue, setIsProcessingContextQueue] = React.useState(false);
   const [batchMode, setBatchMode] = React.useState(false);
 
+  // Claude Ideas state
+  const [isClaudeIdeasProcessing, setIsClaudeIdeasProcessing] = React.useState(false);
+  const [showBatchSelectionModal, setShowBatchSelectionModal] = React.useState(false);
+
   const { activeProject } = useActiveProjectStore();
   const { selectedContextIds, contexts, loadProjectData } = useContextStore();
 
@@ -70,9 +78,22 @@ export default function ScanInitiator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProject?.id]);
 
-  const currentSelectedContextId = selectedContextId ?? (selectedContextIds.size > 0 ? Array.from(selectedContextIds)[0] : null);
-  const selectedContext = currentSelectedContextId
-    ? contexts.find(c => c.id === currentSelectedContextId)
+  // Use prop selected context IDs, or fall back to store's selected context IDs
+  const currentSelectedContextIds = propSelectedContextIds.length > 0 
+    ? propSelectedContextIds 
+    : (selectedContextIds.size > 0 ? Array.from(selectedContextIds) : []);
+  
+  // Get selected contexts data for scanning
+  const selectedContextsData = React.useMemo(() => {
+    return currentSelectedContextIds
+      .map(id => contexts.find(c => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+  }, [currentSelectedContextIds, contexts]);
+  
+  // For backward compatibility - first selected context (used in Claude Ideas)
+  const firstSelectedContextId = currentSelectedContextIds.length > 0 ? currentSelectedContextIds[0] : null;
+  const firstSelectedContext = firstSelectedContextId
+    ? contexts.find(c => c.id === firstSelectedContextId)
     : undefined;
 
   // Get ALL contexts for active project
@@ -116,6 +137,80 @@ export default function ScanInitiator({
     });
   };
 
+  // Claude Ideas: Opens batch selection modal
+  const handleClaudeIdeasClick = () => {
+    if (!activeProject) {
+      setMessage('No active project selected');
+      return;
+    }
+    setShowBatchSelectionModal(true);
+  };
+
+  // Claude Ideas: Execute after batch selection
+  const handleClaudeIdeasExecute = async (batchId: BatchId) => {
+    setShowBatchSelectionModal(false);
+    
+    console.log('[ScanInitiator] handleClaudeIdeasExecute called with batchId:', batchId);
+    console.log('[ScanInitiator] activeProject:', activeProject);
+    console.log('[ScanInitiator] selectedScanTypes:', selectedScanTypes);
+    
+    if (!activeProject) {
+      setMessage('No active project selected');
+      console.error('[ScanInitiator] ERROR: No active project');
+      return;
+    }
+
+    if (!activeProject.path) {
+      setMessage('Project path is not defined');
+      console.error('[ScanInitiator] ERROR: Project has no path:', activeProject);
+      return;
+    }
+
+    setIsClaudeIdeasProcessing(true);
+    setMessage('🤖 Creating Claude Code tasks...');
+
+    try {
+      console.log('[ScanInitiator] Calling executeClaudeIdeas with config:', {
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        scanTypes: selectedScanTypes,
+        contextId: firstSelectedContextId || undefined,
+        contextName: firstSelectedContext?.name,
+        batchId
+      });
+      
+      const result = await executeClaudeIdeas({
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        scanTypes: selectedScanTypes,
+        contextId: firstSelectedContextId || undefined,
+        contextName: firstSelectedContext?.name,
+        batchId
+      });
+
+      console.log('[ScanInitiator] executeClaudeIdeas result:', result);
+
+      if (result.success) {
+        setMessage(`✅ Claude Code tasks created! ${result.tasksCreated} tasks queued in ${batchId}. Ideas will be generated asynchronously.`);
+        
+        // Clear message after delay
+        setTimeout(() => {
+          setMessage('');
+        }, 8000);
+      } else {
+        setMessage(`⚠️ Partial success: ${result.tasksCreated} tasks created. Errors: ${result.errors.join(', ')}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[ScanInitiator] executeClaudeIdeas EXCEPTION:', error);
+      setMessage(`❌ Failed to create Claude Code tasks: ${errorMessage}`);
+    } finally {
+      setIsClaudeIdeasProcessing(false);
+    }
+  };
+
   // Process scan queue automatically when it changes
   React.useEffect(() => {
     if (!isProcessingQueue || scanQueue.length === 0) return;
@@ -150,22 +245,43 @@ export default function ScanInitiator({
       setMessage(`${config?.emoji} Scanning: ${config?.label}...`);
 
       try {
-        const ideaCount = await executeContextScan({
-          projectId: activeProject!.id,
-          projectName: activeProject!.name,
-          projectPath: activeProject!.path,
-          scanType: currentScan.scanType,
-          provider: selectedProvider,
-          contextId: currentSelectedContextId || undefined,
-          contextFilePaths: selectedContext?.filePaths
-        });
+        let totalIdeaCount = 0;
+        
+        // If multiple contexts are selected, scan each one
+        if (currentSelectedContextIds.length > 0) {
+          for (const contextId of currentSelectedContextIds) {
+            const contextData = contexts.find(c => c.id === contextId);
+            const ideaCount = await executeContextScan({
+              projectId: activeProject!.id,
+              projectName: activeProject!.name,
+              projectPath: activeProject!.path,
+              scanType: currentScan.scanType,
+              provider: selectedProvider,
+              contextId: contextId,
+              contextFilePaths: contextData?.filePaths
+            });
+            totalIdeaCount += ideaCount;
+          }
+        } else {
+          // No contexts selected - scan full project
+          const ideaCount = await executeContextScan({
+            projectId: activeProject!.id,
+            projectName: activeProject!.name,
+            projectPath: activeProject!.path,
+            scanType: currentScan.scanType,
+            provider: selectedProvider,
+            contextId: undefined,
+            contextFilePaths: undefined
+          });
+          totalIdeaCount = ideaCount;
+        }
 
         updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
           status: 'completed',
-          ideaCount
+          ideaCount: totalIdeaCount
         });
         setScanQueue(updatedQueue);
-        setTotalIdeas(prev => prev + ideaCount);
+        setTotalIdeas(prev => prev + totalIdeaCount);
         onScanComplete();
 
       } catch (error) {
@@ -322,6 +438,16 @@ export default function ScanInitiator({
             />
           )}
 
+          {/* Claude Ideas Button - Experimental Claude Code Generation */}
+          {activeProject && (
+            <ClaudeIdeasButton
+              onClick={handleClaudeIdeasClick}
+              disabled={scanState === 'scanning' || isClaudeIdeasProcessing || !activeProject}
+              isProcessing={isClaudeIdeasProcessing}
+              scanTypesCount={selectedScanTypes.length}
+            />
+          )}
+
         </div>
       </div>
 
@@ -340,6 +466,15 @@ export default function ScanInitiator({
           <ScanIdeaScoreboard items={contextQueue} totalIdeas={totalIdeas} type="context" />
         </>
       )}
+
+      {/* Batch Selection Modal for Claude Ideas */}
+      <BatchSelectionModal
+        isOpen={showBatchSelectionModal}
+        onSelect={handleClaudeIdeasExecute}
+        onCancel={() => setShowBatchSelectionModal(false)}
+        title="Select Batch for Claude Ideas"
+        description="Choose which batch to queue Claude Code idea generation tasks"
+      />
     </div>
   );
 }

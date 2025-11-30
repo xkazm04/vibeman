@@ -6,6 +6,7 @@
  * - Adapter discovery based on project type
  * - Priority-based adapter selection
  * - Usage tracking and metrics
+ * - Centralized error handling with consistent error messages
  */
 
 import { Project } from '@/types';
@@ -19,6 +20,13 @@ import {
   ScanResult,
   DecisionData,
 } from './types';
+import {
+  AdapterError,
+  AdapterErrorCategory,
+  toAdapterError,
+  NotFoundError,
+  ValidationError,
+} from './errors';
 
 export class ScanRegistry {
   private static instance: ScanRegistry | null = null;
@@ -205,9 +213,21 @@ export class ScanRegistry {
     const adapter = this.getBestAdapter(project, category);
 
     if (!adapter) {
+      const error = new NotFoundError({
+        message: `No adapter found for project type '${project.type}' and category '${category}'`,
+        resourceType: 'Adapter',
+        resourceId: `${project.type}:${category}`,
+        adapterId: 'registry',
+      });
+
       return {
         success: false,
-        error: `No adapter found for project type '${project.type}' and category '${category}'`,
+        error: error.userMessage,
+        metadata: {
+          errorCode: error.code,
+          errorCategory: error.category,
+          recoveryActions: error.recoveryActions,
+        },
       };
     }
 
@@ -215,7 +235,12 @@ export class ScanRegistry {
   }
 
   /**
-   * Execute a specific adapter
+   * Execute a specific adapter with centralized error handling
+   *
+   * Error handling features:
+   * - Consistent error messages with recovery suggestions
+   * - Error categorization for appropriate UI feedback
+   * - Detailed metadata for debugging
    */
   public async executeAdapter(
     adapter: ScanAdapter,
@@ -224,9 +249,21 @@ export class ScanRegistry {
   ): Promise<ScanResult> {
     const metadata = this.adapters.get(adapter.id);
     if (!metadata) {
+      const error = new NotFoundError({
+        message: `Adapter '${adapter.id}' not found in registry`,
+        resourceType: 'Adapter',
+        resourceId: adapter.id,
+        adapterId: 'registry',
+      });
+
       return {
         success: false,
-        error: `Adapter '${adapter.id}' not found in registry`,
+        error: error.userMessage,
+        metadata: {
+          errorCode: error.code,
+          errorCategory: error.category,
+          adapterId: adapter.id,
+        },
       };
     }
 
@@ -255,16 +292,22 @@ export class ScanRegistry {
 
       return result;
     } catch (error) {
+      const adapterError = toAdapterError(error, adapter.id);
+
       if (this.config.debug) {
-        console.error(`[ScanRegistry] ❌ Scan failed: ${adapter.id}`, error);
+        console.error(`[ScanRegistry] ❌ Scan failed: ${adapter.id}`, adapterError.toLogString());
       }
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: adapterError.userMessage,
         metadata: {
           scanDuration: Date.now() - startTime,
           adapterId: adapter.id,
+          errorCode: adapterError.code,
+          errorCategory: adapterError.category,
+          retryable: adapterError.retryable,
+          recoveryActions: adapterError.recoveryActions,
         },
       };
     }

@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 /**
  * Button style variants matching the app's design language
@@ -56,17 +57,22 @@ export interface AnimatedButtonProps {
 }
 
 /**
- * Variant style configurations matching app theme
+ * Get variant style configurations matching app theme
  */
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/30',
-  secondary: 'bg-gray-700/50 text-gray-300 border-gray-600/50 hover:bg-gray-700/70 hover:text-gray-200',
-  success: 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30',
-  danger: 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30',
-  warning: 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30',
-  ghost: 'bg-transparent text-gray-400 border-transparent hover:bg-gray-700/30 hover:text-gray-300',
-  outline: 'bg-transparent text-gray-300 border-gray-600 hover:bg-gray-700/30 hover:border-gray-500',
-};
+function getVariantStyles(): Record<ButtonVariant, string> {
+  const { getThemeColors } = useThemeStore.getState();
+  const colors = getThemeColors();
+  
+  return {
+    primary: `${colors.bg} ${colors.text} ${colors.border} hover:${colors.bgHover}`,
+    secondary: 'bg-gray-700/50 text-gray-300 border-gray-600/50 hover:bg-gray-700/70 hover:text-gray-200',
+    success: 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30',
+    danger: 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30',
+    warning: 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30',
+    ghost: 'bg-transparent text-gray-400 border-transparent hover:bg-gray-700/30 hover:text-gray-300',
+    outline: 'bg-transparent text-gray-300 border-gray-600 hover:bg-gray-700/30 hover:border-gray-500',
+  };
+}
 
 /**
  * Size configurations
@@ -141,6 +147,8 @@ export default function AnimatedButton({
   tapScale = 0.98,
   form,
 }: AnimatedButtonProps) {
+  const variantStyles = getVariantStyles();
+  
   // Base classes shared by all buttons
   const baseClasses = `
     inline-flex

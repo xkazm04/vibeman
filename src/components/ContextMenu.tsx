@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface ContextMenuItem {
   label: string;
@@ -36,6 +37,9 @@ const getButtonClasses = (
   disabled?: boolean,
   destructive?: boolean
 ): string => {
+  const { getThemeColors } = useThemeStore.getState();
+  const colors = getThemeColors();
+  
   const baseClasses = 'w-full text-left text-sm flex items-center transition-all';
   const variantSpacing = variant === 'neural'
     ? 'px-4 py-3 space-x-3 rounded-xl mx-1 border border-transparent duration-300'
@@ -53,7 +57,7 @@ const getButtonClasses = (
   }
 
   const normalStyles = variant === 'neural'
-    ? 'text-gray-200 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 hover:text-cyan-300 hover:border-cyan-500/30'
+    ? `text-gray-200 hover:bg-gradient-to-r hover:${colors.bg} hover:to-blue-500/10 hover:${colors.textLight} hover:${colors.border}`
     : 'text-gray-300 hover:bg-gray-700/50 hover:text-white';
 
   return `${baseClasses} ${variantSpacing} ${normalStyles}`;

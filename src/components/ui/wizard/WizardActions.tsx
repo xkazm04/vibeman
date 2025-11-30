@@ -2,6 +2,7 @@
 
 import { ArrowLeft, ArrowRight, LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface WizardActionsProps {
   onBack?: () => void;
@@ -41,8 +42,11 @@ export default function WizardActions({
   className = '',
   nextVariant = 'primary',
 }: WizardActionsProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const nextVariants = {
-    primary: 'from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 shadow-cyan-500/30',
+    primary: `${colors.primaryFrom} ${colors.primaryTo} hover:opacity-90 ${colors.shadow}`,
     success: 'from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 shadow-green-500/30',
     warning: 'from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 shadow-yellow-500/30',
   };

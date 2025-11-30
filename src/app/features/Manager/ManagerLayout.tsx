@@ -14,6 +14,7 @@ import ImplementationLogCard from './components/ImplementationLogCard';
 import ImplementationLogDetail from './components/ImplementationLogDetail';
 import NewTaskModal from './components/NewTaskModal';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useThemeStore } from '@/stores/themeStore';
 import AnnettePanel from '../Annette/components/AnnettePanel';
 import { acceptImplementation } from '@/lib/tools';
 
@@ -23,6 +24,8 @@ export default function ManagerLayout() {
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
 
   // Fetch implementation logs on mount
   useEffect(() => {
@@ -82,7 +85,7 @@ export default function ManagerLayout() {
           <div className="flex items-center gap-4 mb-2">
             <button
               onClick={() => setIsNewTaskModalOpen(true)}
-              className="px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/30 transition-all font-medium flex items-center gap-2 text-sm"
+              className={`px-4 py-2 rounded-lg ${colors.bgHover} border ${colors.borderHover} ${colors.textDark} hover:opacity-80 transition-all font-medium flex items-center gap-2 text-sm`}
             >
               <span className="text-lg">+</span> New Task
             </button>
@@ -111,7 +114,7 @@ export default function ManagerLayout() {
       {loading && (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto mb-4" />
+            <div className={`w-12 h-12 border-4 ${colors.border} border-t-current ${colors.textDark} rounded-full animate-spin mx-auto mb-4`} />
             <p className="text-gray-400">Loading implementation logs...</p>
           </div>
         </div>

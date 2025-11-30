@@ -5,6 +5,7 @@ import { DbIdea } from '@/app/db';
 import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useAIOperation } from '@/hooks/useAIOperation';
+import { useInvalidateIdeas } from '@/lib/queries/ideaQueries';
 import IdeaDetailHeader from './IdeaDetailHeader';
 import IdeaDetailContent from './IdeaDetailContent';
 import IdeaDetailActions from './IdeaDetailActions';
@@ -25,6 +26,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const [showAIError, setShowAIError] = useState(false);
 
   const { projects, initializeProjects } = useProjectConfigStore();
+  const invalidateIdeas = useInvalidateIdeas();
 
   const { execute: executeRequirementGen, retry: retryRequirementGen, error: requirementError } = useAIOperation({
     onSuccess: () => {
@@ -78,6 +80,8 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
       if (response.ok) {
         const data = await response.json();
         onUpdate(data.idea);
+        // Invalidate React Query cache to keep BufferView in sync
+        invalidateIdeas();
       }
     } catch {
       // Silently fail - error will be shown in UI
@@ -143,7 +147,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const handleSaveFeedback = async () => {
     await updateIdea({
       user_feedback: userFeedback,
-      user_pattern: userPattern
+      user_pattern: userPattern ? 1 : 0
     });
   };
 
@@ -191,6 +195,8 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
 
       if (response.ok) {
         onDelete(idea.id);
+        // Invalidate React Query cache to keep BufferView in sync
+        invalidateIdeas();
       }
     } catch {
       // Error will be shown in UI

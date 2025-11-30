@@ -11,6 +11,10 @@ interface Opportunity {
   suggestedFix?: string;
   estimatedTime?: string;
   autoFixAvailable?: boolean;
+  /** Clean architecture principle from RefactorSuggestion integration */
+  cleanArchitecturePrinciple?: string;
+  /** Refactor steps from RefactorSuggestion integration */
+  refactorSteps?: string[];
 }
 
 function generateHeader(projectName: string, batchNum: number, totalBatches: number, batchLength: number): string {
@@ -73,6 +77,33 @@ ${suggestedFix}
 `;
 }
 
+/**
+ * Helper: Format clean architecture metadata section
+ * Requirements: 1.4 - Include clean architecture principles and refactor steps
+ */
+function formatCleanArchitectureMetadata(
+  principle?: string,
+  steps?: string[]
+): string {
+  let section = '';
+
+  if (principle) {
+    section += `**Clean Architecture Principle:**
+${principle}
+
+`;
+  }
+
+  if (steps && steps.length > 0) {
+    section += `**Refactor Steps:**
+${steps.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+
+`;
+  }
+
+  return section;
+}
+
 function generateOpportunitySection(opp: Opportunity, index: number): string {
   let section = `### ${index + 1}. ${opp.title}
 
@@ -91,6 +122,11 @@ ${opp.files.map(f => `- \`${f}\``).join('\n')}
 
   if (opp.lineNumbers) {
     section += formatLineNumbers(opp.lineNumbers);
+  }
+
+  // Include clean architecture metadata if available (Requirements: 1.4)
+  if (opp.cleanArchitecturePrinciple || (opp.refactorSteps && opp.refactorSteps.length > 0)) {
+    section += formatCleanArchitectureMetadata(opp.cleanArchitecturePrinciple, opp.refactorSteps);
   }
 
   if (opp.suggestedFix) {

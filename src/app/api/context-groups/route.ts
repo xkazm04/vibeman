@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, name, color } = body;
+    const { projectId, name, color, icon } = body;
 
     if (!projectId || !name) {
       return createErrorResponse('Project ID and name are required', 400);
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       projectId,
       name,
       color,
+      icon,
     });
 
     return NextResponse.json({

@@ -31,6 +31,7 @@ export default function GitControl() {
           checked={gitEnabled}
           onChange={(e) => setGitEnabled(e.target.checked)}
           className="rounded border-gray-600 text-purple-500 focus:ring-purple-500/50"
+          data-testid="git-enabled-checkbox"
         />
       </label>
 
@@ -39,6 +40,7 @@ export default function GitControl() {
         onClick={handleOpenConfig}
         className="p-1.5 rounded-lg hover:bg-gray-700/50 transition-colors text-gray-400 hover:text-purple-400"
         title="Configure git commands"
+        data-testid="git-config-btn"
       >
         <Github className="w-4 h-4" />
       </button>

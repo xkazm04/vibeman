@@ -4,12 +4,16 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProposals } from '../lib/useProposals';
 import { ProposalCard } from './ProposalCard';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface ProposalPanelProps {
   isVisible: boolean;
 }
 
 const ProposalPanel = React.memo(({ isVisible }: ProposalPanelProps) => {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const {
     proposalState,
     nextProposals,
@@ -82,7 +86,7 @@ const ProposalPanel = React.memo(({ isVisible }: ProposalPanelProps) => {
                 {Array.from({ length: totalProposals }).map((_, i) => (
                   <motion.div
                     key={i}
-                    className={`w-2 h-2 rounded-full transition-colors duration-300 ${i === currentIndex ? 'bg-cyan-400' : 'bg-gray-600'
+                    className={`w-2 h-2 rounded-full transition-colors duration-300 ${i === currentIndex ? colors.accent : 'bg-gray-600'
                       }`}
                     animate={{
                       scale: i === currentIndex ? 1.2 : 1

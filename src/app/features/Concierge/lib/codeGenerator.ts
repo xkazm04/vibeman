@@ -7,6 +7,9 @@ import { generateWithLLM } from '@/lib/llm';
 import { GeneratedCode, GeneratedTest } from '@/app/db';
 import { contextDb } from '@/app/db';
 
+// Re-export validateGeneratedCode from validators module for backwards compatibility
+export { validateGeneratedCode } from './validators';
+
 export interface CodeGenerationRequest {
   projectId: string;
   naturalLanguageDescription: string;
@@ -247,68 +250,5 @@ export async function loadProjectContexts(projectId: string) {
   }
 }
 
-/**
- * Validate generated code for common issues
- */
-export function validateGeneratedCode(code: GeneratedCode[]): {
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-} {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  code.forEach((file, index) => {
-    // Check for absolute paths
-    const isUnixAbsolutePath = file.file_path.startsWith('/');
-    const isWindowsAbsolutePath = /^[A-Z]:\\/.test(file.file_path);
-    const isAbsolutePath = isUnixAbsolutePath || isWindowsAbsolutePath;
-
-    if (isAbsolutePath) {
-      errors.push(`File ${index}: Should use relative path, not absolute: ${file.file_path}`);
-    }
-
-    // Check for path alias usage in Next.js files
-    const isInSrcDirectory = file.file_path.includes('src/');
-    const usesPathAlias = file.content.includes('@/');
-
-    if (isInSrcDirectory && !usesPathAlias) {
-      warnings.push(`File ${index}: Consider using @/ path alias for imports`);
-    }
-
-    // Check for TypeScript types
-    const isTypeScriptFile = file.file_path.endsWith('.ts') || file.file_path.endsWith('.tsx');
-    const hasInterface = file.content.includes('interface');
-    const hasTypeDefinition = file.content.includes('type');
-    const isNewFile = file.action === 'create';
-    const lacksTypeDefinitions = !hasInterface && !hasTypeDefinition;
-
-    if (isTypeScriptFile && lacksTypeDefinitions && isNewFile) {
-      warnings.push(`File ${index}: TypeScript file might benefit from type definitions`);
-    }
-
-    // Check for proper error handling
-    const hasAsyncCode = file.content.includes('async');
-    const hasTryBlock = file.content.includes('try');
-    const hasCatchBlock = file.content.includes('catch');
-    const lacksErrorHandling = hasAsyncCode && !hasTryBlock && !hasCatchBlock;
-
-    if (lacksErrorHandling) {
-      warnings.push(`File ${index}: Async function missing try-catch error handling`);
-    }
-
-    // Check file path structure for Next.js
-    const isNextJsAppPage = file.file_path.includes('app/') && file.file_path.endsWith('page.tsx');
-    const hasDefaultExport = file.content.includes('export default');
-
-    if (isNextJsAppPage && !hasDefaultExport) {
-      errors.push(`File ${index}: Next.js page component must have default export`);
-    }
-  });
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-  };
-}
+// Note: validateGeneratedCode has been extracted to validators.ts
+// It is re-exported above for backwards compatibility

@@ -18,7 +18,7 @@ interface ActiveProjectStore {
   showPreview: boolean;
 
   // Actions
-  setActiveProject: (project: Project) => void;
+  setActiveProject: (project: Project | null) => void;
   setActiveContext: (context: Context | null) => void;
   setFileStructure: (structure: TreeNode | null) => void;
   loadProjectFileStructure: (projectId: string) => Promise<void>;

@@ -2,24 +2,33 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { TreeNode as TreeNodeType } from '../../../types';
 import TreeSearchInput from './TreeSearchInput';
 import TreeSuggestionsDropdown from './TreeSuggestionsDropdown';
-import { searchTreeNodes, sortSearchResults } from './lib/treeUtils';
-
-interface SuggestionResult {
-  node: TreeNodeType;
-  path: string;
-  matchType: 'name' | 'description';
-}
+import {
+  searchTreeNodes,
+  sortSearchResults,
+  SearchResult,
+  SearchRankingStrategy,
+  RankingContext,
+} from './lib';
 
 interface TreeSuggestionProps {
   fileStructure: TreeNodeType | null;
   onNodeSelect: (nodeId: string) => void;
   onClearSearch: () => void;
+  /** Optional custom ranking strategy for search results */
+  rankingStrategy?: SearchRankingStrategy;
+  /** Optional ranking context (recent files, etc.) */
+  rankingContext?: RankingContext;
+  /** Maximum number of results to show (default: 5) */
+  maxResults?: number;
 }
 
-export default function TreeSuggestion({ 
-  fileStructure, 
-  onNodeSelect, 
-  onClearSearch 
+export default function TreeSuggestion({
+  fileStructure,
+  onNodeSelect,
+  onClearSearch,
+  rankingStrategy,
+  rankingContext,
+  maxResults = 5,
 }: TreeSuggestionProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -45,15 +54,19 @@ export default function TreeSuggestion({
     setShowSuggestions(debouncedSearchTerm.length > 0);
   }, [debouncedSearchTerm]);
 
-  // Generate suggestions using utility functions
+  // Generate suggestions using utility functions with configurable strategy
   const suggestions = useMemo(() => {
     if (!fileStructure || !debouncedSearchTerm) return [];
 
     const results = searchTreeNodes(fileStructure, debouncedSearchTerm);
-    return sortSearchResults(results, debouncedSearchTerm, 5);
-  }, [fileStructure, debouncedSearchTerm]);
+    return sortSearchResults(results, debouncedSearchTerm, {
+      strategy: rankingStrategy,
+      context: rankingContext,
+      limit: maxResults,
+    });
+  }, [fileStructure, debouncedSearchTerm, rankingStrategy, rankingContext, maxResults]);
 
-  const handleSuggestionClick = (suggestion: SuggestionResult) => {
+  const handleSuggestionClick = (suggestion: SearchResult) => {
     onNodeSelect(suggestion.node.id);
     handleClearSearch();
   };

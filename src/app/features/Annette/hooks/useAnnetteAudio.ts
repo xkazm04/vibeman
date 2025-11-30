@@ -1,9 +1,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { textToSpeech } from '../lib/voicebotApi';
+import {
+    AudioError,
+    AudioErrorCode,
+    parseAudioError,
+    logAudioError,
+    getUserFriendlyMessage,
+    attemptRecovery,
+} from '../lib/audioErrors';
 
 export function useAnnetteAudio() {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isError, setIsError] = useState(false);
+    const [audioError, setAudioError] = useState<AudioError | null>(null);
     const [volume, setVolume] = useState(0.5);
     const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -11,17 +20,61 @@ export function useAnnetteAudio() {
     const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
     const [message, setMessage] = useState('Systems ready - Click to activate voice');
 
+    /**
+     * Handle audio errors with typed error codes
+     */
+    const handleAudioError = useCallback((error: Error | unknown) => {
+        const parsedError = parseAudioError(error);
+        setAudioError(parsedError);
+        setIsError(true);
+        setMessage(getUserFriendlyMessage(parsedError.code));
+
+        // Log error with recovery guidance for developers
+        logAudioError(parsedError);
+
+        return parsedError;
+    }, []);
+
+    /**
+     * Clear current audio error
+     */
+    const clearAudioError = useCallback(() => {
+        setAudioError(null);
+        setIsError(false);
+    }, []);
+
+    /**
+     * Attempt to recover from current audio error
+     */
+    const tryRecovery = useCallback(async (): Promise<boolean> => {
+        if (!audioError) return false;
+
+        const success = await attemptRecovery(audioError, audioContext);
+        if (success) {
+            clearAudioError();
+            setMessage('Audio recovered successfully');
+        }
+        return success;
+    }, [audioError, audioContext, clearAudioError]);
+
     const playAudioInternal = useCallback(async (text: string) => {
         setMessage(text);
         setIsSpeaking(true);
-        setIsError(false);
+        clearAudioError();
 
         try {
             const audioUrl = await textToSpeech(text);
             const audio = new Audio(audioUrl);
 
-            // Create AudioContext for volume analysis
-            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            // Create AudioContext for volume analysis with error handling
+            const AudioContextClass = window.AudioContext ||
+                (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+
+            if (!AudioContextClass) {
+                throw Object.assign(new Error('AudioContext not supported'), { name: 'NotSupportedError' });
+            }
+
+            const audioCtx = new AudioContextClass();
             const source = audioCtx.createMediaElementSource(audio);
             const analyserNode = audioCtx.createAnalyser();
             analyserNode.fftSize = 256;
@@ -60,7 +113,6 @@ export function useAnnetteAudio() {
 
             audio.onerror = () => {
                 setIsSpeaking(false);
-                setIsError(true);
                 setVolume(0.5);
                 setAudioContext(null);
                 setAnalyser(null);
@@ -69,23 +121,26 @@ export function useAnnetteAudio() {
                 if (audioCtx.state !== 'closed') {
                     audioCtx.close();
                 }
+                // Handle with typed error
+                const mediaError = audio.error;
+                handleAudioError(mediaError || new Error('Audio playback failed'));
             };
 
             setAudioElement(audio);
             await audio.play();
         } catch (error) {
             setIsSpeaking(false);
-            setIsError(true);
             setVolume(0.5);
-            // Check if it's an autoplay error
-            if (error instanceof Error && error.name === 'NotAllowedError') {
-                setMessage('Click to enable voice');
+
+            // Handle with typed error system
+            const parsedError = handleAudioError(error);
+
+            // Special handling for autoplay - disable voice so user needs to click again
+            if (parsedError.code === 'AUTOPLAY_BLOCKED') {
                 setIsVoiceEnabled(false);
-            } else {
-                setMessage('Voice system offline');
             }
         }
-    }, []);
+    }, [clearAudioError, handleAudioError]);
 
     const speakMessage = useCallback(async (text: string) => {
         // Always update the message display
@@ -111,6 +166,7 @@ export function useAnnetteAudio() {
     return {
         isSpeaking,
         isError,
+        audioError,
         volume,
         audioContext,
         analyser,
@@ -120,6 +176,12 @@ export function useAnnetteAudio() {
         setMessage,
         playAudioInternal,
         speakMessage,
-        setIsError
+        setIsError,
+        handleAudioError,
+        clearAudioError,
+        tryRecovery,
     };
 }
+
+// Re-export error types for convenience
+export type { AudioError, AudioErrorCode } from '../lib/audioErrors';

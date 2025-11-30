@@ -9,32 +9,145 @@
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Core Capabilities](#core-capabilities)
-3. [Analysis Techniques](#analysis-techniques)
-4. [User Workflow](#user-workflow)
-5. [Output & Integration](#output--integration)
-6. [Technical Implementation](#technical-implementation)
-7. [Current Limitations](#current-limitations)
+2. [Sub-Components Reference](#sub-components-reference)
+3. [Core Capabilities](#core-capabilities)
+4. [Analysis Techniques](#analysis-techniques)
+5. [User Workflow](#user-workflow)
+6. [Output & Integration](#output--integration)
+7. [Technical Implementation](#technical-implementation)
+8. [Current Limitations](#current-limitations)
 
 ---
 
 ## Architecture Overview
 
+### Layout Pattern: Embedded Layout
+
+The RefactorWizard uses an **embedded layout pattern** that renders within its parent container without fixed positioning or overlay backdrop. This approach:
+
+- Utilizes full available page space for better content visibility
+- Expands to fill parent container width and height
+- Responsively adjusts dimensions on viewport resize
+- Unmounts cleanly without affecting sibling components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ App Layout                                                   │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Parent Container (flex-1, full width/height)            ││
+│  │  ┌─────────────────────────────────────────────────────┐││
+│  │  │ RefactorWizardLayout (w-full, h-full, no overlay)   │││
+│  │  │  ┌──────────────────────────────────────────────────┐││
+│  │  │  │ WizardHeader                                     │││
+│  │  │  ├─────────┬────────────────────────────────────────┤││
+│  │  │  │ Sidebar │ WizardStepRouter                       │││
+│  │  │  │ Progress│  └─> Current Step Component            │││
+│  │  │  └─────────┴────────────────────────────────────────┘││
+│  │  └─────────────────────────────────────────────────────┘││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Directory Structure
 
 ```
 RefactorWizard/
-├── components/              # 15 React components (Wizard steps, cards, lists)
-├── lib/                     # Core analysis logic
-│   ├── aiAnalyzer.ts       # LLM-powered deep analysis
-│   ├── patternDetectors.ts # Rule-based pattern detection
-│   ├── refactorAnalyzer.ts # Main orchestrator
-│   ├── requirementGenerator.ts # Markdown generation
-│   ├── scanTechniques.ts   # 20 technique definitions
-│   ├── scriptGenerator.ts  # Executable action generation
-│   ├── types.ts            # TypeScript definitions
-│   └── wizardOptimizer.ts  # AI configuration planning
-└── RefactorWizardLayout.tsx # Main modal container
+├── RefactorWizardLayout.tsx              # Main embedded layout container (<150 lines)
+├── RefactorWizardLayout.test.tsx         # Layout property tests
+├── REFACTOR_WIZARD_OVERVIEW.md           # This documentation
+├── SCAN_TECHNIQUES_OVERVIEW.md           # Scan techniques documentation
+│
+├── components/                           # Shared wizard components
+│   ├── WizardHeader.tsx                  # Header with title, mode toggle, close
+│   ├── WizardStepRouter.tsx              # Step routing with AnimatePresence
+│   ├── WizardProgress.tsx                # Sidebar progress indicator
+│   ├── WizardProgress.test.tsx           # Progress component tests
+│   ├── WizardConfigPanel.tsx             # Configuration panel
+│   ├── ExecuteStep.tsx                   # Execute step component
+│   ├── FolderSelector.tsx                # Folder selection UI
+│   ├── HeroBadge.tsx                     # Celebration badge
+│   ├── OpportunityCard.tsx               # Opportunity display card
+│   ├── PackageCard.tsx                   # Package display card
+│   ├── SuggestionCard.tsx                # Suggestion display card
+│   ├── BatchItem.tsx                     # Batch item display
+│   ├── BreakdownCard.tsx                 # Breakdown statistics card
+│   ├── VirtualizedOpportunityList.tsx    # Virtualized opportunity list
+│   ├── VirtualizedSuggestionList.tsx     # Virtualized suggestion list
+│   │
+│   ├── sub_DSLBuilder/                   # DSL Builder sub-components
+│   │   ├── index.ts                      # Barrel export
+│   │   ├── DSLBuilderLayout.tsx          # Main DSL layout (<150 lines)
+│   │   ├── DSLBuilderHeader.tsx          # Header with validation status
+│   │   ├── DSLBuilderTabs.tsx            # Tab navigation
+│   │   ├── DSLRulesList.tsx              # Rules sidebar
+│   │   ├── ExecutionConfig.tsx           # Execution configuration
+│   │   ├── PreviewPanel.tsx              # Preview panel
+│   │   ├── RuleEditor.tsx                # Rule editing
+│   │   ├── RulesTabContent.tsx           # Rules tab content
+│   │   ├── ScopeEditor.tsx               # Scope editing
+│   │   ├── SpecInfoCard.tsx              # Spec information card
+│   │   ├── SpecsLibrary.tsx              # Specs library browser
+│   │   └── TemplateSelector.tsx          # Template selection
+│   │
+│   └── sub_Execute/                      # Execute step sub-components
+│       ├── index.ts                      # Barrel export
+│       ├── ExecuteBreakdown.tsx          # Package/batch breakdown display
+│       └── ExecuteSuccessMessage.tsx     # Completion state message
+│
+├── sub_WizardSteps/                      # Wizard step components
+│   ├── components/
+│   │   ├── SettingsStep.tsx              # Settings step (<100 lines)
+│   │   ├── ScanStep.tsx                  # Scan step (<100 lines)
+│   │   ├── PlanStep.tsx                  # Plan step
+│   │   ├── ReviewStep.tsx                # Review step (<100 lines)
+│   │   ├── PackageStep.tsx               # Package step (<100 lines)
+│   │   ├── ResultsStep.tsx               # Results step (<100 lines)
+│   │   │
+│   │   ├── sub_ScanStep/                 # Scan step sub-components
+│   │   │   ├── index.ts                  # Barrel export
+│   │   │   ├── ScanVisualization.tsx     # Animated scan display
+│   │   │   ├── ScanConfigView.tsx        # Pre-scan configuration
+│   │   │   └── ScanProgressView.tsx      # In-progress scan display
+│   │   │
+│   │   ├── sub_ReviewStep/               # Review step sub-components
+│   │   │   ├── index.ts                  # Barrel export
+│   │   │   ├── ReviewStatsGrid.tsx       # Statistics display
+│   │   │   ├── ReviewFilters.tsx         # Category/severity filtering
+│   │   │   └── ReviewActionBar.tsx       # Selection actions
+│   │   │
+│   │   ├── sub_ResultsStep/              # Results step sub-components
+│   │   │   ├── index.ts                  # Barrel export
+│   │   │   ├── ResultsSummaryBanner.tsx  # Success banner
+│   │   │   ├── ResultsStatsGrid.tsx      # Statistics grid
+│   │   │   └── ResultsNextSteps.tsx      # Next steps guidance
+│   │   │
+│   │   └── sub_SettingsStep/             # Settings step sub-components
+│   │       ├── ScanGroupCard.tsx         # Individual scan group card
+│   │       └── ScanGroupList.tsx         # Scan groups list
+│   │
+│   └── lib/                              # Step-specific utilities
+│
+└── lib/                                  # Core analysis logic
+    ├── __tests__/                        # Unit tests
+    │   ├── dependencyAnalyzer.test.ts
+    │   └── packageGenerator.test.ts
+    ├── aiAnalyzer.ts                     # LLM-powered deep analysis
+    ├── contextLoader.ts                  # Context loading utilities
+    ├── dependencyAnalyzer.ts             # Dependency analysis
+    ├── dslExecutor.ts                    # DSL execution
+    ├── dslTemplates.ts                   # DSL templates
+    ├── dslTypes.ts                       # DSL type definitions
+    ├── dslValidator.ts                   # DSL validation
+    ├── fileScanner.ts                    # File scanning
+    ├── packageGenerator.ts               # Package generation
+    ├── patternDetectors.ts               # Rule-based pattern detection
+    ├── refactorAnalyzer.ts               # Main orchestrator
+    ├── requirementGenerator.ts           # Markdown generation
+    ├── scanTechniques.ts                 # 20 technique definitions
+    ├── scriptGenerator.ts                # Executable action generation
+    ├── strategicRequirementGenerator.ts  # Strategic requirement generation
+    ├── types.ts                          # TypeScript definitions
+    └── wizardOptimizer.ts                # AI configuration planning
 ```
 
 ### Technology Stack
@@ -44,6 +157,268 @@ RefactorWizard/
 - **AI**: Multi-provider LLM support (Gemini, OpenAI, Anthropic, Ollama)
 - **Scanning**: Plugin architecture with strategy pattern
 - **Storage**: File-based requirement generation
+- **Components**: 40+ modular React components organized by feature
+
+---
+
+## Sub-Components Reference
+
+This section documents all sub-components created during the modularization refactoring.
+
+### Layout Components
+
+#### WizardHeader
+```typescript
+interface WizardHeaderProps {
+  isDSLMode: boolean;
+  onToggleDSLMode: () => void;
+  onOpenDebtPrediction: () => void;
+  onClose: () => void;
+}
+```
+**Responsibilities:**
+- Render wizard title and branding
+- DSL mode toggle button
+- Debt Prevention button
+- Close button
+
+#### WizardStepRouter
+```typescript
+type WizardStep = 'settings' | 'scan' | 'plan' | 'review' | 'package' | 'execute' | 'results';
+
+interface WizardStepRouterProps {
+  currentStep: WizardStep;
+}
+```
+**Responsibilities:**
+- Map step names to step components
+- Handle step transitions with AnimatePresence
+- Render current step component with animations
+
+### Scan Step Sub-Components
+
+#### ScanVisualization
+```typescript
+interface ScanVisualizationProps {
+  progress: number;
+}
+```
+**Responsibilities:**
+- Animated grid background
+- Scanning beam animation
+- Progress percentage display
+- Floating particles effect
+
+#### ScanConfigView
+```typescript
+interface ScanConfigViewProps {
+  activeProject: Project | null;
+  selectedFolders: string[];
+  onFoldersChange: (folders: string[]) => void;
+}
+```
+**Responsibilities:**
+- Pre-scan configuration UI
+- Project info display
+- Folder selector integration
+- Analysis features overview
+
+#### ScanProgressView
+```typescript
+interface ScanProgressViewProps {
+  progress: number;
+  progressMessage: string | null;
+}
+```
+**Responsibilities:**
+- In-progress scan visualization
+- Progress bar display
+- Phase indicators
+
+### Review Step Sub-Components
+
+#### ReviewStatsGrid
+```typescript
+interface ReviewStatsGridProps {
+  stats: {
+    total: number;
+    fileCount: number;
+    critical: number;
+    high: number;
+  };
+  selectedCount: number;
+}
+```
+**Responsibilities:**
+- Display statistics cards (Total Issues, Files Affected, High Priority, Selected)
+
+#### ReviewFilters
+```typescript
+interface ReviewFiltersProps {
+  filterCategory: string;
+  filterSeverity: string;
+  onCategoryChange: (category: string) => void;
+  onSeverityChange: (severity: string) => void;
+}
+```
+**Responsibilities:**
+- Category filter dropdown
+- Severity filter dropdown
+
+#### ReviewActionBar
+```typescript
+interface ReviewActionBarProps {
+  selectedCount: number;
+  filteredCount: number;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  onContinue: () => void;
+  onSkipPackaging: () => void;
+}
+```
+**Responsibilities:**
+- Selection count display
+- Quick Export button
+- AI Packaging button
+- Navigation actions
+
+### Results Step Sub-Components
+
+#### ResultsSummaryBanner
+```typescript
+interface ResultsSummaryBannerProps {
+  packageCount: number;
+  isDirectMode: boolean;
+}
+```
+**Responsibilities:**
+- Success banner with checkmark
+- Summary text display
+
+#### ResultsStatsGrid
+```typescript
+interface ResultsStatsGridProps {
+  packageCount: number;
+  totalIssues: number;
+  totalFiles: number;
+  foundationalPackages: number;
+}
+```
+**Responsibilities:**
+- Statistics grid (Strategic Packages, Total Issues, Files Affected, Foundational)
+
+#### ResultsNextSteps
+```typescript
+interface ResultsNextStepsProps {
+  isDirectMode: boolean;
+}
+```
+**Responsibilities:**
+- Next steps guidance card
+- Numbered instructions
+
+### Execute Step Sub-Components
+
+#### ExecuteBreakdown
+```typescript
+interface ExecuteBreakdownProps {
+  isDirectMode: boolean;
+  items: Array<{
+    id: string;
+    name: string;
+    issueCount: number;
+    category?: string;
+    impact?: string;
+    executionOrder?: number;
+  }>;
+  createdFiles: string[];
+}
+```
+**Responsibilities:**
+- Package/batch breakdown list
+- Creation status display
+- Support for both direct mode (batches) and package mode
+
+#### ExecuteSuccessMessage
+```typescript
+interface ExecuteSuccessMessageProps {
+  createdFiles: string[];
+  isDirectMode: boolean;
+}
+```
+**Responsibilities:**
+- Success message display
+- File list
+- Next steps guidance
+
+### DSL Builder Sub-Components
+
+#### DSLBuilderHeader
+```typescript
+interface DSLBuilderHeaderProps {
+  validationErrors: ValidationError[];
+  showLibrary: boolean;
+  canExecute: boolean;
+  onToggleLibrary: () => void;
+  onExecute: () => void;
+  onBack: () => void;
+}
+```
+**Responsibilities:**
+- Header with validation status
+- Library toggle button
+- Execute button
+- Back navigation
+
+#### DSLBuilderTabs
+```typescript
+interface DSLBuilderTabsProps {
+  activeTab: EditorTab;
+  onTabChange: (tab: EditorTab) => void;
+}
+```
+**Responsibilities:**
+- Tab navigation (Templates, Scope, Rules, Execution, Preview)
+
+#### DSLRulesList
+```typescript
+interface DSLRulesListProps {
+  rules: TransformationRule[];
+  selectedRuleId: string | null;
+  onSelectRule: (id: string) => void;
+  onAddRule: () => void;
+  onDeleteRule: (id: string) => void;
+}
+```
+**Responsibilities:**
+- Rules sidebar
+- Add/delete/select functionality
+
+### Settings Step Sub-Components
+
+#### ScanGroupCard
+```typescript
+interface ScanGroupCardProps {
+  group: ScanTechniqueGroup;
+  isSelected: boolean;
+  onToggle: () => void;
+}
+```
+**Responsibilities:**
+- Individual scan group card
+- Checkbox, icon, techniques preview
+
+#### ScanGroupList
+```typescript
+interface ScanGroupListProps {
+  groups: ScanTechniqueGroup[];
+  selectedGroups: Set<string>;
+  onToggleGroup: (id: string) => void;
+}
+```
+**Responsibilities:**
+- Scan groups list with animations
+- Uses ScanGroupCard for rendering
 
 ---
 
@@ -161,7 +536,7 @@ interface ScanStrategy {
 
 ## User Workflow
 
-### 6-Step Wizard
+### 7-Step Wizard
 
 #### Step 1: Settings (`SettingsStep.tsx`)
 **Purpose**: Configure scan parameters
@@ -181,7 +556,7 @@ interface ScanStrategy {
 - Real-time progress indicators
 - Status: scanning → analyzing → completed
 
-#### Step 3: Config (`ConfigStep.tsx`) - *Conditional*
+#### Step 3: Plan (`PlanStep.tsx`)
 **Purpose**: Review AI-generated optimization plan
 
 - Display AI recommendations
@@ -199,7 +574,15 @@ interface ScanStrategy {
 - Metadata display: category, severity, effort, affected files
 - Bulk selection controls
 
-#### Step 5: Execute (`ExecuteStep.tsx`)
+#### Step 5: Package (`PackageStep.tsx`)
+**Purpose**: Group opportunities into strategic packages
+
+- AI-powered package generation
+- Package selection and filtering
+- Quick actions for foundational packages
+- Package statistics and metrics
+
+#### Step 6: Execute (`ExecuteStep.tsx`)
 **Purpose**: Generate requirement files
 
 - Batch opportunities into groups of **20 issues**
@@ -208,7 +591,7 @@ interface ScanStrategy {
 - Progress tracking per batch
 - Batch breakdown statistics
 
-#### Step 6: Results (`ResultsStep.tsx`)
+#### Step 7: Results (`ResultsStep.tsx`)
 **Purpose**: Summary and next steps
 
 - **Summary Statistics**: Total issues, files, batches, auto-fixable count
@@ -330,6 +713,7 @@ Total issues in this batch: **[Count]**
   // UI state
   isWizardOpen: boolean
   currentStep: WizardStep
+  isDSLMode: boolean
 }
 ```
 
@@ -444,11 +828,12 @@ POST /api/claude-code/requirement
 - ✅ 90%+ accuracy in issue detection (based on manual review)
 
 **User Experience**:
-- ✅ 6-step wizard with clear progression
+- ✅ 7-step wizard with clear progression
 - ✅ Real-time progress indicators
 - ✅ Responsive filtering and selection
 - ✅ Professional Blueprint theme
 - ✅ Comprehensive result summaries
+- ✅ Modular component architecture (<100-150 lines per file)
 
 ---
 

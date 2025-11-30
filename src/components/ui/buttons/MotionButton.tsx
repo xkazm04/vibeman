@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 
 /**
  * Animation preset configurations
@@ -115,6 +116,7 @@ const colorSchemes: Record<
     glassmorphic: 'bg-blue-500/10 backdrop-blur-sm hover:bg-blue-500/20 text-blue-400 border-blue-500/30',
   },
   cyan: {
+    // Theme-aware: these are overridden at runtime with theme tokens
     solid: 'bg-gradient-to-r from-cyan-600/40 to-blue-600/40 hover:from-cyan-500/50 hover:to-blue-500/50 text-cyan-300 border-cyan-500/30',
     outline: 'bg-transparent hover:bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
     ghost: 'bg-transparent hover:bg-cyan-500/20 text-cyan-400 border-transparent',
@@ -273,10 +275,28 @@ export default function MotionButton({
   iconOnly = false,
   form,
 }: MotionButtonProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   // Get animation configuration
   const animConfig = animationPresets[animationPreset];
   const sizeConfig = sizeStyles[size];
-  const colorClass = colorSchemes[colorScheme][variant];
+  
+  // Get theme-aware color class for cyan color scheme
+  const getColorClass = () => {
+    if (colorScheme === 'cyan') {
+      const themeSchemes: Record<MotionButtonVariant, string> = {
+        solid: `bg-gradient-to-r ${colors.primaryFrom} to-blue-600/40 hover:opacity-80 ${colors.textLight} ${colors.border}`,
+        outline: `bg-transparent hover:${colors.bg} ${colors.text} ${colors.borderHover}`,
+        ghost: `bg-transparent hover:${colors.bg} ${colors.text} border-transparent`,
+        glassmorphic: `${colors.bg} backdrop-blur-sm hover:${colors.bgHover} ${colors.text} ${colors.border}`,
+      };
+      return themeSchemes[variant];
+    }
+    return colorSchemes[colorScheme][variant];
+  };
+  
+  const colorClass = getColorClass();
 
   // Determine final icon size
   const finalIconSize = iconSize || sizeConfig.iconSize;

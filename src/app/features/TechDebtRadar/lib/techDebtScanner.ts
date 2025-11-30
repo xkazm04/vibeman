@@ -1,6 +1,7 @@
 /**
  * Technical Debt Scanner
  * Analyzes project code for technical debt patterns and issues
+ * Now with plugin support for extensible scanning
  */
 
 import type {
@@ -12,6 +13,14 @@ import type {
 } from '@/app/db/models/tech-debt.types';
 import { calculateRiskScore } from './riskScoring';
 import { generateRemediationPlan } from './remediationPlanner';
+import {
+  pluginRegistry,
+  runPluginScans,
+  calculatePluginRiskScore,
+  generatePluginRemediationPlan,
+  type PluginDetectedIssue,
+  type AggregatedScanResults
+} from './plugins';
 
 /**
  * Detection details type
@@ -70,15 +79,49 @@ function createDetectedIssue(
 
 /**
  * Main scanner function
+ * Now supports both built-in and plugin scanners
  */
 export async function scanProjectForTechDebt(
-  config: TechDebtScanConfig
+  config: TechDebtScanConfig,
+  projectPath?: string
 ): Promise<DetectedIssue[]> {
   const issues: DetectedIssue[] = [];
 
-  for (const scanType of config.scanTypes) {
+  // Separate built-in and plugin categories
+  const builtInCategories: TechDebtCategory[] = [
+    'code_quality',
+    'security',
+    'performance',
+    'testing',
+    'documentation',
+    'dependencies',
+    'architecture',
+    'maintainability',
+    'accessibility',
+    'other'
+  ];
+
+  const builtInScanTypes = config.scanTypes.filter((type) =>
+    builtInCategories.includes(type)
+  );
+  const pluginCategories = config.scanTypes.filter(
+    (type) => !builtInCategories.includes(type)
+  );
+
+  // Run built-in scans
+  for (const scanType of builtInScanTypes) {
     const typeIssues = await scanByCategory(scanType, config);
     issues.push(...typeIssues);
+  }
+
+  // Run plugin scans
+  if (pluginCategories.length > 0 || pluginRegistry.getActive().length > 0) {
+    const pluginResults = await runPluginScansForCategories(
+      config,
+      projectPath || '',
+      pluginCategories
+    );
+    issues.push(...pluginResults);
   }
 
   // Limit results if specified
@@ -87,6 +130,77 @@ export async function scanProjectForTechDebt(
   }
 
   return issues;
+}
+
+/**
+ * Run plugin scans for specified categories
+ */
+async function runPluginScansForCategories(
+  config: TechDebtScanConfig,
+  projectPath: string,
+  categories: string[]
+): Promise<DetectedIssue[]> {
+  const issues: DetectedIssue[] = [];
+
+  try {
+    // Get all active plugins
+    const activePlugins = pluginRegistry.getActive();
+
+    // Filter plugins by category if specific categories requested
+    const pluginsToRun = categories.length > 0
+      ? activePlugins.filter((p) => categories.includes(p.metadata.category))
+      : activePlugins;
+
+    // Run scans for each plugin
+    for (const plugin of pluginsToRun) {
+      try {
+        const scanContext = {
+          projectId: config.projectId,
+          projectPath,
+          config,
+          filePatterns: config.filePatterns,
+          excludePatterns: config.excludePatterns,
+          maxItems: config.maxItems
+        };
+
+        const pluginIssues = await plugin.scanner.scan(scanContext);
+
+        // Convert plugin issues to standard format
+        for (const issue of pluginIssues) {
+          issues.push(convertPluginIssueToDetected(issue, plugin.metadata.category));
+        }
+      } catch (error) {
+        console.error(`[Scanner] Error running plugin ${plugin.metadata.id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('[Scanner] Error running plugin scans:', error);
+  }
+
+  return issues;
+}
+
+/**
+ * Convert plugin detected issue to standard format
+ */
+function convertPluginIssueToDetected(
+  issue: PluginDetectedIssue,
+  category: string
+): DetectedIssue {
+  return {
+    category: category as TechDebtCategory,
+    title: issue.title,
+    description: issue.description,
+    severity: issue.severity,
+    filePaths: issue.filePaths,
+    technicalImpact: issue.technicalImpact,
+    businessImpact: issue.businessImpact,
+    detectionDetails: {
+      ...issue.detectionDetails,
+      source: 'plugin',
+      customData: issue.customData
+    }
+  };
 }
 
 /**

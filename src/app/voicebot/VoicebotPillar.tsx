@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Loader2, MessageSquare, Volume2, LucideIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useThemeStore } from '@/stores/themeStore';
 import TypewriterMessage from './components/TypewriterMessage';
 
 interface VoicebotPillarProps {
@@ -19,7 +20,19 @@ interface StateConfig {
   description: string;
 }
 
-function getStateConfiguration(state: VoicebotState): StateConfig {
+// Theme-aware state configuration - uses theme colors for the playing state
+function getStateConfiguration(state: VoicebotState, themeColors?: { text: string; textDark: string; border: string; bg: string; bgHover: string; glow: string }): StateConfig {
+  // Default to cyan-like colors if no theme provided (for SSR compatibility)
+  const playingColor = themeColors 
+    ? `${themeColors.textDark} ${themeColors.border.replace('border-', 'border-').replace('/30', '/50')} ${themeColors.bg}`
+    : 'text-cyan-400 border-cyan-600/50 bg-cyan-600/10';
+  const playingHover = themeColors
+    ? `hover:${themeColors.bgHover}`
+    : 'hover:bg-cyan-600/20';
+  const playingPulse = themeColors
+    ? themeColors.glow.replace('/50', '/30')
+    : 'shadow-cyan-500/30';
+
   const configs: Record<VoicebotState, StateConfig> = {
     listening: {
       icon: Mic,
@@ -51,9 +64,9 @@ function getStateConfiguration(state: VoicebotState): StateConfig {
     },
     playing: {
       icon: Volume2,
-      color: 'text-cyan-400 border-cyan-600/50 bg-cyan-600/10',
-      hoverColor: 'hover:bg-cyan-600/20',
-      pulseColor: 'shadow-cyan-500/30',
+      color: playingColor,
+      hoverColor: playingHover,
+      pulseColor: playingPulse,
       description: 'Speaking...'
     },
     error: {
@@ -108,11 +121,13 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
   const [lastMessage, setLastMessage] = useState<string>('');
   const [audioLevel, setAudioLevel] = useState(0);
   const [silenceTimer, setSilenceTimer] = useState<NodeJS.Timeout | null>(null);
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const lastAudioLevelRef = useRef<number>(0);
   const silenceStartRef = useRef<number>(0);
 
@@ -339,7 +354,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
     }
   };
 
-  const stateConfig = getStateConfiguration(state);
+  const stateConfig = getStateConfiguration(state, colors);
   const IconComponent = stateConfig.icon;
 
   return (
@@ -395,7 +410,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
           {/* Pulse effect for active states */}
           {(state === 'processing_ai' || state === 'playing') && (
             <motion.div
-              className={`absolute inset-0 rounded-full ${state === 'processing_ai' ? 'bg-blue-400/20' : 'bg-cyan-400/20'
+              className={`absolute inset-0 rounded-full ${state === 'processing_ai' ? 'bg-blue-400/20' : colors.bgHover
                 }`}
               animate={{
                 scale: [1, 1.3, 1],

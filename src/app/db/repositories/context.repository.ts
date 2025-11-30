@@ -127,6 +127,7 @@ export const contextRepository = {
     test_updated?: string | null;
     target?: string | null;
     target_fulfillment?: string | null;
+    target_rating?: number | null;
   }): DbContext | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -178,6 +179,10 @@ export const contextRepository = {
     if (updates.target_fulfillment !== undefined) {
       updateFields.push('target_fulfillment = ?');
       values.push(updates.target_fulfillment);
+    }
+    if (updates.target_rating !== undefined) {
+      updateFields.push('target_rating = ?');
+      values.push(updates.target_rating);
     }
 
     if (updateFields.length === 0) {

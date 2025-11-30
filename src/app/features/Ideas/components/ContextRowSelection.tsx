@@ -3,21 +3,43 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface ContextRowSelectionProps {
   contexts: Context[];
   contextGroups: ContextGroup[];
-  selectedContextId?: string | null;
-  onSelectContext: (contextId: string | null) => void;
+  selectedContextIds: string[];
+  onSelectContexts: (contextIds: string[]) => void;
 }
 
 export default function ContextRowSelection({
   contexts,
   contextGroups,
-  selectedContextId,
-  onSelectContext,
+  selectedContextIds,
+  onSelectContexts,
 }: ContextRowSelectionProps) {
-  // Group contexts by context group
+  const { getThemeColors } = useThemeStore();
+  
+  // Toggle selection logic for multiselect
+  const handleToggleContext = (contextId: string | null) => {
+    if (contextId === null) {
+      // "Full Project" selected - clear all selections
+      onSelectContexts([]);
+    } else {
+      // Toggle individual context
+      if (selectedContextIds.includes(contextId)) {
+        // Remove from selection
+        onSelectContexts(selectedContextIds.filter(id => id !== contextId));
+      } else {
+        // Add to selection
+        onSelectContexts([...selectedContextIds, contextId]);
+      }
+    }
+  };
+
+  // Check if "Full Project" is selected (no contexts selected)
+  const isFullProjectSelected = selectedContextIds.length === 0;
+  // Group contexts by context group and sort alphabetically within each group
   const groupedContexts = React.useMemo(() => {
     const grouped: Record<string, Context[]> = {
       ungrouped: [],
@@ -35,6 +57,11 @@ export default function ContextRowSelection({
       } else {
         grouped.ungrouped.push(context);
       }
+    });
+
+    // Sort contexts alphabetically by name within each group
+    Object.keys(grouped).forEach(groupId => {
+      grouped[groupId].sort((a, b) => a.name.localeCompare(b.name));
     });
 
     return grouped;
@@ -60,15 +87,15 @@ export default function ContextRowSelection({
           {/* Full Project Button */}
           <motion.button
             data-testid="context-filter-full-project"
-            onClick={() => onSelectContext(null)}
+            onClick={() => handleToggleContext(null)}
             className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              !selectedContextId
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+              isFullProjectSelected
+                ? `${getThemeColors().bgHover} ${getThemeColors().text} border ${getThemeColors().borderHover}`
                 : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
             }`}
             whileHover={{
               scale: 1.05,
-              boxShadow: !selectedContextId
+              boxShadow: isFullProjectSelected
                 ? '0 0 12px rgba(34, 211, 238, 0.4), 0 0 20px rgba(34, 211, 238, 0.2)'
                 : '0 0 8px rgba(107, 114, 128, 0.3)'
             }}
@@ -93,7 +120,7 @@ export default function ContextRowSelection({
 
                 {/* Group Contexts */}
                 {groupContexts.map((context) => {
-                  const isSelected = selectedContextId === context.id;
+                  const isSelected = selectedContextIds.includes(context.id);
                   // Extract RGB values from group.color hex
                   const getRGBFromHex = (hex: string) => {
                     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -109,10 +136,10 @@ export default function ContextRowSelection({
                     <motion.button
                       key={context.id}
                       data-testid={`context-filter-grouped-${context.id}`}
-                      onClick={() => onSelectContext(context.id)}
+                      onClick={() => handleToggleContext(context.id)}
                       className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         isSelected
-                          ? 'text-cyan-300 border border-cyan-500/40'
+                          ? `${getThemeColors().text} border ${getThemeColors().borderHover}`
                           : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
                       }`}
                       style={{
@@ -144,15 +171,15 @@ export default function ContextRowSelection({
                 <div className="w-px h-8 bg-gray-600" />
               )}
               {groupedContexts.ungrouped.map((context) => {
-                const isSelected = selectedContextId === context.id;
+                const isSelected = selectedContextIds.includes(context.id);
                 return (
                   <motion.button
                     key={context.id}
                     data-testid={`context-filter-ungrouped-${context.id}`}
-                    onClick={() => onSelectContext(context.id)}
+                    onClick={() => handleToggleContext(context.id)}
                     className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       isSelected
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        ? `${getThemeColors().bgHover} ${getThemeColors().text} border ${getThemeColors().borderHover}`
                         : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
                     }`}
                     whileHover={{

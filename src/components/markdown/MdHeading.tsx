@@ -40,7 +40,7 @@ const HEADING_ANIMATION = {
 };
 
 export default function MdHeading({ level, content, id, renderInlineContent }: MdHeadingProps) {
-  const HeadingTag = `h${Math.min(level, 6)}` as keyof JSX.IntrinsicElements;
+  const HeadingTag = `h${Math.min(level, 6)}` as keyof React.JSX.IntrinsicElements;
 
   return (
     <motion.div {...HEADING_ANIMATION}>

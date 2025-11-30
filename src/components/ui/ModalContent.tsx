@@ -2,6 +2,7 @@ import React from 'react';
 import { Loader2, StopCircle, Zap, Plus } from 'lucide-react';
 import MarkdownViewer from '../markdown/MarkdownViewer';
 import { MonacoEditor } from '../editor';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface ModalContentProps {
   loading?: boolean;
@@ -45,6 +46,11 @@ interface ModalContentProps {
   additionalInfo?: React.ReactNode;
 }
 
+function useColors() {
+  const { getThemeColors } = useThemeStore();
+  return getThemeColors();
+}
+
 export default function ModalContent({
   loading = false,
   generating = false,
@@ -81,12 +87,13 @@ export default function ModalContent({
 
   additionalInfo
 }: ModalContentProps) {
+  const colors = useColors();
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className={`w-8 h-8 border-2 ${colors.text} border-t-transparent rounded-full animate-spin mx-auto mb-4`}></div>
           <p className="text-gray-400">{loadingMessage}</p>
         </div>
       </div>
@@ -98,7 +105,7 @@ export default function ModalContent({
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
           <div className="relative mb-6">
-            <Loader2 className="w-16 h-16 mx-auto text-cyan-400 animate-spin" />
+            <Loader2 className={`w-16 h-16 mx-auto ${colors.text} animate-spin`} />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-8 h-8 bg-gray-900 rounded-full"></div>
             </div>
@@ -111,7 +118,7 @@ export default function ModalContent({
           </p>
           <div className="mb-6">
             <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
-              <div className="bg-cyan-400 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+              <div className={`h-2 rounded-full animate-pulse`} style={{ width: '60%', backgroundColor: colors.baseColor }}></div>
             </div>
             <p className="text-sm text-gray-500">
               This may take a few minutes depending on the complexity
@@ -185,7 +192,7 @@ export default function ModalContent({
             {showManualButton && onCreateManually && (
               <button
                 onClick={onCreateManually}
-                className="flex items-center space-x-2 px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition-colors font-mono"
+                className={`flex items-center space-x-2 px-4 py-2 ${colors.bg} ${colors.text} rounded-lg hover:${colors.bgHover} transition-colors font-mono`}
               >
                 <Plus className="w-4 h-4" />
                 <span>{manualButtonText}</span>
@@ -208,7 +215,6 @@ export default function ModalContent({
       <div className="h-full overflow-auto p-6">
         <MarkdownViewer
           content={markdownContent}
-          theme="dark"
         />
       </div>
     );

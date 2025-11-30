@@ -29,6 +29,7 @@ export interface ComparisonFilterState extends FilterState {
   comparisonMode: boolean;
   period1?: DateRange;
   period2?: DateRange;
+  timeWindow?: TimeWindow;
 }
 
 export interface ReflectionStats {
@@ -59,5 +60,28 @@ export interface ComparisonStats {
     }>;
     overallAcceptanceDiff: number;
     totalIdeasDiff: number;
+  };
+}
+
+// Time window options for aggregated stats
+export type TimeWindow = 'all' | 'week' | 'month' | 'quarter' | 'year';
+
+// Weekly snapshot for temporal analysis
+export interface WeeklySnapshotResponse {
+  weekStart: string;
+  weekEnd: string;
+  scanTypes: ScanTypeStats[];
+  overall: IdeaStats;
+  projectBreakdown: Record<string, number>;
+  contextBreakdown: Record<string, number>;
+}
+
+// Aggregated stats response from server
+export interface AggregatedStatsResponse extends ReflectionStats {
+  weeklySnapshots?: WeeklySnapshotResponse[];
+  meta: {
+    lastUpdated: number;
+    cacheKey: string;
+    timeWindow: TimeWindow | 'custom';
   };
 }

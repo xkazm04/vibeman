@@ -1,7 +1,14 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ReactElement, ComponentType, CSSProperties } from 'react';
-import { List as ReactWindowList } from 'react-window';
+import dynamic from 'next/dynamic';
+
+// Dynamically import react-window to avoid SSR issues
+const ReactWindowList = dynamic(
+  () => import('react-window').then((mod) => mod.List),
+  { ssr: false }
+) as any;
 
 // Row component props type
 export interface RowComponentProps<T = Record<string, unknown>> {
@@ -21,27 +28,30 @@ export interface VirtualListProps<T = Record<string, unknown>> {
 }
 
 /**
- * Custom wrapper around react-window's List component
+ * Custom wrapper around react-window's FixedSizeList component
  * Provides a simplified API for virtualizing large lists
  */
 export function List<T = Record<string, unknown>>({
   defaultHeight,
   rowCount,
   rowHeight,
-  rowComponent,
+  rowComponent: RowComponent,
   rowProps,
   className = '',
   'data-testid': dataTestId,
 }: VirtualListProps<T>): ReactElement {
   return (
     <ReactWindowList
-      defaultHeight={defaultHeight}
+      height={defaultHeight}
+      width="100%"
       rowCount={rowCount}
       rowHeight={rowHeight}
-      rowComponent={rowComponent}
-      rowProps={rowProps}
       className={className}
       data-testid={dataTestId}
-    />
+    >
+      {({ index, style }: { index: number; style: CSSProperties }) => (
+        <RowComponent index={index} style={style} data={rowProps} />
+      )}
+    </ReactWindowList>
   );
 }

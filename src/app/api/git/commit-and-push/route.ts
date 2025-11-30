@@ -5,6 +5,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { GitManager } from '@/lib/gitManager';
 import { projectDb } from '@/lib/project_database';
+import {
+  validateGitConfig,
+  validateCommitMessageTemplate,
+  GitValidationReport,
+} from '@/app/features/TaskRunner/sub_Git/lib/gitConfigValidator';
 
 const execAsync = promisify(exec);
 
@@ -24,6 +29,7 @@ export interface GitOperationResponse {
     error?: string;
   }>;
   error?: string;
+  validationReport?: GitValidationReport;
 }
 
 /**
@@ -40,6 +46,37 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
           success: false,
           message: 'Missing required fields',
           error: 'projectId and commands are required'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate git configuration for security and correctness
+    const validationReport = validateGitConfig({
+      commands,
+      commitMessageTemplate: commitMessage,
+    });
+
+    if (!validationReport.valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Git configuration validation failed',
+          error: validationReport.errors.join('; '),
+          validationReport,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Also validate commit message separately for template variable syntax
+    const commitMessageValidation = validateCommitMessageTemplate(commitMessage);
+    if (!commitMessageValidation.valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Commit message validation failed',
+          error: commitMessageValidation.errors.join('; '),
         },
         { status: 400 }
       );

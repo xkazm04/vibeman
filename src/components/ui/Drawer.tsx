@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { ReactNode } from 'react';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface DrawerProps {
   isOpen: boolean;
@@ -45,10 +46,13 @@ function BackgroundImage({ imageUrl }: { imageUrl: string }) {
 
 // Decorative corner elements
 function DecorativeCorners() {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   return (
     <>
-      <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-cyan-200/20 rounded-tl-lg" />
-      <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-cyan-200/20 rounded-br-lg" />
+      <div className={`absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 ${colors.borderLight} rounded-tl-lg`} />
+      <div className={`absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 ${colors.borderLight} rounded-br-lg`} />
     </>
   );
 }
@@ -62,6 +66,9 @@ export default function Drawer({
   backgroundImage = null,
   transparentOverlay = false,
 }: DrawerProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const slideDirection = side === 'left' ? '-100%' : '100%';
   const borderClass = side === 'left' ? 'border-r-2' : 'border-l-2';
   const positionClass = side === 'left' ? 'left-0' : 'right-0';
@@ -87,7 +94,7 @@ export default function Drawer({
             className={`fixed ${positionClass} top-0 bottom-0 z-50 w-full ${maxWidth}`}
           >
             {/* Drawer content */}
-            <div className={`relative h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ${borderClass} border-cyan-500/30 shadow-2xl shadow-cyan-500/20 overflow-y-auto`}>
+            <div className={`relative h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ${borderClass} ${colors.border} shadow-2xl ${colors.shadow} overflow-y-auto`}>
               {/* Optional background image */}
               {backgroundImage && <BackgroundImage imageUrl={backgroundImage} />}
 

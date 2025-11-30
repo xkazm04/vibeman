@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Camera, Play, Loader2, CheckCircle, XCircle, Plus, Trash2, Mouse } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ErrorDisplay from '@/app/features/Context/components/ErrorDisplay';
 
 interface TestScenarioEditorProps {
   value: string;
@@ -30,6 +31,58 @@ interface ParsedTestStep {
   selector?: string;
 }
 
+interface TestResult {
+  success: boolean;
+  message: string;
+  details?: string;
+}
+
+/**
+ * Safely parses test scenario JSON with user-friendly error messages
+ */
+function parseTestScenarioSafe(value: string): { steps: TestStep[]; error: string | null } {
+  if (!value || value.trim() === '') {
+    return { steps: [], error: null };
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return { steps: [], error: 'Test scenario must be an array of steps' };
+    }
+
+    const loadedSteps: TestStep[] = parsed.map((step: ParsedTestStep, index: number) => {
+      // Validate step type
+      const validTypes = ['navigate', 'wait', 'click'];
+      if (!step.type || !validTypes.includes(step.type)) {
+        console.warn(`[TestScenarioEditor] Invalid step type at index ${index}:`, step);
+      }
+
+      return {
+        id: `step-${index}`,
+        type: step.type || 'wait',
+        editable: step.type === 'click',
+        value: step.url || step.delay?.toString() || step.selector || '',
+        label: step.type === 'click' ? 'Click element' : step.type === 'wait' ? 'Wait' : 'Navigate to',
+      };
+    });
+
+    return { steps: loadedSteps, error: null };
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : 'Unknown parsing error';
+
+    // Provide friendly error messages
+    if (errorMessage.includes('Unexpected token')) {
+      return { steps: [], error: 'Invalid JSON syntax - check for missing quotes or commas' };
+    } else if (errorMessage.includes('Unexpected end')) {
+      return { steps: [], error: 'Incomplete JSON - missing closing brackets' };
+    }
+
+    return { steps: [], error: `JSON parse error: ${errorMessage}` };
+  }
+}
+
 
 export default function TestScenarioEditor({
   value,
@@ -43,49 +96,64 @@ export default function TestScenarioEditor({
 }: TestScenarioEditorProps) {
   const [steps, setSteps] = useState<TestStep[]>([]);
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [focusedStepId, setFocusedStepId] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
 
   // Initialize steps from value prop or set defaults
   useEffect(() => {
     if (value && value.trim() !== '') {
-      // Parse existing value (if it's JSON array)
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) {
-          const loadedSteps: TestStep[] = parsed.map((step: ParsedTestStep, index: number) => ({
-            id: `step-${index}`,
-            type: step.type,
-            editable: step.type === 'click',
-            value: step.url || step.delay?.toString() || step.selector || '',
-            label: step.type === 'click' ? 'Click element' : step.type === 'wait' ? 'Wait' : 'Navigate to',
-          }));
-          setSteps(loadedSteps);
-          return;
-        }
-      } catch (e) {
-        // Not JSON, ignore and use defaults
-      }
-    }
+      const { steps: loadedSteps, error } = parseTestScenarioSafe(value);
 
-    // Set default initialization steps
-    setSteps([
-      {
-        id: 'init-nav',
-        type: 'navigate',
-        editable: false,
-        value: 'http://localhost:3000',
-        label: 'Navigate to',
-      },
-      {
-        id: 'init-wait',
-        type: 'wait',
-        editable: false,
-        value: '3000',
-        label: 'Wait',
-      },
-    ]);
-  }, []);
+      if (error) {
+        setParseError(error);
+        // Don't clear existing steps on parse error - let user fix the issue
+        if (steps.length === 0) {
+          // Set defaults only if no steps exist
+          setSteps([
+            {
+              id: 'init-nav',
+              type: 'navigate',
+              editable: false,
+              value: 'http://localhost:3000',
+              label: 'Navigate to',
+            },
+            {
+              id: 'init-wait',
+              type: 'wait',
+              editable: false,
+              value: '3000',
+              label: 'Wait',
+            },
+          ]);
+        }
+      } else {
+        setParseError(null);
+        if (loadedSteps.length > 0) {
+          setSteps(loadedSteps);
+        }
+      }
+    } else if (steps.length === 0) {
+      // Set default initialization steps only if no steps exist
+      setSteps([
+        {
+          id: 'init-nav',
+          type: 'navigate',
+          editable: false,
+          value: 'http://localhost:3000',
+          label: 'Navigate to',
+        },
+        {
+          id: 'init-wait',
+          type: 'wait',
+          editable: false,
+          value: '3000',
+          label: 'Wait',
+        },
+      ]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Helper functions (must be defined before useEffect that uses them)
   const updateStepValue = useCallback((id: string, newValue: string) => {
@@ -102,20 +170,26 @@ export default function TestScenarioEditor({
 
   // Convert steps to API format and call onChange
   useEffect(() => {
-    const apiSteps = steps.map(step => {
-      switch (step.type) {
-        case 'navigate':
-          return { type: 'navigate', url: step.value };
-        case 'wait':
-          return { type: 'wait', delay: parseInt(step.value) };
-        case 'click':
-          return { type: 'click', selector: step.value };
-        default:
-          return { type: step.type };
-      }
-    });
+    try {
+      const apiSteps = steps.map(step => {
+        switch (step.type) {
+          case 'navigate':
+            return { type: 'navigate', url: step.value };
+          case 'wait':
+            const delay = parseInt(step.value);
+            return { type: 'wait', delay: isNaN(delay) ? 1000 : delay };
+          case 'click':
+            return { type: 'click', selector: step.value };
+          default:
+            return { type: step.type };
+        }
+      });
 
-    onChange(JSON.stringify(apiSteps));
+      onChange(JSON.stringify(apiSteps));
+      setParseError(null); // Clear error on successful serialization
+    } catch (e) {
+      console.error('[TestScenarioEditor] Error serializing steps:', e);
+    }
   }, [steps, onChange]);
 
   // Handle selectedTestId from TestSelectorsPanel
@@ -165,15 +239,31 @@ export default function TestScenarioEditor({
   };
 
   const handleTest = async () => {
+    // Validate steps before testing
     if (steps.length === 0) {
-      setTestResult({ success: false, message: 'No steps defined' });
+      setTestResult({ success: false, message: 'No steps defined', details: 'Add at least one step to create a test scenario' });
       return;
     }
 
     // Check if all click steps have selectors
     const emptyClicks = steps.filter(s => s.type === 'click' && !s.value.trim());
     if (emptyClicks.length > 0) {
-      setTestResult({ success: false, message: 'Please fill in all click selectors' });
+      setTestResult({
+        success: false,
+        message: 'Incomplete test steps',
+        details: `${emptyClicks.length} click step(s) are missing selectors`,
+      });
+      return;
+    }
+
+    // Check for invalid wait values
+    const invalidWaits = steps.filter(s => s.type === 'wait' && (isNaN(parseInt(s.value)) || parseInt(s.value) < 0));
+    if (invalidWaits.length > 0) {
+      setTestResult({
+        success: false,
+        message: 'Invalid wait time',
+        details: 'Wait steps must have a positive number for delay (in milliseconds)',
+      });
       return;
     }
 
@@ -181,6 +271,9 @@ export default function TestScenarioEditor({
     setTestResult(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
       const response = await fetch('/api/tester/screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -188,14 +281,44 @@ export default function TestScenarioEditor({
           contextId,
           scanOnly: false,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
+      // Handle network/server errors
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        if (response.status === 503) {
+          setTestResult({
+            success: false,
+            message: 'Dev server not accessible',
+            details: errorData.hint || 'Make sure your development server is running',
+          });
+        } else if (response.status === 404) {
+          setTestResult({
+            success: false,
+            message: 'Context or project not found',
+            details: errorData.error || 'The context may have been deleted',
+          });
+        } else {
+          setTestResult({
+            success: false,
+            message: `Server error (${response.status})`,
+            details: errorData.error || errorData.details || 'Unknown server error',
+          });
+        }
+        return;
+      }
 
       const result = await response.json();
 
       if (result.success) {
         setTestResult({
           success: true,
-          message: `Screenshot saved! Path: ${result.screenshotPath}`,
+          message: 'Screenshot captured successfully!',
+          details: result.screenshotPath ? `Saved to: ${result.screenshotPath}` : undefined,
         });
 
         // Notify parent of preview update
@@ -203,16 +326,52 @@ export default function TestScenarioEditor({
           onPreviewUpdate(result.screenshotPath);
         }
       } else {
-        setTestResult({
-          success: false,
-          message: result.error || 'Screenshot failed',
-        });
+        // Handle specific error types from the API
+        let message = 'Screenshot failed';
+        let details = result.error || 'Unknown error';
+
+        if (result.error?.includes('selector')) {
+          message = 'Element not found';
+          details = `Could not find element: ${result.error.match(/selector[:\s]*(.+)/i)?.[1] || 'unknown'}`;
+        } else if (result.error?.includes('timeout')) {
+          message = 'Operation timed out';
+          details = 'The page took too long to respond. Check if your server is running.';
+        } else if (result.error?.includes('navigation')) {
+          message = 'Navigation failed';
+          details = 'Could not navigate to the target URL. Check the URL in step 1.';
+        }
+
+        setTestResult({ success: false, message, details });
       }
     } catch (error) {
-      setTestResult({
-        success: false,
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
+      // Handle network/timeout errors
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setTestResult({
+            success: false,
+            message: 'Request timed out',
+            details: 'The screenshot operation took longer than 60 seconds',
+          });
+        } else if (error.message.includes('fetch')) {
+          setTestResult({
+            success: false,
+            message: 'Network error',
+            details: 'Could not connect to the server. Check your network connection.',
+          });
+        } else {
+          setTestResult({
+            success: false,
+            message: 'Unexpected error',
+            details: error.message,
+          });
+        }
+      } else {
+        setTestResult({
+          success: false,
+          message: 'Unknown error',
+          details: 'An unexpected error occurred',
+        });
+      }
     } finally {
       setIsTesting(false);
     }
@@ -233,6 +392,7 @@ export default function TestScenarioEditor({
           className="flex items-center gap-1 px-2 py-1 bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-teal-500/30"
           whileHover={{ scale: !isTesting && steps.length > 0 ? 1.05 : 1 }}
           whileTap={{ scale: !isTesting && steps.length > 0 ? 0.95 : 1 }}
+          data-testid="run-test-btn"
         >
           {isTesting ? (
             <>
@@ -248,6 +408,17 @@ export default function TestScenarioEditor({
         </motion.button>
       </div>
 
+      {/* Parse Error Display */}
+      {parseError && (
+        <ErrorDisplay
+          error={parseError}
+          severity="warning"
+          context="JSON Parse Warning"
+          onDismiss={() => setParseError(null)}
+          compact
+        />
+      )}
+
       {/* Steps Editor */}
       <div className="flex gap-2">
         {/* Left Panel - Action Buttons */}
@@ -257,6 +428,7 @@ export default function TestScenarioEditor({
             className="w-full flex flex-col items-center gap-1 px-2 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 rounded border border-gray-600/50 hover:border-cyan-500/50 transition-all text-xs font-medium"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            data-testid="add-click-step-btn"
           >
             <Plus className="w-4 h-4" />
             <Mouse className="w-3 h-3" />
@@ -278,6 +450,7 @@ export default function TestScenarioEditor({
                     ? 'bg-cyan-500/10 border border-cyan-500/30'
                     : 'bg-gray-800/50 border border-gray-700/30'
                 }`}
+                data-testid={`test-step-${index}`}
               >
                 {/* Step number */}
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
@@ -319,6 +492,7 @@ export default function TestScenarioEditor({
                       className={`w-full px-2 py-1 bg-gray-900/50 border rounded text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all font-mono ${
                         focusedStepId === step.id ? 'border-cyan-500/50 ring-1 ring-cyan-500/50' : 'border-gray-600/50'
                       }`}
+                      data-testid={`step-${index}-input`}
                     />
                   ) : (
                     <div className="text-xs text-gray-400 font-mono truncate">
@@ -335,6 +509,7 @@ export default function TestScenarioEditor({
                     className="flex-shrink-0 p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
+                    data-testid={`step-${index}-delete-btn`}
                   >
                     <Trash2 className="w-3 h-3" />
                   </motion.button>
@@ -352,24 +527,33 @@ export default function TestScenarioEditor({
       </div>
 
       {/* Test Result */}
-      {testResult && (
-        <motion.div
-          initial={{ opacity: 0, y: -5 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`flex items-start gap-2 p-2 rounded text-xs font-mono ${
-            testResult.success
-              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-              : 'bg-red-500/20 text-red-400 border border-red-500/30'
-          }`}
-        >
-          {testResult.success ? (
-            <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-          ) : (
-            <XCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-          )}
-          <span className="flex-1">{testResult.message}</span>
-        </motion.div>
-      )}
+      <AnimatePresence mode="wait">
+        {testResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            className={`flex items-start gap-2 p-2 rounded text-xs font-mono ${
+              testResult.success
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+            }`}
+            data-testid="test-result"
+          >
+            {testResult.success ? (
+              <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            ) : (
+              <XCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            )}
+            <div className="flex-1">
+              <span className="font-medium">{testResult.message}</span>
+              {testResult.details && (
+                <p className="mt-1 opacity-80">{testResult.details}</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <p className="text-xs text-gray-500 font-mono">
         Steps are executed sequentially by Playwright to capture screenshots. Click the + button to add click actions.

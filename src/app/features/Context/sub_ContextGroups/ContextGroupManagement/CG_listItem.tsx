@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Edit2, Trash2, Check, X } from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
+import GradientPalettePicker from '../components/GradientPalettePicker';
 
 interface GroupListItemProps {
   group: ContextGroup;
@@ -11,7 +12,7 @@ interface GroupListItemProps {
   isHovered: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
-  onUpdate: (groupId: string, updates: { name?: string; color?: string }) => void;
+  onUpdate: (groupId: string, updates: { name?: string; color?: string; accentColor?: string }) => void;
   onDelete: (groupId: string) => void;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -42,13 +43,14 @@ export default function GroupListItem({
     <motion.div
       className="relative p-6 bg-gradient-to-br from-gray-800/40 to-gray-900/40 border border-gray-700/30 rounded-2xl backdrop-blur-sm hover:border-gray-600/50 transition-all duration-300"
       style={{
-        background: `linear-gradient(135deg, ${group.color}10 0%, transparent 50%, ${group.color}05 100%)`,
+        background: `linear-gradient(135deg, ${group.color}10 0%, transparent 50%, ${group.accentColor || group.color}05 100%)`,
       }}
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      data-testid={`group-list-item-${group.id}`}
     >
       {/* Hover Glow Effect */}
       <motion.div
@@ -89,6 +91,7 @@ export default function GroupListItem({
                 className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
                 autoFocus
                 maxLength={30}
+                data-testid={`group-name-input-${group.id}`}
               />
             ) : (
               <div>
@@ -104,6 +107,14 @@ export default function GroupListItem({
         </div>
         
         <div className="flex items-center space-x-3">
+          {/* Gradient Accent Picker */}
+          <GradientPalettePicker
+            primaryColor={group.color}
+            accentColor={group.accentColor}
+            onAccentChange={(color) => onUpdate(group.id, { accentColor: color })}
+            compact
+          />
+
           <div className="text-right mr-3">
             <div className="text-sm font-bold text-gray-300 font-mono">
               {/* Context count placeholder */}
@@ -113,7 +124,7 @@ export default function GroupListItem({
               Contexts
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-1">
             {isEditing ? (
               <>
@@ -122,6 +133,7 @@ export default function GroupListItem({
                   className="p-2 hover:bg-green-500/20 rounded-lg transition-colors"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
+                  data-testid={`group-save-btn-${group.id}`}
                 >
                   <Check className="w-4 h-4 text-green-400" />
                 </motion.button>
@@ -130,6 +142,7 @@ export default function GroupListItem({
                   className="p-2 hover:bg-gray-500/20 rounded-lg transition-colors"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
+                  data-testid={`group-cancel-btn-${group.id}`}
                 >
                   <X className="w-4 h-4 text-gray-400" />
                 </motion.button>
@@ -141,6 +154,7 @@ export default function GroupListItem({
                   className="p-2 hover:bg-blue-500/20 rounded-lg transition-colors"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
+                  data-testid={`group-edit-btn-${group.id}`}
                 >
                   <Edit2 className="w-4 h-4 text-blue-400" />
                 </motion.button>
@@ -149,6 +163,7 @@ export default function GroupListItem({
                   className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
+                  data-testid={`group-delete-btn-${group.id}`}
                 >
                   <Trash2 className="w-4 h-4 text-red-400" />
                 </motion.button>

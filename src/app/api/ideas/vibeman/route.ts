@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFirstAcceptedIdea, getAutomationStatus, markIdeaAsImplemented } from './lib/ideaHelpers';
 import { evaluateAndSelectIdea } from './lib/ideaEvaluator';
 import { implementIdea } from './lib/ideaImplementer';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  validateIdeasRequired,
+  handleIdeasApiError,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
 interface VibemanRequest {
   projectId: string;
@@ -10,19 +16,6 @@ interface VibemanRequest {
   ideaId?: string;
 }
 
-function validateRequest(body: Partial<VibemanRequest>): string | null {
-  if (!body.projectId || !body.projectPath) {
-    return 'projectId and projectPath are required';
-  }
-  return null;
-}
-
-function validateIdeaId(ideaId: string | undefined): string | null {
-  if (!ideaId) {
-    return 'ideaId is required';
-  }
-  return null;
-}
 
 /**
  * POST /api/ideas/vibeman
@@ -33,14 +26,12 @@ export async function POST(request: NextRequest) {
     const body: VibemanRequest = await request.json();
     const { projectId, projectPath, action, ideaId } = body;
 
-    // Validate request
-    const validationError = validateRequest(body);
-    if (validationError) {
-      return NextResponse.json(
-        { error: validationError },
-        { status: 400 }
-      );
-    }
+    // Validate required base fields
+    const baseValidation = validateIdeasRequired(
+      { projectId, projectPath },
+      ['projectId', 'projectPath']
+    );
+    if (baseValidation) return baseValidation;
 
     // Route action to appropriate handler
     switch (action) {
@@ -51,10 +42,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(await evaluateAndSelectIdea(projectId, projectPath));
 
       case 'implement-idea': {
-        const ideaError = validateIdeaId(ideaId);
-        if (ideaError) {
-          return NextResponse.json({ error: ideaError }, { status: 400 });
-        }
+        const ideaValidation = validateIdeasRequired({ ideaId }, ['ideaId']);
+        if (ideaValidation) return ideaValidation;
         return NextResponse.json(await implementIdea(ideaId!, projectPath));
       }
 
@@ -62,26 +51,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(getAutomationStatus(projectId));
 
       case 'mark-implemented': {
-        const ideaError = validateIdeaId(ideaId);
-        if (ideaError) {
-          return NextResponse.json({ error: ideaError }, { status: 400 });
-        }
+        const ideaValidation = validateIdeasRequired({ ideaId }, ['ideaId']);
+        if (ideaValidation) return ideaValidation;
         return NextResponse.json(markIdeaAsImplemented(ideaId!));
       }
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid action parameter' },
-          { status: 400 }
-        );
+        return createIdeasErrorResponse(IdeasErrorCode.INVALID_ACTION, {
+          details: `Unknown action: ${action}`,
+        });
     }
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error, IdeasErrorCode.INTERNAL_ERROR);
   }
 }

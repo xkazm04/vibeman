@@ -10,6 +10,7 @@ import { useBlueprintStore } from '../../store/blueprintStore';
 import { contextReviewPrompt } from './prompts/contextReview';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
+import { isBatchRunning } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 import FeatureScanBatchSelector from '../../components/FeatureScanBatchSelector';
 import {
@@ -213,7 +214,7 @@ async function executeContextReview(
 
     // Re-fetch current batch state before starting
     batch = useTaskRunnerStore.getState().batches[batchId];
-    if (batch?.status !== 'running') {
+    if (batch && !isBatchRunning(batch.status)) {
       taskRunnerStore.startBatch(batchId);
       console.log('[Context Review] Started batch:', batchId);
     }

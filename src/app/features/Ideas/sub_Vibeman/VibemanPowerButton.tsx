@@ -22,14 +22,17 @@ export default function VibemanPowerButton({
       whileTap={{ scale: disabled ? 1 : 0.9 }}
       onClick={onClick}
       disabled={disabled || isProcessing}
-      className={`relative p-2.5 rounded-lg transition-all ${
+      className={`relative p-2.5 rounded-lg transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900 ${
         disabled || isProcessing
           ? 'bg-gray-700/40 text-gray-500 cursor-not-allowed'
           : isRunning
-          ? 'bg-red-900/60 hover:bg-red-900/80 text-red-400 border border-red-700/40'
-          : 'bg-red-900/40 hover:bg-red-900/60 text-red-500 border border-red-800/40'
+          ? 'bg-red-900/60 hover:bg-red-800/70 text-red-400 border border-red-700/40 hover:border-red-600/60 focus-visible:ring-red-400/70'
+          : 'bg-red-900/40 hover:bg-red-800/50 text-red-500 border border-red-800/40 hover:border-red-700/60 focus-visible:ring-red-400/70'
       }`}
       title={isRunning ? 'Stop automated implementation' : 'Start automated implementation'}
+      aria-label={isRunning ? 'Stop automated implementation' : 'Start automated implementation'}
+      aria-pressed={isRunning}
+      data-testid="vibeman-power-btn"
     >
       {/* Pulsing effect when running */}
       {isRunning && !isProcessing && (

@@ -4,8 +4,8 @@ import { UniversalSelect } from '@/components/ui/UniversalSelect';
 interface Project {
   id: string;
   name: string;
-  port: number;
-  type: string;
+  port?: number;
+  type?: string;
 }
 
 interface RelatedProjectSelectorProps {

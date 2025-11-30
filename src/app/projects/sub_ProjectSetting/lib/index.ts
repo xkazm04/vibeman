@@ -1,3 +1,8 @@
 // Project utilities and API functions
 export * from './projectUtils';
-export * from './projectApi';
+// Exclude getConnectedProjects from projectApi as it's already exported from projectUtils
+export {
+  fetchProjectsDirectly,
+  deleteProject,
+  getRelatedProject
+} from './projectApi';

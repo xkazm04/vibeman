@@ -272,7 +272,7 @@ export class LLMManager {
     const defaultModels: Record<SupportedProvider, string> = {
       ollama: 'gpt-oss:20b',
       openai: 'gpt-5.1',
-      anthropic: 'claude-sonnet-4-5',
+      anthropic: 'claude-opus-4-5',
       gemini: 'gemini-flash-latest',
       groq: 'qwen/qwen3-32b',
       internal: 'default'

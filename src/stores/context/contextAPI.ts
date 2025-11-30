@@ -114,6 +114,7 @@ export const contextAPI = {
     projectId: string;
     name: string;
     color?: string;
+    icon?: string;
   }): Promise<ContextGroup> => {
     const response = await fetch('/api/context-groups', {
       method: 'POST',
@@ -136,6 +137,8 @@ export const contextAPI = {
   updateGroup: async (groupId: string, updates: {
     name?: string;
     color?: string;
+    icon?: string;
+    type?: 'pages' | 'client' | 'server' | 'external' | null;
   }): Promise<ContextGroup> => {
     const response = await fetch('/api/context-groups', {
       method: 'PUT',

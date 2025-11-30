@@ -16,6 +16,8 @@ import VoiceSessionReplay from './VoiceSessionReplay';
 import LiveEventTicker from './LiveEventTicker';
 import ContextHUD from './ContextHUD';
 import ActionCard from './ActionCard';
+import AudioErrorBoundary from './AudioErrorBoundary';
+import AnnetteErrorBoundary from './AnnetteErrorBoundary';
 import { KnowledgeSource, VoiceSession } from '../lib/voicebotTypes';
 import { AnnetteTheme } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -23,6 +25,10 @@ import { SupportedProvider } from '@/lib/llm/types';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
 import { useAnnetteAudio } from '../hooks/useAnnetteAudio';
 import { useAnnetteSession } from '../hooks/useAnnetteSession';
+import { AudioError, logAudioError } from '../lib/audioErrors';
+import { AnnetteError, parseAnnetteError, logAnnetteError } from '../lib/annetteErrors';
+import { logErrorTelemetry } from '../lib/analyticsService';
+import { clearAllVoiceSessions } from '../lib/voiceSessionStorage';
 
 const WELCOME_PHRASES = [
   "Welcome to your command center.",
@@ -32,7 +38,10 @@ const WELCOME_PHRASES = [
   "Ready when you are.",
 ];
 
-export default function AnnettePanel() {
+/**
+ * Inner panel component containing the main Annette functionality
+ */
+function AnnettePanelContent() {
   const [theme, setTheme] = useState<AnnetteTheme>('midnight');
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -42,6 +51,7 @@ export default function AnnettePanel() {
   const [replaySession, setReplaySession] = useState<VoiceSession | null>(null);
   const [skipWelcome, setSkipWelcome] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [serviceError, setServiceError] = useState<AnnetteError | null>(null);
 
   const { activeProject } = useActiveProjectStore();
   const { recommendScan } = useBlueprintStore();
@@ -53,6 +63,7 @@ export default function AnnettePanel() {
   const {
     isSpeaking,
     isError,
+    audioError,
     volume,
     audioContext,
     analyser,
@@ -62,8 +73,23 @@ export default function AnnettePanel() {
     setMessage,
     playAudioInternal,
     speakMessage,
-    setIsError
+    setIsError,
+    handleAudioError,
+    clearAudioError,
+    tryRecovery,
   } = useAnnetteAudio();
+
+  // Audio error handler for boundary
+  const onAudioError = useCallback((error: AudioError) => {
+    logAudioError(error);
+    setIsError(true);
+  }, [setIsError]);
+
+  const onRecoveryAttempt = useCallback((error: AudioError, success: boolean) => {
+    if (success) {
+      clearAudioError();
+    }
+  }, [clearAudioError]);
 
   const {
     currentSession,
@@ -181,11 +207,27 @@ export default function AnnettePanel() {
       setIsListening(false);
       await speakMessage(data.response);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Communication error';
-      setMessage(errorMessage);
+      // Parse error into structured format
+      const annetteError = parseAnnetteError(error);
+      logAnnetteError(annetteError);
+
+      // Log to telemetry
+      if (activeProject?.id) {
+        logErrorTelemetry({
+          projectId: activeProject.id,
+          errorCode: annetteError.code,
+          errorMessage: annetteError.message,
+          severity: annetteError.severity,
+          recoverable: annetteError.autoRecoverable,
+          context: 'sendToAnnette',
+          metadata: { provider, userMessage },
+        });
+      }
+
+      setMessage(annetteError.message);
       setIsListening(false);
       setIsError(true);
-      addTranscriptEntry('system', `Error: ${errorMessage}`);
+      addTranscriptEntry('system', `Error: ${annetteError.message} (${annetteError.code})`);
     } finally {
       setIsProcessing(false);
     }
@@ -201,17 +243,23 @@ export default function AnnettePanel() {
       >
         <div className="relative group">
           {/* Pulse Effect */}
-          <div className={`absolute inset-0 bg-cyan-500/30 rounded-full blur-xl transition-all duration-1000 ${isProcessing ? 'scale-150 opacity-100' : 'scale-100 opacity-0'}`} />
+          <div className={`absolute inset-0 ${colors.border.replace('border-', 'bg-')} rounded-full blur-xl transition-all duration-1000 ${isProcessing ? 'scale-150 opacity-100' : 'scale-100 opacity-0'}`} />
 
           <button
             onClick={() => setIsMinimized(false)}
-            className="relative w-16 h-16 rounded-full bg-gray-900/90 border border-cyan-500/30 backdrop-blur-xl shadow-2xl flex items-center justify-center overflow-hidden group-hover:border-cyan-400/50 transition-all"
+            className={`relative w-16 h-16 rounded-full bg-gray-900/90 border ${colors.border} backdrop-blur-xl shadow-2xl flex items-center justify-center overflow-hidden group-hover:${colors.borderHover} transition-all`}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-purple-500/10" />
+            <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgLight} to-purple-500/10`} />
             {isSpeaking ? (
-              <VoiceVisualizer isActive={true} theme={theme} />
+              <AudioErrorBoundary
+                audioContext={audioContext}
+                onError={onAudioError}
+                onRecoveryAttempt={onRecoveryAttempt}
+              >
+                <VoiceVisualizer isActive={true} theme={theme} />
+              </AudioErrorBoundary>
             ) : (
-              <Sparkles className="w-6 h-6 text-cyan-400" />
+              <Sparkles className={`w-6 h-6 ${colors.textDark}`} />
             )}
           </button>
 
@@ -285,7 +333,7 @@ export default function AnnettePanel() {
               {/* Outer Ring */}
               <div className={`
                 absolute inset-0 rounded-full border border-white/10
-                ${isSpeaking ? 'scale-110 border-cyan-500/50' : ''}
+                ${isSpeaking ? `scale-110 ${colors.borderHover}` : ''}
                 transition-all duration-500
               `} />
 
@@ -298,12 +346,18 @@ export default function AnnettePanel() {
                 ${!isVoiceEnabled ? 'opacity-70 grayscale' : ''}
               `}>
                 {isVoiceEnabled ? (
-                  <VoiceVisualizer
-                    isActive={isSpeaking}
-                    theme={theme}
-                    audioContext={audioContext || undefined}
-                    analyser={analyser || undefined}
-                  />
+                  <AudioErrorBoundary
+                    audioContext={audioContext}
+                    onError={onAudioError}
+                    onRecoveryAttempt={onRecoveryAttempt}
+                  >
+                    <VoiceVisualizer
+                      isActive={isSpeaking}
+                      theme={theme}
+                      audioContext={audioContext || undefined}
+                      analyser={analyser || undefined}
+                    />
+                  </AudioErrorBoundary>
                 ) : (
                   <MicOff className="w-6 h-6 text-gray-500" />
                 )}
@@ -312,7 +366,7 @@ export default function AnnettePanel() {
 
             {/* Glow behind visualizer */}
             <div className={`
-              absolute inset-0 bg-cyan-500/20 blur-xl rounded-full -z-10
+              absolute inset-0 ${colors.bgHover} blur-xl rounded-full -z-10
               transition-opacity duration-500
               ${isSpeaking ? 'opacity-100 scale-150' : 'opacity-0'}
             `} />
@@ -455,5 +509,76 @@ export default function AnnettePanel() {
         </AnimatePresence>
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * AnnettePanel with error boundary wrapper
+ * Catches service errors and provides recovery UI
+ */
+export default function AnnettePanel() {
+  const { activeProject } = useActiveProjectStore();
+  const [retryKey, setRetryKey] = useState(0);
+
+  // Error handlers for the boundary
+  const handleError = useCallback((error: AnnetteError) => {
+    console.log('[AnnettePanel] Service error caught:', error.code);
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    setRetryKey(prev => prev + 1);
+  }, []);
+
+  const handleSwitchProvider = useCallback(() => {
+    // Could integrate with provider selection UI
+    // For now, just retry which resets the panel
+    setRetryKey(prev => prev + 1);
+  }, []);
+
+  const handleClearCache = useCallback(() => {
+    // Clear response cache
+    try {
+      if (typeof window !== 'undefined' && window.caches) {
+        window.caches.keys().then(names => {
+          names.forEach(name => {
+            if (name.includes('annette') || name.includes('voicebot')) {
+              window.caches.delete(name);
+            }
+          });
+        });
+      }
+    } catch {
+      // Silently ignore cache clear failures
+    }
+    setRetryKey(prev => prev + 1);
+  }, []);
+
+  const handleClearSessions = useCallback(async () => {
+    try {
+      await clearAllVoiceSessions();
+    } catch {
+      // Silently ignore session clear failures
+    }
+    setRetryKey(prev => prev + 1);
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    // Could navigate to settings page or open modal
+    // For now, this is a placeholder that could be integrated with the app's routing
+    console.log('[AnnettePanel] Open settings requested');
+  }, []);
+
+  return (
+    <AnnetteErrorBoundary
+      projectId={activeProject?.id || null}
+      onError={handleError}
+      onRetry={handleRetry}
+      onSwitchProvider={handleSwitchProvider}
+      onClearCache={handleClearCache}
+      onClearSessions={handleClearSessions}
+      onOpenSettings={handleOpenSettings}
+    >
+      <AnnettePanelContent key={retryKey} />
+    </AnnetteErrorBoundary>
   );
 }

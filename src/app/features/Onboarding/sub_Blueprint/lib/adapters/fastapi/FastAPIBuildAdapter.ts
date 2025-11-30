@@ -2,6 +2,9 @@
  * FastAPI Build/Test Scan Adapter
  *
  * Runs pytest and checks for test failures, import errors, and type issues.
+ *
+ * Uses centralized error handling for consistent error messages
+ * and automatic retry logic for transient failures.
  */
 
 import { Project } from '@/types';
@@ -29,57 +32,75 @@ export class FastAPIBuildAdapter extends BaseAdapter<FastAPIBuildData> {
   public readonly category = 'build';
   public readonly priority = 100;
 
+  /** Custom retry config for test scans - pytest can take time */
+  protected override readonly retryConfig = {
+    maxRetries: 2, // Test runs can be slow, limit retries
+    initialDelayMs: 2000,
+    maxDelayMs: 30000,
+  };
+
+  protected override readonly defaultTimeoutMs = 180000; // 3 minute timeout for tests
+
   public async execute(context: ScanContext): Promise<ScanResult<FastAPIBuildData>> {
     const { project } = context;
 
     this.log('Running FastAPI tests...', project.path);
 
-    try {
-      const response = await this.fetchApi('/api/build-fixer/fastapi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectPath: project.path,
-          scanOnly: true, // Just scan, don't create requirements yet
-        }),
-      });
-
-      if (!response.success || !response.data) {
-        return this.createResult<FastAPIBuildData>(false, undefined, response.error || 'FastAPI build scan failed');
-      }
-
-      const result = response.data as any;
-
-      if (!result.success) {
-        return this.createResult<FastAPIBuildData>(false, undefined, result.error || 'FastAPI build scan failed');
-      }
-
-      const data: FastAPIBuildData = {
-        totalTests: result.totalTests || 0,
-        passedTests: result.passedTests || 0,
-        failedTests: result.failedTests || 0,
-        errors: result.errors || [],
-        typeErrors: result.typeErrors || 0,
-        importErrors: result.importErrors || 0,
-      };
-
-      if (data.failedTests === 0 && data.typeErrors === 0 && data.importErrors === 0) {
-        this.log(`✅ All tests passing: ${data.passedTests}/${data.totalTests}`);
-      } else {
-        this.log(
-          `❌ Issues found: ${data.failedTests} failed tests, ${data.typeErrors} type errors, ${data.importErrors} import errors`
+    // Use centralized error handling with automatic retry
+    return this.executeWithErrorHandling(
+      async () => {
+        const response = await this.fetchApi<any>(
+          '/api/build-fixer/fastapi',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectPath: project.path,
+              scanOnly: true, // Just scan, don't create requirements yet
+            }),
+          },
+          { serviceName: 'FastAPI Build Fixer API' }
         );
-      }
 
-      return this.createResult(true, data);
-    } catch (error) {
-      this.error('FastAPI build scan failed:', error);
-      return this.createResult<FastAPIBuildData>(
-        false,
-        undefined,
-        error instanceof Error ? error.message : 'Unknown error'
-      );
-    }
+        if (!response.success || !response.data) {
+          return this.createResult<FastAPIBuildData>(
+            false,
+            undefined,
+            response.error || 'FastAPI build scan failed'
+          );
+        }
+
+        const result = response.data;
+
+        if (!result.success) {
+          return this.createResult<FastAPIBuildData>(
+            false,
+            undefined,
+            result.error || 'FastAPI build scan failed'
+          );
+        }
+
+        const data: FastAPIBuildData = {
+          totalTests: result.totalTests || 0,
+          passedTests: result.passedTests || 0,
+          failedTests: result.failedTests || 0,
+          errors: result.errors || [],
+          typeErrors: result.typeErrors || 0,
+          importErrors: result.importErrors || 0,
+        };
+
+        if (data.failedTests === 0 && data.typeErrors === 0 && data.importErrors === 0) {
+          this.log(`✅ All tests passing: ${data.passedTests}/${data.totalTests}`);
+        } else {
+          this.log(
+            `❌ Issues found: ${data.failedTests} failed tests, ${data.typeErrors} type errors, ${data.importErrors} import errors`
+          );
+        }
+
+        return this.createResult(true, data);
+      },
+      { operation: 'fastapi-test-scan' }
+    );
   }
 
   public buildDecision(

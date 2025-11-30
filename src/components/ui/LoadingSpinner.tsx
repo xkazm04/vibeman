@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -6,6 +7,9 @@ interface LoadingSpinnerProps {
 }
 
 export default function LoadingSpinner({ size = 'md', message }: LoadingSpinnerProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const sizeClasses = {
     sm: 'w-6 h-6',
     md: 'w-12 h-12',
@@ -15,7 +19,8 @@ export default function LoadingSpinner({ size = 'md', message }: LoadingSpinnerP
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-8">
       <motion.div
-        className={`${sizeClasses[size]} border-4 border-cyan-500/20 border-t-cyan-500 rounded-full`}
+        className={`${sizeClasses[size]} border-4 ${colors.borderLight} border-t-current rounded-full`}
+        style={{ borderTopColor: colors.baseColor }}
         animate={{ rotate: 360 }}
         transition={{
           duration: 1,

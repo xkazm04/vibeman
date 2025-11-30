@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useRef } from 'react';
 import { DiffEditor } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
 import { defineVibemanTheme, clearErrorMarkers, setupMarkerClearer } from './editorTheme';
 
 type Theme = 'vs-dark' | 'light' | 'vs' | 'vibeman-dark';
@@ -14,9 +14,9 @@ export interface MonacoDiffEditorProps {
   width?: string | number;
   readOnly?: boolean;
   renderSideBySide?: boolean;
-  options?: monaco.editor.IDiffEditorConstructionOptions;
+  options?: any;
   onChange?: (value: string) => void; // modified content stream
-  onMount?: (editor: monaco.editor.IStandaloneDiffEditor, monacoApi: typeof monaco) => void;
+  onMount?: (editor: any, monacoApi: any) => void;
   className?: string;
   loading?: React.ReactNode;
 }
@@ -36,8 +36,8 @@ export default function MonacoDiffEditor({
   className = '',
   loading,
 }: MonacoDiffEditorProps) {
-  const editorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
-  const disposersRef = useRef<monaco.IDisposable[]>([]);
+  const editorRef = useRef<any>(null);
+  const disposersRef = useRef<any[]>([]);
 
   useEffect(() => {
     return () => {
@@ -46,7 +46,7 @@ export default function MonacoDiffEditor({
     };
   }, []);
 
-  const handleMount = (editor: monaco.editor.IStandaloneDiffEditor, monacoApi: typeof monaco) => {
+  const handleMount = (editor: any, monacoApi: any) => {
     editorRef.current = editor;
 
     // Configure theme
@@ -89,7 +89,7 @@ export default function MonacoDiffEditor({
     if (onMount) onMount(editor, monacoApi);
   };
 
-  const diffOpts: monaco.editor.IDiffEditorConstructionOptions = {
+  const diffOpts: any = {
     renderSideBySide,
     readOnly,
     originalEditable: false,

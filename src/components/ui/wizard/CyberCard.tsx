@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface CyberCardProps {
   children: ReactNode;
@@ -30,10 +31,13 @@ export default function CyberCard({
   onClick,
   'data-testid': dataTestId,
 }: CyberCardProps) {
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
+  
   const variants = {
     default: 'bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10',
     dark: 'bg-black/30 border-white/10',
-    glow: 'bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border-cyan-500/20',
+    glow: `bg-gradient-to-br ${colors.bgLight} to-blue-500/5 ${colors.borderLight}`,
   };
 
   const Component = hover || onClick ? motion.div : 'div';

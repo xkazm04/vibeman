@@ -3,6 +3,14 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import type { ProjectRequirement } from '../lib/types';
+import {
+  isRequirementQueued,
+  isRequirementRunning,
+  isRequirementCompleted,
+  isRequirementFailed,
+  getRequirementStatusLabel,
+  categorizeRequirementsByStatus,
+} from '../lib/types';
 
 interface QueueVisualizationProps {
   requirements: ProjectRequirement[];
@@ -42,29 +50,11 @@ const getStatusColor = (status: ProjectRequirement['status']) => {
 };
 
 const getStatusLabel = (status: ProjectRequirement['status']) => {
-  switch (status) {
-    case 'running':
-      return 'Running';
-    case 'completed':
-      return 'Done';
-    case 'failed':
-      return 'Failed';
-    case 'session-limit':
-      return 'Limit';
-    case 'queued':
-      return 'Queued';
-    default:
-      return 'Idle';
-  }
+  return getRequirementStatusLabel(status);
 };
 
 const categorizeRequirements = (requirements: ProjectRequirement[]) => {
-  return {
-    queued: requirements.filter((r) => r.status === 'queued'),
-    running: requirements.filter((r) => r.status === 'running'),
-    completed: requirements.filter((r) => r.status === 'completed'),
-    failed: requirements.filter((r) => r.status === 'failed' || r.status === 'session-limit')
-  };
+  return categorizeRequirementsByStatus(requirements);
 };
 
 const getDisplayItems = (categorized: ReturnType<typeof categorizeRequirements>) => {
@@ -163,11 +153,11 @@ export default function QueueVisualization({
                       className={`
                         text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded
                         ${
-                          item.status === 'running'
+                          isRequirementRunning(item.status)
                             ? 'bg-blue-500/20 text-blue-400'
-                            : item.status === 'completed'
+                            : isRequirementCompleted(item.status)
                             ? 'bg-emerald-500/20 text-emerald-400'
-                            : item.status === 'failed' || item.status === 'session-limit'
+                            : isRequirementFailed(item.status)
                             ? 'bg-red-500/20 text-red-400'
                             : 'bg-amber-500/20 text-amber-400'
                         }
@@ -178,7 +168,7 @@ export default function QueueVisualization({
                   </div>
 
                   {/* Running pulse effect */}
-                  {item.status === 'running' && (
+                  {isRequirementRunning(item.status) && (
                     <motion.div
                       className="absolute inset-0 rounded-lg border-2 border-blue-500/30"
                       animate={{
@@ -199,28 +189,22 @@ export default function QueueVisualization({
         </div>
 
         {/* Show indicator if there are more items */}
-        {requirements.filter(
-          (r) =>
-            r.status === 'queued' ||
-            r.status === 'running' ||
-            r.status === 'completed' ||
-            r.status === 'failed' ||
-            r.status === 'session-limit'
-        ).length > displayItems.length && (
-          <div className="flex items-center justify-center mt-2">
-            <span className="text-[10px] text-gray-600 font-medium">
-              + {requirements.filter(
-                (r) =>
-                  r.status === 'queued' ||
-                  r.status === 'running' ||
-                  r.status === 'completed' ||
-                  r.status === 'failed' ||
-                  r.status === 'session-limit'
-              ).length - displayItems.length}{' '}
-              more
-            </span>
-          </div>
-        )}
+        {(() => {
+          const activeRequirements = requirements.filter(
+            (r) =>
+              isRequirementQueued(r.status) ||
+              isRequirementRunning(r.status) ||
+              isRequirementCompleted(r.status) ||
+              isRequirementFailed(r.status)
+          );
+          return activeRequirements.length > displayItems.length && (
+            <div className="flex items-center justify-center mt-2">
+              <span className="text-[10px] text-gray-600 font-medium">
+                + {activeRequirements.length - displayItems.length} more
+              </span>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

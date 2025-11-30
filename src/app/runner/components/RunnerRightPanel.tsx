@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { Project } from '@/types';
 
 interface RunnerRightPanelProps {
   onAnnetteInteraction?: (project: Project) => void;

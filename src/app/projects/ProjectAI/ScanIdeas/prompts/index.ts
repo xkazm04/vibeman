@@ -25,6 +25,8 @@ import { buildMoonshotArchitectPrompt } from './moonshotArchitectPrompt';
 // Gap Coverage
 import { buildDevExperienceEngineerPrompt } from './devExperienceEngineerPrompt';
 import { buildDataFlowOptimizerPrompt } from './dataFlowOptimizerPrompt';
+// Code Cleanup
+import { buildCodeRefactorPrompt } from './codeRefactorPrompt';
 
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
@@ -65,6 +67,8 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   // Gap Coverage
   dev_experience_engineer: buildDevExperienceEngineerPrompt,
   data_flow_optimizer: buildDataFlowOptimizerPrompt,
+  // Code Cleanup
+  code_refactor: buildCodeRefactorPrompt,
 };
 
 /**
@@ -107,4 +111,6 @@ export {
   // Gap Coverage
   buildDevExperienceEngineerPrompt,
   buildDataFlowOptimizerPrompt,
+  // Code Cleanup
+  buildCodeRefactorPrompt,
 };

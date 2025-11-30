@@ -129,6 +129,62 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     borderColor: 'border-slate-500/40',
     bgGradient: 'from-slate-500/5 to-slate-600/2',
     description: 'Code quality & refactoring'
+  },
+  code_refactor: {
+    label: 'Code Refactor',
+    icon: Wrench,
+    color: 'text-emerald-400',
+    borderColor: 'border-emerald-500/40',
+    bgGradient: 'from-emerald-500/5 to-emerald-600/2',
+    description: 'Code cleanup, dead code removal & structure'
+  },
+  user_empathy_champion: {
+    label: 'User Empathy Champion',
+    icon: Heart,
+    color: 'text-fuchsia-400',
+    borderColor: 'border-fuchsia-500/40',
+    bgGradient: 'from-fuchsia-500/5 to-fuchsia-600/2',
+    description: 'Human-centered design & emotional UX'
+  },
+  accessibility_advocate: {
+    label: 'Accessibility Advocate',
+    icon: Brain,
+    color: 'text-sky-400',
+    borderColor: 'border-sky-500/40',
+    bgGradient: 'from-sky-500/5 to-sky-600/2',
+    description: 'Universal design & inclusive experiences'
+  },
+  paradigm_shifter: {
+    label: 'Paradigm Shifter',
+    icon: Brain,
+    color: 'text-amber-400',
+    borderColor: 'border-amber-500/40',
+    bgGradient: 'from-amber-500/5 to-amber-600/2',
+    description: 'Revolutionary reimagination of features'
+  },
+  moonshot_architect: {
+    label: 'Moonshot Architect',
+    icon: Compass,
+    color: 'text-slate-400',
+    borderColor: 'border-slate-500/40',
+    bgGradient: 'from-slate-500/5 to-slate-600/2',
+    description: 'Ambitious 10x opportunities'
+  },
+  dev_experience_engineer: {
+    label: 'Dev Experience Engineer',
+    icon: Wrench,
+    color: 'text-gray-400',
+    borderColor: 'border-gray-500/40',
+    bgGradient: 'from-gray-500/5 to-gray-600/2',
+    description: 'Developer productivity & codebase joy'
+  },
+  data_flow_optimizer: {
+    label: 'Data Flow Optimizer',
+    icon: Zap,
+    color: 'text-blue-400',
+    borderColor: 'border-blue-500/40',
+    bgGradient: 'from-blue-500/5 to-blue-600/2',
+    description: 'Data architecture & state management'
   }
 };
 

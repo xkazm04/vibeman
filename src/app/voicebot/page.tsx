@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Layers, Zap, MessageSquare } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
 import AsyncVoiceSolution from './components/AsyncVoiceSolution';
 import WebSocketVoiceSolution from './components/WebSocketVoiceSolution';
 import ConversationSolution from './components/ConversationSolution';
@@ -31,6 +32,8 @@ type VoiceSolution = 'async' | 'websocket' | 'conversation';
 
 export default function VoicebotPage() {
   const [activeSolution, setActiveSolution] = useState<VoiceSolution>('async');
+  const { getThemeColors } = useThemeStore();
+  const colors = getThemeColors();
   
   // Project and Context state
   const projects = useProjectConfigStore((state) => state.getAllProjects());
@@ -81,10 +84,10 @@ export default function VoicebotPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-slate-400 bg-clip-text text-transparent mb-2 font-mono">
+          <h1 className={`text-4xl font-bold bg-gradient-to-r ${colors.primary} bg-clip-text text-transparent mb-2 font-mono`}>
             VOICEBOT CALL SESSION
           </h1>
-          <p className="text-cyan-300/60 font-mono">
+          <p className={`${colors.text} opacity-60 font-mono`}>
             Experimental phone call-like voice interaction testing platform
           </p>
         </motion.div>
@@ -98,7 +101,7 @@ export default function VoicebotPage() {
         >
           {/* Project Selector */}
           <div className="flex-1">
-            <label className="block text-sm text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
+            <label className={`block text-sm ${colors.textDark} opacity-60 font-mono uppercase tracking-wider mb-2`}>
               Project Context
             </label>
             <select
@@ -109,7 +112,7 @@ export default function VoicebotPage() {
                   setActiveProject(selectedProject);
                 }
               }}
-              className="w-full px-4 py-3 bg-gray-900/50 border border-cyan-500/30 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-cyan-500/50 transition-colors"
+              className={`w-full px-4 py-3 bg-gray-900/50 border ${colors.border} rounded-xl text-white font-mono text-sm focus:outline-none focus:${colors.borderHover} transition-colors`}
             >
               <option value="">No Project Selected</option>
               {projects.map((project) => (
@@ -122,7 +125,7 @@ export default function VoicebotPage() {
 
           {/* Context Selector */}
           <div className="flex-1">
-            <label className="block text-sm text-cyan-400/60 font-mono uppercase tracking-wider mb-2">
+            <label className={`block text-sm ${colors.textDark} opacity-60 font-mono uppercase tracking-wider mb-2`}>
               Context
             </label>
             <select
@@ -132,7 +135,7 @@ export default function VoicebotPage() {
                 setActiveContext(selectedContext || null);
               }}
               disabled={!activeProject || loadingContexts}
-              className="w-full px-4 py-3 bg-gray-900/50 border border-cyan-500/30 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-cyan-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full px-4 py-3 bg-gray-900/50 border ${colors.border} rounded-xl text-white font-mono text-sm focus:outline-none focus:${colors.borderHover} transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <option value="">
                 {!activeProject ? 'Select a project first' : loadingContexts ? 'Loading contexts...' : 'No Context Selected'}
@@ -153,7 +156,7 @@ export default function VoicebotPage() {
           transition={{ delay: 0.1 }}
           className="mb-6"
         >
-          <div className="inline-flex bg-gray-900/50 border border-cyan-500/30 rounded-2xl p-1.5 backdrop-blur-sm">
+          <div className={`inline-flex bg-gray-900/50 border ${colors.border} rounded-2xl p-1.5 backdrop-blur-sm`}>
             <motion.button
               onClick={() => setActiveSolution('async')}
               className={`
@@ -169,7 +172,7 @@ export default function VoicebotPage() {
               {activeSolution === 'async' && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute inset-0 bg-gradient-to-r from-cyan-600/40 to-blue-600/40 border border-cyan-500/50 rounded-xl"
+                  className={`absolute inset-0 bg-gradient-to-r ${colors.bgHover} to-blue-600/40 border ${colors.borderHover} rounded-xl`}
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
@@ -201,7 +204,7 @@ export default function VoicebotPage() {
               {activeSolution === 'websocket' && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute inset-0 bg-gradient-to-r from-cyan-600/40 to-blue-600/40 border border-cyan-500/50 rounded-xl"
+                  className={`absolute inset-0 bg-gradient-to-r ${colors.bgHover} to-blue-600/40 border ${colors.borderHover} rounded-xl`}
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
@@ -233,7 +236,7 @@ export default function VoicebotPage() {
               {activeSolution === 'conversation' && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute inset-0 bg-gradient-to-r from-cyan-600/40 to-blue-600/40 border border-cyan-500/50 rounded-xl"
+                  className={`absolute inset-0 bg-gradient-to-r ${colors.bgHover} to-blue-600/40 border ${colors.borderHover} rounded-xl`}
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
@@ -257,20 +260,20 @@ export default function VoicebotPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="mt-4 p-4 bg-gray-900/50 border border-cyan-500/20 rounded-xl backdrop-blur-sm"
+            className={`mt-4 p-4 bg-gray-900/50 border ${colors.borderLight} rounded-xl backdrop-blur-sm`}
           >
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0 mt-1">
                 {activeSolution === 'async' ? (
-                  <Layers className="w-5 h-5 text-cyan-400" />
+                  <Layers className={`w-5 h-5 ${colors.textDark}`} />
                 ) : activeSolution === 'websocket' ? (
-                  <Zap className="w-5 h-5 text-cyan-400" />
+                  <Zap className={`w-5 h-5 ${colors.textDark}`} />
                 ) : (
-                  <MessageSquare className="w-5 h-5 text-cyan-400" />
+                  <MessageSquare className={`w-5 h-5 ${colors.textDark}`} />
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-bold text-cyan-400 mb-1 font-mono">
+                <h3 className={`text-sm font-bold ${colors.textDark} mb-1 font-mono`}>
                   {activeSolution === 'async' ? 'ASYNC PIPELINE' : activeSolution === 'websocket' ? 'WEBSOCKET REALTIME' : 'CONVERSATION TEST'}
                 </h3>
                 <p className="text-sm text-gray-400 font-mono">
@@ -319,36 +322,36 @@ export default function VoicebotPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-6 p-6 bg-gray-900/50 border border-cyan-500/20 rounded-2xl backdrop-blur-sm"
+          className={`mt-6 p-6 bg-gray-900/50 border ${colors.borderLight} rounded-2xl backdrop-blur-sm`}
         >
-          <h2 className="text-lg font-bold text-cyan-400 mb-4 font-mono">TECHNICAL DETAILS</h2>
+          <h2 className={`text-lg font-bold ${colors.textDark} mb-4 font-mono`}>TECHNICAL DETAILS</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Async Pipeline */}
-            <div className="p-4 bg-black/30 rounded-xl border border-cyan-500/20">
+            <div className={`p-4 bg-black/30 rounded-xl border ${colors.borderLight}`}>
               <div className="flex items-center space-x-2 mb-3">
-                <Layers className="w-4 h-4 text-cyan-400" />
+                <Layers className={`w-4 h-4 ${colors.textDark}`} />
                 <h3 className="text-sm font-bold text-white font-mono">ASYNC PIPELINE</h3>
               </div>
               <div className="space-y-2 text-sm font-mono text-gray-400">
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">1.</span>
+                  <span className={colors.textDark}>1.</span>
                   <span>Voice input with smart silence detection (10%, 3s)</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">2.</span>
+                  <span className={colors.textDark}>2.</span>
                   <span>Audio → ElevenLabs STT</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">3.</span>
+                  <span className={colors.textDark}>3.</span>
                   <span>Text → Multi-model LLM (Ollama/OpenAI/Claude/Gemini)</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">4.</span>
+                  <span className={colors.textDark}>4.</span>
                   <span>Response → ElevenLabs TTS</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">5.</span>
+                  <span className={colors.textDark}>5.</span>
                   <span>Play audio & display conversation</span>
                 </div>
               </div>
@@ -360,26 +363,26 @@ export default function VoicebotPage() {
             </div>
 
             {/* WebSocket Realtime */}
-            <div className="p-4 bg-black/30 rounded-xl border border-cyan-500/20">
+            <div className={`p-4 bg-black/30 rounded-xl border ${colors.borderLight}`}>
               <div className="flex items-center space-x-2 mb-3">
-                <Zap className="w-4 h-4 text-cyan-400" />
+                <Zap className={`w-4 h-4 ${colors.textDark}`} />
                 <h3 className="text-sm font-bold text-white font-mono">WEBSOCKET REALTIME</h3>
               </div>
               <div className="space-y-2 text-sm font-mono text-gray-400">
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">1.</span>
+                  <span className={colors.textDark}>1.</span>
                   <span>Voice input with smart silence (10%, 3s)</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">2.</span>
+                  <span className={colors.textDark}>2.</span>
                   <span>Audio → POST /api/voicebot/realtime</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">3.</span>
+                  <span className={colors.textDark}>3.</span>
                   <span>Server: Whisper STT → GPT-4 → OpenAI TTS</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">4.</span>
+                  <span className={colors.textDark}>4.</span>
                   <span>Receive audio URL & play response</span>
                 </div>
               </div>
@@ -391,26 +394,26 @@ export default function VoicebotPage() {
             </div>
 
             {/* Conversation Test */}
-            <div className="p-4 bg-black/30 rounded-xl border border-cyan-500/20">
+            <div className={`p-4 bg-black/30 rounded-xl border ${colors.borderLight}`}>
               <div className="flex items-center space-x-2 mb-3">
-                <MessageSquare className="w-4 h-4 text-cyan-400" />
+                <MessageSquare className={`w-4 h-4 ${colors.textDark}`} />
                 <h3 className="text-sm font-bold text-white font-mono">CONVERSATION TEST</h3>
               </div>
               <div className="space-y-2 text-sm font-mono text-gray-400">
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">1.</span>
+                  <span className={colors.textDark}>1.</span>
                   <span>Load 5 predefined test sentences</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">2.</span>
+                  <span className={colors.textDark}>2.</span>
                   <span>Auto-send each sentence to LLM</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">3.</span>
+                  <span className={colors.textDark}>3.</span>
                   <span>Response → ElevenLabs TTS</span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-cyan-400">4.</span>
+                  <span className={colors.textDark}>4.</span>
                   <span>Play audio & continue to next</span>
                 </div>
               </div>
@@ -427,17 +430,17 @@ export default function VoicebotPage() {
             <h3 className="text-sm font-bold text-gray-300 mb-3 font-mono">API ENDPOINTS</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm font-mono">
               <div>
-                <span className="text-cyan-400">POST</span>
+                <span className={colors.textDark}>POST</span>
                 <span className="text-gray-400 ml-2">/api/voicebot/speech-to-text</span>
                 <div className="text-gray-600 ml-6">ElevenLabs STT</div>
               </div>
               <div>
-                <span className="text-cyan-400">POST</span>
+                <span className={colors.textDark}>POST</span>
                 <span className="text-gray-400 ml-2">/api/voicebot/text-to-speech</span>
                 <div className="text-gray-600 ml-6">ElevenLabs TTS</div>
               </div>
               <div>
-                <span className="text-cyan-400">POST</span>
+                <span className={colors.textDark}>POST</span>
                 <span className="text-gray-400 ml-2">/api/voicebot/llm</span>
                 <div className="text-gray-600 ml-6">Multi-model LLM</div>
               </div>
