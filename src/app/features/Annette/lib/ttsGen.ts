@@ -1,11 +1,17 @@
 /**
  * Text-to-Speech Generation Utilities
- * Wrapper around voicebotApi for backward compatibility
+ * Wrapper around voicebotApi for Annette-specific TTS functionality
  */
 
 import { textToSpeech as voicebotTextToSpeech } from './voicebotApi';
+import { playAudio as sharedPlayAudio } from '@/lib/voice/ttsGen';
 
 type LogType = 'system' | 'user' | 'tool' | 'llm';
+
+/**
+ * Re-export playAudio from shared lib
+ */
+export { sharedPlayAudio as playAudio };
 
 /**
  * Generate text-to-speech audio and play it (with logging support)
@@ -36,7 +42,7 @@ export async function generateTextToSpeech(
       addLog('system', 'Playing audio...');
     }
 
-    await playAudio(audioUrl);
+    await sharedPlayAudio(audioUrl);
 
     if (addLog) {
       addLog('system', 'Audio playback completed');
@@ -50,34 +56,11 @@ export async function generateTextToSpeech(
 }
 
 /**
- * Play audio from URL
- * @param audioUrl - URL of audio to play
- * @returns Promise that resolves when audio finishes playing
- */
-export async function playAudio(audioUrl: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const audio = new Audio(audioUrl);
-
-    audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      resolve();
-    };
-
-    audio.onerror = (error) => {
-      URL.revokeObjectURL(audioUrl);
-      reject(error);
-    };
-
-    audio.play().catch(reject);
-  });
-}
-
-/**
  * Generate and play text-to-speech in one call
  * @param text - Text to convert and play
  * @returns Promise that resolves when audio finishes playing
  */
 export async function speakText(text: string): Promise<void> {
   const audioUrl = await voicebotTextToSpeech(text);
-  await playAudio(audioUrl);
+  await sharedPlayAudio(audioUrl);
 }

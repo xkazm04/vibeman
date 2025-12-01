@@ -64,6 +64,8 @@ const contextGroupArbitrary: fc.Arbitrary<ContextGroup> = fc.record({
   name: fc.string({ minLength: 1, maxLength: 50 }),
   color: fc.constantFrom('#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'),
   position: fc.integer({ min: 0, max: 100 }),
+  type: fc.constantFrom('pages', 'client', 'server', 'external', null),
+  icon: fc.option(fc.string({ minLength: 1, maxLength: 20 }), { nil: null }),
   createdAt: fc.constant(fixedDate),
   updatedAt: fc.constant(fixedDate),
 });

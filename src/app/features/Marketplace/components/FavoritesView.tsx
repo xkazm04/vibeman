@@ -7,11 +7,14 @@ import PatternCard from './PatternCard';
 
 export default function FavoritesView() {
   const {
-    favoritePatterns,
+    favoritePatterns = [],
     isLoadingPatterns,
     fetchFavoritePatterns,
     setCurrentView,
   } = useMarketplaceStore();
+
+  // Ensure favoritePatterns is always an array (handles persisted undefined state)
+  const favorites = favoritePatterns ?? [];
 
   useEffect(() => {
     fetchFavoritePatterns();
@@ -31,7 +34,7 @@ export default function FavoritesView() {
       </div>
 
       {/* Loading State */}
-      {isLoadingPatterns && favoritePatterns.length === 0 && (
+      {isLoadingPatterns && favorites.length === 0 && (
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
@@ -41,7 +44,7 @@ export default function FavoritesView() {
       )}
 
       {/* Empty State */}
-      {!isLoadingPatterns && favoritePatterns.length === 0 && (
+      {!isLoadingPatterns && favorites.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Heart className="w-16 h-16 text-gray-600 mb-4" />
           <h3 className="text-lg font-medium text-gray-400 mb-2">No favorites yet</h3>
@@ -60,9 +63,9 @@ export default function FavoritesView() {
       )}
 
       {/* Favorites Grid */}
-      {favoritePatterns.length > 0 && (
+      {favorites.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {favoritePatterns.map((pattern) => (
+          {favorites.map((pattern) => (
             <PatternCard key={pattern.id} pattern={pattern} />
           ))}
         </div>

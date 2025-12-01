@@ -87,9 +87,8 @@ export interface ContextStore extends ContextState {
   updateGroup: (groupId: string, updates: {
     name?: string;
     color?: string;
-    accentColor?: string;
     type?: 'pages' | 'client' | 'server' | 'external' | null;
-    icon?: string | null;
+    icon?: string;
   }) => Promise<void>;
 
   // Context selection for backlog generation

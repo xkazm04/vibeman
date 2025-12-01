@@ -61,6 +61,12 @@ async function fetchIdeasFromSupabase(supabase: SupabaseClient): Promise<Supabas
  * Convert Supabase idea to SQLite format
  */
 function convertSupabaseIdeaToSQLite(idea: SupabaseIdea) {
+  // Validate status value
+  const validStatuses = ['pending', 'accepted', 'rejected', 'implemented'] as const;
+  const status = validStatuses.includes(idea.status as typeof validStatuses[number])
+    ? (idea.status as typeof validStatuses[number])
+    : 'pending';
+
   return {
     id: idea.id,
     scan_id: idea.scan_id,
@@ -71,7 +77,7 @@ function convertSupabaseIdeaToSQLite(idea: SupabaseIdea) {
     title: idea.title,
     description: idea.description || undefined,
     reasoning: idea.reasoning || undefined,
-    status: idea.status || 'pending',
+    status,
     user_feedback: idea.user_feedback || undefined,
     user_pattern: idea.user_pattern === 1 || idea.user_pattern === true,
     effort: idea.effort || null,

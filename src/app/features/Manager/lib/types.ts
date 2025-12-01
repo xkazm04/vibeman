@@ -9,6 +9,7 @@ export interface EnrichedImplementationLog {
   project_name: string | null;
   context_id: string | null;
   context_name: string | null;
+  context_group_id?: string | null;
   requirement_name: string;
   title: string;
   overview: string;

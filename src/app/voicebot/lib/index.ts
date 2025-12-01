@@ -3,14 +3,17 @@
  * Centralized exports for all lib utilities, types, and API operations
  */
 
-// Type Definitions
-export * from '../../features/Annette/lib/voicebotTypes';
+// Type Definitions - from shared voice library
+export * from '@/lib/voice/voicebotTypes';
 
-// API Operations
+// Utility Functions - from shared voice library
+export * from '@/lib/voice/voicebotUtils';
+
+// API Operations - still in Annette feature (specific to Annette voice assistant)
 export * from '../../features/Annette/lib/voicebotApi';
 
-// Utility Functions
-export * from '../../features/Annette/lib/voicebotUtils';
-
-// Conversation Evaluation
+// Conversation Evaluation - voicebot-specific feature
 export * from './conversationEvaluation';
+
+// Re-export CONVERSATION_TEST_SENTENCES from Annette for compatibility
+export { CONVERSATION_TEST_SENTENCES } from '../../features/Annette/lib/voicebotTypes';

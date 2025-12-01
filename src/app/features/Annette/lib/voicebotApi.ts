@@ -1,16 +1,21 @@
 /**
  * Voicebot API Operations
  * Handles all API calls for voice interaction
+ *
+ * LLM response caching is now handled at the analyticsWrapper level via
+ * trackLLMWithCache, consolidating caching logic in a single layer.
  */
 
-import { SpeechToTextResponse, LLMResponse, ConversationMessage, LLMProvider } from './voicebotTypes';
-import { trackCommand, trackTTSPlayback } from './analyticsWrapper';
-import { getCachedAudio, setCachedAudio } from './ttsCache';
 import {
-  getCachedResponse,
-  setCachedResponse,
-  ResponseCacheConfig
-} from './voicebotResponseCache';
+  SpeechToTextResponse,
+  LLMResponse,
+  ConversationMessage,
+  LLMProvider,
+  ResponseCacheConfig,
+  getCachedAudio,
+  setCachedAudio
+} from '@/lib/voice';
+import { trackLLMWithCache, updateCachedLLMResponse } from './analyticsWrapper';
 
 /**
  * Convert speech to text using ElevenLabs STT
@@ -39,72 +44,65 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
 
 /**
  * Get LLM response via unified LLM manager with response caching
+ *
+ * Caching is now consolidated in analyticsWrapper.trackLLMWithCache
+ * which handles both cache lookup and analytics tracking in a single layer.
  */
 export async function getLLMResponse(
   message: string,
   conversationHistory: ConversationMessage[] = [],
   provider: LLMProvider = 'ollama',
   model?: string,
-  cacheConfig: ResponseCacheConfig = { enabled: true }
+  cacheConfig: ResponseCacheConfig = { enabled: true },
+  projectId: string = 'default'
 ): Promise<string> {
-  // Check cache first (if enabled)
-  if (cacheConfig.enabled !== false) {
-    const cached = await getCachedResponse(
+  // Use consolidated caching + analytics wrapper
+  const result = await trackLLMWithCache(
+    projectId,
+    'llm_response',
+    {
       message,
       conversationHistory,
       provider,
       model,
       cacheConfig
-    );
+    },
+    async () => {
+      // This only executes on cache miss
+      console.log('LLM Response cache: Fetching from API');
+      const response = await fetch('/api/voicebot/llm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          model,
+          message,
+          conversationHistory,
+          systemPrompt: 'You are a helpful AI assistant in a voice conversation. Keep responses concise and natural for spoken dialogue.',
+          temperature: 0.7,
+          maxTokens: 150
+        })
+      });
 
-    if (cached) {
-      console.log('LLM Response cache: Using cached response');
-      return cached.assistantText;
+      if (!response.ok) {
+        throw new Error('LLM request failed');
+      }
+
+      const data: LLMResponse = await response.json();
+
+      if (!data.success || !data.response) {
+        throw new Error(data.error || 'Failed to get LLM response');
+      }
+
+      return { response: data.response };
     }
+  );
+
+  if (result.fromCache) {
+    console.log('LLM Response cache: Using cached response');
   }
 
-  // Cache miss - fetch from API
-  console.log('LLM Response cache: Fetching from API');
-  const response = await fetch('/api/voicebot/llm', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider,
-      model,
-      message,
-      conversationHistory,
-      systemPrompt: 'You are a helpful AI assistant in a voice conversation. Keep responses concise and natural for spoken dialogue.',
-      temperature: 0.7,
-      maxTokens: 150
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error('LLM request failed');
-  }
-
-  const data: LLMResponse = await response.json();
-
-  if (!data.success || !data.response) {
-    throw new Error(data.error || 'Failed to get LLM response');
-  }
-
-  // Cache the response for future use (async, non-blocking)
-  if (cacheConfig.enabled !== false) {
-    setCachedResponse(
-      message,
-      data.response,
-      undefined, // Audio URL not available at this stage
-      conversationHistory,
-      provider,
-      model,
-      cacheConfig
-    ).catch(err => {
-      console.warn('Failed to cache LLM response:', err);
-    });
-  }
-
-  return data.response;
+  return result.response;
 }
 
 /**
@@ -147,13 +145,16 @@ export async function textToSpeech(text: string): Promise<string> {
 
 /**
  * Full async pipeline: STT → LLM → TTS with response caching
+ *
+ * LLM caching is consolidated in analyticsWrapper.trackLLMWithCache
  */
 export async function processVoiceMessage(
   audioBlob: Blob,
   conversationHistory: ConversationMessage[] = [],
   provider: LLMProvider = 'ollama',
   model?: string,
-  cacheConfig: ResponseCacheConfig = { enabled: true }
+  cacheConfig: ResponseCacheConfig = { enabled: true },
+  projectId: string = 'default'
 ): Promise<{
   userText: string;
   assistantText: string;
@@ -172,9 +173,9 @@ export async function processVoiceMessage(
   const userText = await speechToText(audioBlob);
   const sttMs = Date.now() - startStt;
 
-  // Step 2: Get LLM response (with response caching)
+  // Step 2: Get LLM response (caching handled in trackLLMWithCache)
   const startLlm = Date.now();
-  const assistantText = await getLLMResponse(userText, conversationHistory, provider, model, cacheConfig);
+  const assistantText = await getLLMResponse(userText, conversationHistory, provider, model, cacheConfig, projectId);
   const llmMs = Date.now() - startLlm;
 
   // Step 3: Text to speech (with TTS caching)
@@ -184,9 +185,9 @@ export async function processVoiceMessage(
 
   const totalMs = Date.now() - startTotal;
 
-  // Update cache with audio URL if response was cached
+  // Update cache with audio URL via consolidated wrapper
   if (cacheConfig.enabled !== false) {
-    setCachedResponse(
+    updateCachedLLMResponse(
       userText,
       assistantText,
       audioUrl,
@@ -194,9 +195,7 @@ export async function processVoiceMessage(
       provider,
       model,
       cacheConfig
-    ).catch(err => {
-      console.warn('Failed to update cached response with audio URL:', err);
-    });
+    );
   }
 
   return {
@@ -209,13 +208,16 @@ export async function processVoiceMessage(
 
 /**
  * Text-only pipeline: Text → LLM → TTS (for conversation testing) with response caching
+ *
+ * LLM caching is consolidated in analyticsWrapper.trackLLMWithCache
  */
 export async function processTextMessage(
   text: string,
   conversationHistory: ConversationMessage[] = [],
   provider: LLMProvider = 'ollama',
   model?: string,
-  cacheConfig: ResponseCacheConfig = { enabled: true }
+  cacheConfig: ResponseCacheConfig = { enabled: true },
+  projectId: string = 'default'
 ): Promise<{
   userText: string;
   assistantText: string;
@@ -228,9 +230,9 @@ export async function processTextMessage(
 }> {
   const startTotal = Date.now();
 
-  // Step 1: Get LLM response (with response caching)
+  // Step 1: Get LLM response (caching handled in trackLLMWithCache)
   const startLlm = Date.now();
-  const assistantText = await getLLMResponse(text, conversationHistory, provider, model, cacheConfig);
+  const assistantText = await getLLMResponse(text, conversationHistory, provider, model, cacheConfig, projectId);
   const llmMs = Date.now() - startLlm;
 
   // Step 2: Text to speech (with TTS caching)
@@ -240,9 +242,9 @@ export async function processTextMessage(
 
   const totalMs = Date.now() - startTotal;
 
-  // Update cache with audio URL if response was cached
+  // Update cache with audio URL via consolidated wrapper
   if (cacheConfig.enabled !== false) {
-    setCachedResponse(
+    updateCachedLLMResponse(
       text,
       assistantText,
       audioUrl,
@@ -250,9 +252,7 @@ export async function processTextMessage(
       provider,
       model,
       cacheConfig
-    ).catch(err => {
-      console.warn('Failed to update cached response with audio URL:', err);
-    });
+    );
   }
 
   return {

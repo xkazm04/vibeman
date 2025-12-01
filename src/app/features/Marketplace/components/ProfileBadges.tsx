@@ -9,7 +9,10 @@ interface ProfileBadgesProps {
 }
 
 export default function ProfileBadges({ compact = false }: ProfileBadgesProps) {
-  const { userBadges, currentUser, isLoadingUser } = useMarketplaceStore();
+  const { userBadges = [], currentUser, isLoadingUser } = useMarketplaceStore();
+
+  // Ensure userBadges is always an array (handles persisted undefined state)
+  const badges = userBadges ?? [];
 
   if (isLoadingUser) {
     return (
@@ -28,12 +31,12 @@ export default function ProfileBadges({ compact = false }: ProfileBadgesProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs">
           <span className="text-gray-500">Badges</span>
-          <span className="text-purple-400">{userBadges.length}</span>
+          <span className="text-purple-400">{badges.length}</span>
         </div>
 
-        {userBadges.length > 0 ? (
+        {badges.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {userBadges.slice(0, 4).map((badge) => (
+            {badges.slice(0, 4).map((badge) => (
               <motion.div
                 key={badge.id}
                 whileHover={{ scale: 1.1 }}
@@ -43,9 +46,9 @@ export default function ProfileBadges({ compact = false }: ProfileBadgesProps) {
                 <span className="text-lg">{badge.badge_icon}</span>
               </motion.div>
             ))}
-            {userBadges.length > 4 && (
+            {badges.length > 4 && (
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs text-gray-500">
-                +{userBadges.length - 4}
+                +{badges.length - 4}
               </div>
             )}
           </div>
@@ -75,11 +78,11 @@ export default function ProfileBadges({ compact = false }: ProfileBadgesProps) {
         <h3 className="text-lg font-medium text-white">Your Badges</h3>
       </div>
 
-      {userBadges.length > 0 ? (
+      {badges.length > 0 ? (
         <div className="space-y-4">
           {/* Badge Grid */}
           <div className="grid grid-cols-4 gap-3">
-            {userBadges.map((badge) => (
+            {badges.map((badge) => (
               <motion.div
                 key={badge.id}
                 whileHover={{ scale: 1.05 }}
@@ -103,10 +106,10 @@ export default function ProfileBadges({ compact = false }: ProfileBadgesProps) {
           </div>
 
           {/* Earned date for most recent */}
-          {userBadges[0] && (
+          {badges[0] && (
             <p className="text-xs text-gray-500 text-center">
-              Latest: {userBadges[0].badge_name} earned{' '}
-              {new Date(userBadges[0].earned_at).toLocaleDateString()}
+              Latest: {badges[0].badge_name} earned{' '}
+              {new Date(badges[0].earned_at).toLocaleDateString()}
             </p>
           )}
         </div>

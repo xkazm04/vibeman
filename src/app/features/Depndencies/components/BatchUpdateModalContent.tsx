@@ -2,26 +2,29 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Download, CheckCircle, AlertCircle, Package } from 'lucide-react';
+import { ArrowUpCircle, CheckCircle, AlertCircle, Package } from 'lucide-react';
 import { GradientButton } from '@/components/ui';
 import { PackageUpdateGroup, Project } from '../lib/types';
-import { batchUpdateDependencies } from '../lib/api';
+import { upgradePackagesWithProgress, PackageUpgrade } from '../lib/directUpgrade';
 
 interface BatchUpdateModalContentProps {
   onClose: () => void;
   selectedPackages: Map<string, string>; // "libraryName|||projectId" -> targetVersion
   projects: Project[];
   libraryVersions: Map<string, Map<string, string | null>>; // libraryName -> projectId -> version
+  onComplete?: () => void;
 }
 
 export default function BatchUpdateModalContent({
   onClose,
   selectedPackages,
   projects,
-  libraryVersions
+  libraryVersions,
+  onComplete
 }: BatchUpdateModalContentProps) {
   const [updating, setUpdating] = useState(false);
-  const [results, setResults] = useState<Array<{ project: string; success: boolean; error?: string }>>([]);
+  const [progress, setProgress] = useState({ projectName: '', message: '', percent: 0 });
+  const [results, setResults] = useState<Array<{ project: string; success: boolean; packagesUpdated?: number; error?: string }>>([]);
 
   // Group packages by project
   const packageGroups = useMemo(() => {
@@ -57,20 +60,36 @@ export default function BatchUpdateModalContent({
     setUpdating(true);
     setResults([]);
 
-    const newResults = [];
+    const newResults: typeof results = [];
 
-    // Use the new batch API function
+    // Use direct upgrade for each project
     for (const group of packageGroups) {
+      setProgress({
+        projectName: group.projectName,
+        message: 'Starting upgrade...',
+        percent: 0
+      });
+
+      const packages: PackageUpgrade[] = group.packages.map(pkg => ({
+        name: pkg.name,
+        currentVersion: pkg.currentVersion || '',
+        targetVersion: pkg.targetVersion || 'latest',
+        isDev: false // We don't have this info from libraryVersions, will be detected server-side
+      }));
+
       try {
-        const result = await batchUpdateDependencies(
+        const result = await upgradePackagesWithProgress(
           group.projectPath,
-          group.projectName,
-          group.packages
+          packages,
+          (message, percent) => {
+            setProgress({ projectName: group.projectName, message, percent });
+          }
         );
 
         newResults.push({
           project: group.projectName,
           success: result.success,
+          packagesUpdated: result.updatedPackages?.length,
           error: result.error
         });
       } catch (error) {
@@ -80,10 +99,12 @@ export default function BatchUpdateModalContent({
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
+
+      setResults([...newResults]);
     }
 
-    setResults(newResults);
     setUpdating(false);
+    onComplete?.();
   };
 
   const totalPackages = useMemo(() => {
@@ -94,11 +115,29 @@ export default function BatchUpdateModalContent({
     <div className="space-y-4">
       {results.length === 0 ? (
         <>
-          <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-sm text-blue-300">
-              <strong>Batch Update:</strong> This will generate Claude Code requirement files for all selected packages across {packageGroups.length} project{packageGroups.length !== 1 ? 's' : ''}.
+          <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+            <p className="text-sm text-cyan-300">
+              <strong>Direct Upgrade:</strong> This will directly modify package.json and run npm install for all selected packages across {packageGroups.length} project{packageGroups.length !== 1 ? 's' : ''}.
             </p>
           </div>
+
+          {/* Progress indicator when updating */}
+          {updating && (
+            <div className="p-4 bg-gray-800/40 border border-gray-700/30 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-300 font-medium">{progress.projectName}</span>
+                <span className="text-sm text-cyan-400">{progress.message}</span>
+              </div>
+              <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-cyan-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress.percent}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
             {packageGroups.map((group) => (
@@ -146,19 +185,20 @@ export default function BatchUpdateModalContent({
               onClick={handleBatchUpdate}
               disabled={updating}
               loading={updating}
-              colorScheme="yellow"
-              icon={Download}
+              colorScheme="cyan"
+              icon={ArrowUpCircle}
               iconPosition="left"
               size="lg"
+              data-testid="batch-upgrade-btn"
             >
-              {updating ? 'Generating...' : 'Generate Requirements'}
+              {updating ? 'Upgrading...' : 'Upgrade Packages'}
             </GradientButton>
           </div>
         </>
       ) : (
         <>
           <div className="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
-            <h3 className="text-lg font-semibold text-gray-200 mb-4">Batch Update Results</h3>
+            <h3 className="text-lg font-semibold text-gray-200 mb-4">Upgrade Results</h3>
             {results.map((result, idx) => (
               <motion.div
                 key={idx}
@@ -177,9 +217,16 @@ export default function BatchUpdateModalContent({
                   <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
                 )}
                 <div className="flex-1">
-                  <p className={`font-medium ${result.success ? 'text-green-300' : 'text-red-300'}`}>
-                    {result.project}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className={`font-medium ${result.success ? 'text-green-300' : 'text-red-300'}`}>
+                      {result.project}
+                    </p>
+                    {result.success && result.packagesUpdated !== undefined && (
+                      <span className="text-sm text-cyan-400">
+                        {result.packagesUpdated} package{result.packagesUpdated !== 1 ? 's' : ''} updated
+                      </span>
+                    )}
+                  </div>
                   {result.error && (
                     <p className="text-sm text-gray-400 mt-1">{result.error}</p>
                   )}
@@ -202,7 +249,8 @@ export default function BatchUpdateModalContent({
           <div className="flex items-center justify-end pt-4 border-t border-gray-700">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-lg transition-colors"
+              className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-lg transition-colors"
+              data-testid="close-results-btn"
             >
               Close
             </button>

@@ -113,22 +113,33 @@ class ProjectServiceDb {
         }
       }
       
-      // Prepare update data
-      const updateData: Partial<DbProject> = {};
+      // Prepare update data - type matches projectDb.updateProject expected params
+      const updateData: {
+        name?: string;
+        path?: string;
+        port?: number;
+        type?: string;
+        related_project_id?: string;
+        git_repository?: string;
+        git_branch?: string;
+        run_script?: string;
+        allow_multiple_instances?: boolean;
+        base_port?: number;
+      } = {};
 
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.path !== undefined) updateData.path = updates.path;
       if (updates.port !== undefined) updateData.port = updates.port;
       if (updates.type !== undefined) updateData.type = updates.type;
-      if (updates.relatedProjectId !== undefined) updateData.related_project_id = updates.relatedProjectId || null;
+      if (updates.relatedProjectId !== undefined && updates.relatedProjectId) updateData.related_project_id = updates.relatedProjectId;
       if (updates.runScript !== undefined) updateData.run_script = updates.runScript;
       if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances;
       if (updates.basePort !== undefined) updateData.base_port = updates.basePort;
       if (updates.git !== undefined) {
-        updateData.git_repository = updates.git?.repository || null;
-        updateData.git_branch = updates.git?.branch || null;
+        if (updates.git?.repository) updateData.git_repository = updates.git.repository;
+        if (updates.git?.branch) updateData.git_branch = updates.git.branch;
       }
-      
+
       const result = projectDb.updateProject(projectId, updateData);
       if (!result) {
         throw new Error('Project not found');

@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "refactor:ci": "ts-node scripts/refactor-ci.ts",
-    "create-refactor-pr": "ts-node scripts/create-refactor-pr.ts"
+    "create-refactor-pr": "ts-node scripts/create-refactor-pr.ts",
+    "test": "vitest run",
+    "bench:results": "ts-node --esm scripts/benchmark-results.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

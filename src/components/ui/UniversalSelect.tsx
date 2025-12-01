@@ -257,15 +257,16 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Clear button */}
           {selectedOption && !required && !disabled && !isLoading && (
-            <motion.button
-              type="button"
+            <motion.span
+              role="button"
+              tabIndex={-1}
               onClick={handleClear}
-              className={`p-0.5 rounded hover:bg-gray-700/50 ${styles.textMuted} hover:text-white transition-colors`}
+              className={`p-0.5 rounded hover:bg-gray-700/50 ${styles.textMuted} hover:text-white transition-colors cursor-pointer`}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
               <X className="w-3 h-3" />
-            </motion.button>
+            </motion.span>
           )}
           <ChevronDown 
             className={`${sizeStyles.icon} transition-transform duration-200 ${styles.textMuted} ${isOpen ? 'rotate-180' : ''}`} 

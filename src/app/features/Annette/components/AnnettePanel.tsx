@@ -16,8 +16,7 @@ import VoiceSessionReplay from './VoiceSessionReplay';
 import LiveEventTicker from './LiveEventTicker';
 import ContextHUD from './ContextHUD';
 import ActionCard from './ActionCard';
-import AudioErrorBoundary from './AudioErrorBoundary';
-import AnnetteErrorBoundary from './AnnetteErrorBoundary';
+import ErrorBoundary, { AnnetteErrorType } from './ErrorBoundary';
 import { KnowledgeSource, VoiceSession } from '../lib/voicebotTypes';
 import { AnnetteTheme } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -80,8 +79,10 @@ function AnnettePanelContent() {
   } = useAnnetteAudio();
 
   // Audio error handler for boundary
-  const onAudioError = useCallback((error: AudioError) => {
-    logAudioError(error);
+  const onAudioError = useCallback((errorData: AnnetteErrorType) => {
+    if (errorData.type === 'audio') {
+      logAudioError(errorData.error);
+    }
     setIsError(true);
   }, [setIsError]);
 
@@ -251,13 +252,14 @@ function AnnettePanelContent() {
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgLight} to-purple-500/10`} />
             {isSpeaking ? (
-              <AudioErrorBoundary
+              <ErrorBoundary
+                errorType="audio"
                 audioContext={audioContext}
                 onError={onAudioError}
                 onRecoveryAttempt={onRecoveryAttempt}
               >
                 <VoiceVisualizer isActive={true} theme={theme} />
-              </AudioErrorBoundary>
+              </ErrorBoundary>
             ) : (
               <Sparkles className={`w-6 h-6 ${colors.textDark}`} />
             )}
@@ -346,7 +348,8 @@ function AnnettePanelContent() {
                 ${!isVoiceEnabled ? 'opacity-70 grayscale' : ''}
               `}>
                 {isVoiceEnabled ? (
-                  <AudioErrorBoundary
+                  <ErrorBoundary
+                    errorType="audio"
                     audioContext={audioContext}
                     onError={onAudioError}
                     onRecoveryAttempt={onRecoveryAttempt}
@@ -357,7 +360,7 @@ function AnnettePanelContent() {
                       audioContext={audioContext || undefined}
                       analyser={analyser || undefined}
                     />
-                  </AudioErrorBoundary>
+                  </ErrorBoundary>
                 ) : (
                   <MicOff className="w-6 h-6 text-gray-500" />
                 )}
@@ -521,8 +524,10 @@ export default function AnnettePanel() {
   const [retryKey, setRetryKey] = useState(0);
 
   // Error handlers for the boundary
-  const handleError = useCallback((error: AnnetteError) => {
-    console.log('[AnnettePanel] Service error caught:', error.code);
+  const handleError = useCallback((errorData: AnnetteErrorType) => {
+    if (errorData.type === 'service') {
+      console.log('[AnnettePanel] Service error caught:', errorData.error.code);
+    }
   }, []);
 
   const handleRetry = useCallback(() => {
@@ -569,7 +574,8 @@ export default function AnnettePanel() {
   }, []);
 
   return (
-    <AnnetteErrorBoundary
+    <ErrorBoundary
+      errorType="service"
       projectId={activeProject?.id || null}
       onError={handleError}
       onRetry={handleRetry}
@@ -579,6 +585,6 @@ export default function AnnettePanel() {
       onOpenSettings={handleOpenSettings}
     >
       <AnnettePanelContent key={retryKey} />
-    </AnnetteErrorBoundary>
+    </ErrorBoundary>
   );
 }

@@ -185,7 +185,7 @@ export const IDEA_OVERALL_PROMPT: PromptConfig = {
   id: 'idea_overall_v1',
   name: 'Overall Project Ideas Generator',
   taskType: 'idea_generation',
-  mode: 'overall',
+  // Note: 'overall' mode not in ScanType - using as standalone prompt
   systemPrompt: `You are a senior product designer and engineering consultant conducting a comprehensive multi-dimensional analysis. Evaluate the project across UX, security, architecture, performance, features, and business value.`,
   userPrompt: `# Comprehensive Project Analysis
 

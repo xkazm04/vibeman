@@ -54,7 +54,7 @@ export default function Home() {
       case 'refactor':
         return <RefactorPage key="refactor" />;
       case 'manager':
-        return <ManagerLayout key="manager" />;
+        return <ManagerLayout key="manager" projectId={projectId} />;
       case 'storybook':
         return <StorybookLayout key="storybook" />;
       default:

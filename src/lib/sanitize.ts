@@ -62,7 +62,7 @@ export function sanitizeContent(
     // Sanitize the content
     const sanitized = DOMPurify.sanitize(content, config as any);
 
-    return sanitized as string;
+    return sanitized as unknown as string;
   } catch (error) {
     // In case of error, return empty string for safety
     return '';

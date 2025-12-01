@@ -11,7 +11,7 @@ import {
   ProjectSection,
   ConstellationView,
   FocusedProjectView
-} from './sub_TotalViewDashboard';
+} from '../sub_TotalViewDashboard';
 
 interface TotalViewDashboardProps {
   ideas: DbIdea[];

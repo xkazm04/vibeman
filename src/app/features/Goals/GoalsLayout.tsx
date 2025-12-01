@@ -14,6 +14,7 @@ import { getNextOrder } from './sub_GoalModal/lib';
 import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList';
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
+import { ContextTargetsList } from '@/components/ContextComponents';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -108,9 +109,10 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
               <div className="p-4 border-b border-primary/10 bg-primary/5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-primary/50 uppercase tracking-wider">Active Goals</span>
-                  <button 
+                  <button
                     onClick={() => setShowAddGoal(true)}
                     className="p-1.5 hover:bg-primary/20 rounded-lg text-primary transition-colors"
+                    data-testid="add-goal-btn"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -163,6 +165,18 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
                   <div className="flex flex-col items-center justify-center h-40 text-center p-4">
                     <Target className="w-8 h-8 text-primary/20 mb-2" />
                     <p className="text-sm text-primary/30">No active objectives</p>
+                  </div>
+                )}
+
+                {/* Context Targets Section */}
+                {projectId && (
+                  <div className="mt-2 px-2">
+                    <ContextTargetsList
+                      projectId={projectId}
+                      compact
+                      defaultCollapsed
+                      maxItems={10}
+                    />
                   </div>
                 )}
               </div>

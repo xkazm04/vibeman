@@ -193,6 +193,54 @@ const TaskRunnerLayout = () => {
     }
   };
 
+  const handleBulkDelete = async (reqIds: string[]) => {
+    if (reqIds.length === 0) return;
+
+    // Confirmation dialog for bulk delete (3+ items)
+    if (reqIds.length > 3) {
+      const confirmed = window.confirm(
+        `Delete ${reqIds.length} requirements? This cannot be undone.`
+      );
+      if (!confirmed) return;
+    }
+
+    // Delete each requirement
+    const results = await Promise.allSettled(
+      reqIds.map(async (reqId) => {
+        const req = requirements.find((r) => getRequirementId(r) === reqId);
+        if (!req) return { success: false, reqId };
+
+        try {
+          const success = await deleteRequirement(req.projectPath, req.requirementName);
+          return { success, reqId };
+        } catch {
+          return { success: false, reqId };
+        }
+      })
+    );
+
+    // Get successfully deleted IDs
+    const deletedIds = results
+      .filter(
+        (r): r is PromiseFulfilledResult<{ success: boolean; reqId: string }> =>
+          r.status === 'fulfilled' && r.value.success
+      )
+      .map((r) => r.value.reqId);
+
+    // Update state with successful deletions
+    if (deletedIds.length > 0) {
+      setRequirements((prev) =>
+        prev.filter((r) => !deletedIds.includes(getRequirementId(r)))
+      );
+
+      setSelectedRequirements((prev) => {
+        const newSet = new Set(prev);
+        deletedIds.forEach((id) => newSet.delete(id));
+        return newSet;
+      });
+    }
+  };
+
   // Open Claude Log Viewer
   const handleOpenLogViewer = () => {
     // Get the first requirement with logs (or most recently run)
@@ -292,6 +340,7 @@ const TaskRunnerLayout = () => {
                       selectedRequirements={selectedRequirements}
                       onToggleSelect={toggleSelection}
                       onDelete={handleDelete}
+                      onBulkDelete={handleBulkDelete}
                       onToggleProjectSelection={toggleProjectSelection}
                       getRequirementId={getRequirementId}
                     />

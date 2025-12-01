@@ -15,6 +15,7 @@ export interface EnrichedImplementationLog {
   project_name: string | null;
   context_id: string | null;
   context_name: string | null;
+  context_group_id: string | null;
   requirement_name: string;
   title: string;
   overview: string;
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
       logs = implementationLogRepository.getAllUntestedLogs();
     }
 
-    // Enrich each log with project and context names
+    // Enrich each log with project, context names, and group id
     const enrichedLogs: EnrichedImplementationLog[] = logs.map((log) => {
       // Get project name
       let projectName: string | null = null;
@@ -54,12 +55,14 @@ export async function GET(request: NextRequest) {
         // Project might not exist
       }
 
-      // Get context name
+      // Get context name and group id
       let contextName: string | null = null;
+      let contextGroupId: string | null = null;
       if (log.context_id) {
         try {
           const context = contextRepository.getContextById(log.context_id);
           contextName = context?.name || null;
+          contextGroupId = context?.group_id || null;
         } catch {
           // Context might not exist
         }
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest) {
         ...log,
         project_name: projectName,
         context_name: contextName,
+        context_group_id: contextGroupId,
       };
     });
 

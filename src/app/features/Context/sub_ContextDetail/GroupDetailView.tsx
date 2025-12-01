@@ -4,8 +4,8 @@ import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Edit3, Trash2, Cod
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { normalizePath } from '../../../../utils/pathUtils';
-import ActionButton from './components/ActionButton';
-import StatCard from './components/StatCard';
+import ActionButton from './ActionButton';
+import StatCard from './StatCard';
 
 interface GroupDetailViewProps {
   groupId: string;

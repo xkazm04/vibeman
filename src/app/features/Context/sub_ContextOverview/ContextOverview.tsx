@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTooltipStore } from '@/stores/tooltipStore';
@@ -41,6 +41,8 @@ const ContextOverview = ({
   const [activeTab, setActiveTab] = useState<TabType>('manager');
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);
   const [currentTestScenario, setCurrentTestScenario] = useState<string | null>(null);
+  const [currentTarget, setCurrentTarget] = useState<string | null>(null);
+  const [currentTargetFulfillment, setCurrentTargetFulfillment] = useState<string | null>(null);
 
   // Use embedded props or fallback to tooltip store
   const context = mode === 'embedded' ? contextData : tooltipContext;
@@ -55,6 +57,8 @@ const ContextOverview = ({
     if (context) {
       setCurrentPreview(context.preview || null);
       setCurrentTestScenario(context.testScenario || null);
+      setCurrentTarget(context.target || null);
+      setCurrentTargetFulfillment(context.target_fulfillment || null);
     }
   }, [context]);
 
@@ -71,10 +75,60 @@ const ContextOverview = ({
           // Also update local state
           setCurrentPreview(data.context.preview || null);
           setCurrentTestScenario(data.context.testScenario || null);
+          setCurrentTarget(data.context.target || null);
+          setCurrentTargetFulfillment(data.context.target_fulfillment || null);
         }
       }
     } catch (error) {    }
   };
+
+  // Ref for debounce timer and last saved value to prevent duplicate saves
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedScenarioRef = useRef<string | null>(null);
+
+  // Save test scenario to database (debounced)
+  const saveTestScenario = useCallback((testScenario: string | null) => {
+    if (!context?.id) return;
+
+    // Skip if value hasn't changed from last save
+    if (lastSavedScenarioRef.current === testScenario) return;
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce: wait 1 second after last change before saving
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch('/api/contexts', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contextId: context.id,
+            updates: { testScenario },
+          }),
+        });
+
+        if (response.ok) {
+          lastSavedScenarioRef.current = testScenario;
+          // Update tooltip store with new test scenario
+          updateContext({ ...context, testScenario });
+        }
+      } catch (error) {
+        console.error('[ContextOverview] Failed to save test scenario:', error);
+      }
+    }, 1000);
+  }, [context, updateContext]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!context) return null;
   if (mode === 'modal' && !mounted) return null;
@@ -82,6 +136,8 @@ const ContextOverview = ({
   const handlePreviewUpdate = async (preview: string | null, testScenario: string | null, target?: string | null, targetFulfillment?: string | null) => {
     setCurrentPreview(preview);
     setCurrentTestScenario(testScenario);
+    setCurrentTarget(target || null);
+    setCurrentTargetFulfillment(targetFulfillment || null);
 
     if (mode === 'embedded' && onPreviewUpdatedProp) {
       onPreviewUpdatedProp(preview, testScenario, target, targetFulfillment);
@@ -127,6 +183,8 @@ const ContextOverview = ({
                           contextId={context.id}
                           currentPreview={currentPreview}
                           currentTestScenario={currentTestScenario}
+                          currentTarget={currentTarget}
+                          currentTargetFulfillment={currentTargetFulfillment}
                           contextName={context.name}
                           groupColor={groupColor}
                           onPreviewUpdated={handlePreviewUpdate}
@@ -164,6 +222,8 @@ const ContextOverview = ({
                           testScenario={currentTestScenario}
                           onTestScenarioChange={(value) => {
                             setCurrentTestScenario(value);
+                            // Auto-save test scenario to database
+                            saveTestScenario(value);
                           }}
                           onPreviewUpdate={(previewPath) => {
                             handlePreviewUpdate(previewPath, currentTestScenario);

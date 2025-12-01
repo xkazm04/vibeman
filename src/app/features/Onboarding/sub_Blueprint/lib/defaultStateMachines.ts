@@ -12,7 +12,6 @@ import {
   Code,
   Bug,
   Camera,
-  Target,
   FlaskConical,
   Scissors,
   FileEdit,
@@ -29,7 +28,6 @@ import * as photoScan from './context-scans/blueprintPhotoScan';
 import * as visionScan from './blueprintVisionScan';
 import * as contextsScan from './blueprintContextsScan';
 import * as buildScan from './blueprintBuildScan';
-import * as selectorsScan from './blueprintSelectorsScan';
 import * as unusedScan from './blueprintUnusedScan';
 import * as testScan from './context-scans/blueprintTestScan';
 import * as contextReviewScan from './context-scans/blueprintContextReviewScan';
@@ -261,25 +259,6 @@ export const DEFAULT_NEXTJS_STATE_MACHINE: StateMachineConfig = {
           return photoScan.executePhotoScan(contextId);
         },
         buildDecision: (result) => photoScan.buildDecisionData({ ...result, data: result.data as any }),
-      },
-    }),
-    createScanState({
-      id: 'selectors',
-      label: 'Selectors',
-      description: 'Validate test selectors and coverage',
-      icon: Target,
-      color: 'cyan',
-      group: 'quality-assurance',
-      order: 7,
-      eventTitle: 'Selectors Scan Completed',
-      contextNeeded: true,
-      estimatedTime: '2-3 min',
-      scanHandler: {
-        execute: async () => ({
-          success: false,
-          error: 'Context ID is required for this scan',
-        }),
-        buildDecision: (result) => selectorsScan.buildDecisionData({ ...result, data: result.data as any }),
       },
     }),
     createScanState({

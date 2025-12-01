@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import SparkleEffect from './components/SparkleEffect';
 
-export type VibemanStatusType = 'idle' | 'evaluating' | 'generating' | 'executing' | 'success' | 'error';
+export type VibemanStatusType = 'pending' | 'evaluating' | 'generating' | 'executing' | 'success';
 
 interface VibemanStatusProps {
   status: VibemanStatusType;
@@ -47,8 +47,7 @@ export default function VibemanStatus({
         return <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />;
       case 'success':
         return <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />;
-      case 'error':
-        return <XCircle className="w-3.5 h-3.5 flex-shrink-0" />;
+      case 'pending':
       default:
         return null;
     }
@@ -64,8 +63,7 @@ export default function VibemanStatus({
         return 'text-amber-400';
       case 'success':
         return 'text-green-400';
-      case 'error':
-        return 'text-red-400';
+      case 'pending':
       default:
         return 'text-gray-400';
     }

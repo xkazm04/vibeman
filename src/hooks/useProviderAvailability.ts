@@ -20,6 +20,7 @@ const DEFAULT_PROVIDER_CONFIG: Record<SupportedProvider, boolean> = {
   openai: true,
   anthropic: true,
   gemini: true,
+  groq: false,
   internal: false
 };
 

@@ -6,7 +6,7 @@
 import React from 'react';
 import { ArrowLeft, X, Edit3, Trash2, FolderTree } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
-import ActionButton from './components/ActionButton';
+import ActionButton from './ActionButton';
 
 interface ContextDetailHeaderProps {
   contextGroup: ContextGroup | null;

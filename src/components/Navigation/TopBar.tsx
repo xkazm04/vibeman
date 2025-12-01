@@ -1,7 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { Store } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
+import { useMarketplaceStore } from '@/stores/marketplaceStore';
 import UnifiedProjectSelector from './UnifiedProjectSelector';
 
 interface NavigationItem {
@@ -90,6 +92,7 @@ function NavItem({ item, index, isActive, onClick }: NavItemProps) {
 
 export default function TopBar() {
   const { activeModule, setActiveModule } = useOnboardingStore();
+  const { openModal: openMarketplace } = useMarketplaceStore();
 
   // Modules that should NOT show the project selector
   const modulesWithoutProjectSelector: AppModule[] = ['reflector'];
@@ -116,6 +119,29 @@ export default function TopBar() {
                   onClick={() => setActiveModule(item.module)}
                 />
               ))}
+
+              {/* Marketplace Button */}
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.5,
+                  delay: navigationItems.length * 0.1,
+                  ease: [0.22, 1, 0.36, 1]
+                }}
+                onClick={openMarketplace}
+                className="group relative px-3 py-2 flex items-center gap-2 text-sm font-light tracking-wide transition-all duration-300 text-purple-400 hover:text-purple-300"
+                data-testid="open-marketplace-btn"
+                title="Open Pattern Marketplace"
+              >
+                <Store className="w-4 h-4" />
+                <span className="hidden md:inline">Marketplace</span>
+                <motion.div
+                  className="absolute inset-0 bg-purple-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                />
+              </motion.button>
             </div>
           </nav>
         </div>

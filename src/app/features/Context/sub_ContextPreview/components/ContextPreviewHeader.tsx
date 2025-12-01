@@ -64,6 +64,7 @@ export default function ContextPreviewHeader({
           className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-red-500/30"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          data-testid="context-preview-remove-btn"
         >
           <X className="w-3 h-3 inline-block mr-1" />
           Remove

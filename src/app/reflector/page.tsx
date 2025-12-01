@@ -246,6 +246,7 @@ export default function ReflectorPage() {
             </button>
             <button
               onClick={() => setViewMode('dependencies')}
+              data-testid="reflector-dependencies-tab"
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 viewMode === 'dependencies'
                   ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'

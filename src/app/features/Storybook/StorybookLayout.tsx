@@ -1,86 +1,102 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { RemoteDefinition, RemoteStatus } from './lib/federation/types';
-import { initializeSmartFederation } from './lib/federation/remoteLoader';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useStorybookStore } from './lib/storybookStore';
+import { StorybookHeader } from './components/StorybookHeader';
+import { ComponentList } from './components/ComponentList';
+import { ComponentDetail } from './components/ComponentDetail';
+import { CoverageChart } from './components/CoverageChart';
+import { Loader2 } from 'lucide-react';
 
 export default function StorybookLayout() {
-    const { projects, initializeProjects } = useProjectConfigStore();
-    const [remotes, setRemotes] = useState<RemoteDefinition[]>([]);
-    const [statuses, setStatuses] = useState<RemoteStatus[]>([]);
-    const [loading, setLoading] = useState(true);
+  const {
+    fetchComponents,
+    isLoading,
+    error,
+    coverage,
+    matches,
+    selectedComponent
+  } = useStorybookStore();
 
-    useEffect(() => {
-        initializeProjects();
-    }, [initializeProjects]);
+  useEffect(() => {
+    fetchComponents();
+  }, [fetchComponents]);
 
-    useEffect(() => {
-        // Map projects to RemoteDefinitions
-        // This is a simplified mapping. In a real scenario, we might need more metadata.
-        const mappedRemotes: RemoteDefinition[] = projects
-            .filter(p => p.type === 'nextjs')
-            .map(p => ({
-                name: p.name.replace(/[^a-zA-Z0-9]/g, '_'), // Sanitize name
-                displayName: p.name,
-                prodEntry: `http://localhost:${p.port}/_next/static/chunks/remoteEntry.js`, // Assuming local for now as prod
-                localEntry: `http://localhost:${p.port}/_next/static/chunks/remoteEntry.js`,
-                localPort: p.port,
-                components: [], // We'll need a way to discover components
-                description: p.path,
-            }));
-        setRemotes(mappedRemotes);
-    }, [projects]);
-
-    useEffect(() => {
-        if (remotes.length > 0) {
-            setLoading(true);
-            initializeSmartFederation(remotes)
-                .then(setStatuses)
-                .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
-    }, [remotes]);
-
+  if (isLoading) {
     return (
-        <div className="flex h-full bg-gray-900 text-white" data-testid="storybook-layout">
-            {/* Sidebar */}
-            <div className="w-64 border-r border-gray-800 p-4 overflow-y-auto" data-testid="storybook-sidebar">
-                <h2 className="text-xl font-bold mb-4 text-purple-400">Storybook</h2>
-
-                {loading && <div className="text-sm text-gray-400" data-testid="storybook-loading">Scanning remotes...</div>}
-
-                <div className="space-y-2" data-testid="storybook-remotes-list">
-                    {statuses.map(status => (
-                        <div key={status.name} className="p-3 rounded bg-gray-800/50 border border-gray-700" data-testid={`storybook-remote-${status.name}`}>
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="font-medium truncate" title={status.name}>{status.name}</span>
-                                <div className={`w-2 h-2 rounded-full ${status.isAvailable ? 'bg-green-500' : 'bg-red-500'}`} data-testid={`storybook-status-${status.name}`} />
-                            </div>
-                            <div className="text-xs text-gray-500 truncate">
-                                {status.isLocal ? 'Local' : 'Production'} • {status.isAvailable ? 'Online' : 'Offline'}
-                            </div>
-                            {status.error && (
-                                <div className="text-xs text-red-400 mt-1" data-testid={`storybook-error-${status.name}`}>{status.error}</div>
-                            )}
-                        </div>
-                    ))}
-
-                    {!loading && statuses.length === 0 && (
-                        <div className="text-sm text-gray-500 italic" data-testid="storybook-empty-state">No Next.js projects found.</div>
-                    )}
-                </div>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 p-8 flex items-center justify-center" data-testid="storybook-main-content">
-                <div className="text-center">
-                    <h1 className="text-3xl font-bold text-gray-700 mb-2">Select a Component</h1>
-                    <p className="text-gray-500">Choose a project and component from the sidebar to preview.</p>
-                </div>
-            </div>
+      <div className="flex items-center justify-center h-[600px]" data-testid="storybook-loading">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Scanning components...</p>
         </div>
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[600px]" data-testid="storybook-error">
+        <div className="text-center text-red-400">
+          <p>Failed to scan components</p>
+          <p className="text-sm opacity-60">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-950 p-6" data-testid="storybook-layout">
+      <StorybookHeader coverage={coverage} />
+
+      <div className="grid grid-cols-12 gap-6 mt-6">
+        {/* Coverage Chart - Top */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="col-span-12"
+        >
+          <CoverageChart coverage={coverage} matches={matches} />
+        </motion.div>
+
+        {/* Left Panel - Storybook Components */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="col-span-5"
+        >
+          <ComponentList
+            title="Central Storybook"
+            subtitle="C:\Users\kazda\kiro\storybook"
+            source="storybook"
+          />
+        </motion.div>
+
+        {/* Right Panel - Vibeman Components */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+          className="col-span-5"
+        >
+          <ComponentList
+            title="Vibeman Components"
+            subtitle="src/components/ui"
+            source="vibeman"
+          />
+        </motion.div>
+
+        {/* Detail Panel */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="col-span-2"
+        >
+          <ComponentDetail component={selectedComponent} />
+        </motion.div>
+      </div>
+    </div>
+  );
 }

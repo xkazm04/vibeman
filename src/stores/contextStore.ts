@@ -205,6 +205,11 @@ export const useContextStore = (() => {
         }
       },
 
+      // Flush pending moves (no-op for now, implements interface requirement)
+      flushPendingMoves: async () => {
+        // No pending moves to flush in this implementation
+      },
+
       // Add a new group
       addGroup: async (groupData) => {
         setState(prev => ({ ...prev, ...createLoadingState() }));

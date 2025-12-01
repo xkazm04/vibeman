@@ -2,7 +2,7 @@
 
 import { useMemo, ReactElement } from 'react';
 import { List, RowComponentProps } from '@/components/ui/VirtualList';
-import { SuggestionCard } from './SuggestionCard';
+import CompactSuggestionRow from './rows/CompactSuggestionRow';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 
 interface VirtualizedSuggestionListProps {
@@ -25,12 +25,8 @@ function SuggestionRow(props: RowComponentProps<RowPropsData>): ReactElement {
   const opp = opportunities[index];
 
   return (
-    <div style={{ ...style, paddingBottom: '12px' }}>
-      <SuggestionCard
-        key={opp.id}
-        opportunity={opp}
-        index={index}
-      />
+    <div style={style}>
+      <CompactSuggestionRow opportunity={opp} />
     </div>
   );
 }
@@ -59,6 +55,7 @@ export function VirtualizedSuggestionList({
       rowHeight={itemHeight}
       rowComponent={SuggestionRow}
       rowProps={rowProps}
+      getItemKey={(index) => rowProps.opportunities[index].id}
       className="virtualized-suggestion-list pr-2"
       data-testid="virtualized-suggestions-list"
     />

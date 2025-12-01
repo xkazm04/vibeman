@@ -5,6 +5,7 @@ import { ReactElement, ComponentType, CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamically import react-window to avoid SSR issues
+// Note: react-window v2 uses named export 'List' instead of 'FixedSizeList'
 const ReactWindowList = dynamic(
   () => import('react-window').then((mod) => mod.List),
   { ssr: false }
@@ -25,6 +26,7 @@ export interface VirtualListProps<T = Record<string, unknown>> {
   rowProps?: T;
   className?: string;
   'data-testid'?: string;
+  getItemKey?: (index: number) => string | number;
 }
 
 /**
@@ -39,15 +41,17 @@ export function List<T = Record<string, unknown>>({
   rowProps,
   className = '',
   'data-testid': dataTestId,
+  getItemKey,
 }: VirtualListProps<T>): ReactElement {
   return (
     <ReactWindowList
       height={defaultHeight}
       width="100%"
-      rowCount={rowCount}
-      rowHeight={rowHeight}
+      itemCount={rowCount}
+      itemSize={rowHeight}
       className={className}
       data-testid={dataTestId}
+      itemKey={getItemKey}
     >
       {({ index, style }: { index: number; style: CSSProperties }) => (
         <RowComponent index={index} style={style} data={rowProps} />

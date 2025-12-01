@@ -233,10 +233,11 @@ export async function getProviderStatus(): Promise<Array<{
     openai: 'OpenAI (ChatGPT)',
     anthropic: 'Anthropic (Claude)',
     gemini: 'Google Gemini',
+    groq: 'Groq',
     internal: 'Internal API'
   };
 
-  const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'internal'];
+  const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'groq', 'internal'];
 
   return providers.map(provider => ({
     provider,

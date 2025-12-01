@@ -8,7 +8,7 @@ import { Goal } from '@/types';
 import { useGoalContext } from '@/contexts/GoalContext';
 import GoalRow from './GoalRow';
 import GoalAddButtons from './GoalAddButtons';
-import ContextTargetsList from './ContextTargetsList';
+import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalModal from '@/app/features/Goals/sub_GoalModal/GoalModal';
 import GoalCandidatesModal from '@/app/features/Goals/sub_GoalModal/components/GoalCandidatesModal';
 

@@ -110,6 +110,35 @@ body {
   animation: shimmer 2s infinite;
 }
 
+/* Skeleton shimmer effect for lazy loading */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
 /* Glass morphism effect */
 .glass {
   background: rgba(255, 255, 255, 0.05);
@@ -159,4 +188,52 @@ body {
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
   pointer-events: auto !important;
+}
+
+/* Onboarding Glow Effect - CSS replacement for GlowWrapper */
+@keyframes onboarding-glow-wave {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes onboarding-glow-border {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.onboarding-glow {
+  position: relative;
+}
+
+.onboarding-glow::before,
+.onboarding-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0.5rem;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Radiating wave effect */
+.onboarding-glow::before {
+  background: radial-gradient(circle at center, rgba(34, 211, 238, 0.4) 0%, rgba(59, 130, 246, 0.2) 30%, transparent 70%);
+  animation: onboarding-glow-wave 2s ease-out infinite;
+}
+
+/* Border glow effect */
+.onboarding-glow::after {
+  inset: -1px;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.5), rgba(59, 130, 246, 0.5), rgba(34, 211, 238, 0.5));
+  animation: onboarding-glow-border 1.5s ease-in-out infinite;
 }

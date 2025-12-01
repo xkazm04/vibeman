@@ -74,10 +74,7 @@ export async function executeScan(
         // Dynamically load scan based on scan ID
         if (buttonConfig.contextNeeded && contextId) {
           // For context-dependent scans
-          if (scanId === 'selectors') {
-            const { executeSelectorsScan } = await import('../blueprintSelectorsScan');
-            result = await executeSelectorsScan(contextId);
-          } else if (scanId === 'photo') {
+          if (scanId === 'photo') {
             const { executePhotoScan } = await import('../context-scans/blueprintPhotoScan');
             result = await executePhotoScan(contextId);
           } else if (scanId === 'test') {
@@ -136,9 +133,6 @@ export async function executeScan(
             decisionData = buildDecisionData(result);
           } else if (scanId === 'test') {
             const { buildDecisionData } = await import('../context-scans/blueprintTestScan');
-            decisionData = buildDecisionData(result);
-          } else if (scanId === 'selectors') {
-            const { buildDecisionData } = await import('../blueprintSelectorsScan');
             decisionData = buildDecisionData(result);
           }
         } else {

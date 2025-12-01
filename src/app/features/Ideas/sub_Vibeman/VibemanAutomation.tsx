@@ -18,7 +18,7 @@ export default function VibemanAutomation({
   onIdeaImplemented,
 }: VibemanAutomationProps) {
   const [isRunning, setIsRunning] = useState(false);
-  const [status, setStatus] = useState<VibemanStatusType>('idle');
+  const [status, setStatus] = useState<VibemanStatusType>('pending');
   const [message, setMessage] = useState<string>('');
   const [successCount, setSuccessCount] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
@@ -73,7 +73,7 @@ export default function VibemanAutomation({
       setIsProcessing(false);
     } catch (error) {
       setFailureCount(prev => prev + 1);
-      setStatus('error');
+      setStatus('pending');
       setMessage(error instanceof Error ? error.message : 'Unknown error occurred');
       setIsProcessing(false);
       setIsRunning(false);
@@ -87,13 +87,13 @@ export default function VibemanAutomation({
     if (isRunning) {
       // Stop automation
       setIsRunning(false);
-      setStatus('idle');
+      setStatus('pending');
       setMessage('Stopped');
       currentTaskIdRef.current = null;
     } else {
       // Start automation
       setIsRunning(true);
-      setStatus('idle');
+      setStatus('pending');
       setMessage('Starting...');
 
       // Call startAutomationCycle asynchronously

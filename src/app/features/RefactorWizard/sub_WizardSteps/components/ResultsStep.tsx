@@ -6,6 +6,7 @@ import { StepContainer, CyberCard, StepHeader } from '@/components/ui/wizard';
 import { useMemo, useState, useEffect } from 'react';
 import { BreakdownCard } from '../../components/BreakdownCard';
 import { VirtualizedSuggestionList } from '../../components/VirtualizedSuggestionList';
+import ResultsToolbar from '../../components/ResultsToolbar';
 import HeroBadge from '../../components/HeroBadge';
 import { ResultsSummaryBanner } from './sub_ResultsStep/ResultsSummaryBanner';
 import { ResultsStatsGrid } from './sub_ResultsStep/ResultsStatsGrid';
@@ -22,10 +23,16 @@ export default function ResultsStep() {
   } = useRefactorStore();
   const [showHeroBadge, setShowHeroBadge] = useState(false);
 
+  const [searchTerm, setSearchTerm] = useState('');
   const selectedOpps = useMemo(() =>
     opportunities.filter(o => selectedOpportunities.has(o.id)),
     [opportunities, selectedOpportunities]
   );
+  const filteredSelectedOpps = useMemo(() => {
+    if (!searchTerm) return selectedOpps;
+    const s = searchTerm.toLowerCase();
+    return selectedOpps.filter(o => `${o.title} ${o.category} ${o.files.join(' ')}`.toLowerCase().includes(s));
+  }, [selectedOpps, searchTerm]);
 
   const selectedPkgs = useMemo(() =>
     packages.filter(pkg => selectedPackages.has(pkg.id))
@@ -81,7 +88,8 @@ export default function ResultsStep() {
         <CyberCard variant="glow" data-testid="selected-suggestions-card">
           <h4 className="text-white font-medium mb-3 flex items-center gap-2"><ListIcon className="w-4 h-4 text-cyan-400" />Selected Suggestions ({selectedOpps.length})</h4>
           <div className="text-sm text-gray-400 mb-4">Review all selected refactoring opportunities below.</div>
-          <VirtualizedSuggestionList opportunities={selectedOpps} height={500} itemHeight={120} />
+          <ResultsToolbar onSearchChange={setSearchTerm} />
+          <VirtualizedSuggestionList opportunities={filteredSelectedOpps} height={500} itemHeight={120} />
         </CyberCard>
       )}
 

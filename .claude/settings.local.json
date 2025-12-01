@@ -68,7 +68,10 @@
       "Bash(timeout 15 npm run dev:*)",
       "Bash(dir:*)",
       "Bash(git rm:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(wc -l \"C:/Users/kazda/kiro/vibeman/src/app/features/Manager\"/**/*.{ts,tsx})",
+      "Bash(do:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

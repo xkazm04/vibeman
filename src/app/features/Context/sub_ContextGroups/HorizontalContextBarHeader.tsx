@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Save, Plus, Grid3X3, ChevronUp } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
-import GlowWrapper from '@/app/features/Onboarding/components/GlowWrapper';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 
 interface HorizontalContextBarHeaderProps {
@@ -135,7 +134,7 @@ const HorizontalContextBarHeader = React.memo(({
 
             {/* Add Context Button */}
             {groups.length > 0 && (
-              <GlowWrapper isActive={isScanContextActive}>
+              <div className={isScanContextActive ? 'onboarding-glow' : ''}>
                 <motion.button
                   onClick={onAddContextClick}
                   className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30"
@@ -146,7 +145,7 @@ const HorizontalContextBarHeader = React.memo(({
                 >
                   <Plus className="w-5 h-5" />
                 </motion.button>
-              </GlowWrapper>
+              </div>
             )}
           </div>
 

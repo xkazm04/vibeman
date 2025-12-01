@@ -93,7 +93,20 @@ export async function PUT(request: NextRequest) {
       return createErrorResponse('Context ID is required', 400);
     }
 
-    const context = await contextQueries.updateContext(contextId, updates);
+    // Transform snake_case to camelCase for the query layer
+    // This supports both API consumers using snake_case (like Claude Code curl commands)
+    // and frontend consumers using camelCase
+    const transformedUpdates = {
+      name: updates.name,
+      description: updates.description,
+      filePaths: updates.file_paths ?? updates.filePaths,
+      groupId: updates.group_id ?? updates.groupId,
+      testScenario: updates.test_scenario ?? updates.testScenario,
+      target: updates.target,
+      target_rating: updates.target_rating,
+    };
+
+    const context = await contextQueries.updateContext(contextId, transformedUpdates);
 
     if (!context) {
       return notFoundResponse('Context');

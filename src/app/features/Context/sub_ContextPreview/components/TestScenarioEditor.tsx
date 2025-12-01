@@ -1,9 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Play, Loader2, CheckCircle, XCircle, Plus, Trash2, Mouse } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ErrorDisplay from '@/app/features/Context/components/ErrorDisplay';
+import {
+  useJsonValidation,
+  type ValidationResult,
+} from '@/app/features/Context/sub_ContextOverview/components/useJsonValidation';
 
 interface TestScenarioEditorProps {
   value: string;
@@ -16,7 +20,7 @@ interface TestScenarioEditorProps {
   onPreviewUpdate?: (previewPath: string) => void;
 }
 
-interface TestStep {
+interface EditorTestStep {
   id: string;
   type: 'navigate' | 'wait' | 'click';
   editable: boolean;
@@ -38,49 +42,33 @@ interface TestResult {
 }
 
 /**
- * Safely parses test scenario JSON with user-friendly error messages
+ * Custom validator for test scenario editor format
+ * Converts parsed JSON into EditorTestStep format
  */
-function parseTestScenarioSafe(value: string): { steps: TestStep[]; error: string | null } {
-  if (!value || value.trim() === '') {
-    return { steps: [], error: null };
+function editorScenarioValidator(data: unknown): ValidationResult<EditorTestStep[]> {
+  if (!Array.isArray(data)) {
+    return {
+      success: false,
+      error: 'Test scenario must be an array of steps',
+    };
   }
 
-  try {
-    const parsed = JSON.parse(value);
-
-    if (!Array.isArray(parsed)) {
-      return { steps: [], error: 'Test scenario must be an array of steps' };
+  const validTypes = ['navigate', 'wait', 'click'];
+  const loadedSteps: EditorTestStep[] = data.map((step: ParsedTestStep, index: number) => {
+    if (!step.type || !validTypes.includes(step.type)) {
+      console.warn(`[TestScenarioEditor] Invalid step type at index ${index}:`, step);
     }
 
-    const loadedSteps: TestStep[] = parsed.map((step: ParsedTestStep, index: number) => {
-      // Validate step type
-      const validTypes = ['navigate', 'wait', 'click'];
-      if (!step.type || !validTypes.includes(step.type)) {
-        console.warn(`[TestScenarioEditor] Invalid step type at index ${index}:`, step);
-      }
+    return {
+      id: `step-${index}`,
+      type: step.type || 'wait',
+      editable: step.type === 'click',
+      value: step.url || step.delay?.toString() || step.selector || '',
+      label: step.type === 'click' ? 'Click element' : step.type === 'wait' ? 'Wait' : 'Navigate to',
+    };
+  });
 
-      return {
-        id: `step-${index}`,
-        type: step.type || 'wait',
-        editable: step.type === 'click',
-        value: step.url || step.delay?.toString() || step.selector || '',
-        label: step.type === 'click' ? 'Click element' : step.type === 'wait' ? 'Wait' : 'Navigate to',
-      };
-    });
-
-    return { steps: loadedSteps, error: null };
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : 'Unknown parsing error';
-
-    // Provide friendly error messages
-    if (errorMessage.includes('Unexpected token')) {
-      return { steps: [], error: 'Invalid JSON syntax - check for missing quotes or commas' };
-    } else if (errorMessage.includes('Unexpected end')) {
-      return { steps: [], error: 'Incomplete JSON - missing closing brackets' };
-    }
-
-    return { steps: [], error: `JSON parse error: ${errorMessage}` };
-  }
+  return { success: true, data: loadedSteps };
 }
 
 
@@ -94,63 +82,53 @@ export default function TestScenarioEditor({
   onTestIdConsumed,
   onPreviewUpdate,
 }: TestScenarioEditorProps) {
-  const [steps, setSteps] = useState<TestStep[]>([]);
+  const [steps, setSteps] = useState<EditorTestStep[]>([]);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [focusedStepId, setFocusedStepId] = useState<string | null>(null);
-  const [parseError, setParseError] = useState<string | null>(null);
+
+  // Use the generic JSON validation hook
+  const jsonValidation = useJsonValidation<EditorTestStep[]>({
+    validate: editorScenarioValidator,
+    initialValue: value,
+  });
+
+  // Memoized default steps for reuse
+  const defaultSteps = useMemo<EditorTestStep[]>(() => [
+    {
+      id: 'init-nav',
+      type: 'navigate',
+      editable: false,
+      value: 'http://localhost:3000',
+      label: 'Navigate to',
+    },
+    {
+      id: 'init-wait',
+      type: 'wait',
+      editable: false,
+      value: '3000',
+      label: 'Wait',
+    },
+  ], []);
 
   // Initialize steps from value prop or set defaults
   useEffect(() => {
     if (value && value.trim() !== '') {
-      const { steps: loadedSteps, error } = parseTestScenarioSafe(value);
+      const result = jsonValidation.parse(value);
 
-      if (error) {
-        setParseError(error);
+      if (!result.success || !result.data) {
         // Don't clear existing steps on parse error - let user fix the issue
         if (steps.length === 0) {
-          // Set defaults only if no steps exist
-          setSteps([
-            {
-              id: 'init-nav',
-              type: 'navigate',
-              editable: false,
-              value: 'http://localhost:3000',
-              label: 'Navigate to',
-            },
-            {
-              id: 'init-wait',
-              type: 'wait',
-              editable: false,
-              value: '3000',
-              label: 'Wait',
-            },
-          ]);
+          setSteps(defaultSteps);
         }
       } else {
-        setParseError(null);
-        if (loadedSteps.length > 0) {
-          setSteps(loadedSteps);
+        if (result.data.length > 0) {
+          setSteps(result.data);
         }
       }
     } else if (steps.length === 0) {
       // Set default initialization steps only if no steps exist
-      setSteps([
-        {
-          id: 'init-nav',
-          type: 'navigate',
-          editable: false,
-          value: 'http://localhost:3000',
-          label: 'Navigate to',
-        },
-        {
-          id: 'init-wait',
-          type: 'wait',
-          editable: false,
-          value: '3000',
-          label: 'Wait',
-        },
-      ]);
+      setSteps(defaultSteps);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
@@ -186,11 +164,11 @@ export default function TestScenarioEditor({
       });
 
       onChange(JSON.stringify(apiSteps));
-      setParseError(null); // Clear error on successful serialization
+      jsonValidation.clearError(); // Clear error on successful serialization
     } catch (e) {
       console.error('[TestScenarioEditor] Error serializing steps:', e);
     }
-  }, [steps, onChange]);
+  }, [steps, onChange, jsonValidation]);
 
   // Handle selectedTestId from TestSelectorsPanel
   useEffect(() => {
@@ -409,12 +387,12 @@ export default function TestScenarioEditor({
       </div>
 
       {/* Parse Error Display */}
-      {parseError && (
+      {jsonValidation.error && (
         <ErrorDisplay
-          error={parseError}
+          error={jsonValidation.error}
           severity="warning"
           context="JSON Parse Warning"
-          onDismiss={() => setParseError(null)}
+          onDismiss={jsonValidation.clearError}
           compact
         />
       )}

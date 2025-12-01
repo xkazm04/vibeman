@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import { useThemeStore } from '@/stores/themeStore';
+import ContextGroupSelector from './ContextGroupSelector';
+import ContextItemSelector from './ContextItemSelector';
 
 interface ContextRowSelectionProps {
   contexts: Context[];
@@ -19,53 +21,53 @@ export default function ContextRowSelection({
   onSelectContexts,
 }: ContextRowSelectionProps) {
   const { getThemeColors } = useThemeStore();
-  
-  // Toggle selection logic for multiselect
-  const handleToggleContext = (contextId: string | null) => {
-    if (contextId === null) {
-      // "Full Project" selected - clear all selections
-      onSelectContexts([]);
+
+  // Internal state: which groups are selected/expanded
+  const [selectedGroupIds, setSelectedGroupIds] = React.useState<string[]>([]);
+
+  // Check if "Full Project" is selected (no contexts and no groups selected)
+  const isFullProjectSelected = selectedContextIds.length === 0 && selectedGroupIds.length === 0;
+
+  // Handle "Full Project" button click
+  const handleFullProjectClick = () => {
+    setSelectedGroupIds([]);
+    onSelectContexts([]);
+  };
+
+  // Toggle group selection
+  const handleToggleGroup = (groupId: string) => {
+    if (selectedGroupIds.includes(groupId)) {
+      // Deselecting group - also remove all contexts from this group
+      setSelectedGroupIds((prev) => prev.filter((id) => id !== groupId));
+
+      // Remove all contexts belonging to this group from selection
+      const groupContextIds = contexts
+        .filter((ctx) => ctx.groupId === groupId)
+        .map((ctx) => ctx.id);
+      onSelectContexts(selectedContextIds.filter((id) => !groupContextIds.includes(id)));
     } else {
-      // Toggle individual context
-      if (selectedContextIds.includes(contextId)) {
-        // Remove from selection
-        onSelectContexts(selectedContextIds.filter(id => id !== contextId));
-      } else {
-        // Add to selection
-        onSelectContexts([...selectedContextIds, contextId]);
-      }
+      // Selecting group - just add to selected groups (don't auto-select contexts)
+      setSelectedGroupIds((prev) => [...prev, groupId]);
     }
   };
 
-  // Check if "Full Project" is selected (no contexts selected)
-  const isFullProjectSelected = selectedContextIds.length === 0;
-  // Group contexts by context group and sort alphabetically within each group
-  const groupedContexts = React.useMemo(() => {
-    const grouped: Record<string, Context[]> = {
-      ungrouped: [],
-    };
+  // Clear all groups and contexts
+  const handleClearAll = () => {
+    setSelectedGroupIds([]);
+    onSelectContexts([]);
+  };
 
-    contextGroups.forEach(group => {
-      grouped[group.id] = [];
-    });
+  // Toggle individual context selection
+  const handleToggleContext = (contextId: string) => {
+    if (selectedContextIds.includes(contextId)) {
+      onSelectContexts(selectedContextIds.filter((id) => id !== contextId));
+    } else {
+      onSelectContexts([...selectedContextIds, contextId]);
+    }
+  };
 
-    contexts.forEach(context => {
-      if (context.groupId) {
-        if (grouped[context.groupId]) {
-          grouped[context.groupId].push(context);
-        }
-      } else {
-        grouped.ungrouped.push(context);
-      }
-    });
-
-    // Sort contexts alphabetically by name within each group
-    Object.keys(grouped).forEach(groupId => {
-      grouped[groupId].sort((a, b) => a.name.localeCompare(b.name));
-    });
-
-    return grouped;
-  }, [contexts, contextGroups]);
+  // Calculate total selection count
+  const totalSelectedCount = selectedContextIds.length;
 
   if (contexts.length === 0) {
     return null;
@@ -73,22 +75,23 @@ export default function ContextRowSelection({
 
   return (
     <motion.div
-      className="pt-3 border-t border-gray-700/20"
+      className="pt-3 border-t border-gray-700/20 space-y-3"
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
     >
+      {/* Row 1: Groups Selection */}
       <div className="flex items-start gap-3">
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0 pt-1.5">
-          Context:
+          Groups:
         </span>
 
-        <div className="flex flex-wrap items-center gap-2 flex-1">
+        <div className="flex items-center gap-2 flex-1 overflow-hidden">
           {/* Full Project Button */}
           <motion.button
             data-testid="context-filter-full-project"
-            onClick={() => handleToggleContext(null)}
-            className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            onClick={handleFullProjectClick}
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               isFullProjectSelected
                 ? `${getThemeColors().bgHover} ${getThemeColors().text} border ${getThemeColors().borderHover}`
                 : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
@@ -97,7 +100,7 @@ export default function ContextRowSelection({
               scale: 1.05,
               boxShadow: isFullProjectSelected
                 ? '0 0 12px rgba(34, 211, 238, 0.4), 0 0 20px rgba(34, 211, 238, 0.2)'
-                : '0 0 8px rgba(107, 114, 128, 0.3)'
+                : '0 0 8px rgba(107, 114, 128, 0.3)',
             }}
             whileTap={{ scale: 0.98 }}
             transition={{ duration: 0.2 }}
@@ -105,100 +108,61 @@ export default function ContextRowSelection({
             Full Project
           </motion.button>
 
-          {/* Grouped Contexts with Colored Dividers */}
-          {contextGroups.map((group) => {
-            const groupContexts = groupedContexts[group.id] || [];
-            if (groupContexts.length === 0) return null;
+          {/* Divider */}
+          <div className="w-px h-6 bg-gray-700/40 shrink-0" />
 
-            return (
-              <React.Fragment key={group.id}>
-                {/* Colored Divider */}
-                <div
-                  className="w-px h-8"
-                  style={{ backgroundColor: group.color || '#6b7280' }}
-                />
-
-                {/* Group Contexts */}
-                {groupContexts.map((context) => {
-                  const isSelected = selectedContextIds.includes(context.id);
-                  // Extract RGB values from group.color hex
-                  const getRGBFromHex = (hex: string) => {
-                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                    return result ? {
-                      r: parseInt(result[1], 16),
-                      g: parseInt(result[2], 16),
-                      b: parseInt(result[3], 16)
-                    } : { r: 34, g: 211, b: 238 };
-                  };
-                  const rgb = getRGBFromHex(group.color || '#22d3ee');
-
-                  return (
-                    <motion.button
-                      key={context.id}
-                      data-testid={`context-filter-grouped-${context.id}`}
-                      onClick={() => handleToggleContext(context.id)}
-                      className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        isSelected
-                          ? `${getThemeColors().text} border ${getThemeColors().borderHover}`
-                          : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
-                      }`}
-                      style={{
-                        backgroundColor: isSelected
-                          ? `${group.color}20`
-                          : undefined,
-                      }}
-                      whileHover={{
-                        scale: 1.05,
-                        boxShadow: isSelected
-                          ? `0 0 12px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4), 0 0 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.2)`
-                          : '0 0 8px rgba(107, 114, 128, 0.3)'
-                      }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {context.name}
-                    </motion.button>
-                  );
-                })}
-              </React.Fragment>
-            );
-          })}
-
-          {/* Ungrouped Contexts */}
-          {groupedContexts.ungrouped && groupedContexts.ungrouped.length > 0 && (
-            <>
-              {contextGroups.length > 0 && (
-                <div className="w-px h-8 bg-gray-600" />
-              )}
-              {groupedContexts.ungrouped.map((context) => {
-                const isSelected = selectedContextIds.includes(context.id);
-                return (
-                  <motion.button
-                    key={context.id}
-                    data-testid={`context-filter-ungrouped-${context.id}`}
-                    onClick={() => handleToggleContext(context.id)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      isSelected
-                        ? `${getThemeColors().bgHover} ${getThemeColors().text} border ${getThemeColors().borderHover}`
-                        : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
-                    }`}
-                    whileHover={{
-                      scale: 1.05,
-                      boxShadow: isSelected
-                        ? '0 0 12px rgba(34, 211, 238, 0.4), 0 0 20px rgba(34, 211, 238, 0.2)'
-                        : '0 0 8px rgba(107, 114, 128, 0.3)'
-                    }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {context.name}
-                  </motion.button>
-                );
-              })}
-            </>
-          )}
+          {/* Group Selector */}
+          <ContextGroupSelector
+            contextGroups={contextGroups}
+            contexts={contexts}
+            selectedGroupIds={selectedGroupIds}
+            onToggleGroup={handleToggleGroup}
+            onClearAll={handleClearAll}
+          />
         </div>
+
+        {/* Selection count badge */}
+        <AnimatePresence>
+          {totalSelectedCount > 0 && (
+            <motion.span
+              className="shrink-0 px-2 py-1 rounded-full text-[10px] font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              data-testid="context-selection-count"
+            >
+              {totalSelectedCount} selected
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Row 2: Individual Contexts (only visible when groups are selected) */}
+      <AnimatePresence>
+        {selectedGroupIds.length > 0 && (
+          <motion.div
+            className="flex items-start gap-3"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0 pt-1.5">
+              Contexts:
+            </span>
+
+            <div className="flex-1">
+              <ContextItemSelector
+                contexts={contexts}
+                contextGroups={contextGroups}
+                selectedGroupIds={selectedGroupIds}
+                selectedContextIds={selectedContextIds}
+                onToggleContext={handleToggleContext}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

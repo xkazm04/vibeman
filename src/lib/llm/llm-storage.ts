@@ -78,15 +78,15 @@ export class APIKeyStorage {
   /**
    * Get all stored API keys
    */
-  static getAllAPIKeys(): Record<SupportedProvider, APIKeyConfig> {
-    if (typeof window === 'undefined') return {} as Record<SupportedProvider, APIKeyConfig>;
+  static getAllAPIKeys(): Partial<Record<SupportedProvider, APIKeyConfig>> {
+    if (typeof window === 'undefined') return {};
 
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.API_KEYS);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
       console.error('Failed to parse stored API keys:', error);
-      return {} as Record<SupportedProvider, APIKeyConfig>;
+      return {};
     }
   }
 
@@ -145,10 +145,10 @@ export class ProviderConfigStorage {
 
     const configs = this.getAllProviderConfigs();
     configs[provider] = {
+      ...configs[provider],
+      ...config,
       provider,
       enabled: true,
-      ...configs[provider],
-      ...config
     };
     localStorage.setItem(STORAGE_KEYS.PROVIDER_CONFIGS, JSON.stringify(configs));
   }
@@ -166,15 +166,15 @@ export class ProviderConfigStorage {
   /**
    * Get all provider configurations
    */
-  static getAllProviderConfigs(): Record<SupportedProvider, ProviderConfig> {
-    if (typeof window === 'undefined') return {} as Record<SupportedProvider, ProviderConfig>;
+  static getAllProviderConfigs(): Partial<Record<SupportedProvider, ProviderConfig>> {
+    if (typeof window === 'undefined') return {};
 
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.PROVIDER_CONFIGS);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
       console.error('Failed to parse stored provider configs:', error);
-      return {} as Record<SupportedProvider, ProviderConfig>;
+      return {};
     }
   }
 

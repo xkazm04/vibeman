@@ -1,6 +1,6 @@
 'use client';
 import { useRefactorStore } from '@/stores/refactorStore';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Info, CheckSquare, FolderTree, Package } from 'lucide-react';
 import { StepContainer, CyberCard, StepHeader } from '@/components/ui/wizard';
 import { VirtualizedOpportunityList } from '../../components/VirtualizedOpportunityList';
@@ -9,12 +9,15 @@ import type { PatternCategory } from '@/app/db/models/marketplace.types';
 import { ReviewStatsGrid } from './sub_ReviewStep/ReviewStatsGrid';
 import { ReviewFilters } from './sub_ReviewStep/ReviewFilters';
 import { ReviewActionBar, ReviewBottomBar } from './sub_ReviewStep/ReviewActionBar';
+import ReviewToolbar from '../../components/ReviewToolbar';
+import { useResultsController } from '../../results/hooks/useResultsController';
 
 /** ReviewStep - Fourth step (4/7) of the RefactorWizard workflow. */
 export default function ReviewStep() {
   const { opportunities, selectedOpportunities, toggleOpportunity, clearSelection, filterCategory,
     filterSeverity, setFilterCategory, setFilterSeverity, setCurrentStep, packages, selectedPackages,
     selectedFolders, clearPackages } = useRefactorStore();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const displayOpportunities = useMemo(() => {
     if (packages.length > 0 && selectedPackages.size > 0) {
@@ -25,10 +28,11 @@ export default function ReviewStep() {
     return opportunities;
   }, [opportunities, packages, selectedPackages]);
 
-  const filteredOpportunities = useMemo(() => displayOpportunities.filter(opp =>
-    (filterCategory === 'all' || opp.category === filterCategory) &&
-    (filterSeverity === 'all' || opp.severity === filterSeverity)
-  ), [displayOpportunities, filterCategory, filterSeverity]);
+  const controller = useResultsController(displayOpportunities);
+  const filteredOpportunities = useMemo(() => {
+    const ids = controller.getFilteredIds(filterSeverity, filterCategory, searchTerm);
+    return displayOpportunities.filter(o => ids.includes(o.id));
+  }, [controller, displayOpportunities, filterSeverity, filterCategory, searchTerm]);
 
   const stats = useMemo(() => {
     const byCategory: Record<string, number> = {}, bySeverity: Record<string, number> = {}, files = new Set<string>();
@@ -67,6 +71,7 @@ export default function ReviewStep() {
         onCategoryChange={setFilterCategory} onSeverityChange={setFilterSeverity}
         filteredCount={filteredOpportunities.length} byCategory={stats.byCategory}
         onSelectByCategory={handleSelectByCategory} onSelectAll={handleSelectAll} onClearSelection={clearSelection} />
+      <ReviewToolbar selectedCount={selectedOpportunities.size} filteredCount={filteredOpportunities.length} onSelectAll={handleSelectAll} onClearSelection={clearSelection} onSearchChange={setSearchTerm} />
       <div className="mb-6">
         <CommunityPatternRecommendations categories={Object.keys(stats.byCategory).map(cat => categoryMap[cat] || 'best-practices') as PatternCategory[]}
           language="typescript" framework="nextjs" maxRecommendations={3} />

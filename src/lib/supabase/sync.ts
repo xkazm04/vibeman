@@ -105,7 +105,7 @@ async function updateSyncMetadata(
  */
 function fetchRecordsFromSQLite(tableName: string): TableRecord[] {
   if (tableName === 'projects') {
-    return projectDb.getAllProjects();
+    return projectDb.getAllProjects() as unknown as TableRecord[];
   }
 
   const db = getDatabase();

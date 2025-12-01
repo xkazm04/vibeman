@@ -1,5 +1,5 @@
 import { ToolDefinition } from '@/lib/langgraph/langTypes';
-import { eventRepository } from '@/app/db/repositories/event.repository';
+import { eventQueryHelpers } from '../lib/knowledgeQuery';
 
 export const EVENT_LISTENER_TOOLS: ToolDefinition[] = [
     {
@@ -20,12 +20,7 @@ export const EVENT_LISTENER_TOOLS: ToolDefinition[] = [
             required: []
         },
         execute: async ({ projectId, limit = 10, type }: { projectId: string; limit?: number; type?: string }) => {
-            if (type) {
-                const events = eventRepository.getEventsByType(projectId, type, limit);
-                return { events };
-            }
-            const events = eventRepository.getEventsByProject(projectId, limit);
-            return { events };
+            return eventQueryHelpers.getRecentEvents(projectId, limit, type);
         }
     },
     {
@@ -42,8 +37,7 @@ export const EVENT_LISTENER_TOOLS: ToolDefinition[] = [
             required: ['title']
         },
         execute: async ({ projectId, title }: { projectId: string; title: string }) => {
-            const event = eventRepository.getLatestEventByTitle(projectId, title);
-            return { event };
+            return eventQueryHelpers.getLatestEventByTitle(projectId, title);
         }
     }
 ];

@@ -25,12 +25,15 @@ interface SystemModule {
   icon: string;
   color: string;
   connections: string[];
+  count?: number; // Optional count to display as badge
 }
 
 interface SystemMapProps {
   onModuleSelect: (moduleId: string) => void;
   groups: ContextGroup[];
   relationships: ContextGroupRelationship[];
+  moduleCountData?: Record<string, number>; // groupId -> count mapping
+  selectedModuleId?: string | null; // Currently selected module
 }
 
 // Helper to get Lucide icon component by name
@@ -238,6 +241,7 @@ function ModuleNode({
   position,
   onSelect,
   isHovered,
+  isSelected,
   onHover,
   index,
   onPositionChange,
@@ -246,16 +250,26 @@ function ModuleNode({
   position: { x: number; y: number };
   onSelect: (id: string) => void;
   isHovered: boolean;
+  isSelected: boolean;
   onHover: (id: string | null) => void;
   index: number;
   onPositionChange: (id: string, el: HTMLDivElement | null) => void;
 }) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const IconComponent = getLucideIcon(module.icon);
+  const hasCount = module.count !== undefined && module.count > 0;
+  const isActive = isHovered || isSelected;
 
   useEffect(() => {
     onPositionChange(module.id, nodeRef.current);
   }, [module.id, onPositionChange]);
+
+  // Determine badge color based on count
+  const getBadgeColor = (count: number) => {
+    if (count >= 10) return 'bg-red-500';
+    if (count >= 5) return 'bg-amber-500';
+    return 'bg-cyan-500';
+  };
 
   return (
     <motion.div
@@ -267,13 +281,13 @@ function ModuleNode({
         transform: 'translate(-50%, -50%)',
       }}
       initial={{ scale: 0, opacity: 0 }}
-      animate={{ 
-        scale: isHovered ? 1.1 : 1, 
+      animate={{
+        scale: isActive ? 1.1 : 1,
         opacity: 1,
       }}
-      transition={{ 
-        type: 'spring', 
-        stiffness: 300, 
+      transition={{
+        type: 'spring',
+        stiffness: 300,
         damping: 25,
         delay: index * 0.05,
       }}
@@ -282,6 +296,7 @@ function ModuleNode({
       onHoverStart={() => onHover(module.id)}
       onHoverEnd={() => onHover(null)}
       onClick={() => onSelect(module.id)}
+      data-testid={`system-map-node-${module.id}`}
     >
       {/* Glow effect */}
       <motion.div
@@ -291,37 +306,73 @@ function ModuleNode({
           transform: 'scale(2)',
         }}
         animate={{
-          opacity: isHovered ? 0.8 : 0.3,
-          scale: isHovered ? 2.5 : 2,
+          opacity: isActive ? 0.8 : 0.3,
+          scale: isActive ? 2.5 : 2,
         }}
         transition={{ duration: 0.25 }}
       />
-      
+
       {/* Main node card */}
       <motion.div
-        className="relative flex flex-col items-center justify-center w-24 h-20 rounded-2xl backdrop-blur-md border"
+        className={`relative flex flex-col items-center justify-center w-24 h-20 rounded-2xl backdrop-blur-md border ${
+          isSelected ? 'ring-2 ring-offset-2 ring-offset-gray-900 ring-cyan-500' : ''
+        }`}
         style={{
           background: `linear-gradient(135deg, ${module.color}25 0%, ${module.color}08 100%)`,
-          borderColor: isHovered ? `${module.color}80` : `${module.color}40`,
-          boxShadow: isHovered 
+          borderColor: isActive ? `${module.color}80` : `${module.color}40`,
+          boxShadow: isActive
             ? `0 0 30px ${module.color}50, inset 0 0 20px ${module.color}15`
             : `0 0 15px ${module.color}20`,
         }}
         animate={{
-          borderColor: isHovered ? `${module.color}80` : `${module.color}40`,
+          borderColor: isActive ? `${module.color}80` : `${module.color}40`,
         }}
         transition={{ duration: 0.2 }}
       >
-        <IconComponent 
-          className="w-6 h-6 mb-1" 
-          style={{ color: isHovered ? module.color : `${module.color}cc` }}
+        <IconComponent
+          className="w-6 h-6 mb-1"
+          style={{ color: isActive ? module.color : `${module.color}cc` }}
         />
-        <span 
+        <span
           className="text-[10px] font-medium text-center leading-tight px-2"
-          style={{ color: isHovered ? module.color : `${module.color}cc` }}
+          style={{ color: isActive ? module.color : `${module.color}cc` }}
         >
           {module.name}
         </span>
+
+        {/* Count Badge */}
+        {hasCount && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className={`absolute -top-2 -right-2 min-w-[22px] h-[22px]
+              rounded-full ${getBadgeColor(module.count!)} text-white text-[10px] font-bold
+              flex items-center justify-center px-1 shadow-lg
+              border-2 border-gray-900`}
+            data-testid={`system-map-badge-${module.id}`}
+          >
+            {module.count! > 99 ? '99+' : module.count}
+          </motion.div>
+        )}
+
+        {/* Pulse animation for nodes with counts */}
+        {hasCount && (
+          <motion.div
+            className="absolute inset-0 rounded-2xl"
+            style={{
+              border: `2px solid ${module.color}`,
+            }}
+            animate={{
+              opacity: [0.5, 0, 0.5],
+              scale: [1, 1.15, 1],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+        )}
       </motion.div>
 
     </motion.div>
@@ -352,18 +403,31 @@ function LayerLabel({ layer, config }: { layer: ModuleLayer; config: typeof LAYE
   );
 }
 
-export default function SystemMap({ onModuleSelect, groups, relationships }: SystemMapProps) {
+export default function SystemMap({
+  onModuleSelect,
+  groups,
+  relationships,
+  moduleCountData,
+  selectedModuleId
+}: SystemMapProps) {
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [updateTrigger, setUpdateTrigger] = useState(0);
 
-  // Convert context groups to system modules
-  const systemModules = useMemo(() => 
-    contextGroupsToModules(groups, relationships),
-    [groups, relationships]
-  );
+  // Convert context groups to system modules with count data
+  const systemModules = useMemo(() => {
+    const modules = contextGroupsToModules(groups, relationships);
+    // Merge count data if provided
+    if (moduleCountData) {
+      return modules.map(m => ({
+        ...m,
+        count: moduleCountData[m.id] ?? 0
+      }));
+    }
+    return modules;
+  }, [groups, relationships, moduleCountData]);
 
   // Handle node ref registration
   const handleNodePositionChange = useCallback((id: string, el: HTMLDivElement | null) => {
@@ -553,6 +617,7 @@ export default function SystemMap({ onModuleSelect, groups, relationships }: Sys
             position={position}
             onSelect={onModuleSelect}
             isHovered={hoveredModule === module.id}
+            isSelected={selectedModuleId === module.id}
             onHover={setHoveredModule}
             index={index}
             onPositionChange={handleNodePositionChange}

@@ -7,10 +7,11 @@
 
 import { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { X, FileCode2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { EnrichedImplementationLog } from '../lib/types';
 import UserInputPanel from './UserInputPanel';
 import ImplementationProposalBridge from './ImplementationProposalBridge';
+import { ScreenshotPreview, ProjectContextTags, BulletsList } from './LogPreview';
 
 interface ImplementationLogDetailProps {
   log: EnrichedImplementationLog;
@@ -93,36 +94,22 @@ export default function ImplementationLogDetail({
 
         {/* Left Half - Large Screenshot or Placeholder */}
         <div className="w-full md:w-1/2 h-64 md:h-full relative bg-gradient-to-br from-gray-800 to-gray-900 flex-shrink-0">
-          {log.screenshot ? (
-            <motion.img
-              layoutId={`card-image-${log.id}`}
-              src={log.screenshot}
-              alt={log.title}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <FileCode2 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <span className="text-gray-500">No screenshot available</span>
-              </div>
-            </div>
-          )}
+          <ScreenshotPreview
+            screenshot={log.screenshot}
+            title={log.title}
+            variant="detail"
+            logId={log.id}
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent md:bg-gradient-to-r" />
 
           <div className="absolute bottom-6 left-6 right-6">
             {/* Project & Context Tags */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              {log.project_name && (
-                <span className="px-3 py-1 text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full backdrop-blur-sm">
-                  {log.project_name}
-                </span>
-              )}
-              {log.context_name && (
-                <span className="px-3 py-1 text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full backdrop-blur-sm">
-                  {log.context_name}
-                </span>
-              )}
+            <div className="mb-3">
+              <ProjectContextTags
+                projectName={log.project_name}
+                contextName={log.context_name}
+                variant="detail"
+              />
             </div>
             <motion.h2
               layoutId={`card-title-${log.id}`}
@@ -139,27 +126,10 @@ export default function ImplementationLogDetail({
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-8 space-y-6">
             {/* Key Changes from Bullets */}
-            {log.overview_bullets && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-300 mb-3">Key Changes</h3>
-                <ul className="space-y-2">
-                  {log.overview_bullets.split('\n').filter(b => b.trim()).map((bullet, i) => (
-                    <motion.li
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="flex items-start gap-3 text-sm text-gray-300"
-                    >
-                      <span className="w-5 h-5 rounded bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-mono flex-shrink-0">
-                        {i + 1}
-                      </span>
-                      {bullet}
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <BulletsList
+              bullets={log.overview_bullets}
+              variant="detail"
+            />
 
             {/* Overview */}
             <div>

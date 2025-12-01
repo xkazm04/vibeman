@@ -10,7 +10,6 @@ import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { useThemeStore } from '@/stores/themeStore';
 import { deleteProject } from './sub_ProjectSetting/lib/projectApi';
 import ProjectSelectionModal from './sub_ProjectSetting/components/ProjectSelectionModal';
-import GlowWrapper from '@/app/features/Onboarding/components/GlowWrapper';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 import type { Project } from '@/types';
 
@@ -299,11 +298,11 @@ export default function ProjectToolbar() {
       </motion.div>
     );
 
-    // Always wrap with consistent structure to prevent hydration mismatch
+    // Apply glow class conditionally for onboarding highlight
     return (
-      <GlowWrapper key={action.id} isActive={action.glow || false}>
+      <div key={action.id} className={action.glow ? 'onboarding-glow' : ''}>
         {button}
-      </GlowWrapper>
+      </div>
     );
   };
 

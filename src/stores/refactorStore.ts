@@ -234,7 +234,7 @@ export const useRefactorStore = create<RefactorState>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               projectId,
-              scanType: 'refactor_analysis',
+              scanType: 'code_refactor',
               triggerType: 'manual',
               priority: 10,
             }),
@@ -782,13 +782,14 @@ export const useRefactorStore = create<RefactorState>()(
     {
       name: 'refactor-wizard-storage',
       partialize: (state) => ({
-        opportunities: state.opportunities,
         wizardPlan: state.wizardPlan,
         selectedScanGroups: Array.from(state.selectedScanGroups),
         // NEW: Persist packages (Phase 1)
         packages: state.packages,
         selectedPackages: Array.from(state.selectedPackages), // Convert Set to Array
         packageFilter: state.packageFilter,
+        filterCategory: state.filterCategory,
+        filterSeverity: state.filterSeverity,
         // DSL Mode persistence
         savedSpecs: state.savedSpecs,
         recentSpecs: state.recentSpecs,

@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
-import { ALL_SCAN_TYPES, isValidScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { ALL_SCAN_TYPES, isValidScanType, resolveScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,8 +58,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate scan type using centralized config
-    if (!isValidScanType(scanType)) {
+    // Resolve aliases and validate scan type using centralized config
+    const resolved = resolveScanType(scanType);
+    if (!resolved) {
       return NextResponse.json(
         { error: `Invalid scan type: ${scanType}. Valid types: ${ALL_SCAN_TYPES.join(', ')}` },
         { status: 400 }
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     const queueItem = scanQueueDb.createQueueItem({
       id: queueId,
       project_id: projectId,
-      scan_type: scanType,
+      scan_type: resolved,
       context_id: contextId,
       trigger_type: triggerType,
       trigger_metadata: triggerMetadata,

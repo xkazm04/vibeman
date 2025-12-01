@@ -1,19 +1,10 @@
 /**
  * Context Overview Library Exports
  *
- * This module provides utilities for test scenario creation and JSON parsing.
+ * This module provides utilities for test scenario creation.
+ * JSON parsing has been consolidated into the useJsonValidation hook
+ * located at: components/useJsonValidation.ts
  */
-
-// JSON parsing utilities
-export {
-  parseJsonResponse,
-  parseTestScenario,
-  validateTestSteps,
-  isValidTestStep,
-  safeStringify,
-  type ParseResult,
-  type TestStep as JsonParserTestStep,
-} from './jsonParser';
 
 // Test scenario patterns library
 export {

@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Package, Download } from 'lucide-react';
+import { AlertTriangle, Package, ArrowUpCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Project, ProjectDependency, LibraryRow, getLatestVersion, getVersionColor, getCellBackground, isPackageOutdated } from '../lib';
-import { useGlobalModal } from '@/hooks/useGlobalModal';
-import BatchUpdateModalContent from './BatchUpdateModalContent';
+import { upgradePackagesWithProgress, PackageUpgrade } from '../lib/directUpgrade';
 import LicenseComplianceBadge from '@/components/LicenseComplianceBadge';
 
 interface DependencyColumnViewProps {
   projects: Project[];
   dependencies: Record<string, ProjectDependency[]>;
   registryVersions?: Record<string, string | null>;
+  onRefresh?: () => void;
 }
 
 /**
@@ -58,10 +59,12 @@ function getMockLicenseForPackage(packageName: string): string | null {
 export default function DependencyColumnView({
   projects,
   dependencies,
-  registryVersions = {}
+  registryVersions = {},
+  onRefresh
 }: DependencyColumnViewProps) {
   const [selectedPackages, setSelectedPackages] = useState<Map<string, string>>(new Map()); // "libraryName|||projectId" -> targetVersion
-  const { showModal, hideModal } = useGlobalModal();
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradeProgress, setUpgradeProgress] = useState({ message: '', percent: 0 });
 
   // Process and organize dependencies into rows
   const libraryRows = useMemo(() => {
@@ -119,15 +122,6 @@ export default function DependencyColumnView({
     return rows;
   }, [dependencies, registryVersions]);
 
-  // Create a library versions map for the modal
-  const libraryVersionsMap = useMemo(() => {
-    const map = new Map<string, Map<string, string | null>>();
-    libraryRows.forEach(lib => {
-      map.set(lib.name, new Map(Object.entries(lib.projectVersions)));
-    });
-    return map;
-  }, [libraryRows]);
-
   const togglePackageSelection = (libraryName: string, projectId: string, targetVersion: string | null) => {
     const key = `${libraryName}|||${projectId}`;
     setSelectedPackages(prev => {
@@ -146,56 +140,134 @@ export default function DependencyColumnView({
     return selectedPackages.has(key);
   };
 
-  const handleOpenUpdateModal = () => {
-    if (selectedPackages.size > 0) {
-      showModal(
-        {
-          title: 'Batch Update Dependencies',
-          icon: Download,
-          iconColor: 'text-yellow-400',
-          iconBgColor: 'bg-yellow-500/20',
-          maxWidth: 'max-w-2xl',
-          maxHeight: 'max-h-[90vh]'
-        },
-        <BatchUpdateModalContent
-          onClose={hideModal}
-          selectedPackages={selectedPackages}
-          projects={projects}
-          libraryVersions={libraryVersionsMap}
-        />
-      );
-    }
-  };
-
   const handleClearSelection = () => {
     setSelectedPackages(new Map());
   };
+
+  const handleDirectUpgrade = useCallback(async () => {
+    if (selectedPackages.size === 0 || isUpgrading) return;
+
+    setIsUpgrading(true);
+    setUpgradeProgress({ message: 'Starting upgrade...', percent: 0 });
+
+    // Group packages by project
+    const packagesByProject = new Map<string, { projectName: string; packages: PackageUpgrade[] }>();
+
+    selectedPackages.forEach((targetVersion, key) => {
+      const [libraryName, projectId] = key.split('|||');
+      const projectInfo = projects.find(p => p.id === projectId);
+      if (!projectInfo) return;
+
+      const projectPath = projectInfo.path;
+      if (!packagesByProject.has(projectPath)) {
+        packagesByProject.set(projectPath, { projectName: projectInfo.name, packages: [] });
+      }
+
+      // Find dependency info to get current version and isDev
+      const projectDeps = dependencies[projectId] || [];
+      const depInfo = projectDeps.find(d => d.dependency_name === libraryName);
+
+      packagesByProject.get(projectPath)!.packages.push({
+        name: libraryName,
+        currentVersion: depInfo?.dependency_version || '',
+        targetVersion: targetVersion,
+        isDev: depInfo?.dependency_type === 'devDependencies'
+      });
+    });
+
+    // Upgrade each project
+    let completedProjects = 0;
+    const totalProjects = packagesByProject.size;
+
+    for (const [projectPath, { projectName, packages }] of packagesByProject) {
+      setUpgradeProgress({
+        message: `Upgrading ${projectName}...`,
+        percent: Math.round((completedProjects / totalProjects) * 80) + 10
+      });
+
+      const result = await upgradePackagesWithProgress(
+        projectPath,
+        packages,
+        (message, _percent) => {
+          setUpgradeProgress({
+            message: `${projectName}: ${message}`,
+            percent: Math.round((completedProjects / totalProjects) * 80) + 10
+          });
+        }
+      );
+
+      completedProjects++;
+
+      if (!result.success) {
+        toast.error(`Failed to upgrade ${projectName}: ${result.error}`);
+      } else {
+        toast.success(`Upgraded ${result.updatedPackages?.length || 0} packages in ${projectName}`);
+      }
+    }
+
+    setUpgradeProgress({ message: 'Complete!', percent: 100 });
+    setSelectedPackages(new Map());
+    setIsUpgrading(false);
+
+    // Refresh dependency data
+    onRefresh?.();
+  }, [selectedPackages, projects, dependencies, isUpgrading, onRefresh]);
 
   return (
     <>
       <div className="w-full overflow-x-auto custom-scrollbar">
         <div className="min-w-max">
           {/* Action Bar */}
-          {selectedPackages.size > 0 && (
-            <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center justify-between">
-              <span className="text-sm text-yellow-300 font-medium">
-                {selectedPackages.size} package{selectedPackages.size !== 1 ? 's' : ''} selected for update
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleClearSelection}
-                  className="px-3 py-1.5 text-sm text-gray-300 hover:text-gray-100 border border-gray-600 hover:border-gray-500 rounded-lg transition-colors"
-                >
-                  Clear Selection
-                </button>
-                <button
-                  onClick={handleOpenUpdateModal}
-                  className="px-3 py-1.5 text-sm bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-lg transition-colors flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Generate Requirements
-                </button>
+          {(selectedPackages.size > 0 || isUpgrading) && (
+            <div className="mb-4 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-cyan-300 font-medium">
+                  {isUpgrading
+                    ? upgradeProgress.message
+                    : `${selectedPackages.size} package${selectedPackages.size !== 1 ? 's' : ''} selected for upgrade`
+                  }
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleClearSelection}
+                    disabled={isUpgrading}
+                    className="px-3 py-1.5 text-sm text-gray-300 hover:text-gray-100 border border-gray-600 hover:border-gray-500 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid="clear-selection-btn"
+                  >
+                    Clear Selection
+                  </button>
+                  <button
+                    onClick={handleDirectUpgrade}
+                    disabled={selectedPackages.size === 0 || isUpgrading}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid="upgrade-selected-btn"
+                  >
+                    {isUpgrading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Upgrading...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowUpCircle className="w-4 h-4" />
+                        Upgrade Selected ({selectedPackages.size})
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* Progress bar when upgrading */}
+              {isUpgrading && (
+                <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-cyan-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${upgradeProgress.percent}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              )}
             </div>
           )}
 

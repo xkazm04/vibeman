@@ -33,7 +33,7 @@ export default function PreviewDisplay({
   return (
     <>
       {/* Default Preview - Now at expanded size */}
-      <div className={`relative w-full ${height} rounded-lg overflow-hidden bg-gray-800/50 border border-gray-700/30 group ${className}`}>
+      <div className={`relative w-full ${height} rounded-lg overflow-hidden bg-gray-800/50 border border-gray-700/30 group ${className}`} data-testid="context-preview-display">
         {imagePath && !imageError ? (
           <>
             <Image

@@ -283,3 +283,126 @@ export interface LifecycleCycleResponse {
   cycle: LifecycleCycle;
   events: LifecycleEvent[];
 }
+
+/**
+ * UI configuration for lifecycle phases
+ */
+export interface PhaseUIConfig {
+  label: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+}
+
+/**
+ * Centralized phase UI configurations for consistent display across components
+ */
+export const LIFECYCLE_PHASE_CONFIGS: Record<LifecyclePhase, PhaseUIConfig> = {
+  idle: {
+    label: 'Idle',
+    color: 'text-gray-400',
+    bgColor: 'bg-gray-500/10',
+    borderColor: 'border-gray-500/30',
+  },
+  detecting: {
+    label: 'Detecting',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/10',
+    borderColor: 'border-blue-500/30',
+  },
+  scanning: {
+    label: 'Scanning',
+    color: 'text-cyan-400',
+    bgColor: 'bg-cyan-500/10',
+    borderColor: 'border-cyan-500/30',
+  },
+  resolving: {
+    label: 'Resolving',
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/30',
+  },
+  testing: {
+    label: 'Testing',
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/10',
+    borderColor: 'border-purple-500/30',
+  },
+  validating: {
+    label: 'Validating',
+    color: 'text-indigo-400',
+    bgColor: 'bg-indigo-500/10',
+    borderColor: 'border-indigo-500/30',
+  },
+  deploying: {
+    label: 'Deploying',
+    color: 'text-orange-400',
+    bgColor: 'bg-orange-500/10',
+    borderColor: 'border-orange-500/30',
+  },
+  completed: {
+    label: 'Completed',
+    color: 'text-green-400',
+    bgColor: 'bg-green-500/10',
+    borderColor: 'border-green-500/30',
+  },
+  failed: {
+    label: 'Failed',
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/30',
+  },
+};
+
+/**
+ * Ordered list of lifecycle phases for UI display
+ */
+export const LIFECYCLE_PHASE_ORDER: LifecyclePhase[] = [
+  'idle',
+  'detecting',
+  'scanning',
+  'resolving',
+  'testing',
+  'validating',
+  'deploying',
+  'completed',
+  'failed',
+];
+
+/**
+ * Active phases (not idle, completed, or failed)
+ */
+export const ACTIVE_PHASES: LifecyclePhase[] = [
+  'detecting',
+  'scanning',
+  'resolving',
+  'testing',
+  'validating',
+  'deploying',
+];
+
+/**
+ * Terminal phases (cycle is done)
+ */
+export const TERMINAL_PHASES: LifecyclePhase[] = ['completed', 'failed'];
+
+/**
+ * Check if a phase is active (in progress)
+ */
+export function isActivePhase(phase: LifecyclePhase): boolean {
+  return ACTIVE_PHASES.includes(phase);
+}
+
+/**
+ * Check if a phase is terminal (cycle finished)
+ */
+export function isTerminalPhase(phase: LifecyclePhase): boolean {
+  return TERMINAL_PHASES.includes(phase);
+}
+
+/**
+ * Get the phase config for UI display
+ */
+export function getPhaseConfig(phase: LifecyclePhase): PhaseUIConfig {
+  return LIFECYCLE_PHASE_CONFIGS[phase];
+}

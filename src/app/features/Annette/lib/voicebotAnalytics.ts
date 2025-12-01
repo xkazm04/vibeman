@@ -21,6 +21,7 @@ export interface CommandAnalyticsEntry {
     provider?: string;
     model?: string;
     toolsUsed?: string[];
+    cacheHit?: boolean;
   };
   timestamp: string;
 }

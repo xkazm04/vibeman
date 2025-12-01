@@ -14,7 +14,6 @@ import {
   Code,
   Bug,
   Camera,
-  Target,
   Trash2,
   FlaskConical,
   Scissors,
@@ -161,15 +160,6 @@ export const NEXTJS_TECHNIQUE_GROUPS: TechniqueGroup[] = [
         color: 'pink',
         description: 'Capture visual snapshots of components',
         eventTitle: 'Photo Scan Completed',
-        contextNeeded: true,
-      },
-      {
-        id: 'selectors',
-        label: 'Selectors',
-        icon: Target,
-        color: 'indigo',
-        description: 'Find missing test selectors in components',
-        eventTitle: 'Selectors Scan Completed',
         contextNeeded: true,
       },
       {

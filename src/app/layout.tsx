@@ -9,6 +9,8 @@ import ContextOverview from "./features/Context/sub_ContextOverview/ContextOverv
 import TopBar from "../components/Navigation/TopBar";
 import PageTransition from "../components/Navigation/PageTransition";
 import ControlPanelProvider from "./features/Onboarding/ControlPanelProvider";
+import ConciergeWidgetWrapper from "./features/Concierge/components/ConciergeWidgetWrapper";
+import { MarketplaceLayout } from "./features/Marketplace";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,6 +47,8 @@ export default function RootLayout({
                   {children}
                 </PageTransition>
                 <ContextOverview />
+                <ConciergeWidgetWrapper />
+                <MarketplaceLayout />
               </ControlPanelProvider>
             </ModalProvider>
           </ErrorProvider>

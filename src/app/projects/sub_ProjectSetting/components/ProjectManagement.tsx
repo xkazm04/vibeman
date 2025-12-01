@@ -8,7 +8,6 @@ import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import ProjectSelectionModal from './ProjectSelectionModal';
 import { getProjectTypeIcon, getRelatedProject, getConnectedProjects } from '../lib/projectUtils';
 import ProjectActions from './ProjectActions';
-import GlowWrapper from '@/app/features/Onboarding/components/GlowWrapper';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 
 export default function ProjectManagement() {
@@ -151,7 +150,7 @@ export default function ProjectManagement() {
         </motion.button>
 
         {/* Add Project Button */}
-        <GlowWrapper isActive={isCreateProjectActive}>
+        <div className={isCreateProjectActive ? 'onboarding-glow' : ''}>
           <motion.button
             whileHover={{ scale: 1.05, y: -1 }}
             whileTap={{ scale: 0.95 }}
@@ -162,7 +161,7 @@ export default function ProjectManagement() {
             <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
             <span className="font-medium">Add Project</span>
           </motion.button>
-        </GlowWrapper>
+        </div>
       </div>
     </div>
   );

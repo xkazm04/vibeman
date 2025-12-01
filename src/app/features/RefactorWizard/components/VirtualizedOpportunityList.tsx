@@ -2,7 +2,7 @@
 
 import { useMemo, ReactElement } from 'react';
 import { List, RowComponentProps } from '@/components/ui/VirtualList';
-import { OpportunityCard } from './OpportunityCard';
+import CompactOpportunityRow from './rows/CompactOpportunityRow';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 
 interface VirtualizedOpportunityListProps {
@@ -26,12 +26,10 @@ function OpportunityRow(props: RowComponentProps<RowPropsData>): ReactElement {
   const opp = opportunities[index];
 
   return (
-    <div style={{ ...style, paddingBottom: '12px' }}>
-      <OpportunityCard
-        key={opp.id}
+    <div style={style}>
+      <CompactOpportunityRow
         opportunity={opp}
         isSelected={selectedOpportunities.has(opp.id)}
-        index={index}
         onToggle={() => onToggle(opp.id)}
       />
     </div>
@@ -62,6 +60,7 @@ export function VirtualizedOpportunityList({
       rowHeight={itemHeight}
       rowComponent={OpportunityRow}
       rowProps={rowProps}
+      getItemKey={(index) => rowProps.opportunities[index].id}
       className="virtualized-opportunity-list pr-2"
       data-testid="virtualized-opportunities-list"
     />

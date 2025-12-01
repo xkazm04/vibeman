@@ -1,5 +1,5 @@
 import { ToolDefinition } from '@/lib/langgraph/langTypes';
-import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { goalQueryHelpers } from '../lib/knowledgeQuery';
 
 export const GOAL_EVALUATOR_TOOLS: ToolDefinition[] = [
     {
@@ -16,11 +16,7 @@ export const GOAL_EVALUATOR_TOOLS: ToolDefinition[] = [
             required: []
         },
         execute: async ({ projectId, status }: { projectId: string; status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided' }) => {
-            const goals = goalRepository.getGoalsByProject(projectId);
-            if (status) {
-                return { goals: goals.filter(g => g.status === status) };
-            }
-            return { goals };
+            return goalQueryHelpers.getProjectGoals(projectId, status);
         }
     },
     {
@@ -37,11 +33,7 @@ export const GOAL_EVALUATOR_TOOLS: ToolDefinition[] = [
             required: ['goalId']
         },
         execute: async ({ goalId }: { goalId: string }) => {
-            const goal = goalRepository.getGoalById(goalId);
-            return {
-                goal,
-                message: "Please analyze recent implementation logs against this goal's description."
-            };
+            return goalQueryHelpers.getGoalForEvaluation(goalId);
         }
     }
 ];

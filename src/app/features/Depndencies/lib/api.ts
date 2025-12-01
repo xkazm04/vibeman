@@ -52,6 +52,7 @@ export async function runDependencyScan(
 
 /**
  * Create a Claude requirement file for package updates
+ * @deprecated Use upgradePackages() from directUpgrade.ts instead for direct package.json modification
  */
 export async function createPackageUpdateRequirement(
   projectPath: string,
@@ -138,7 +139,6 @@ ${packageList}
 
 /**
  * Batch update multiple dependencies across projects
- * Alias for createPackageUpdateRequirement for backward compatibility
- * @deprecated Use createPackageUpdateRequirement directly
+ * @deprecated Use upgradePackages() from directUpgrade.ts instead for direct package.json modification
  */
 export const batchUpdateDependencies = createPackageUpdateRequirement;

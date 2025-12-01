@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2 } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
@@ -27,6 +27,7 @@ export default function TaskItem({
   const { requirementName, status } = requirement;
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [showDeleteHint, setShowDeleteHint] = useState(false);
   const { showFullScreenModal } = useGlobalModal();
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -102,6 +103,13 @@ export default function TaskItem({
 
   const isDisabled = status === 'running' || status === 'queued';
 
+  const canDelete = status !== 'running' && status !== 'queued';
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete();
+  };
+
   return (
     <>
       <motion.div
@@ -110,6 +118,8 @@ export default function TaskItem({
         exit={{ opacity: 0 }}
         onClick={!isDisabled ? onToggleSelect : undefined}
         onContextMenu={handleContextMenu}
+        onMouseEnter={() => setShowDeleteHint(true)}
+        onMouseLeave={() => setShowDeleteHint(false)}
         className={`
           relative rounded-md border transition-all cursor-pointer
           ${getStatusColor()}
@@ -117,6 +127,7 @@ export default function TaskItem({
           ${isDisabled ? 'cursor-not-allowed opacity-75' : 'hover:border-gray-600/60'}
           px-2.5 py-2 flex items-center justify-between gap-2
         `}
+        data-testid={`task-item-${requirementName}`}
       >
         {/* Requirement name and icon */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -130,6 +141,23 @@ export default function TaskItem({
         {isSelected && !isDisabled && (
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
         )}
+
+        {/* Delete button overlay */}
+        <AnimatePresence>
+          {showDeleteHint && canDelete && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              onClick={handleDeleteClick}
+              className="absolute top-1/2 -translate-y-1/2 right-2 p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/40 transition-colors"
+              title="Delete task"
+              data-testid={`task-delete-btn-${requirementName}`}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Context Menu */}

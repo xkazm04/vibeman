@@ -15,7 +15,7 @@ import {
   triggerRefactorScan,
 } from './vibemanApi';
 
-export type AutomationStatus = 'idle' | 'evaluating' | 'generating' | 'executing' | 'success' | 'error';
+export type AutomationStatus = 'pending' | 'evaluating' | 'generating' | 'executing' | 'success';
 
 export interface AutomationCallbacks {
   onStatusChange: (status: AutomationStatus, message: string) => void;
@@ -74,7 +74,7 @@ export async function runAutomationCycle(
 
       const evaluation = await evaluateAndSelectIdea(projectId, projectPath);
 
-      if (!evaluation.selectedIdeaId) {        onStatusChange('idle', evaluation.reasoning || 'No suitable ideas to implement');
+      if (!evaluation.selectedIdeaId) {        onStatusChange('pending', evaluation.reasoning || 'No suitable ideas to implement');
         return;
       }
 
@@ -83,7 +83,7 @@ export async function runAutomationCycle(
     }
 
     // Common implementation path for both accepted and evaluated ideas
-    if (!selectedIdeaId) {      onStatusChange('idle', 'No ideas to implement');
+    if (!selectedIdeaId) {      onStatusChange('pending', 'No ideas to implement');
       return;
     }
 
@@ -167,7 +167,7 @@ export async function runAutomationCycle(
       if (isRunningRef.current) {
         await runAutomationCycle(config, callbacks);
       } else {
-        onStatusChange('idle', 'Automation stopped');
+        onStatusChange('pending', 'Automation stopped');
       }
     } else {
       // Record failed outcome for adaptive learning
@@ -182,7 +182,7 @@ export async function runAutomationCycle(
       }
 
       onFailure();
-      onStatusChange('error', 'Implementation failed. Trying next idea...');
+      onStatusChange('pending', 'Implementation failed. Trying next idea...');
 
       // Wait before next cycle
       await sleep(3000);
@@ -191,12 +191,12 @@ export async function runAutomationCycle(
       if (isRunningRef.current) {
         await runAutomationCycle(config, callbacks);
       } else {
-        onStatusChange('idle', 'Automation stopped');
+        onStatusChange('pending', 'Automation stopped');
       }
     }
   } catch (error) {
     onFailure();
-    onStatusChange('error', error instanceof Error ? error.message : 'Unknown error occurred');
+    onStatusChange('pending', error instanceof Error ? error.message : 'Unknown error occurred');
     throw error;
   }
 }

@@ -1,5 +1,5 @@
 import { ToolDefinition } from '@/lib/langgraph/langTypes';
-import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { implementationLogQueryHelpers } from '../lib/knowledgeQuery';
 
 export const IMPLEMENTATION_LOG_TOOLS: ToolDefinition[] = [
     {
@@ -16,13 +16,7 @@ export const IMPLEMENTATION_LOG_TOOLS: ToolDefinition[] = [
             required: []
         },
         execute: async ({ projectId, limit = 10 }: { projectId: string; limit?: number }) => {
-            const logs = implementationLogRepository.getUntestedLogsByProject(projectId);
-            const untestedLogs = logs.slice(0, limit);
-
-            return {
-                count: untestedLogs.length,
-                logs: untestedLogs
-            };
+            return implementationLogQueryHelpers.getUntestedLogs(projectId, limit);
         }
     },
     {
@@ -39,8 +33,7 @@ export const IMPLEMENTATION_LOG_TOOLS: ToolDefinition[] = [
             required: ['logId']
         },
         execute: async ({ logId }: { logId: string }) => {
-            const log = implementationLogRepository.getLogById(logId);
-            return { log };
+            return implementationLogQueryHelpers.getLogDetails(logId);
         }
     }
 ];

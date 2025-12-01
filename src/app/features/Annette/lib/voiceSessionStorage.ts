@@ -8,8 +8,9 @@
  * - In-memory fallback when IndexedDB is unavailable
  */
 
-import { VoiceSession, VoiceSessionInteraction } from './voicebotTypes';
 import {
+  VoiceSession,
+  VoiceSessionInteraction,
   IndexedDBError,
   IndexedDBErrorCode,
   withIndexedDBErrorHandler,
@@ -17,7 +18,7 @@ import {
   getInMemoryCache,
   cleanupQuota,
   reinitializeDatabase
-} from './indexedDBErrors';
+} from '@/lib/voice';
 
 const DB_NAME = 'AnnetteVoiceSessions';
 const DB_VERSION = 1;

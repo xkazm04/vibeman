@@ -19,6 +19,7 @@ interface WorkerConfig {
 type NotificationType = 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed';
 
 interface NotificationData {
+  [key: string]: unknown;
   scanType?: string;
   contextId?: string | null;
   ideaCount?: number;
@@ -208,9 +209,10 @@ class ScanQueueWorker {
       // Update progress: processing results
       scanQueueDb.updateProgress(queueItem.id, 75, 'Processing scan results...', 'process_results', 4);
 
-      // Get the most recent scan for this project and type
-      const scans = await ideaDb.getIdeasByScanType(queueItem.project_id, queueItem.scan_type);
-      const latestScanId = scans.length > 0 ? scans[0].scan_id : null;
+      // Get ideas from this project to find the latest scan ID
+      const projectIdeas = ideaDb.getIdeasByProject(queueItem.project_id);
+      const relevantIdeas = projectIdeas.filter(idea => idea.scan_type === queueItem.scan_type);
+      const latestScanId = relevantIdeas.length > 0 ? relevantIdeas[0].scan_id : null;
 
       // Link the scan to the queue item
       if (latestScanId) {
@@ -272,13 +274,14 @@ class ScanQueueWorker {
         throw new Error('No scan ID available for auto-merge');
       }
 
-      const ideas = await ideaDb.getIdeasByScan(queueItem.scan_id);
+      const allProjectIdeas = ideaDb.getIdeasByProject(queueItem.project_id);
+      const ideas = allProjectIdeas.filter(idea => idea.scan_id === queueItem.scan_id);
 
       // Auto-accept high-impact, low-effort ideas
       let autoAcceptedCount = 0;
       for (const idea of ideas) {
         if (idea.impact === 3 && idea.effort === 1) {
-          ideaDb.updateStatus(idea.id, 'accepted');
+          ideaDb.updateIdea(idea.id, { status: 'accepted' });
           autoAcceptedCount++;
         }
       }

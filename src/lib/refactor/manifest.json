@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2025-11-29T16:39:39.119Z",
+  "timestamp": "2025-11-30T13:52:33.280Z",
   "files": [
     {
       "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\ContextComponents\\ContextJailCard.tsx",
@@ -190,17 +190,24 @@
       "lineCount": 410,
       "colorReplacements": 17,
       "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\kazda\\kiro\\vibeman\\src\\components\\ui\\UniversalSelect.tsx",
+      "status": "pending",
+      "lineCount": 396,
+      "colorReplacements": 15,
+      "extractedComponents": []
     }
   ],
   "summary": {
     "byCategory": {
-      "text": 33,
-      "border": 28,
-      "background": 22,
+      "text": 38,
+      "border": 36,
+      "background": 24,
       "shadow": 7,
       "gradient": 32
     },
-    "filesOver200Lines": 18
+    "filesOver200Lines": 19
   },
-  "totalFiles": 27
+  "totalFiles": 28
 }

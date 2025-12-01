@@ -129,9 +129,9 @@ export const useGlobalModal = () => {
     const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as React.ComponentType<DynamicModalShellProps>;
     const content = (
       <DynamicModalShell
-        header={shell.header ? { enabled: true, ...shell.header } : { enabled: false }}
-        content={shell.content ? { enabled: true, ...shell.content } : { enabled: false }}
-        footer={shell.footer ? { enabled: true, ...shell.footer } : { enabled: false }}
+        header={shell.header ? { ...shell.header, enabled: true } : { enabled: false }}
+        content={shell.content ? { ...shell.content, enabled: true } : { enabled: false }}
+        footer={shell.footer ? { ...shell.footer, enabled: true } : { enabled: false }}
         customContent={shell.customContent}
         isTopMost={shell.isTopMost ?? true}
       />

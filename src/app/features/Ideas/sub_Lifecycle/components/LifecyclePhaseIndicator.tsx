@@ -14,7 +14,11 @@ import {
   Clock,
   LucideIcon,
 } from 'lucide-react';
-import { LifecyclePhase } from '../lib/lifecycleTypes';
+import {
+  LifecyclePhase,
+  LIFECYCLE_PHASE_CONFIGS,
+  isActivePhase,
+} from '../lib/lifecycleTypes';
 
 interface LifecyclePhaseIndicatorProps {
   phase: LifecyclePhase;
@@ -22,78 +26,19 @@ interface LifecyclePhaseIndicatorProps {
   compact?: boolean;
 }
 
-interface PhaseConfig {
-  icon: LucideIcon;
-  label: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-}
-
-const PHASE_CONFIG: Record<LifecyclePhase, PhaseConfig> = {
-  idle: {
-    icon: Clock,
-    label: 'Idle',
-    color: 'text-gray-400',
-    bgColor: 'bg-gray-500/10',
-    borderColor: 'border-gray-500/30',
-  },
-  detecting: {
-    icon: Search,
-    label: 'Detecting',
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/10',
-    borderColor: 'border-blue-500/30',
-  },
-  scanning: {
-    icon: Scan,
-    label: 'Scanning',
-    color: 'text-cyan-400',
-    bgColor: 'bg-cyan-500/10',
-    borderColor: 'border-cyan-500/30',
-  },
-  resolving: {
-    icon: Wrench,
-    label: 'Resolving',
-    color: 'text-amber-400',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
-  },
-  testing: {
-    icon: TestTube,
-    label: 'Testing',
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/10',
-    borderColor: 'border-purple-500/30',
-  },
-  validating: {
-    icon: Shield,
-    label: 'Validating',
-    color: 'text-indigo-400',
-    bgColor: 'bg-indigo-500/10',
-    borderColor: 'border-indigo-500/30',
-  },
-  deploying: {
-    icon: Rocket,
-    label: 'Deploying',
-    color: 'text-orange-400',
-    bgColor: 'bg-orange-500/10',
-    borderColor: 'border-orange-500/30',
-  },
-  completed: {
-    icon: CheckCircle,
-    label: 'Completed',
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/10',
-    borderColor: 'border-green-500/30',
-  },
-  failed: {
-    icon: XCircle,
-    label: 'Failed',
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
-  },
+/**
+ * Icons for each lifecycle phase (kept separate as they are UI-specific)
+ */
+const PHASE_ICONS: Record<LifecyclePhase, LucideIcon> = {
+  idle: Clock,
+  detecting: Search,
+  scanning: Scan,
+  resolving: Wrench,
+  testing: TestTube,
+  validating: Shield,
+  deploying: Rocket,
+  completed: CheckCircle,
+  failed: XCircle,
 };
 
 export default function LifecyclePhaseIndicator({
@@ -101,10 +46,9 @@ export default function LifecyclePhaseIndicator({
   progress = 0,
   compact = false,
 }: LifecyclePhaseIndicatorProps) {
-  const config = PHASE_CONFIG[phase];
-  const Icon = config.icon;
-
-  const isActive = !['idle', 'completed', 'failed'].includes(phase);
+  const config = LIFECYCLE_PHASE_CONFIGS[phase];
+  const Icon = PHASE_ICONS[phase];
+  const isActive = isActivePhase(phase);
 
   if (compact) {
     return (

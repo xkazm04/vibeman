@@ -1,10 +1,21 @@
 /**
  * Knowledge Query Service
- * Provides specialized queries for Annette voice assistant
+ * Provides centralized queries for Annette voice assistant and LLM tools
  * Retrieves and formats project data for conversational responses
+ *
+ * This module consolidates repository query logic used by:
+ * - toolsReadOnly.ts
+ * - toolsFileOperations.ts
+ * - ImplementationLogTool.ts
+ * - GoalEvaluatorTool.ts
+ * - EventListenerTool.ts
  */
 
 import { goalDb, contextDb, contextGroupDb, backlogDb, ideaDb, implementationLogDb } from '@/app/db';
+import { eventRepository } from '@/app/db/repositories/event.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { DbGoal, DbEvent, DbImplementationLog } from '@/app/db/models/types';
 
 export interface KnowledgeSummary {
   projectId: string;
@@ -432,3 +443,103 @@ export async function getRecentActivity(projectId: string, limit = 5): Promise<A
     throw error;
   }
 }
+
+// ============= TOOL QUERY HELPERS =============
+// Centralized helpers for LLM tool execution
+// These consolidate repository queries across multiple tool files
+
+/**
+ * Goal Query Helpers
+ * Used by: GoalEvaluatorTool.ts
+ */
+export const goalQueryHelpers = {
+  /**
+   * Get goals for a project with optional status filter
+   */
+  getProjectGoals: (
+    projectId: string,
+    status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided'
+  ): { goals: DbGoal[] } => {
+    const goals = goalRepository.getGoalsByProject(projectId);
+    if (status) {
+      return { goals: goals.filter(g => g.status === status) };
+    }
+    return { goals };
+  },
+
+  /**
+   * Get a single goal by ID for evaluation
+   */
+  getGoalForEvaluation: (goalId: string): {
+    goal: DbGoal | null;
+    message: string;
+  } => {
+    const goal = goalRepository.getGoalById(goalId);
+    return {
+      goal,
+      message: "Please analyze recent implementation logs against this goal's description."
+    };
+  }
+};
+
+/**
+ * Event Query Helpers
+ * Used by: EventListenerTool.ts
+ */
+export const eventQueryHelpers = {
+  /**
+   * Get recent events for a project with optional type filter
+   */
+  getRecentEvents: (
+    projectId: string,
+    limit: number = 10,
+    type?: string
+  ): { events: DbEvent[] } => {
+    if (type) {
+      const events = eventRepository.getEventsByType(projectId, type, limit);
+      return { events };
+    }
+    const events = eventRepository.getEventsByProject(projectId, limit);
+    return { events };
+  },
+
+  /**
+   * Get the latest event with a specific title
+   */
+  getLatestEventByTitle: (
+    projectId: string,
+    title: string
+  ): { event: DbEvent | null } => {
+    const event = eventRepository.getLatestEventByTitle(projectId, title);
+    return { event };
+  }
+};
+
+/**
+ * Implementation Log Query Helpers
+ * Used by: ImplementationLogTool.ts
+ */
+export const implementationLogQueryHelpers = {
+  /**
+   * Get untested implementation logs for a project
+   */
+  getUntestedLogs: (
+    projectId: string,
+    limit: number = 10
+  ): { count: number; logs: DbImplementationLog[] } => {
+    const logs = implementationLogRepository.getUntestedLogsByProject(projectId);
+    const untestedLogs = logs.slice(0, limit);
+    return {
+      count: untestedLogs.length,
+      logs: untestedLogs
+    };
+  },
+
+  /**
+   * Get implementation log details by ID
+   */
+  getLogDetails: (logId: string): { log: DbImplementationLog | null } => {
+    const log = implementationLogRepository.getLogById(logId);
+    return { log };
+  }
+};

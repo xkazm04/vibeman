@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Square } from 'lucide-react';
+import { CheckSquare, Square, Trash2, XCircle } from 'lucide-react';
 import TaskItem from './TaskItem';
 import type { ProjectRequirement } from './lib/types';
 
@@ -13,6 +13,7 @@ interface TaskColumnProps {
   selectedRequirements: Set<string>;
   onToggleSelect: (reqId: string) => void;
   onDelete: (reqId: string) => void;
+  onBulkDelete?: (reqIds: string[]) => void;
   onToggleProjectSelection: (projectId: string) => void;
   getRequirementId: (req: ProjectRequirement) => string;
 }
@@ -24,6 +25,7 @@ const TaskColumn = React.memo(function TaskColumn({
   selectedRequirements,
   onToggleSelect,
   onDelete,
+  onBulkDelete,
   onToggleProjectSelection,
   getRequirementId,
 }: TaskColumnProps) {
@@ -45,6 +47,31 @@ const TaskColumn = React.memo(function TaskColumn({
     });
   }, [requirements]);
 
+  // Calculate clearable (completed/failed) count
+  const clearableRequirements = requirements.filter(
+    (r) => r.status === 'completed' || r.status === 'failed' || r.status === 'session-limit'
+  );
+  const clearableCount = clearableRequirements.length;
+
+  // Get selected requirements in this column
+  const selectedInColumn = requirements.filter((r) =>
+    selectedRequirements.has(getRequirementId(r))
+  );
+
+  const handleBulkDeleteSelected = () => {
+    if (selectedInColumn.length > 0 && onBulkDelete) {
+      const selectedIds = selectedInColumn.map((r) => getRequirementId(r));
+      onBulkDelete(selectedIds);
+    }
+  };
+
+  const handleClearCompleted = () => {
+    if (clearableCount > 0 && onBulkDelete) {
+      const clearableIds = clearableRequirements.map((r) => getRequirementId(r));
+      onBulkDelete(clearableIds);
+    }
+  };
+
   const handleProjectSelectionToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleProjectSelection(projectId);
@@ -56,6 +83,7 @@ const TaskColumn = React.memo(function TaskColumn({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      data-testid={`task-column-${projectId}`}
     >
       {/* Header */}
       <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
@@ -67,6 +95,7 @@ const TaskColumn = React.memo(function TaskColumn({
               className="flex-shrink-0 text-gray-400 hover:text-emerald-400 transition-colors"
               title={allSelected ? 'Deselect all' : 'Select all'}
               disabled={selectableRequirements.length === 0}
+              data-testid={`select-all-btn-${projectId}`}
             >
               {allSelected ? (
                 <CheckSquare className="w-4 h-4 text-emerald-400" />
@@ -81,8 +110,34 @@ const TaskColumn = React.memo(function TaskColumn({
             </h3>
           </div>
 
-          {/* Count badge */}
+          {/* Action buttons and count badge */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Delete selected button */}
+            {selectedInColumn.length > 0 && onBulkDelete && (
+              <button
+                onClick={handleBulkDeleteSelected}
+                className="text-red-400 hover:text-red-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                title={`Delete ${selectedInColumn.length} selected`}
+                data-testid={`bulk-delete-selected-btn-${projectId}`}
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>{selectedInColumn.length}</span>
+              </button>
+            )}
+
+            {/* Clear completed/failed button */}
+            {clearableCount > 0 && onBulkDelete && (
+              <button
+                onClick={handleClearCompleted}
+                className="text-gray-400 hover:text-gray-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-gray-500/20 transition-colors"
+                title="Clear completed and failed tasks"
+                data-testid={`clear-completed-btn-${projectId}`}
+              >
+                <XCircle className="w-3 h-3" />
+                <span>{clearableCount}</span>
+              </button>
+            )}
+
             {selectedCount > 0 && (
               <span className="text-[10px] text-emerald-400 font-mono">
                 {selectedCount}/{selectableRequirements.length}

@@ -651,15 +651,4 @@ export class ReactNativeScanStrategy extends BaseScanStrategy {
     }
   }
 
-  // ========== Helpers ==========
-
-  private async fileExists(filePath: string): Promise<boolean> {
-    try {
-      const { promises: fs } = await import('fs');
-      await fs.access(filePath);
-      return true;
-    } catch {
-      return false;
-    }
-  }
 }

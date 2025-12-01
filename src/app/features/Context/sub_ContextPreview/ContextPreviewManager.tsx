@@ -143,7 +143,7 @@ export default function ContextPreviewManager({
   const hasValidationErrors = !!pathValidationError;
 
   return (
-    <div className="p-4 rounded-xl bg-gradient-to-r from-gray-800/40 to-gray-700/40 backdrop-blur-sm border border-gray-600/30 space-y-3">
+    <div className="p-4 rounded-xl bg-gradient-to-r from-gray-800/40 to-gray-700/40 backdrop-blur-sm border border-gray-600/30 space-y-3" data-testid="context-preview-manager">
       <ContextPreviewHeader
         contextId={contextId}
         groupColor={groupColor}
