@@ -71,7 +71,8 @@
       "Bash(echo:*)",
       "Bash(wc -l \"C:/Users/kazda/kiro/vibeman/src/app/features/Manager\"/**/*.{ts,tsx})",
       "Bash(do:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

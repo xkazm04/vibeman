@@ -8,6 +8,9 @@ import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import DecisionPanel from './components/DecisionPanel';
 import BlueprintKeyboardShortcuts from './components/BlueprintKeyboardShortcuts';
 import BlueprintConfigButton from './components/BlueprintConfigButton';
+import BlueprintConceptSwitcher from '../sub_BlueprintRunner/BlueprintConceptSwitcher';
+import { BlueprintRunnerPanel } from '../sub_BlueprintRunner';
+import { VisualizationConcept } from '../sub_BlueprintRunner/types';
 import ScanProgressBars from './components/ScanProgressBars';
 import { TaskProgressPanel } from './components/TaskProgressPanel';
 import ScanButtonsBar from './components/ScanButtonsBar';
@@ -20,6 +23,7 @@ import ContextDependentScans from '../sub_BlueprintContext/components/ContextDep
 import GoalReviewer from '../sub_GoalDrawer/GoalReviewer';
 import GoalDetailPanel from '../sub_GoalDrawer/GoalDetailPanel';
 import GoalAddPanel from '../sub_GoalDrawer/GoalAddPanel';
+import { BlueprintComposer } from '../sub_BlueprintComposer';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
@@ -56,6 +60,9 @@ export default function DarkBlueprint({
 
   // Goal panel state - can be a Goal object (edit mode) or 'add' (add mode) or null (closed)
   const [selectedGoal, setSelectedGoal] = useState<Goal | 'add' | null>(null);
+
+  // Blueprint Runner prototype state
+  const [activeRunnerConcept, setActiveRunnerConcept] = useState<VisualizationConcept | null>(null);
 
   // Handler for adding new goal
   const handleAddGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
@@ -179,6 +186,24 @@ export default function DarkBlueprint({
       <BlueprintCornerLabels />
       <BlueprintKeyboardShortcuts />
       <BlueprintConfigButton />
+
+      {/* Blueprint Runner Concept Switcher - positioned next to config button */}
+      <div className="absolute top-4 right-20 z-30">
+        <BlueprintConceptSwitcher
+          activeConcept={activeRunnerConcept}
+          onConceptChange={setActiveRunnerConcept}
+        />
+      </div>
+
+      {/* Blueprint Runner Panel - shows when a concept is selected */}
+      <AnimatePresence>
+        {activeRunnerConcept && (
+          <BlueprintRunnerPanel
+            concept={activeRunnerConcept}
+            onClose={() => setActiveRunnerConcept(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Top UI Layer */}
       <div className="relative z-10 h-full flex flex-col pointer-events-none">
@@ -393,6 +418,22 @@ export default function DarkBlueprint({
                   </motion.div>
                 )}
               </>
+            )}
+          </AnimatePresence>
+
+          {/* Blueprint Composer - Shows when no other panels are active */}
+          <AnimatePresence>
+            {!isGoalReviewerOpen && !selectedContextGroupId && !activeRunnerConcept && !selectedContext && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                className="absolute inset-6 z-40"
+                data-testid="blueprint-composer"
+              >
+                <BlueprintComposer />
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

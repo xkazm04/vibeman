@@ -122,7 +122,7 @@ Generate 3-5 **ELEVATING** UI ideas. Each should make the interface more beautif
 
 ${hasContext ? `
 **Design Deep Dive**:
-This context (${contextSection}) deserves your full attention.
+The context described above deserves your full attention.
 - What's the visual story here? Is it coherent?
 - Where does the eye get confused?
 - What would make this feel premium and polished?

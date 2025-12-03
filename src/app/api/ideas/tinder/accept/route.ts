@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, goalDb, contextDb } from '@/app/db';
+import { ideaDb, goalDb, contextDb, developerProfileDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
 import { wrapRequirementForExecution } from '@/lib/prompts/requirement_file';
 import { createErrorResponse, createSuccessResponse } from '../utils';
+import { recordDecision } from '@/app/features/DeveloperMindMeld/lib/mindMeldAnalyzer';
 
 interface AcceptIdeaRequest {
   ideaId: string;
@@ -169,6 +170,26 @@ export async function POST(request: NextRequest) {
       console.error('[API] Failed to update idea with requirement_id:', error);
       // File is already created, so don't rollback status
       // Just log the error and continue
+    }
+
+    // Record decision for Mind-Meld learning (non-blocking)
+    try {
+      const profile = developerProfileDb.getByProject(idea.project_id);
+      if (profile?.enabled) {
+        await recordDecision(idea.project_id, {
+          decisionType: 'idea_accept',
+          entityId: idea.id,
+          entityType: 'idea',
+          scanType: idea.scan_type,
+          category: idea.category,
+          effort: idea.effort ?? undefined,
+          impact: idea.impact ?? undefined,
+          accepted: true,
+        });
+      }
+    } catch (error) {
+      // Non-blocking - don't fail the request if mind-meld recording fails
+      console.error('[API] Mind-Meld recording failed:', error);
     }
 
     return createSuccessResponse({

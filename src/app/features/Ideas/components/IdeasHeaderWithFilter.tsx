@@ -6,6 +6,7 @@ import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import VibemanControl from '../sub_Vibeman/VibemanControl';
 import ProjectRowSelection from './ProjectRowSelection';
 import ContextRowSelection from './ContextRowSelection';
+import { MindMeldToggle } from '@/app/features/DeveloperMindMeld';
 
 interface IdeasHeaderWithFilterProps {
   projects: Array<{ id: string; name: string }>;
@@ -74,6 +75,13 @@ export default function IdeasHeaderWithFilter({
           projectPath={selectedProjectPath}
           onIdeaImplemented={onIdeaImplemented}
         />
+      )}
+
+      {/* Mind-Meld Toggle - Compact version in header */}
+      {selectedProjectId && selectedProjectId !== 'all' && (
+        <div className="fixed top-20 right-6 z-30">
+          <MindMeldToggle projectId={selectedProjectId} compact />
+        </div>
       )}
 
       <motion.div

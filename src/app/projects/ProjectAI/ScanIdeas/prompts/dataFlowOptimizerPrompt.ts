@@ -125,7 +125,7 @@ Generate 3-5 **DATA ARCHITECTURE** improvements. Each should make data flow more
 
 ${hasContext ? `
 **Data Flow Analysis**:
-This context (${contextSection}) should be analyzed for data flow patterns.
+The context described above should be analyzed for data flow patterns.
 - What data flows through this area?
 - Where is there potential for stale data or sync issues?
 - How could caching improve this area?

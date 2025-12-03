@@ -3,6 +3,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { durations, scales, offsets } from '@/lib/design-tokens';
 
 /**
  * Button style variants matching the app's design language
@@ -48,9 +50,9 @@ export interface AnimatedButtonProps {
   className?: string;
   /** Disable animations */
   disableAnimation?: boolean;
-  /** Custom hover scale (default: 1.02) */
+  /** Custom hover scale (default: scales.hoverSubtle from design tokens) */
   hoverScale?: number;
-  /** Custom tap scale (default: 0.98) */
+  /** Custom tap scale (default: scales.tapSubtle from design tokens) */
   tapScale?: number;
   /** Form ID to associate with (for submit buttons) */
   form?: string;
@@ -143,11 +145,13 @@ export default function AnimatedButton({
   title,
   className = '',
   disableAnimation = false,
-  hoverScale = 1.02,
-  tapScale = 0.98,
+  hoverScale = scales.hoverSubtle,
+  tapScale = scales.tapSubtle,
   form,
 }: AnimatedButtonProps) {
+  const { theme } = useThemeStore();
   const variantStyles = getVariantStyles();
+  const focusRingClasses = getFocusRingStyles(theme);
   
   // Base classes shared by all buttons
   const baseClasses = `
@@ -161,6 +165,7 @@ export default function AnimatedButton({
     border
     transition-all
     duration-200
+    ${focusRingClasses}
     ${variantStyles[variant]}
     ${sizeStyles[size]}
     ${fullWidth ? 'w-full' : ''}
@@ -213,9 +218,9 @@ export default function AnimatedButton({
         disabled={disabled || loading}
         title={title}
         form={form}
-        whileHover={{ scale: hoverScale, y: -1 }}
+        whileHover={{ scale: hoverScale, y: offsets.liftSubtle }}
         whileTap={{ scale: tapScale }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: durations.normal }}
       >
         {content}
       </motion.button>

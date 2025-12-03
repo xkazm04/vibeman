@@ -11,7 +11,7 @@ import { buildContextSection, buildExistingIdeasSection, buildGoalsSection } fro
 interface BuildPromptOptions {
   projectId: string;
   projectName: string;
-  aiDocs: string | null;
+  aiDocs?: string | null; // Deprecated - no longer used, kept for backward compatibility
   context: DbContext | null;
   codeFiles: Array<{ path: string; content: string; type: string }>;
   existingIdeas: DbIdea[];
@@ -30,16 +30,15 @@ export function buildIdeaGenerationPrompt(
     temperature: number;
   };
 } {
-  const { projectId, projectName, aiDocs, context, existingIdeas } = options;
+  const { projectId, projectName, context, existingIdeas } = options;
 
   // Fetch open goals for the project
   const allGoals = goalDb.getGoalsByProject(projectId);
   const openGoals = allGoals.filter(goal => goal.status === 'open');
 
   // Build sections
-  const aiDocsSection = aiDocs
-    ? `## Project Documentation\n\n${aiDocs}\n\n`
-    : `## Project Documentation\n\nNo AI documentation found.\n\n`;
+  // NOTE: AI documentation (CLAUDE.md/AI.md) is intentionally excluded to reduce prompt size
+  const aiDocsSection = '';
 
   const contextSection = buildContextSection(context);
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaDb, developerProfileDb } from '@/app/db';
 import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { createErrorResponse, createSuccessResponse } from '../utils';
+import { recordDecision } from '@/app/features/DeveloperMindMeld/lib/mindMeldAnalyzer';
 
 interface RejectIdeaRequest {
   ideaId: string;
@@ -56,6 +57,26 @@ export async function POST(request: NextRequest) {
 
     // Update idea status to rejected and clear requirement_id
     ideaDb.updateIdea(ideaId, { status: 'rejected', requirement_id: null });
+
+    // Record decision for Mind-Meld learning (non-blocking)
+    try {
+      const profile = developerProfileDb.getByProject(idea.project_id);
+      if (profile?.enabled) {
+        await recordDecision(idea.project_id, {
+          decisionType: 'idea_reject',
+          entityId: idea.id,
+          entityType: 'idea',
+          scanType: idea.scan_type,
+          category: idea.category,
+          effort: idea.effort ?? undefined,
+          impact: idea.impact ?? undefined,
+          accepted: false,
+        });
+      }
+    } catch (error) {
+      // Non-blocking - don't fail the request if mind-meld recording fails
+      console.error('[API] Mind-Meld recording failed:', error);
+    }
 
     return createSuccessResponse({ message: 'Idea rejected' });
   } catch (error) {

@@ -1,7 +1,6 @@
 import { ideaDb, scanDb, goalDb } from '@/app/db';
 import { contextDb } from '@/app/db';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
-import { readAIDocs } from '../ScanGoals/lib/utils';
 import { buildIdeaGenerationPrompt } from './lib/promptBuilder';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { parseAIJsonResponse } from '@/lib/aiJsonParser';
@@ -58,15 +57,10 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     );
     logger.info('Found valid goal IDs for validation', { count: validGoalIds.size });
 
-    // 1. Read AI documentation
-    logger.info('Reading AI documentation');
-    const aiDocsContent = await readAIDocs(projectPath);
+    // NOTE: AI documentation (CLAUDE.md/AI.md) is intentionally excluded from idea generation
+    // to reduce prompt size and avoid excessive token usage
 
-    // Log AI documentation character length
-    const aiDocsLength = aiDocsContent ? aiDocsContent.length : 0;
-    logger.info('AI documentation loaded', { characterCount: aiDocsLength });
-
-    // 2. Get context information if provided
+    // Get context information if provided
     let context = null;
     let contextFilesCount = 0;
     if (contextId) {
@@ -97,7 +91,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     const promptResult = buildIdeaGenerationPrompt(effectiveScanType, {
       projectId,
       projectName,
-      aiDocs: aiDocsContent,
+      aiDocs: null, // AI docs excluded to reduce prompt size
       context,
       codeFiles: codebaseFiles,
       existingIdeas,

@@ -3,296 +3,204 @@
  * Main orchestrator for the 3-level documentation analysis module
  * Implements Google Maps-style zoom transitions between levels
  * Includes context group management and relationships panels
+ *
+ * Features:
+ * - Impact Simulator: Togglable simulation mode for what-if analysis of context moves
+ * - X-Ray Mode: Real-time data flow visualization showing API traffic patterns
+ *
+ * Uses React Query for API data caching with 5-minute stale-while-revalidate TTL.
+ * This eliminates redundant fetches when navigating between zoom levels.
+ *
+ * Navigation state is managed by useArchitectureNavigation hook.
  */
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Compass, ChevronDown, ChevronUp } from 'lucide-react';
+import { Compass } from 'lucide-react';
+
+// Components
 import SystemMap from './components/SystemMap';
 import ModuleExplorer from './components/ModuleExplorer';
 import ContextDocumentation from './components/ContextDocumentation';
-import ArchitectureGroupList from './components/ArchitectureGroupList';
-import ArchitectureRelationships from './components/ArchitectureRelationships';
-import { ZoomLevel, NavigationState } from './lib/types';
-import { useContextStore, ContextGroup } from '@/stores/contextStore';
+import NavigationBreadcrumb from './components/NavigationBreadcrumb';
+import ManagementPanel from './components/ManagementPanel';
+import { zoomVariants } from './components/zoomVariants';
+
+// Simulation and X-Ray features
+import { SimulationModeToggle, SimulationSystemMap } from '../sub_ImpactSimulator';
+import { XRayModeToggle, XRaySystemMap, XRayHotPathsPanel } from '../sub_XRay';
+
+// Hooks and types
+import { useArchitectureNavigation } from './lib/useArchitectureNavigation';
+import { useContextStore } from '@/stores/contextStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
-
-// Zoom level configurations
-const ZOOM_CONFIGS: Record<ZoomLevel, { scale: number; label: string }> = {
-  1: { scale: 1, label: 'System Overview' },
-  2: { scale: 1.5, label: 'Module Details' },
-  3: { scale: 2, label: 'Documentation' },
-};
-
-// Zoom transition variants - creates the "zoom in/out" effect
-const zoomVariants = {
-  initial: (direction: 'in' | 'out' | null) => ({
-    scale: direction === 'in' ? 0.8 : 1.2,
-    opacity: 0,
-    filter: 'blur(10px)',
-  }),
-  animate: {
-    scale: 1,
-    opacity: 1,
-    filter: 'blur(0px)',
-    transition: {
-      type: 'spring' as const,
-      stiffness: 100,
-      damping: 20,
-      mass: 0.8,
-    },
-  },
-  exit: (direction: 'in' | 'out' | null) => ({
-    scale: direction === 'in' ? 1.2 : 0.8,
-    opacity: 0,
-    filter: 'blur(10px)',
-    transition: {
-      duration: 0.3,
-    },
-  }),
-};
-
-// Breadcrumb component
-function NavigationBreadcrumb({
-  state,
-  onNavigateToLevel,
-  groups,
-  contexts,
-}: {
-  state: NavigationState;
-  onNavigateToLevel: (level: ZoomLevel) => void;
-  groups: ContextGroup[];
-  contexts: import('@/stores/contextStore').Context[];
-}) {
-  const selectedGroup = state.selectedModuleId 
-    ? groups.find(g => g.id === state.selectedModuleId) 
-    : null;
-  const selectedContext = state.selectedUseCaseId 
-    ? contexts.find(c => c.id === state.selectedUseCaseId) 
-    : null;
-
-  const items = [
-    { level: 1 as ZoomLevel, label: 'System', icon: <Home className="w-3.5 h-3.5" /> },
-    ...(selectedGroup
-      ? [{ level: 2 as ZoomLevel, label: selectedGroup.name, icon: <Compass className="w-3.5 h-3.5" /> }]
-      : []),
-    ...(selectedContext
-      ? [{ level: 3 as ZoomLevel, label: selectedContext.name, icon: <Compass className="w-3.5 h-3.5" /> }]
-      : []),
-  ];
-
-  return (
-    <div className="flex items-center gap-1 text-sm">
-      {items.map((item, index) => (
-        <React.Fragment key={item.level}>
-          {index > 0 && <span className="text-gray-600 mx-1">/</span>}
-          <button
-            onClick={() => onNavigateToLevel(item.level)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all ${
-              state.level === item.level
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-            }`}
-            disabled={state.level === item.level}
-          >
-            {item.icon}
-            <span className="hidden sm:inline">{item.label}</span>
-          </button>
-        </React.Fragment>
-      ))}
-    </div>
-  );
-}
+import { useXRayStore, useXRayIsConnected } from '@/stores/xrayStore';
+import { startXRaySimulation, stopXRaySimulation } from '@/lib/xrayInstrumentation';
+import {
+  useProjectContextData,
+  useRelationships,
+  useUpdateGroup,
+  useCreateRelationship,
+  useDeleteRelationship,
+  useDocsAnalysisPrefetch,
+} from './lib/useDocsAnalysisQueries';
 
 export default function DocsAnalysisLayout() {
-  const [navState, setNavState] = useState<NavigationState>({
-    level: 1,
-    selectedModuleId: null,
-    selectedUseCaseId: null,
-    transitionDirection: null,
-  });
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-  const [relationships, setRelationships] = useState<ContextGroupRelationship[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Navigation state managed by custom hook
+  const {
+    state: navState,
+    currentLevelLabel,
+    selectedModuleId,
+    selectedUseCaseId,
+    transitionDirection,
+    isAtSystemLevel,
+    isAtModuleLevel,
+    isAtDocumentationLevel,
+    navigateToModule,
+    navigateToUseCase,
+    navigateBackToSystem,
+    navigateBackToModule,
+    navigateToLevel,
+  } = useArchitectureNavigation();
 
-  const { groups, contexts, loadProjectData } = useContextStore();
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isXRayMode, setIsXRayMode] = useState(false);
+  const [isHotPathsPanelExpanded, setIsHotPathsPanelExpanded] = useState(false);
+
+  // X-Ray store
+  const { events: xrayEvents } = useXRayStore();
+  const isXRayConnected = useXRayIsConnected();
+
   const { activeProject } = useActiveProjectStore();
+  const projectId = activeProject?.id;
+
+  // Context store for move operations
+  const { moveContext } = useContextStore();
+
+  // React Query hooks for data fetching with caching (5-minute stale-while-revalidate)
+  const { groups, contexts } = useProjectContextData(projectId);
+  const { relationships } = useRelationships(projectId);
+
+  // Prefetch hooks for predictive data loading on hover
+  const { prefetchGroupContexts, prefetchContextDocumentation } = useDocsAnalysisPrefetch(projectId);
+
+  // Mutation hooks with optimistic updates
+  const updateGroupMutation = useUpdateGroup(projectId);
+  const createRelationshipMutation = useCreateRelationship(projectId);
+  const deleteRelationshipMutation = useDeleteRelationship(projectId);
+
+  // Combined loading state for mutations
+  const isMutating =
+    updateGroupMutation.isPending ||
+    createRelationshipMutation.isPending ||
+    deleteRelationshipMutation.isPending;
 
   // Get selected group and its contexts
-  const selectedGroup = navState.selectedModuleId 
-    ? groups.find(g => g.id === navState.selectedModuleId) || null 
+  const selectedGroup = selectedModuleId
+    ? groups.find(g => g.id === selectedModuleId) || null
     : null;
-  
+
   // Filter contexts for the selected group
   const selectedGroupContexts = useMemo(() => {
-    if (!navState.selectedModuleId) return [];
-    return contexts.filter(c => c.groupId === navState.selectedModuleId);
-  }, [contexts, navState.selectedModuleId]);
+    if (!selectedModuleId) return [];
+    return contexts.filter(c => c.groupId === selectedModuleId);
+  }, [contexts, selectedModuleId]);
 
   // Get selected context for Level 3
-  const selectedContext = navState.selectedUseCaseId
-    ? contexts.find(c => c.id === navState.selectedUseCaseId) || null
+  const selectedContext = selectedUseCaseId
+    ? contexts.find(c => c.id === selectedUseCaseId) || null
     : null;
 
-  // Load project data and relationships
+  // Handle group updates using React Query mutation with optimistic updates
+  const handleUpdateGroup = useCallback(
+    async (
+      groupId: string,
+      updates: { name?: string; type?: 'pages' | 'client' | 'server' | 'external' | null }
+    ) => {
+      updateGroupMutation.mutate({ groupId, updates });
+    },
+    [updateGroupMutation]
+  );
+
+  // Handle relationship creation using React Query mutation with optimistic updates
+  const handleCreateRelationship = useCallback(
+    async (sourceGroupId: string, targetGroupId: string) => {
+      createRelationshipMutation.mutate({ sourceGroupId, targetGroupId });
+    },
+    [createRelationshipMutation]
+  );
+
+  // Handle relationship deletion using React Query mutation with optimistic updates
+  const handleDeleteRelationship = useCallback(
+    async (relationshipId: string) => {
+      deleteRelationshipMutation.mutate(relationshipId);
+    },
+    [deleteRelationshipMutation]
+  );
+
+  // Handle context move from simulation mode
+  const handleMoveContext = useCallback(
+    async (contextId: string, newGroupId: string) => {
+      try {
+        await moveContext(contextId, newGroupId);
+      } catch (error) {
+        console.error('Failed to move context:', error);
+        throw error;
+      }
+    },
+    [moveContext]
+  );
+
+  // Toggle simulation mode
+  const handleToggleSimulation = useCallback(() => {
+    setIsSimulationMode(prev => !prev);
+    // Disable X-Ray mode when enabling simulation
+    if (!isSimulationMode) {
+      setIsXRayMode(false);
+      stopXRaySimulation();
+    }
+    // When enabling simulation, go back to system level for best experience
+    if (!isSimulationMode && !isAtSystemLevel) {
+      navigateBackToSystem();
+    }
+  }, [isSimulationMode, isAtSystemLevel, navigateBackToSystem]);
+
+  // Toggle X-Ray mode
+  const handleToggleXRay = useCallback(() => {
+    const newXRayMode = !isXRayMode;
+    setIsXRayMode(newXRayMode);
+
+    // Disable simulation mode when enabling X-Ray
+    if (newXRayMode) {
+      setIsSimulationMode(false);
+      // Start demo simulation to show traffic
+      startXRaySimulation('medium');
+    } else {
+      stopXRaySimulation();
+    }
+
+    // When enabling X-Ray, go back to system level for best experience
+    if (newXRayMode && !isAtSystemLevel) {
+      navigateBackToSystem();
+    }
+  }, [isXRayMode, isAtSystemLevel, navigateBackToSystem]);
+
+  // Cleanup X-Ray simulation on unmount
   useEffect(() => {
-    if (activeProject?.id) {
-      loadProjectData(activeProject.id);
-      loadRelationships(activeProject.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProject?.id]);
-
-  const loadRelationships = async (projectId: string) => {
-    try {
-      const response = await fetch(`/api/context-group-relationships?projectId=${projectId}`);
-      const data = await response.json();
-      if (data.success) {
-        setRelationships(data.data);
-      }
-    } catch (error) {
-      console.error('Failed to load relationships:', error);
-    }
-  };
-
-  // Handle group updates (name or type)
-  const handleUpdateGroup = useCallback(async (
-    groupId: string,
-    updates: { name?: string; type?: 'pages' | 'client' | 'server' | 'external' | null }
-  ) => {
-    if (!activeProject?.id) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch('/api/context-groups', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId, updates }),
-      });
-      
-      if (response.ok) {
-        // Reload project data to get updated groups
-        await loadProjectData(activeProject.id);
-      }
-    } catch (error) {
-      console.error('Failed to update group:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeProject?.id, loadProjectData]);
-
-  // Handle relationship creation
-  const handleCreateRelationship = useCallback(async (sourceGroupId: string, targetGroupId: string) => {
-    if (!activeProject?.id) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch('/api/context-group-relationships', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          sourceGroupId,
-          targetGroupId,
-        }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create relationship');
-      }
-      
-      await loadRelationships(activeProject.id);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeProject?.id]);
-
-  // Handle relationship deletion
-  const handleDeleteRelationship = useCallback(async (relationshipId: string) => {
-    if (!activeProject?.id) return;
-    
-    setLoading(true);
-    try {
-      await fetch(`/api/context-group-relationships?relationshipId=${relationshipId}`, {
-        method: 'DELETE',
-      });
-      
-      await loadRelationships(activeProject.id);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeProject?.id]);
-
-  // Navigate to a module (Level 1 → Level 2)
-  const handleModuleSelect = useCallback((moduleId: string) => {
-    setNavState({
-      level: 2,
-      selectedModuleId: moduleId,
-      selectedUseCaseId: null,
-      transitionDirection: 'in',
-    });
+    return () => {
+      stopXRaySimulation();
+    };
   }, []);
-
-  // Navigate to a use case (Level 2 → Level 3)
-  const handleUseCaseSelect = useCallback((useCaseId: string) => {
-    setNavState((prev) => ({
-      ...prev,
-      level: 3,
-      selectedUseCaseId: useCaseId,
-      transitionDirection: 'in',
-    }));
-  }, []);
-
-  // Navigate back from Level 2 → Level 1
-  const handleBackToSystem = useCallback(() => {
-    setNavState({
-      level: 1,
-      selectedModuleId: null,
-      selectedUseCaseId: null,
-      transitionDirection: 'out',
-    });
-  }, []);
-
-  // Navigate back from Level 3 → Level 2
-  const handleBackToModule = useCallback(() => {
-    setNavState((prev) => ({
-      ...prev,
-      level: 2,
-      selectedUseCaseId: null,
-      transitionDirection: 'out',
-    }));
-  }, []);
-
-  // Navigate to a specific level via breadcrumb
-  const handleNavigateToLevel = useCallback((level: ZoomLevel) => {
-    if (level === navState.level) return;
-
-    const direction = level > navState.level ? 'in' : 'out';
-
-    if (level === 1) {
-      setNavState({
-        level: 1,
-        selectedModuleId: null,
-        selectedUseCaseId: null,
-        transitionDirection: direction,
-      });
-    } else if (level === 2) {
-      setNavState((prev) => ({
-        ...prev,
-        level: 2,
-        selectedUseCaseId: null,
-        transitionDirection: direction,
-      }));
-    }
-    // Level 3 requires a use case selection, can't navigate directly
-  }, [navState.level]);
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 rounded-2xl overflow-hidden">
+    <div
+      className="h-full flex flex-col bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 rounded-2xl overflow-hidden"
+      data-testid="docs-analysis-layout"
+    >
       {/* Navigation Bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/30 bg-gray-900/40 backdrop-blur-sm">
         <div className="flex items-center gap-3">
@@ -301,22 +209,43 @@ export default function DocsAnalysisLayout() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-white">Architecture Explorer</h2>
-            <p className="text-[10px] text-gray-500">{ZOOM_CONFIGS[navState.level].label}</p>
+            <p className="text-[10px] text-gray-500">{currentLevelLabel}</p>
           </div>
         </div>
 
-        <NavigationBreadcrumb 
-          state={navState} 
-          onNavigateToLevel={handleNavigateToLevel}
-          groups={groups}
-          contexts={contexts}
-        />
+        <div className="flex items-center gap-3">
+          {/* X-Ray Mode Toggle - only show at system level */}
+          {isAtSystemLevel && (
+            <XRayModeToggle
+              isEnabled={isXRayMode}
+              onToggle={handleToggleXRay}
+              isConnected={isXRayConnected}
+              eventCount={xrayEvents.length}
+            />
+          )}
+
+          {/* Simulation Mode Toggle - only show at system level */}
+          {isAtSystemLevel && (
+            <SimulationModeToggle
+              isEnabled={isSimulationMode}
+              onToggle={handleToggleSimulation}
+              isAnalyzing={isAnalyzing}
+            />
+          )}
+
+          <NavigationBreadcrumb
+            state={navState}
+            onNavigateToLevel={navigateToLevel}
+            groups={groups}
+            contexts={contexts}
+          />
+        </div>
       </div>
 
       {/* Content Area with Zoom Transitions */}
       <div className="flex-1 relative overflow-hidden">
-        <AnimatePresence mode="wait" custom={navState.transitionDirection}>
-          {navState.level === 1 && (
+        <AnimatePresence mode="wait" custom={transitionDirection}>
+          {isAtSystemLevel && (
             <motion.div
               key="level-1"
               className="absolute inset-0"
@@ -324,17 +253,44 @@ export default function DocsAnalysisLayout() {
               initial="initial"
               animate="animate"
               exit="exit"
-              custom={navState.transitionDirection}
+              custom={transitionDirection}
+              data-testid="level-1-system-map"
             >
-              <SystemMap 
-                onModuleSelect={handleModuleSelect}
-                groups={groups}
-                relationships={relationships}
-              />
+              {isXRayMode ? (
+                <>
+                  <XRaySystemMap
+                    onModuleSelect={navigateToModule}
+                    groups={groups}
+                    relationships={relationships}
+                    onModuleHover={prefetchGroupContexts}
+                  />
+                  <XRayHotPathsPanel
+                    isExpanded={isHotPathsPanelExpanded}
+                    onToggle={() => setIsHotPathsPanelExpanded(!isHotPathsPanelExpanded)}
+                  />
+                </>
+              ) : isSimulationMode ? (
+                <SimulationSystemMap
+                  groups={groups}
+                  contexts={contexts}
+                  relationships={relationships}
+                  isSimulationEnabled={isSimulationMode}
+                  onModuleSelect={navigateToModule}
+                  onModuleHover={prefetchGroupContexts}
+                  onMoveContext={handleMoveContext}
+                />
+              ) : (
+                <SystemMap
+                  onModuleSelect={navigateToModule}
+                  groups={groups}
+                  relationships={relationships}
+                  onModuleHover={prefetchGroupContexts}
+                />
+              )}
             </motion.div>
           )}
 
-          {navState.level === 2 && navState.selectedModuleId && (
+          {isAtModuleLevel && selectedModuleId && (
             <motion.div
               key="level-2"
               className="absolute inset-0"
@@ -342,19 +298,21 @@ export default function DocsAnalysisLayout() {
               initial="initial"
               animate="animate"
               exit="exit"
-              custom={navState.transitionDirection}
+              custom={transitionDirection}
+              data-testid="level-2-module-explorer"
             >
               <ModuleExplorer
-                moduleId={navState.selectedModuleId}
-                onBack={handleBackToSystem}
-                onUseCaseSelect={handleUseCaseSelect}
+                moduleId={selectedModuleId}
+                onBack={navigateBackToSystem}
+                onUseCaseSelect={navigateToUseCase}
                 group={selectedGroup}
                 contexts={selectedGroupContexts}
+                onContextHover={prefetchContextDocumentation}
               />
             </motion.div>
           )}
 
-          {navState.level === 3 && navState.selectedUseCaseId && (
+          {isAtDocumentationLevel && selectedUseCaseId && (
             <motion.div
               key="level-3"
               className="absolute inset-0 bg-gray-950/80"
@@ -362,11 +320,12 @@ export default function DocsAnalysisLayout() {
               initial="initial"
               animate="animate"
               exit="exit"
-              custom={navState.transitionDirection}
+              custom={transitionDirection}
+              data-testid="level-3-context-docs"
             >
               <ContextDocumentation
-                useCaseId={navState.selectedUseCaseId}
-                onBack={handleBackToModule}
+                useCaseId={selectedUseCaseId}
+                onBack={navigateBackToModule}
                 context={selectedContext}
                 group={selectedGroup}
               />
@@ -375,71 +334,17 @@ export default function DocsAnalysisLayout() {
         </AnimatePresence>
       </div>
 
-      {/* Management Panel - Collapsible - Full height overlay when expanded */}
-      <AnimatePresence>
-        {isPanelExpanded && (
-          <motion.div
-            className="absolute inset-0 top-[52px] z-20 bg-gray-900/95 backdrop-blur-md border-t border-gray-700/30"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="h-full flex flex-col">
-              {/* Panel Header */}
-              <button
-                onClick={() => setIsPanelExpanded(false)}
-                className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-800/30 transition-colors border-b border-gray-700/30"
-              >
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Group Management
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-500" />
-              </button>
-
-              {/* Panel Content - fills remaining height */}
-              <div className="flex-1 overflow-hidden p-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-                  {/* Context Groups List */}
-                  <div className="bg-gray-800/30 rounded-xl border border-gray-700/30 overflow-hidden">
-                    <ArchitectureGroupList
-                      groups={groups}
-                      onUpdateGroup={handleUpdateGroup}
-                      loading={loading}
-                    />
-                  </div>
-
-                  {/* Relationships Management */}
-                  <div className="bg-gray-800/30 rounded-xl border border-gray-700/30 overflow-hidden">
-                    <ArchitectureRelationships
-                      groups={groups}
-                      relationships={relationships}
-                      onCreateRelationship={handleCreateRelationship}
-                      onDeleteRelationship={handleDeleteRelationship}
-                      loading={loading}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Collapsed Panel Toggle Button */}
-      {!isPanelExpanded && (
-        <div className="border-t border-gray-700/30 bg-gray-900/60 backdrop-blur-sm">
-          <button
-            onClick={() => setIsPanelExpanded(true)}
-            className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-800/30 transition-colors"
-          >
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-              Group Management
-            </span>
-            <ChevronUp className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-      )}
+      {/* Management Panel - Collapsible */}
+      <ManagementPanel
+        isExpanded={isPanelExpanded}
+        onToggle={() => setIsPanelExpanded(!isPanelExpanded)}
+        groups={groups}
+        relationships={relationships}
+        onUpdateGroup={handleUpdateGroup}
+        onCreateRelationship={handleCreateRelationship}
+        onDeleteRelationship={handleDeleteRelationship}
+        isMutating={isMutating}
+      />
     </div>
   );
 }

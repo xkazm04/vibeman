@@ -225,6 +225,7 @@ export default function ReflectorPage() {
             </button>
             <button
               onClick={() => setViewMode('total')}
+              data-testid="reflector-total-view-tab"
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 viewMode === 'total'
                   ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
@@ -235,6 +236,7 @@ export default function ReflectorPage() {
             </button>
             <button
               onClick={() => setViewMode('ideas_stats')}
+              data-testid="reflector-ideas-stats-tab"
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 viewMode === 'ideas_stats'
                   ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'

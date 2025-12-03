@@ -23,6 +23,10 @@ import {
 } from '@/app/features/Ideas/lib/contextLoader';
 import { ProcessingIdeaProvider } from '@/app/features/Ideas/lib/ProcessingIdeaContext';
 
+// Developer Mind-Meld integration
+import { MindMeldToggle, InsightsPanel } from '@/app/features/DeveloperMindMeld';
+import { useDeveloperMindMeldStore } from '@/stores/developerMindMeldStore';
+
 const IdeasLayout = () => {
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
   const [filterContextIds, setFilterContextIds] = React.useState<string[]>([]);
@@ -34,11 +38,19 @@ const IdeasLayout = () => {
   const { setActiveProject } = useActiveProjectStore();
   const { selectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
   const invalidateIdeas = useInvalidateIdeas();
+  const { fetchProfile } = useDeveloperMindMeldStore();
 
   // Initialize projects on mount
   React.useEffect(() => {
     initializeProjects();
   }, [initializeProjects]);
+
+  // Fetch Mind-Meld profile when project changes
+  React.useEffect(() => {
+    if (selectedProjectId && selectedProjectId !== 'all') {
+      fetchProfile(selectedProjectId);
+    }
+  }, [selectedProjectId, fetchProfile]);
 
   // Load contexts when projects change
   React.useEffect(() => {
@@ -161,6 +173,11 @@ const IdeasLayout = () => {
             />
           )}
         </AnimatePresence>
+
+        {/* Developer Mind-Meld - Insights Panel */}
+        {selectedProjectId && selectedProjectId !== 'all' && (
+          <InsightsPanel projectId={selectedProjectId} />
+        )}
       </div>
     </ProcessingIdeaProvider>
   );

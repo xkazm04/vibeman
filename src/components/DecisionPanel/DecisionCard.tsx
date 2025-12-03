@@ -4,6 +4,9 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon, Loader2 } from 'lucide-react';
 import { sanitizeContent } from '@/lib/sanitize';
+import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { scales, offsets } from '@/lib/design-tokens';
 
 export type DecisionCardSeverity = 'info' | 'warning' | 'error' | 'success';
 export type DecisionCardVariant = 'primary' | 'secondary' | 'danger' | 'success';
@@ -182,6 +185,8 @@ export default function DecisionCard({ config }: { config: DecisionCardConfig })
     className = '',
   } = config;
 
+  const { theme } = useThemeStore();
+  const focusRingClasses = getFocusRingStyles(theme);
   const colors = SEVERITY_COLORS[severity];
   const sizeConfig = SIZE_CONFIG[size];
   const panelRef = useRef<HTMLDivElement>(null);
@@ -348,12 +353,12 @@ export default function DecisionCard({ config }: { config: DecisionCardConfig })
                       ref={isFirstAction ? firstActionRef : undefined}
                       onClick={action.onClick}
                       disabled={action.disabled || isProcessing}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={{ scale: scales.hover, y: offsets.liftY }}
+                      whileTap={{ scale: scales.tap }}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 + index * 0.05 }}
-                      className={`group relative ${sizeConfig.buttonPadding} rounded-xl ${styles.bg} border-2 ${styles.border} transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${styles.shadow}`}
+                      className={`group relative ${sizeConfig.buttonPadding} rounded-xl ${styles.bg} border-2 ${styles.border} transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${styles.shadow} ${focusRingClasses}`}
                       data-testid={
                         action.testId ||
                         `${testId}-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`

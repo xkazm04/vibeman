@@ -3,6 +3,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { durations, scales, offsets } from '@/lib/design-tokens';
 
 /**
  * Animation preset configurations
@@ -92,13 +94,13 @@ export interface MotionButtonProps {
 }
 
 /**
- * Animation preset configurations
+ * Animation preset configurations - using centralized design tokens
  */
 const animationPresets: Record<AnimationPreset, { scale?: number; y?: number; tapScale: number; duration: number }> = {
-  default: { scale: 1.05, y: -1, tapScale: 0.95, duration: 0.15 },
-  subtle: { scale: 1.02, tapScale: 0.98, duration: 0.2 },
-  bounce: { scale: 1.1, tapScale: 0.9, duration: 0.2 },
-  lift: { y: -2, tapScale: 0.95, duration: 0.15 },
+  default: { scale: scales.hover, y: offsets.liftSubtle, tapScale: scales.tap, duration: durations.fast },
+  subtle: { scale: scales.hoverSubtle, tapScale: scales.tapSubtle, duration: durations.normal },
+  bounce: { scale: scales.hoverPronounced, tapScale: scales.tapPronounced, duration: durations.normal },
+  lift: { y: offsets.liftY, tapScale: scales.tap, duration: durations.fast },
   none: { tapScale: 1, duration: 0 },
 };
 
@@ -275,8 +277,9 @@ export default function MotionButton({
   iconOnly = false,
   form,
 }: MotionButtonProps) {
-  const { getThemeColors } = useThemeStore();
+  const { getThemeColors, theme } = useThemeStore();
   const colors = getThemeColors();
+  const focusRingClasses = getFocusRingStyles(theme);
   
   // Get animation configuration
   const animConfig = animationPresets[animationPreset];
@@ -316,6 +319,7 @@ export default function MotionButton({
     font-medium
     transition-all
     duration-200
+    ${focusRingClasses}
     ${disabled || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
     ${className}
   `.trim().replace(/\s+/g, ' ');

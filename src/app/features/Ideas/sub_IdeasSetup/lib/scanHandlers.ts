@@ -57,7 +57,8 @@ export function getButtonColor(scanState: 'idle' | 'scanning' | 'success' | 'err
 export function getButtonText(
   scanState: 'idle' | 'scanning' | 'success' | 'error',
   batchMode: boolean,
-  selectedScanTypesCount: number
+  selectedScanTypesCount: number,
+  selectedContextsCount: number = 0
 ): string {
   if (scanState === 'scanning' && !batchMode) {
     return 'Scanning...';
@@ -68,8 +69,13 @@ export function getButtonText(
   if (scanState === 'error') {
     return 'Error';
   }
-  if (selectedScanTypesCount > 1) {
-    return `Generate Ideas (${selectedScanTypesCount})`;
+
+  // Calculate total expected scans: scanTypes * contexts (or just scanTypes if no contexts)
+  const multiplier = selectedContextsCount > 0 ? selectedContextsCount : 1;
+  const totalScans = selectedScanTypesCount * multiplier;
+
+  if (totalScans > 1) {
+    return `Generate Ideas (${totalScans})`;
   }
   return 'Generate Ideas';
 }

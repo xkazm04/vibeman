@@ -76,6 +76,7 @@ export default function BlueprintModal({ isOpen, onClose }: BlueprintModalProps)
                     onClick={() => setIsGoalDrawerOpen(true)}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    data-testid="blueprint-goals-btn"
                     className="relative flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/80 backdrop-blur-xl border border-cyan-500/30 hover:border-cyan-400/50 transition-colors"
                     animate={isSetUpGoalsActive ? {
                       boxShadow: [

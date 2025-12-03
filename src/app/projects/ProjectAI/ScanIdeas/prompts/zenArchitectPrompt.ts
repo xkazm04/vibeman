@@ -171,7 +171,7 @@ Generate 3-5 **VISIONARY** architectural ideas. Each should be something that, o
 
 ${hasContext ? `
 **Context Deep Dive**:
-This specific space (${contextSection}) is your canvas.
+The context described above is your canvas.
 - What essential truth is hidden here?
 - What would remain if we removed everything non-essential?
 - How can this space become a model of clarity?

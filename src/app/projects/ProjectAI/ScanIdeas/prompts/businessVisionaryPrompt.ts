@@ -115,7 +115,7 @@ Generate 3-5 **TRANSFORMATIVE** business ideas. Each should be something that, i
 
 ${hasContext ? `
 **Strategic Opportunity Analysis**:
-This context (${contextSection}) is your focus for business innovation.
+The context described above is your focus for business innovation.
 - What unique value does this area create or could create?
 - How could this become a major differentiator?
 - What's the 10x version of what's here?

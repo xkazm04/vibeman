@@ -114,7 +114,7 @@ Generate 3-5 **CRITICAL** reliability improvements. Focus on bugs that will caus
 
 ${hasContext ? `
 **Focused Investigation**:
-This specific area (${contextSection}) is under the microscope.
+The context described above is under the microscope.
 - What failure modes are unique to this context?
 - How does this interact with the rest of the system when it fails?
 - What would a sophisticated attacker do here?

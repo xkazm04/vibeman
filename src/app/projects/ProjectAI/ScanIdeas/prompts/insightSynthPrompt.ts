@@ -115,7 +115,7 @@ Generate 3-5 **REVELATORY** insights. Each should be something that makes the re
 
 ${hasContext ? `
 **Deep Pattern Analysis**:
-This context (${contextSection}) is your focus for pattern discovery.
+The context described above is your focus for pattern discovery.
 - What is this context an instance of?
 - What patterns here echo patterns elsewhere?
 - What concept is trying to emerge from this code?

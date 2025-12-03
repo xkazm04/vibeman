@@ -18,6 +18,7 @@ interface IconButtonProps {
   isActive?: boolean;
   activeColor?: string;
   inactiveColor?: string;
+  testId?: string;
 }
 
 const IconButton: React.FC<IconButtonProps> = ({
@@ -26,7 +27,8 @@ const IconButton: React.FC<IconButtonProps> = ({
   title,
   isActive = true,
   activeColor = 'text-blue-400 hover:text-blue-300',
-  inactiveColor = 'text-gray-500 hover:text-gray-400'
+  inactiveColor = 'text-gray-500 hover:text-gray-400',
+  testId
 }) => (
   <motion.button
     whileHover={{ scale: 1.1 }}
@@ -34,6 +36,7 @@ const IconButton: React.FC<IconButtonProps> = ({
     onClick={onClick}
     className={`p-2 rounded-lg hover:bg-gray-700/50 transition-all ${isActive ? activeColor : inactiveColor}`}
     title={title}
+    data-testid={testId}
   >
     <Icon className="w-4 h-4" />
   </motion.button>
@@ -148,6 +151,7 @@ export default function ConfigurationToolbar() {
         title={gitEnabled ? 'Git operations enabled' : 'Git operations disabled'}
         isActive={gitEnabled}
         activeColor="text-yellow-500 hover:text-yellow-400"
+        testId="taskrunner-git-config-btn"
       />
     </div>
   );

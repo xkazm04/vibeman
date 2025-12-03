@@ -115,7 +115,7 @@ Generate 3-5 **BRILLIANT** feature discoveries. Each should feel like finding tr
 
 ${hasContext ? `
 **Feature Expedition**:
-This context (${contextSection}) is your exploration zone.
+The context described above is your exploration zone.
 - What capabilities are latent here?
 - What would users expect to be able to do that they can't?
 - How could this connect to other parts of the system?

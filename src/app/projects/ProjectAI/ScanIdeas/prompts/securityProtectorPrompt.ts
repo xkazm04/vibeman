@@ -120,7 +120,7 @@ Generate 3-5 **CRITICAL** security improvements. Focus on vulnerabilities that c
 
 ${hasContext ? `
 **Security Deep Dive**:
-This specific area (${contextSection}) is under security audit.
+The context described above is under security audit.
 - What sensitive data flows through here?
 - What trust assumptions exist?
 - How could an attacker abuse this specific feature?

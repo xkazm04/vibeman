@@ -2,8 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useThemeStore } from '@/stores/themeStore';
+import { useRefactorStore } from '@/stores/refactorStore';
 
 // Lazy load the entire wizard layout
 const RefactorWizardLayout = dynamic(
@@ -60,6 +61,15 @@ function WizardLoadingSkeleton() {
 }
 
 export default function RefactorPage() {
+  const { openWizard, isWizardOpen } = useRefactorStore();
+
+  // Auto-open wizard when this page is rendered
+  useEffect(() => {
+    if (!isWizardOpen) {
+      openWizard();
+    }
+  }, [openWizard, isWizardOpen]);
+
   return (
     <Suspense fallback={<WizardLoadingSkeleton />}>
       <RefactorWizardLayout />

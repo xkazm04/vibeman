@@ -19,7 +19,7 @@ import {
   updateQueueItem
 } from './lib/scanQueue';
 import { handleScan as handleScanOperation, handleBatchScan as handleBatchScanOperation } from './lib/scanOperations';
-import { executeClaudeIdeas } from './lib/claudeIdeasHandler';
+import { executeClaudeIdeasWithContexts } from './lib/claudeIdeasExecutor';
 
 // Component imports
 import ProviderSelector from '@/components/llm/ProviderSelector';
@@ -149,11 +149,12 @@ export default function ScanInitiator({
   // Claude Ideas: Execute after batch selection
   const handleClaudeIdeasExecute = async (batchId: BatchId) => {
     setShowBatchSelectionModal(false);
-    
+
     console.log('[ScanInitiator] handleClaudeIdeasExecute called with batchId:', batchId);
     console.log('[ScanInitiator] activeProject:', activeProject);
     console.log('[ScanInitiator] selectedScanTypes:', selectedScanTypes);
-    
+    console.log('[ScanInitiator] currentSelectedContextIds:', currentSelectedContextIds);
+
     if (!activeProject) {
       setMessage('No active project selected');
       console.error('[ScanInitiator] ERROR: No active project');
@@ -170,31 +171,33 @@ export default function ScanInitiator({
     setMessage('🤖 Creating Claude Code tasks...');
 
     try {
-      console.log('[ScanInitiator] Calling executeClaudeIdeas with config:', {
+      // Calculate expected task count for user feedback
+      const contextCount = currentSelectedContextIds.length > 0 ? currentSelectedContextIds.length : 1;
+      const expectedTasks = selectedScanTypes.length * contextCount;
+
+      console.log('[ScanInitiator] Calling executeClaudeIdeasWithContexts with config:', {
         projectId: activeProject.id,
         projectName: activeProject.name,
         projectPath: activeProject.path,
         scanTypes: selectedScanTypes,
-        contextId: firstSelectedContextId || undefined,
-        contextName: firstSelectedContext?.name,
-        batchId
-      });
-      
-      const result = await executeClaudeIdeas({
-        projectId: activeProject.id,
-        projectName: activeProject.name,
-        projectPath: activeProject.path,
-        scanTypes: selectedScanTypes,
-        contextId: firstSelectedContextId || undefined,
-        contextName: firstSelectedContext?.name,
+        contextIds: currentSelectedContextIds,
         batchId
       });
 
-      console.log('[ScanInitiator] executeClaudeIdeas result:', result);
+      const result = await executeClaudeIdeasWithContexts({
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        scanTypes: selectedScanTypes,
+        contextIds: currentSelectedContextIds,
+        batchId
+      });
+
+      console.log('[ScanInitiator] executeClaudeIdeasWithContexts result:', result);
 
       if (result.success) {
-        setMessage(`✅ Claude Code tasks created! ${result.tasksCreated} tasks queued in ${batchId}. Ideas will be generated asynchronously.`);
-        
+        setMessage(`✅ Claude Code tasks created! ${result.tasksCreated}/${expectedTasks} tasks queued in ${batchId}. Ideas will be generated asynchronously.`);
+
         // Clear message after delay
         setTimeout(() => {
           setMessage('');
@@ -204,7 +207,7 @@ export default function ScanInitiator({
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[ScanInitiator] executeClaudeIdeas EXCEPTION:', error);
+      console.error('[ScanInitiator] executeClaudeIdeasWithContexts EXCEPTION:', error);
       setMessage(`❌ Failed to create Claude Code tasks: ${errorMessage}`);
     } finally {
       setIsClaudeIdeasProcessing(false);
@@ -400,7 +403,7 @@ export default function ScanInitiator({
               disabled={scanState === 'scanning' || !activeProject}
               scanState={scanState}
               buttonColor={getButtonColor(scanState)}
-              buttonText={getButtonText(scanState, batchMode, selectedScanTypes.length)}
+              buttonText={getButtonText(scanState, batchMode, selectedScanTypes.length, currentSelectedContextIds.length)}
             />
 
             {/* Provider Selector Popup */}
@@ -445,6 +448,7 @@ export default function ScanInitiator({
               disabled={scanState === 'scanning' || isClaudeIdeasProcessing || !activeProject}
               isProcessing={isClaudeIdeasProcessing}
               scanTypesCount={selectedScanTypes.length}
+              contextsCount={currentSelectedContextIds.length}
             />
           )}
 

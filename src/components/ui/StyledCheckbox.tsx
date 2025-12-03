@@ -4,6 +4,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { scales, durations, shadows } from '@/lib/design-tokens';
 
 export interface StyledCheckboxProps {
   /** Checkbox checked state */
@@ -63,25 +65,25 @@ function getColorSchemes() {
       bg: 'bg-blue-500',
       border: 'border-blue-500/50',
       borderHover: 'hover:border-blue-400',
-      shadow: 'shadow-blue-500/20',
+      shadow: shadows.blue.subtle,
     },
     green: {
       bg: 'bg-green-500',
       border: 'border-green-500/50',
       borderHover: 'hover:border-green-400',
-      shadow: 'shadow-green-500/20',
+      shadow: shadows.green.subtle,
     },
     purple: {
       bg: 'bg-purple-500',
       border: 'border-purple-500/50',
       borderHover: 'hover:border-purple-400',
-      shadow: 'shadow-purple-500/20',
+      shadow: shadows.purple.subtle,
     },
     red: {
       bg: 'bg-red-500',
       border: 'border-red-500/50',
       borderHover: 'hover:border-red-400',
-      shadow: 'shadow-red-500/20',
+      shadow: shadows.red.subtle,
     },
   };
 }
@@ -115,8 +117,9 @@ export default function StyledCheckbox({
   colorScheme = 'cyan',
   title,
 }: StyledCheckboxProps) {
-  const { getThemeColors } = useThemeStore();
+  const { getThemeColors, theme } = useThemeStore();
   const themeColors = getThemeColors();
+  const focusRingClasses = getFocusRingStyles(theme);
   const sizeClasses = sizeConfig[size];
   const colorSchemes = getColorSchemes();
   const colors = colorScheme === 'cyan' ? {
@@ -146,7 +149,8 @@ export default function StyledCheckbox({
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
           disabled={disabled}
-          className="sr-only"
+          className="peer sr-only"
+          data-testid="styled-checkbox-input"
         />
 
         {/* Custom checkbox box */}
@@ -166,9 +170,11 @@ export default function StyledCheckbox({
             }
             ${!disabled && !checked ? colors.borderHover : ''}
             ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}
+            peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-offset-2 peer-focus:ring-offset-[#0f0f23]
+            ${theme === 'midnight' ? 'peer-focus:ring-cyan-500' : theme === 'phantom' ? 'peer-focus:ring-purple-500' : 'peer-focus:ring-rose-500'}
           `}
-          whileHover={!disabled ? { scale: 1.05 } : {}}
-          whileTap={!disabled ? { scale: 0.95 } : {}}
+          whileHover={!disabled ? { scale: scales.hover } : {}}
+          whileTap={!disabled ? { scale: scales.tap } : {}}
         >
           {/* Checkmark icon */}
           {checked && (
@@ -176,7 +182,7 @@ export default function StyledCheckbox({
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.5 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: durations.fast }}
               className="absolute inset-0 flex items-center justify-center"
             >
               <Check className={`${sizeClasses.icon} text-white`} strokeWidth={3} />

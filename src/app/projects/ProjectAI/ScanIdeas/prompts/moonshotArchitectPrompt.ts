@@ -124,7 +124,7 @@ Generate 3-5 **MOONSHOT** ideas. Each should be the kind of vision that could de
 
 ${hasContext ? `
 **Moonshot Opportunity**:
-This context (${contextSection}) is your launchpad for ambition.
+The context described above is your launchpad for ambition.
 - What legendary capability could emerge from here?
 - What would "10x" mean for this area specifically?
 - How could this context become the product's defining feature?

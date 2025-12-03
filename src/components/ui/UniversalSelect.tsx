@@ -3,6 +3,9 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Search, Check, Loader2, X } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { durations } from '@/lib/design-tokens';
 
 export interface SelectOption {
   value: string;
@@ -128,6 +131,8 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const { theme } = useThemeStore();
+  const focusRingClasses = getFocusRingStyles(theme);
   const styles = VARIANT_STYLES[variant];
   const sizeStyles = SIZE_STYLES[size];
 
@@ -219,11 +224,13 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
         type="button"
         onClick={handleToggle}
         disabled={disabled || isLoading}
+        data-testid="universal-select-trigger"
         className={`
           w-full flex items-center justify-between gap-2 rounded-lg border transition-all
           ${sizeStyles.trigger}
           ${styles.trigger}
           ${isOpen ? styles.triggerOpen : ''}
+          ${focusRingClasses}
           ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
       >
@@ -298,7 +305,7 @@ export const UniversalSelect: React.FC<UniversalSelectProps> = ({
               initial={{ opacity: 0, y: -8, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
+              transition={{ duration: durations.fast, ease: 'easeOut' }}
             >
               {/* Search Input */}
               {showSearch && (

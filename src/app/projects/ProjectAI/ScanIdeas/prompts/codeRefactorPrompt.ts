@@ -125,7 +125,7 @@ Generate 3-5 **CLEANUP** ideas. Each should make the codebase simpler, smaller, 
 
 ${hasContext ? `
 **Cleanup Focus Area**:
-This context (${contextSection}) should be evaluated for refactoring opportunities.
+The context described above should be evaluated for refactoring opportunities.
 - What code here is no longer needed?
 - Where has complexity accumulated unnecessarily?
 - What patterns should be consolidated?

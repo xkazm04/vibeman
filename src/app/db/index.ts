@@ -15,7 +15,6 @@ import { eventRepository } from './repositories/event.repository';
 import { scanRepository } from './repositories/scan.repository';
 import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
-import { featureRequestRepository } from './repositories/feature-request.repository';
 import { conversationRepository } from './repositories/conversation.repository';
 import { techDebtRepository } from './repositories/tech-debt.repository';
 import { scanQueueRepository } from './repositories/scanQueue.repository';
@@ -64,10 +63,17 @@ import {
   staleBranchRepository,
   communitySecurityScoreRepository,
 } from './repositories/security-intelligence.repository';
+import {
+  developerProfileRepository,
+  developerDecisionRepository,
+  learningInsightRepository,
+  codePatternUsageRepository,
+  consistencyRuleRepository,
+  skillTrackingRepository,
+} from './repositories/developer-mind-meld.repository';
 
 // Export types
 export * from './models/types';
-export * from './models/feature-request.types';
 export * from './models/conversation.types';
 export * from './models/tech-debt.types';
 export * from './models/security-patch.types';
@@ -180,15 +186,6 @@ export const ideaDb = {
  */
 export const implementationLogDb = {
   ...implementationLogRepository,
-  close: closeDatabase
-};
-
-/**
- * Feature Request Database Operations
- * Handles AI Code Concierge feature requests
- */
-export const featureRequestDb = {
-  ...featureRequestRepository,
   close: closeDatabase
 };
 
@@ -495,6 +492,60 @@ export const staleBranchDb = {
  */
 export const communitySecurityScoreDb = {
   ...communitySecurityScoreRepository,
+  close: closeDatabase
+};
+
+/**
+ * Developer Profile Database Operations
+ * Manages personalized developer profiles for AI learning
+ */
+export const developerProfileDb = {
+  ...developerProfileRepository,
+  close: closeDatabase
+};
+
+/**
+ * Developer Decision Database Operations
+ * Tracks developer decisions for preference learning
+ */
+export const developerDecisionDb = {
+  ...developerDecisionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Learning Insight Database Operations
+ * Manages AI-generated learning insights
+ */
+export const learningInsightDb = {
+  ...learningInsightRepository,
+  close: closeDatabase
+};
+
+/**
+ * Code Pattern Usage Database Operations
+ * Tracks code pattern usage for consistency learning
+ */
+export const codePatternUsageDb = {
+  ...codePatternUsageRepository,
+  close: closeDatabase
+};
+
+/**
+ * Consistency Rule Database Operations
+ * Manages consistency rules for code style enforcement
+ */
+export const consistencyRuleDb = {
+  ...consistencyRuleRepository,
+  close: closeDatabase
+};
+
+/**
+ * Skill Tracking Database Operations
+ * Tracks developer skill development and areas for improvement
+ */
+export const skillTrackingDb = {
+  ...skillTrackingRepository,
   close: closeDatabase
 };
 

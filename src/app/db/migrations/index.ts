@@ -122,6 +122,10 @@ export function runMigrations() {
     migrateContextGroupRelationshipsTable();
     // Migration 32: Create security intelligence dashboard tables
     migrateSecurityIntelligenceTables();
+    // Migration 33: Create blueprint composable architecture tables
+    migrateBlueprintTables();
+    // Migration 34: Create developer mind-meld tables
+    migrateDeveloperMindMeldTables();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -2253,4 +2257,316 @@ function migrateSecurityIntelligenceTables() {
   }, migrationLogger);
 
   migrationLogger.success('Security intelligence tables created successfully');
+}
+
+/**
+ * Create blueprint composable architecture tables
+ * Enables composable scan pipelines with reusable components
+ */
+function migrateBlueprintTables() {
+  const db = getConnection();
+
+  // Create blueprint_configs table
+  safeMigration('blueprintConfigsTable', () => {
+    const created = createTableIfNotExists(db, 'blueprint_configs', `
+      CREATE TABLE blueprint_configs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_template INTEGER NOT NULL DEFAULT 0,
+        config TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_blueprint_configs_project ON blueprint_configs(project_id);
+        CREATE INDEX idx_blueprint_configs_template ON blueprint_configs(is_template);
+        CREATE INDEX idx_blueprint_configs_name ON blueprint_configs(name);
+      `);
+      migrationLogger.info('blueprint_configs table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create blueprint_executions table
+  safeMigration('blueprintExecutionsTable', () => {
+    const created = createTableIfNotExists(db, 'blueprint_executions', `
+      CREATE TABLE blueprint_executions (
+        id TEXT PRIMARY KEY,
+        blueprint_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+        progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+        current_node_id TEXT,
+        node_results TEXT,
+        error_message TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (blueprint_id) REFERENCES blueprint_configs(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_blueprint_executions_blueprint ON blueprint_executions(blueprint_id);
+        CREATE INDEX idx_blueprint_executions_project ON blueprint_executions(project_id);
+        CREATE INDEX idx_blueprint_executions_status ON blueprint_executions(status);
+        CREATE INDEX idx_blueprint_executions_created ON blueprint_executions(project_id, created_at DESC);
+      `);
+      migrationLogger.info('blueprint_executions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create blueprint_components registry table
+  safeMigration('blueprintComponentsTable', () => {
+    const created = createTableIfNotExists(db, 'blueprint_components', `
+      CREATE TABLE blueprint_components (
+        id TEXT PRIMARY KEY,
+        component_id TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL CHECK (type IN ('analyzer', 'processor', 'executor', 'tester')),
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category TEXT,
+        tags TEXT,
+        icon TEXT,
+        color TEXT,
+        config_schema TEXT NOT NULL,
+        default_config TEXT NOT NULL,
+        input_types TEXT NOT NULL,
+        output_types TEXT NOT NULL,
+        supported_project_types TEXT NOT NULL DEFAULT '["*"]',
+        is_custom INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_blueprint_components_type ON blueprint_components(type);
+        CREATE INDEX idx_blueprint_components_custom ON blueprint_components(is_custom);
+        CREATE INDEX idx_blueprint_components_category ON blueprint_components(category);
+      `);
+      migrationLogger.info('blueprint_components table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Blueprint composable architecture tables created successfully');
+}
+
+/**
+ * Migration 34: Create Developer Mind-Meld tables for personalized AI learning
+ */
+function migrateDeveloperMindMeldTables() {
+  const db = getConnection();
+
+  // Create developer_profiles table
+  safeMigration('developerProfilesTable', () => {
+    const created = createTableIfNotExists(db, 'developer_profiles', `
+      CREATE TABLE developer_profiles (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        preferred_scan_types TEXT NOT NULL DEFAULT '[]',
+        avoided_scan_types TEXT NOT NULL DEFAULT '[]',
+        preferred_patterns TEXT NOT NULL DEFAULT '[]',
+        formatting_preferences TEXT NOT NULL DEFAULT '{}',
+        security_posture TEXT NOT NULL DEFAULT 'balanced' CHECK (security_posture IN ('strict', 'balanced', 'relaxed')),
+        performance_threshold TEXT NOT NULL DEFAULT 'medium' CHECK (performance_threshold IN ('high', 'medium', 'low')),
+        total_decisions INTEGER NOT NULL DEFAULT 0,
+        total_accepted INTEGER NOT NULL DEFAULT 0,
+        total_rejected INTEGER NOT NULL DEFAULT 0,
+        learning_confidence INTEGER NOT NULL DEFAULT 0 CHECK (learning_confidence >= 0 AND learning_confidence <= 100),
+        last_profile_update TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE UNIQUE INDEX idx_developer_profiles_project ON developer_profiles(project_id);
+        CREATE INDEX idx_developer_profiles_enabled ON developer_profiles(enabled);
+      `);
+      migrationLogger.info('developer_profiles table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create developer_decisions table
+  safeMigration('developerDecisionsTable', () => {
+    const created = createTableIfNotExists(db, 'developer_decisions', `
+      CREATE TABLE developer_decisions (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        decision_type TEXT NOT NULL CHECK (decision_type IN ('idea_accept', 'idea_reject', 'pattern_apply', 'pattern_skip', 'suggestion_accept', 'suggestion_dismiss')),
+        entity_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        scan_type TEXT,
+        category TEXT,
+        effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 3)),
+        impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 3)),
+        accepted INTEGER NOT NULL,
+        feedback TEXT,
+        context_snapshot TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (profile_id) REFERENCES developer_profiles(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_developer_decisions_profile ON developer_decisions(profile_id);
+        CREATE INDEX idx_developer_decisions_project ON developer_decisions(project_id);
+        CREATE INDEX idx_developer_decisions_type ON developer_decisions(decision_type);
+        CREATE INDEX idx_developer_decisions_scan_type ON developer_decisions(profile_id, scan_type);
+        CREATE INDEX idx_developer_decisions_category ON developer_decisions(profile_id, category);
+        CREATE INDEX idx_developer_decisions_created ON developer_decisions(profile_id, created_at DESC);
+      `);
+      migrationLogger.info('developer_decisions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create learning_insights table
+  safeMigration('learningInsightsTable', () => {
+    const created = createTableIfNotExists(db, 'learning_insights', `
+      CREATE TABLE learning_insights (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        insight_type TEXT NOT NULL CHECK (insight_type IN ('pattern_detected', 'consistency_violation', 'skill_gap', 'preference_learned', 'prediction_confidence')),
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        data TEXT NOT NULL,
+        confidence INTEGER NOT NULL CHECK (confidence >= 0 AND confidence <= 100),
+        importance TEXT NOT NULL CHECK (importance IN ('high', 'medium', 'low')),
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'acknowledged', 'dismissed', 'applied')),
+        related_entity_type TEXT,
+        related_entity_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (profile_id) REFERENCES developer_profiles(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_learning_insights_profile ON learning_insights(profile_id);
+        CREATE INDEX idx_learning_insights_project ON learning_insights(project_id);
+        CREATE INDEX idx_learning_insights_type ON learning_insights(insight_type);
+        CREATE INDEX idx_learning_insights_status ON learning_insights(profile_id, status);
+        CREATE INDEX idx_learning_insights_importance ON learning_insights(profile_id, importance);
+      `);
+      migrationLogger.info('learning_insights table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create code_pattern_usage table
+  safeMigration('codePatternUsageTable', () => {
+    const created = createTableIfNotExists(db, 'code_pattern_usage', `
+      CREATE TABLE code_pattern_usage (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        pattern_name TEXT NOT NULL,
+        pattern_signature TEXT NOT NULL,
+        usage_count INTEGER NOT NULL DEFAULT 1,
+        last_used_at TEXT NOT NULL,
+        first_used_at TEXT NOT NULL,
+        file_paths TEXT NOT NULL DEFAULT '[]',
+        category TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (profile_id) REFERENCES developer_profiles(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_code_pattern_usage_profile ON code_pattern_usage(profile_id);
+        CREATE INDEX idx_code_pattern_usage_project ON code_pattern_usage(project_id);
+        CREATE INDEX idx_code_pattern_usage_name ON code_pattern_usage(profile_id, pattern_name);
+        CREATE INDEX idx_code_pattern_usage_signature ON code_pattern_usage(profile_id, pattern_signature);
+        CREATE INDEX idx_code_pattern_usage_category ON code_pattern_usage(profile_id, category);
+        CREATE INDEX idx_code_pattern_usage_count ON code_pattern_usage(profile_id, usage_count DESC);
+      `);
+      migrationLogger.info('code_pattern_usage table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create consistency_rules table
+  safeMigration('consistencyRulesTable', () => {
+    const created = createTableIfNotExists(db, 'consistency_rules', `
+      CREATE TABLE consistency_rules (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        rule_name TEXT NOT NULL,
+        rule_type TEXT NOT NULL CHECK (rule_type IN ('api_structure', 'component_pattern', 'naming_convention', 'file_organization', 'error_handling', 'custom')),
+        description TEXT NOT NULL,
+        pattern_template TEXT NOT NULL,
+        example_code TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        severity TEXT NOT NULL DEFAULT 'suggestion' CHECK (severity IN ('error', 'warning', 'suggestion')),
+        auto_suggest INTEGER NOT NULL DEFAULT 1,
+        violations_detected INTEGER NOT NULL DEFAULT 0,
+        violations_fixed INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (profile_id) REFERENCES developer_profiles(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_consistency_rules_profile ON consistency_rules(profile_id);
+        CREATE INDEX idx_consistency_rules_project ON consistency_rules(project_id);
+        CREATE INDEX idx_consistency_rules_type ON consistency_rules(rule_type);
+        CREATE INDEX idx_consistency_rules_enabled ON consistency_rules(profile_id, enabled);
+        CREATE INDEX idx_consistency_rules_severity ON consistency_rules(profile_id, severity);
+      `);
+      migrationLogger.info('consistency_rules table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create skill_tracking table
+  safeMigration('skillTrackingTable', () => {
+    const created = createTableIfNotExists(db, 'skill_tracking', `
+      CREATE TABLE skill_tracking (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        skill_area TEXT NOT NULL,
+        sub_skill TEXT,
+        proficiency_score INTEGER NOT NULL DEFAULT 0 CHECK (proficiency_score >= 0 AND proficiency_score <= 100),
+        implementations_count INTEGER NOT NULL DEFAULT 0,
+        success_count INTEGER NOT NULL DEFAULT 0,
+        failure_count INTEGER NOT NULL DEFAULT 0,
+        trend TEXT NOT NULL DEFAULT 'stable' CHECK (trend IN ('improving', 'stable', 'declining')),
+        last_activity_at TEXT NOT NULL,
+        improvement_suggestions TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (profile_id) REFERENCES developer_profiles(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_skill_tracking_profile ON skill_tracking(profile_id);
+        CREATE INDEX idx_skill_tracking_project ON skill_tracking(project_id);
+        CREATE INDEX idx_skill_tracking_area ON skill_tracking(profile_id, skill_area);
+        CREATE INDEX idx_skill_tracking_proficiency ON skill_tracking(profile_id, proficiency_score DESC);
+        CREATE INDEX idx_skill_tracking_trend ON skill_tracking(profile_id, trend);
+      `);
+      migrationLogger.info('skill_tracking table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Developer Mind-Meld tables created successfully');
 }

@@ -115,7 +115,7 @@ Generate 3-5 **CRYSTALLIZING** ideas. Each should turn something fuzzy into some
 
 ${hasContext ? `
 **Clarity Audit**:
-This specific area (${contextSection}) needs illumination.
+The context described above needs illumination.
 - What assumptions is this code making?
 - What would surprise a new developer here?
 - What's the "spec" for this behavior, and where is it documented?

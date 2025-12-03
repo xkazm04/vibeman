@@ -123,7 +123,7 @@ Generate 3-5 **TRANSFORMATIVE** onboarding improvements. Each should dramaticall
 
 ${hasContext ? `
 **First-Use Deep Dive**:
-This context (${contextSection}) is a first impression opportunity.
+The context described above is a first impression opportunity.
 - How would a complete beginner experience this?
 - What's the fastest path to "I understand and I'm excited"?
 - What blank states or initial states need love?

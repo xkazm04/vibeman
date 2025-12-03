@@ -9,14 +9,24 @@ interface ClaudeIdeasButtonProps {
   disabled?: boolean;
   isProcessing: boolean;
   scanTypesCount: number;
+  contextsCount?: number;
 }
 
 export default function ClaudeIdeasButton({
   onClick,
   disabled = false,
   isProcessing,
-  scanTypesCount
+  scanTypesCount,
+  contextsCount = 0
 }: ClaudeIdeasButtonProps) {
+  // Calculate total tasks: scanTypes * contexts (or just scanTypes if no contexts)
+  const multiplier = contextsCount > 0 ? contextsCount : 1;
+  const totalTasks = scanTypesCount * multiplier;
+
+  const tooltipText = contextsCount > 0
+    ? `Generate ideas using Claude Code (${scanTypesCount} scan types × ${contextsCount} contexts = ${totalTasks} tasks)`
+    : `Generate ideas using Claude Code (${scanTypesCount} scan types)`;
+
   return (
     <motion.button
       onClick={onClick}
@@ -28,7 +38,7 @@ export default function ClaudeIdeasButton({
       } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       whileHover={!disabled && !isProcessing ? { scale: 1.05 } : {}}
       whileTap={!disabled && !isProcessing ? { scale: 0.95 } : {}}
-      title={`Generate ideas using Claude Code (${scanTypesCount} scan types) - Processed asynchronously`}
+      title={tooltipText}
       data-testid="claude-ideas-btn"
     >
       {isProcessing ? (
@@ -39,7 +49,7 @@ export default function ClaudeIdeasButton({
       <span className="text-white">
         {isProcessing
           ? 'Creating Tasks...'
-          : `Claude Ideas (${scanTypesCount})`}
+          : `Claude Ideas (${totalTasks})`}
       </span>
     </motion.button>
   );

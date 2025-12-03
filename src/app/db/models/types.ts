@@ -322,5 +322,239 @@ export interface DbScoringThreshold {
   updated_at: string;
 }
 
+// Blueprint Configuration types
+export interface DbBlueprintConfig {
+  id: string;
+  project_id: string | null; // null = template available to all projects
+  name: string;
+  description: string | null;
+  is_template: number; // Boolean flag (0 or 1)
+  config: string; // JSON string containing nodes and edges configuration
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BlueprintNodeConfig {
+  id: string;
+  componentId: string;
+  config: Record<string, unknown>;
+  position?: { x: number; y: number };
+}
+
+export interface BlueprintEdgeConfig {
+  id: string;
+  source: string;
+  target: string;
+  sourceOutput?: string;
+  targetInput?: string;
+}
+
+export interface BlueprintConfigData {
+  nodes: BlueprintNodeConfig[];
+  edges: BlueprintEdgeConfig[];
+}
+
+// Blueprint Execution types
+export interface DbBlueprintExecution {
+  id: string;
+  blueprint_id: string;
+  project_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  progress: number; // 0-100
+  current_node_id: string | null;
+  node_results: string | null; // JSON string of node execution results
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NodeExecutionResult {
+  nodeId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  output?: unknown;
+  error?: string;
+  startedAt?: string;
+  completedAt?: string;
+  duration?: number;
+}
+
+// Blueprint Component Registry types
+export interface DbBlueprintComponent {
+  id: string;
+  component_id: string; // e.g., 'analyzer.console'
+  type: 'analyzer' | 'processor' | 'executor' | 'tester';
+  name: string;
+  description: string;
+  category: string | null;
+  tags: string | null; // JSON array of tags
+  icon: string | null;
+  color: string | null;
+  config_schema: string; // JSON schema
+  default_config: string; // JSON default config
+  input_types: string; // JSON array of input type names
+  output_types: string; // JSON array of output type names
+  supported_project_types: string; // JSON array of project types
+  is_custom: number; // Boolean flag (0 or 1), true for user-defined
+  created_at: string;
+  updated_at: string;
+}
+
+// Developer Mind-Meld types (personalized AI learning system)
+export interface DbDeveloperProfile {
+  id: string;
+  project_id: string; // null for global profile
+  enabled: number; // Boolean flag (0 or 1)
+  // Agent preferences (which agents resonate with the developer)
+  preferred_scan_types: string; // JSON array of preferred scan types
+  avoided_scan_types: string; // JSON array of scan types to deprioritize
+  // Code style preferences
+  preferred_patterns: string; // JSON array of pattern names/identifiers
+  formatting_preferences: string; // JSON object with formatting settings
+  // Thresholds
+  security_posture: 'strict' | 'balanced' | 'relaxed';
+  performance_threshold: 'high' | 'medium' | 'low'; // How performance-sensitive
+  // Learning stats
+  total_decisions: number;
+  total_accepted: number;
+  total_rejected: number;
+  learning_confidence: number; // 0-100 based on decision count
+  last_profile_update: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbDeveloperDecision {
+  id: string;
+  profile_id: string;
+  project_id: string;
+  // What was decided on
+  decision_type: 'idea_accept' | 'idea_reject' | 'pattern_apply' | 'pattern_skip' | 'suggestion_accept' | 'suggestion_dismiss';
+  entity_id: string; // ID of the idea/pattern/suggestion
+  entity_type: string; // 'idea', 'refactoring_pattern', 'consistency_suggestion'
+  // Decision context
+  scan_type: string | null;
+  category: string | null;
+  effort: number | null;
+  impact: number | null;
+  // The decision
+  accepted: number; // Boolean flag (0 or 1)
+  feedback: string | null; // Optional user feedback
+  // For learning
+  context_snapshot: string | null; // JSON snapshot of relevant context
+  created_at: string;
+}
+
+export interface DbLearningInsight {
+  id: string;
+  profile_id: string;
+  project_id: string;
+  // Type of insight
+  insight_type: 'pattern_detected' | 'consistency_violation' | 'skill_gap' | 'preference_learned' | 'prediction_confidence';
+  // Insight details
+  title: string;
+  description: string;
+  data: string; // JSON with insight-specific data
+  // Relevance
+  confidence: number; // 0-100
+  importance: 'high' | 'medium' | 'low';
+  // State
+  status: 'active' | 'acknowledged' | 'dismissed' | 'applied';
+  // Related entity
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCodePatternUsage {
+  id: string;
+  profile_id: string;
+  project_id: string;
+  // Pattern identification
+  pattern_name: string; // e.g., 'api_handler_structure', 'component_layout', 'error_handling'
+  pattern_signature: string; // Hash or identifier for the specific pattern variant
+  // Usage tracking
+  usage_count: number;
+  last_used_at: string;
+  first_used_at: string;
+  // Files where pattern was used
+  file_paths: string; // JSON array of file paths
+  // Metadata
+  category: string; // 'api', 'component', 'utility', 'test', etc.
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbConsistencyRule {
+  id: string;
+  profile_id: string;
+  project_id: string;
+  // Rule definition
+  rule_name: string;
+  rule_type: 'api_structure' | 'component_pattern' | 'naming_convention' | 'file_organization' | 'error_handling' | 'custom';
+  description: string;
+  // Pattern to enforce
+  pattern_template: string; // JSON template describing the expected pattern
+  example_code: string | null; // Example of correct usage
+  // Enforcement
+  enabled: number; // Boolean flag (0 or 1)
+  severity: 'error' | 'warning' | 'suggestion';
+  auto_suggest: number; // Boolean flag - should system proactively suggest?
+  // Stats
+  violations_detected: number;
+  violations_fixed: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbSkillTracking {
+  id: string;
+  profile_id: string;
+  project_id: string;
+  // Skill identification
+  skill_area: string; // e.g., 'react', 'api_design', 'testing', 'security', 'performance'
+  sub_skill: string | null; // e.g., 'hooks', 'context', 'suspense' for 'react'
+  // Tracking
+  proficiency_score: number; // 0-100 calculated from success rate
+  implementations_count: number;
+  success_count: number;
+  failure_count: number;
+  // Trend
+  trend: 'improving' | 'stable' | 'declining';
+  last_activity_at: string;
+  // Recommendations
+  improvement_suggestions: string | null; // JSON array of suggestions
+  created_at: string;
+  updated_at: string;
+}
+
+// Developer profile preferences JSON structure types
+export interface DeveloperFormattingPreferences {
+  indentation?: 'tabs' | 'spaces';
+  indentSize?: number;
+  semicolons?: boolean;
+  trailingCommas?: boolean;
+  singleQuotes?: boolean;
+  maxLineLength?: number;
+}
+
+export interface PatternTemplate {
+  structure: string;
+  requiredElements: string[];
+  optionalElements: string[];
+  antiPatterns: string[];
+}
+
+export interface LearningInsightData {
+  patternName?: string;
+  occurrences?: number;
+  files?: string[];
+  suggestedAction?: string;
+  violationDetails?: string;
+  comparisonData?: Record<string, unknown>;
+}
+
 // Export standard category type for use in type annotations
 export type { IdeaCategory };

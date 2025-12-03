@@ -3,6 +3,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { durations, scales, offsets } from '@/lib/design-tokens';
 
 /**
  * Color schemes for IconButton
@@ -363,8 +365,9 @@ export default function IconButton({
   animate = true,
   variant = 'ghost',
 }: IconButtonProps) {
-  const { getThemeColors } = useThemeStore();
+  const { getThemeColors, theme } = useThemeStore();
   const colors = getThemeColors();
+  const focusRingClasses = getFocusRingStyles(theme);
   
   // Get theme-aware scheme for cyan color scheme
   const getScheme = () => {
@@ -408,6 +411,7 @@ export default function IconButton({
     flex
     items-center
     justify-center
+    ${focusRingClasses}
     ${disabled || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
     ${className}
   `
@@ -448,9 +452,9 @@ export default function IconButton({
         disabled={disabled || loading}
         aria-label={ariaLabel}
         title={tooltip || ariaLabel}
-        whileHover={{ scale: 1.05, y: -1 }}
-        whileTap={{ scale: 0.95 }}
-        transition={{ duration: 0.15 }}
+        whileHover={{ scale: scales.hover, y: offsets.liftSubtle }}
+        whileTap={{ scale: scales.tap }}
+        transition={{ duration: durations.fast }}
       >
         {content}
       </motion.button>

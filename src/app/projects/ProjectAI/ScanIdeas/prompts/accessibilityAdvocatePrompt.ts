@@ -129,7 +129,7 @@ Generate 3-5 **INCLUSIVE** accessibility improvements. Each should remove barrie
 
 ${hasContext ? `
 **Accessibility Audit Focus**:
-This context (${contextSection}) needs accessibility analysis.
+The context described above needs accessibility analysis.
 - Can this be fully operated by keyboard?
 - Is all information perceivable without relying on a single sense?
 - Is the interface understandable for users with cognitive differences?

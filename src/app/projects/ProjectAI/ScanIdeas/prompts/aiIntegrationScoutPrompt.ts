@@ -123,7 +123,7 @@ Generate 3-5 **EMPOWERING** AI integration ideas. Each should make users genuine
 
 ${hasContext ? `
 **AI Opportunity Analysis**:
-This context (${contextSection}) is your focus for intelligence augmentation.
+The context described above is your focus for intelligence augmentation.
 - What cognitive work happens here that AI could assist?
 - What content here could be semantically understood?
 - What predictions would be valuable in this context?

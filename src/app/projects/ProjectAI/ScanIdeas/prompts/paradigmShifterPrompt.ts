@@ -124,7 +124,7 @@ Generate 3-5 **PARADIGM-SHIFTING** ideas. Each should be the kind of idea that c
 
 ${hasContext ? `
 **Revolutionary Focus**:
-This context (${contextSection}) is your lens for paradigm shifts.
+The context described above is your lens for paradigm shifts.
 - What assumptions here have never been questioned?
 - What would make this area 10x better, not 10% better?
 - How could this transform from a feature to a capability?

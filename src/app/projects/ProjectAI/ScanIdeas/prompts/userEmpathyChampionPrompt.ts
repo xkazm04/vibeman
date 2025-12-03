@@ -124,7 +124,7 @@ Generate 3-5 **HUMAN-CENTERED** ideas. Each should meaningfully improve how user
 
 ${hasContext ? `
 **User Experience Deep Dive**:
-This context (${contextSection}) needs user empathy analysis.
+The context described above needs user empathy analysis.
 - What emotional journey does a user take here?
 - What frustrations might they experience?
 - How might different types of users struggle here?

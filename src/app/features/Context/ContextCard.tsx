@@ -9,6 +9,8 @@ import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import ContextEditModal from './sub_ContextGen/ContextEditModal';
 import ContextFileModal from './sub_ContextFile/ContextFileModal';
 import ContextMenu from '@/components/ContextMenu';
+import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
 
 interface ContextCardProps {
   context: Context;
@@ -23,6 +25,8 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
   const { toggleTooltip } = useTooltipStore();
   const { clearSelection } = useStore();
   const { showFullScreenModal } = useGlobalModal();
+  const { theme } = useThemeStore();
+  const focusRingClasses = getFocusRingStyles(theme);
   const isSelectedForBacklog = selectedContextIds.has(context.id);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
@@ -235,7 +239,9 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         {/* Remove Button */}
         <motion.button
           onClick={handleRemove}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500/90 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center shadow-lg"
+          aria-label={`Remove ${context.name}`}
+          data-testid={`context-card-remove-${context.id}`}
+          className={`absolute -top-2 -right-2 w-6 h-6 bg-red-500/90 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center shadow-lg ${focusRingClasses}`}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
         >

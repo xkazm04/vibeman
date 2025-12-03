@@ -123,7 +123,7 @@ Generate 3-5 **MEMORABLE** ideas. Each should add a moment of joy, warmth, or sa
 
 ${hasContext ? `
 **Delight Opportunity**:
-This context (${contextSection}) is your canvas for joy.
+The context described above is your canvas for joy.
 - Where are the emotional moments here?
 - What accomplishments happen that we could celebrate?
 - Where is the interface cold or impersonal?

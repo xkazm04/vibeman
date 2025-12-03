@@ -125,7 +125,7 @@ Generate 3-5 **PRODUCTIVITY-BOOSTING** ideas. Each should make developers' lives
 
 ${hasContext ? `
 **DX Focus Area**:
-This context (${contextSection}) should be evaluated for developer experience.
+The context described above should be evaluated for developer experience.
 - How easy is it for a new developer to understand this code?
 - Where might someone make a mistake due to unclear patterns?
 - What would a helpful error message look like here?

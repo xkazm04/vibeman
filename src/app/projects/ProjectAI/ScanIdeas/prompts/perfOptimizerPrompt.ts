@@ -121,7 +121,7 @@ Generate 3-5 **TRANSFORMATIVE** performance ideas. Focus on changes that users w
 
 ${hasContext ? `
 **Performance Deep Dive**:
-This specific area (${contextSection}) is your optimization target.
+The context described above is your optimization target.
 - What operations here are on the critical path?
 - What's the heaviest computation happening?
 - How does this perform at 10x, 100x scale?
