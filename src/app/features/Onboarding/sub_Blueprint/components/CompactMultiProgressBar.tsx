@@ -77,41 +77,23 @@ export default function CompactMultiProgressBar({
                   animate={{ width: `${Math.min(Math.max(item.progress, 0), 100)}%` }}
                   transition={{ duration: 0.3, ease: 'easeOut' }}
                 >
-                  {/* Shimmer effect for active scans */}
+                  {/* Shimmer effect for active scans - CSS animation for better performance */}
                   {item.isRunning && (
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/50 to-transparent"
-                      animate={{
-                        x: ['-100%', '200%'],
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        ease: 'linear',
-                      }}
-                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/50 to-transparent animate-progress-shimmer" />
                   )}
 
                   {/* Glow effect */}
                   <div className="absolute inset-0 shadow-[0_0_4px_1px_rgba(251,191,36,0.5)]" />
                 </motion.div>
 
-                {/* Indeterminate mode (when progress is 0) */}
+                {/* Indeterminate mode (when progress is 0) - CSS animation */}
                 {item.progress === 0 && item.isRunning && (
-                  <motion.div
-                    className="absolute inset-y-0 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500"
+                  <div
+                    className="absolute inset-y-0 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 animate-progress-indeterminate"
                     style={{ width: '30%' }}
-                    animate={{
-                      x: ['-30%', '130%'],
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    }}
                   >
                     <div className="absolute inset-0 shadow-[0_0_4px_1px_rgba(251,191,36,0.5)]" />
-                  </motion.div>
+                  </div>
                 )}
               </div>
 

@@ -1,5 +1,4 @@
 // Container components
-export { default as ContextDetailView } from './ContextDetailView';
 export { default as GroupDetailView } from './GroupDetailView';
 
 // UI sub-components

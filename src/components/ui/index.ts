@@ -1,13 +1,10 @@
 export { FadeIn } from './FadeIn';
-export { default as ActionGroup } from './ActionGroup';
-export type { ActionConfig } from './ActionGroup';
 export { default as BaseModal } from './BaseModal';
 export { default as FileAdd } from './FileAdd';
 export { default as ModalContent } from './ModalContent';
 export { default as ModalHeader } from './ModalHeader';
 export { default as SaveFileDialog } from './SaveFileDialog';
 export { UniversalSelect } from './UniversalSelect';
-export { default as AIErrorBoundary } from './AIErrorBoundary';
 export { default as AIErrorDisplay } from './AIErrorDisplay';
 export { default as GradientButton } from './buttons/GradientButton';
 export type {
@@ -43,7 +40,6 @@ export type {
   ModalVariantDefinition,
   ModalTransitionConfig,
 } from './ModalTransition.types';
-export { default as ModalTransitionDemo } from './ModalTransitionDemo';
 export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as StatusChip } from '@/components/DecisionPanel/StatusChip';
 export type { StatusChipState, StatusChipTheme, StatusChipSize } from '@/components/DecisionPanel/StatusChip';

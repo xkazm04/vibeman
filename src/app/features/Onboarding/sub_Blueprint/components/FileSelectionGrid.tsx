@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Trash2, Wrench, X } from 'lucide-react';
 
@@ -61,6 +61,15 @@ export default function FileSelectionGrid({
   // State: fileId -> actionId
   const [selections, setSelections] = useState<Record<string, string>>({});
 
+  // Virtual scrolling state
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(500);
+
+  // Constants for virtual scrolling
+  const ITEM_HEIGHT = 44; // Height of each row in pixels (py-1.5 + content + margin)
+  const BUFFER = 5; // Number of items to render above/below visible area
+
   const handleSelect = (fileId: string, actionId: string) => {
     const newSelections = {
       ...selections,
@@ -80,6 +89,34 @@ export default function FileSelectionGrid({
 
     return { cleanCount, integrateCount, skipCount, unassignedCount };
   }, [selections, files.length]);
+
+  // Calculate visible range for virtual scrolling
+  const { visibleStart, visibleEnd, totalHeight } = useMemo(() => {
+    const start = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER);
+    const end = Math.min(files.length, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER);
+    const total = files.length * ITEM_HEIGHT;
+
+    return { visibleStart: start, visibleEnd: end, totalHeight: total };
+  }, [scrollTop, containerHeight, files.length]);
+
+  // Handle scroll events
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  };
+
+  // Measure container height on mount and resize
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const getActionColor = (actionId: string) => {
     switch (actionId) {
@@ -120,90 +157,101 @@ export default function FileSelectionGrid({
         <div className="w-16 text-center flex-shrink-0">Skip</div>
       </div>
 
-      {/* Compact File List */}
+      {/* Virtualized File List */}
       <div
-        className="max-h-[500px] overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-cyan-500/30 scrollbar-track-gray-800/30"
+        ref={containerRef}
+        className="max-h-[500px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-cyan-500/30 scrollbar-track-gray-800/30"
         data-testid={`${testId}-files`}
+        onScroll={handleScroll}
       >
-        {files.map((file, index) => {
-          const selectedAction = selections[file.id];
-          const rowColors = selectedAction ? getActionColor(selectedAction) : { border: 'border-gray-700/30' };
+        {/* Virtual scroll container */}
+        <div style={{ height: totalHeight, position: 'relative' }}>
+          {/* Only render visible items */}
+          {files.slice(visibleStart, visibleEnd).map((file, visibleIndex) => {
+            const index = visibleStart + visibleIndex;
+            const selectedAction = selections[file.id];
+            const rowColors = selectedAction ? getActionColor(selectedAction) : { border: 'border-gray-700/30' };
 
-          return (
-            <motion.div
-              key={file.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: index * 0.01 }}
-              className={`flex items-center gap-2 px-2 py-1.5 bg-gray-900/30 border ${rowColors.border} rounded hover:bg-gray-800/50 transition-all group`}
-              data-testid={`${testId}-file-${index}`}
-            >
-              {/* File Info - Left */}
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-mono text-gray-300 truncate" title={file.relativePath}>
-                  {file.relativePath}
-                </div>
-                {(file.exports && file.exports.length > 0) && (
-                  <div className="text-[10px] text-gray-600 truncate">
-                    {file.exports.join(', ')}
+            return (
+              <div
+                key={file.id}
+                style={{
+                  position: 'absolute',
+                  top: index * ITEM_HEIGHT,
+                  left: 0,
+                  right: 0,
+                  height: ITEM_HEIGHT,
+                }}
+                className={`flex items-center gap-2 px-2 py-1.5 bg-gray-900/30 border ${rowColors.border} rounded hover:bg-gray-800/50 transition-all group`}
+                data-testid={`${testId}-file-${index}`}
+              >
+                {/* File Info - Left */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-mono text-gray-300 truncate" title={file.relativePath}>
+                    {file.relativePath}
                   </div>
-                )}
+                  {(file.exports && file.exports.length > 0) && (
+                    <div className="text-[10px] text-gray-600 truncate">
+                      {file.exports.join(', ')}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons - Right (fixed width columns) */}
+                <button
+                  onClick={() => handleSelect(file.id, 'clean')}
+                  className={`
+                    w-16 h-7 flex items-center justify-center gap-1 rounded border text-[10px] font-mono
+                    transition-all flex-shrink-0
+                    ${selectedAction === 'clean'
+                      ? `${getActionColor('clean').bg} ${getActionColor('clean').border} ${getActionColor('clean').text}`
+                      : `bg-gray-800/30 border-gray-700/30 text-gray-600 ${getActionColor('clean').hover}`
+                    }
+                  `}
+                  data-testid={`${testId}-file-${index}-action-clean`}
+                  title="Remove this file from the codebase"
+                >
+                  {selectedAction === 'clean' && <Check className="w-3 h-3" />}
+                  <Trash2 className="w-3 h-3" />
+                </button>
+
+                <button
+                  onClick={() => handleSelect(file.id, 'integrate')}
+                  className={`
+                    w-20 h-7 flex items-center justify-center gap-1 rounded border text-[10px] font-mono
+                    transition-all flex-shrink-0
+                    ${selectedAction === 'integrate'
+                      ? `${getActionColor('integrate').bg} ${getActionColor('integrate').border} ${getActionColor('integrate').text}`
+                      : `bg-gray-800/30 border-gray-700/30 text-gray-600 ${getActionColor('integrate').hover}`
+                    }
+                  `}
+                  data-testid={`${testId}-file-${index}-action-integrate`}
+                  title="Analyze and integrate into codebase"
+                >
+                  {selectedAction === 'integrate' && <Check className="w-3 h-3" />}
+                  <Wrench className="w-3 h-3" />
+                </button>
+
+                <button
+                  onClick={() => handleSelect(file.id, 'skip')}
+                  className={`
+                    w-16 h-7 flex items-center justify-center gap-1 rounded border text-[10px] font-mono
+                    transition-all flex-shrink-0
+                    ${selectedAction === 'skip'
+                      ? `${getActionColor('skip').bg} ${getActionColor('skip').border} ${getActionColor('skip').text}`
+                      : `bg-gray-800/30 border-gray-700/30 text-gray-600 ${getActionColor('skip').hover}`
+                    }
+                  `}
+                  data-testid={`${testId}-file-${index}-action-skip`}
+                  title="Keep as-is, no action"
+                >
+                  {selectedAction === 'skip' && <Check className="w-3 h-3" />}
+                  <X className="w-3 h-3" />
+                </button>
               </div>
-
-              {/* Action Buttons - Right (fixed width columns) */}
-              <button
-                onClick={() => handleSelect(file.id, 'clean')}
-                className={`
-                  w-16 h-7 flex items-center justify-center gap-1 rounded border text-[10px] font-mono
-                  transition-all flex-shrink-0
-                  ${selectedAction === 'clean'
-                    ? `${getActionColor('clean').bg} ${getActionColor('clean').border} ${getActionColor('clean').text}`
-                    : `bg-gray-800/30 border-gray-700/30 text-gray-600 ${getActionColor('clean').hover}`
-                  }
-                `}
-                data-testid={`${testId}-file-${index}-action-clean`}
-                title="Remove this file from the codebase"
-              >
-                {selectedAction === 'clean' && <Check className="w-3 h-3" />}
-                <Trash2 className="w-3 h-3" />
-              </button>
-
-              <button
-                onClick={() => handleSelect(file.id, 'integrate')}
-                className={`
-                  w-20 h-7 flex items-center justify-center gap-1 rounded border text-[10px] font-mono
-                  transition-all flex-shrink-0
-                  ${selectedAction === 'integrate'
-                    ? `${getActionColor('integrate').bg} ${getActionColor('integrate').border} ${getActionColor('integrate').text}`
-                    : `bg-gray-800/30 border-gray-700/30 text-gray-600 ${getActionColor('integrate').hover}`
-                  }
-                `}
-                data-testid={`${testId}-file-${index}-action-integrate`}
-                title="Analyze and integrate into codebase"
-              >
-                {selectedAction === 'integrate' && <Check className="w-3 h-3" />}
-                <Wrench className="w-3 h-3" />
-              </button>
-
-              <button
-                onClick={() => handleSelect(file.id, 'skip')}
-                className={`
-                  w-16 h-7 flex items-center justify-center gap-1 rounded border text-[10px] font-mono
-                  transition-all flex-shrink-0
-                  ${selectedAction === 'skip'
-                    ? `${getActionColor('skip').bg} ${getActionColor('skip').border} ${getActionColor('skip').text}`
-                    : `bg-gray-800/30 border-gray-700/30 text-gray-600 ${getActionColor('skip').hover}`
-                  }
-                `}
-                data-testid={`${testId}-file-${index}-action-skip`}
-                title="Keep as-is, no action"
-              >
-                {selectedAction === 'skip' && <Check className="w-3 h-3" />}
-                <X className="w-3 h-3" />
-              </button>
-            </motion.div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

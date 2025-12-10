@@ -8,7 +8,6 @@ export { default as DebtPredictionLayout } from './DebtPredictionLayout';
 
 // Components
 export { default as DebtPredictionDashboard } from './components/DebtPredictionDashboard';
-export { default as DebtPreventionWidget } from './components/DebtPreventionWidget';
 export { default as HealthScoreGauge } from './components/HealthScoreGauge';
 export { default as OpportunityCard } from './components/OpportunityCard';
 export { default as PredictionList } from './components/PredictionList';

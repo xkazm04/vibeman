@@ -237,3 +237,65 @@ body {
   background: linear-gradient(135deg, rgba(34, 211, 238, 0.5), rgba(59, 130, 246, 0.5), rgba(34, 211, 238, 0.5));
   animation: onboarding-glow-border 1.5s ease-in-out infinite;
 }
+
+/* Blueprint Background Pulse Animations - Optimized CSS for better performance */
+@keyframes pulse-slow {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+    opacity: 0.3;
+  }
+}
+
+@keyframes pulse-slower {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.1;
+  }
+  50% {
+    transform: scale(1.2) rotate(-5deg);
+    opacity: 0.2;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 20s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-pulse-slower {
+  animation: pulse-slower 25s ease-in-out infinite 2s;
+  will-change: transform, opacity;
+}
+
+/* Progress Bar Shimmer Animations - Optimized CSS for better performance */
+@keyframes progress-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-30%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+.animate-progress-shimmer {
+  animation: progress-shimmer 1.5s linear infinite;
+  will-change: transform;
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.2s ease-in-out infinite;
+  will-change: transform;
+}

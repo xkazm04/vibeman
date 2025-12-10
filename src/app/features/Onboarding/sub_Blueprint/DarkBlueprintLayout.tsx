@@ -145,29 +145,23 @@ export default function DarkBlueprint({
       className="relative w-full h-full bg-gray-950 overflow-hidden"
       data-testid="blueprint-layout"
     >
-      {/* Dynamic Background Layer */}
+      {/* Dynamic Background Layer - Optimized with CSS animations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Deep Space Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-[#050a14] to-gray-950" />
 
-        {/* Animated Mesh Gradient (Simulated with blobs) */}
-        <motion.div
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.2, 0.3, 0.2],
-            rotate: [0, 5, 0]
+        {/* Animated Mesh Gradient (CSS animations for better performance) */}
+        <div
+          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-blue-900/20 blur-[120px] rounded-full animate-pulse-slow"
+          style={{
+            animation: 'pulse-slow 20s ease-in-out infinite',
           }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-blue-900/20 blur-[120px] rounded-full"
         />
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.1, 0.2, 0.1],
-            rotate: [0, -5, 0]
+        <div
+          className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-cyan-900/20 blur-[120px] rounded-full animate-pulse-slower"
+          style={{
+            animation: 'pulse-slower 25s ease-in-out infinite 2s',
           }}
-          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-cyan-900/20 blur-[120px] rounded-full"
         />
 
         {/* Pattern Overlay */}
