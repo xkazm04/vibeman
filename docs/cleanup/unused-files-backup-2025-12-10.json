@@ -8,10 +8,6 @@
     "src/app/features/CodeTree/TreeLayout.tsx",
     "src/app/features/Context/sub_ContextDetail/ContextDetailView.tsx",
     "src/app/features/Context/sub_ContextGen/components/BreadcrumbNav.tsx",
-    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_createSection.tsx",
-    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_listItem.tsx",
-    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_modalHeader.tsx",
-    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_section.tsx",
     "src/app/features/Context/sub_ContextOverview/components/AnimatedCard.tsx",
     "src/app/features/Context/sub_ContextOverview/components/FileChip.tsx",
     "src/app/features/Context/sub_ContextOverview/components/PriorityBadge.tsx",
@@ -49,6 +45,14 @@
     "src/components/ui/ModalTransitionDemo.tsx",
     "src/components/ui/ProjectToolbar.examples.tsx"
   ],
-  "filesKept": [],
-  "note": "These files were confirmed unused through comprehensive static analysis including dynamic imports, barrel exports, configuration references, and Next.js conventions."
+  "filesKept": [
+    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_createSection.tsx",
+    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_listItem.tsx",
+    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_modalHeader.tsx",
+    "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_section.tsx"
+  ],
+  "filesKeptReason": "These 4 CG_ files were initially deleted but restored after build verification revealed they are used by CG_modal.tsx, which is imported by ContextLayout.tsx",
+  "filesDeleted": 41,
+  "linesRemoved": "~5,747",
+  "note": "These files were confirmed unused through comprehensive static analysis including dynamic imports, barrel exports, configuration references, and Next.js conventions. Build verification caught internal dependencies that static analysis missed."
 }
