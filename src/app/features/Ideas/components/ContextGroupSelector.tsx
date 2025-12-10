@@ -56,7 +56,6 @@ export default function ContextGroupSelector({
             initial={{ opacity: 0, scale: 0.8, width: 0 }}
             animate={{ opacity: 1, scale: 1, width: 'auto' }}
             exit={{ opacity: 0, scale: 0.8, width: 0 }}
-            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
             Clear
@@ -88,7 +87,6 @@ export default function ContextGroupSelector({
               borderColor: isSelected ? group.color : undefined,
             }}
             whileHover={{
-              scale: 1.05,
               boxShadow: isSelected
                 ? `0 0 12px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`
                 : '0 0 8px rgba(107, 114, 128, 0.3)',

@@ -331,11 +331,13 @@ const TaskRunnerLayout = () => {
               <AnimatePresence>
                 {Object.entries(groupedRequirements).map(([projectId, projectReqs]) => {
                   const projectName = projectReqs[0]?.projectName || 'Unknown Project';
+                  const projectPath = projectReqs[0]?.projectPath || '';
                   return (
                     <TaskColumn
                       key={projectId}
                       projectId={projectId}
                       projectName={projectName}
+                      projectPath={projectPath}
                       requirements={projectReqs}
                       selectedRequirements={selectedRequirements}
                       onToggleSelect={toggleSelection}
@@ -343,6 +345,11 @@ const TaskRunnerLayout = () => {
                       onBulkDelete={handleBulkDelete}
                       onToggleProjectSelection={toggleProjectSelection}
                       getRequirementId={getRequirementId}
+                      onRefresh={() => {
+                        // Trigger a refresh by clearing requirements
+                        setRequirements([]);
+                        setSelectedRequirements(new Set());
+                      }}
                     />
                   );
                 })}

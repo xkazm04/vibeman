@@ -5,7 +5,7 @@ import { LLMRequest, LLMResponse, LLMProgress } from '../types';
 import { OllamaClient as OriginalOllamaClient } from '../../ollama';
 
 const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
+const DEFAULT_MODEL = 'ministral-3:14b';
 
 export class OllamaClient extends BaseLLMClient {
   name = 'ollama';

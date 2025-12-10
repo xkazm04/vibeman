@@ -304,7 +304,7 @@ export default function VoicebotPillar({ disabled = false }: VoicebotPillarProps
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: `You are a helpful AI assistant. Respond concisely in 1-2 sentences to: ${text}`,
-          model: 'gpt-oss:20b'
+          model: 'ministral-3:14b'
         }),
       });
 

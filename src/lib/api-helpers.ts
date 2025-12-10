@@ -1,38 +1,38 @@
 /**
  * Common API route helpers to reduce code duplication
+ *
+ * This module re-exports from the centralized api-errors module for backward compatibility.
+ * New code should import directly from '@/lib/api-errors'.
+ *
+ * @deprecated Import from '@/lib/api-errors' instead for new code
  */
-import { NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
 
-/**
- * Create a standardized error response
- */
-export function createErrorResponse(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
-}
+// Re-export everything from the centralized error module
+export {
+  // Error codes and types
+  ApiErrorCode,
+  ApiError,
+  ERROR_CODE_STATUS_MAP,
+  type ApiErrorResponse,
+  type ApiSuccessResponse,
 
-/**
- * Handle errors consistently across API routes
- */
-export function handleError(error: unknown, operation: string) {
-  logger.error(`Error in ${operation}:`, { error });
-  return createErrorResponse('Internal server error', 500);
-}
+  // New standardized functions
+  createApiErrorResponse,
+  createApiSuccessResponse,
+  validateRequiredFields,
+  handleApiError,
+  notFoundError,
+  databaseError,
+  validationError,
+  invalidActionError,
+  operationFailedError,
+  handleOperationResult,
 
-/**
- * Validate required parameters and return error response if missing
- */
-export function validateRequired(params: Record<string, unknown>, required: string[]) {
-  const missing = required.filter(key => !params[key]);
-  if (missing.length > 0) {
-    return createErrorResponse(`Missing required fields: ${missing.join(', ')}`, 400);
-  }
-  return null;
-}
-
-/**
- * Handle not found errors consistently
- */
-export function notFoundResponse(resource: string) {
-  return createErrorResponse(`${resource} not found`, 404);
-}
+  // Legacy compatibility exports (deprecated)
+  createErrorResponse,
+  handleError,
+  notFoundResponse,
+  validateRequired,
+  successResponse,
+  errorResponse,
+} from '@/lib/api-errors';

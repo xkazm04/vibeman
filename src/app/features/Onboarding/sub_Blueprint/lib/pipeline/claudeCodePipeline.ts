@@ -231,3 +231,39 @@ export async function executeFireAndForget(config: PipelineConfig): Promise<Pipe
     };
   }
 }
+
+/**
+ * Create requirement file only (no execution)
+ * Use this when you want to create the file and let the user manage execution via TaskRunner batches
+ */
+export async function createRequirementOnly(config: PipelineConfig): Promise<PipelineResult> {
+  const context: PipelineContext = {
+    data: {},
+    updateProgress: (progress: number, message?: string) => {
+      config.onProgress?.(progress, message);
+    },
+  };
+
+  try {
+    // Only execute the requirement creation step
+    await createRequirementStep.execute(config, context);
+
+    const result: PipelineResult = {
+      success: true,
+      requirementPath: context.requirementPath,
+      data: { requirementOnly: true },
+    };
+
+    config.onComplete?.(result);
+    return result;
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error('Requirement creation failed');
+    config.onError?.(err);
+
+    return {
+      success: false,
+      error: err.message,
+      requirementPath: context.requirementPath,
+    };
+  }
+}

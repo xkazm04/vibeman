@@ -21,6 +21,7 @@ import {
   type PluginDetectedIssue,
   type AggregatedScanResults
 } from './plugins';
+import { generateTechDebtId } from '@/lib/idGenerator';
 
 /**
  * Detection details type
@@ -443,7 +444,7 @@ export function prepareIssuesForDatabase(
     const remediationPlan = generateRemediationPlan(issue);
 
     return {
-      id: `tech-debt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateTechDebtId(),
       project_id: projectId,
       scan_id: scanId,
       category: issue.category,

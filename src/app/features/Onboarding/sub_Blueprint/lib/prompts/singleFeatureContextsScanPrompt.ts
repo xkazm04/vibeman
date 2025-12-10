@@ -28,7 +28,7 @@ export function singleFeatureContextsScanPrompt(params: SingleFeatureContextsSca
 
 ## Your Mission
 
-Analyze the **${featureName}** feature folder and create intelligent, well-structured contexts for this feature. Each context should represent a cohesive sub-feature or module within this feature.
+Analyze the **${featureName}** feature folder and create intelligent, well-structured contexts for this feature. Each context should represent a cohesive sub-feature or module within this feature. **Additionally, you must match each context to an existing context group based on the group names.**
 
 ## Feature Information
 
@@ -60,6 +60,38 @@ curl -X POST "http://localhost:3000/api/file-dependencies" -H "Content-Type: app
 \`\`\`
 
 ## Step-by-Step Instructions
+
+### Step 0: Fetch Existing Context Groups
+
+**IMPORTANT**: Before creating any contexts, fetch the existing context groups for this project to properly categorize your contexts.
+
+\`\`\`bash
+curl -X GET "http://localhost:3000/api/context-groups?projectId=${projectId}"
+\`\`\`
+
+**Expected response:**
+\`\`\`json
+{
+  "success": true,
+  "data": [
+    { "id": "group-uuid-1", "name": "Core Features", "color": "#3b82f6", "icon": "layers" },
+    { "id": "group-uuid-2", "name": "UI Components", "color": "#10b981", "icon": "layout" },
+    { "id": "group-uuid-3", "name": "Backend Services", "color": "#8b5cf6", "icon": "server" }
+  ]
+}
+\`\`\`
+
+**Save this list!** You will use it in Step 6 to assign each context to the most appropriate group.
+
+**Context Group Matching Rules:**
+1. Match based on semantic similarity between context purpose and group name
+2. "Core Features" / "Features" → Main user-facing functionality contexts
+3. "UI Components" / "Components" → Reusable UI component contexts
+4. "Backend Services" / "API" / "Services" → Backend logic, API routes
+5. "Data Layer" / "Database" → Database queries, data models
+6. "State Management" / "Stores" → Zustand stores, state logic
+7. "Utilities" / "Helpers" / "Lib" → Utility functions, shared libraries
+8. If no clear match exists, use the most generic/catch-all group or leave \`groupId\` as null
 
 ### Step 1: Analyze Feature Structure
 
@@ -189,13 +221,26 @@ For each context, create a comprehensive description following this EXACT struct
 
 ### Step 6: Create Contexts in Database
 
-For each context, call the API:
+For each context, call the API **with the matching groupId from Step 0**:
 
 \`\`\`bash
 curl -X POST "http://localhost:3000/api/contexts" \\
   -H "Content-Type: application/json" \\
-  -d '{"projectId":"${projectId}","name":"${featureName} - Context Name","description":"## Overview\\n...","filePaths":["src/app/features/${featureName}/file1.tsx","src/app/features/${featureName}/file2.ts"],"testScenario":"[{\\"type\\":\\"navigate\\",\\"url\\":\\"http://localhost:${projectPort}/route\\"},{\\"type\\":\\"wait\\",\\"delay\\":3000}]"}'
+  -d '{"projectId":"${projectId}","groupId":"<matched-group-id-from-step-0>","name":"${featureName} - Context Name","description":"## Overview\\n...","filePaths":["src/app/features/${featureName}/file1.tsx","src/app/features/${featureName}/file2.ts"],"testScenario":"[{\\"type\\":\\"navigate\\",\\"url\\":\\"http://localhost:${projectPort}/route\\"},{\\"type\\":\\"wait\\",\\"delay\\":3000}]"}'
 \`\`\`
+
+**CRITICAL - Context Group Assignment:**
+1. **Review the context groups fetched in Step 0**
+2. **Evaluate which group best matches this context** based on:
+   - The context's primary purpose (UI, backend, data, state, etc.)
+   - The group name's semantic meaning
+3. **Use the group's \`id\` field as \`groupId\`**
+4. If no group is appropriate, set \`groupId\` to \`null\`
+
+**Example groupId assignment:**
+- Context "Goals Management - UI Components" → groupId from "UI Components" group
+- Context "Goals Management - API Routes" → groupId from "Backend Services" or "API" group
+- Context "Goals Management - Core System" → groupId from "Core Features" group
 
 **CRITICAL testScenario Format:**
 - Must be a **stringified JSON array**: \`"[{...},{...}]"\`
@@ -205,6 +250,7 @@ curl -X POST "http://localhost:3000/api/contexts" \\
 
 **Field Requirements:**
 - \`projectId\`: "${projectId}"
+- \`groupId\`: ID from matching context group (from Step 0) or null
 - \`name\`: "${featureName} - [Specific area]"
 - \`description\`: Full markdown following structure above
 - \`filePaths\`: Array of relative paths from project root

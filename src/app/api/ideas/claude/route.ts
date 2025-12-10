@@ -204,7 +204,7 @@ curl -X POST http://localhost:3000/api/ideas \\
 1. Read the project's CLAUDE.md or AI.md documentation if available
 2. Explore the codebase structure${context ? `, focusing on the context files` : ''}
 3. Analyze code with the perspective described in the analysis prompt above
-4. Generate 3-5 high-quality ideas following the specialized criteria
+4. Generate high-quality ideas that would genuinely push this project forward (no arbitrary limits - focus on value)
 5. Create a scan record via /api/scans
 6. Save each idea via /api/ideas using the scan_id
 7. Report what ideas were created

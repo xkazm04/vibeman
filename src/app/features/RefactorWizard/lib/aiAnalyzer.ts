@@ -1,6 +1,8 @@
 import { generateWithLLM } from '@/lib/llm';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 import type { FileAnalysis, ProjectContext } from './types';
+import { deduplicateRefactorOpportunities } from '@/lib/deduplication';
+import { generateAiOpportunityId } from '@/lib/idGenerator';
 
 type LLMProvider = 'gemini' | 'openai' | 'anthropic' | 'ollama';
 
@@ -187,7 +189,7 @@ function parseAIResponse(response: string, files: FileAnalysis[]): RefactorOppor
     }
 
     return parsed.map((item, index: number) => ({
-      id: `ai-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 5)}`,
+      id: generateAiOpportunityId(index),
       title: item.title || 'Untitled opportunity',
       description: item.description || '',
       category: (item.category as any) || 'code-quality',
@@ -287,26 +289,11 @@ export async function analyzeWithAI(
     }
   }
 
-  return deduplicateOpportunities(opportunities);
+  return deduplicateRefactorOpportunities(opportunities);
 }
 
 /**
  * Deduplicates opportunities based on category, files, and description
+ * Re-exported from shared deduplication module for backward compatibility
  */
-export function deduplicateOpportunities(opportunities: RefactorOpportunity[]): RefactorOpportunity[] {
-  const seen = new Set<string>();
-  const unique: RefactorOpportunity[] = [];
-
-  for (const opp of opportunities) {
-    // Create a key based on category, files, and description
-    // Use a fuzzy match for description (first 50 chars) to catch slight variations
-    const key = `${opp.category}-${opp.files.sort().join(',')}-${opp.description.slice(0, 50)}`;
-
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(opp);
-    }
-  }
-
-  return unique;
-}
+export { deduplicateRefactorOpportunities as deduplicateOpportunities } from '@/lib/deduplication';

@@ -42,12 +42,56 @@ export default function FilterPanel({
   };
 
   const toggleComparisonMode = () => {
-    onFilterChange({
-      ...filters,
-      comparisonMode: !filters.comparisonMode,
-      period1: !filters.comparisonMode ? { startDate: null, endDate: null, label: 'Period 1' } : undefined,
-      period2: !filters.comparisonMode ? { startDate: null, endDate: null, label: 'Period 2' } : undefined
-    });
+    if (!filters.comparisonMode) {
+      // When enabling comparison mode, prefill with "this week" vs "last week"
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      
+      // Calculate start of this week (Monday)
+      const thisWeekStart = new Date(today);
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 6 days from Monday
+      thisWeekStart.setDate(today.getDate() - daysFromMonday);
+      thisWeekStart.setHours(0, 0, 0, 0);
+      
+      // Calculate end of this week (Sunday)
+      const thisWeekEnd = new Date(thisWeekStart);
+      thisWeekEnd.setDate(thisWeekStart.getDate() + 6);
+      thisWeekEnd.setHours(23, 59, 59, 999);
+      
+      // Calculate start of last week (Monday)
+      const lastWeekStart = new Date(thisWeekStart);
+      lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+      
+      // Calculate end of last week (Sunday)
+      const lastWeekEnd = new Date(lastWeekStart);
+      lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+      lastWeekEnd.setHours(23, 59, 59, 999);
+      
+      // Format dates as YYYY-MM-DD for input fields
+      const formatDate = (date: Date) => date.toISOString().split('T')[0];
+      
+      onFilterChange({
+        ...filters,
+        comparisonMode: true,
+        period1: {
+          startDate: formatDate(thisWeekStart),
+          endDate: formatDate(thisWeekEnd),
+          label: 'This Week'
+        },
+        period2: {
+          startDate: formatDate(lastWeekStart),
+          endDate: formatDate(lastWeekEnd),
+          label: 'Last Week'
+        }
+      });
+    } else {
+      onFilterChange({
+        ...filters,
+        comparisonMode: false,
+        period1: undefined,
+        period2: undefined
+      });
+    }
   };
 
   const hasFilters = filters.projectId || filters.contextId || filters.comparisonMode || (filters.timeWindow && filters.timeWindow !== 'all');
@@ -56,7 +100,7 @@ export default function FilterPanel({
     <motion.div
       initial={{ y: -10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="bg-gray-800/40 border border-gray-700/40 rounded-lg p-4 backdrop-blur-sm"
+      className="bg-gray-800/40 border border-gray-700/40 rounded-lg p-4 backdrop-blur-sm relative z-30"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

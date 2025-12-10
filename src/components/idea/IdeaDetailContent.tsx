@@ -30,6 +30,8 @@ interface IdeaDetailContentProps {
   showAIError: boolean;
   setShowAIError: (value: boolean) => void;
   onUpdate: (updates: Partial<DbIdea>) => Promise<void>;
+  /** ID for the description element (used for aria-describedby) */
+  descriptionId?: string;
 }
 
 interface ReasoningSectionProps {
@@ -67,10 +69,11 @@ export default function IdeaDetailContent({
   showAIError,
   setShowAIError,
   onUpdate,
+  descriptionId,
 }: IdeaDetailContentProps) {
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto p-4 space-y-4" id={descriptionId}>
       {/* AI Error Display */}
       <AnimatePresence>
         {showAIError && requirementError && (

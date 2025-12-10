@@ -97,7 +97,6 @@ export default function ContextRowSelection({
                 : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
             }`}
             whileHover={{
-              scale: 1.05,
               boxShadow: isFullProjectSelected
                 ? '0 0 12px rgba(34, 211, 238, 0.4), 0 0 20px rgba(34, 211, 238, 0.2)'
                 : '0 0 8px rgba(107, 114, 128, 0.3)',

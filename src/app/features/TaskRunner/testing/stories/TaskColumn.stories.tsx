@@ -54,6 +54,7 @@ export function EmptyColumn() {
       <TaskColumn
         projectId="empty-project"
         projectName="Empty Project"
+        projectPath="/projects/empty"
         requirements={[]}
         selectedRequirements={new Set()}
         onToggleSelect={() => {}}
@@ -89,6 +90,7 @@ export function FewRequirements() {
       <TaskColumn
         projectId={projectId}
         projectName="Demo Project"
+        projectPath="/projects/demo"
         requirements={requirements}
         selectedRequirements={selectedRequirements}
         onToggleSelect={toggleSelect}
@@ -124,6 +126,7 @@ export function ManyRequirements() {
       <TaskColumn
         projectId={projectId}
         projectName="Large Project"
+        projectPath="/projects/large"
         requirements={requirements}
         selectedRequirements={selectedRequirements}
         onToggleSelect={toggleSelect}
@@ -169,6 +172,7 @@ export function MixedStatuses() {
       <TaskColumn
         projectId={projectId}
         projectName="Mixed Status Project"
+        projectPath="/projects/mixed"
         requirements={requirements}
         selectedRequirements={selectedRequirements}
         onToggleSelect={toggleSelect}
@@ -197,6 +201,7 @@ export function AllSelected() {
       <TaskColumn
         projectId={projectId}
         projectName="All Selected Project"
+        projectPath="/projects/all-selected"
         requirements={requirements}
         selectedRequirements={selectedRequirements}
         onToggleSelect={() => {}}
@@ -225,6 +230,7 @@ export function PartialSelection() {
       <TaskColumn
         projectId={projectId}
         projectName="Partial Selection Project"
+        projectPath="/projects/partial"
         requirements={requirements}
         selectedRequirements={selectedRequirements}
         onToggleSelect={() => {}}
@@ -251,6 +257,7 @@ export function LongProjectName() {
       <TaskColumn
         projectId={projectId}
         projectName="This Is A Very Long Project Name That Should Be Truncated"
+        projectPath="/projects/long-name"
         requirements={requirements}
         selectedRequirements={selectedRequirements}
         onToggleSelect={(reqId) =>
@@ -330,6 +337,7 @@ export function MultipleColumnsGrid() {
               key={project.id}
               projectId={project.id}
               projectName={project.name}
+              projectPath={`/projects/${project.id}`}
               requirements={reqs}
               selectedRequirements={selectedRequirements}
               onToggleSelect={toggleSelect}
@@ -423,6 +431,7 @@ export function InteractiveDemo() {
         <TaskColumn
           projectId={projectId}
           projectName="Interactive Demo Project"
+          projectPath="/projects/interactive"
           requirements={requirements}
           selectedRequirements={selectedRequirements}
           onToggleSelect={toggleSelect}

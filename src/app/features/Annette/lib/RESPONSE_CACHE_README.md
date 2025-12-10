@@ -49,7 +49,7 @@ const response = await getLLMResponse(
   "What's the weather?",
   conversationHistory,
   'ollama',
-  'gpt-oss:20b'
+  'ministral-3:14b'
 );
 ```
 

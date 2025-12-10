@@ -1,4 +1,9 @@
-import { executeCommand, executeCommandWithTiming, executeCommandWithJsonOutput } from '@/lib/command';
+import {
+  executeCommand,
+  executeCommandWithTiming,
+  executeCommandWithJsonOutput,
+  validateCommitMessage,
+} from '@/lib/command';
 import { VulnerabilityInfo } from '@/app/db/models/security-patch.types';
 import { PatchProposal } from './patchGenerator';
 
@@ -54,11 +59,21 @@ async function applyPackageUpdates(
  */
 async function createBranch(projectPath: string, branchName: string): Promise<void> {
   // Ensure we're on a clean branch
-  await executeCommand('git', ['checkout', 'main'], { cwd: projectPath });
-  await executeCommand('git', ['pull', 'origin', 'main'], { cwd: projectPath });
+  await executeCommand('git', ['checkout', 'main'], {
+    cwd: projectPath,
+    argValidator: null,
+  });
+  await executeCommand('git', ['pull', 'origin', 'main'], {
+    cwd: projectPath,
+    argValidator: null,
+  });
 
   // Create and checkout new branch
-  await executeCommand('git', ['checkout', '-b', branchName], { cwd: projectPath });
+  // branchName is generated internally (security/auto-patch-{timestamp}), so it's safe
+  await executeCommand('git', ['checkout', '-b', branchName], {
+    cwd: projectPath,
+    argValidator: null,
+  });
 }
 
 /**
@@ -68,12 +83,28 @@ async function commitChanges(
   projectPath: string,
   message: string
 ): Promise<string> {
-  await executeCommand('git', ['add', 'package.json', 'package-lock.json'], { cwd: projectPath });
+  // Validate commit message to prevent injection
+  const validation = validateCommitMessage(message);
+  if (!validation.valid) {
+    throw new Error(`Invalid commit message: ${validation.error}`);
+  }
+  const safeMessage = validation.sanitized!;
 
-  await executeCommand('git', ['commit', '-m', message], { cwd: projectPath });
+  await executeCommand('git', ['add', 'package.json', 'package-lock.json'], {
+    cwd: projectPath,
+    argValidator: null, // Static args, no validation needed
+  });
+
+  await executeCommand('git', ['commit', '-m', safeMessage], {
+    cwd: projectPath,
+    argValidator: null, // We've already validated the message
+  });
 
   // Get commit SHA
-  const shaResult = await executeCommand('git', ['rev-parse', 'HEAD'], { cwd: projectPath });
+  const shaResult = await executeCommand('git', ['rev-parse', 'HEAD'], {
+    cwd: projectPath,
+    argValidator: null,
+  });
 
   return shaResult.stdout.trim();
 }
@@ -82,7 +113,11 @@ async function commitChanges(
  * Push branch to remote
  */
 async function pushBranch(projectPath: string, branchName: string): Promise<void> {
-  await executeCommand('git', ['push', '-u', 'origin', branchName], { cwd: projectPath });
+  // branchName is generated internally (security/auto-patch-{timestamp}), so it's safe
+  await executeCommand('git', ['push', '-u', 'origin', branchName], {
+    cwd: projectPath,
+    argValidator: null,
+  });
 }
 
 /**
@@ -93,10 +128,14 @@ async function createGitHubPr(
   title: string,
   body: string
 ): Promise<{ prNumber: number; prUrl: string }> {
+  // Title and body are generated internally, so skip validation
   const result = await executeCommand(
     'gh',
     ['pr', 'create', '--title', title, '--body', body],
-    { cwd: projectPath }
+    {
+      cwd: projectPath,
+      argValidator: null,
+    }
   );
 
   // Extract PR URL from output
@@ -116,7 +155,10 @@ export async function runTests(projectPath: string): Promise<TestResult> {
   const result = await executeCommandWithTiming(
     'npm',
     ['test', '--', '--passWithNoTests'],
-    { cwd: projectPath }
+    {
+      cwd: projectPath,
+      argValidator: null,
+    }
   );
 
   return {
@@ -134,7 +176,10 @@ export async function runBuild(projectPath: string): Promise<TestResult> {
   const result = await executeCommandWithTiming(
     'npm',
     ['run', 'build'],
-    { cwd: projectPath }
+    {
+      cwd: projectPath,
+      argValidator: null,
+    }
   );
 
   return {
@@ -182,7 +227,10 @@ async function executePrSteps(
   await applyPackageUpdates(projectPath, vulnerabilities);
 
   // Install dependencies
-  await executeCommand('npm', ['install'], { cwd: projectPath });
+  await executeCommand('npm', ['install'], {
+    cwd: projectPath,
+    argValidator: null,
+  });
 
   // Commit changes
   const commitMessage = generateSecurityCommitMessage(vulnerabilities);
@@ -247,7 +295,11 @@ export async function mergePrIfTestsPass(
     const { data: prStatus } = await executeCommandWithJsonOutput<{ statusCheckRollup?: StatusCheck[] }>(
       'gh',
       ['pr', 'view', prNumber.toString(), '--json', 'statusCheckRollup'],
-      { cwd: projectPath, acceptNonZero: true }
+      {
+        cwd: projectPath,
+        acceptNonZero: true,
+        argValidator: null,
+      }
     );
 
     const checks = prStatus.statusCheckRollup || [];
@@ -261,7 +313,10 @@ export async function mergePrIfTestsPass(
     await executeCommand(
       'gh',
       ['pr', 'merge', prNumber.toString(), '--auto', '--squash'],
-      { cwd: projectPath }
+      {
+        cwd: projectPath,
+        argValidator: null,
+      }
     );
 
     return { success: true };

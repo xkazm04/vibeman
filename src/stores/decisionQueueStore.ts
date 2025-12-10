@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type React from 'react';
 import type { WizardStepAction } from '@/components/DecisionPanel/WizardStepPanel';
+import { generateDecisionId } from '@/lib/idGenerator';
 
 export type DecisionType = 'structure-scan' | 'build-fix' | 'context-scan' | 'pre-scan';
 
@@ -56,7 +57,7 @@ export const useDecisionQueueStore = create<DecisionQueueState>((set, get) => ({
    * If queue is empty, it becomes the current decision
    */
   addDecision: (decision) => {
-    const id = `decision-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = generateDecisionId();
     const now = Date.now();
 
     const newDecision: DecisionItem = {

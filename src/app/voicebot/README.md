@@ -58,7 +58,7 @@ Converts text to speech using ElevenLabs Text-to-Speech API:
 3. **Ensure Ollama is Running**:
    - The voicebot uses the existing Ollama integration
    - Make sure Ollama is running on `localhost:11434`
-   - The default model is `gpt-oss:20b`
+   - The default model is `ministral-3:14b`
 
 ## Conversation Flow
 

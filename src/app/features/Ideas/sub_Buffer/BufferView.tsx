@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb, Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferColumn from './BufferColumn';
 import { GroupedIdeas } from '../lib/ideasUtils';
@@ -12,6 +12,7 @@ import {
   useDeleteIdea,
   useDeleteContextIdeas,
 } from '@/lib/queries/ideaQueries';
+import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
 
 interface BufferViewProps {
   filterProject?: string;
@@ -150,20 +151,24 @@ export default function BufferView({
 
   if (filteredIdeas.length === 0) {
     return (
-      <motion.div
-        className="text-center py-24"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        data-testid="buffer-empty"
-      >
-        <Lightbulb className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-400 mb-2">
-          No ideas yet
-        </h3>
-        <p className="text-gray-500">
-          Use the Generate Ideas button above to analyze your codebase
-        </p>
-      </motion.div>
+      <EmptyStateIllustration
+        type="ideas"
+        headline="Your idea buffer is empty"
+        description="Generate AI-powered insights by scanning your codebase. Our specialized agents will analyze your code and suggest improvements, optimizations, and new features."
+        action={{
+          label: 'Generate Ideas',
+          onClick: () => {
+            // Scroll to or focus the scan initiator button
+            const scanBtn = document.querySelector('[data-testid="ideas-scan-btn"]');
+            if (scanBtn instanceof HTMLElement) {
+              scanBtn.focus();
+              scanBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          },
+          icon: Sparkles,
+        }}
+        testId="buffer-empty"
+      />
     );
   }
 

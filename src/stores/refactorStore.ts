@@ -1,213 +1,59 @@
+/**
+ * Refactor Store
+ *
+ * Manages state for the RefactorWizard feature using composable slices.
+ * Split into focused sub-stores for better maintainability:
+ * - analysisSlice: Scanning and analysis progress
+ * - opportunitiesSlice: Refactoring opportunities list and selection
+ * - wizardSlice: Wizard UI state and configuration
+ * - packagesSlice: Package-based refactoring state
+ * - dslSlice: DSL mode and spec operations
+ */
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useActiveProjectStore } from './activeProjectStore';
-import type { WizardPlan } from '@/app/features/RefactorWizard/lib/wizardOptimizer';
-import type { ScanTechniqueGroup } from '@/app/features/RefactorWizard/lib/scanTechniques';
-import type { RefactoringPackage, DependencyGraph, ProjectContext, PackageFilter } from '@/app/features/RefactorWizard/lib/types';
-import type { RefactorSpec, ExecutionResult, RefactorTemplate } from '@/app/features/RefactorWizard/lib/dslTypes';
+import { generateQueueId } from '@/lib/idGenerator';
 
-export type RefactorOpportunity = {
-  id: string;
-  title: string;
-  description: string;
-  category: 'performance' | 'maintainability' | 'security' | 'code-quality' | 'duplication' | 'architecture';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  impact: string;
-  effort: 'low' | 'medium' | 'high';
-  files: string[];
-  lineNumbers?: Record<string, number[]>;
-  suggestedFix?: string;
-  autoFixAvailable: boolean;
-  estimatedTime?: string;
-};
+import {
+  createAnalysisSlice,
+  createOpportunitiesSlice,
+  createWizardSlice,
+  createPackagesSlice,
+  createDSLSlice,
+} from './slices/refactor';
 
-export type AnalysisStatus = 'idle' | 'scanning' | 'analyzing' | 'generating-plan' | 'completed' | 'error';
+import type { RefactorState } from './slices/refactor/types';
 
-interface RefactorState {
-  // Analysis state
-  analysisStatus: AnalysisStatus;
-  analysisProgress: number;
-  analysisError: string | null;
-  analysisProgressMessage: string | null;
-  currentQueueId: string | null;
-  pollingInterval: NodeJS.Timeout | null;
-
-  // Opportunities
-  opportunities: RefactorOpportunity[];
-  selectedOpportunities: Set<string>;
-  filterCategory: RefactorOpportunity['category'] | 'all';
-  filterSeverity: RefactorOpportunity['severity'] | 'all';
-
-  // Wizard configuration
-  wizardPlan: WizardPlan | null;
-  selectedScanGroups: Set<string>;
-  techniqueOverrides: Map<string, boolean>; // techniqueId -> enabled
-  selectedFolders: string[]; // Folders to scan (empty = scan all)
-  llmProvider: string;
-  llmModel: string;
-
-  // UI state
-  isWizardOpen: boolean;
-  currentStep: 'settings' | 'scan' | 'plan' | 'review' | 'package' | 'execute' | 'results';
-
-  // ============================================================================
-  // DSL MODE STATE
-  // ============================================================================
-
-  /** Whether DSL mode is active (vs traditional wizard) */
-  isDSLMode: boolean;
-
-  /** Current DSL specification being edited */
-  currentSpec: RefactorSpec | null;
-
-  /** DSL execution status */
-  dslExecutionStatus: 'idle' | 'previewing' | 'executing' | 'completed' | 'failed';
-
-  /** DSL execution result */
-  dslExecutionResult: ExecutionResult | null;
-
-  /** Recently used specs */
-  recentSpecs: { name: string; spec: RefactorSpec; timestamp: string }[];
-
-  /** Saved spec templates */
-  savedSpecs: RefactorSpec[];
-
-  // ============================================================================
-  // PACKAGE-BASED REFACTORING STATE (Phase 1)
-  // ============================================================================
-
-  packages: RefactoringPackage[];
-  selectedPackages: Set<string>;
-  packageDependencies: DependencyGraph | null;
-  packageFilter: PackageFilter;
-  packageGenerationStatus: 'idle' | 'generating' | 'completed' | 'error';
-  packageGenerationError: string | null;
-  projectContext: ProjectContext | null;
-
-  // Actions
-  startAnalysis: (projectId: string, projectPath: string, useAI?: boolean, provider?: string, model?: string, projectType?: string, selectedFolders?: string[]) => Promise<void>;
-  setAnalysisStatus: (status: AnalysisStatus, progress?: number) => void;
-  setAnalysisError: (error: string | null) => void;
-  stopPolling: () => void;
-  setOpportunities: (opportunities: RefactorOpportunity[]) => void;
-  toggleOpportunity: (id: string) => void;
-  selectAllOpportunities: () => void;
-  clearSelection: () => void;
-  setFilterCategory: (category: RefactorOpportunity['category'] | 'all') => void;
-  setFilterSeverity: (severity: RefactorOpportunity['severity'] | 'all') => void;
-
-  // Wizard configuration actions
-  setWizardPlan: (plan: WizardPlan | null) => void;
-  toggleScanGroup: (groupId: string) => void;
-  toggleTechnique: (groupId: string, techniqueId: string) => void;
-  selectAllGroups: () => void;
-  clearGroupSelection: () => void;
-  setSelectedFolders: (folders: string[]) => void;
-  setLLMProvider: (provider: string) => void;
-  setLLMModel: (model: string) => void;
-
-  openWizard: () => void;
-  closeWizard: () => void;
-  setCurrentStep: (step: RefactorState['currentStep']) => void;
-  resetWizard: () => void;
-
-  // ============================================================================
-  // PACKAGE ACTIONS (Phase 1)
-  // ============================================================================
-
-  setPackages: (packages: RefactoringPackage[]) => void;
-  togglePackageSelection: (packageId: string) => void;
-  selectPackagesWithDependencies: (packageId: string) => void;
-  setPackageFilter: (filter: Partial<PackageFilter>) => void;
-  clearPackages: () => void;
-  setPackageDependencies: (graph: DependencyGraph) => void;
-  setProjectContext: (context: ProjectContext) => void;
-  setPackageGenerationStatus: (status: RefactorState['packageGenerationStatus'], error?: string) => void;
-
-  // Bulk selection helpers
-  selectAllPackages: () => void;
-  clearPackageSelection: () => void;
-  selectPackagesByCategory: (category: string) => void;
-  selectFoundationalPackages: () => void;
-  generatePackages: () => Promise<void>;
-
-  // ============================================================================
-  // DSL MODE ACTIONS
-  // ============================================================================
-
-  /** Toggle DSL mode on/off */
-  setDSLMode: (enabled: boolean) => void;
-
-  /** Set current spec */
-  setCurrentSpec: (spec: RefactorSpec | null) => void;
-
-  /** Update current spec */
-  updateCurrentSpec: (updates: Partial<RefactorSpec>) => void;
-
-  /** Set DSL execution status */
-  setDSLExecutionStatus: (status: RefactorState['dslExecutionStatus']) => void;
-
-  /** Set DSL execution result */
-  setDSLExecutionResult: (result: ExecutionResult | null) => void;
-
-  /** Save current spec to saved list */
-  saveCurrentSpec: () => void;
-
-  /** Load a saved spec */
-  loadSpec: (spec: RefactorSpec) => void;
-
-  /** Delete a saved spec */
-  deleteSavedSpec: (name: string) => void;
-
-  /** Add to recent specs */
-  addToRecentSpecs: (spec: RefactorSpec) => void;
-
-  /** Execute DSL spec */
-  executeDSLSpec: (spec: RefactorSpec) => Promise<void>;
-}
+// Re-export types for backward compatibility
+export type {
+  RefactorOpportunity,
+  AnalysisStatus,
+  WizardStep,
+  PackageGenerationStatus,
+  DSLExecutionStatus,
+} from './slices/refactor/types';
 
 export const useRefactorStore = create<RefactorState>()(
   persist(
-    (set, get) => ({
-      // Initial state
-      analysisStatus: 'idle',
-      analysisProgress: 0,
-      analysisError: null,
-      analysisProgressMessage: null,
-      currentQueueId: null,
-      pollingInterval: null,
-      opportunities: [],
-      selectedOpportunities: new Set(),
-      filterCategory: 'all',
-      filterSeverity: 'all',
-      wizardPlan: null,
-      selectedScanGroups: new Set(),
-      techniqueOverrides: new Map(),
-      selectedFolders: [],
-      llmProvider: 'gemini',
-      llmModel: '',
-      isWizardOpen: false,
-      currentStep: 'settings',
+    (set, get, api) => ({
+      // Compose all slices
+      ...createAnalysisSlice(set, get, api),
+      ...createOpportunitiesSlice(set, get, api),
+      ...createWizardSlice(set, get, api),
+      ...createPackagesSlice(set, get, api),
+      ...createDSLSlice(set, get, api),
 
-      // NEW: Package state (Phase 1)
-      packages: [],
-      selectedPackages: new Set(),
-      packageDependencies: null,
-      packageFilter: { category: 'all', impact: 'all', effort: 'all', status: 'all' },
-      packageGenerationStatus: 'idle',
-      packageGenerationError: null,
-      projectContext: null,
-
-      // DSL Mode state
-      isDSLMode: false,
-      currentSpec: null,
-      dslExecutionStatus: 'idle',
-      dslExecutionResult: null,
-      recentSpecs: [],
-      savedSpecs: [],
-
-      // Actions
-      startAnalysis: async (projectId: string, projectPath: string, useAI: boolean = true, provider?: string, model?: string, projectType?: string, selectedFolders?: string[]) => {
+      // Main analysis action that orchestrates multiple slices
+      startAnalysis: async (
+        projectId: string,
+        projectPath: string,
+        useAI: boolean = true,
+        provider?: string,
+        model?: string,
+        projectType?: string,
+        selectedFolders?: string[]
+      ) => {
         // Stop any existing polling
         get().stopPolling();
 
@@ -227,7 +73,7 @@ export const useRefactorStore = create<RefactorState>()(
 
         try {
           // Step 1: Create scan queue item
-          const queueId = `queue-refactor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const queueId = generateQueueId();
 
           const queueResponse = await fetch('/api/scan-queue', {
             method: 'POST',
@@ -266,7 +112,7 @@ export const useRefactorStore = create<RefactorState>()(
               model,
               selectedGroups: selectedGroupsArray,
               projectType,
-              selectedFolders: foldersToScan // Pass selected folders for scoping
+              selectedFolders: foldersToScan
             }),
           }).catch(error => {
             console.error('[RefactorStore] Background analysis request failed:', error);
@@ -361,436 +207,17 @@ export const useRefactorStore = create<RefactorState>()(
           });
         }
       },
-
-      setAnalysisStatus: (status: AnalysisStatus, progress?: number) => {
-        set({
-          analysisStatus: status,
-          ...(progress !== undefined && { analysisProgress: progress })
-        });
-      },
-
-      setAnalysisError: (error: string | null) => {
-        set({ analysisError: error });
-      },
-
-      stopPolling: () => {
-        const { pollingInterval } = get();
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          set({ pollingInterval: null });
-        }
-      },
-
-      setOpportunities: (opportunities: RefactorOpportunity[]) => {
-        set({ opportunities });
-      },
-
-      toggleOpportunity: (id: string) => {
-        const selected = new Set(get().selectedOpportunities);
-        if (selected.has(id)) {
-          selected.delete(id);
-        } else {
-          selected.add(id);
-        }
-        set({ selectedOpportunities: selected });
-      },
-
-      selectAllOpportunities: () => {
-        const { opportunities } = get();
-        const allIds = new Set(opportunities.map(o => o.id));
-        set({ selectedOpportunities: allIds });
-      },
-
-      clearSelection: () => {
-        set({ selectedOpportunities: new Set() });
-      },
-
-      setFilterCategory: (category) => {
-        set({ filterCategory: category });
-      },
-
-      setFilterSeverity: (severity) => {
-        set({ filterSeverity: severity });
-      },
-
-      // Wizard configuration actions
-      setWizardPlan: (plan: WizardPlan | null) => {
-        set({ wizardPlan: plan });
-      },
-
-      toggleScanGroup: (groupId: string) => {
-        const selected = new Set(get().selectedScanGroups);
-        if (selected.has(groupId)) {
-          selected.delete(groupId);
-        } else {
-          selected.add(groupId);
-        }
-        set({ selectedScanGroups: selected });
-      },
-
-      toggleTechnique: (groupId: string, techniqueId: string) => {
-        const overrides = new Map(get().techniqueOverrides);
-        const key = `${groupId}:${techniqueId}`;
-        const currentValue = overrides.get(key) ?? true;
-        overrides.set(key, !currentValue);
-        set({ techniqueOverrides: overrides });
-      },
-
-      selectAllGroups: () => {
-        const { wizardPlan } = get();
-        if (wizardPlan) {
-          const allIds = new Set<string>(wizardPlan.recommendedGroups.map(g => g.id));
-          set({ selectedScanGroups: allIds });
-        } else {
-          // If no wizard plan, select all available groups
-          import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ SCAN_TECHNIQUE_GROUPS }) => {
-            const allGroupIds = new Set(SCAN_TECHNIQUE_GROUPS.map(g => g.id));
-            set({ selectedScanGroups: allGroupIds });
-          });
-        }
-      },
-
-      clearGroupSelection: () => {
-        set({ selectedScanGroups: new Set() });
-      },
-
-      setSelectedFolders: (folders: string[]) => {
-        set({ selectedFolders: folders });
-      },
-
-      setLLMProvider: (provider: string) => {
-        set({ llmProvider: provider });
-      },
-
-      setLLMModel: (model: string) => {
-        set({ llmModel: model });
-      },
-
-      openWizard: () => {
-        // Initialize with all groups selected by default
-        const { selectedScanGroups } = get();
-        if (selectedScanGroups.size === 0) {
-          // Import and get all groups - we'll set them all as selected
-          import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ SCAN_TECHNIQUE_GROUPS }) => {
-            const allGroupIds = new Set(SCAN_TECHNIQUE_GROUPS.map(g => g.id));
-            set({ selectedScanGroups: allGroupIds });
-          });
-        }
-        set({ isWizardOpen: true });
-      },
-
-      closeWizard: () => {
-        set({ isWizardOpen: false });
-      },
-
-      setCurrentStep: (step) => {
-        set({ currentStep: step });
-      },
-
-      resetWizard: () => {
-        // Stop polling first
-        get().stopPolling();
-
-        set({
-          analysisStatus: 'idle',
-          analysisProgress: 0,
-          analysisError: null,
-          analysisProgressMessage: null,
-          currentQueueId: null,
-          selectedOpportunities: new Set(),
-          wizardPlan: null,
-          selectedScanGroups: new Set(),
-          techniqueOverrides: new Map(),
-          currentStep: 'settings',
-        });
-      },
-
-      // ============================================================================
-      // PACKAGE ACTIONS IMPLEMENTATION (Phase 1)
-      // ============================================================================
-
-      setPackages: (packages) => set({
-        packages,
-        packageGenerationStatus: 'completed',
-        packageGenerationError: null
-      }),
-
-      togglePackageSelection: (packageId) => {
-        const selected = new Set(get().selectedPackages);
-        if (selected.has(packageId)) {
-          selected.delete(packageId);
-        } else {
-          selected.add(packageId);
-        }
-        set({ selectedPackages: selected });
-      },
-
-      selectPackagesWithDependencies: (packageId) => {
-        const { packages } = get();
-        const selected = new Set(get().selectedPackages);
-        const pkg = packages.find(p => p.id === packageId);
-
-        if (!pkg) return;
-
-        // Select this package
-        selected.add(packageId);
-
-        // Select all dependencies recursively
-        const selectDeps = (pkgId: string) => {
-          const p = packages.find(p => p.id === pkgId);
-          if (!p) return;
-
-          for (const depId of p.dependsOn) {
-            if (!selected.has(depId)) {
-              selected.add(depId);
-              selectDeps(depId); // Recursive
-            }
-          }
-        };
-
-        selectDeps(packageId);
-        set({ selectedPackages: selected });
-      },
-
-      setPackageFilter: (filter) => set((state) => ({
-        packageFilter: { ...state.packageFilter, ...filter }
-      })),
-
-      clearPackages: () => set({
-        packages: [],
-        selectedPackages: new Set(),
-        packageDependencies: null,
-        packageGenerationStatus: 'idle',
-        packageGenerationError: null,
-      }),
-
-      setPackageDependencies: (graph) => set({ packageDependencies: graph }),
-
-      setProjectContext: (context) => set({ projectContext: context }),
-
-      setPackageGenerationStatus: (status, error) => set({
-        packageGenerationStatus: status,
-        packageGenerationError: error || null,
-      }),
-
-      // Bulk selection helpers
-      selectAllPackages: () => {
-        const selected = new Set(get().packages.map(p => p.id));
-        set({ selectedPackages: selected });
-      },
-
-      clearPackageSelection: () => {
-        set({ selectedPackages: new Set() });
-      },
-
-      selectPackagesByCategory: (category) => {
-        const selected = new Set(
-          get().packages
-            .filter(p => p.category === category)
-            .map(p => p.id)
-        );
-        set({ selectedPackages: selected });
-      },
-
-      selectFoundationalPackages: () => {
-        const selected = new Set(
-          get().packages
-            .filter(p => p.executionOrder === 1 || p.dependsOn.length === 0)
-            .map(p => p.id)
-        );
-        set({ selectedPackages: selected });
-      },
-      // NEW: Generate packages on demand
-      generatePackages: async () => {
-        const { opportunities, selectedOpportunities, llmProvider, llmModel, selectedFolders } = get();
-        const activeProject = useActiveProjectStore.getState().activeProject;
-
-        if (!activeProject?.path) {
-          set({ packageGenerationError: 'No active project selected' });
-          return;
-        }
-
-        // Use only the selected opportunities for package generation
-        const oppsToPackage = selectedOpportunities.size > 0
-          ? opportunities.filter(o => selectedOpportunities.has(o.id))
-          : opportunities;
-
-        if (oppsToPackage.length === 0) {
-          set({ packageGenerationError: 'No opportunities selected for packaging' });
-          return;
-        }
-
-        set({
-          packageGenerationStatus: 'generating',
-          packageGenerationError: null
-        });
-
-        try {
-          const response = await fetch('/api/refactor/generate-packages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              opportunities: oppsToPackage,
-              projectPath: activeProject.path,
-              selectedFolders: selectedFolders, // Pass folder context
-              userPreferences: {
-                provider: llmProvider,
-                model: llmModel,
-              },
-            }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to generate packages');
-          }
-
-          const data = await response.json();
-
-          set({
-            packages: data.packages || [],
-            projectContext: data.context || null,
-            packageDependencies: data.dependencyGraph || null,
-            packageGenerationStatus: 'completed',
-            packageGenerationError: null
-          });
-
-          // Auto-select foundational packages
-          get().selectFoundationalPackages();
-
-        } catch (error) {
-          console.error('[RefactorStore] Package generation failed:', error);
-          set({
-            packageGenerationStatus: 'error',
-            packageGenerationError: error instanceof Error ? error.message : 'Unknown error'
-          });
-        }
-      },
-
-      // ============================================================================
-      // DSL MODE ACTIONS
-      // ============================================================================
-
-      setDSLMode: (enabled: boolean) => {
-        set({ isDSLMode: enabled });
-      },
-
-      setCurrentSpec: (spec: RefactorSpec | null) => {
-        set({ currentSpec: spec });
-      },
-
-      updateCurrentSpec: (updates: Partial<RefactorSpec>) => {
-        const current = get().currentSpec;
-        if (current) {
-          set({ currentSpec: { ...current, ...updates } });
-        }
-      },
-
-      setDSLExecutionStatus: (status) => {
-        set({ dslExecutionStatus: status });
-      },
-
-      setDSLExecutionResult: (result) => {
-        set({ dslExecutionResult: result });
-      },
-
-      saveCurrentSpec: () => {
-        const { currentSpec, savedSpecs } = get();
-        if (!currentSpec) return;
-
-        // Check if spec with same name exists
-        const existingIndex = savedSpecs.findIndex(s => s.name === currentSpec.name);
-        if (existingIndex >= 0) {
-          // Update existing
-          const updated = [...savedSpecs];
-          updated[existingIndex] = currentSpec;
-          set({ savedSpecs: updated });
-        } else {
-          // Add new
-          set({ savedSpecs: [...savedSpecs, currentSpec] });
-        }
-      },
-
-      loadSpec: (spec: RefactorSpec) => {
-        set({ currentSpec: spec, isDSLMode: true });
-        // Add to recent
-        get().addToRecentSpecs(spec);
-      },
-
-      deleteSavedSpec: (name: string) => {
-        const { savedSpecs } = get();
-        set({ savedSpecs: savedSpecs.filter(s => s.name !== name) });
-      },
-
-      addToRecentSpecs: (spec: RefactorSpec) => {
-        const { recentSpecs } = get();
-        const entry = {
-          name: spec.name,
-          spec,
-          timestamp: new Date().toISOString(),
-        };
-
-        // Remove existing entry with same name
-        const filtered = recentSpecs.filter(r => r.name !== spec.name);
-
-        // Add to front, keep only last 10
-        set({ recentSpecs: [entry, ...filtered].slice(0, 10) });
-      },
-
-      executeDSLSpec: async (spec: RefactorSpec) => {
-        const activeProject = useActiveProjectStore.getState().activeProject;
-
-        if (!activeProject?.path) {
-          set({ dslExecutionStatus: 'failed' });
-          return;
-        }
-
-        set({ dslExecutionStatus: 'executing' });
-
-        try {
-          const response = await fetch('/api/refactor/execute-dsl', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              spec,
-              projectPath: activeProject.path,
-              projectId: activeProject.id,
-            }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to execute DSL spec');
-          }
-
-          const data = await response.json();
-
-          set({
-            dslExecutionStatus: 'completed',
-            dslExecutionResult: data.result,
-          });
-
-          // Add to recent
-          get().addToRecentSpecs(spec);
-
-        } catch (error) {
-          console.error('[RefactorStore] DSL execution failed:', error);
-          set({ dslExecutionStatus: 'failed' });
-        }
-      },
     }),
     {
       name: 'refactor-wizard-storage',
       partialize: (state) => ({
         wizardPlan: state.wizardPlan,
         selectedScanGroups: Array.from(state.selectedScanGroups),
-        // NEW: Persist packages (Phase 1)
         packages: state.packages,
-        selectedPackages: Array.from(state.selectedPackages), // Convert Set to Array
+        selectedPackages: Array.from(state.selectedPackages),
         packageFilter: state.packageFilter,
         filterCategory: state.filterCategory,
         filterSeverity: state.filterSeverity,
-        // DSL Mode persistence
         savedSpecs: state.savedSpecs,
         recentSpecs: state.recentSpecs,
       }),
@@ -798,7 +225,6 @@ export const useRefactorStore = create<RefactorState>()(
         ...currentState,
         ...(persistedState as object),
         selectedScanGroups: new Set(persistedState?.selectedScanGroups || []),
-        // NEW: Handle Set deserialization for packages (Phase 1)
         selectedPackages: new Set(persistedState?.selectedPackages || []),
       }),
     }

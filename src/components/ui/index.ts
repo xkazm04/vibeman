@@ -23,6 +23,18 @@ export { default as StyledCheckbox } from './StyledCheckbox';
 export type { StyledCheckboxProps } from './StyledCheckbox';
 export { default as IconButton } from './buttons/IconButton';
 export type { IconButtonProps, IconButtonColorScheme, IconButtonSize } from './buttons/IconButton';
+export { default as UnifiedButton } from './buttons/UnifiedButton';
+export type {
+  UnifiedButtonProps,
+  UnifiedButtonVariant,
+  UnifiedButtonColorScheme,
+  UnifiedButtonSize,
+  UnifiedButtonAnimation,
+  ButtonVariant as UnifiedBtnVariant,
+  ButtonColorScheme as UnifiedBtnColorScheme,
+  ButtonSize as UnifiedBtnSize,
+  ButtonAnimation as UnifiedBtnAnimation,
+} from './buttons/UnifiedButton';
 export { ModalTransition, ModalContent as ModalTransitionContent, modalVariants, modalTransitions } from './ModalTransition';
 export type { ModalVariant, ModalTransitionType } from './ModalTransition';
 export type {

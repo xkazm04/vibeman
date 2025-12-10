@@ -16,8 +16,10 @@ if (typeof window === 'undefined') {
   eventDb = require('./eventDatabase').eventDb as EventDb;
 }
 
+import { generateOllamaId } from '@/lib/idGenerator';
+
 const OLLAMA_BASE_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'gpt-oss:20b';
+const DEFAULT_MODEL = 'ministral-3:14b';
 
 export interface OllamaRequest {
   prompt: string;
@@ -311,7 +313,7 @@ export class OllamaClient {
    * Generate a unique task ID for tracking
    */
   private generateTaskId(): string {
-    return `ollama_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return generateOllamaId();
   }
 }
 

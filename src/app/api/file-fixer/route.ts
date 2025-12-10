@@ -5,6 +5,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, handleError, notFoundResponse } from '@/lib/api-helpers';
+import { deduplicateBuildErrors } from '@/lib/deduplication';
+import { generateId } from '@/lib/idGenerator';
 
 const execAsync = promisify(exec);
 
@@ -242,21 +244,11 @@ function parseGenericErrors(output: string): BuildError[] {
   return errors;
 }
 
-function deduplicateErrors(errors: BuildError[]): BuildError[] {
-  const seen = new Set<string>();
-  return errors.filter(error => {
-    const key = `${error.file}:${error.line}:${error.column}:${error.message}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-}
+// deduplicateErrors is now imported from @/lib/deduplication as deduplicateBuildErrors
 
 async function executeBuildCommand(command: string, projectPath?: string): Promise<BuildResult> {
   const startTime = Date.now();
-  const processId = `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const processId = generateId('build');
   
   return new Promise(async (resolve) => {
     const workingDir = projectPath || process.cwd();
@@ -324,7 +316,7 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
         ];
         
         // Deduplicate errors
-        const uniqueErrors = deduplicateErrors(allErrors);
+        const uniqueErrors = deduplicateBuildErrors(allErrors);
         
         // Separate errors and warnings
         const errors = uniqueErrors.filter(e => e.severity === 'error');

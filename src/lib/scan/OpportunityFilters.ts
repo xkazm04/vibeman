@@ -6,6 +6,7 @@
  */
 
 import type { RefactorOpportunity } from '@/stores/refactorStore';
+import { deduplicateAndMergeOpportunities } from '@/lib/deduplication';
 
 /**
  * Configuration for filtering opportunities
@@ -221,50 +222,6 @@ function shouldFilterOpportunity(opp: RefactorOpportunity, config: FilterConfig)
 
 /**
  * Deduplicate opportunities by combining similar issues
+ * Re-exported from shared deduplication module for backward compatibility
  */
-export function deduplicateOpportunities(opportunities: RefactorOpportunity[]): RefactorOpportunity[] {
-  const groupedByType = new Map<string, RefactorOpportunity[]>();
-
-  // Group by category + title pattern
-  for (const opp of opportunities) {
-    // Extract the type of issue (remove file-specific parts)
-    const type = opp.title.replace(/in\s+[\w\/.]+$/, '').trim();
-    const key = `${opp.category}:${type}`;
-
-    if (!groupedByType.has(key)) {
-      groupedByType.set(key, []);
-    }
-    groupedByType.get(key)!.push(opp);
-  }
-
-  const deduplicated: RefactorOpportunity[] = [];
-
-  // For each group, merge if multiple files have the same issue
-  for (const [key, group] of groupedByType) {
-    if (group.length === 1) {
-      deduplicated.push(group[0]);
-      continue;
-    }
-
-    // Merge opportunities for the same issue type affecting multiple files
-    const allFiles = [...new Set(group.flatMap(opp => opp.files))];
-
-    // Only merge if there are many files (> 5) to reduce noise
-    if (allFiles.length > 5) {
-      const merged: RefactorOpportunity = {
-        ...group[0],
-        id: `merged-${key}`,
-        title: `${group[0].title.replace(/in\s+[\w\/.]+$/, '')} (${allFiles.length} files)`,
-        description: `This issue affects ${allFiles.length} files across the codebase. ${group[0].description}`,
-        files: allFiles.slice(0, 10), // Limit to first 10 files to avoid overwhelming
-        lineNumbers: undefined, // Clear line numbers when merging
-      };
-      deduplicated.push(merged);
-    } else {
-      // Keep individual opportunities if not too many
-      deduplicated.push(...group);
-    }
-  }
-
-  return deduplicated;
-}
+export { deduplicateAndMergeOpportunities as deduplicateOpportunities } from '@/lib/deduplication';

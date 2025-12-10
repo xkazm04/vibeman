@@ -8,7 +8,7 @@ import { LLMProvider } from './langTypes';
 export const LANGGRAPH_CONFIG = {
   // Model defaults per provider
   defaultModels: {
-    ollama: 'gpt-oss:20b',
+    ollama: 'ministral-3:14b',
     openai: 'gpt-4o',
     anthropic: 'claude-haiku-4-5-20251001',
     gemini: 'gemini-flash-latest'

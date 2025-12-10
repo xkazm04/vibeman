@@ -1,14 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Square, Trash2, XCircle } from 'lucide-react';
+import { CheckSquare, Square, Trash2, XCircle, Layers } from 'lucide-react';
 import TaskItem from './TaskItem';
 import type { ProjectRequirement } from './lib/types';
+import type { AggregationCheckResult } from './lib/ideaAggregator';
 
 interface TaskColumnProps {
   projectId: string;
   projectName: string;
+  projectPath: string;
   requirements: ProjectRequirement[];
   selectedRequirements: Set<string>;
   onToggleSelect: (reqId: string) => void;
@@ -16,11 +18,13 @@ interface TaskColumnProps {
   onBulkDelete?: (reqIds: string[]) => void;
   onToggleProjectSelection: (projectId: string) => void;
   getRequirementId: (req: ProjectRequirement) => string;
+  onRefresh?: () => void;
 }
 
 const TaskColumn = React.memo(function TaskColumn({
   projectId,
   projectName,
+  projectPath,
   requirements,
   selectedRequirements,
   onToggleSelect,
@@ -28,7 +32,61 @@ const TaskColumn = React.memo(function TaskColumn({
   onBulkDelete,
   onToggleProjectSelection,
   getRequirementId,
+  onRefresh,
 }: TaskColumnProps) {
+  // Aggregation state
+  const [aggregationCheck, setAggregationCheck] = useState<AggregationCheckResult | null>(null);
+  const [isAggregating, setIsAggregating] = useState(false);
+
+  // Check for aggregatable files on mount and when requirements change
+  const checkAggregation = useCallback(async () => {
+    if (!projectPath) return;
+
+    try {
+      const response = await fetch(
+        `/api/idea-aggregator?projectPath=${encodeURIComponent(projectPath)}`
+      );
+      const data = await response.json();
+      if (data.success) {
+        setAggregationCheck(data);
+      }
+    } catch (error) {
+      console.error('Failed to check aggregation:', error);
+    }
+  }, [projectPath]);
+
+  useEffect(() => {
+    checkAggregation();
+  }, [checkAggregation, requirements.length]);
+
+  // Handle aggregation
+  const handleAggregate = async () => {
+    if (!projectPath || isAggregating) return;
+
+    setIsAggregating(true);
+    try {
+      const response = await fetch('/api/idea-aggregator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPath }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Refresh the requirements list
+        onRefresh?.();
+        // Re-check aggregation state
+        await checkAggregation();
+      } else {
+        console.error('Aggregation failed:', data.error);
+      }
+    } catch (error) {
+      console.error('Failed to aggregate:', error);
+    } finally {
+      setIsAggregating(false);
+    }
+  };
+
   // Calculate selection state
   const selectableRequirements = requirements.filter(
     (req) => req.status !== 'running' && req.status !== 'queued'
@@ -112,6 +170,20 @@ const TaskColumn = React.memo(function TaskColumn({
 
           {/* Action buttons and count badge */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Aggregate button - only show when aggregation is possible */}
+            {aggregationCheck?.canAggregate && (
+              <button
+                onClick={handleAggregate}
+                disabled={isAggregating}
+                className="text-violet-400 hover:text-violet-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-violet-500/10 hover:bg-violet-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={`Aggregate ${aggregationCheck.aggregatableFiles} idea files into ${aggregationCheck.groups.filter(g => g.canAggregate).length} combined files`}
+                data-testid={`aggregate-btn-${projectId}`}
+              >
+                <Layers className={`w-3 h-3 ${isAggregating ? 'animate-pulse' : ''}`} />
+                <span>{aggregationCheck.aggregatableFiles}</span>
+              </button>
+            )}
+
             {/* Delete selected button */}
             {selectedInColumn.length > 0 && onBulkDelete && (
               <button

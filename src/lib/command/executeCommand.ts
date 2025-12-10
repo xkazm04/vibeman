@@ -1,4 +1,5 @@
-import { spawn } from 'child_process';
+import { spawn, execFile } from 'child_process';
+import { validateArgs, validateSafeArgument, type ValidationResult } from './shellEscape';
 
 /**
  * Result from a command execution
@@ -15,7 +16,12 @@ export interface CommandResult {
 export interface CommandOptions {
   /** Working directory for the command */
   cwd: string;
-  /** Use shell to run the command (default: true) */
+  /**
+   * Use shell to run the command (default: false for security)
+   * WARNING: Setting this to true can enable command injection attacks.
+   * Only use shell: true when absolutely necessary and ensure all arguments
+   * are properly validated.
+   */
   shell?: boolean;
   /** Timeout in milliseconds (default: no timeout) */
   timeout?: number;
@@ -27,6 +33,11 @@ export interface CommandOptions {
   acceptNonZero?: boolean;
   /** Environment variables to set/override */
   env?: Record<string, string>;
+  /**
+   * Custom argument validator function (default: validateSafeArgument)
+   * Set to null to skip argument validation (use with caution)
+   */
+  argValidator?: ((arg: string) => ValidationResult) | null;
 }
 
 /**
@@ -52,9 +63,48 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Execute a single command attempt
+ * Execute a single command attempt using execFile (safer, no shell by default)
  */
-function executeOnce(
+function executeOnceSecure(
+  command: string,
+  args: string[],
+  options: CommandOptions
+): Promise<CommandResult> {
+  return new Promise((resolve, reject) => {
+    // Use execFile for security - it doesn't spawn a shell by default
+    const proc = execFile(command, args, {
+      cwd: options.cwd,
+      env: options.env ? { ...process.env, ...options.env } : process.env,
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+      timeout: options.timeout
+    }, (error, stdout, stderr) => {
+      if (error && 'killed' in error && error.killed) {
+        reject(new Error(`Command timed out after ${options.timeout}ms`));
+        return;
+      }
+
+      // execFile callback receives the exit code in the error object
+      const exitCode = error ? (error as NodeJS.ErrnoException & { code?: number }).code ?? 1 : 0;
+
+      resolve({
+        stdout: stdout?.toString() ?? '',
+        stderr: stderr?.toString() ?? '',
+        exitCode: typeof exitCode === 'number' ? exitCode : 1
+      });
+    });
+
+    // Handle spawn errors (command not found, etc.)
+    proc.on('error', (error) => {
+      reject(error);
+    });
+  });
+}
+
+/**
+ * Execute a single command attempt using spawn with shell
+ * WARNING: Only use this when shell: true is explicitly required
+ */
+function executeOnceWithShell(
   command: string,
   args: string[],
   options: CommandOptions
@@ -62,7 +112,7 @@ function executeOnce(
   return new Promise((resolve, reject) => {
     const proc = spawn(command, args, {
       cwd: options.cwd,
-      shell: options.shell !== false,
+      shell: true,
       env: options.env ? { ...process.env, ...options.env } : process.env
     });
 
@@ -113,6 +163,22 @@ function executeOnce(
 }
 
 /**
+ * Execute a single command attempt
+ * Uses execFile by default (safer), falls back to spawn with shell only when explicitly requested
+ */
+function executeOnce(
+  command: string,
+  args: string[],
+  options: CommandOptions
+): Promise<CommandResult> {
+  // Default to secure execution (no shell)
+  if (options.shell === true) {
+    return executeOnceWithShell(command, args, options);
+  }
+  return executeOnceSecure(command, args, options);
+}
+
+/**
  * Execute a shell command with standardized error handling, retries, and output parsing.
  *
  * @param command - The command to execute (e.g., 'npm', 'git', 'gh')
@@ -147,6 +213,22 @@ export async function executeCommand(
 ): Promise<CommandResult> {
   const maxAttempts = (options.retries ?? 0) + 1;
   const retryDelay = options.retryDelay ?? 1000;
+
+  // Validate arguments unless validation is explicitly disabled
+  // When shell: false (default), arguments are passed directly to execFile
+  // which provides some protection, but we still validate for defense in depth
+  if (options.argValidator !== null) {
+    const validator = options.argValidator ?? validateSafeArgument;
+    const validation = validateArgs(args, validator);
+    if (!validation.valid) {
+      throw new CommandExecutionError(
+        `Argument validation failed: ${validation.errors.join('; ')}`,
+        command,
+        args,
+        { stdout: '', stderr: validation.errors.join('\n'), exitCode: -1 }
+      );
+    }
+  }
 
   let lastError: Error | undefined;
   let lastResult: CommandResult | undefined;

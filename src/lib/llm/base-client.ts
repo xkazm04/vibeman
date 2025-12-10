@@ -1,6 +1,7 @@
 // Base client class with common functionality for all LLM providers
 
 import { LLMRequest, LLMResponse, LLMProgress, LLMProvider } from './types';
+import { generateLlmRequestId } from '@/lib/idGenerator';
 
 // Import eventDb only on server side to avoid client-side issues
 let eventDb: any = null;
@@ -53,7 +54,7 @@ export abstract class BaseLLMClient implements LLMProvider {
    * Generate a unique task ID for tracking
    */
   protected generateTaskId(): string {
-    return `${this.name}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    return generateLlmRequestId(this.name);
   }
 
   /**

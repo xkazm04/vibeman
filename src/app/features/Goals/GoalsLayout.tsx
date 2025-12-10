@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, CheckCircle2, Circle, Clock, XCircle, HelpCircle, LayoutDashboard, Plus, ChevronRight } from 'lucide-react';
+import { Target, CheckCircle2, Circle, Clock, XCircle, HelpCircle, LayoutDashboard, Plus, ChevronRight, Crosshair } from 'lucide-react';
 import { Caveat } from 'next/font/google';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
@@ -15,6 +15,7 @@ import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
 import { ContextTargetsList } from '@/components/ContextComponents';
+import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -162,10 +163,19 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
                 </AnimatePresence>
                 
                 {projectGoals.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-40 text-center p-4">
-                    <Target className="w-8 h-8 text-primary/20 mb-2" />
-                    <p className="text-sm text-primary/30">No active objectives</p>
-                  </div>
+                  <EmptyStateIllustration
+                    type="goals"
+                    headline="No active objectives"
+                    description="Define your project goals to track progress and guide AI-assisted development. Goals help prioritize what matters most."
+                    action={{
+                      label: 'Create Goal',
+                      onClick: () => setShowAddGoal(true),
+                      icon: Crosshair,
+                    }}
+                    height="py-12"
+                    className="px-4"
+                    testId="goals-empty"
+                  />
                 )}
 
                 {/* Context Targets Section */}

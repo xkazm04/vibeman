@@ -6,6 +6,13 @@
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { deduplicateBuildErrors } from '@/lib/deduplication';
+
+// Re-export for backward compatibility
+export { deduplicateBuildErrors as deduplicateErrors } from '@/lib/deduplication';
+
+// Local alias for internal use
+const deduplicateErrors = deduplicateBuildErrors;
 
 // Logger utility
 const logger = {
@@ -178,19 +185,6 @@ export function parseESLintErrors(output: string): BuildError[] {
   }
 
   return errors;
-}
-
-/**
- * Deduplicate errors based on file, line, column, and message
- */
-export function deduplicateErrors(errors: BuildError[]): BuildError[] {
-  const seen = new Set<string>();
-  return errors.filter(error => {
-    const key = `${error.file}:${error.line}:${error.column}:${error.message}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
 
 /**

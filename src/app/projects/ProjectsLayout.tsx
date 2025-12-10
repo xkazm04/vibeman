@@ -9,12 +9,14 @@ import ProjectAdd from './sub_ProjectSetting/components/ProjectAdd';
 import ProjectEdit from './sub_ProjectSetting/components/ProjectEdit';
 import ProjectToolbar from './ProjectToolbar';
 import { useProjectConfigStore } from '../../stores/projectConfigStore';
+import { useProjectUpdatesStore } from '../../stores/projectUpdatesStore';
 import StructureTemplateEditor from '../Claude/sub_ClaudeStructureScan/components/StructureTemplateEditor';
 
 export default function ProjectsLayout() {
   const { isActive } = useAnalysisStore();
   const { activeProject } = useActiveProjectStore();
   const { syncWithServer } = useProjectConfigStore();
+  const { notifyProjectAdded, notifyProjectUpdated } = useProjectUpdatesStore();
 
   const {
     showAddProject,
@@ -27,13 +29,17 @@ export default function ProjectsLayout() {
     setShowStructure,
   } = useProjectsToolbarStore();
 
-  // Handle project added - refresh the project list
-  const handleProjectAdded = async () => {
+  // Handle project added - refresh the project list and notify subscribers
+  const handleProjectAdded = async (projectId?: string) => {
     await syncWithServer();
+    // Notify other components (like UnifiedProjectSelector) about the new project
+    notifyProjectAdded(projectId || 'new-project');
   };
 
-  // Handle project updated - no need to refresh, optimistic updates handle it
-  const handleProjectUpdated = () => {  };
+  // Handle project updated - notify subscribers
+  const handleProjectUpdated = (projectId?: string) => {
+    notifyProjectUpdated(projectId || activeProject?.id || 'updated-project');
+  };
 
   return (
     <>

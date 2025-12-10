@@ -433,7 +433,7 @@ curl -X POST "http://localhost:3000/api/contexts" \\
 
 **Important field requirements:**
 - \`projectId\`: Always use "${projectId}"
-- \`name\`: Short feature title (e.g., "Goals Management System")
+- \`name\`: Short feature title in max 2 words (e.g., "Management System")
 - \`description\`: Full markdown description following the structure above
 - \`filePaths\`: Array of relative paths from project root (use forward slashes)
 - \`testScenario\`: JSON string array of test steps (only for UI features)

@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
  */
 function getDefaultModel(provider: string): string {
   const defaults: Record<string, string> = {
-    ollama: 'gpt-oss:20b',
+    ollama: 'ministral-3:14b',
     openai: 'gpt-5-mini-2025-08-07',
     anthropic: 'claude-3-5-haiku-latest',
     gemini: 'gemini-flash-latest',

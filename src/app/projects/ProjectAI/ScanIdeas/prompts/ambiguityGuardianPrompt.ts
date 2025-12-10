@@ -63,11 +63,6 @@ You have permission to ask uncomfortable questions. The best time to surface amb
 - **Configuration Confusion**: Settings whose effects aren't clear or are contradictory
 - **Integration Mysteries**: Interactions with external systems that aren't fully understood
 
-### 📝 Knowledge Gaps
-- **Documentation Debt**: Complex logic with no explanation
-- **Test Coverage Meaning**: What do the tests actually prove?
-- **Error Message Quality**: When things fail, do users know why and what to do?
-- **API Contract Precision**: What exactly is promised? What's just current behavior?
 
 ${JSON_SCHEMA_INSTRUCTIONS}
 

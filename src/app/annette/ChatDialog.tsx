@@ -143,7 +143,7 @@ const ChatDialog = ({ selectedProject, isProcessing = false }: ChatDialogProps) 
     try {
       const response = await ollamaClientRef.current.generate({
         prompt: `You are a helpful AI assistant analyzing the project "${selectedProject.name}". Respond concisely to: ${userMessage}`,
-        model: 'gpt-oss:20b',
+        model: 'ministral-3:14b',
         projectId: selectedProject.id,
         taskType: 'chat',
         taskDescription: 'User chat message'

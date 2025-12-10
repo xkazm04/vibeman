@@ -106,7 +106,8 @@ export async function runNpmAudit(projectPath: string): Promise<SecurityScanResu
     // This is expected behavior, so we accept non-zero codes
     const { stdout } = await executeCommand('npm', ['audit', '--json'], {
       cwd: projectPath,
-      acceptNonZero: true
+      acceptNonZero: true,
+      argValidator: null, // Static args, no validation needed
     });
 
     const auditData: NpmAuditOutput = JSON.parse(stdout);
@@ -147,7 +148,8 @@ export async function runPipAudit(projectPath: string): Promise<SecurityScanResu
   try {
     const { stdout } = await executeCommand('pip-audit', ['--format', 'json'], {
       cwd: projectPath,
-      acceptNonZero: true
+      acceptNonZero: true,
+      argValidator: null, // Static args, no validation needed
     });
 
     const auditData: PipAuditOutput = JSON.parse(stdout);

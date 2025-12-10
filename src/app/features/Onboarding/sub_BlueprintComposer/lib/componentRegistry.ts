@@ -374,21 +374,6 @@ export const PROCESSORS: ComponentMeta[] = [
 
 export const EXECUTORS: ComponentMeta[] = [
   {
-    id: 'decision-gate',
-    componentId: 'executor.decision-gate',
-    type: 'executor',
-    category: 'technical',
-    name: 'User Decision Gate',
-    description: 'Pause execution and wait for user approval before proceeding to fixes',
-    icon: 'ShieldCheck',
-    color: '#f59e0b',
-    tags: ['decision', 'approval', 'review'],
-    configSchema: {
-      autoApproveThreshold: { type: 'number', min: 0, max: 100, description: 'Auto-approve if issue count below this' },
-      showDetails: { type: 'boolean', description: 'Show full issue details in decision UI' },
-    },
-  },
-  {
     id: 'requirement-executor',
     componentId: 'executor.requirement',
     type: 'executor',
@@ -404,6 +389,9 @@ export const EXECUTORS: ComponentMeta[] = [
     },
   },
 ];
+
+// Note: Decision Gate is now a toggle switch in the Evidence Panel,
+// not an executor. Use the useDecisionGate prop to enable/disable it.
 
 // ============================================================================
 // Registry Functions

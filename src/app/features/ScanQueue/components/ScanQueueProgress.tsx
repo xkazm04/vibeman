@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { DbScanQueueItem } from '@/app/db/models/types';
-import { Loader2, CheckCircle2, XCircle, Clock, Zap } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Clock, Zap, Play } from 'lucide-react';
 import { getScanTypeName, type ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
 
 interface ScanQueueProgressProps {
   projectId: string;
@@ -103,9 +104,20 @@ export function ScanQueueProgress({
       )}
 
       {activeItems.length === 0 && recentItems.length === 0 && (
-        <div className="text-center p-8 text-gray-500">
-          <p>No scan activity</p>
-        </div>
+        <EmptyStateIllustration
+          type="scanQueue"
+          headline="No scan activity"
+          description="The scan queue is empty. Start a new scan from the Ideas page or enable file watching to automatically detect changes in your codebase."
+          action={{
+            label: 'Go to Ideas',
+            onClick: () => {
+              window.location.href = '/ideas';
+            },
+            icon: Play,
+          }}
+          height="py-16"
+          testId="scan-queue-empty"
+        />
       )}
     </div>
   );

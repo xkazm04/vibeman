@@ -19,6 +19,7 @@ import GoalsLayout from './features/Goals/GoalsLayout';
 import GlobalTaskBar from '@/components/GlobalTaskBar';
 import { Toaster } from 'sonner';
 import StorybookLayout from './features/Storybook/StorybookLayout';
+import { SocialLayout } from './features/Social';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -57,6 +58,8 @@ export default function Home() {
         return <ManagerLayout key="manager" projectId={projectId} />;
       case 'storybook':
         return <StorybookLayout key="storybook" />;
+      case 'social':
+        return <SocialLayout key="social" />;
       default:
         return <GoalsLayout key="coder" projectId={projectId} />;
     }

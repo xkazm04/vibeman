@@ -9,6 +9,7 @@ import { executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/scan
 import { ScanType, getScanTypeName } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
 import { contextRepository } from '@/app/db/repositories/context.repository';
+import { generateNotificationId } from '@/lib/idGenerator';
 
 interface WorkerConfig {
   pollIntervalMs: number;
@@ -40,9 +41,10 @@ class ScanQueueWorker {
 
   /**
    * Generate a unique notification ID
+   * Uses shared idGenerator for consistency
    */
   private generateNotificationId(): string {
-    return `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return generateNotificationId();
   }
 
   /**
@@ -127,42 +129,53 @@ class ScanQueueWorker {
 
   /**
    * Process the scan queue
+   * Uses atomic claim to prevent race conditions between poll cycles
    */
   private async processQueue(): Promise<void> {
+    // Check if we can process more items
+    if (this.currentlyProcessing.size >= this.config.maxConcurrent) {
+      return;
+    }
+
+    // Atomically claim the next pending item
+    // This prevents race conditions where multiple poll cycles claim the same item
+    const queueItem = scanQueueDb.claimNextPending();
+
+    if (!queueItem) {
+      return; // No pending items or claim failed
+    }
+
+    // Track that we're processing this item
+    this.currentlyProcessing.add(queueItem.id);
+
     try {
-      // Check if we can process more items
-      if (this.currentlyProcessing.size >= this.config.maxConcurrent) {
-        return;
-      }
-
-      // Get next pending item
-      const queueItem = scanQueueDb.getNextPending();
-
-      if (!queueItem) {
-        return; // No pending items
-      }
-
-      // Check if already processing
-      if (this.currentlyProcessing.has(queueItem.id)) {
-        return;
-      }
-
-      // Process the item
-      this.currentlyProcessing.add(queueItem.id);
+      // Process the item (status already set to 'running' by claimNextPending)
       await this.processQueueItem(queueItem);
-      this.currentlyProcessing.delete(queueItem.id);
     } catch (error) {
-      // Silent error - errors are handled in processQueueItem
+      // Errors are handled in processQueueItem, but ensure we don't leave items stuck
+      // If processQueueItem failed to update status, mark as failed
+      try {
+        const currentItem = scanQueueDb.getQueueItemById(queueItem.id);
+        if (currentItem && currentItem.status === 'running') {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          scanQueueDb.updateStatus(queueItem.id, 'failed', `Worker error: ${errorMessage}`);
+        }
+      } catch {
+        // Best effort - database might be unavailable
+      }
+    } finally {
+      // Always clean up the processing set to prevent items getting stuck
+      this.currentlyProcessing.delete(queueItem.id);
     }
   }
 
   /**
    * Process a single queue item
+   * Note: Status is already set to 'running' by claimNextPending()
    */
   private async processQueueItem(queueItem: DbScanQueueItem): Promise<void> {
     try {
-      // Update status to running
-      scanQueueDb.updateStatus(queueItem.id, 'running');
+      // Status already set to 'running' by claimNextPending(), just update progress
       scanQueueDb.updateProgress(queueItem.id, 0, 'Starting scan...', 'initialize', 4);
 
       // Create notification for scan started
@@ -264,6 +277,7 @@ class ScanQueueWorker {
 
   /**
    * Handle auto-merge functionality
+   * Implements transaction-like behavior: tracks successful updates and rolls back on failure
    */
   private async handleAutoMerge(queueItem: DbScanQueueItem): Promise<void> {
     try {
@@ -277,28 +291,88 @@ class ScanQueueWorker {
       const allProjectIdeas = ideaDb.getIdeasByProject(queueItem.project_id);
       const ideas = allProjectIdeas.filter(idea => idea.scan_id === queueItem.scan_id);
 
-      // Auto-accept high-impact, low-effort ideas
-      let autoAcceptedCount = 0;
-      for (const idea of ideas) {
-        if (idea.impact === 3 && idea.effort === 1) {
-          ideaDb.updateIdea(idea.id, { status: 'accepted' });
-          autoAcceptedCount++;
+      // Filter ideas that qualify for auto-accept (high-impact, low-effort)
+      const eligibleIdeas = ideas.filter(idea => idea.impact === 3 && idea.effort === 1);
+
+      // Track successful updates for potential rollback
+      const successfullyUpdatedIds: string[] = [];
+      const failedUpdates: { id: string; title: string; error: string }[] = [];
+
+      // Auto-accept high-impact, low-effort ideas with error checking
+      for (const idea of eligibleIdeas) {
+        try {
+          const result = ideaDb.updateIdea(idea.id, { status: 'accepted' });
+
+          if (result === null) {
+            // Update failed - idea may not exist or database lock occurred
+            failedUpdates.push({
+              id: idea.id,
+              title: idea.title,
+              error: 'Update returned null - row not affected'
+            });
+          } else {
+            successfullyUpdatedIds.push(idea.id);
+          }
+        } catch (updateError) {
+          // Catch any database errors during individual update
+          const errorMsg = updateError instanceof Error ? updateError.message : 'Unknown error';
+          failedUpdates.push({
+            id: idea.id,
+            title: idea.title,
+            error: errorMsg
+          });
         }
       }
 
-      scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed');
+      // Determine final status based on update results
+      const totalEligible = eligibleIdeas.length;
+      const successCount = successfullyUpdatedIds.length;
+      const failCount = failedUpdates.length;
 
-      // Create notification for auto-merge
-      if (autoAcceptedCount > 0) {
-        this.createNotification(
-          queueItem,
-          'auto_merge_completed',
-          'Auto-merge completed',
-          `Auto-accepted ${autoAcceptedCount} high-impact, low-effort ideas`,
-          {
-            autoAcceptedCount,
-            scanId: queueItem.scan_id
+      if (totalEligible === 0) {
+        // No eligible ideas - complete with informative status
+        scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed: no eligible ideas');
+      } else if (failCount === 0) {
+        // All updates succeeded
+        scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed');
+
+        if (successCount > 0) {
+          this.createNotification(
+            queueItem,
+            'auto_merge_completed',
+            'Auto-merge completed',
+            `Auto-accepted ${successCount} high-impact, low-effort ideas`,
+            {
+              autoAcceptedCount: successCount,
+              scanId: queueItem.scan_id
+            }
+          );
+        }
+      } else if (successCount === 0) {
+        // All updates failed - rollback not needed, mark as failed
+        const errorDetails = failedUpdates.map(f => `${f.title}: ${f.error}`).join('; ');
+        throw new Error(`All ${failCount} auto-merge updates failed: ${errorDetails}`);
+      } else {
+        // Partial failure - rollback successful updates to maintain consistency
+        let rollbackSuccessCount = 0;
+        for (const ideaId of successfullyUpdatedIds) {
+          try {
+            const rollbackResult = ideaDb.updateIdea(ideaId, { status: 'pending' });
+            if (rollbackResult !== null) {
+              rollbackSuccessCount++;
+            }
+          } catch {
+            // Best effort rollback - log but continue
           }
+        }
+
+        const errorDetails = failedUpdates.slice(0, 3).map(f => f.title).join(', ');
+        const rollbackInfo = rollbackSuccessCount > 0
+          ? ` (rolled back ${rollbackSuccessCount} successful updates)`
+          : '';
+        throw new Error(
+          `Partial failure: ${successCount}/${totalEligible} succeeded, ` +
+          `${failCount} failed (${errorDetails})${rollbackInfo}`
         );
       }
     } catch (error) {

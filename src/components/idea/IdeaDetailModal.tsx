@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { motion } from 'framer-motion';
+import FocusTrap from 'focus-trap-react';
 import { DbIdea } from '@/app/db';
 import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
@@ -27,6 +28,24 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
 
   const { projects, initializeProjects } = useProjectConfigStore();
   const invalidateIdeas = useInvalidateIdeas();
+
+  // Generate unique IDs for ARIA attributes
+  const uniqueId = useId();
+  const modalTitleId = `idea-detail-modal-title-${uniqueId}`;
+  const modalDescriptionId = `idea-detail-modal-desc-${uniqueId}`;
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const { execute: executeRequirementGen, retry: retryRequirementGen, error: requirementError } = useAIOperation({
     onSuccess: () => {
@@ -270,67 +289,84 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+    <FocusTrap
+      focusTrapOptions={{
+        allowOutsideClick: true,
+        escapeDeactivates: true,
+        fallbackFocus: '[data-testid="idea-detail-modal"]',
+      }}
     >
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
-
-      {/* Modal Container */}
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-2xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-cyan-500/30 rounded-xl shadow-2xl shadow-cyan-500/20 flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+        data-testid="idea-detail-modal-backdrop"
       >
-        {/* Header */}
-        <IdeaDetailHeader
-          idea={idea}
-          onClose={onClose}
-          getCategoryEmoji={getCategoryEmoji}
-          getStatusColor={getStatusColor}
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          aria-hidden="true"
         />
 
-        {/* Scrollable Content */}
-        <IdeaDetailContent
-          idea={idea}
-          userFeedback={userFeedback}
-          setUserFeedback={setUserFeedback}
-          userPattern={userPattern}
-          setUserPattern={setUserPattern}
-          description={description}
-          setDescription={setDescription}
-          isEditingDescription={isEditingDescription}
-          setIsEditingDescription={setIsEditingDescription}
-          handleSaveDescription={handleSaveDescription}
-          handleCancelDescription={handleCancelDescription}
-          saving={saving}
-          requirementError={requirementError}
-          retryRequirementGen={retryRequirementGen}
-          showAIError={showAIError}
-          setShowAIError={setShowAIError}
-          onUpdate={updateIdea}
-        />
+        {/* Modal Container */}
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={modalTitleId}
+          aria-describedby={modalDescriptionId}
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="relative w-full max-w-2xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-cyan-500/30 rounded-xl shadow-2xl shadow-cyan-500/20 flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+          data-testid="idea-detail-modal"
+        >
+          {/* Header */}
+          <IdeaDetailHeader
+            idea={idea}
+            onClose={onClose}
+            getCategoryEmoji={getCategoryEmoji}
+            getStatusColor={getStatusColor}
+            titleId={modalTitleId}
+          />
 
-        {/* Footer Actions */}
-        <IdeaDetailActions
-          idea={idea}
-          saving={saving}
-          onAccept={handleAccept}
-          onReject={handleReject}
-          onDelete={handleDelete}
-          onSaveFeedback={handleSaveFeedback}
-          onRegenerate={handleRegenerate}
-        />
-      </motion.div>
-    </div>
+          {/* Scrollable Content */}
+          <IdeaDetailContent
+            idea={idea}
+            userFeedback={userFeedback}
+            setUserFeedback={setUserFeedback}
+            userPattern={userPattern}
+            setUserPattern={setUserPattern}
+            description={description}
+            setDescription={setDescription}
+            isEditingDescription={isEditingDescription}
+            setIsEditingDescription={setIsEditingDescription}
+            handleSaveDescription={handleSaveDescription}
+            handleCancelDescription={handleCancelDescription}
+            saving={saving}
+            requirementError={requirementError}
+            retryRequirementGen={retryRequirementGen}
+            showAIError={showAIError}
+            setShowAIError={setShowAIError}
+            onUpdate={updateIdea}
+            descriptionId={modalDescriptionId}
+          />
+
+          {/* Footer Actions */}
+          <IdeaDetailActions
+            idea={idea}
+            saving={saving}
+            onAccept={handleAccept}
+            onReject={handleReject}
+            onDelete={handleDelete}
+            onSaveFeedback={handleSaveFeedback}
+            onRegenerate={handleRegenerate}
+          />
+        </motion.div>
+      </div>
+    </FocusTrap>
   );
 }

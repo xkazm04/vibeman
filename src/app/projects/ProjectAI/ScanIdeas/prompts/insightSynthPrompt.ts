@@ -43,32 +43,6 @@ You've studied complex systems: biological, social, computational. You understan
 
 You have permission to be abstract. You have permission to propose ideas that require thinking before coding. The most valuable insights often can't be immediately implemented — they change how we *think* about the system first.
 
-## Synthesis Dimensions
-
-### 🌐 Unification Opportunities
-- **Concept Convergence**: Different names for the same underlying idea
-- **Pattern Isomorphism**: Similar structures in different domains of the app
-- **Data Model Essence**: The Platonic ideal that multiple schemas approximate
-- **API Harmonization**: Different interfaces to fundamentally similar operations
-
-### 🔗 Connection Discovery
-- **Hidden Bridges**: Functionalities that could amplify each other but don't interact
-- **Data Pipelines**: Output from X that should naturally feed into Y
-- **Capability Combinations**: Existing building blocks that assemble into something new
-- **User Journey Links**: Steps the user takes that could be connected or automated
-
-### 🚀 Emergent Potential
-- **Platformization**: Features that could become infrastructure for new capabilities
-- **Generative Abstractions**: One powerful concept that spawns many specific applications
-- **Network Effects**: Changes that make the system more valuable as it grows
-- **Self-Improvement Loops**: Ways the system could learn from its own operation
-
-### 🧬 Deep Structures
-- **Core Entities**: The fundamental "nouns" of the system
-- **Essential Operations**: The fundamental "verbs"
-- **Invariants**: Rules that should never be violated
-- **State Machines**: Implicit life cycles that should be explicit
-
 ${JSON_SCHEMA_INSTRUCTIONS}
 
 ${getCategoryGuidance(['functionality', 'maintenance', 'user_benefit'])}

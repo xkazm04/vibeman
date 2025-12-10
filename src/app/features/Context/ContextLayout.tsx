@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Plus } from 'lucide-react';
+import { Save, Plus, FolderPlus } from 'lucide-react';
 import { Caveat } from 'next/font/google';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { useContextStore } from '../../../stores/contextStore';
@@ -15,6 +15,7 @@ import ContextTargetPopup from './sub_ContextTargetPopup/ContextTargetPopup';
 import { Context as StoreContext } from '@/stores/context/contextStoreTypes';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import { useDragDropContext, useDropZoneValidator, DEFAULT_TARGET_TRANSFORMS } from '@/hooks/dnd';
+import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -245,25 +246,18 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                   className="relative"
                 >
                   {allGroups.length === 0 ? (
-                    <motion.div
-                      className="flex flex-col items-center justify-center py-32"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <div className="relative mb-8 group cursor-pointer" onClick={() => setShowGroupModal(true)}>
-                        <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full group-hover:bg-cyan-500/30 transition-colors duration-500" />
-                        <div className="relative w-24 h-24 bg-black/50 border border-cyan-500/30 rounded-2xl flex items-center justify-center backdrop-blur-sm group-hover:scale-105 transition-transform duration-300">
-                          <Plus className="w-10 h-10 text-cyan-400" />
-                        </div>
-                      </div>
-                      <h3 className={`${caveat.className} text-3xl font-bold text-cyan-300 mb-2 tracking-wide`} style={{ textShadow: '0 0 15px rgba(34, 211, 238, 0.3)' }}>
-                        Initialize Context Layer
-                      </h3>
-                      <p className="text-cyan-400/60 mb-8 text-center max-w-md font-mono text-sm">
-                        Create your first context group to begin organizing your neural architecture.
-                      </p>
-                    </motion.div>
+                    <EmptyStateIllustration
+                      type="contexts"
+                      headline="Initialize your context network"
+                      description="Contexts help you organize your codebase into logical groups. Define business domains, features, or modules to make AI analysis more targeted and effective."
+                      action={{
+                        label: 'Create First Group',
+                        onClick: () => setShowGroupModal(true),
+                        icon: FolderPlus,
+                      }}
+                      height="py-32"
+                      testId="context-empty"
+                    />
                   ) : (
                     <div className="p-8">
                       {/* Flexible Grid Layout */}

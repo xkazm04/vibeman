@@ -2,6 +2,7 @@ import { contextDb, contextGroupDb, contextGroupRelationshipDb, DbContext, DbCon
 import type { ContextGroupLayerType } from '@/app/db/repositories/context-group.repository'
 import { DbContextGroupRelationship } from '@/app/db/models/types'
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors'
+import { generateContextGroupId, generateContextRelationId, generateContextId } from '@/lib/idGenerator'
 
 // Context Group Types
 export interface ContextGroup {
@@ -159,7 +160,7 @@ export const contextGroupQueries = {
       const color = data.color || CONTEXT_GROUP_COLORS[groupCount % CONTEXT_GROUP_COLORS.length];
 
       const groupData = {
-        id: `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: generateContextGroupId(),
         project_id: data.projectId,
         name: data.name,
         color,
@@ -244,7 +245,7 @@ export const contextGroupRelationshipQueries = {
     return handleAsyncOperation(
       async () => {
         const relData = {
-          id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: generateContextRelationId(),
           project_id: data.projectId,
           source_group_id: data.sourceGroupId,
           target_group_id: data.targetGroupId,
@@ -312,7 +313,7 @@ export const contextQueries = {
     return handleAsyncOperation(
       async () => {
         const contextData = {
-          id: `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: generateContextId(),
           project_id: data.projectId,
           group_id: data.groupId,
           name: data.name,

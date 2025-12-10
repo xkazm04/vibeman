@@ -107,7 +107,7 @@ export interface LLMModelConfig {
  * Default LLM models for each provider
  */
 export const DEFAULT_LLM_MODELS: Record<LLMProvider, string> = {
-  ollama: 'gpt-oss:20b',
+  ollama: 'ministral-3:14b',
   openai: 'gpt-5-mini-2025-08-07',
   anthropic: 'claude-4-5-haiku-latest',
   gemini: 'gemini-flash-latest'
@@ -118,7 +118,7 @@ export const DEFAULT_LLM_MODELS: Record<LLMProvider, string> = {
  */
 export const AVAILABLE_LLM_MODELS: Record<LLMProvider, Array<{ value: string; label: string }>> = {
   ollama: [
-    { value: 'gpt-oss:20b', label: 'GPT-OSS 20B (Fixed)' }
+    { value: 'ministral-3:14b', label: 'GPT-OSS 20B (Fixed)' }
   ],
   openai: [
     { value: 'gpt-5-mini-2025-08-07', label: 'GPT-5 Mini' },

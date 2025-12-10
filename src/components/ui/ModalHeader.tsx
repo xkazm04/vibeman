@@ -13,6 +13,8 @@ interface ModalHeaderProps {
   onPreviewModeChange?: (mode: 'edit' | 'preview') => void;
   onSave?: () => void;
   onClose: () => void;
+  /** ID for the title element (used for aria-labelledby) */
+  titleId?: string;
 }
 
 export default function ModalHeader({
@@ -25,7 +27,8 @@ export default function ModalHeader({
   saving = false,
   onPreviewModeChange,
   onSave,
-  onClose
+  onClose,
+  titleId,
 }: ModalHeaderProps) {
   const { getThemeColors } = useThemeStore();
   const colors = getThemeColors();
@@ -35,7 +38,10 @@ export default function ModalHeader({
       <div className="flex items-center space-x-3">
         {icon}
         <div>
-          <h2 className="text-lg font-semibold text-white font-mono">
+          <h2
+            id={titleId}
+            className="text-lg font-semibold text-white font-mono"
+          >
             {title}
           </h2>
           {subtitle && (
@@ -90,8 +96,10 @@ export default function ModalHeader({
         <button
           onClick={onClose}
           className="p-1 hover:bg-gray-700 rounded-sm transition-colors"
+          aria-label="Close modal"
+          data-testid="modal-header-close-btn"
         >
-          <X className="w-4 h-4 text-gray-400" />
+          <X className="w-4 h-4 text-gray-400" aria-hidden="true" />
         </button>
       </div>
     </div>

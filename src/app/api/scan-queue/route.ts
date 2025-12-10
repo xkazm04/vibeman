@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
 import { ALL_SCAN_TYPES, isValidScanType, resolveScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { generateQueueId } from '@/lib/idGenerator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create queue item
-    const queueId = `queue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const queueId = generateQueueId();
 
     const queueItem = scanQueueDb.createQueueItem({
       id: queueId,

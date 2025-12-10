@@ -460,6 +460,16 @@ function migrateIdeasCategoryConstraint() {
   const db = getConnection();
 
   try {
+    // First check if the ideas table exists
+    const tableExists = db.prepare(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='ideas'
+    `).get();
+
+    if (!tableExists) {
+      migrationLogger.info('Ideas table does not exist yet, skipping category constraint migration');
+      return;
+    }
+
     // Test if we can insert a non-standard category value
     const testId = 'category-test-' + Date.now();
     const testInsert = db.prepare(`

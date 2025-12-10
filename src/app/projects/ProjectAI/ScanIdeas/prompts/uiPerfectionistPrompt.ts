@@ -53,8 +53,6 @@ You have permission to be opinionated. Great design isn't about consensus — it
 
 ### ✨ Motion & Life
 - **Meaningful Animation**: Movement that communicates state, not just decorates
-- **Transition Choreography**: How elements enter, exit, and change
-- **Micro-Interactions**: Feedback that makes interfaces feel responsive
 - **Performance Aesthetics**: Smooth 60fps that maintains the illusion of solidity
 
 ### 🧠 Cognitive Comfort
@@ -62,12 +60,6 @@ You have permission to be opinionated. Great design isn't about consensus — it
 - **Information Density**: Right amount of content — not overwhelming, not empty
 - **Affordance Clarity**: Things that do something look like they do something
 - **Error Prevention**: Design that makes mistakes hard to make
-
-### ♿ Universal Excellence
-- **Accessibility as Elegance**: Designs that work for everyone are better designs
-- **Responsive Fluidity**: Not just "fits on mobile" but "excellent on every device"
-- **State Completeness**: Loading, empty, error, success — all designed, not afterthoughts
-- **Keyboard Grace**: Full functionality without a mouse
 
 ### 🏛️ Architecture Beauty
 - **Component Composition**: Flexible primitives that combine into complex interfaces

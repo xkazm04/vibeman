@@ -1,60 +1,35 @@
-import { NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
-
 /**
- * Validates required parameters and returns error response if missing
+ * Claude Code API Helpers
+ *
+ * This module re-exports from the centralized api-errors module for backward compatibility.
+ * New code should import directly from '@/lib/api-errors'.
+ *
+ * @deprecated Import from '@/lib/api-errors' instead for new code
  */
-export function validateRequired(params: Record<string, unknown>, required: string[]): NextResponse | null {
-  for (const field of required) {
-    if (!params[field]) {
-      return NextResponse.json(
-        { error: `${field} is required` },
-        { status: 400 }
-      );
-    }
-  }
-  return null;
-}
 
-/**
- * Creates a success response with consistent structure
- */
-export function successResponse(data: Record<string, unknown>, message?: string) {
-  return NextResponse.json({
-    success: true,
-    ...(message && { message }),
-    ...data,
-  });
-}
+// Re-export everything from the centralized error module
+export {
+  // Error codes and types
+  ApiErrorCode,
+  ApiError,
+  ERROR_CODE_STATUS_MAP,
+  type ApiErrorResponse,
+  type ApiSuccessResponse,
 
-/**
- * Creates an error response with consistent structure
- */
-export function errorResponse(error: unknown, defaultMessage: string, status = 500) {
-  logger.error(defaultMessage, { error });
-  return NextResponse.json(
-    {
-      error: error instanceof Error ? error.message : defaultMessage,
-      details: error instanceof Error ? error.message : 'Unknown error',
-    },
-    { status }
-  );
-}
+  // New standardized functions
+  createApiErrorResponse,
+  createApiSuccessResponse,
+  validateRequiredFields,
+  handleApiError,
+  notFoundError,
+  databaseError,
+  validationError,
+  invalidActionError,
+  operationFailedError,
 
-/**
- * Handles operation result and returns appropriate response
- */
-export function handleOperationResult(
-  result: { success: boolean; error?: string; [key: string]: unknown },
-  successMessage: string,
-  errorMessage: string
-) {
-  if (!result.success) {
-    return NextResponse.json(
-      { error: result.error || errorMessage },
-      { status: 500 }
-    );
-  }
-
-  return successResponse(result, successMessage);
-}
+  // Legacy compatibility exports (deprecated but kept for existing code)
+  validateRequired,
+  successResponse,
+  errorResponse,
+  handleOperationResult,
+} from '@/lib/api-errors';

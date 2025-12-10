@@ -8,6 +8,8 @@ interface IdeaDetailHeaderProps {
   onClose: () => void;
   getCategoryEmoji: (category: string) => string;
   getStatusColor: (status: string) => string;
+  /** ID for the title element (used for aria-labelledby) */
+  titleId?: string;
 }
 
 export default function IdeaDetailHeader({
@@ -15,15 +17,19 @@ export default function IdeaDetailHeader({
   onClose,
   getCategoryEmoji,
   getStatusColor,
+  titleId = 'idea-detail-modal-title',
 }: IdeaDetailHeaderProps) {
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
       <div className="flex items-center gap-2.5">
         <div className="p-1.5 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
-          <span className="text-2xl">{getCategoryEmoji(idea.category)}</span>
+          <span className="text-2xl" aria-hidden="true">{getCategoryEmoji(idea.category)}</span>
         </div>
         <div>
-          <h2 className="text-base font-semibold text-white leading-tight">
+          <h2
+            id={titleId}
+            className="text-base font-semibold text-white leading-tight"
+          >
             {idea.title}
           </h2>
           <p className={`text-xs font-semibold uppercase mt-0.5 ${getStatusColor(idea.status)}`}>
@@ -36,8 +42,9 @@ export default function IdeaDetailHeader({
         onClick={onClose}
         data-testid="idea-detail-close-button"
         className="p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors"
+        aria-label="Close modal"
       >
-        <X className="w-4 h-4 text-gray-400" />
+        <X className="w-4 h-4 text-gray-400" aria-hidden="true" />
       </button>
     </div>
   );

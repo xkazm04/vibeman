@@ -3,12 +3,11 @@
  *
  * Handles generating ideas using Claude Code by:
  * 1. Calling the server API to build prompts with context/goals
- * 2. Using the pipeline to create and execute requirements
+ * 2. Creating Claude Code requirement files (user manages execution via TaskRunner)
  */
 
 import { ScanType, SCAN_TYPE_CONFIGS } from '../../lib/scanTypes';
-import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
-import { executeFireAndForget, PipelineConfig } from '@/app/features/Onboarding/sub_Blueprint/lib/pipeline';
+import { createRequirementOnly, PipelineConfig } from '@/app/features/Onboarding/sub_Blueprint/lib/pipeline';
 
 export interface ClaudeIdeasExecutorConfig {
   projectId: string;
@@ -16,13 +15,12 @@ export interface ClaudeIdeasExecutorConfig {
   projectPath: string;
   scanTypes: ScanType[];
   contextIds: string[];  // Support multiple contexts
-  batchId: BatchId;
 }
 
 export interface ClaudeIdeasExecutorResult {
   success: boolean;
-  tasksCreated: number;
-  taskIds: string[];
+  filesCreated: number;
+  requirementPaths: string[];
   errors: string[];
 }
 
@@ -37,7 +35,7 @@ interface ClaudeIdeasApiResponse {
 
 /**
  * Execute Claude Ideas generation for multiple scan types and contexts
- * Creates Claude Code requirement files and queues them for processing
+ * Creates Claude Code requirement files only - user manages execution via TaskRunner batches
  */
 export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutorConfig): Promise<ClaudeIdeasExecutorResult> {
   console.log('[ClaudeIdeasExecutor] === STARTING EXECUTION ===');
@@ -48,13 +46,12 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
     scanTypesCount: config.scanTypes.length,
     scanTypes: config.scanTypes,
     contextIdsCount: config.contextIds.length,
-    batchId: config.batchId
   }, null, 2));
 
   const result: ClaudeIdeasExecutorResult = {
     success: false,
-    tasksCreated: 0,
-    taskIds: [],
+    filesCreated: 0,
+    requirementPaths: [],
     errors: []
   };
 
@@ -116,7 +113,7 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
         console.log(`[ClaudeIdeasExecutor] Requirement name: ${apiResult.requirementName}`);
         console.log(`[ClaudeIdeasExecutor] Requirement content length: ${apiResult.requirementContent.length} chars`);
 
-        // Step 2: Use pipeline to create and execute the requirement
+        // Step 2: Create the requirement file only (user will manage execution via TaskRunner)
         const pipelineConfig: PipelineConfig = {
           projectPath: config.projectPath,
           projectId: config.projectId,
@@ -126,24 +123,24 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
             console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${contextLabel}: ${progress}% - ${message}`);
           },
           onComplete: (pipelineResult) => {
-            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${contextLabel}: Task completed`, pipelineResult.taskId);
+            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${contextLabel}: Requirement file created`, pipelineResult.requirementPath);
           },
           onError: (error) => {
             console.error(`[ClaudeIdeasExecutor] ${scanLabel}/${contextLabel}: Pipeline error`, error.message);
           }
         };
 
-        // Execute fire-and-forget (don't wait for completion)
-        const pipelineResult = await executeFireAndForget(pipelineConfig);
+        // Create requirement file only (no auto-execution)
+        const pipelineResult = await createRequirementOnly(pipelineConfig);
 
         console.log(`[ClaudeIdeasExecutor] Pipeline result:`, JSON.stringify(pipelineResult, null, 2));
 
-        if (pipelineResult.success && pipelineResult.taskId) {
-          result.tasksCreated++;
-          result.taskIds.push(pipelineResult.taskId);
-          console.log(`[ClaudeIdeasExecutor] SUCCESS: Task created with ID ${pipelineResult.taskId}`);
+        if (pipelineResult.success && pipelineResult.requirementPath) {
+          result.filesCreated++;
+          result.requirementPaths.push(pipelineResult.requirementPath);
+          console.log(`[ClaudeIdeasExecutor] SUCCESS: Requirement file created at ${pipelineResult.requirementPath}`);
         } else {
-          const errorMsg = `${scanLabel}/${contextLabel}: ${pipelineResult.error || 'Unknown error (no taskId)'}`;
+          const errorMsg = `${scanLabel}/${contextLabel}: ${pipelineResult.error || 'Unknown error (no requirementPath)'}`;
           result.errors.push(errorMsg);
           console.error(`[ClaudeIdeasExecutor] FAILED:`, errorMsg);
         }
@@ -155,7 +152,7 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
     }
   }
 
-  result.success = result.tasksCreated > 0;
+  result.success = result.filesCreated > 0;
   console.log('[ClaudeIdeasExecutor] === EXECUTION COMPLETE ===');
   console.log('[ClaudeIdeasExecutor] Final result:', JSON.stringify(result, null, 2));
   return result;

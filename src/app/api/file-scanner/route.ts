@@ -324,7 +324,7 @@ async function scanFileWithLLM(filePath: string, fileContent: string, fileIndex?
     // Send request to LLM
     const response = await ollamaClient.generate({
       prompt,
-      model: 'gpt-oss:20b',
+      model: 'ministral-3:14b',
       taskType: 'file-scan',
       taskDescription: `Scanning file: ${filePath}`,
       projectId: 'file-scanner'
@@ -516,7 +516,7 @@ async function fixBuildErrorsInFile(
     logger.info(`${logPrefix} Sending to LLM for error fixing...`);
     const llmResponse = await ollama.generate({
       prompt,
-      model: 'gpt-oss:20b'
+      model: 'ministral-3:14b'
     });
     const response = llmResponse.response || '';
     

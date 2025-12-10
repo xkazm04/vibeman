@@ -4,6 +4,7 @@
  */
 
 import { getLayerFromPath } from '@/app/features/Docs/sub_DocsAnalysis/lib/xrayTypes';
+import { generateXrayId } from '@/lib/idGenerator';
 
 // Event interface matching the stream route
 interface XRayEvent {
@@ -21,10 +22,8 @@ interface XRayEvent {
   error?: string;
 }
 
-// Generate unique ID
-function generateId(): string {
-  return `xray_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+// Generate unique ID using shared idGenerator
+const generateId = generateXrayId;
 
 // Global buffer for events (accessible from middleware and stream)
 let xrayEventBuffer: XRayEvent[] = [];

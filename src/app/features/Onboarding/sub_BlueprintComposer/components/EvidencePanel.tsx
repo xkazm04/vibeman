@@ -23,6 +23,9 @@ import {
   Shield,
   Check,
   X,
+  StopCircle,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 import { ScanEvidence, COLOR_PALETTE } from '../types';
 import { useBlueprintComposerStore } from '../store/blueprintComposerStore';
@@ -34,6 +37,9 @@ interface EvidencePanelProps {
   executionState?: ExecutionState | null;
   onDecisionAccept?: () => void;
   onDecisionReject?: () => void;
+  onAbort?: () => void;
+  useDecisionGate?: boolean;
+  onToggleDecisionGate?: () => void;
 }
 
 // Phase display configuration
@@ -53,6 +59,9 @@ export default function EvidencePanel({
   executionState,
   onDecisionAccept,
   onDecisionReject,
+  onAbort,
+  useDecisionGate = true,
+  onToggleDecisionGate,
 }: EvidencePanelProps) {
   const { evidence, savedBlueprints, clearEvidence } = useBlueprintComposerStore();
   const [showLogs, setShowLogs] = useState(false);
@@ -89,24 +98,45 @@ export default function EvidencePanel({
       <div className="relative flex-1 flex items-center px-4 min-h-[64px]">
         {/* Left: Controls */}
         <div className="flex items-center gap-2 mr-4">
-          <motion.button
-            onClick={onRunTest}
-            disabled={isRunning}
-            whileHover={{ scale: isRunning ? 1 : 1.05 }}
-            whileTap={{ scale: isRunning ? 1 : 0.95 }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              isRunning
-                ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
-            }`}
-          >
-            {isRunning ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
+          {isRunning ? (
+            <motion.button
+              onClick={onAbort}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
+            >
+              <StopCircle className="w-3.5 h-3.5" />
+              Abort
+            </motion.button>
+          ) : (
+            <motion.button
+              onClick={onRunTest}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30"
+            >
               <Play className="w-3.5 h-3.5" />
+              Test Run
+            </motion.button>
+          )}
+
+          {/* Decision Gate Toggle */}
+          <button
+            onClick={onToggleDecisionGate}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              useDecisionGate
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                : 'bg-gray-800/50 text-gray-500 border border-gray-700/30'
+            }`}
+            title={useDecisionGate ? 'Decision Gate: ON - Will pause for approval before fixing' : 'Decision Gate: OFF - Will proceed without pause'}
+          >
+            {useDecisionGate ? (
+              <ToggleRight className="w-4 h-4" />
+            ) : (
+              <ToggleLeft className="w-4 h-4" />
             )}
-            Test Run
-          </motion.button>
+            <Shield className="w-3 h-3" />
+          </button>
 
           <button
             onClick={clearEvidence}

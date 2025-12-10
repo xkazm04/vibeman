@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { successResponse } from './helpers';
 import {
   executeRequirement,
 } from '@/app/Claude/lib/claudeCodeManager';
@@ -39,10 +38,14 @@ export async function queueExecution(
 
   logger.info('Task queued successfully', { taskId });
 
-  return successResponse({
+  // Return data at root level for pipeline compatibility
+  // (successResponse wraps data in a "data" property which breaks consumers)
+  return NextResponse.json({
+    success: true,
+    message: 'Requirement queued for execution',
     taskId,
     mode: 'async',
-  }, 'Requirement queued for execution');
+  });
 }
 
 /**
@@ -75,12 +78,15 @@ export async function executeSync(
     contextUpdateResults = await performContextAutoUpdate(projectId, projectPath, beforeSnapshot);
   }
 
-  return successResponse({
+  // Return data at root level for consistency
+  return NextResponse.json({
+    success: true,
+    message: 'Requirement executed successfully',
     output: result.output,
     logFilePath: result.logFilePath,
     contextUpdates: contextUpdateResults,
     mode: 'sync',
-  }, 'Requirement executed successfully');
+  });
 }
 
 /**

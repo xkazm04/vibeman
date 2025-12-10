@@ -60,6 +60,9 @@ export default function BlueprintComposer({ onClose }: BlueprintComposerProps) {
   const [executionState, setExecutionState] = useState<ExecutionState | null>(null);
   const [executionEngine, setExecutionEngine] = useState<BlueprintExecutionEngine | null>(null);
 
+  // Decision Gate toggle - independent from executor selection
+  const [useDecisionGate, setUseDecisionGate] = useState(true);
+
   // Cleanup execution engine on unmount
   useEffect(() => {
     return () => {
@@ -122,7 +125,15 @@ export default function BlueprintComposer({ onClose }: BlueprintComposerProps) {
     });
 
     try {
-      const result = await engine.execute(composition, {
+      // Create a modified composition with decision gate setting
+      const compositionWithDecisionGate = {
+        ...composition,
+        decisionNodes: useDecisionGate
+          ? [{ enabled: true, position: 'before-executor' as const, autoApprove: false }]
+          : [],
+      };
+
+      const result = await engine.execute(compositionWithDecisionGate, {
         projectPath: activeProject.path,
         projectType: (activeProject.type as 'nextjs' | 'fastapi' | 'express' | 'react-native' | 'other') || 'nextjs',
         projectId: activeProject.id?.toString(),
@@ -152,7 +163,7 @@ export default function BlueprintComposer({ onClose }: BlueprintComposerProps) {
       setIsRunningTest(false);
       unsubscribe();
     }
-  }, [isValid, activeProject, composition, addEvidence, updateEvidence]);
+  }, [isValid, activeProject, composition, addEvidence, updateEvidence, useDecisionGate]);
 
   // Handle decision accept
   const handleDecisionAccept = useCallback(() => {
@@ -253,6 +264,14 @@ export default function BlueprintComposer({ onClose }: BlueprintComposerProps) {
     saveBlueprint();
     toast.success('Blueprint saved');
   };
+
+  // Handle abort
+  const handleAbort = useCallback(() => {
+    executionEngine?.abort();
+    setIsRunningTest(false);
+    setExecutionState(null);
+    toast.info('Execution aborted');
+  }, [executionEngine]);
 
   return (
     <motion.div
@@ -450,6 +469,9 @@ export default function BlueprintComposer({ onClose }: BlueprintComposerProps) {
           executionState={executionState}
           onDecisionAccept={handleDecisionAccept}
           onDecisionReject={handleDecisionReject}
+          onAbort={handleAbort}
+          useDecisionGate={useDecisionGate}
+          onToggleDecisionGate={() => setUseDecisionGate(!useDecisionGate)}
         />
       </div>
     </motion.div>

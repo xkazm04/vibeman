@@ -7,6 +7,7 @@ import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useGlobalIdeaStats } from '@/hooks/useGlobalIdeaStats';
+import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 
 // Animation constants
 const PULSE_ANIMATION = {
@@ -95,15 +96,28 @@ function ProjectButton({ projectId, projectName, isSelected, onClick }: ProjectB
  * Updates both unifiedProjectStore (for filtering) and activeProjectStore (for file operations)
  */
 export default function UnifiedProjectSelector() {
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects, syncWithServer } = useProjectConfigStore();
   const { selectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
   const { setActiveProject } = useActiveProjectStore();
   const { stats, loading } = useGlobalIdeaStats();
+  const { updateCount, lastUpdate } = useProjectUpdatesStore();
 
   // Initialize projects on mount
   useEffect(() => {
     initializeProjects();
   }, [initializeProjects]);
+
+  // Listen for project updates (add/delete) and refresh the list
+  useEffect(() => {
+    if (updateCount > 0 && lastUpdate) {
+      syncWithServer();
+      
+      // If active project was deleted, reset to 'all'
+      if (lastUpdate.type === 'delete' && selectedProjectId === lastUpdate.projectId) {
+        setSelectedProjectId('all');
+      }
+    }
+  }, [updateCount, lastUpdate, syncWithServer, selectedProjectId, setSelectedProjectId]);
 
   const handleProjectSelect = (projectId: string) => {
     // Update unified store for filtering
@@ -136,16 +150,18 @@ export default function UnifiedProjectSelector() {
               onClick={() => handleProjectSelect('all')}
             />
 
-            {/* Individual Project Buttons */}
-            {projects.map((project) => (
-              <ProjectButton
-                key={project.id}
-                projectId={project.id}
-                projectName={project.name}
-                isSelected={selectedProjectId === project.id}
-                onClick={() => handleProjectSelect(project.id)}
-              />
-            ))}
+            {/* Individual Project Buttons - Sorted by name ASC */}
+            {[...projects]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((project) => (
+                <ProjectButton
+                  key={project.id}
+                  projectId={project.id}
+                  projectName={project.name}
+                  isSelected={selectedProjectId === project.id}
+                  onClick={() => handleProjectSelect(project.id)}
+                />
+              ))}
           </div>
 
           {/* Right: Idea Stats */}

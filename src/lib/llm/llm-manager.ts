@@ -270,7 +270,7 @@ export class LLMManager {
    */
   getDefaultModel(provider: SupportedProvider): string {
     const defaultModels: Record<SupportedProvider, string> = {
-      ollama: 'gpt-oss:20b',
+      ollama: 'ministral-3:14b',
       openai: 'gpt-5.1',
       anthropic: 'claude-opus-4-5',
       gemini: 'gemini-flash-latest',

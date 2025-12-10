@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Evaluate conversation quality using Ollama
- * Uses gpt-oss:20b model for evaluation
+ * Uses ministral-3:14b model for evaluation
  */
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     // Initialize Ollama client with fixed model
     const ollamaClient = new OllamaClient({
       baseUrl: 'http://localhost:11434',
-      defaultModel: 'gpt-oss:20b'
+      defaultModel: 'ministral-3:14b'
     });
 
     // Check if Ollama is available
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     // Generate evaluation
     const response = await ollamaClient.generate({
       prompt,
-      model: 'gpt-oss:20b',
+      model: 'ministral-3:14b',
       stream: false,
       taskType: 'conversation-evaluation',
       taskDescription: 'Evaluate voicebot conversation quality'

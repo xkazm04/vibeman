@@ -7,6 +7,7 @@ import chokidar, { FSWatcher } from 'chokidar';
 import { scanQueueDb } from '@/app/db';
 import { DbFileWatchConfig } from '@/app/db/models/types';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { generateId, generateNotificationId } from '@/lib/idGenerator';
 
 interface WatcherInstance {
   watcher: FSWatcher;
@@ -144,7 +145,7 @@ class FileWatcherManager {
 
       // Create queue items for each scan type
       for (const scanType of scanTypes) {
-        const queueId = `auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const queueId = generateId('auto');
 
         scanQueueDb.createQueueItem({
           id: queueId,
@@ -163,7 +164,7 @@ class FileWatcherManager {
       }
 
       // Create notification for user
-      const notificationId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const notificationId = generateNotificationId();
       scanQueueDb.createNotification({
         id: notificationId,
         queue_item_id: 'file-watch-trigger', // Generic ID for file watch notifications

@@ -45,9 +45,11 @@ interface DynamicModalShellProps {
   isTopMost?: boolean;
   // Optional custom content to render instead of the standard ModalContent
   customContent?: React.ReactNode;
+  /** ID for the content element (used for aria-describedby) */
+  contentId?: string;
 }
 
-export default function DynamicModalShell({ header, content, footer, isTopMost = true, customContent }: DynamicModalShellProps) {
+export default function DynamicModalShell({ header, content, footer, isTopMost = true, customContent, contentId }: DynamicModalShellProps) {
   const PlaceholderBlock = ({ height = 120 }: { height?: number }) => (
     <div className="p-6">
       <div className="h-5 w-56 bg-gray-700 rounded animate-pulse mb-3" />
@@ -91,6 +93,7 @@ export default function DynamicModalShell({ header, content, footer, isTopMost =
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           className="flex-1 min-h-[200px]"
+          id={contentId}
           {...inertProps}
         >
           {isTopMost ? (

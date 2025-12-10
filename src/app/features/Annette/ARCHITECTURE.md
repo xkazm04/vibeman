@@ -1417,7 +1417,7 @@ voicebot_analytics (
 
 | Provider | Client Class | Default Model | Use Case |
 |----------|-------------|---------------|----------|
-| Ollama | `OllamaClient` | `gpt-oss:20b` | Local/free inference |
+| Ollama | `OllamaClient` | `ministral-3:14b` | Local/free inference |
 | OpenAI | `OpenAIClient` | `gpt-5-mini-2025-08-07` | Fast, cost-effective |
 | Anthropic | `AnthropicClient` | `claude-3-5-haiku-latest` | Reasoning, safety |
 | Gemini | `GeminiClient` | `gemini-flash-latest` | Default, balanced |
