@@ -20,7 +20,7 @@ import GlobalTaskBar from '@/components/GlobalTaskBar';
 import { Toaster } from 'sonner';
 import StorybookLayout from './features/Storybook/StorybookLayout';
 import { SocialLayout } from './features/Social';
-import BlueprintComposer from './features/Onboarding/sub_BlueprintComposer/BlueprintComposer';
+import { BlueprintComposer } from './features/Composer';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
