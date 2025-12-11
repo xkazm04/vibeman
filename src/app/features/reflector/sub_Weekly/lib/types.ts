@@ -62,3 +62,10 @@ export interface WeeklyFilters {
   weekOffset: number; // 0 = current week, -1 = last week, etc.
 }
 
+export interface ProjectImplementationStats {
+  projectId: string;
+  projectName: string;
+  implementationCount: number;
+  lastImplementation: string | null;
+}
+

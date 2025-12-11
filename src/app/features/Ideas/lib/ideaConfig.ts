@@ -12,6 +12,8 @@ import {
   Heart,
   Sparkles,
   TrendingUp,
+  Clock,
+  AlertTriangle,
   type LucideIcon
 } from 'lucide-react';
 import type { IdeaCategory } from '@/types/ideaCategory';
@@ -39,6 +41,37 @@ export interface ImpactConfig {
   label: string;
   color: string;
   description: string;
+}
+
+export interface RiskConfig {
+  label: string;
+  color: string;
+  description: string;
+}
+
+/**
+ * Helper function to get color based on scale value
+ * @param value - Score from 1-10
+ * @param inverse - If true, lower is better (green), higher is worse (red). For effort/risk.
+ * @returns Tailwind color class
+ */
+export function getScoreColor(value: number, inverse: boolean = false): string {
+  // For inverse (effort/risk): 1-2 green, 3-4 lime, 5-6 yellow, 7-8 orange, 9-10 red
+  // For normal (impact): 1-2 red, 3-4 orange, 5-6 yellow, 7-8 lime, 9-10 green
+
+  if (inverse) {
+    if (value <= 2) return 'text-emerald-400';
+    if (value <= 4) return 'text-lime-400';
+    if (value <= 6) return 'text-yellow-400';
+    if (value <= 8) return 'text-orange-400';
+    return 'text-red-400';
+  } else {
+    if (value <= 2) return 'text-red-400';
+    if (value <= 4) return 'text-orange-400';
+    if (value <= 6) return 'text-yellow-400';
+    if (value <= 8) return 'text-lime-400';
+    return 'text-emerald-400';
+  }
 }
 
 /**
@@ -79,31 +112,67 @@ export const statusConfig: Record<string, StatusConfig> = {
 };
 
 /**
- * Effort configuration (1-3 scale)
- * 1 = Low effort, 2 = Medium effort, 3 = High effort
+ * Effort configuration (1-10 scale)
+ * Lower is better (less effort required)
  */
 export const effortConfig: Record<number, EffortConfig> = {
-  1: { label: 'Low', color: 'text-green-400', description: 'Quick fix, 1-2 hours' },
-  2: { label: 'Med', color: 'text-yellow-400', description: 'Moderate change, 1-2 days' },
-  3: { label: 'High', color: 'text-red-400', description: 'Major change, 1+ weeks' },
+  1: { label: '1', color: 'text-emerald-400', description: 'Trivial - few hours' },
+  2: { label: '2', color: 'text-emerald-400', description: 'Trivial - < 1 day' },
+  3: { label: '3', color: 'text-lime-400', description: 'Small - few days' },
+  4: { label: '4', color: 'text-lime-400', description: 'Small - < 1 week' },
+  5: { label: '5', color: 'text-yellow-400', description: 'Medium - 1-2 weeks' },
+  6: { label: '6', color: 'text-yellow-400', description: 'Medium - 2-3 weeks' },
+  7: { label: '7', color: 'text-orange-400', description: 'Large - 1 month' },
+  8: { label: '8', color: 'text-orange-400', description: 'Large - 1-2 months' },
+  9: { label: '9', color: 'text-red-400', description: 'Massive - multi-month' },
+  10: { label: '10', color: 'text-red-400', description: 'Massive - dedicated team' },
 };
 
 /**
- * Impact configuration (1-3 scale)
- * 1 = Low impact, 2 = Medium impact, 3 = High impact
+ * Impact configuration (1-10 scale)
+ * Higher is better (more business value)
  */
 export const impactConfig: Record<number, ImpactConfig> = {
-  1: { label: 'Low', color: 'text-gray-400', description: 'Nice to have' },
-  2: { label: 'Med', color: 'text-blue-400', description: 'Noticeable improvement' },
-  3: { label: 'High', color: 'text-purple-400', description: 'Game changer' },
+  1: { label: '1', color: 'text-red-400', description: 'Negligible impact' },
+  2: { label: '2', color: 'text-red-400', description: 'Negligible impact' },
+  3: { label: '3', color: 'text-orange-400', description: 'Minor improvement' },
+  4: { label: '4', color: 'text-orange-400', description: 'Minor improvement' },
+  5: { label: '5', color: 'text-yellow-400', description: 'Moderate value' },
+  6: { label: '6', color: 'text-yellow-400', description: 'Moderate value' },
+  7: { label: '7', color: 'text-lime-400', description: 'High value' },
+  8: { label: '8', color: 'text-lime-400', description: 'High value' },
+  9: { label: '9', color: 'text-emerald-400', description: 'Critical value' },
+  10: { label: '10', color: 'text-emerald-400', description: 'Critical/transformational' },
+};
+
+/**
+ * Risk configuration (1-10 scale)
+ * Lower is better (safer to implement)
+ */
+export const riskConfig: Record<number, RiskConfig> = {
+  1: { label: '1', color: 'text-emerald-400', description: 'Very safe' },
+  2: { label: '2', color: 'text-emerald-400', description: 'Very safe' },
+  3: { label: '3', color: 'text-lime-400', description: 'Low risk' },
+  4: { label: '4', color: 'text-lime-400', description: 'Low risk' },
+  5: { label: '5', color: 'text-yellow-400', description: 'Moderate risk' },
+  6: { label: '6', color: 'text-yellow-400', description: 'Moderate risk' },
+  7: { label: '7', color: 'text-orange-400', description: 'High risk' },
+  8: { label: '8', color: 'text-orange-400', description: 'High risk' },
+  9: { label: '9', color: 'text-red-400', description: 'Critical risk' },
+  10: { label: '10', color: 'text-red-400', description: 'Critical risk' },
 };
 
 /**
  * Effort icon (for visual display)
  */
-export const EffortIcon = Sparkles;
+export const EffortIcon = Clock;
 
 /**
  * Impact icon (for visual display)
  */
 export const ImpactIcon = TrendingUp;
+
+/**
+ * Risk icon (for visual display)
+ */
+export const RiskIcon = AlertTriangle;

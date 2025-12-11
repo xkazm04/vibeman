@@ -7,8 +7,10 @@ import {
   statusConfig,
   effortConfig,
   impactConfig,
+  riskConfig,
   EffortIcon,
   ImpactIcon,
+  RiskIcon,
 } from '@/app/features/Ideas/lib/ideaConfig';
 import { Calendar, Tag, Target } from 'lucide-react';
 
@@ -144,25 +146,37 @@ export default function IdeaCard({
 
           {/* Metrics */}
           <div className="flex items-center gap-3 mb-6">
-            {idea.effort && (
+            {idea.impact && (
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg">
-                <EffortIcon className={`w-4 h-4 ${effortConfig[idea.effort]?.color || 'text-gray-400'}`} />
+                <ImpactIcon className={`w-5 h-5 ${impactConfig[idea.impact]?.color || 'text-gray-400'}`} />
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">Effort</div>
-                  <div className={`text-sm font-bold ${effortConfig[idea.effort]?.color || 'text-gray-400'}`}>
-                    {effortConfig[idea.effort]?.label || 'N/A'}
+                  <div className="text-[10px] text-gray-500 uppercase">Impact</div>
+                  <div className={`text-lg font-bold ${impactConfig[idea.impact]?.color || 'text-gray-400'}`}>
+                    {idea.impact}
                   </div>
                 </div>
               </div>
             )}
 
-            {idea.impact && (
+            {idea.effort && (
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg">
-                <ImpactIcon className={`w-4 h-4 ${impactConfig[idea.impact]?.color || 'text-gray-400'}`} />
+                <EffortIcon className={`w-5 h-5 ${effortConfig[idea.effort]?.color || 'text-gray-400'}`} />
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">Impact</div>
-                  <div className={`text-sm font-bold ${impactConfig[idea.impact]?.color || 'text-gray-400'}`}>
-                    {impactConfig[idea.impact]?.label || 'N/A'}
+                  <div className="text-[10px] text-gray-500 uppercase">Effort</div>
+                  <div className={`text-lg font-bold ${effortConfig[idea.effort]?.color || 'text-gray-400'}`}>
+                    {idea.effort}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {idea.risk && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg">
+                <RiskIcon className={`w-5 h-5 ${riskConfig[idea.risk]?.color || 'text-gray-400'}`} />
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Risk</div>
+                  <div className={`text-lg font-bold ${riskConfig[idea.risk]?.color || 'text-gray-400'}`}>
+                    {idea.risk}
                   </div>
                 </div>
               </div>

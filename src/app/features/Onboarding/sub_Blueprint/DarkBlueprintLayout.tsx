@@ -23,12 +23,10 @@ import ContextDependentScans from '../sub_BlueprintContext/components/ContextDep
 import GoalReviewer from '../sub_GoalDrawer/GoalReviewer';
 import GoalDetailPanel from '../sub_GoalDrawer/GoalDetailPanel';
 import GoalAddPanel from '../sub_GoalDrawer/GoalAddPanel';
-import { BlueprintComposer } from '../sub_BlueprintComposer';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useBlueprintComposerStore } from '../sub_BlueprintComposer/store/blueprintComposerStore';
 import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShortcuts';
 import { useBlueprintData } from './hooks/useBlueprintData';
 import { useBlueprintSelection } from './hooks/useBlueprintSelection';
@@ -58,7 +56,6 @@ export default function DarkBlueprint({
   const { closeBlueprint } = useOnboardingStore();
   const { currentDecision } = useDecisionQueueStore();
   const { toggleGroup } = useBlueprintStore();
-  const { isOpen: isComposerOpen, openComposer, closeComposer } = useBlueprintComposerStore();
 
   // Goal panel state - can be a Goal object (edit mode) or 'add' (add mode) or null (closed)
   const [selectedGoal, setSelectedGoal] = useState<Goal | 'add' | null>(null);
@@ -183,34 +180,8 @@ export default function DarkBlueprint({
       <BlueprintKeyboardShortcuts />
       <BlueprintConfigButton />
 
-      {/* Blueprint Composer Toggle & Runner Concept Switcher */}
+      {/* Blueprint Runner Concept Switcher */}
       <div className="absolute top-4 right-20 z-30 flex items-center gap-2">
-        {/* Blueprint Composer Toggle */}
-        <motion.button
-          onClick={() => {
-            if (isComposerOpen) {
-              closeComposer();
-            } else {
-              // Close Goal Reviewer if open when opening Composer
-              if (isGoalReviewerOpen && onCloseGoalReviewer) {
-                onCloseGoalReviewer();
-              }
-              openComposer();
-            }
-          }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-            isComposerOpen
-              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-              : 'bg-gray-900/80 text-gray-400 border border-gray-700/50 hover:text-cyan-400 hover:border-cyan-500/30'
-          }`}
-          title="Toggle Blueprint Composer"
-        >
-          <Workflow className="w-4 h-4" />
-          Composer
-        </motion.button>
-
         <BlueprintConceptSwitcher
           activeConcept={activeRunnerConcept}
           onConceptChange={setActiveRunnerConcept}
@@ -443,21 +414,6 @@ export default function DarkBlueprint({
             )}
           </AnimatePresence>
 
-          {/* Blueprint Composer - Shows when explicitly opened via toggle button */}
-          <AnimatePresence>
-            {isComposerOpen && !isGoalReviewerOpen && !selectedContextGroupId && !activeRunnerConcept && !selectedContext && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="absolute inset-6 z-40"
-                data-testid="blueprint-composer"
-              >
-                <BlueprintComposer onClose={closeComposer} />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* Footer Area */}

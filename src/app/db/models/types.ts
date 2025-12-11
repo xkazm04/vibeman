@@ -124,8 +124,9 @@ export interface DbIdea {
   status: 'pending' | 'accepted' | 'rejected' | 'implemented';
   user_feedback: string | null;
   user_pattern: number; // Boolean flag (0 or 1)
-  effort: number | null; // 1 = lowest effort, 3 = highest effort
-  impact: number | null; // 1 = lowest impact, 3 = highest impact
+  effort: number | null; // 1-10 scale: 1 = trivial (hours), 10 = massive (months)
+  impact: number | null; // 1-10 scale: 1 = negligible, 10 = critical/transformational
+  risk: number | null; // 1-10 scale: 1 = very safe, 10 = critical risk
   requirement_id: string | null; // Claude Code requirement file name
   goal_id: string | null; // Related goal (foreign key to goals table)
   created_at: string;

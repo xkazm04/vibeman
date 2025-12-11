@@ -26,6 +26,7 @@ const mainNavigationItems: NavigationItem[] = [
 
 // Hidden in "Other" dropdown
 const otherNavigationItems: NavigationItem[] = [
+  { module: 'composer', label: 'BP Composer', icon: Wand2 },
   { module: 'reflector', label: 'Reflector', icon: Activity },
   { module: 'docs', label: 'Docs', icon: BookOpen },
   { module: 'refactor', label: 'Wizard', icon: Wand2 },

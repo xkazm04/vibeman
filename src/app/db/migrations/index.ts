@@ -126,6 +126,8 @@ export function runMigrations() {
     migrateBlueprintTables();
     // Migration 34: Create developer mind-meld tables
     migrateDeveloperMindMeldTables();
+    // Migration 35: Update ideas table to support 1-10 scoring and add risk column
+    migrateIdeasExtendedScoring();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -2579,4 +2581,92 @@ function migrateDeveloperMindMeldTables() {
   }, migrationLogger);
 
   migrationLogger.success('Developer Mind-Meld tables created successfully');
+}
+
+/**
+ * Migration 35: Update ideas table to support 1-10 scoring scale and add risk column
+ * - Extends effort and impact from 1-3 scale to 1-10 scale
+ * - Adds new risk column (1-10 scale)
+ * - Maintains all existing data with proper migration
+ */
+function migrateIdeasExtendedScoring() {
+  safeMigration('ideasExtendedScoring', () => {
+    const db = getConnection();
+
+    // Check if risk column already exists
+    const tableInfo = getTableInfo(db, 'ideas');
+    const hasRiskColumn = tableInfo.some(col => col.name === 'risk');
+
+    if (hasRiskColumn) {
+      migrationLogger.info('Ideas table already has extended scoring (1-10) and risk column');
+      return;
+    }
+
+    migrationLogger.info('Starting migration to extend ideas scoring to 1-10 scale and add risk column...');
+
+    // SQLite doesn't support modifying CHECK constraints directly
+    // We need to recreate the table with new constraints
+
+    // Step 1: Rename the existing table
+    db.exec('ALTER TABLE ideas RENAME TO ideas_old');
+
+    // Step 2: Create new table with updated constraints
+    db.exec(`
+      CREATE TABLE ideas (
+        id TEXT PRIMARY KEY,
+        scan_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        context_id TEXT,
+        scan_type TEXT DEFAULT 'overall',
+        category TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        reasoning TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'implemented')),
+        user_feedback TEXT,
+        user_pattern INTEGER DEFAULT 0,
+        effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 10)),
+        impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 10)),
+        risk INTEGER CHECK (risk IS NULL OR (risk >= 1 AND risk <= 10)),
+        requirement_id TEXT,
+        goal_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        implemented_at TEXT,
+        FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+        FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL,
+        FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
+      )
+    `);
+
+    // Step 3: Copy data from old table to new table
+    // Old effort/impact values (1-3) are still valid in the new 1-10 scale
+    db.exec(`
+      INSERT INTO ideas (
+        id, scan_id, project_id, context_id, scan_type, category, title, description,
+        reasoning, status, user_feedback, user_pattern, effort, impact, risk,
+        requirement_id, goal_id, created_at, updated_at, implemented_at
+      )
+      SELECT
+        id, scan_id, project_id, context_id, scan_type, category, title, description,
+        reasoning, status, user_feedback, user_pattern, effort, impact, NULL as risk,
+        requirement_id, goal_id, created_at, updated_at, implemented_at
+      FROM ideas_old
+    `);
+
+    // Step 4: Drop the old table
+    db.exec('DROP TABLE ideas_old');
+
+    // Step 5: Recreate indexes if they existed
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_ideas_project_id ON ideas(project_id);
+      CREATE INDEX IF NOT EXISTS idx_ideas_context_id ON ideas(context_id);
+      CREATE INDEX IF NOT EXISTS idx_ideas_status ON ideas(status);
+      CREATE INDEX IF NOT EXISTS idx_ideas_scan_type ON ideas(scan_type);
+      CREATE INDEX IF NOT EXISTS idx_ideas_goal_id ON ideas(goal_id);
+      CREATE INDEX IF NOT EXISTS idx_ideas_requirement_id ON ideas(requirement_id);
+    `);
+
+    migrationLogger.success('Ideas table successfully migrated to 1-10 scoring scale with risk column');
+  }, migrationLogger);
 }

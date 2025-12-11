@@ -6,11 +6,6 @@
 import { ideaDb, goalDb, contextDb } from '@/app/db';
 import type { DbIdea } from '@/app/db/models/types';
 import type { SupportedProvider } from '@/lib/llm/types';
-import {
-  calculateAdaptiveScore,
-  checkThresholds,
-  type AdaptiveScore,
-} from '@/app/features/Ideas/sub_Vibeman/lib/adaptiveLearning';
 import { runParliamentDebate, runQuickDebate } from './debateEngine';
 import { debateSessionDb } from './reputationRepository';
 import type { DebateResult, DebateConfig } from './types';
@@ -47,8 +42,6 @@ export interface ParliamentEvaluationOptions {
   projectPath: string;
   /** Use full parliament debate (slower, more thorough) */
   enableDebate?: boolean;
-  /** Minimum adaptive score to consider for debate */
-  minAdaptiveScore?: number;
   /** Maximum ideas to debate */
   maxIdeasToDebate?: number;
   /** LLM provider to use */
@@ -57,9 +50,16 @@ export interface ParliamentEvaluationOptions {
   debateConfig?: Partial<DebateConfig>;
 }
 
-interface IdeaWithScore {
-  idea: DbIdea;
-  adaptiveScore: AdaptiveScore;
+/**
+ * Simple scoring for ideas based on effort and impact
+ */
+function calculateSimpleScore(idea: DbIdea): number {
+  const effort = idea.effort || 5; // Default to medium effort
+  const impact = idea.impact || 5; // Default to medium impact
+
+  // Higher impact and lower effort = better score
+  // Score range: 0-100
+  return ((impact / effort) * 10) + (impact * 5);
 }
 
 /**
@@ -100,7 +100,6 @@ export async function evaluateWithParliament(
     projectId,
     projectPath,
     enableDebate = true,
-    minAdaptiveScore = 30,
     maxIdeasToDebate = 5,
     provider = 'ollama',
     debateConfig = {},
@@ -118,59 +117,32 @@ export async function evaluateWithParliament(
       };
     }
 
-    // 2. Calculate adaptive scores for all pending ideas
-    const ideasWithScores: IdeaWithScore[] = pendingIdeas.map(idea => ({
+    // 2. Calculate simple scores for all pending ideas
+    const ideasWithScores = pendingIdeas.map(idea => ({
       idea,
-      adaptiveScore: calculateAdaptiveScore(idea, projectId),
+      score: calculateSimpleScore(idea),
     }));
 
-    // 3. Check for auto-accept based on thresholds
-    for (const iws of ideasWithScores) {
-      const thresholdResult = checkThresholds(projectId, iws.adaptiveScore);
-
-      if (thresholdResult.action === 'auto_accept') {
-        return {
-          selectedIdeaId: iws.idea.id,
-          reasoning: `Auto-selected based on high adaptive score (${iws.adaptiveScore.adjustedScore.toFixed(1)}) exceeding threshold`,
-        };
-      }
-    }
-
-    // 4. Filter out auto-rejected ideas and low scores
-    const viableIdeas = ideasWithScores.filter(iws => {
-      const thresholdResult = checkThresholds(projectId, iws.adaptiveScore);
-      return (
-        thresholdResult.action !== 'auto_reject' &&
-        iws.adaptiveScore.adjustedScore >= minAdaptiveScore
-      );
-    });
-
-    if (viableIdeas.length === 0) {
-      return {
-        selectedIdeaId: null,
-        reasoning: 'All pending ideas were filtered out by adaptive learning thresholds',
-      };
-    }
-
-    // 5. Sort by adaptive score and take top candidates
-    const sortedIdeas = [...viableIdeas].sort(
-      (a, b) => b.adaptiveScore.adjustedScore - a.adaptiveScore.adjustedScore
+    // 3. Sort by score and take top candidates
+    const sortedIdeas = [...ideasWithScores].sort(
+      (a, b) => b.score - a.score
     );
     const topIdeas = sortedIdeas.slice(0, maxIdeasToDebate).map(iws => iws.idea);
 
-    // 6. If debate is disabled or only one idea, use simple selection
+    // 4. If debate is disabled or only one idea, use simple selection
     if (!enableDebate || topIdeas.length === 1) {
       const bestIdea = topIdeas[0];
+      const bestScore = sortedIdeas[0].score;
       return {
         selectedIdeaId: bestIdea.id,
-        reasoning: `Selected based on highest adaptive score (${sortedIdeas[0].adaptiveScore.adjustedScore.toFixed(1)})`,
+        reasoning: `Selected based on highest score (${bestScore.toFixed(1)})`,
       };
     }
 
-    // 7. Get project context for debate
+    // 5. Get project context for debate
     const projectContext = await getProjectContext(projectId);
 
-    // 8. Run parliament debate
+    // 6. Run parliament debate
     if (topIdeas.length === 1) {
       // Single idea: run full debate
       const debateResult = await runParliamentDebate({

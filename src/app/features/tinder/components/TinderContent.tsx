@@ -188,7 +188,7 @@ export default function TinderContent({
       </div>
 
       {/* Card Stack */}
-      <div className="relative h-[600px] mb-8">
+      <div className="relative h-[600px]">
         <AnimatePresence>
           {ideas.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((idea, index) => {
             const projectName = getProject(idea.project_id)?.name || 'Unknown Project';

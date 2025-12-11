@@ -106,23 +106,25 @@ export const ideaRepository = {
     user_pattern?: boolean;
     effort?: number | null;
     impact?: number | null;
+    risk?: number | null;
     requirement_id?: string | null;
     goal_id?: string | null;
   }): DbIdea => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
-    // Validate effort and impact values
-    const validatedEffort = ideaRepository.validateEffortImpact(idea.effort);
-    const validatedImpact = ideaRepository.validateEffortImpact(idea.impact);
+    // Validate effort, impact, and risk values (1-10 scale)
+    const validatedEffort = ideaRepository.validateScore(idea.effort);
+    const validatedImpact = ideaRepository.validateScore(idea.impact);
+    const validatedRisk = ideaRepository.validateScore(idea.risk);
 
     const stmt = db.prepare(`
       INSERT INTO ideas (
         id, scan_id, project_id, context_id, scan_type, category, title, description,
-        reasoning, status, user_feedback, user_pattern, effort, impact, requirement_id, goal_id,
+        reasoning, status, user_feedback, user_pattern, effort, impact, risk, requirement_id, goal_id,
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -140,6 +142,7 @@ export const ideaRepository = {
       idea.user_pattern ? 1 : 0,
       validatedEffort,
       validatedImpact,
+      validatedRisk,
       idea.requirement_id || null,
       idea.goal_id || null,
       now,
@@ -150,17 +153,26 @@ export const ideaRepository = {
   },
 
   /**
-   * Validate effort/impact value (must be 1-3 or null)
+   * Validate score value (must be 1-10 or null)
+   * Used for effort, impact, and risk scoring
    */
-  validateEffortImpact: (value: number | null | undefined): number | null => {
+  validateScore: (value: number | null | undefined): number | null => {
     if (value === null || value === undefined) {
       return null;
     }
     const num = typeof value === 'number' ? value : parseInt(String(value), 10);
-    if (isNaN(num) || num < 1 || num > 3) {
-      return 1; // Default to 1 if invalid
+    if (isNaN(num) || num < 1 || num > 10) {
+      return null; // Return null if invalid instead of defaulting
     }
     return num;
+  },
+
+  /**
+   * @deprecated Use validateScore instead - kept for backwards compatibility
+   * Validate effort/impact value (must be 1-10 or null)
+   */
+  validateEffortImpact: (value: number | null | undefined): number | null => {
+    return ideaRepository.validateScore(value);
   },
 
   /**
@@ -175,6 +187,7 @@ export const ideaRepository = {
     reasoning?: string;
     effort?: number | null;
     impact?: number | null;
+    risk?: number | null;
     requirement_id?: string | null;
     goal_id?: string | null;
   }): DbIdea | null => {
@@ -215,11 +228,15 @@ export const ideaRepository = {
     }
     if (updates.effort !== undefined) {
       updateFields.push('effort = ?');
-      values.push(ideaRepository.validateEffortImpact(updates.effort));
+      values.push(ideaRepository.validateScore(updates.effort));
     }
     if (updates.impact !== undefined) {
       updateFields.push('impact = ?');
-      values.push(ideaRepository.validateEffortImpact(updates.impact));
+      values.push(ideaRepository.validateScore(updates.impact));
+    }
+    if (updates.risk !== undefined) {
+      updateFields.push('risk = ?');
+      values.push(ideaRepository.validateScore(updates.risk));
     }
     if (updates.requirement_id !== undefined) {
       updateFields.push('requirement_id = ?');

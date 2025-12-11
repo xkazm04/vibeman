@@ -309,9 +309,11 @@ export const mockEvaluatedFeedback: EvaluatedFeedback[] = [
     suggestedAction: 'Investigate user preferences persistence. Check localStorage/session handling.',
     evaluatedAt: new Date(Date.now() - 1000 * 60 * 60 * 20),
     ticket: {
+      id: 'ticket-demo-1',
       key: 'VIB-142',
       title: 'Dark mode toggle resets on app restart',
-      status: 'open',
+      description: 'Found a bug where the dark mode toggle resets to light mode after closing the app. Reproducible every time.',
+      status: 'created',
       priority: 'medium',
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18),
     },
@@ -343,9 +345,11 @@ export const mockEvaluatedFeedback: EvaluatedFeedback[] = [
     suggestedAction: 'Thank user and request permission for case study/testimonial.',
     evaluatedAt: new Date(Date.now() - 1000 * 60 * 60 * 44),
     reply: {
+      id: 'reply-demo-3',
       content: "Thank you so much for sharing this! We're thrilled to hear about your team's productivity gains. Would you be open to a brief case study?",
       status: 'sent',
       sentAt: new Date(Date.now() - 1000 * 60 * 60 * 40),
+      platform: 'email',
     },
   },
 ];

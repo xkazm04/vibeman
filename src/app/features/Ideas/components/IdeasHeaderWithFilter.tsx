@@ -2,11 +2,10 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Context, ContextGroup } from '@/lib/queries/contextQueries';
-import VibemanControl from '../sub_Vibeman/VibemanControl';
+import { useProjectContexts } from '@/lib/queries/contextsQueries';
+import type { Context, ContextGroup } from '@/lib/queries/contextsQueries';
 import ProjectRowSelection from './ProjectRowSelection';
 import ContextRowSelection from './ContextRowSelection';
-import { MindMeldToggle } from '@/app/features/DeveloperMindMeld';
 
 interface IdeasHeaderWithFilterProps {
   projects: Array<{ id: string; name: string }>;
@@ -29,61 +28,15 @@ export default function IdeasHeaderWithFilter({
   selectedProjectPath,
   onIdeaImplemented,
 }: IdeasHeaderWithFilterProps) {
-  const [contexts, setContexts] = React.useState<Context[]>([]);
-  const [contextGroups, setContextGroups] = React.useState<ContextGroup[]>([]);
-  const [loading, setLoading] = React.useState(false);
+  // Use React Query hook for automatic caching and deduplication
+  const projectId = selectedProjectId !== 'all' ? selectedProjectId : null;
+  const { data, isLoading } = useProjectContexts(projectId);
 
-  // Fetch contexts when a specific project is selected
-  React.useEffect(() => {
-    if (selectedProjectId && selectedProjectId !== 'all') {
-      fetchContextsForProject(selectedProjectId);
-    } else {
-      setContexts([]);
-      setContextGroups([]);
-    }
-  }, [selectedProjectId]);
-
-  const fetchContextsForProject = async (projectId: string) => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/contexts?projectId=${encodeURIComponent(projectId)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setContexts(data.data.contexts || []);
-        setContextGroups(data.data.groups || []);
-      }
-    } catch (error) {
-      // Error fetching contexts
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Type-safe check: only render Vibeman widget when we have valid project metadata
-  const showVibemanWidget =
-    selectedProjectId &&
-    selectedProjectId !== 'all' &&
-    selectedProjectPath !== undefined &&
-    selectedProjectPath !== null;
+  const contexts = data?.contexts || [];
+  const contextGroups = data?.groups || [];
 
   return (
     <>
-      {/* Fixed Vibeman Widget - Only visible when project is selected */}
-      {showVibemanWidget && (
-        <VibemanControl
-          projectId={selectedProjectId}
-          projectPath={selectedProjectPath}
-          onIdeaImplemented={onIdeaImplemented}
-        />
-      )}
-
-      {/* Mind-Meld Toggle - Compact version in header */}
-      {selectedProjectId && selectedProjectId !== 'all' && (
-        <div className="fixed top-20 right-6 z-30">
-          <MindMeldToggle projectId={selectedProjectId} compact />
-        </div>
-      )}
-
       <motion.div
         className="relative border-b border-gray-700/40 bg-gray-900/60 backdrop-blur-xl"
         initial={{ y: -20, opacity: 0 }}

@@ -127,11 +127,14 @@ Content-Type: application/json
   "title": "<title>",
   "description": "<description>",
   "reasoning": "<reasoning>",
-  "effort": <1|2|3>,
-  "impact": <1|2|3>,
+  "effort": <1-10>,
+  "impact": <1-10>,
+  "risk": <1-10>,
   "goal_id": "<goal_id_if_matched>"
 }
 \`\`\`
+
+**IMPORTANT:** Always include effort, impact, and risk scores (1-10) for every idea. Do NOT leave these fields empty or null.
 
 ### Field Requirements
 
@@ -155,15 +158,26 @@ Content-Type: application/json
 - What impact it will have
 - Why now is a good time to implement it
 
-**effort** (number 1-3):
-- 1 = Low effort (1-2 hours, quick fix)
-- 2 = Medium effort (1-2 days, moderate change)
-- 3 = High effort (1+ weeks, major change)
+**effort** (number 1-10) - Total cost to deliver: time, complexity, people, and coordination overhead:
+- 1-2 = Trivial (few hours to a day, single file/config change, no coordination)
+- 3-4 = Small (few days, localized to one module, minimal testing)
+- 5-6 = Medium (1-2 weeks, multiple components, requires thoughtful testing)
+- 7-8 = Large (several weeks to a month, spans multiple services, requires coordination)
+- 9-10 = Massive (multi-month initiative, dedicated team, new architecture)
 
-**impact** (number 1-3):
-- 1 = Low impact (nice to have)
-- 2 = Medium impact (noticeable improvement)
-- 3 = High impact (game changer, critical)
+**impact** (number 1-10) - Business value, user satisfaction, and strategic alignment:
+- 1-2 = Negligible (nice-to-have, no measurable user/business outcome)
+- 3-4 = Minor (quality-of-life for small user subset, weak strategy alignment)
+- 5-6 = Moderate (clear benefit to meaningful segment OR solid OKR alignment)
+- 7-8 = High (strong user impact across significant portion of base, clear competitive/revenue implication)
+- 9-10 = Critical (existential for product success, major revenue driver, transformational work)
+
+**risk** (number 1-10) - Probability and severity of things going wrong:
+- 1-2 = Very safe (well-understood change, easily reversible, no security/data/compliance surface)
+- 3-4 = Low risk (minor uncertainty, limited blast radius, standard rollback possible)
+- 5-6 = Moderate (some technical unknowns OR touches sensitive area like payments/auth/PII)
+- 7-8 = High (significant uncertainty, depends on external systems, potential user-facing regression)
+- 9-10 = Critical (novel/unproven approach, hard to reverse, major outage/data loss potential)
 
 **goal_id** (optional string): If the idea relates to one of the project goals listed above, include the goal ID
 
@@ -194,8 +208,9 @@ curl -X POST http://localhost:3000/api/ideas \\
     "title": "Example: Add user session caching layer",
     "description": "Implement Redis caching for user session data to reduce database queries. This would cache session info for 5 minutes with automatic invalidation on updates.",
     "reasoning": "Currently every page load queries the session table. This adds latency and database load. Caching would reduce DB calls by ~70%.",
-    "effort": 2,
-    "impact": 3
+    "effort": 5,
+    "impact": 7,
+    "risk": 4
   }'
 \`\`\`
 

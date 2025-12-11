@@ -106,12 +106,17 @@ export function initializeTables() {
       status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'implemented')),
       user_feedback TEXT,
       user_pattern INTEGER DEFAULT 0,
-      effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 3)),
-      impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 3)),
+      effort INTEGER CHECK (effort IS NULL OR (effort >= 1 AND effort <= 10)),
+      impact INTEGER CHECK (impact IS NULL OR (impact >= 1 AND impact <= 10)),
+      risk INTEGER CHECK (risk IS NULL OR (risk >= 1 AND risk <= 10)),
+      requirement_id TEXT,
+      goal_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      implemented_at TEXT,
       FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
-      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
+      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL,
+      FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
     );
   `);
 

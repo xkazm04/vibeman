@@ -8,6 +8,7 @@ import { fetchWeeklyStats, getWeekRange } from '../lib/weeklyApi';
 import WeeklyKPICards from './WeeklyKPICards';
 import DailyActivityChart from './DailyActivityChart';
 import SpecialistBreakdown from './SpecialistBreakdown';
+import ProjectImplementationRanking from './ProjectImplementationRanking';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
@@ -175,6 +176,9 @@ export default function WeeklyDashboard() {
         />
       </div>
 
+      {/* Project Implementation Ranking */}
+      <ProjectImplementationRanking />
+
       {/* Footer */}
       <div className="text-center text-xs text-gray-600">
         Data from {new Date(stats.weekStart).toLocaleDateString()} to {new Date(stats.weekEnd).toLocaleDateString()}
@@ -183,6 +187,7 @@ export default function WeeklyDashboard() {
     </div>
   );
 }
+
 
 
 

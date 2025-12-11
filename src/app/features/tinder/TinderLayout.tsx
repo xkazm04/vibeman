@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Database, RefreshCw } from 'lucide-react';
+import React, {useEffect } from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
-import ProjectToolbar, { ToolbarAction } from '@/components/ui/ProjectToolbar';
 import TinderContent from '@/app/features/tinder/components/TinderContent';
 import TestModeControls from '@/app/features/tinder/components/TestModeControls';
 import { useTinderIdeas, useTinderKeyboardShortcuts } from '@/app/features/tinder/lib/tinderHooks';
@@ -65,28 +63,6 @@ const TinderLayout = () => {
     loadIdeas();
   };
 
-  // Toolbar actions
-  const toolbarActions: ToolbarAction[] = React.useMemo(() => [
-    {
-      icon: Database,
-      label: 'Sync ideas',
-      onClick: async () => {
-        await loadIdeas();
-      },
-      colorScheme: 'blue',
-      tooltip: 'Refresh ideas from database',
-    },
-    {
-      icon: RefreshCw,
-      label: 'Reload',
-      onClick: () => {
-        resetStats();
-        loadIdeas();
-      },
-      colorScheme: 'green',
-      tooltip: 'Reset and reload all ideas',
-    },
-  ], [loadIdeas, resetStats]);
 
   return (
     <div className="min-h-full bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">

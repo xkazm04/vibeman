@@ -8,7 +8,7 @@ export type OnboardingStep =
   | 'generate-ideas'
   | 'let-code';
 
-export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor' | 'manager' | 'storybook' | 'social';
+export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor' | 'manager' | 'storybook' | 'social' | 'composer';
 
 interface OnboardingState {
   // Project-specific completed steps: { projectId: [steps] }

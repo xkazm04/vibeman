@@ -2,19 +2,22 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Sparkles } from 'lucide-react';
-import ProjectServersGrid from './components/ProjectServersGrid';
-import RawFeedbackList from './components/RawFeedbackList';
-import EvaluatedFeedbackList from './components/EvaluatedFeedbackList';
-import AIProcessingButton from './components/AIProcessingButton';
+import { Users } from 'lucide-react';
+import SocialTabs, { type SocialTab } from './components/SocialTabs';
+import ProjectServersGrid from './sub_ProjectServers/ProjectServersGrid';
+import IncomingTopBar from './components/IncomingTopBar';
+import SimplifiedRawFeedbackList from './components/SimplifiedRawFeedbackList';
+import CompactProcessedList from './components/CompactProcessedList';
+import AITypographyButton from './components/AITypographyButton';
+import OutcomingPlaceholder from './components/OutcomingPlaceholder';
 import TicketCreationModal from './components/TicketCreationModal';
 import ReplyModal from './components/ReplyModal';
-import ProcessingStatsComponent from './components/ProcessingStats';
+import JiraTicketModal from './components/JiraTicketModal';
+import ClaudeRequirementModal from './components/ClaudeRequirementModal';
 import {
   mockRawFeedback,
   mockEvaluatedFeedback,
   mockSuggestedReplies,
-  mockTicketTemplates,
 } from './lib/mockData';
 import type {
   RawFeedback,
@@ -24,6 +27,12 @@ import type {
 } from './lib/types';
 
 export default function SocialLayout() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<SocialTab>('incoming');
+
+  // Channel filter state
+  const [activeChannel, setActiveChannel] = useState<FeedbackChannel>('all');
+
   // Raw feedback state - items waiting for AI processing
   const [rawFeedback, setRawFeedback] = useState<RawFeedback[]>(mockRawFeedback);
 
@@ -32,13 +41,27 @@ export default function SocialLayout() {
     mockEvaluatedFeedback
   );
 
-  // Processing state
-  const [isProcessing, setIsProcessing] = useState(false);
-
   // Modal states
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [jiraModalOpen, setJiraModalOpen] = useState(false);
+  const [requirementModalOpen, setRequirementModalOpen] = useState(false);
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null);
+  const [selectedFeedbackForView, setSelectedFeedbackForView] = useState<EvaluatedFeedback | null>(null);
+
+  // Channel counts
+  const channelCounts = useMemo<Record<FeedbackChannel, number>>(() => ({
+    all: rawFeedback.length,
+    facebook: rawFeedback.filter((fb) => fb.channel === 'facebook').length,
+    twitter: rawFeedback.filter((fb) => fb.channel === 'twitter').length,
+    email: rawFeedback.filter((fb) => fb.channel === 'email').length,
+  }), [rawFeedback]);
+
+  // Filtered raw feedback by channel
+  const filteredRawFeedback = useMemo(() => {
+    if (activeChannel === 'all') return rawFeedback;
+    return rawFeedback.filter((fb) => fb.channel === activeChannel);
+  }, [rawFeedback, activeChannel]);
 
   // Stats
   const stats: ProcessingStats = useMemo(() => {
@@ -69,16 +92,18 @@ export default function SocialLayout() {
   }, [evaluatedFeedback]);
 
   // AI Processing handler
-  const handleAIProcess = useCallback(async () => {
-    if (rawFeedback.length === 0) return;
-
-    setIsProcessing(true);
+  const handleAIProcess = useCallback(async (
+    rawItems: RawFeedback[],
+    setEvaluated: React.Dispatch<React.SetStateAction<EvaluatedFeedback[]>>,
+    setRaw: React.Dispatch<React.SetStateAction<RawFeedback[]>>
+  ) => {
+    if (rawItems.length === 0) return;
 
     // Simulate AI processing with delay
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Transform raw feedback to evaluated feedback
-    const newEvaluated: EvaluatedFeedback[] = rawFeedback.map((raw, index) => {
+    const newEvaluated: EvaluatedFeedback[] = rawItems.map((raw, index) => {
       // Determine category based on content keywords (mock logic)
       let category: 'bug' | 'proposal' | 'feedback' = 'feedback';
       const content = raw.content.toLowerCase();
@@ -141,10 +166,9 @@ export default function SocialLayout() {
     });
 
     // Move items from raw to evaluated
-    setEvaluatedFeedback((prev) => [...newEvaluated, ...prev]);
-    setRawFeedback([]);
-    setIsProcessing(false);
-  }, [rawFeedback]);
+    setEvaluated((prev) => [...newEvaluated, ...prev]);
+    setRaw([]);
+  }, []);
 
   // Create ticket handler
   const handleCreateTicket = useCallback((feedbackId: string) => {
@@ -158,6 +182,18 @@ export default function SocialLayout() {
     setReplyModalOpen(true);
   }, []);
 
+  // View ticket handler
+  const handleViewTicket = useCallback((feedback: EvaluatedFeedback) => {
+    setSelectedFeedbackForView(feedback);
+    setJiraModalOpen(true);
+  }, []);
+
+  // View requirement handler
+  const handleViewRequirement = useCallback((feedback: EvaluatedFeedback) => {
+    setSelectedFeedbackForView(feedback);
+    setRequirementModalOpen(true);
+  }, []);
+
   // Confirm ticket creation
   const handleConfirmTicket = useCallback(() => {
     if (!selectedFeedbackId) return;
@@ -165,12 +201,15 @@ export default function SocialLayout() {
     setEvaluatedFeedback((prev) =>
       prev.map((fb) => {
         if (fb.originalFeedbackId === selectedFeedbackId) {
+          const ticketKey = `VIB-${Math.floor(Math.random() * 900) + 100}`;
           return {
             ...fb,
             ticket: {
-              key: `VIB-${Math.floor(Math.random() * 900) + 100}`,
+              id: `ticket-${Date.now()}`,
+              key: ticketKey,
               title: fb.summary,
-              status: 'open',
+              description: fb.content,
+              status: 'created' as const,
               priority: fb.priority,
               createdAt: new Date(),
             },
@@ -194,9 +233,11 @@ export default function SocialLayout() {
             return {
               ...fb,
               reply: {
+                id: `reply-${Date.now()}`,
                 content: replyContent,
-                status: 'sent',
+                status: 'sent' as const,
                 sentAt: new Date(),
+                platform: fb.channel,
               },
             };
           }
@@ -250,96 +291,84 @@ export default function SocialLayout() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex items-center gap-3"
+          className="flex items-center justify-between"
         >
-          <div className="p-2 rounded-lg bg-purple-500/20">
-            <Users className="w-6 h-6 text-purple-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Social Hub</h1>
-            <p className="text-sm text-gray-400">
-              Process feedback with AI, create tickets, and manage responses
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Project Servers Section */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="p-6 rounded-xl bg-gray-900/40 border border-gray-700/40 backdrop-blur-sm"
-        >
-          <ProjectServersGrid />
-        </motion.section>
-
-        {/* Main Content - Three Column Layout */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 items-start"
-        >
-          {/* Left Panel - Raw Feedback */}
-          <div className="p-6 rounded-xl bg-gray-900/40 border border-gray-700/40 backdrop-blur-sm min-h-[600px] flex flex-col">
-            <RawFeedbackList feedback={rawFeedback} isProcessing={isProcessing} />
-          </div>
-
-          {/* Center - AI Processing Button */}
-          <div className="flex flex-col items-center justify-center py-8 lg:py-0 lg:self-center">
-            <AIProcessingButton
-              isProcessing={isProcessing}
-              pendingCount={rawFeedback.length}
-              onProcess={handleAIProcess}
-              disabled={rawFeedback.length === 0}
-            />
-
-            {/* Processing hint */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="mt-4 text-center"
-            >
-              <p className="text-xs text-gray-500 max-w-[120px]">
-                {rawFeedback.length > 0
-                  ? 'Process feedback with AI'
-                  : 'No items to process'}
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-500/20">
+              <Users className="w-6 h-6 text-purple-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Social Hub</h1>
+              <p className="text-sm text-gray-400">
+                Process feedback with AI, create tickets, and manage responses
               </p>
-            </motion.div>
-          </div>
-
-          {/* Right Panel - Evaluated Feedback + Stats */}
-          <div className="space-y-4">
-            {/* Stats Summary */}
-            <ProcessingStatsComponent stats={stats} />
-
-            {/* Evaluated Feedback List */}
-            <div className="p-6 rounded-xl bg-gray-900/40 border border-gray-700/40 backdrop-blur-sm min-h-[450px] flex flex-col">
-              <EvaluatedFeedbackList
-                feedback={evaluatedFeedback}
-                onCreateTicket={handleCreateTicket}
-                onSendReply={handleSendReply}
-              />
             </div>
           </div>
+
+          {/* Tab Navigation */}
+          <SocialTabs activeTab={activeTab} onTabChange={setActiveTab} />
         </motion.div>
 
-        {/* Processing indicator overlay */}
-        {isProcessing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40"
-          >
-            <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-purple-500/20 border border-purple-500/30 backdrop-blur-xl">
-              <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
-              <span className="text-sm font-medium text-purple-300">
-                AI is analyzing {rawFeedback.length} feedback items...
-              </span>
+        {/* Content based on active tab */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          {activeTab === 'projects' && (
+            <section className="p-6 rounded-xl bg-gray-900/40 border border-gray-700/40 backdrop-blur-sm">
+              <ProjectServersGrid />
+            </section>
+          )}
+
+          {activeTab === 'incoming' && (
+            <div className="space-y-6">
+              {/* Top Bar with Stats and Filters */}
+              <IncomingTopBar
+                activeChannel={activeChannel}
+                onChannelChange={setActiveChannel}
+                channelCounts={channelCounts}
+                stats={stats}
+                pendingCount={rawFeedback.length}
+              />
+
+              {/* Main Content - Three Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 items-start">
+                {/* Left Panel - Raw Feedback */}
+                <div className="p-6 rounded-xl bg-gray-900/40 border border-gray-700/40 backdrop-blur-sm min-h-[600px] flex flex-col">
+                  <SimplifiedRawFeedbackList
+                    feedback={filteredRawFeedback}
+                    isProcessing={false}
+                  />
+                </div>
+
+                {/* Center - AI Processing Button (positioned at top) */}
+                <div className="flex flex-col items-center pt-6">
+                  <AITypographyButton
+                    rawFeedback={rawFeedback}
+                    onProcess={handleAIProcess}
+                    setEvaluatedFeedback={setEvaluatedFeedback}
+                    setRawFeedback={setRawFeedback}
+                  />
+                </div>
+
+                {/* Right Panel - Compact Processed List */}
+                <div className="p-6 rounded-xl bg-gray-900/40 border border-gray-700/40 backdrop-blur-sm min-h-[600px] flex flex-col">
+                  <CompactProcessedList
+                    feedback={evaluatedFeedback}
+                    onCreateTicket={handleCreateTicket}
+                    onSendReply={handleSendReply}
+                    onViewTicket={handleViewTicket}
+                    onViewRequirement={handleViewRequirement}
+                  />
+                </div>
+              </div>
             </div>
-          </motion.div>
-        )}
+          )}
+
+          {activeTab === 'outcoming' && <OutcomingPlaceholder />}
+        </motion.div>
       </div>
 
       {/* Ticket Creation Modal */}
@@ -362,6 +391,26 @@ export default function SocialLayout() {
         }}
         replyData={replyData}
         onConfirm={handleConfirmReply}
+      />
+
+      {/* Jira Ticket Modal */}
+      <JiraTicketModal
+        isOpen={jiraModalOpen}
+        onClose={() => {
+          setJiraModalOpen(false);
+          setSelectedFeedbackForView(null);
+        }}
+        ticket={selectedFeedbackForView?.ticket || null}
+      />
+
+      {/* Claude Code Requirement Modal */}
+      <ClaudeRequirementModal
+        isOpen={requirementModalOpen}
+        onClose={() => {
+          setRequirementModalOpen(false);
+          setSelectedFeedbackForView(null);
+        }}
+        feedback={selectedFeedbackForView}
       />
     </div>
   );

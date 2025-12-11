@@ -1,13 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2 } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { RequirementViewer } from '@/components/RequirementViewer';
 import type { ProjectRequirement } from './lib/types';
+import type { DbIdea } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
+import {
+  effortConfig,
+  impactConfig,
+  riskConfig,
+  EffortIcon,
+  ImpactIcon,
+  RiskIcon,
+} from '@/app/features/Ideas/lib/ideaConfig';
 
 interface TaskItemProps {
   requirement: ProjectRequirement;
@@ -28,7 +37,28 @@ export default function TaskItem({
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [showDeleteHint, setShowDeleteHint] = useState(false);
+  const [idea, setIdea] = useState<DbIdea | null>(null);
   const { showFullScreenModal } = useGlobalModal();
+
+  // Fetch idea associated with this requirement
+  useEffect(() => {
+    const fetchIdea = async () => {
+      try {
+        const response = await fetch(`/api/ideas/by-requirement?requirementId=${encodeURIComponent(requirementName)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.idea) {
+            setIdea(data.idea);
+          }
+        }
+      } catch (error) {
+        // Silently fail - not all requirements have associated ideas
+        console.debug('No idea found for requirement:', requirementName);
+      }
+    };
+
+    fetchIdea();
+  }, [requirementName]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -136,6 +166,36 @@ export default function TaskItem({
             {requirementName}
           </span>
         </div>
+
+        {/* Metric indicators */}
+        {idea && (idea.impact || idea.effort || idea.risk) && (
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {idea.impact && (
+              <div
+                className="w-5 h-5 rounded flex items-center justify-center bg-gray-800/60"
+                title={`Impact: ${idea.impact}/10 - ${impactConfig[idea.impact]?.description || ''}`}
+              >
+                <ImpactIcon className={`w-3 h-3 ${impactConfig[idea.impact]?.color || 'text-gray-400'}`} />
+              </div>
+            )}
+            {idea.effort && (
+              <div
+                className="w-5 h-5 rounded flex items-center justify-center bg-gray-800/60"
+                title={`Effort: ${idea.effort}/10 - ${effortConfig[idea.effort]?.description || ''}`}
+              >
+                <EffortIcon className={`w-3 h-3 ${effortConfig[idea.effort]?.color || 'text-gray-400'}`} />
+              </div>
+            )}
+            {idea.risk && (
+              <div
+                className="w-5 h-5 rounded flex items-center justify-center bg-gray-800/60"
+                title={`Risk: ${idea.risk}/10 - ${riskConfig[idea.risk]?.description || ''}`}
+              >
+                <RiskIcon className={`w-3 h-3 ${riskConfig[idea.risk]?.color || 'text-gray-400'}`} />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Selection indicator */}
         {isSelected && !isDisabled && (

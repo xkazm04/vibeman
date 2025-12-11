@@ -3,7 +3,7 @@
  * Fetches and calculates weekly statistics
  */
 
-import { WeeklyStats, DailyStats, WeeklySpecialistStats, WeeklyFilters } from './types';
+import { WeeklyStats, DailyStats, WeeklySpecialistStats, WeeklyFilters, ProjectImplementationStats } from './types';
 import { ScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 
 /**
@@ -212,5 +212,20 @@ function calculateSpecialistStats(ideas: any[], lastWeekIdeas: any[]): WeeklySpe
   }
   
   return stats.sort((a, b) => b.total - a.total);
+}
+
+/**
+ * Fetch project implementation statistics
+ */
+export async function fetchProjectImplementationStats(): Promise<ProjectImplementationStats[]> {
+  try {
+    const response = await fetch('/api/reflector/project-implementations');
+    if (!response.ok) throw new Error('Failed to fetch project implementation stats');
+    const data = await response.json();
+    return data.projects || [];
+  } catch (error) {
+    console.error('[ProjectImplementationStats] Error fetching:', error);
+    throw error;
+  }
 }
 

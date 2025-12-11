@@ -69,48 +69,31 @@ export default function RawFeedbackItem({ feedback, index, isExiting }: RawFeedb
         hover:border-opacity-50 transition-all duration-200
       `}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-3">
-          {/* Avatar */}
-          {feedback.authorAvatar ? (
-            <img
-              src={feedback.authorAvatar}
-              alt={feedback.author}
-              className="w-10 h-10 rounded-full bg-gray-700"
-            />
-          ) : (
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${channel.bgClass}`}>
-              <ChannelIcon className={`w-5 h-5 ${channel.iconClass}`} />
-            </div>
+      {/* Header - Name and DateTime on same row */}
+      <div className="flex items-center justify-between mb-3">
+        {/* Left side - Channel icon, Author name and handle */}
+        <div className="flex items-center gap-2">
+          <ChannelIcon className={`w-4 h-4 ${channel.iconClass}`} />
+          <span className="text-sm font-medium text-gray-200">{feedback.author}</span>
+          {feedback.authorHandle && (
+            <span className="text-xs text-gray-500">{feedback.authorHandle}</span>
           )}
-
-          {/* Author info */}
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-200">{feedback.author}</span>
-              {feedback.authorHandle && (
-                <span className="text-xs text-gray-500">{feedback.authorHandle}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <ChannelIcon className="w-3 h-3" />
-              <span>{formatTimeAgo(feedback.timestamp)}</span>
-            </div>
-          </div>
         </div>
 
-        {/* External link */}
-        {feedback.url && (
-          <a
-            href={feedback.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        )}
+        {/* Right side - Time and external link */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">{formatTimeAgo(feedback.timestamp)}</span>
+          {feedback.url && (
+            <a
+              href={feedback.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Original post (if reply/reaction) */}

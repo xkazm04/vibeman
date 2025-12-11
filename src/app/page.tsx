@@ -20,6 +20,7 @@ import GlobalTaskBar from '@/components/GlobalTaskBar';
 import { Toaster } from 'sonner';
 import StorybookLayout from './features/Storybook/StorybookLayout';
 import { SocialLayout } from './features/Social';
+import BlueprintComposer from './features/Onboarding/sub_BlueprintComposer/BlueprintComposer';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -60,6 +61,12 @@ export default function Home() {
         return <StorybookLayout key="storybook" />;
       case 'social':
         return <SocialLayout key="social" />;
+      case 'composer':
+        return (
+          <div key="composer" className="h-full">
+            <BlueprintComposer />
+          </div>
+        );
       default:
         return <GoalsLayout key="coder" projectId={projectId} />;
     }
