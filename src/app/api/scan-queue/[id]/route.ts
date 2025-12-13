@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 // Ensure database is initialized
 import '@/app/db/drivers';
@@ -42,13 +43,13 @@ export async function GET(
     const { id } = await params;
 
     // Add detailed logging for debugging
-    console.log('[ScanQueue API] Fetching queue item:', id);
+    logger.info('[ScanQueue API] Fetching queue item:', { id });
 
     let queueItem;
     try {
       queueItem = scanQueueDb.getQueueItemById(id);
     } catch (dbError) {
-      console.error('[ScanQueue API] Database error:', dbError);
+      logger.error('[ScanQueue API] Database error:', { dbError });
       return createErrorResponse(
         'Database operation failed',
         dbError instanceof Error ? dbError : new Error(String(dbError)),
@@ -57,13 +58,13 @@ export async function GET(
     }
 
     if (!queueItem) {
-      console.log('[ScanQueue API] Queue item not found:', id);
+      logger.info('[ScanQueue API] Queue item not found:', { id });
       return createNotFoundResponse();
     }
 
     return NextResponse.json({ queueItem });
   } catch (error) {
-    console.error('[ScanQueue API] Unexpected error:', error);
+    logger.error('[ScanQueue API] Unexpected error:', { error });
     return createErrorResponse('Failed to fetch queue item', error);
   }
 }
@@ -77,7 +78,7 @@ export async function PATCH(
     const body = await request.json();
     const { status, progress, progressMessage, currentStep, totalSteps, errorMessage } = body;
 
-    console.log('[ScanQueue API] Updating queue item:', id, { status, progress });
+    logger.info('[ScanQueue API] Updating queue item:', { id, arg1: { status, progress } });
 
     let queueItem;
 
@@ -99,7 +100,7 @@ export async function PATCH(
         );
       }
     } catch (dbError) {
-      console.error('[ScanQueue API] Database error during update:', dbError);
+      logger.error('[ScanQueue API] Database error during update:', { dbError });
       return createErrorResponse(
         'Database operation failed',
         dbError instanceof Error ? dbError : new Error(String(dbError)),
@@ -108,13 +109,13 @@ export async function PATCH(
     }
 
     if (!queueItem) {
-      console.log('[ScanQueue API] Queue item not found for update:', id);
+      logger.info('[ScanQueue API] Queue item not found for update:', { id });
       return createNotFoundResponse();
     }
 
     return NextResponse.json({ queueItem });
   } catch (error) {
-    console.error('[ScanQueue API] Unexpected error during update:', error);
+    logger.error('[ScanQueue API] Unexpected error during update:', { error });
     return createErrorResponse('Failed to update queue item', error);
   }
 }
@@ -126,14 +127,14 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    console.log('[ScanQueue API] Cancelling queue item:', id);
+    logger.info('[ScanQueue API] Cancelling queue item:', { id });
 
     let queueItem;
     try {
       // Update status to cancelled instead of deleting
       queueItem = scanQueueDb.updateStatus(id, 'cancelled');
     } catch (dbError) {
-      console.error('[ScanQueue API] Database error during cancellation:', dbError);
+      logger.error('[ScanQueue API] Database error during cancellation:', { dbError });
       return createErrorResponse(
         'Database operation failed',
         dbError instanceof Error ? dbError : new Error(String(dbError)),
@@ -142,13 +143,13 @@ export async function DELETE(
     }
 
     if (!queueItem) {
-      console.log('[ScanQueue API] Queue item not found for cancellation:', id);
+      logger.info('[ScanQueue API] Queue item not found for cancellation:', { id });
       return createNotFoundResponse();
     }
 
     return NextResponse.json({ success: true, queueItem });
   } catch (error) {
-    console.error('[ScanQueue API] Unexpected error during cancellation:', error);
+    logger.error('[ScanQueue API] Unexpected error during cancellation:', { error });
     return createErrorResponse('Failed to cancel queue item', error);
   }
 }

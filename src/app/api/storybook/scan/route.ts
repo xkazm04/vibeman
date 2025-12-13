@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
+import { logger } from '@/lib/logger';
 
 interface ComponentInfo {
   name: string;
@@ -97,7 +98,7 @@ async function scanDirectory(basePath: string, category: string = ''): Promise<C
       }
     }
   } catch (error) {
-    console.error(`Error scanning ${basePath}:`, error);
+    logger.error(`Error scanning ${basePath}:`, { error });
   }
 
   return components;
@@ -151,7 +152,7 @@ export async function GET(request: NextRequest) {
       coverage
     } as ScanResult);
   } catch (error) {
-    console.error('Storybook scan error:', error);
+    logger.error('Storybook scan error:', { error });
     return NextResponse.json(
       { error: 'Failed to scan components', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

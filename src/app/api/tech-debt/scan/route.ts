@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { techDebtDb, scanDb } from '@/app/db';
 import { scanProjectForTechDebt, prepareIssuesForDatabase } from '@/app/features/TechDebtRadar/lib/techDebtScanner';
 import type { TechDebtScanConfig } from '@/app/db/models/tech-debt.types';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
       items: createdItems
     }, { status: 201 });
   } catch (error) {
-    console.error('Error running tech debt scan:', error);
+    logger.error('Error running tech debt scan:', { error });
     return NextResponse.json(
       { error: 'Failed to run tech debt scan', details: String(error) },
       { status: 500 }

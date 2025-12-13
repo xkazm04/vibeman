@@ -6,6 +6,7 @@ import { Browser, Page } from 'playwright-core';
 import { TestScenario, ScenarioAction } from '../scenarios';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { logger } from '@/lib/logger';
 
 export interface ScreenshotResult {
   success: boolean;
@@ -23,7 +24,7 @@ export interface ScreenshotResult {
  * Execute a single action in the browser
  */
 async function executeAction(page: Page, action: ScenarioAction): Promise<void> {
-  console.log(`[Executor] Executing action: ${action.type}${action.selector ? ` (selector: ${action.selector})` : ''}${action.url ? ` (url: ${action.url})` : ''}`);
+  logger.info(`[Executor] Executing action: ${action.type}${action.selector ? ` (selector: ${action.selector})` : ''}${action.url ? ` (url: ${action.url})` : ''}`);
 
   switch (action.type) {
     case 'navigate':
@@ -34,17 +35,17 @@ async function executeAction(page: Page, action: ScenarioAction): Promise<void> 
         waitUntil: 'domcontentloaded',
         timeout: 30000
       });
-      console.log(`[Executor] Navigation complete`);
+      logger.info(`[Executor] Navigation complete`);
       break;
 
     case 'click':
       if (!action.selector) throw new Error('Click action requires selector');
       // Wait for element to be visible and clickable before clicking
-      console.log(`[Executor] Waiting for element: ${action.selector}`);
+      logger.info(`[Executor] Waiting for element: ${action.selector}`);
       await page.waitForSelector(action.selector, { state: 'visible', timeout: 10000 });
-      console.log(`[Executor] Element found, clicking...`);
+      logger.info(`[Executor] Element found, clicking...`);
       await page.click(action.selector);
-      console.log(`[Executor] Click complete`);
+      logger.info(`[Executor] Click complete`);
       break;
 
     case 'wait':
@@ -89,8 +90,8 @@ export async function executeScenario(
   let page: Page | null = null;
 
   try {
-    console.log(`[Executor] Starting scenario: ${scenario.name}`);
-    console.log(`[Executor] Target URL: ${scenario.baseUrl}`);
+    logger.info(`[Executor] Starting scenario: ${scenario.name}`);
+    logger.info(`[Executor] Target URL: ${scenario.baseUrl}`);
 
     // Create new page/context
     const context = await browser.newContext({
@@ -104,16 +105,16 @@ export async function executeScenario(
     page.on('console', (msg) => {
       const type = msg.type();
       if (type === 'error' || type === 'warning') {
-        console.log(`[Browser ${type}]`, msg.text());
+        logger.info(`[Browser ${type}]`, { data: msg.text() });
       }
     });
 
     page.on('pageerror', (error) => {
-      console.error('[Browser Page Error]', error.message);
+      logger.error('[Browser Page Error]', { data: error.message });
     });
 
     page.on('requestfailed', (request) => {
-      console.error('[Browser Request Failed]', request.url(), request.failure()?.errorText);
+      logger.error('[Browser Request Failed]', { arg0: request.url(), arg1: request.failure()?.errorText });
     });
 
     // Execute all actions in sequence
@@ -135,7 +136,7 @@ export async function executeScenario(
       fullPage: true,
     });
 
-    console.log(`[Executor] Screenshot saved: ${screenshotPath}`);
+    logger.info(`[Executor] Screenshot saved: ${screenshotPath}`);
 
     // Close page and context
     await context.close();
@@ -153,14 +154,14 @@ export async function executeScenario(
       },
     };
   } catch (error) {
-    console.error(`[Executor] Error executing scenario:`, error);
+    logger.error(`[Executor] Error executing scenario:`, { error });
 
     // Clean up page if it exists
     if (page) {
       try {
         await page.close();
       } catch (closeError) {
-        console.error('[Executor] Error closing page:', closeError);
+        logger.error('[Executor] Error closing page:', { closeError });
       }
     }
 

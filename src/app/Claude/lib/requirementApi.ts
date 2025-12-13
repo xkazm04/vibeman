@@ -284,6 +284,33 @@ export async function updateRequirement(
 }
 
 /**
+ * Save (create or update) a requirement file
+ */
+export async function saveRequirement(
+  projectPath: string,
+  requirementName: string,
+  content: string
+): Promise<boolean> {
+  const response = await fetch('/api/claude-code', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectPath,
+      action: 'update-requirement',
+      requirementName,
+      content,
+    }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Failed to save requirement');
+  }
+
+  return true;
+}
+
+/**
  * Check if context scan requirement exists
  */
 export async function hasContextScanRequirement(projectPath: string): Promise<boolean> {

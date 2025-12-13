@@ -4,6 +4,7 @@ import { generateExecutiveInsightReport } from '@/app/features/reflector/sub_Ref
 import { TimeWindow, ScanTypeStats } from '@/app/features/reflector/sub_Reflection/lib/types';
 import { contextDb } from '@/app/db';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/ideas/stats/executive-insights
@@ -99,7 +100,7 @@ export async function GET(request: NextRequest) {
       data: report
     });
   } catch (error) {
-    console.error('Failed to generate executive insights:', error);
+    logger.error('Failed to generate executive insights:', { error });
     return NextResponse.json(
       {
         success: false,

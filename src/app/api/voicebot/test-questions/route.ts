@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { logger } from '@/lib/logger';
 
 const QUESTIONS_FILE = join(process.cwd(), 'data', 'test-questions.txt');
 
@@ -14,7 +15,7 @@ export async function GET() {
       questions
     });
   } catch (error) {
-    console.error('Failed to read test questions:', error);
+    logger.error('Failed to read test questions:', { error });
     
     // Return default questions if file doesn't exist
     return NextResponse.json({
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
       message: 'Questions saved successfully'
     });
   } catch (error) {
-    console.error('Failed to save test questions:', error);
+    logger.error('Failed to save test questions:', { error });
     return NextResponse.json(
       { success: false, error: 'Failed to save questions' },
       { status: 500 }

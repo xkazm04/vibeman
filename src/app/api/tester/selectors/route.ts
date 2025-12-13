@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { testSelectorDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/tester/selectors - Get all test selectors for a context
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       data,
     });
   } catch (error) {
-    console.error('Failed to fetch test selectors:', error);
+    logger.error('Failed to fetch test selectors:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch test selectors' },
       { status: 500 }
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Failed to create test selector:', error);
+    logger.error('Failed to create test selector:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create test selector' },
       { status: 500 }
@@ -108,7 +109,7 @@ export async function DELETE(request: NextRequest) {
       message: `Deleted ${deletedCount} test selectors`,
     });
   } catch (error) {
-    console.error('Failed to delete test selectors:', error);
+    logger.error('Failed to delete test selectors:', { error });
     return NextResponse.json(
       { error: 'Failed to delete test selectors' },
       { status: 500 }

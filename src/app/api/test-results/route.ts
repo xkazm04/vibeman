@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { testExecutionDb, testScenarioDb } from '@/app/db';
 import type { TestResultSummary } from '@/stores/testResultStore';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/test-results
@@ -148,7 +149,7 @@ export async function GET(request: NextRequest) {
       totalExecutions: executions.length,
     });
   } catch (error) {
-    console.error('[API] /api/test-results error:', error);
+    logger.error('[API] /api/test-results error:', { error });
 
     return NextResponse.json(
       {

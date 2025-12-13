@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     if (!ttsResponse.ok) {
       const error = await ttsResponse.text();
-      console.error('TTS failed:', error);
+      logger.error('TTS failed:', { error });
       // Continue even if TTS fails
     }
 
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Realtime API error:', error);
+    logger.error('Realtime API error:', { error });
     return NextResponse.json(
       {
         success: false,

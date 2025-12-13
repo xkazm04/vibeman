@@ -3,6 +3,7 @@ import { analyzeProject, scanProjectFiles } from '@/app/features/RefactorWizard/
 import { generateWizardPlan } from '@/app/features/RefactorWizard/lib/wizardOptimizer';
 import { createErrorResponse } from '@/lib/api-helpers';
 import type { ProjectType } from '@/lib/scan';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     if (useAI && result.opportunities.length > 0) {
       try {
-        console.log('[API /analyze] Generating packages...');
+        logger.info('[API /analyze] Generating packages...');
 
         const packageResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/refactor/generate-packages`, {
           method: 'POST',
@@ -62,10 +63,10 @@ export async function POST(request: NextRequest) {
           packages = packageData.packages || [];
           context = packageData.context || null;
           dependencyGraph = packageData.dependencyGraph || null;
-          console.log('[API /analyze] Generated', packages.length, 'packages');
+          logger.info('[API /analyze] Generated', { arg0: packages.length, arg1: 'packages' });
         }
       } catch (error) {
-        console.error('[API /analyze] Failed to generate packages:', error);
+        logger.error('[API /analyze] Failed to generate packages:', { error });
         // Continue without packages (non-fatal)
       }
     }

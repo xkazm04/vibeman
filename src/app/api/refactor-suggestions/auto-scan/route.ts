@@ -16,6 +16,7 @@ import {
 } from '@/app/features/RefactorSuggestion/lib/ideaGenerator';
 import { scanDb } from '@/app/db';
 import type { ProjectType } from '@/lib/scan';
+import { logger } from '@/lib/logger';
 
 // Generate unique scan ID
 function generateScanId(triggerSource: string): string {
@@ -195,12 +196,12 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (analysisError) {
-      console.error('[AutoScan] Analysis error:', analysisError);
+      logger.error('[AutoScan] Analysis error:', { analysisError });
       throw analysisError;
     }
 
   } catch (error) {
-    console.error('[AutoScan API] Error:', error);
+    logger.error('[AutoScan API] Error:', { error });
     return errorResponse(
       error instanceof Error ? error.message : 'Unknown error occurred',
       500
@@ -232,13 +233,13 @@ export async function triggerPostImplementationScan(
     });
 
     if (!response.ok) {
-      console.error('[AutoScan] Post-implementation scan failed');
+      logger.error('[AutoScan] Post-implementation scan failed');
       return null;
     }
 
     return await response.json();
   } catch (error) {
-    console.error('[AutoScan] Error triggering post-implementation scan:', error);
+    logger.error('[AutoScan] Error triggering post-implementation scan:', { error });
     return null;
   }
 }

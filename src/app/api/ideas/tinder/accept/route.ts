@@ -4,6 +4,7 @@ import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
 import { wrapRequirementForExecution } from '@/lib/prompts/requirement_file';
 import { createErrorResponse, createSuccessResponse } from '../utils';
+import { logger } from '@/lib/logger';
 
 interface AcceptIdeaRequest {
   ideaId: string;
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     try {
       ideaDb.updateIdea(ideaId, { status: 'accepted' });
     } catch (error) {
-      console.error('[API] Failed to update idea status:', error);
+      logger.error('[API] Failed to update idea status:', { error });
       return createErrorResponse('Failed to update idea status in database', error);
     }
 
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
       goal = data.goal;
       context = data.context;
     } catch (error) {
-      console.error('[API] Failed to fetch associated data:', error);
+      logger.error('[API] Failed to fetch associated data:', { error });
       // Continue without goal/context - they are optional
       goal = null;
       context = null;
@@ -117,12 +118,12 @@ export async function POST(request: NextRequest) {
         context,
       });
     } catch (error) {
-      console.error('[API] Failed to build requirement content:', error);
+      logger.error('[API] Failed to build requirement content:', { error });
       // Rollback status change
       try {
         ideaDb.updateIdea(ideaId, { status: 'pending' });
       } catch (rollbackError) {
-        console.error('[API] Failed to rollback status:', rollbackError);
+        logger.error('[API] Failed to rollback status:', { rollbackError });
       }
       return createErrorResponse('Failed to generate requirement content', error);
     }
@@ -138,12 +139,12 @@ export async function POST(request: NextRequest) {
         // Note: projectPort and runScript would come from project config if needed
       });
     } catch (error) {
-      console.error('[API] Failed to wrap requirement content:', error);
+      logger.error('[API] Failed to wrap requirement content:', { error });
       // Rollback status change
       try {
         ideaDb.updateIdea(ideaId, { status: 'pending' });
       } catch (rollbackError) {
-        console.error('[API] Failed to rollback status:', rollbackError);
+        logger.error('[API] Failed to rollback status:', { rollbackError });
       }
       return createErrorResponse('Failed to wrap requirement content', error);
     }
@@ -152,12 +153,12 @@ export async function POST(request: NextRequest) {
     try {
       createRequirementFile(projectPath, requirementName, wrappedContent);
     } catch (error) {
-      console.error('[API] Failed to create requirement file:', error);
+      logger.error('[API] Failed to create requirement file:', { error });
       // Rollback status change
       try {
         ideaDb.updateIdea(ideaId, { status: 'pending' });
       } catch (rollbackError) {
-        console.error('[API] Failed to rollback status:', rollbackError);
+        logger.error('[API] Failed to rollback status:', { rollbackError });
       }
       return createErrorResponse('Failed to create requirement file', error);
     }
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
     try {
       ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
     } catch (error) {
-      console.error('[API] Failed to update idea with requirement_id:', error);
+      logger.error('[API] Failed to update idea with requirement_id:', { error });
       // File is already created, so don't rollback status
       // Just log the error and continue
     }
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
       message: 'Idea accepted and requirement file created'
     });
   } catch (error) {
-    console.error('[API /ideas/tinder/accept] Error details:', {
+    logger.error('[API /ideas/tinder/accept] Error details:', {
       error,
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

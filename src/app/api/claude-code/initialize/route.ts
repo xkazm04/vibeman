@@ -4,21 +4,8 @@ import {
   createContextScanRequirement,
   createStructureRulesFile,
 } from '@/app/Claude/lib/claudeCodeManager';
+import { logger } from '@/lib/logger';
 
-// Logger utility
-const logger = {
-  warn: (message: string, details?: string) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.warn(`[ClaudeInit] ${message}`, details || '');
-    }
-  },
-  error: (message: string, error?: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : error;
-    // eslint-disable-next-line no-console
-    console.error(`[ClaudeInit] ${message}`, errorMsg || '');
-  }
-};
 
 interface InitializationResult {
   created: boolean;

@@ -7,6 +7,7 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { deduplicateBuildErrors } from '@/lib/deduplication';
+import { logger } from '@/lib/logger';
 
 // Re-export for backward compatibility
 export { deduplicateBuildErrors as deduplicateErrors } from '@/lib/deduplication';
@@ -14,27 +15,6 @@ export { deduplicateBuildErrors as deduplicateErrors } from '@/lib/deduplication
 // Local alias for internal use
 const deduplicateErrors = deduplicateBuildErrors;
 
-// Logger utility
-const logger = {
-  info: (message: string, data?: unknown) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log(`[BuildScanner] ${message}`, data || '');
-    }
-  },
-  warn: (message: string, error?: unknown) => {
-    if (process.env.NODE_ENV !== 'production') {
-      const errorMsg = error instanceof Error ? error.message : error;
-      // eslint-disable-next-line no-console
-      console.warn(`[BuildScanner] ${message}`, errorMsg || '');
-    }
-  },
-  error: (message: string, error?: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : error;
-    // eslint-disable-next-line no-console
-    console.error(`[BuildScanner] ${message}`, errorMsg || '');
-  }
-};
 
 export interface BuildError {
   file: string;

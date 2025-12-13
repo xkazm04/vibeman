@@ -16,6 +16,7 @@ import { createErrorResponse } from '@/lib/api-helpers';
 import type { ProjectType } from '@/lib/scan';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { logger } from '@/lib/logger';
 
 export const maxDuration = 300; // 5 minutes for large codebases
 
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
           scanQueueDb.updateProgress(queueId, 95, `Generated ${packages.length} refactor packages`);
         }
       } catch (error) {
-        console.error('[Background Analysis] Package generation failed:', error);
+        logger.error('[Background Analysis] Package generation failed:', { error });
         // Non-fatal, continue without packages
         scanQueueDb.updateProgress(queueId, 95, 'Package generation skipped');
       }
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
       const resultsPath = path.join(resultsDir, `${queueId}.json`);
       await fs.writeFile(resultsPath, JSON.stringify(analysisResults, null, 2), 'utf-8');
     } catch (error) {
-      console.error('[Background Analysis] Failed to save results:', error);
+      logger.error('[Background Analysis] Failed to save results:', { error });
     }
 
     // Create scan record first (required for foreign key constraint)
@@ -201,7 +202,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[Background Analysis] Error:', error);
+    logger.error('[Background Analysis] Error:', { error });
 
     // Update queue item to failed
     if (queueId) {
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (notifError) {
-        console.error('[Background Analysis] Failed to create error notification:', notifError);
+        logger.error('[Background Analysis] Failed to create error notification:', { notifError });
       }
     }
 

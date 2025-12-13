@@ -71,6 +71,79 @@ import {
   consistencyRuleRepository,
   skillTrackingRepository,
 } from './repositories/developer-mind-meld.repository';
+import {
+  learningPathRepository,
+  learningModuleRepository,
+  codeWalkthroughRepository,
+  quizQuestionRepository,
+  quizResponseRepository,
+  learningMetricsRepository,
+  onboardingRecommendationRepository,
+} from './repositories/onboarding-accelerator.repository';
+import {
+  strategicInitiativeRepository,
+  roadmapMilestoneRepository,
+  impactPredictionRepository,
+  featureInteractionRepository,
+  debtPreventionRuleRepository,
+  velocityTrackingRepository,
+  roadmapSimulationRepository,
+  roadmapSummaryRepository,
+} from './repositories/strategic-roadmap.repository';
+import {
+  hypothesisRepository,
+  invariantRepository,
+  fuzzSessionRepository,
+  propertyTestRepository,
+  testKnowledgeRepository,
+  hypothesisTestingSummaryRepository,
+} from './repositories/hypothesis-testing.repository';
+import { projectHealthRepository } from './repositories/project-health.repository';
+import { standupRepository } from './repositories/standup.repository';
+import {
+  redTeamSessionRepository,
+  redTeamAttackRepository,
+  redTeamVulnerabilityRepository,
+  vulnerabilityDebateRepository,
+  redTeamSummaryRepository,
+} from './repositories/red-team.repository';
+import {
+  architectureNodeRepository,
+  architectureEdgeRepository,
+  architectureDriftRepository,
+  architectureSuggestionRepository,
+  architectureIdealRepository,
+  architectureSnapshotRepository,
+} from './repositories/architecture-graph.repository';
+import {
+  focusSessionRepository,
+  focusBreakRepository,
+  focusStatsRepository,
+} from './repositories/focus-mode.repository';
+import {
+  ciPipelineRepository,
+  buildExecutionRepository,
+  ciPredictionRepository,
+  flakyTestRepository,
+  ciConfigRepository,
+  pipelineOptimizationRepository,
+  ciDashboardRepository,
+} from './repositories/autonomous-ci.repository';
+import {
+  refactoringEconomicsRepository,
+  roiSimulationRepository,
+  portfolioOptimizationRepository,
+  velocityPredictionRepository,
+  debtPaydownStrategyRepository,
+  economicEventRepository,
+  roiConfigRepository,
+  roiSummaryRepository,
+} from './repositories/roi-simulator.repository';
+import {
+  goalHypothesisRepository,
+  goalBreakdownRepository,
+  goalHubExtensions,
+} from './repositories/goal-hub.repository';
 
 // Export types
 export * from './models/types';
@@ -82,6 +155,17 @@ export * from './models/scan-prediction.types';
 export * from './models/marketplace.types';
 export * from './models/debt-prediction.types';
 export * from './models/security-intelligence.types';
+export * from './models/onboarding-accelerator.types';
+export * from './models/strategic-roadmap.types';
+// NOTE: hypothesis-testing.types removed - use goal-hub.types instead
+export * from './models/project-health.types';
+export * from './models/standup.types';
+export * from './models/red-team.types';
+export * from './models/architecture-graph.types';
+export * from './models/focus-mode.types';
+export * from './models/autonomous-ci.types';
+export * from './models/roi-simulator.types';
+export * from './models/goal-hub.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -105,6 +189,17 @@ ensureInitialized();
  */
 export const goalDb = {
   ...goalRepository,
+  close: closeDatabase
+};
+
+/**
+ * Goal Hub Database Operations
+ * Handles goal hypotheses, breakdowns, and extended goal features
+ */
+export const goalHubDb = {
+  hypotheses: goalHypothesisRepository,
+  breakdowns: goalBreakdownRepository,
+  extensions: goalHubExtensions,
   close: closeDatabase
 };
 
@@ -547,6 +642,469 @@ export const consistencyRuleDb = {
 export const skillTrackingDb = {
   ...skillTrackingRepository,
   close: closeDatabase
+};
+
+/**
+ * Learning Path Database Operations
+ * Manages developer onboarding learning paths
+ */
+export const learningPathDb = {
+  ...learningPathRepository,
+  close: closeDatabase
+};
+
+/**
+ * Learning Module Database Operations
+ * Manages individual learning modules within paths
+ */
+export const learningModuleDb = {
+  ...learningModuleRepository,
+  close: closeDatabase
+};
+
+/**
+ * Code Walkthrough Database Operations
+ * Manages interactive code explanations
+ */
+export const codeWalkthroughDb = {
+  ...codeWalkthroughRepository,
+  close: closeDatabase
+};
+
+/**
+ * Quiz Question Database Operations
+ * Manages quiz questions for knowledge verification
+ */
+export const quizQuestionDb = {
+  ...quizQuestionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Quiz Response Database Operations
+ * Tracks developer quiz answers and performance
+ */
+export const quizResponseDb = {
+  ...quizResponseRepository,
+  close: closeDatabase
+};
+
+/**
+ * Learning Metrics Database Operations
+ * Tracks adaptive learning metrics and progress
+ */
+export const learningMetricsDb = {
+  ...learningMetricsRepository,
+  close: closeDatabase
+};
+
+/**
+ * Onboarding Recommendation Database Operations
+ * Manages AI-generated learning recommendations
+ */
+export const onboardingRecommendationDb = {
+  ...onboardingRecommendationRepository,
+  close: closeDatabase
+};
+
+/**
+ * Strategic Initiative Database Operations
+ * Manages strategic development initiatives for the roadmap
+ */
+export const strategicInitiativeDb = {
+  ...strategicInitiativeRepository,
+  close: closeDatabase
+};
+
+/**
+ * Roadmap Milestone Database Operations
+ * Manages quarterly milestones and targets
+ */
+export const roadmapMilestoneDb = {
+  ...roadmapMilestoneRepository,
+  close: closeDatabase
+};
+
+/**
+ * Impact Prediction Database Operations
+ * Manages AI-predicted impact of decisions
+ */
+export const impactPredictionDb = {
+  ...impactPredictionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Feature Interaction Database Operations
+ * Manages feature interactions (synergies, conflicts, dependencies)
+ */
+export const featureInteractionDb = {
+  ...featureInteractionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Debt Prevention Rule Database Operations
+ * Manages proactive debt prevention rules
+ */
+export const debtPreventionRuleDb = {
+  ...debtPreventionRuleRepository,
+  close: closeDatabase
+};
+
+/**
+ * Velocity Tracking Database Operations
+ * Tracks development velocity over time
+ */
+export const velocityTrackingDb = {
+  ...velocityTrackingRepository,
+  close: closeDatabase
+};
+
+/**
+ * Roadmap Simulation Database Operations
+ * Manages roadmap simulation scenarios
+ */
+export const roadmapSimulationDb = {
+  ...roadmapSimulationRepository,
+  close: closeDatabase
+};
+
+/**
+ * Roadmap Summary Database Operations
+ * Provides aggregated roadmap statistics
+ */
+export const roadmapSummaryDb = {
+  ...roadmapSummaryRepository,
+};
+
+/**
+ * Hypothesis Database Operations
+ * Manages AI-generated hypotheses about code behavior
+ */
+export const hypothesisDb = {
+  ...hypothesisRepository,
+  close: closeDatabase
+};
+
+/**
+ * Invariant Database Operations
+ * Manages discovered code invariants
+ */
+export const invariantDb = {
+  ...invariantRepository,
+  close: closeDatabase
+};
+
+/**
+ * Fuzz Session Database Operations
+ * Manages fuzzing test sessions
+ */
+export const fuzzSessionDb = {
+  ...fuzzSessionRepository,
+  close: closeDatabase
+};
+
+/**
+ * Property Test Database Operations
+ * Manages property-based tests
+ */
+export const propertyTestDb = {
+  ...propertyTestRepository,
+  close: closeDatabase
+};
+
+/**
+ * Test Knowledge Database Operations
+ * Manages test-derived knowledge artifacts
+ */
+export const testKnowledgeDb = {
+  ...testKnowledgeRepository,
+  close: closeDatabase
+};
+
+/**
+ * Hypothesis Testing Summary Database Operations
+ * Provides aggregated hypothesis testing statistics
+ */
+export const hypothesisTestingSummaryDb = {
+  ...hypothesisTestingSummaryRepository,
+};
+
+/**
+ * Project Health Score Database Operations
+ * Manages project health scores, history, and configuration
+ */
+export const projectHealthDb = {
+  ...projectHealthRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Standup Summary Database Operations
+ * Manages daily/weekly standup summaries and reports
+ */
+export const standupDb = {
+  ...standupRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Red Team Session Database Operations
+ * Manages adversarial testing sessions
+ */
+export const redTeamSessionDb = {
+  ...redTeamSessionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Red Team Attack Database Operations
+ * Manages planned and executed attacks
+ */
+export const redTeamAttackDb = {
+  ...redTeamAttackRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Red Team Vulnerability Database Operations
+ * Manages discovered vulnerabilities
+ */
+export const redTeamVulnerabilityDb = {
+  ...redTeamVulnerabilityRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Vulnerability Debate Database Operations
+ * Manages Parliament debates on vulnerabilities
+ */
+export const vulnerabilityDebateDb = {
+  ...vulnerabilityDebateRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Red Team Summary Database Operations
+ * Provides aggregated red team statistics
+ */
+export const redTeamSummaryDb = {
+  ...redTeamSummaryRepository,
+};
+
+/**
+ * Architecture Node Database Operations
+ * Manages architecture graph nodes (modules, components, etc.)
+ */
+export const architectureNodeDb = {
+  ...architectureNodeRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Architecture Edge Database Operations
+ * Manages dependency edges between architecture nodes
+ */
+export const architectureEdgeDb = {
+  ...architectureEdgeRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Architecture Drift Database Operations
+ * Manages architecture drift alerts and violations
+ */
+export const architectureDriftDb = {
+  ...architectureDriftRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Architecture Suggestion Database Operations
+ * Manages AI-generated refactoring suggestions
+ */
+export const architectureSuggestionDb = {
+  ...architectureSuggestionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Architecture Ideal Database Operations
+ * Manages architecture rules and ideals
+ */
+export const architectureIdealDb = {
+  ...architectureIdealRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Architecture Snapshot Database Operations
+ * Manages point-in-time architecture snapshots
+ */
+export const architectureSnapshotDb = {
+  ...architectureSnapshotRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Focus Session Database Operations
+ * Manages focus/pomodoro sessions with productivity tracking
+ */
+export const focusSessionDb = {
+  ...focusSessionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Focus Break Database Operations
+ * Manages break periods between focus sessions
+ */
+export const focusBreakDb = {
+  ...focusBreakRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Focus Stats Database Operations
+ * Manages daily focus statistics and streaks
+ */
+export const focusStatsDb = {
+  ...focusStatsRepository,
+  close: closeDatabase,
+};
+
+/**
+ * CI Pipeline Database Operations
+ * Manages CI/CD pipeline configurations
+ */
+export const ciPipelineDb = {
+  ...ciPipelineRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Build Execution Database Operations
+ * Manages individual build runs and test results
+ */
+export const buildExecutionDb = {
+  ...buildExecutionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * CI Prediction Database Operations
+ * Manages AI-generated predictions about builds
+ */
+export const ciPredictionDb = {
+  ...ciPredictionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Flaky Test Database Operations
+ * Tracks and manages flaky tests for self-healing
+ */
+export const flakyTestDb = {
+  ...flakyTestRepository,
+  close: closeDatabase,
+};
+
+/**
+ * CI Config Database Operations
+ * Manages per-project CI configuration
+ */
+export const ciConfigDb = {
+  ...ciConfigRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Pipeline Optimization Database Operations
+ * Manages AI-suggested pipeline optimizations
+ */
+export const pipelineOptimizationDb = {
+  ...pipelineOptimizationRepository,
+  close: closeDatabase,
+};
+
+/**
+ * CI Dashboard Database Operations
+ * Provides aggregated CI statistics for dashboards
+ */
+export const ciDashboardDb = {
+  ...ciDashboardRepository,
+};
+
+/**
+ * Refactoring Economics Database Operations
+ * Manages refactoring items with economic modeling
+ */
+export const refactoringEconomicsDb = {
+  ...refactoringEconomicsRepository,
+  close: closeDatabase,
+};
+
+/**
+ * ROI Simulation Database Operations
+ * Manages ROI simulation scenarios
+ */
+export const roiSimulationDb = {
+  ...roiSimulationRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Portfolio Optimization Database Operations
+ * Manages optimized refactoring portfolios
+ */
+export const portfolioOptimizationDb = {
+  ...portfolioOptimizationRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Velocity Prediction Database Operations
+ * Manages velocity predictions based on technical decisions
+ */
+export const velocityPredictionDb = {
+  ...velocityPredictionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Debt Paydown Strategy Database Operations
+ * Manages game-theoretic debt paydown strategies
+ */
+export const debtPaydownStrategyDb = {
+  ...debtPaydownStrategyRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Economic Event Database Operations
+ * Tracks actual economic events for ROI validation
+ */
+export const economicEventDb = {
+  ...economicEventRepository,
+  close: closeDatabase,
+};
+
+/**
+ * ROI Config Database Operations
+ * Manages per-project ROI configuration
+ */
+export const roiConfigDb = {
+  ...roiConfigRepository,
+  close: closeDatabase,
+};
+
+/**
+ * ROI Summary Database Operations
+ * Provides aggregated ROI statistics for dashboards
+ */
+export const roiSummaryDb = {
+  ...roiSummaryRepository,
 };
 
 // Cleanup handlers

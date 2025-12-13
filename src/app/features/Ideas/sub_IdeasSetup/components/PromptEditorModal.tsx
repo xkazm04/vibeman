@@ -226,6 +226,7 @@ function getPromptFileName(scanType: ScanType): string {
     delight_designer: 'delightDesignerPrompt.ts',
     refactor_analysis: 'refactorAnalysisPrompt.ts',
     code_refactor: 'codeRefactorPrompt.ts',
+    pragmatic_integrator: 'pragmaticIntegratorPrompt.ts',
     user_empathy_champion: 'userEmpathyChampionPrompt.ts',
     accessibility_advocate: 'accessibilityAdvocatePrompt.ts',
     paradigm_shifter: 'paradigmShifterPrompt.ts',

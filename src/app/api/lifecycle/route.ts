@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { lifecycleOrchestrator } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleOrchestrator';
 import { LifecycleTrigger, LifecycleConfig } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error getting lifecycle status:', error);
+    logger.error('Error getting lifecycle status:', { error });
     return NextResponse.json(
       { error: 'Failed to get lifecycle status', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error('Error controlling lifecycle:', error);
+    logger.error('Error controlling lifecycle:', { error });
     return NextResponse.json(
       { error: 'Failed to control lifecycle', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

@@ -1,24 +1,49 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { ProcessInfo, Project } from '@/types';
-import { useProjectConfigStore } from './projectConfigStore';
+
+/**
+ * Server Project Store
+ *
+ * Canonical store for server-synced project data including:
+ * - Project list (CRUD with server sync)
+ * - Dev server process states
+ * - Server management actions
+ *
+ * This store consolidates the former:
+ * - projectConfigStore (project CRUD)
+ * - serverProjectStore (process management)
+ */
 
 interface ServerProjectStore {
-  // State
+  // === Project State (canonical list from server) ===
+  projects: Project[];
+  initialized: boolean;
+  loading: boolean;
+
+  // === Process State (runtime dev server states) ===
   processes: Record<string, ProcessInfo>;
-  
-  // Actions
+
+  // === Project CRUD Actions ===
+  initializeProjects: () => Promise<void>;
+  syncWithServer: () => Promise<Project[]>;
+  addProject: (project: Project) => Promise<void>;
+  updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
+  removeProject: (projectId: string) => Promise<void>;
+  resetToDefaults: () => Promise<void>;
+
+  // === Project Query Actions ===
+  getProject: (projectId: string) => Project | undefined;
+  getAllProjects: () => Project[];
+
+  // === Process Management Actions ===
   setProcess: (projectId: string, info: ProcessInfo) => void;
   removeProcess: (projectId: string) => void;
   updateProcessStatus: (projectId: string, status: ProcessInfo['status']) => void;
   getProcess: (projectId: string) => ProcessInfo | undefined;
   getAllProcesses: () => Record<string, ProcessInfo>;
-  
-  // Project management (delegated to config store)
-  getProjects: () => Project[];
-  getProject: (projectId: string) => Project | undefined;
-  
-  // Server actions
+
+  // === Server Actions ===
   startServer: (projectId: string) => Promise<void>;
   stopServer: (projectId: string) => Promise<void>;
   fetchStatuses: () => Promise<void>;
@@ -31,23 +56,141 @@ export const useServerProjectStore = create<ServerProjectStore>()(
     persist(
       (set, get) => ({
         // Initial state
+        projects: [],
+        initialized: false,
+        loading: false,
         processes: {},
-        
-        // Process management
-        setProcess: (projectId, info) => 
+
+        // === Project CRUD Actions ===
+
+        syncWithServer: async () => {
+          try {
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+              const data = await response.json();
+              const projects = data.projects || [];
+              set({ projects });
+              return projects;
+            }
+          } catch {
+            // Error syncing with server - silent fail
+          }
+          set({ projects: [] });
+          return [];
+        },
+
+        initializeProjects: async () => {
+          const state = get();
+          if (state.initialized) return;
+
+          set({ loading: true });
+          try {
+            await get().syncWithServer();
+            set({ initialized: true });
+          } finally {
+            set({ loading: false });
+          }
+        },
+
+        addProject: async (project) => {
+          try {
+            const response = await fetch('/api/projects', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(project),
+            });
+
+            if (response.ok) {
+              set((state) => ({
+                projects: [...state.projects, project],
+              }));
+            } else {
+              const error = await response.json();
+              throw new Error(error.error || 'Failed to add project');
+            }
+          } catch (error) {
+            throw error;
+          }
+        },
+
+        updateProject: async (projectId, updates) => {
+          try {
+            const response = await fetch('/api/projects', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ projectId, updates }),
+            });
+
+            if (response.ok) {
+              set((state) => ({
+                projects: state.projects.map((project) =>
+                  project.id === projectId ? { ...project, ...updates } : project
+                ),
+              }));
+            } else {
+              const error = await response.json();
+              throw new Error(error.error || 'Failed to update project');
+            }
+          } catch (error) {
+            throw error;
+          }
+        },
+
+        removeProject: async (projectId) => {
+          try {
+            const response = await fetch('/api/projects', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ projectId }),
+            });
+
+            if (response.ok) {
+              set((state) => ({
+                projects: state.projects.filter((project) => project.id !== projectId),
+              }));
+            } else {
+              const error = await response.json();
+              throw new Error(error.error || 'Failed to remove project');
+            }
+          } catch (error) {
+            throw error;
+          }
+        },
+
+        resetToDefaults: async () => {
+          try {
+            await get().syncWithServer();
+          } catch (error) {
+            throw error;
+          }
+        },
+
+        // === Project Query Actions ===
+
+        getProject: (projectId) => {
+          return get().projects.find((project) => project.id === projectId);
+        },
+
+        getAllProjects: () => {
+          return get().projects || [];
+        },
+
+        // === Process Management Actions ===
+
+        setProcess: (projectId, info) =>
           set((state) => ({
             processes: {
               ...state.processes,
-              [projectId]: info
-            }
+              [projectId]: info,
+            },
           })),
-          
+
         removeProcess: (projectId) =>
           set((state) => {
             const { [projectId]: _, ...rest } = state.processes;
             return { processes: rest };
           }),
-          
+
         updateProcessStatus: (projectId, status) =>
           set((state) => {
             const process = state.processes[projectId];
@@ -55,33 +198,23 @@ export const useServerProjectStore = create<ServerProjectStore>()(
               return {
                 processes: {
                   ...state.processes,
-                  [projectId]: { ...process, status }
-                }
+                  [projectId]: { ...process, status },
+                },
               };
             }
             return state;
           }),
-          
+
         getProcess: (projectId) => {
-          const state = get();
-          return state.processes[projectId];
+          return get().processes[projectId];
         },
-        
+
         getAllProcesses: () => {
-          const state = get();
-          return state.processes;
+          return get().processes;
         },
-        
-        // Project management (delegated to config store)
-        getProjects: () => {
-          return useProjectConfigStore.getState().getAllProjects();
-        },
-        
-        getProject: (projectId) => {
-          return useProjectConfigStore.getState().getProject(projectId);
-        },
-        
-        // Server actions
+
+        // === Server Actions ===
+
         startServer: async (projectId) => {
           try {
             const res = await fetch('/api/server/start', {
@@ -99,7 +232,7 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             throw error;
           }
         },
-        
+
         stopServer: async (projectId) => {
           try {
             // Immediately update UI to show stopping state
@@ -117,9 +250,6 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
 
-            // Don't immediately remove from store - let fetchStatuses handle cleanup
-            // This prevents race conditions where the process is removed but still exists in process manager
-
             // Trigger an immediate status fetch to update the UI
             setTimeout(() => {
               get().fetchStatuses();
@@ -133,7 +263,7 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             throw error;
           }
         },
-        
+
         fetchStatuses: async () => {
           try {
             const controller = new AbortController();
@@ -168,22 +298,19 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             Object.entries(statuses).forEach(([projectId, status]) => {
               setProcess(projectId, status as ProcessInfo);
             });
-
-            // Note: Removed forced re-render as it was causing unnecessary updates
-            // The store will automatically notify subscribers when processes change
           } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
-              // Request timed out
+              // Request timed out - silent
             }
           }
         },
-        
+
         fetchLogs: async (projectId) => {
           try {
             const res = await fetch(`/api/server/logs/${projectId}`);
             const data = await res.json();
             return data.logs || [];
-          } catch (error) {
+          } catch {
             return [];
           }
         },
@@ -196,12 +323,20 @@ export const useServerProjectStore = create<ServerProjectStore>()(
         },
       }),
       {
-        name: 'server-store',
-        // Don't persist anything as processes are runtime state and projects are in config store
-        partialize: (state) => ({}),
+        name: 'server-project-store',
+        version: 2,
+        // Only persist projects list, not runtime process state
+        partialize: (state) => ({
+          projects: state.projects,
+          initialized: state.initialized,
+        }),
       }
-    )
+    ),
+    { name: 'ServerProjectStore' }
   )
 );
+
+// Backwards compatibility export
+export const useProjectConfigStore = useServerProjectStore;
 
 export default useServerProjectStore;

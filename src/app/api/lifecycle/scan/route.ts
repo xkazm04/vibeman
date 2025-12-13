@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/scanHandlers';
 import { ScanType, isValidScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
+import { logger } from '@/lib/logger';
 
 // Simple in-memory project cache (in production, use proper DB lookup)
 const projectCache: Record<string, { name: string; path: string }> = {};
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
       projectId,
     });
   } catch (error) {
-    console.error('Error executing lifecycle scan:', error);
+    logger.error('Error executing lifecycle scan:', { error });
     return NextResponse.json(
       { error: 'Failed to execute scan', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

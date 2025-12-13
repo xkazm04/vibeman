@@ -5,6 +5,7 @@ import {
   evaluateWithParliament,
 } from '@/app/features/Parliament/lib/parliamentEvaluator';
 import type { SupportedProvider } from '@/lib/llm/types';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/parliament/debate
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
       result,
     });
   } catch (error) {
-    console.error('Parliament debate error:', error);
+    logger.error('Parliament debate error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

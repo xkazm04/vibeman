@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Context Screenshot Executor
  * Parses test scenarios from context and executes them with Playwright
@@ -103,12 +104,12 @@ export async function executeContextScenario(
   let stepsExecuted = 0;
 
   try {
-    console.log(`[ContextScreenshot] Executing scenario for: ${input.contextName}`);
+    logger.info(`[ContextScreenshot] Executing scenario for: ${input.contextName}`);
 
     // Validate input
     const validation = validateInput(input);
     if (!validation.valid) {
-      console.error(`[ContextScreenshot] Validation failed: ${validation.error}`);
+      logger.error(`[ContextScreenshot] Validation failed: ${validation.error}`);
       return {
         success: false,
         error: validation.error,
@@ -119,7 +120,7 @@ export async function executeContextScenario(
 
     // Validate browser instance
     if (!browser || typeof browser.newPage !== 'function') {
-      console.error('[ContextScreenshot] Invalid browser instance');
+      logger.error('[ContextScreenshot] Invalid browser instance');
       return {
         success: false,
         error: 'Invalid browser instance',
@@ -131,7 +132,7 @@ export async function executeContextScenario(
     // Parse scenario into steps
     const parseResult = parseScenario(input.scenario);
     if (!parseResult.success) {
-      console.error(`[ContextScreenshot] Parse failed: ${parseResult.error}`);
+      logger.error(`[ContextScreenshot] Parse failed: ${parseResult.error}`);
       return {
         success: false,
         error: parseResult.error,
@@ -143,7 +144,7 @@ export async function executeContextScenario(
     }
 
     const steps = parseResult.steps;
-    console.log(`[ContextScreenshot] Parsed ${steps.length} steps from scenario`);
+    logger.info(`[ContextScreenshot] Parsed ${steps.length} steps from scenario`);
 
     if (steps.length === 0) {
       return {
@@ -160,7 +161,7 @@ export async function executeContextScenario(
     try {
       page = await browser.newPage();
     } catch (err) {
-      console.error('[ContextScreenshot] Failed to create page:', err);
+      logger.error('[ContextScreenshot] Failed to create page:', { err });
       return {
         success: false,
         error: 'Failed to create browser page',
@@ -187,7 +188,7 @@ export async function executeContextScenario(
           errorType = 'navigation';
         }
 
-        console.error(`[ContextScreenshot] Step ${i + 1} failed:`, stepError);
+        logger.error(`[ContextScreenshot] Step ${i + 1} failed:`, { stepError });
 
         // Clean up page
         await safeClosePage(page);
@@ -217,7 +218,7 @@ export async function executeContextScenario(
         mkdirSync(screenshotDir, { recursive: true });
       }
     } catch (dirError) {
-      console.error('[ContextScreenshot] Failed to create directory:', dirError);
+      logger.error('[ContextScreenshot] Failed to create directory:', { dirError });
       await safeClosePage(page);
       return {
         success: false,
@@ -236,9 +237,9 @@ export async function executeContextScenario(
         fullPage: true,
         timeout: 30000,
       });
-      console.log(`[ContextScreenshot] ✅ Screenshot saved: ${screenshotPath}`);
+      logger.info(`[ContextScreenshot] ✅ Screenshot saved: ${screenshotPath}`);
     } catch (screenshotError) {
-      console.error('[ContextScreenshot] Screenshot failed:', screenshotError);
+      logger.error('[ContextScreenshot] Screenshot failed:', { screenshotError });
       await safeClosePage(page);
       return {
         success: false,
@@ -263,7 +264,7 @@ export async function executeContextScenario(
       totalSteps: steps.length,
     };
   } catch (error) {
-    console.error('[ContextScreenshot] Unexpected error:', error);
+    logger.error('[ContextScreenshot] Unexpected error:', { error });
 
     await safeClosePage(page);
 
@@ -288,7 +289,7 @@ async function safeClosePage(page: Page | null): Promise<void> {
   try {
     await page.close();
   } catch (closeError) {
-    console.error('[ContextScreenshot] Error closing page:', closeError);
+    logger.error('[ContextScreenshot] Error closing page:', { closeError });
   }
 }
 
@@ -310,7 +311,7 @@ function parseScenario(scenario: string): ParseResult {
   try {
     const parsed = JSON.parse(trimmedScenario);
     if (Array.isArray(parsed)) {
-      console.log('[ContextScreenshot] Parsing JSON array format');
+      logger.info('[ContextScreenshot] Parsing JSON array format');
 
       if (parsed.length > MAX_STEPS) {
         return {
@@ -324,13 +325,13 @@ function parseScenario(scenario: string): ParseResult {
       for (let i = 0; i < parsed.length; i++) {
         const step = parsed[i];
         if (!step || typeof step !== 'object') {
-          console.warn(`[ContextScreenshot] Invalid step at index ${i}`);
+          logger.warn(`[ContextScreenshot] Invalid step at index ${i}`);
           continue;
         }
 
         if (step.type === 'navigate') {
           if (!step.url || typeof step.url !== 'string') {
-            console.warn(`[ContextScreenshot] Navigate step ${i} missing URL`);
+            logger.warn(`[ContextScreenshot] Navigate step ${i} missing URL`);
             continue;
           }
           steps.push({ type: 'navigate', target: step.url });
@@ -340,13 +341,13 @@ function parseScenario(scenario: string): ParseResult {
           steps.push({ type: 'wait', value: safeDelay.toString() });
         } else if (step.type === 'click') {
           if (!step.selector || typeof step.selector !== 'string') {
-            console.warn(`[ContextScreenshot] Click step ${i} missing selector`);
+            logger.warn(`[ContextScreenshot] Click step ${i} missing selector`);
             continue;
           }
           steps.push({ type: 'click', target: step.selector });
         } else if (step.type === 'type') {
           if (!step.selector || !step.text) {
-            console.warn(`[ContextScreenshot] Type step ${i} missing selector or text`);
+            logger.warn(`[ContextScreenshot] Type step ${i} missing selector or text`);
             continue;
           }
           steps.push({ type: 'type', target: step.selector, value: step.text });
@@ -354,7 +355,7 @@ function parseScenario(scenario: string): ParseResult {
           steps.push({ type: 'scroll' });
         } else {
           // Unknown type - add a wait as fallback
-          console.warn(`[ContextScreenshot] Unknown step type at index ${i}: ${step.type}`);
+          logger.warn(`[ContextScreenshot] Unknown step type at index ${i}: ${step.type}`);
           steps.push({ type: 'wait', value: '1000' });
         }
       }
@@ -363,7 +364,7 @@ function parseScenario(scenario: string): ParseResult {
     }
   } catch (e) {
     // Not JSON, fall through to natural language parsing
-    console.log('[ContextScreenshot] Parsing natural language format');
+    logger.info('[ContextScreenshot] Parsing natural language format');
   }
 
   // Natural language parsing (legacy format)
@@ -474,7 +475,7 @@ function parseStepText(text: string): ScenarioStep | null {
  * Execute a single step with timeout and error handling
  */
 async function executeStep(page: Page, step: ScenarioStep, baseUrl: string): Promise<void> {
-  console.log(`[ContextScreenshot] Executing step:`, step);
+  logger.info(`[ContextScreenshot] Executing step:`, { step });
 
   switch (step.type) {
     case 'navigate':
@@ -496,7 +497,7 @@ async function executeStep(page: Page, step: ScenarioStep, baseUrl: string): Pro
         try {
           await page.waitForLoadState('domcontentloaded', { timeout: NAVIGATION_TIMEOUT });
         } catch {
-          console.warn('[ContextScreenshot] Load state wait timed out, continuing...');
+          logger.warn('[ContextScreenshot] Load state wait timed out, continuing...');
         }
       } catch (navError) {
         throw new Error(`Navigation failed: ${navError instanceof Error ? navError.message : 'Unknown error'}`);
@@ -544,12 +545,12 @@ async function executeStep(page: Page, step: ScenarioStep, baseUrl: string): Pro
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await page.waitForTimeout(500);
       } catch (scrollError) {
-        console.warn('[ContextScreenshot] Scroll failed:', scrollError);
+        logger.warn('[ContextScreenshot] Scroll failed:', { scrollError });
         // Don't throw - scroll failures are non-critical
       }
       break;
 
     default:
-      console.warn(`[ContextScreenshot] Unknown step type: ${(step as ScenarioStep).type}`);
+      logger.warn(`[ContextScreenshot] Unknown step type: ${(step as ScenarioStep).type}`);
   }
 }

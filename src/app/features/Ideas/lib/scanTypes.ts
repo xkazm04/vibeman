@@ -25,7 +25,8 @@ export type ScanType =
   | 'moonshot_architect'
   // Gap Coverage
   | 'dev_experience_engineer'
-  | 'data_flow_optimizer';
+  | 'data_flow_optimizer'
+  | 'pragmatic_integrator';
 
 export type ScanState = 'idle' | 'scanning' | 'success' | 'error';
 
@@ -145,6 +146,15 @@ export const SCAN_TYPE_CONFIGS: ScanTypeConfig[] = [
     description: 'Code cleanup, dead code removal & structure',
     category: 'technical',
     agentFile: 'code_refactor.md'
+  },
+  {
+    value: 'pragmatic_integrator',
+    label: 'Pragmatic Integrator',
+    emoji: '🔗',
+    color: 'bg-gradient-to-r from-lime-500/20 to-lime-600/20 border-lime-500/40 text-lime-300',
+    description: 'E2E usability, simplification & consolidation',
+    category: 'technical',
+    agentFile: 'pragmatic_integrator.md'
   },
 
   // User Focus

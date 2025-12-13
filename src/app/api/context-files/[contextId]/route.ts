@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { contextDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/context-files/:contextId
@@ -59,7 +60,7 @@ export async function GET(
       throw fileError;
     }
   } catch (error) {
-    console.error('[context-files] Error loading context file:', error);
+    logger.error('[context-files] Error loading context file:', { error });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

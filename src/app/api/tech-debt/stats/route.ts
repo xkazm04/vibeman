@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { techDebtDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ stats });
   } catch (error) {
-    console.error('Error fetching tech debt stats:', error);
+    logger.error('Error fetching tech debt stats:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch tech debt statistics', details: String(error) },
       { status: 500 }

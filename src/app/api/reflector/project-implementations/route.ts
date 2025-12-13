@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { projectServiceDb } from '@/lib/projectServiceDb';
 import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/reflector/project-implementations
@@ -40,7 +41,7 @@ export async function GET() {
       total: sortedStats.length,
     });
   } catch (error) {
-    console.error('[ProjectImplementations] Error:', error);
+    logger.error('[ProjectImplementations] Error:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch project implementation statistics' },
       { status: 500 }

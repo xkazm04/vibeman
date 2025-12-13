@@ -13,6 +13,7 @@ import {
 import {
   generatePlaywrightTest
 } from '@/app/features/TestScenarioGenerator/lib/playwrightGenerator';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build component tree
-    console.log('Building component tree...');
+    logger.info('Building component tree...');
     const componentTree = await buildComponentTree(filePaths);
 
     if (componentTree.length === 0) {
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate test scenarios using AI
-    console.log('Generating test scenarios...');
+    logger.info('Generating test scenarios...');
     const scenarios = await generateTestScenarios(componentTree, contextDescription);
 
     // Store scenarios in database
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       count: createdScenarios.length
     });
   } catch (error) {
-    console.error('Error generating test scenarios:', error);
+    logger.error('Error generating test scenarios:', { error });
     return NextResponse.json(
       {
         error: 'Failed to generate test scenarios',

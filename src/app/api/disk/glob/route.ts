@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 import { glob } from 'glob';
+import { logger } from '@/lib/logger';
 
 interface MatchedFile {
   path: string;
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (error) {
-        console.error(`[Glob API] Error matching pattern "${pattern}":`, error);
+        logger.error(`[Glob API] Error matching pattern "${pattern}":`, { error });
         // Continue with other patterns
       }
     }
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[Glob API] Error:', error);
+    logger.error('[Glob API] Error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

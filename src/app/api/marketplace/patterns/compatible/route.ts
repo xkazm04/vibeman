@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { refactoringPatternDb, PatternCategory } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/marketplace/patterns/compatible
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       total: patterns.length,
     });
   } catch (error) {
-    console.error('Error fetching compatible patterns:', error);
+    logger.error('Error fetching compatible patterns:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch compatible patterns' },
       { status: 500 }

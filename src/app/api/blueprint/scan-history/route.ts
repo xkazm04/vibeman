@@ -12,6 +12,7 @@ import {
   ScanExecutionContext,
   ScanExecutionResult,
 } from '@/app/features/Onboarding/sub_Blueprint/lib/scanHistoryService';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/blueprint/scan-history
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
       count: history.length,
     });
   } catch (error) {
-    console.error('Error fetching scan history:', error);
+    logger.error('Error fetching scan history:', { error });
     return NextResponse.json(
       {
         success: false,
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       historyEntry,
     });
   } catch (error) {
-    console.error('Error recording scan execution:', error);
+    logger.error('Error recording scan execution:', { error });
     return NextResponse.json(
       {
         success: false,
@@ -117,7 +118,7 @@ export async function DELETE(request: NextRequest) {
       message: `Deleted ${deletedCount} old scan history entries`,
     });
   } catch (error) {
-    console.error('Error cleaning up scan history:', error);
+    logger.error('Error cleaning up scan history:', { error });
     return NextResponse.json(
       {
         success: false,

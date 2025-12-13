@@ -4,6 +4,7 @@ import {
   marketplaceUserDb,
   badgeDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/marketplace/ratings
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ ratings });
   } catch (error) {
-    console.error('Error fetching ratings:', error);
+    logger.error('Error fetching ratings:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch ratings' },
       { status: 500 }
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ rating }, { status: 201 });
   } catch (error) {
-    console.error('Error creating rating:', error);
+    logger.error('Error creating rating:', { error });
     return NextResponse.json(
       { error: 'Failed to create rating' },
       { status: 500 }
@@ -122,7 +123,7 @@ export async function PUT(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error updating rating:', error);
+    logger.error('Error updating rating:', { error });
     return NextResponse.json(
       { error: 'Failed to update rating' },
       { status: 500 }
@@ -167,7 +168,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: deleted });
   } catch (error) {
-    console.error('Error deleting rating:', error);
+    logger.error('Error deleting rating:', { error });
     return NextResponse.json(
       { error: 'Failed to delete rating' },
       { status: 500 }

@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getAvailableScanCategories } from '@/app/features/TechDebtRadar/lib/plugins';
+import { logger } from '@/lib/logger';
 
 /**
  * Built-in category metadata
@@ -91,7 +92,7 @@ export async function GET() {
       pluginCount: categories.filter((c) => c.source === 'plugin').length
     });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    logger.error('Error fetching categories:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch categories', details: String(error) },
       { status: 500 }

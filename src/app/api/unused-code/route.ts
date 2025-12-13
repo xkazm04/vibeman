@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as ts from 'typescript';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/unused-code
@@ -266,7 +267,7 @@ function extractExports(filePath: string, sourceCode: string): ExportInfo[] {
 
     visit(sourceFile);
   } catch (error) {
-    console.error(`Error parsing ${filePath}:`, error);
+    logger.error(`Error parsing ${filePath}:`, { error });
   }
 
   return exports;
@@ -342,7 +343,7 @@ function extractImports(filePath: string, sourceCode: string): ImportInfo[] {
 
     visit(sourceFile);
   } catch (error) {
-    console.error(`Error parsing imports in ${filePath}:`, error);
+    logger.error(`Error parsing imports in ${filePath}:`, { error });
   }
 
   return imports;
@@ -500,11 +501,11 @@ async function analyzeUnusedCode(
   error?: string;
 }> {
   try {
-    console.log('[UnusedCode] 🔍 Starting simplified component analysis...');
+    logger.info('[UnusedCode] 🔍 Starting simplified component analysis...');
 
     // Find all TypeScript/TSX files
     const allFiles = await findTsxFiles(projectPath, projectPath);
-    console.log(`[UnusedCode] Found ${allFiles.length} files`);
+    logger.info(`[UnusedCode] Found ${allFiles.length} files`);
 
     // Step 1: Filter to only .tsx files that are likely components
     const componentFiles: Array<{ file: string; componentName: string; exports: string[] }> = [];
@@ -549,7 +550,7 @@ async function analyzeUnusedCode(
       }
     }
 
-    console.log(`[UnusedCode] Analyzing ${componentFiles.length} component files...`);
+    logger.info(`[UnusedCode] Analyzing ${componentFiles.length} component files...`);
 
     // Step 2: Search for usage of each component
     const unusedFiles: UnusedFile[] = [];
@@ -566,7 +567,7 @@ async function analyzeUnusedCode(
       }
 
       if (checkedCount % 10 === 0) {
-        console.log(`[UnusedCode] Progress: ${checkedCount}/${totalComponents}`);
+        logger.info(`[UnusedCode] Progress: ${checkedCount}/${totalComponents}`);
       }
 
       // Search for each export in the component
@@ -597,7 +598,7 @@ async function analyzeUnusedCode(
       }
     }
 
-    console.log(`[UnusedCode] ✅ Found ${unusedFiles.length} unused component files`);
+    logger.info(`[UnusedCode] ✅ Found ${unusedFiles.length} unused component files`);
 
     return {
       success: true,
@@ -609,7 +610,7 @@ async function analyzeUnusedCode(
       },
     };
   } catch (error) {
-    console.error('[UnusedCode] ❌ Analysis error:', error);
+    logger.error('[UnusedCode] ❌ Analysis error:', { error });
     return {
       success: false,
       unusedFiles: [],
@@ -705,7 +706,7 @@ export async function POST(request: NextRequest) {
     const result = await analyzeUnusedCode(projectPath);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('[UnusedCode] API error:', error);
+    logger.error('[UnusedCode] API error:', { error });
     return NextResponse.json(
       {
         success: false,

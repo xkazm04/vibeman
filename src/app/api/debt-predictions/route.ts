@@ -17,6 +17,7 @@ import {
 } from '@/app/features/DebtPrediction/lib/predictionEngine';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '@/lib/logger';
 
 // ============================================================================
 // GET: Fetch predictions
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[DebtPredictions API] GET error:', error);
+    logger.error('[DebtPredictions API] GET error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch predictions' },
       { status: 500 }
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
           const result = analyzeFile(relativePath, content);
           analysisResults.push(result);
         } catch (err) {
-          console.warn(`[DebtPredictions] Failed to read file: ${filePath}`);
+          logger.warn(`[DebtPredictions] Failed to read file: ${filePath}`);
         }
       }
     }
@@ -192,7 +193,7 @@ export async function POST(request: NextRequest) {
       metrics: result.metrics,
     });
   } catch (error) {
-    console.error('[DebtPredictions API] POST error:', error);
+    logger.error('[DebtPredictions API] POST error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create predictions' },
       { status: 500 }
@@ -228,7 +229,7 @@ async function scanProjectFiles(projectPath: string): Promise<string[]> {
         }
       }
     } catch (err) {
-      console.warn(`[DebtPredictions] Failed to read directory: ${dir}`);
+      logger.warn(`[DebtPredictions] Failed to read directory: ${dir}`);
     }
   }
 

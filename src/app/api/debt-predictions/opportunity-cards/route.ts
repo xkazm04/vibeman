@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { opportunityCardDb, preventionActionDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 // ============================================================================
 // GET: Fetch opportunity cards
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
       total: cards.length,
     });
   } catch (error) {
-    console.error('[OpportunityCards API] GET error:', error);
+    logger.error('[OpportunityCards API] GET error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch cards' },
       { status: 500 }
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
     const updated = opportunityCardDb.getById(cardId);
     return NextResponse.json({ card: updated });
   } catch (error) {
-    console.error('[OpportunityCards API] POST error:', error);
+    logger.error('[OpportunityCards API] POST error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to record interaction' },
       { status: 500 }

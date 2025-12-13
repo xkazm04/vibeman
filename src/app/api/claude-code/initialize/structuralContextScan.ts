@@ -13,29 +13,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-
-// Logger utility to replace console statements
-const logger = {
-  warn: (message: string, error?: unknown) => {
-    // In production, this could be replaced with proper logging service
-    if (process.env.NODE_ENV !== 'production') {
-      const errorMsg = error instanceof Error ? error.message : error;
-      // eslint-disable-next-line no-console
-      console.warn(`[StructuralScan] ${message}`, errorMsg || '');
-    }
-  },
-  error: (message: string, error?: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : error;
-    // eslint-disable-next-line no-console
-    console.error(`[StructuralScan] ${message}`, errorMsg || '');
-  },
-  info: (message: string, data?: unknown) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log(`[StructuralScan] ${message}`, data || '');
-    }
-  }
-};
+import { logger } from '@/lib/logger';
 
 export interface StructuralContext {
   name: string;

@@ -6,7 +6,6 @@
 import * as path from 'path';
 import type { DbDriver, DbConfig, DbConnection } from './types';
 import { createSqliteDriver } from './sqlite.driver';
-import { createPostgresDriver } from './postgresql.driver';
 
 // Export all types
 export * from './types';
@@ -21,24 +20,7 @@ let driverInstance: DbDriver | null = null;
  * Reads from environment variables or uses defaults
  */
 function loadDbConfig(): DbConfig {
-  const driver = (process.env.DB_DRIVER as 'sqlite' | 'postgresql') || 'sqlite';
-
-  if (driver === 'postgresql') {
-    return {
-      driver: 'postgresql',
-      postgresql: {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'vibeman',
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || '',
-        ssl: process.env.DB_SSL === 'true',
-        maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '10')
-      }
-    };
-  }
-
-  // Default to SQLite
+  // SQLite is the only supported driver
   return {
     driver: 'sqlite',
     sqlite: {
@@ -52,22 +34,10 @@ function loadDbConfig(): DbConfig {
  * Create database driver based on configuration
  */
 function createDriver(config: DbConfig): DbDriver {
-  switch (config.driver) {
-    case 'sqlite':
-      if (!config.sqlite) {
-        throw new Error('SQLite configuration is required when driver is "sqlite"');
-      }
-      return createSqliteDriver(config.sqlite);
-
-    case 'postgresql':
-      if (!config.postgresql) {
-        throw new Error('PostgreSQL configuration is required when driver is "postgresql"');
-      }
-      return createPostgresDriver(config.postgresql);
-
-    default:
-      throw new Error(`Unsupported database driver: ${config.driver}`);
+  if (!config.sqlite) {
+    throw new Error('SQLite configuration is required');
   }
+  return createSqliteDriver(config.sqlite);
 }
 
 /**

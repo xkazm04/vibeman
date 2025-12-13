@@ -13,6 +13,7 @@ import {
   Sparkles,
   Heart,
   Wrench,
+  Link2,
   type LucideIcon
 } from 'lucide-react';
 
@@ -185,6 +186,14 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     borderColor: 'border-blue-500/40',
     bgGradient: 'from-blue-500/5 to-blue-600/2',
     description: 'Data architecture & state management'
+  },
+  pragmatic_integrator: {
+    label: 'Pragmatic Integrator',
+    icon: Link2,
+    color: 'text-lime-400',
+    borderColor: 'border-lime-500/40',
+    bgGradient: 'from-lime-500/5 to-lime-600/2',
+    description: 'E2E usability, simplification & consolidation'
   }
 };
 

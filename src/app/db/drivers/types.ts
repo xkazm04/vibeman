@@ -1,12 +1,12 @@
 /**
  * Database Driver Types
- * Defines the interface for database drivers to enable swapping between SQLite and PostgreSQL
+ * Defines the interface for database drivers
  */
 
 /**
  * Database driver type
  */
-export type DbDriverType = 'sqlite' | 'postgresql';
+export type DbDriverType = 'sqlite';
 
 /**
  * Generic database connection interface
@@ -113,7 +113,6 @@ export interface DbDriver {
 export interface DbConfig {
   driver: DbDriverType;
   sqlite?: SqliteConfig;
-  postgresql?: PostgresConfig;
 }
 
 /**
@@ -122,17 +121,4 @@ export interface DbConfig {
 export interface SqliteConfig {
   path: string;
   walMode?: boolean;
-}
-
-/**
- * PostgreSQL configuration
- */
-export interface PostgresConfig {
-  host: string;
-  port: number;
-  database: string;
-  user: string;
-  password: string;
-  ssl?: boolean;
-  maxConnections?: number;
 }

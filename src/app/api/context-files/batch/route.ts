@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { contextDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 interface BatchContextFileResult {
   contextId: string;
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error('[context-files/batch] Error loading context files:', error);
+    logger.error('[context-files/batch] Error loading context files:', { error });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OllamaClient } from '@/lib/llm/providers/ollama-client';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Evaluation API error:', error);
+    logger.error('Evaluation API error:', { error });
     return NextResponse.json(
       {
         success: false,

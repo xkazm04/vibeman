@@ -17,6 +17,7 @@ import {
 } from '@/app/features/RefactorSuggestion/lib/ideaGenerator';
 import { scanDb } from '@/app/db';
 import type { ProjectType } from '@/lib/scan';
+import { logger } from '@/lib/logger';
 
 // Generate unique scan ID
 function generateScanId(): string {
@@ -148,12 +149,12 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (analysisError) {
-      console.error('[RefactorSuggestions] Analysis error:', analysisError);
+      logger.error('[RefactorSuggestions] Analysis error:', { analysisError });
       throw analysisError;
     }
 
   } catch (error) {
-    console.error('[RefactorSuggestions API] Error:', error);
+    logger.error('[RefactorSuggestions API] Error:', { error });
     return errorResponse(
       error instanceof Error ? error.message : 'Unknown error occurred',
       500

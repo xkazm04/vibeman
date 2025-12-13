@@ -3,6 +3,7 @@ import {
   badgeDb,
   marketplaceUserDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/marketplace/badges
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching badges:', error);
+    logger.error('Error fetching badges:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch badges' },
       { status: 500 }
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       user: updatedUser,
     });
   } catch (error) {
-    console.error('Error checking badges:', error);
+    logger.error('Error checking badges:', { error });
     return NextResponse.json(
       { error: 'Failed to check badges' },
       { status: 500 }

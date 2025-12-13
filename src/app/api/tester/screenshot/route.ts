@@ -9,6 +9,7 @@ import { contextDb } from '@/app/db';
 import { projectDb } from '@/lib/project_database';
 import { connectToBrowser } from '../lib/browserbase';
 import { executeContextScenario } from '../lib/contextScreenshotExecutor';
+import { logger } from '@/lib/logger';
 
 export const maxDuration = 60; // 60 seconds max execution time
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ function isLocalhostUrl(url: string): boolean {
  */
 async function checkServerAccessibility(url: string): Promise<void> {
   try {
-    console.log(`[Screenshot API] Checking server accessibility: ${url}`);
+    logger.info(`[Screenshot API] Checking server accessibility: ${url}`);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -50,7 +51,7 @@ async function checkServerAccessibility(url: string): Promise<void> {
       throw new Error(`Server responded with ${response.status}`);
     }
 
-    console.log(`[Screenshot API] ✅ Server is accessible`);
+    logger.info(`[Screenshot API] ✅ Server is accessible`);
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     const body: ScreenshotRequest = await request.json();
     const { contextId, scanOnly = false } = body;
 
-    console.log('[Screenshot API] Request received:', { contextId, scanOnly });
+    logger.info('[Screenshot API] Request received:', { contextId, scanOnly });
 
     // Validate request
     if (!contextId) {
@@ -151,10 +152,10 @@ export async function POST(request: NextRequest) {
 
     // Connect to browser (force local for localhost)
     browser = await connectToBrowser(true);
-    console.log('[Screenshot API] Browser connected');
+    logger.info('[Screenshot API] Browser connected');
 
     // Execute context scenario
-    console.log(`[Screenshot API] Executing scenario for context: ${context.name}`);
+    logger.info(`[Screenshot API] Executing scenario for context: ${context.name}`);
     const result = await executeContextScenario(
       browser,
       {
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     // Close browser
     await browser.close();
-    console.log('[Screenshot API] Browser closed');
+    logger.info('[Screenshot API] Browser closed');
 
     // Update test_updated timestamp and preview path if successful
     if (result.success && result.screenshotPath) {
@@ -176,9 +177,9 @@ export async function POST(request: NextRequest) {
         test_updated: now,
         preview: result.screenshotPath, // Update preview with screenshot path
       });
-      console.log(`[Screenshot API] ✅ Updated test_updated and preview for context: ${context.name}`);
-      console.log(`[Screenshot API] Updated context:`, updated);
-      console.log(`[Screenshot API] Preview path saved:`, result.screenshotPath);
+      logger.info(`[Screenshot API] ✅ Updated test_updated and preview for context: ${context.name}`);
+      logger.info(`[Screenshot API] Updated context:`, { updated });
+      logger.info(`[Screenshot API] Preview path saved:`, { data: result.screenshotPath });
     }
 
     // Return result
@@ -191,14 +192,14 @@ export async function POST(request: NextRequest) {
       duration: result.duration,
     });
   } catch (error) {
-    console.error('[Screenshot API] Error:', error);
+    logger.error('[Screenshot API] Error:', { error });
 
     // Cleanup browser if it exists
     if (browser) {
       try {
         await browser.close();
       } catch (closeError) {
-        console.error('[Screenshot API] Error closing browser:', closeError);
+        logger.error('[Screenshot API] Error closing browser:', { closeError });
       }
     }
 
@@ -252,7 +253,7 @@ export async function GET(request: NextRequest) {
       daysAgo,
     });
   } catch (error) {
-    console.error('[Screenshot API] Error:', error);
+    logger.error('[Screenshot API] Error:', { error });
 
     return NextResponse.json(
       {

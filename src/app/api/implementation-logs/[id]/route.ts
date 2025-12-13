@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { logger } from '@/lib/logger';
 
 export async function PATCH(
   request: NextRequest,
@@ -39,7 +40,7 @@ export async function PATCH(
       data: updatedLog,
     });
   } catch (error) {
-    console.error('Error updating implementation log:', error);
+    logger.error('Error updating implementation log:', { error });
 
     return NextResponse.json(
       {

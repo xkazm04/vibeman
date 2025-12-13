@@ -213,6 +213,17 @@ export const securityPatchRepository = {
   },
 
   /**
+   * Get patches by project ID
+   */
+  getPatchesByProject(projectId: string): SecurityPatch[] {
+    const db = getDatabase();
+    const stmt = db.prepare('SELECT * FROM security_patches WHERE project_id = ? ORDER BY created_at DESC');
+    const results = stmt.all(projectId) as DbSecurityPatch[];
+
+    return results.map(dbToSecurityPatch);
+  },
+
+  /**
    * Update patch proposal
    */
   updateProposal(id: string, aiAnalysis: string, patchProposal: string): void {

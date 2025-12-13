@@ -10,6 +10,7 @@ import {
   getTopRecommendations,
   dismissRecommendation,
 } from '@/app/features/Onboarding/sub_Blueprint/lib/predictiveModel';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/blueprint/scan-predictions
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       count: recommendations.length,
     });
   } catch (error) {
-    console.error('Error fetching scan predictions:', error);
+    logger.error('Error fetching scan predictions:', { error });
     return NextResponse.json(
       {
         success: false,
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
       count: predictions.length,
     });
   } catch (error) {
-    console.error('Error generating scan predictions:', error);
+    logger.error('Error generating scan predictions:', { error });
     return NextResponse.json(
       {
         success: false,
@@ -113,7 +114,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Recommendation dismissed',
     });
   } catch (error) {
-    console.error('Error dismissing prediction:', error);
+    logger.error('Error dismissing prediction:', { error });
     return NextResponse.json(
       {
         success: false,

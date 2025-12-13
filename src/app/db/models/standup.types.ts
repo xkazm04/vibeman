@@ -1,0 +1,141 @@
+/**
+ * Daily Standup Types
+ * Types for automated standup reports and summaries
+ */
+
+// Database types for standup summaries
+export interface DbStandupSummary {
+  id: string;
+  project_id: string;
+  period_type: 'daily' | 'weekly';
+  period_start: string; // ISO date
+  period_end: string; // ISO date
+
+  // Summary content
+  title: string;
+  summary: string; // AI-generated summary
+
+  // Stats
+  implementations_count: number;
+  ideas_generated: number;
+  ideas_accepted: number;
+  ideas_rejected: number;
+  ideas_implemented: number;
+  scans_count: number;
+
+  // Blockers and highlights
+  blockers: string | null; // JSON array of blocker objects
+  highlights: string | null; // JSON array of highlight objects
+
+  // AI-detected patterns
+  velocity_trend: 'increasing' | 'stable' | 'decreasing' | null;
+  burnout_risk: 'low' | 'medium' | 'high' | null;
+  focus_areas: string | null; // JSON array of focus area strings
+
+  // Token tracking
+  input_tokens: number | null;
+  output_tokens: number | null;
+
+  // Metadata
+  generated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Blocker structure
+export interface StandupBlocker {
+  id: string;
+  title: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  relatedContext?: string;
+  suggestedAction?: string;
+}
+
+// Highlight structure
+export interface StandupHighlight {
+  id: string;
+  title: string;
+  description: string;
+  type: 'achievement' | 'milestone' | 'quality_improvement' | 'velocity_boost';
+  metric?: string;
+}
+
+// Focus area structure
+export interface StandupFocusArea {
+  area: string;
+  contextId?: string;
+  scanType?: string;
+  priority: 'high' | 'medium' | 'low';
+  reason: string;
+}
+
+// API response types
+export interface StandupSummaryResponse {
+  id: string;
+  projectId: string;
+  periodType: 'daily' | 'weekly';
+  periodStart: string;
+  periodEnd: string;
+  title: string;
+  summary: string;
+  stats: {
+    implementationsCount: number;
+    ideasGenerated: number;
+    ideasAccepted: number;
+    ideasRejected: number;
+    ideasImplemented: number;
+    scansCount: number;
+  };
+  blockers: StandupBlocker[];
+  highlights: StandupHighlight[];
+  insights: {
+    velocityTrend: 'increasing' | 'stable' | 'decreasing' | null;
+    burnoutRisk: 'low' | 'medium' | 'high' | null;
+    focusAreas: StandupFocusArea[];
+  };
+  generatedAt: string;
+}
+
+// Generation request
+export interface GenerateStandupRequest {
+  projectId: string;
+  periodType: 'daily' | 'weekly';
+  periodStart?: string; // Defaults to today/this week
+  forceRegenerate?: boolean;
+}
+
+// Stats for standup generation
+export interface StandupSourceData {
+  implementationLogs: Array<{
+    id: string;
+    title: string;
+    overview: string;
+    contextId: string | null;
+    requirementName: string;
+    createdAt: string;
+  }>;
+  ideas: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    status: string;
+    scanType: string;
+    category: string;
+    effort: number | null;
+    impact: number | null;
+    createdAt: string;
+    implementedAt: string | null;
+  }>;
+  scans: Array<{
+    id: string;
+    scanType: string;
+    summary: string | null;
+    createdAt: string;
+  }>;
+  contexts: Array<{
+    id: string;
+    name: string;
+    implementedTasks: number;
+  }>;
+}

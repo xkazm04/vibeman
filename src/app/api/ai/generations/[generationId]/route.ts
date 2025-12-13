@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { logger } from '@/lib/logger';
 /**
  * DELETE /api/ai/generations/[generationId]
  * Delete a single Leonardo generation by ID
@@ -23,7 +24,7 @@ export async function DELETE(
     // Get Leonardo API key from environment
     const leonardoApiKey = process.env.LEONARDO_API_KEY
     if (!leonardoApiKey) {
-      console.error('LEONARDO_API_KEY is not configured')
+      logger.error('LEONARDO_API_KEY is not configured')
       return NextResponse.json(
         { success: false, error: 'Leonardo API is not configured' },
         { status: 503 }
@@ -45,7 +46,7 @@ export async function DELETE(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      console.error('Leonardo API delete error:', {
+      logger.error('Leonardo API delete error:', {
         generationId,
         status: response.status,
         error: errorData,
@@ -74,7 +75,7 @@ export async function DELETE(
     })
 
   } catch (error) {
-    console.error('Error deleting generation:', error)
+    logger.error('Error deleting generation:', { error })
 
     return NextResponse.json(
       { 

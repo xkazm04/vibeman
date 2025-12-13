@@ -3,6 +3,7 @@ import {
   patternFavoriteDb,
   marketplaceUserDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/marketplace/favorites
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ favorites });
   } catch (error) {
-    console.error('Error fetching favorites:', error);
+    logger.error('Error fetching favorites:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch favorites' },
       { status: 500 }
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ favorite }, { status: 201 });
   } catch (error) {
-    console.error('Error adding favorite:', error);
+    logger.error('Error adding favorite:', { error });
     return NextResponse.json(
       { error: 'Failed to add favorite' },
       { status: 500 }
@@ -79,7 +80,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: removed });
   } catch (error) {
-    console.error('Error removing favorite:', error);
+    logger.error('Error removing favorite:', { error });
     return NextResponse.json(
       { error: 'Failed to remove favorite' },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { communitySecurityScoreDb } from '@/app/db';
 import type { CommunityScoreApiResponse } from '@/app/db/models/security-intelligence.types';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/security-intelligence/community-scores
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error fetching community scores:', error);
+    logger.error('Error fetching community scores:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch community scores' },
       { status: 500 }
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error submitting community score:', error);
+    logger.error('Error submitting community score:', { error });
     return NextResponse.json(
       { error: 'Failed to submit community score' },
       { status: 500 }

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { DeploymentTarget } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
+import { logger } from '@/lib/logger';
 
 const execAsync = promisify(exec);
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error during deployment:', error);
+    logger.error('Error during deployment:', { error });
     return NextResponse.json(
       {
         success: false,

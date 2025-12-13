@@ -225,17 +225,18 @@ export class TestDesignScan extends BaseScan<TestDesignScanConfig, TestDesignSca
   }
 
   /**
-   * Fetch test scenarios for the context
+   * Fetch test scenarios for the context (using unified test-scenarios API)
    */
   private async fetchTestScenarios(): Promise<{
     success: boolean;
-    data?: Array<{ id: string; name: string; description: string | null }>;
+    data?: Array<{ id: string; name: string; description: string | null; steps?: TestStep[] }>;
     error?: string;
   }> {
-    const url = `/api/test-case-scenarios?contextId=${this.config.contextId}`;
+    // Use unified test-scenarios endpoint with type=manual filter
+    const url = `/api/test-scenarios?contextId=${this.config.contextId}&type=manual`;
     const result = await this.fetchJson<{
       success: boolean;
-      scenarios: Array<{ id: string; name: string; description: string | null }>;
+      scenarios: Array<{ id: string; name: string; description: string | null; steps?: TestStep[] }>;
       error?: string;
     }>(url);
 
@@ -251,13 +252,15 @@ export class TestDesignScan extends BaseScan<TestDesignScanConfig, TestDesignSca
   }
 
   /**
-   * Fetch test steps for a scenario
+   * Fetch test steps for a scenario (using unified test-scenarios API)
+   * Steps are now embedded in scenario response
    */
   private async fetchTestSteps(scenarioId: string): Promise<TestStep[]> {
-    const url = `/api/test-case-steps?scenarioId=${scenarioId}`;
+    // Use unified test-scenarios endpoint to get scenario with embedded steps
+    const url = `/api/test-scenarios?id=${scenarioId}`;
     const result = await this.fetchJson<{
       success: boolean;
-      steps: TestStep[];
+      scenario: { steps?: TestStep[] };
       error?: string;
     }>(url);
 
@@ -265,7 +268,8 @@ export class TestDesignScan extends BaseScan<TestDesignScanConfig, TestDesignSca
       return [];
     }
 
-    return (result.data.steps || []).map((step) => ({
+    // Steps are now embedded in the scenario response
+    return (result.data.scenario?.steps || []).map((step) => ({
       id: step.id,
       step_order: step.step_order,
       step_name: step.step_name,

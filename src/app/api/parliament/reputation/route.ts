@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { reputationDb } from '@/app/features/Parliament/lib/reputationRepository';
 import type { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { SCAN_TYPE_CONFIGS } from '@/app/features/Ideas/lib/scanTypes';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/parliament/reputation
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ reputations: allReputations });
   } catch (error) {
-    console.error('Get reputation error:', error);
+    logger.error('Get reputation error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Update reputation error:', error);
+    logger.error('Update reputation error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

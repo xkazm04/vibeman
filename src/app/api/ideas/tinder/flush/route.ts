@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { logger } from '@/lib/logger';
 
 /**
  * DELETE /api/ideas/tinder/flush
@@ -36,7 +37,7 @@ export async function DELETE(request: Request) {
         : `Flushed ${deletedCount} ideas from project`
     });
   } catch (error) {
-    console.error('Error flushing ideas:', error);
+    logger.error('Error flushing ideas:', { error });
     return NextResponse.json(
       {
         error: 'Failed to flush ideas',

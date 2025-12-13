@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries, contextGroupQueries } from '@/lib/queries/contextQueries';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { logger } from '@/lib/logger';
 
 // Types for the analysis
 interface ImpactSeverity {
@@ -276,7 +277,7 @@ export async function POST(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    console.error('Failed to analyze impact:', error);
+    logger.error('Failed to analyze impact:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to analyze impact' },
       { status: 500 }

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ techDebt });
   } catch (error) {
-    console.error('Failed to fetch tech debt', error);
+    logger.error('Failed to fetch tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to fetch tech debt', details: String(error) },
       { status: 500 }
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!validateTechDebtBody(body)) {
-      console.warn('Missing required fields for tech debt creation', body);
+      logger.warn('Missing required fields for tech debt creation', { body });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -135,10 +135,10 @@ export async function POST(request: NextRequest) {
       goal_id: body.goalId || null
     });
 
-    console.log('Created tech debt item', { id, projectId: body.projectId });
+    logger.info('Created tech debt item', { id, projectId: body.projectId });
     return NextResponse.json({ techDebt: newTechDebt }, { status: 201 });
   } catch (error) {
-    console.error('Failed to create tech debt', error);
+    logger.error('Failed to create tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to create tech debt', details: String(error) },
       { status: 500 }
@@ -207,10 +207,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    console.log('Updated tech debt item', id);
+    logger.info('Updated tech debt item', { id });
     return NextResponse.json({ techDebt: updatedTechDebt });
   } catch (error) {
-    console.error('Failed to update tech debt', error);
+    logger.error('Failed to update tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to update tech debt', details: String(error) },
       { status: 500 }
@@ -243,10 +243,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    console.log('Deleted tech debt item', id);
+    logger.info('Deleted tech debt item', { id });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete tech debt', error);
+    logger.error('Failed to delete tech debt', { error });
     return NextResponse.json(
       { error: 'Failed to delete tech debt', details: String(error) },
       { status: 500 }

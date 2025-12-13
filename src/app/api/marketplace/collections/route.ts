@@ -3,6 +3,7 @@ import {
   patternCollectionDb,
   marketplaceUserDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/marketplace/collections
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const collections = patternCollectionDb.getUserCollections(user.id);
     return NextResponse.json({ collections });
   } catch (error) {
-    console.error('Error fetching collections:', error);
+    logger.error('Error fetching collections:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch collections' },
       { status: 500 }
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ collection }, { status: 201 });
   } catch (error) {
-    console.error('Error creating collection:', error);
+    logger.error('Error creating collection:', { error });
     return NextResponse.json(
       { error: 'Failed to create collection' },
       { status: 500 }
@@ -114,7 +115,7 @@ export async function DELETE(request: NextRequest) {
     const deleted = patternCollectionDb.delete(collectionId);
     return NextResponse.json({ success: deleted });
   } catch (error) {
-    console.error('Error deleting collection:', error);
+    logger.error('Error deleting collection:', { error });
     return NextResponse.json(
       { error: 'Failed to delete collection' },
       { status: 500 }

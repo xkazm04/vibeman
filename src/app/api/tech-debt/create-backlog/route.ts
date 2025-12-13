@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { techDebtDb, backlogDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       techDebt: updatedTechDebt
     }, { status: 201 });
   } catch (error) {
-    console.error('Error creating backlog item from tech debt:', error);
+    logger.error('Error creating backlog item from tech debt:', { error });
     return NextResponse.json(
       { error: 'Failed to create backlog item', details: String(error) },
       { status: 500 }

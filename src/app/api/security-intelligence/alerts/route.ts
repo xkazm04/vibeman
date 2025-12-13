@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { securityAlertDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/security-intelligence/alerts
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const alerts = securityAlertDb.getUnacknowledged();
     return NextResponse.json({ alerts });
   } catch (error) {
-    console.error('Error fetching security alerts:', error);
+    logger.error('Error fetching security alerts:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch security alerts' },
       { status: 500 }
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ alert });
   } catch (error) {
-    console.error('Error creating security alert:', error);
+    logger.error('Error creating security alert:', { error });
     return NextResponse.json(
       { error: 'Failed to create security alert' },
       { status: 500 }
@@ -130,7 +131,7 @@ export async function PATCH(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error updating security alert:', error);
+    logger.error('Error updating security alert:', { error });
     return NextResponse.json(
       { error: 'Failed to update security alert' },
       { status: 500 }
@@ -151,7 +152,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true, deletedCount });
   } catch (error) {
-    console.error('Error cleaning up security alerts:', error);
+    logger.error('Error cleaning up security alerts:', { error });
     return NextResponse.json(
       { error: 'Failed to clean up security alerts' },
       { status: 500 }

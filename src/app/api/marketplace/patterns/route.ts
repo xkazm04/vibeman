@@ -5,6 +5,7 @@ import {
   PatternCategory,
   PatternScope,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/marketplace/patterns
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
       offset,
     });
   } catch (error) {
-    console.error('Error fetching patterns:', error);
+    logger.error('Error fetching patterns:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch patterns' },
       { status: 500 }
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ pattern }, { status: 201 });
   } catch (error) {
-    console.error('Error creating pattern:', error);
+    logger.error('Error creating pattern:', { error });
     return NextResponse.json(
       { error: 'Failed to create pattern' },
       { status: 500 }

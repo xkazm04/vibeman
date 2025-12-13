@@ -66,7 +66,8 @@ export default function TestCaseStepsEditor({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(`/api/test-case-scenarios?contextId=${contextId}`, {
+      // Use unified test-scenarios endpoint with type=manual filter
+      const response = await fetch(`/api/test-scenarios?contextId=${contextId}&type=manual`, {
         signal: controller.signal,
       });
 
@@ -116,7 +117,8 @@ export default function TestCaseStepsEditor({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(`/api/test-case-steps?scenarioId=${scenarioId}`, {
+      // Use unified test-scenarios endpoint to get scenario with embedded steps
+      const response = await fetch(`/api/test-scenarios?id=${scenarioId}`, {
         signal: controller.signal,
       });
 
@@ -133,8 +135,9 @@ export default function TestCaseStepsEditor({
         throw new Error(data.error || 'Failed to load steps');
       }
 
-      if (data.steps && Array.isArray(data.steps)) {
-        setSteps(data.steps);
+      // Steps are now embedded in the scenario response
+      if (data.scenario && data.scenario.steps && Array.isArray(data.scenario.steps)) {
+        setSteps(data.scenario.steps);
       } else {
         setSteps([]);
       }

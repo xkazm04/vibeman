@@ -5,7 +5,7 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-interface LogContext {
+export interface LogContext {
   [key: string]: unknown;
 }
 
@@ -20,31 +20,42 @@ class Logger {
       : new Set<LogLevel>(['warn', 'error']);
   }
 
-  private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
+  private formatMessage(level: LogLevel, message: string, context?: unknown): string {
     const timestamp = new Date().toISOString();
-    const contextStr = context ? ` ${JSON.stringify(context)}` : '';
+    let contextStr = '';
+    if (context !== undefined) {
+      try {
+        if (typeof context === 'object' && context !== null) {
+          contextStr = ` ${JSON.stringify(context)}`;
+        } else {
+          contextStr = ` ${String(context)}`;
+        }
+      } catch {
+        contextStr = ` [object]`;
+      }
+    }
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}`;
   }
 
-  debug(message: string, context?: LogContext): void {
+  debug(message: string, context?: unknown): void {
     if (this.enabledLevels.has('debug')) {
       console.debug(this.formatMessage('debug', message, context));
     }
   }
 
-  info(message: string, context?: LogContext): void {
+  info(message: string, context?: unknown): void {
     if (this.enabledLevels.has('info')) {
       console.info(this.formatMessage('info', message, context));
     }
   }
 
-  warn(message: string, context?: LogContext): void {
+  warn(message: string, context?: unknown): void {
     if (this.enabledLevels.has('warn')) {
       console.warn(this.formatMessage('warn', message, context));
     }
   }
 
-  error(message: string, context?: LogContext): void {
+  error(message: string, context?: unknown): void {
     if (this.enabledLevels.has('error')) {
       console.error(this.formatMessage('error', message, context));
     }

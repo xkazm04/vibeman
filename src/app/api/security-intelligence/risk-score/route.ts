@@ -5,6 +5,7 @@ import type {
   RiskPrediction,
   RiskFactor,
 } from '@/app/db/models/security-intelligence.types';
+import { logger } from '@/lib/logger';
 
 /**
  * Calculate predictive risk score based on multiple factors
@@ -196,7 +197,7 @@ export async function GET(request: NextRequest) {
       ...prediction,
     });
   } catch (error) {
-    console.error('Error calculating risk score:', error);
+    logger.error('Error calculating risk score:', { error });
     return NextResponse.json(
       { error: 'Failed to calculate risk score' },
       { status: 500 }
@@ -245,7 +246,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(prediction);
   } catch (error) {
-    console.error('Error calculating risk score:', error);
+    logger.error('Error calculating risk score:', { error });
     return NextResponse.json(
       { error: 'Failed to calculate risk score' },
       { status: 500 }

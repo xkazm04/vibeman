@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         });
       }
     } catch (reqError) {
-      console.error('Failed to create requirement:', reqError);
+      logger.error('Failed to create requirement:', { reqError });
 
       // Still mark as processed but return partial success
       return NextResponse.json({
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error resolving idea:', error);
+    logger.error('Error resolving idea:', { error });
     return NextResponse.json(
       { error: 'Failed to resolve idea', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

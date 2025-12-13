@@ -160,18 +160,35 @@ If components lack proper testId attributes, you may add them:
 
 ### Step 6: Create/Update Test Scenarios in Database
 
-Use the test scenario API endpoints to create or update scenarios:
+Use the unified test scenarios API endpoint to create or update scenarios with embedded steps:
 
-#### Create New Test Scenario
+#### Create New Test Scenario with Steps
 
 \`\`\`typescript
-const scenarioResponse = await fetch('/api/test-case-scenarios', {
+// Create scenario with all steps in one request
+const scenarioResponse = await fetch('/api/test-scenarios', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    contextId: '${contextId}',
+    type: 'manual', // Required: 'manual' for test case scenarios
+    context_id: '${contextId}',
     name: 'Descriptive Test Name',
     description: 'What this test validates',
+    steps: [
+      {
+        step_order: 1,
+        step_name: 'Navigate to login page',
+        expected_result: 'Login form is visible',
+        test_selector_id: null,
+      },
+      {
+        step_order: 2,
+        step_name: 'Enter email address',
+        expected_result: 'Email field contains entered value',
+        test_selector_id: 'email-input',
+      },
+      // Add more steps as needed...
+    ],
   }),
 });
 
@@ -179,47 +196,25 @@ const { scenario } = await scenarioResponse.json();
 const scenarioId = scenario.id;
 \`\`\`
 
-#### Create Test Steps
-
-\`\`\`typescript
-// Step 1
-await fetch('/api/test-case-steps', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    scenarioId: scenarioId,
-    stepOrder: 1,
-    stepName: 'Navigate to login page',
-    expectedResult: 'Login form is visible',
-    testSelectorId: null, // or 'login-form' if selector exists
-  }),
-});
-
-// Step 2
-await fetch('/api/test-case-steps', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    scenarioId: scenarioId,
-    stepOrder: 2,
-    stepName: 'Enter email address',
-    expectedResult: 'Email field contains entered value',
-    testSelectorId: 'email-input',
-  }),
-});
-
-// Step 3...
-\`\`\`
-
 #### Update Existing Scenario (if needed)
 
 \`\`\`typescript
-await fetch(\`/api/test-case-scenarios/\${scenarioId}\`, {
+await fetch('/api/test-scenarios', {
   method: 'PUT',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
+    id: scenarioId,
+    type: 'manual',
     name: 'Updated Test Name',
     description: 'Updated description',
+    // To replace all steps:
+    steps: [
+      { step_order: 1, step_name: 'Updated step', expected_result: 'Expected result' },
+    ],
+    // Or to add new steps:
+    // addSteps: [{ step_order: 4, step_name: 'New step', expected_result: 'Expected result' }],
+    // Or to remove steps:
+    // removeStepIds: ['step-id-to-remove'],
   }),
 });
 \`\`\`

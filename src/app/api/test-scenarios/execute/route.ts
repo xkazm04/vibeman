@@ -10,6 +10,7 @@ import { chromium } from 'playwright-core';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
       // Execute each step
       for (const step of scenario.user_flows) {
         try {
-          console.log(`Executing step ${step.step}: ${step.description}`);
+          logger.info(`Executing step ${step.step}: ${step.description}`);
 
           switch (step.action) {
             case 'click':
@@ -143,7 +144,7 @@ export async function POST(request: NextRequest) {
             });
           }
         } catch (stepError) {
-          console.error(`Step ${step.step} failed:`, stepError);
+          logger.error(`Step ${step.step} failed:`, { stepError });
           throw stepError;
         }
       }
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error executing test scenario:', error);
+    logger.error('Error executing test scenario:', { error });
     return NextResponse.json(
       {
         error: 'Failed to execute test scenario',
@@ -232,7 +233,7 @@ export async function GET(request: NextRequest) {
       visualDiffsCount: visualDiffs.length
     });
   } catch (error) {
-    console.error('Error fetching execution results:', error);
+    logger.error('Error fetching execution results:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch execution results' },
       { status: 500 }

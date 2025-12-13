@@ -5,6 +5,7 @@ import {
   patternRatingDb,
   marketplaceUserDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       userRating,
     });
   } catch (error) {
-    console.error('Error fetching pattern:', error);
+    logger.error('Error fetching pattern:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch pattern' },
       { status: 500 }
@@ -93,7 +94,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ pattern: updated });
   } catch (error) {
-    console.error('Error updating pattern:', error);
+    logger.error('Error updating pattern:', { error });
     return NextResponse.json(
       { error: 'Failed to update pattern' },
       { status: 500 }
@@ -130,7 +131,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: deleted });
   } catch (error) {
-    console.error('Error deleting pattern:', error);
+    logger.error('Error deleting pattern:', { error });
     return NextResponse.json(
       { error: 'Failed to delete pattern' },
       { status: 500 }
@@ -228,7 +229,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         );
     }
   } catch (error) {
-    console.error('Error performing pattern action:', error);
+    logger.error('Error performing pattern action:', { error });
     return NextResponse.json(
       { error: 'Failed to perform action' },
       { status: 500 }

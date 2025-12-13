@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generatePackages } from '@/app/features/RefactorWizard/lib/packageGenerator';
 import { loadProjectContext } from '@/app/features/RefactorWizard/lib/contextLoader';
 import { buildDependencyGraph, topologicalSort } from '@/app/features/RefactorWizard/lib/dependencyAnalyzer';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/refactor/generate-packages
@@ -12,9 +13,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { opportunities, projectPath, userPreferences = {} } = body;
 
-    console.log('[API /generate-packages] Request received');
-    console.log('[API /generate-packages] Opportunities:', opportunities?.length);
-    console.log('[API /generate-packages] Project path:', projectPath);
+    logger.info('[API /generate-packages] Request received');
+    logger.info('[API /generate-packages] Opportunities:', { data: opportunities?.length });
+    logger.info('[API /generate-packages] Project path:', { projectPath });
 
     // Validation
     if (!opportunities || !Array.isArray(opportunities)) {
@@ -42,11 +43,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Load project context
-    console.log('[API /generate-packages] Loading project context...');
+    logger.info('[API /generate-packages] Loading project context...');
     const context = await loadProjectContext(projectPath);
 
     // Generate packages
-    console.log('[API /generate-packages] Generating packages...');
+    logger.info('[API /generate-packages] Generating packages...');
     const packages = await generatePackages(opportunities, context, {
       maxPackages: userPreferences.maxPackages || 10,
       minIssuesPerPackage: userPreferences.minIssuesPerPackage || 5,
@@ -56,15 +57,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Build dependency graph
-    console.log('[API /generate-packages] Building dependency graph...');
+    logger.info('[API /generate-packages] Building dependency graph...');
     const dependencyGraph = buildDependencyGraph(packages);
 
     // Calculate recommended order
-    console.log('[API /generate-packages] Calculating execution order...');
+    logger.info('[API /generate-packages] Calculating execution order...');
     const recommendedOrder = topologicalSort(packages);
 
-    console.log('[API /generate-packages] Success!');
-    console.log('[API /generate-packages] Generated', packages.length, 'packages');
+    logger.info('[API /generate-packages] Success!');
+    logger.info('[API /generate-packages] Generated', { arg0: packages.length, arg1: 'packages' });
 
     return NextResponse.json({
       success: true,
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[API /generate-packages] Error:', error);
+    logger.error('[API /generate-packages] Error:', { error });
     return NextResponse.json(
       {
         success: false,

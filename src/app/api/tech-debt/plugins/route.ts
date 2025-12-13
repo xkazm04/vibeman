@@ -12,6 +12,7 @@ import {
   type TechDebtPlugin,
   type RegisteredPlugin
 } from '@/app/features/TechDebtRadar/lib/plugins';
+import { logger } from '@/lib/logger';
 
 /**
  * GET - List all registered plugins
@@ -35,7 +36,7 @@ export async function GET() {
       activeCount: plugins.filter((p) => p.status === 'active').length
     });
   } catch (error) {
-    console.error('Error fetching plugins:', error);
+    logger.error('Error fetching plugins:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch plugins', details: String(error) },
       { status: 500 }
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       pluginId: plugin.metadata.id
     }, { status: 201 });
   } catch (error) {
-    console.error('Error registering plugin:', error);
+    logger.error('Error registering plugin:', { error });
     return NextResponse.json(
       { error: 'Failed to register plugin', details: String(error) },
       { status: 500 }
@@ -148,7 +149,7 @@ export async function PATCH(request: NextRequest) {
       status: updatedPlugin?.status
     });
   } catch (error) {
-    console.error('Error updating plugin:', error);
+    logger.error('Error updating plugin:', { error });
     return NextResponse.json(
       { error: 'Failed to update plugin', details: String(error) },
       { status: 500 }
@@ -194,7 +195,7 @@ export async function DELETE(request: NextRequest) {
       message: `Plugin "${pluginId}" unregistered successfully`
     });
   } catch (error) {
-    console.error('Error unregistering plugin:', error);
+    logger.error('Error unregistering plugin:', { error });
     return NextResponse.json(
       { error: 'Failed to unregister plugin', details: String(error) },
       { status: 500 }

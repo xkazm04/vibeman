@@ -128,6 +128,28 @@ export function runMigrations() {
     migrateDeveloperMindMeldTables();
     // Migration 35: Update ideas table to support 1-10 scoring and add risk column
     migrateIdeasExtendedScoring();
+    // Migration 36: Create onboarding accelerator tables
+    migrateOnboardingAcceleratorTables();
+    // Migration 37: Create strategic roadmap engine tables
+    migrateStrategicRoadmapTables();
+    // Migration 38: Create hypothesis-driven testing tables
+    migrateHypothesisTestingTables();
+    // Migration 39: Create project health score tables
+    migrateProjectHealthTables();
+    // Migration 40: Create daily standup tables
+    migrateDailyStandupTables();
+    // Migration 41: Create red team testing tables
+    migrateRedTeamTestingTables();
+    // Migration 42: Create architecture graph tables
+    migrateArchitectureGraphTables();
+    // Migration 43: Create focus mode tables
+    migrateFocusModeTables();
+    // Migration 44: Create autonomous CI tables
+    migrateAutonomousCITables();
+    // Migration 45: Create ROI Simulator tables
+    migrateROISimulatorTables();
+    // Migration 46: Create Goal Hub tables
+    migrateGoalHub();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -2669,4 +2691,1345 @@ function migrateIdeasExtendedScoring() {
 
     migrationLogger.success('Ideas table successfully migrated to 1-10 scoring scale with risk column');
   }, migrationLogger);
+}
+
+/**
+ * Migration 36: Create onboarding accelerator tables for AI-driven developer onboarding
+ */
+function migrateOnboardingAcceleratorTables() {
+  const db = getConnection();
+
+  // Create learning_paths table
+  safeMigration('learningPathsTable', () => {
+    const created = createTableIfNotExists(db, 'learning_paths', `
+      CREATE TABLE learning_paths (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        developer_name TEXT NOT NULL,
+        assigned_work TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL CHECK (status IN ('draft', 'active', 'completed', 'archived')) DEFAULT 'draft',
+        total_modules INTEGER NOT NULL DEFAULT 0,
+        completed_modules INTEGER NOT NULL DEFAULT 0,
+        progress_percentage INTEGER NOT NULL DEFAULT 0,
+        estimated_hours REAL NOT NULL DEFAULT 0,
+        actual_hours REAL NOT NULL DEFAULT 0,
+        learning_speed REAL NOT NULL DEFAULT 1.0,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_learning_paths_project ON learning_paths(project_id);
+        CREATE INDEX idx_learning_paths_status ON learning_paths(status);
+        CREATE INDEX idx_learning_paths_developer ON learning_paths(developer_name);
+      `);
+      migrationLogger.info('learning_paths table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create learning_modules table
+  safeMigration('learningModulesTable', () => {
+    const created = createTableIfNotExists(db, 'learning_modules', `
+      CREATE TABLE learning_modules (
+        id TEXT PRIMARY KEY,
+        path_id TEXT NOT NULL,
+        context_id TEXT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        order_index INTEGER NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('locked', 'available', 'in_progress', 'completed', 'skipped')) DEFAULT 'locked',
+        difficulty TEXT NOT NULL CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')) DEFAULT 'beginner',
+        estimated_minutes INTEGER NOT NULL DEFAULT 30,
+        actual_minutes INTEGER,
+        relevance_score INTEGER NOT NULL DEFAULT 50 CHECK (relevance_score >= 0 AND relevance_score <= 100),
+        prerequisites TEXT NOT NULL DEFAULT '[]',
+        key_concepts TEXT NOT NULL DEFAULT '[]',
+        code_areas TEXT NOT NULL DEFAULT '[]',
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (path_id) REFERENCES learning_paths(id) ON DELETE CASCADE,
+        FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_learning_modules_path ON learning_modules(path_id);
+        CREATE INDEX idx_learning_modules_context ON learning_modules(context_id);
+        CREATE INDEX idx_learning_modules_status ON learning_modules(status);
+        CREATE INDEX idx_learning_modules_order ON learning_modules(path_id, order_index);
+      `);
+      migrationLogger.info('learning_modules table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create code_walkthroughs table
+  safeMigration('codeWalkthroughsTable', () => {
+    const created = createTableIfNotExists(db, 'code_walkthroughs', `
+      CREATE TABLE code_walkthroughs (
+        id TEXT PRIMARY KEY,
+        module_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        file_path TEXT NOT NULL,
+        start_line INTEGER NOT NULL,
+        end_line INTEGER NOT NULL,
+        order_index INTEGER NOT NULL,
+        explanation TEXT NOT NULL,
+        key_points TEXT NOT NULL DEFAULT '[]',
+        related_files TEXT NOT NULL DEFAULT '[]',
+        viewed INTEGER NOT NULL DEFAULT 0,
+        viewed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (module_id) REFERENCES learning_modules(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_code_walkthroughs_module ON code_walkthroughs(module_id);
+        CREATE INDEX idx_code_walkthroughs_order ON code_walkthroughs(module_id, order_index);
+        CREATE INDEX idx_code_walkthroughs_file ON code_walkthroughs(file_path);
+      `);
+      migrationLogger.info('code_walkthroughs table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create quiz_questions table
+  safeMigration('quizQuestionsTable', () => {
+    const created = createTableIfNotExists(db, 'quiz_questions', `
+      CREATE TABLE quiz_questions (
+        id TEXT PRIMARY KEY,
+        module_id TEXT NOT NULL,
+        question TEXT NOT NULL,
+        question_type TEXT NOT NULL CHECK (question_type IN ('multiple_choice', 'code_review', 'true_false', 'fill_blank')),
+        options TEXT NOT NULL DEFAULT '[]',
+        correct_answer TEXT NOT NULL,
+        explanation TEXT NOT NULL,
+        code_snippet TEXT,
+        difficulty TEXT NOT NULL CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')) DEFAULT 'intermediate',
+        points INTEGER NOT NULL DEFAULT 10,
+        order_index INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (module_id) REFERENCES learning_modules(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_quiz_questions_module ON quiz_questions(module_id);
+        CREATE INDEX idx_quiz_questions_type ON quiz_questions(question_type);
+        CREATE INDEX idx_quiz_questions_order ON quiz_questions(module_id, order_index);
+      `);
+      migrationLogger.info('quiz_questions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create quiz_responses table
+  safeMigration('quizResponsesTable', () => {
+    const created = createTableIfNotExists(db, 'quiz_responses', `
+      CREATE TABLE quiz_responses (
+        id TEXT PRIMARY KEY,
+        question_id TEXT NOT NULL,
+        path_id TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('correct', 'incorrect', 'partial')),
+        points_earned INTEGER NOT NULL DEFAULT 0,
+        time_taken_seconds INTEGER NOT NULL DEFAULT 0,
+        attempt_number INTEGER NOT NULL DEFAULT 1,
+        feedback TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE,
+        FOREIGN KEY (path_id) REFERENCES learning_paths(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_quiz_responses_question ON quiz_responses(question_id);
+        CREATE INDEX idx_quiz_responses_path ON quiz_responses(path_id);
+        CREATE INDEX idx_quiz_responses_status ON quiz_responses(status);
+      `);
+      migrationLogger.info('quiz_responses table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create learning_metrics table
+  safeMigration('learningMetricsTable', () => {
+    const created = createTableIfNotExists(db, 'learning_metrics', `
+      CREATE TABLE learning_metrics (
+        id TEXT PRIMARY KEY,
+        path_id TEXT NOT NULL,
+        module_id TEXT,
+        estimated_time_minutes INTEGER NOT NULL DEFAULT 0,
+        actual_time_minutes INTEGER NOT NULL DEFAULT 0,
+        quiz_attempts INTEGER NOT NULL DEFAULT 0,
+        quiz_correct INTEGER NOT NULL DEFAULT 0,
+        quiz_total INTEGER NOT NULL DEFAULT 0,
+        average_quiz_score REAL NOT NULL DEFAULT 0,
+        reading_speed_factor REAL NOT NULL DEFAULT 1.0,
+        comprehension_score REAL NOT NULL DEFAULT 0,
+        walkthroughs_viewed INTEGER NOT NULL DEFAULT 0,
+        walkthroughs_total INTEGER NOT NULL DEFAULT 0,
+        revisits INTEGER NOT NULL DEFAULT 0,
+        last_activity_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (path_id) REFERENCES learning_paths(id) ON DELETE CASCADE,
+        FOREIGN KEY (module_id) REFERENCES learning_modules(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_learning_metrics_path ON learning_metrics(path_id);
+        CREATE INDEX idx_learning_metrics_module ON learning_metrics(module_id);
+        CREATE INDEX idx_learning_metrics_activity ON learning_metrics(last_activity_at);
+      `);
+      migrationLogger.info('learning_metrics table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create onboarding_recommendations table
+  safeMigration('onboardingRecommendationsTable', () => {
+    const created = createTableIfNotExists(db, 'onboarding_recommendations', `
+      CREATE TABLE onboarding_recommendations (
+        id TEXT PRIMARY KEY,
+        path_id TEXT NOT NULL,
+        recommendation_type TEXT NOT NULL CHECK (recommendation_type IN ('add_module', 'skip_module', 'revisit_module', 'adjust_pace', 'add_practice')),
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        context_id TEXT,
+        module_id TEXT,
+        priority INTEGER NOT NULL DEFAULT 5 CHECK (priority >= 1 AND priority <= 10),
+        status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'dismissed')) DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (path_id) REFERENCES learning_paths(id) ON DELETE CASCADE,
+        FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL,
+        FOREIGN KEY (module_id) REFERENCES learning_modules(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_onboarding_recommendations_path ON onboarding_recommendations(path_id);
+        CREATE INDEX idx_onboarding_recommendations_status ON onboarding_recommendations(status);
+        CREATE INDEX idx_onboarding_recommendations_priority ON onboarding_recommendations(priority DESC);
+        CREATE INDEX idx_onboarding_recommendations_type ON onboarding_recommendations(recommendation_type);
+      `);
+      migrationLogger.info('onboarding_recommendations table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Onboarding Accelerator tables created successfully');
+}
+
+/**
+ * Migration 37: Create strategic roadmap engine tables
+ * Tables for predictive 6-month development roadmap with game-theoretic modeling
+ */
+function migrateStrategicRoadmapTables() {
+  const db = getConnection();
+
+  // Create strategic_initiatives table
+  safeMigration('strategicInitiativesTable', () => {
+    const created = createTableIfNotExists(db, 'strategic_initiatives', `
+      CREATE TABLE strategic_initiatives (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        initiative_type TEXT NOT NULL CHECK (initiative_type IN ('feature', 'refactoring', 'debt_reduction', 'security', 'performance', 'infrastructure')),
+        priority INTEGER NOT NULL DEFAULT 5 CHECK (priority >= 1 AND priority <= 10),
+        business_impact_score INTEGER NOT NULL DEFAULT 50 CHECK (business_impact_score >= 0 AND business_impact_score <= 100),
+        technical_impact_score INTEGER NOT NULL DEFAULT 50 CHECK (technical_impact_score >= 0 AND technical_impact_score <= 100),
+        risk_reduction_score INTEGER NOT NULL DEFAULT 0 CHECK (risk_reduction_score >= 0 AND risk_reduction_score <= 100),
+        velocity_impact_score INTEGER NOT NULL DEFAULT 0 CHECK (velocity_impact_score >= -100 AND velocity_impact_score <= 100),
+        estimated_effort_hours INTEGER NOT NULL DEFAULT 0,
+        estimated_complexity TEXT NOT NULL CHECK (estimated_complexity IN ('trivial', 'low', 'medium', 'high', 'extreme')) DEFAULT 'medium',
+        target_quarter TEXT NOT NULL,
+        target_month INTEGER NOT NULL DEFAULT 1 CHECK (target_month >= 1 AND target_month <= 6),
+        depends_on TEXT NOT NULL DEFAULT '[]',
+        blocks TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL CHECK (status IN ('proposed', 'approved', 'in_progress', 'completed', 'deferred', 'cancelled')) DEFAULT 'proposed',
+        confidence_score INTEGER NOT NULL DEFAULT 50 CHECK (confidence_score >= 0 AND confidence_score <= 100),
+        simulated_outcomes TEXT NOT NULL DEFAULT '{}',
+        related_tech_debt_ids TEXT NOT NULL DEFAULT '[]',
+        related_goal_ids TEXT NOT NULL DEFAULT '[]',
+        related_idea_ids TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        completed_at TEXT
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_strategic_initiatives_project ON strategic_initiatives(project_id);
+        CREATE INDEX idx_strategic_initiatives_status ON strategic_initiatives(status);
+        CREATE INDEX idx_strategic_initiatives_type ON strategic_initiatives(initiative_type);
+        CREATE INDEX idx_strategic_initiatives_quarter ON strategic_initiatives(target_quarter);
+        CREATE INDEX idx_strategic_initiatives_priority ON strategic_initiatives(priority DESC);
+      `);
+      migrationLogger.info('strategic_initiatives table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create roadmap_milestones table
+  safeMigration('roadmapMilestonesTable', () => {
+    const created = createTableIfNotExists(db, 'roadmap_milestones', `
+      CREATE TABLE roadmap_milestones (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        initiative_id TEXT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        target_date TEXT NOT NULL,
+        quarter_index INTEGER NOT NULL CHECK (quarter_index >= 1 AND quarter_index <= 6),
+        month_index INTEGER NOT NULL CHECK (month_index >= 1 AND month_index <= 6),
+        target_health_score INTEGER NOT NULL DEFAULT 70 CHECK (target_health_score >= 0 AND target_health_score <= 100),
+        target_debt_reduction INTEGER NOT NULL DEFAULT 0,
+        target_velocity_improvement INTEGER NOT NULL DEFAULT 0,
+        actual_health_score INTEGER,
+        actual_debt_reduction INTEGER,
+        actual_velocity_change INTEGER,
+        status TEXT NOT NULL CHECK (status IN ('upcoming', 'current', 'achieved', 'missed', 'skipped')) DEFAULT 'upcoming',
+        key_results TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        achieved_at TEXT,
+        FOREIGN KEY (initiative_id) REFERENCES strategic_initiatives(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_roadmap_milestones_project ON roadmap_milestones(project_id);
+        CREATE INDEX idx_roadmap_milestones_initiative ON roadmap_milestones(initiative_id);
+        CREATE INDEX idx_roadmap_milestones_status ON roadmap_milestones(status);
+        CREATE INDEX idx_roadmap_milestones_month ON roadmap_milestones(month_index);
+      `);
+      migrationLogger.info('roadmap_milestones table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create impact_predictions table
+  safeMigration('impactPredictionsTable', () => {
+    const created = createTableIfNotExists(db, 'impact_predictions', `
+      CREATE TABLE impact_predictions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        subject_type TEXT NOT NULL CHECK (subject_type IN ('initiative', 'tech_debt', 'feature', 'refactoring')),
+        subject_id TEXT NOT NULL,
+        prediction_horizon TEXT NOT NULL CHECK (prediction_horizon IN ('1_month', '3_months', '6_months')),
+        predicted_at TEXT NOT NULL DEFAULT (datetime('now')),
+        debt_impact INTEGER NOT NULL DEFAULT 0 CHECK (debt_impact >= -100 AND debt_impact <= 100),
+        velocity_impact INTEGER NOT NULL DEFAULT 0 CHECK (velocity_impact >= -100 AND velocity_impact <= 100),
+        risk_impact INTEGER NOT NULL DEFAULT 0 CHECK (risk_impact >= -100 AND risk_impact <= 100),
+        complexity_impact INTEGER NOT NULL DEFAULT 0 CHECK (complexity_impact >= -100 AND complexity_impact <= 100),
+        confidence_score INTEGER NOT NULL DEFAULT 50 CHECK (confidence_score >= 0 AND confidence_score <= 100),
+        methodology TEXT NOT NULL DEFAULT '',
+        interactions TEXT NOT NULL DEFAULT '[]',
+        nash_equilibrium TEXT,
+        pareto_optimal INTEGER NOT NULL DEFAULT 0,
+        simulation_runs INTEGER NOT NULL DEFAULT 0,
+        best_case_outcome TEXT NOT NULL DEFAULT '{}',
+        worst_case_outcome TEXT NOT NULL DEFAULT '{}',
+        most_likely_outcome TEXT NOT NULL DEFAULT '{}',
+        actual_outcome TEXT,
+        prediction_accuracy INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        validated_at TEXT
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_impact_predictions_project ON impact_predictions(project_id);
+        CREATE INDEX idx_impact_predictions_subject ON impact_predictions(subject_type, subject_id);
+        CREATE INDEX idx_impact_predictions_horizon ON impact_predictions(prediction_horizon);
+      `);
+      migrationLogger.info('impact_predictions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create feature_interactions table
+  safeMigration('featureInteractionsTable', () => {
+    const created = createTableIfNotExists(db, 'feature_interactions', `
+      CREATE TABLE feature_interactions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        feature_a_id TEXT NOT NULL,
+        feature_a_type TEXT NOT NULL CHECK (feature_a_type IN ('initiative', 'idea', 'tech_debt', 'goal')),
+        feature_b_id TEXT NOT NULL,
+        feature_b_type TEXT NOT NULL CHECK (feature_b_type IN ('initiative', 'idea', 'tech_debt', 'goal')),
+        interaction_type TEXT NOT NULL CHECK (interaction_type IN ('synergy', 'conflict', 'dependency', 'neutral')),
+        interaction_strength INTEGER NOT NULL DEFAULT 50 CHECK (interaction_strength >= 0 AND interaction_strength <= 100),
+        is_bidirectional INTEGER NOT NULL DEFAULT 1,
+        impact_a_on_b INTEGER NOT NULL DEFAULT 0 CHECK (impact_a_on_b >= -100 AND impact_a_on_b <= 100),
+        impact_b_on_a INTEGER NOT NULL DEFAULT 0 CHECK (impact_b_on_a >= -100 AND impact_b_on_a <= 100),
+        shared_files TEXT NOT NULL DEFAULT '[]',
+        shared_contexts TEXT NOT NULL DEFAULT '[]',
+        analysis TEXT NOT NULL DEFAULT '',
+        recommendations TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_feature_interactions_project ON feature_interactions(project_id);
+        CREATE INDEX idx_feature_interactions_a ON feature_interactions(feature_a_type, feature_a_id);
+        CREATE INDEX idx_feature_interactions_b ON feature_interactions(feature_b_type, feature_b_id);
+        CREATE INDEX idx_feature_interactions_type ON feature_interactions(interaction_type);
+      `);
+      migrationLogger.info('feature_interactions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create debt_prevention_rules table
+  safeMigration('debtPreventionRulesTable', () => {
+    const created = createTableIfNotExists(db, 'debt_prevention_rules', `
+      CREATE TABLE debt_prevention_rules (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        debt_pattern_id TEXT,
+        target_category TEXT NOT NULL,
+        trigger_type TEXT NOT NULL CHECK (trigger_type IN ('file_change', 'complexity_threshold', 'dependency_added', 'pattern_detected')),
+        trigger_conditions TEXT NOT NULL DEFAULT '{}',
+        action_type TEXT NOT NULL CHECK (action_type IN ('warning', 'suggestion', 'auto_refactor', 'block')),
+        action_template TEXT NOT NULL DEFAULT '',
+        apply_at TEXT NOT NULL CHECK (apply_at IN ('pre_commit', 'on_save', 'on_scan', 'scheduled')) DEFAULT 'on_scan',
+        times_triggered INTEGER NOT NULL DEFAULT 0,
+        times_prevented INTEGER NOT NULL DEFAULT 0,
+        estimated_debt_prevented INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (debt_pattern_id) REFERENCES debt_patterns(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_debt_prevention_rules_project ON debt_prevention_rules(project_id);
+        CREATE INDEX idx_debt_prevention_rules_active ON debt_prevention_rules(is_active);
+        CREATE INDEX idx_debt_prevention_rules_pattern ON debt_prevention_rules(debt_pattern_id);
+      `);
+      migrationLogger.info('debt_prevention_rules table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create velocity_tracking table
+  safeMigration('velocityTrackingTable', () => {
+    const created = createTableIfNotExists(db, 'velocity_tracking', `
+      CREATE TABLE velocity_tracking (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        period_start TEXT NOT NULL,
+        period_end TEXT NOT NULL,
+        period_type TEXT NOT NULL CHECK (period_type IN ('daily', 'weekly', 'monthly')),
+        ideas_implemented INTEGER NOT NULL DEFAULT 0,
+        tech_debt_resolved INTEGER NOT NULL DEFAULT 0,
+        features_completed INTEGER NOT NULL DEFAULT 0,
+        refactorings_completed INTEGER NOT NULL DEFAULT 0,
+        bugs_introduced INTEGER NOT NULL DEFAULT 0,
+        bugs_fixed INTEGER NOT NULL DEFAULT 0,
+        test_coverage_change INTEGER NOT NULL DEFAULT 0,
+        total_effort_hours INTEGER NOT NULL DEFAULT 0,
+        effective_effort_hours INTEGER NOT NULL DEFAULT 0,
+        health_score INTEGER NOT NULL DEFAULT 0,
+        debt_score INTEGER NOT NULL DEFAULT 0,
+        complexity_score INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_velocity_tracking_project ON velocity_tracking(project_id);
+        CREATE INDEX idx_velocity_tracking_period ON velocity_tracking(period_start, period_end);
+        CREATE INDEX idx_velocity_tracking_type ON velocity_tracking(period_type);
+      `);
+      migrationLogger.info('velocity_tracking table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create roadmap_simulations table
+  safeMigration('roadmapSimulationsTable', () => {
+    const created = createTableIfNotExists(db, 'roadmap_simulations', `
+      CREATE TABLE roadmap_simulations (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        simulation_type TEXT NOT NULL CHECK (simulation_type IN ('baseline', 'optimistic', 'pessimistic', 'custom')) DEFAULT 'baseline',
+        input_parameters TEXT NOT NULL DEFAULT '{}',
+        assumptions TEXT NOT NULL DEFAULT '[]',
+        projected_initiatives TEXT NOT NULL DEFAULT '[]',
+        projected_milestones TEXT NOT NULL DEFAULT '[]',
+        projected_health_scores TEXT NOT NULL DEFAULT '[]',
+        projected_velocity TEXT NOT NULL DEFAULT '[]',
+        total_debt_reduction INTEGER NOT NULL DEFAULT 0,
+        velocity_improvement INTEGER NOT NULL DEFAULT 0,
+        risk_reduction INTEGER NOT NULL DEFAULT 0,
+        is_selected INTEGER NOT NULL DEFAULT 0,
+        comparison_notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_roadmap_simulations_project ON roadmap_simulations(project_id);
+        CREATE INDEX idx_roadmap_simulations_selected ON roadmap_simulations(is_selected);
+        CREATE INDEX idx_roadmap_simulations_type ON roadmap_simulations(simulation_type);
+      `);
+      migrationLogger.info('roadmap_simulations table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Strategic Roadmap Engine tables created successfully');
+}
+
+/**
+ * Migration 38: Create hypothesis-driven testing tables
+ * Tables for hypothesis testing, invariants, fuzzing, property tests, and knowledge
+ */
+function migrateHypothesisTestingTables() {
+  const db = getConnection();
+
+  // Create hypotheses table
+  safeMigration('hypothesesTable', () => {
+    const created = createTableIfNotExists(db, 'hypotheses', `
+      CREATE TABLE hypotheses (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        context_id TEXT,
+        title TEXT NOT NULL,
+        statement TEXT NOT NULL,
+        hypothesis_type TEXT NOT NULL CHECK (hypothesis_type IN (
+          'complexity', 'behavior', 'invariant', 'boundary', 'performance',
+          'security', 'concurrency', 'state', 'integration'
+        )),
+        target_code TEXT NOT NULL,
+        target_lines TEXT,
+        reasoning TEXT,
+        confidence INTEGER NOT NULL DEFAULT 50 CHECK (confidence >= 0 AND confidence <= 100),
+        discovery_source TEXT NOT NULL,
+        verification_method TEXT NOT NULL CHECK (verification_method IN (
+          'unit_test', 'property_test', 'fuzz_test', 'benchmark',
+          'static_analysis', 'runtime_check', 'integration_test'
+        )),
+        status TEXT NOT NULL DEFAULT 'proposed' CHECK (status IN (
+          'proposed', 'testing', 'proven', 'disproven', 'inconclusive', 'refined'
+        )),
+        priority INTEGER NOT NULL DEFAULT 5 CHECK (priority >= 1 AND priority <= 10),
+        risk_level TEXT NOT NULL DEFAULT 'medium' CHECK (risk_level IN ('low', 'medium', 'high', 'critical')),
+        test_count INTEGER NOT NULL DEFAULT 0,
+        pass_count INTEGER NOT NULL DEFAULT 0,
+        fail_count INTEGER NOT NULL DEFAULT 0,
+        evidence TEXT,
+        conclusion TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        tested_at TEXT
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_hypotheses_project ON hypotheses(project_id);
+        CREATE INDEX idx_hypotheses_context ON hypotheses(context_id);
+        CREATE INDEX idx_hypotheses_type ON hypotheses(hypothesis_type);
+        CREATE INDEX idx_hypotheses_status ON hypotheses(status);
+        CREATE INDEX idx_hypotheses_priority ON hypotheses(priority DESC);
+        CREATE INDEX idx_hypotheses_target ON hypotheses(target_code);
+      `);
+      migrationLogger.info('hypotheses table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create invariants table
+  safeMigration('invariantsTable', () => {
+    const created = createTableIfNotExists(db, 'invariants', `
+      CREATE TABLE invariants (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        hypothesis_id TEXT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category TEXT NOT NULL CHECK (category IN (
+          'null_safety', 'range_bounds', 'type_constraints', 'relationship',
+          'ordering', 'uniqueness', 'immutability', 'idempotence', 'custom'
+        )),
+        scope TEXT NOT NULL CHECK (scope IN ('function', 'class', 'module', 'global')),
+        target_code TEXT NOT NULL,
+        expression TEXT NOT NULL,
+        validated INTEGER NOT NULL DEFAULT 0,
+        validation_count INTEGER NOT NULL DEFAULT 0,
+        violation_count INTEGER NOT NULL DEFAULT 0,
+        last_violation TEXT,
+        confidence INTEGER NOT NULL DEFAULT 50 CHECK (confidence >= 0 AND confidence <= 100),
+        auto_generated INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (hypothesis_id) REFERENCES hypotheses(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_invariants_project ON invariants(project_id);
+        CREATE INDEX idx_invariants_hypothesis ON invariants(hypothesis_id);
+        CREATE INDEX idx_invariants_category ON invariants(category);
+        CREATE INDEX idx_invariants_target ON invariants(target_code);
+        CREATE INDEX idx_invariants_validated ON invariants(validated);
+      `);
+      migrationLogger.info('invariants table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create fuzz_sessions table
+  safeMigration('fuzzSessionsTable', () => {
+    const created = createTableIfNotExists(db, 'fuzz_sessions', `
+      CREATE TABLE fuzz_sessions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        hypothesis_id TEXT,
+        target_function TEXT NOT NULL,
+        target_file TEXT NOT NULL,
+        input_schema TEXT NOT NULL,
+        strategy TEXT NOT NULL DEFAULT 'random' CHECK (strategy IN (
+          'random', 'mutation', 'grammar', 'coverage', 'property', 'vulnerability'
+        )),
+        vulnerability_targets TEXT,
+        max_iterations INTEGER NOT NULL DEFAULT 10000,
+        timeout_ms INTEGER NOT NULL DEFAULT 5000,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+          'pending', 'running', 'completed', 'stopped', 'crashed'
+        )),
+        iterations_completed INTEGER NOT NULL DEFAULT 0,
+        crashes_found INTEGER NOT NULL DEFAULT 0,
+        hangs_found INTEGER NOT NULL DEFAULT 0,
+        coverage_increase REAL,
+        findings TEXT,
+        best_inputs TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (hypothesis_id) REFERENCES hypotheses(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_fuzz_sessions_project ON fuzz_sessions(project_id);
+        CREATE INDEX idx_fuzz_sessions_hypothesis ON fuzz_sessions(hypothesis_id);
+        CREATE INDEX idx_fuzz_sessions_status ON fuzz_sessions(status);
+        CREATE INDEX idx_fuzz_sessions_target ON fuzz_sessions(target_file);
+      `);
+      migrationLogger.info('fuzz_sessions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create property_tests table
+  safeMigration('propertyTestsTable', () => {
+    const created = createTableIfNotExists(db, 'property_tests', `
+      CREATE TABLE property_tests (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        hypothesis_id TEXT,
+        invariant_id TEXT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        property_type TEXT NOT NULL CHECK (property_type IN (
+          'for_all', 'there_exists', 'commutative', 'associative',
+          'idempotent', 'inverse', 'monotonic', 'bounded', 'custom'
+        )),
+        target_function TEXT NOT NULL,
+        target_file TEXT NOT NULL,
+        generator_code TEXT NOT NULL,
+        predicate_code TEXT NOT NULL,
+        shrink_code TEXT,
+        num_tests INTEGER NOT NULL DEFAULT 100,
+        seed INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+          'pending', 'running', 'passed', 'failed'
+        )),
+        tests_run INTEGER NOT NULL DEFAULT 0,
+        counterexamples TEXT,
+        shrunk_example TEXT,
+        execution_time_ms INTEGER,
+        last_run_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (hypothesis_id) REFERENCES hypotheses(id) ON DELETE SET NULL,
+        FOREIGN KEY (invariant_id) REFERENCES invariants(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_property_tests_project ON property_tests(project_id);
+        CREATE INDEX idx_property_tests_hypothesis ON property_tests(hypothesis_id);
+        CREATE INDEX idx_property_tests_invariant ON property_tests(invariant_id);
+        CREATE INDEX idx_property_tests_status ON property_tests(status);
+        CREATE INDEX idx_property_tests_target ON property_tests(target_file);
+      `);
+      migrationLogger.info('property_tests table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create test_knowledge table
+  safeMigration('testKnowledgeTable', () => {
+    const created = createTableIfNotExists(db, 'test_knowledge', `
+      CREATE TABLE test_knowledge (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        hypothesis_id TEXT,
+        knowledge_type TEXT NOT NULL CHECK (knowledge_type IN (
+          'invariant_discovered', 'bug_found', 'performance_baseline',
+          'security_issue', 'behavior_documented', 'edge_case_identified'
+        )),
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        related_files TEXT NOT NULL,
+        related_functions TEXT,
+        source_test_id TEXT,
+        evidence_summary TEXT NOT NULL,
+        confidence INTEGER NOT NULL DEFAULT 50 CHECK (confidence >= 0 AND confidence <= 100),
+        impact_assessment TEXT,
+        recommendations TEXT,
+        acknowledged INTEGER NOT NULL DEFAULT 0,
+        resolved INTEGER NOT NULL DEFAULT 0,
+        resolution_notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (hypothesis_id) REFERENCES hypotheses(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_test_knowledge_project ON test_knowledge(project_id);
+        CREATE INDEX idx_test_knowledge_hypothesis ON test_knowledge(hypothesis_id);
+        CREATE INDEX idx_test_knowledge_type ON test_knowledge(knowledge_type);
+        CREATE INDEX idx_test_knowledge_acknowledged ON test_knowledge(acknowledged);
+        CREATE INDEX idx_test_knowledge_resolved ON test_knowledge(resolved);
+      `);
+      migrationLogger.info('test_knowledge table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Hypothesis-driven testing tables created successfully');
+}
+
+/**
+ * Migration 39: Create project health score tables
+ */
+function migrateProjectHealthTables() {
+  const db = getConnection();
+
+  // Create project_health table for health score snapshots
+  safeMigration('projectHealthTable', () => {
+    const created = createTableIfNotExists(db, 'project_health', `
+      CREATE TABLE project_health (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        overall_score INTEGER NOT NULL CHECK(overall_score >= 0 AND overall_score <= 100),
+        status TEXT NOT NULL CHECK(status IN ('excellent', 'good', 'fair', 'poor', 'critical')),
+        category_scores TEXT NOT NULL,
+        trend REAL DEFAULT 0,
+        trend_direction TEXT DEFAULT 'stable' CHECK(trend_direction IN ('up', 'down', 'stable')),
+        ai_explanation TEXT,
+        ai_recommendation TEXT,
+        created_at TEXT NOT NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_project_health_project ON project_health(project_id);
+        CREATE INDEX idx_project_health_created ON project_health(created_at DESC);
+        CREATE INDEX idx_project_health_status ON project_health(status);
+      `);
+      migrationLogger.info('project_health table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create health_score_config table for project-specific configuration
+  safeMigration('healthScoreConfigTable', () => {
+    const created = createTableIfNotExists(db, 'health_score_config', `
+      CREATE TABLE health_score_config (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL UNIQUE,
+        enabled INTEGER DEFAULT 1,
+        auto_calculate INTEGER DEFAULT 1,
+        calculation_frequency TEXT DEFAULT 'on_change' CHECK(calculation_frequency IN ('on_change', 'hourly', 'daily')),
+        category_weights TEXT NOT NULL,
+        thresholds TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_health_config_project ON health_score_config(project_id);
+      `);
+      migrationLogger.info('health_score_config table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Project health score tables created successfully');
+}
+
+/**
+ * Migration 40: Create daily standup tables
+ */
+function migrateDailyStandupTables() {
+  const db = getConnection();
+
+  // Create standup_summaries table
+  safeMigration('standupSummariesTable', () => {
+    const created = createTableIfNotExists(db, 'standup_summaries', `
+      CREATE TABLE standup_summaries (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        period_type TEXT NOT NULL CHECK (period_type IN ('daily', 'weekly')),
+        period_start TEXT NOT NULL,
+        period_end TEXT NOT NULL,
+
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+
+        implementations_count INTEGER NOT NULL DEFAULT 0,
+        ideas_generated INTEGER NOT NULL DEFAULT 0,
+        ideas_accepted INTEGER NOT NULL DEFAULT 0,
+        ideas_rejected INTEGER NOT NULL DEFAULT 0,
+        ideas_implemented INTEGER NOT NULL DEFAULT 0,
+        scans_count INTEGER NOT NULL DEFAULT 0,
+
+        blockers TEXT,
+        highlights TEXT,
+
+        velocity_trend TEXT CHECK (velocity_trend IN ('increasing', 'stable', 'decreasing')),
+        burnout_risk TEXT CHECK (burnout_risk IN ('low', 'medium', 'high')),
+        focus_areas TEXT,
+
+        input_tokens INTEGER,
+        output_tokens INTEGER,
+
+        generated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+
+        UNIQUE(project_id, period_type, period_start)
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_standup_summaries_project ON standup_summaries(project_id);
+        CREATE INDEX idx_standup_summaries_period_type ON standup_summaries(period_type);
+        CREATE INDEX idx_standup_summaries_period_start ON standup_summaries(period_start);
+        CREATE INDEX idx_standup_summaries_generated_at ON standup_summaries(generated_at DESC);
+      `);
+      migrationLogger.info('standup_summaries table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Daily standup tables created successfully');
+}
+
+/**
+ * Migration 41: Create red team testing tables
+ * Adversarial testing with specialized AI agents
+ */
+function migrateRedTeamTestingTables() {
+  const db = getConnection();
+
+  // Create red_team_sessions table
+  safeMigration('redTeamSessionsTable', () => {
+    const created = createTableIfNotExists(db, 'red_team_sessions', `
+      CREATE TABLE red_team_sessions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        context_id TEXT,
+        name TEXT NOT NULL,
+        description TEXT,
+        target_scope TEXT NOT NULL,
+        attack_categories TEXT NOT NULL,
+        participating_agents TEXT NOT NULL,
+        agent_roles TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'planning' CHECK (status IN (
+          'planning', 'attacking', 'debating', 'validating', 'reporting', 'completed'
+        )),
+        current_phase TEXT,
+        progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+        total_attacks INTEGER NOT NULL DEFAULT 0,
+        successful_attacks INTEGER NOT NULL DEFAULT 0,
+        vulnerabilities_found INTEGER NOT NULL DEFAULT 0,
+        critical_count INTEGER NOT NULL DEFAULT 0,
+        high_count INTEGER NOT NULL DEFAULT 0,
+        medium_count INTEGER NOT NULL DEFAULT 0,
+        low_count INTEGER NOT NULL DEFAULT 0,
+        overall_risk_score INTEGER CHECK (overall_risk_score >= 0 AND overall_risk_score <= 100),
+        risk_summary TEXT,
+        input_tokens INTEGER,
+        output_tokens INTEGER,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_red_team_sessions_project ON red_team_sessions(project_id);
+        CREATE INDEX idx_red_team_sessions_status ON red_team_sessions(status);
+      `);
+      migrationLogger.info('red_team_sessions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create red_team_attacks table
+  safeMigration('redTeamAttacksTable', () => {
+    const created = createTableIfNotExists(db, 'red_team_attacks', `
+      CREATE TABLE red_team_attacks (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category TEXT NOT NULL CHECK (category IN (
+          'security', 'performance', 'accessibility', 'edge_case',
+          'state', 'concurrency', 'input', 'integration'
+        )),
+        agent_type TEXT NOT NULL,
+        target_component TEXT NOT NULL,
+        target_code TEXT,
+        attack_vector TEXT NOT NULL,
+        payloads TEXT,
+        prerequisites TEXT,
+        expected_outcome TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN (
+          'planned', 'executing', 'succeeded', 'failed', 'blocked', 'error'
+        )),
+        severity TEXT NOT NULL DEFAULT 'medium' CHECK (severity IN (
+          'info', 'low', 'medium', 'high', 'critical'
+        )),
+        executed_at TEXT,
+        execution_time_ms INTEGER,
+        vulnerability_found INTEGER NOT NULL DEFAULT 0,
+        actual_outcome TEXT,
+        error_message TEXT,
+        stack_trace TEXT,
+        evidence TEXT,
+        success_probability INTEGER NOT NULL DEFAULT 50 CHECK (success_probability >= 0 AND success_probability <= 100),
+        impact_score INTEGER NOT NULL DEFAULT 5 CHECK (impact_score >= 1 AND impact_score <= 10),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (session_id) REFERENCES red_team_sessions(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_red_team_attacks_session ON red_team_attacks(session_id);
+        CREATE INDEX idx_red_team_attacks_project ON red_team_attacks(project_id);
+        CREATE INDEX idx_red_team_attacks_status ON red_team_attacks(status);
+      `);
+      migrationLogger.info('red_team_attacks table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create red_team_vulnerabilities table
+  safeMigration('redTeamVulnerabilitiesTable', () => {
+    const created = createTableIfNotExists(db, 'red_team_vulnerabilities', `
+      CREATE TABLE red_team_vulnerabilities (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        attack_id TEXT,
+        project_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category TEXT NOT NULL CHECK (category IN (
+          'injection', 'broken_auth', 'sensitive_exposure', 'xxe',
+          'broken_access', 'misconfig', 'xss', 'deserialization',
+          'components', 'logging', 'dos', 'a11y', 'logic', 'race_condition'
+        )),
+        cwe_id TEXT,
+        owasp_category TEXT,
+        affected_component TEXT NOT NULL,
+        affected_file TEXT,
+        affected_lines TEXT,
+        code_snippet TEXT,
+        severity TEXT NOT NULL DEFAULT 'medium' CHECK (severity IN (
+          'info', 'low', 'medium', 'high', 'critical'
+        )),
+        cvss_score REAL CHECK (cvss_score >= 0 AND cvss_score <= 10),
+        exploitability INTEGER CHECK (exploitability >= 1 AND exploitability <= 10),
+        business_impact INTEGER CHECK (business_impact >= 1 AND business_impact <= 10),
+        reproduction_steps TEXT NOT NULL,
+        proof_of_concept TEXT,
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN (
+          'open', 'confirmed', 'disputed', 'fixed', 'wont_fix', 'false_positive'
+        )),
+        confirmed_by TEXT,
+        disputed_by TEXT,
+        remediation_suggestion TEXT,
+        fix_effort INTEGER CHECK (fix_effort >= 1 AND fix_effort <= 10),
+        fix_priority INTEGER CHECK (fix_priority >= 1 AND fix_priority <= 10),
+        discovered_at TEXT NOT NULL DEFAULT (datetime('now')),
+        confirmed_at TEXT,
+        resolved_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (session_id) REFERENCES red_team_sessions(id) ON DELETE CASCADE,
+        FOREIGN KEY (attack_id) REFERENCES red_team_attacks(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_red_team_vulns_session ON red_team_vulnerabilities(session_id);
+        CREATE INDEX idx_red_team_vulns_project ON red_team_vulnerabilities(project_id);
+        CREATE INDEX idx_red_team_vulns_severity ON red_team_vulnerabilities(severity);
+        CREATE INDEX idx_red_team_vulns_status ON red_team_vulnerabilities(status);
+      `);
+      migrationLogger.info('red_team_vulnerabilities table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create vulnerability_debates table
+  safeMigration('vulnerabilityDebatesTable', () => {
+    const created = createTableIfNotExists(db, 'vulnerability_debates', `
+      CREATE TABLE vulnerability_debates (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        vulnerability_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        participating_agents TEXT NOT NULL,
+        max_rounds INTEGER NOT NULL DEFAULT 3,
+        consensus_threshold REAL NOT NULL DEFAULT 0.7,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+          'pending', 'in_progress', 'completed'
+        )),
+        current_round INTEGER NOT NULL DEFAULT 0,
+        turns TEXT NOT NULL DEFAULT '[]',
+        outcome TEXT CHECK (outcome IN (
+          'vulnerability_confirmed', 'vulnerability_disputed',
+          'false_positive', 'needs_more_evidence', 'escalated'
+        )),
+        consensus_level REAL CHECK (consensus_level >= 0 AND consensus_level <= 1),
+        final_severity TEXT CHECK (final_severity IN (
+          'info', 'low', 'medium', 'high', 'critical'
+        )),
+        reasoning_summary TEXT,
+        input_tokens INTEGER,
+        output_tokens INTEGER,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (session_id) REFERENCES red_team_sessions(id) ON DELETE CASCADE,
+        FOREIGN KEY (vulnerability_id) REFERENCES red_team_vulnerabilities(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_vuln_debates_session ON vulnerability_debates(session_id);
+        CREATE INDEX idx_vuln_debates_vulnerability ON vulnerability_debates(vulnerability_id);
+        CREATE INDEX idx_vuln_debates_status ON vulnerability_debates(status);
+      `);
+      migrationLogger.info('vulnerability_debates table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Red team testing tables created successfully');
+}
+
+/**
+ * Migration 42: Create architecture graph tables
+ * Living Architecture Evolution Graph for dependency tracking and drift detection
+ */
+function migrateArchitectureGraphTables() {
+  const db = getConnection();
+
+  // Create architecture_nodes table
+  safeMigration('architectureNodesTable', () => {
+    const created = createTableIfNotExists(db, 'architecture_nodes', `
+      CREATE TABLE architecture_nodes (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        path TEXT NOT NULL,
+        name TEXT NOT NULL,
+        node_type TEXT NOT NULL DEFAULT 'module' CHECK (node_type IN (
+          'module', 'component', 'api_route', 'utility', 'store',
+          'hook', 'context', 'service', 'repository', 'external', 'config'
+        )),
+        layer TEXT CHECK (layer IN ('pages', 'client', 'server', 'external')),
+        context_group_id TEXT,
+        complexity_score INTEGER NOT NULL DEFAULT 0 CHECK (complexity_score >= 0 AND complexity_score <= 100),
+        stability_score INTEGER NOT NULL DEFAULT 50 CHECK (stability_score >= 0 AND stability_score <= 100),
+        coupling_score INTEGER NOT NULL DEFAULT 0 CHECK (coupling_score >= 0 AND coupling_score <= 100),
+        cohesion_score INTEGER NOT NULL DEFAULT 50 CHECK (cohesion_score >= 0 AND cohesion_score <= 100),
+        loc INTEGER NOT NULL DEFAULT 0,
+        incoming_count INTEGER NOT NULL DEFAULT 0,
+        outgoing_count INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        last_modified TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(project_id, path),
+        FOREIGN KEY (context_group_id) REFERENCES context_groups(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_arch_nodes_project ON architecture_nodes(project_id);
+        CREATE INDEX idx_arch_nodes_layer ON architecture_nodes(project_id, layer);
+        CREATE INDEX idx_arch_nodes_type ON architecture_nodes(project_id, node_type);
+        CREATE INDEX idx_arch_nodes_context ON architecture_nodes(context_group_id);
+      `);
+      migrationLogger.info('architecture_nodes table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create architecture_edges table
+  safeMigration('architectureEdgesTable', () => {
+    const created = createTableIfNotExists(db, 'architecture_edges', `
+      CREATE TABLE architecture_edges (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        source_node_id TEXT NOT NULL,
+        target_node_id TEXT NOT NULL,
+        weight TEXT NOT NULL DEFAULT 'required' CHECK (weight IN (
+          'required', 'optional', 'circular', 'weak', 'strong'
+        )),
+        import_count INTEGER NOT NULL DEFAULT 1,
+        import_types TEXT NOT NULL DEFAULT '[]',
+        is_circular INTEGER NOT NULL DEFAULT 0,
+        strength INTEGER NOT NULL DEFAULT 50 CHECK (strength >= 0 AND strength <= 100),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(project_id, source_node_id, target_node_id),
+        FOREIGN KEY (source_node_id) REFERENCES architecture_nodes(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_node_id) REFERENCES architecture_nodes(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_arch_edges_project ON architecture_edges(project_id);
+        CREATE INDEX idx_arch_edges_source ON architecture_edges(source_node_id);
+        CREATE INDEX idx_arch_edges_target ON architecture_edges(target_node_id);
+        CREATE INDEX idx_arch_edges_circular ON architecture_edges(project_id, is_circular);
+      `);
+      migrationLogger.info('architecture_edges table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create architecture_drifts table
+  safeMigration('architectureDriftsTable', () => {
+    const created = createTableIfNotExists(db, 'architecture_drifts', `
+      CREATE TABLE architecture_drifts (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        node_id TEXT,
+        edge_id TEXT,
+        drift_type TEXT NOT NULL,
+        severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'critical')),
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        detected_pattern TEXT,
+        ideal_pattern TEXT,
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN (
+          'active', 'acknowledged', 'resolved', 'ignored'
+        )),
+        resolved_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (node_id) REFERENCES architecture_nodes(id) ON DELETE SET NULL,
+        FOREIGN KEY (edge_id) REFERENCES architecture_edges(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_arch_drifts_project ON architecture_drifts(project_id);
+        CREATE INDEX idx_arch_drifts_status ON architecture_drifts(project_id, status);
+        CREATE INDEX idx_arch_drifts_severity ON architecture_drifts(project_id, severity);
+      `);
+      migrationLogger.info('architecture_drifts table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create architecture_suggestions table
+  safeMigration('architectureSuggestionsTable', () => {
+    const created = createTableIfNotExists(db, 'architecture_suggestions', `
+      CREATE TABLE architecture_suggestions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        scan_id TEXT,
+        suggestion_type TEXT NOT NULL CHECK (suggestion_type IN (
+          'extract_module', 'merge_modules', 'break_circular', 'move_to_layer',
+          'introduce_interface', 'remove_dependency', 'consolidate_utilities'
+        )),
+        priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN (
+          'low', 'medium', 'high', 'critical'
+        )),
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        reasoning TEXT,
+        affected_nodes TEXT NOT NULL DEFAULT '[]',
+        affected_edges TEXT NOT NULL DEFAULT '[]',
+        predicted_effort INTEGER CHECK (predicted_effort >= 1 AND predicted_effort <= 10),
+        predicted_impact INTEGER CHECK (predicted_impact >= 1 AND predicted_impact <= 10),
+        predicted_risk INTEGER CHECK (predicted_risk >= 1 AND predicted_risk <= 10),
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+          'pending', 'accepted', 'rejected', 'implemented'
+        )),
+        user_feedback TEXT,
+        implemented_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_arch_suggestions_project ON architecture_suggestions(project_id);
+        CREATE INDEX idx_arch_suggestions_status ON architecture_suggestions(project_id, status);
+        CREATE INDEX idx_arch_suggestions_priority ON architecture_suggestions(project_id, priority);
+      `);
+      migrationLogger.info('architecture_suggestions table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create architecture_ideals table
+  safeMigration('architectureIdealsTable', () => {
+    const created = createTableIfNotExists(db, 'architecture_ideals', `
+      CREATE TABLE architecture_ideals (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        rule_type TEXT NOT NULL DEFAULT 'custom' CHECK (rule_type IN (
+          'layer_rule', 'dependency_rule', 'naming_rule', 'structure_rule', 'custom'
+        )),
+        rule_config TEXT NOT NULL DEFAULT '{}',
+        example_compliant TEXT,
+        example_violation TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'critical')),
+        violations_count INTEGER NOT NULL DEFAULT 0,
+        last_checked_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_arch_ideals_project ON architecture_ideals(project_id);
+        CREATE INDEX idx_arch_ideals_enabled ON architecture_ideals(project_id, enabled);
+      `);
+      migrationLogger.info('architecture_ideals table created successfully');
+    }
+  }, migrationLogger);
+
+  // Create architecture_snapshots table
+  safeMigration('architectureSnapshotsTable', () => {
+    const created = createTableIfNotExists(db, 'architecture_snapshots', `
+      CREATE TABLE architecture_snapshots (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        snapshot_type TEXT NOT NULL DEFAULT 'manual' CHECK (snapshot_type IN (
+          'manual', 'scheduled', 'before_refactor', 'milestone'
+        )),
+        name TEXT NOT NULL,
+        description TEXT,
+        nodes_count INTEGER NOT NULL DEFAULT 0,
+        edges_count INTEGER NOT NULL DEFAULT 0,
+        circular_count INTEGER NOT NULL DEFAULT 0,
+        avg_complexity REAL NOT NULL DEFAULT 0,
+        avg_coupling REAL NOT NULL DEFAULT 0,
+        graph_data TEXT NOT NULL DEFAULT '{}',
+        git_commit TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      db.exec(`
+        CREATE INDEX idx_arch_snapshots_project ON architecture_snapshots(project_id);
+        CREATE INDEX idx_arch_snapshots_type ON architecture_snapshots(project_id, snapshot_type);
+      `);
+      migrationLogger.info('architecture_snapshots table created successfully');
+    }
+  }, migrationLogger);
+
+  migrationLogger.success('Architecture graph tables created successfully');
+}
+
+/**
+ * Migration 43: Create focus mode tables
+ * Focus sessions, pomodoro tracking, and productivity analytics
+ */
+function migrateFocusModeTables() {
+  // Import and call the migration from the dedicated file
+  const { migrateFocusModeTables: migrate } = require('./034_focus_mode');
+  migrate(migrationLogger);
+}
+
+/**
+ * Migration 44: Create Autonomous CI tables
+ * AI-driven continuous integration automation
+ */
+function migrateAutonomousCITables() {
+  // Import and call the migration from the dedicated file
+  const { migrateAutonomousCITables: migrate } = require('./035_autonomous_ci');
+  migrate(migrationLogger);
+}
+
+/**
+ * Migration 45: Create ROI Simulator tables
+ * Development economics ROI simulation engine
+ */
+function migrateROISimulatorTables() {
+  // Import and call the migration from the dedicated file
+  const { migrateROISimulatorTables: migrate } = require('./036_roi_simulator');
+  migrate(migrationLogger);
+}
+
+/**
+ * Migration 46: Create Goal Hub tables
+ * Central orchestration for goal-driven development with hypothesis tracking
+ */
+function migrateGoalHub() {
+  // Import and call the migration from the dedicated file
+  const { migrateGoalHub: migrate } = require('./037_goal_hub');
+  migrate();
 }

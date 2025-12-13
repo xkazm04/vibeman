@@ -3,6 +3,7 @@ import {
   securityIntelligenceDb,
   securityAlertDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/security-intelligence
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching security intelligence:', error);
+    logger.error('Error fetching security intelligence:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch security intelligence' },
       { status: 500 }
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ intelligence });
   } catch (error) {
-    console.error('Error creating security intelligence:', error);
+    logger.error('Error creating security intelligence:', { error });
     return NextResponse.json(
       { error: 'Failed to create security intelligence' },
       { status: 500 }
@@ -144,7 +145,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting security intelligence:', error);
+    logger.error('Error deleting security intelligence:', { error });
     return NextResponse.json(
       { error: 'Failed to delete security intelligence' },
       { status: 500 }

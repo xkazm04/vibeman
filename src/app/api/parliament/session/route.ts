@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { debateSessionDb } from '@/app/features/Parliament/lib/reputationRepository';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/parliament/session
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('Get session error:', error);
+    logger.error('Get session error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -147,7 +148,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete session error:', error);
+    logger.error('Delete session error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

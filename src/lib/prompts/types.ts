@@ -25,9 +25,9 @@ export type PromptTaskType =
 
 /**
  * Prompt mode determines which template variant to use
- * @deprecated Use ScanType from @/app/features/Ideas/lib/scanTypes instead
+ * @deprecated Use ScanType from @/lib/prompts/registry/types instead
  */
-export type PromptMode = import('@/app/features/Ideas/lib/scanTypes').ScanType;
+export type PromptMode = import('./registry/types').ScanType;
 
 /**
  * LLM provider configuration

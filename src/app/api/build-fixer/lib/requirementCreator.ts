@@ -4,21 +4,8 @@
  */
 
 import { ErrorGroup, formatErrorGroup, generateRequirementName } from './buildScanner';
+import { logger } from '@/lib/logger';
 
-// Logger utility
-const logger = {
-  info: (message: string, data?: unknown) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log(`[RequirementCreator] ${message}`, data || '');
-    }
-  },
-  error: (message: string, error?: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : error;
-    // eslint-disable-next-line no-console
-    console.error(`[RequirementCreator] ${message}`, errorMsg || '');
-  }
-};
 
 /**
  * Create a Claude Code requirement file using the official claudeCodeManager

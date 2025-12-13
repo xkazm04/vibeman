@@ -4,6 +4,7 @@
  */
 
 import { chromium } from 'playwright-core';
+import { logger } from '@/lib/logger';
 
 export interface BrowserbaseConfig {
   apiKey: string;
@@ -38,13 +39,13 @@ export async function connectToBrowserbase(config: BrowserbaseConfig) {
   }`;
 
   if (config.enableDebug) {
-    console.log('[Browserbase] Connecting to remote browser...');
+    logger.info('[Browserbase] Connecting to remote browser...');
   }
 
   const browser = await chromium.connectOverCDP(browserWSEndpoint);
 
   if (config.enableDebug) {
-    console.log('[Browserbase] Connected successfully');
+    logger.info('[Browserbase] Connected successfully');
   }
 
   return browser;
@@ -61,7 +62,7 @@ export function isBrowserbaseConfigured(): boolean {
  * Fallback to local Playwright if Browserbase is not configured
  */
 export async function connectToLocalBrowser() {
-  console.log('[Browser] Using local Playwright browser...');
+  logger.info('[Browser] Using local Playwright browser...');
 
   try {
     const browser = await chromium.launch({
@@ -74,7 +75,7 @@ export async function connectToLocalBrowser() {
       ],
     });
 
-    console.log('[Browser] ✅ Local browser launched successfully');
+    logger.info('[Browser] ✅ Local browser launched successfully');
     return browser;
   } catch (error) {
     if (error instanceof Error && error.message.includes('Executable doesn\'t exist')) {
@@ -93,7 +94,7 @@ export async function connectToLocalBrowser() {
 export async function connectToBrowser(forceLocal: boolean = false) {
   // Always use local browser for localhost URLs
   if (forceLocal) {
-    console.log('[Browser] Using local browser (forced for localhost testing)');
+    logger.info('[Browser] Using local browser (forced for localhost testing)');
     return await connectToLocalBrowser();
   }
 
@@ -102,12 +103,12 @@ export async function connectToBrowser(forceLocal: boolean = false) {
       const config = getBrowserbaseConfig();
       return await connectToBrowserbase(config);
     } catch (error) {
-      console.error('[Browserbase] Failed to connect:', error);
-      console.log('[Browser] Falling back to local browser...');
+      logger.error('[Browserbase] Failed to connect:', { error });
+      logger.info('[Browser] Falling back to local browser...');
       return await connectToLocalBrowser();
     }
   } else {
-    console.log('[Browser] Browserbase not configured, using local browser');
+    logger.info('[Browser] Browserbase not configured, using local browser');
     return await connectToLocalBrowser();
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadProjectContext } from '@/app/features/RefactorWizard/lib/contextLoader';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/project/context?projectPath=...
@@ -17,20 +18,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[API /project/context] Loading context for:', projectPath);
+    logger.info('[API /project/context] Loading context for:', { projectPath });
 
     const context = await loadProjectContext(projectPath);
 
-    console.log('[API /project/context] Context loaded successfully');
-    console.log('[API /project/context] Project type:', context.projectType);
-    console.log('[API /project/context] Tech stack:', context.techStack);
+    logger.info('[API /project/context] Context loaded successfully');
+    logger.info('[API /project/context] Project type:', { data: context.projectType });
+    logger.info('[API /project/context] Tech stack:', { data: context.techStack });
 
     return NextResponse.json({
       success: true,
       context
     });
   } catch (error) {
-    console.error('[API /project/context] Error:', error);
+    logger.error('[API /project/context] Error:', { error });
     return NextResponse.json(
       {
         success: false,

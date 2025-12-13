@@ -11,6 +11,7 @@ import {
   preventionActionDb,
   complexityHistoryDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
       trends: trendSummary,
     });
   } catch (error) {
-    console.error('[DebtPrediction Stats API] GET error:', error);
+    logger.error('[DebtPrediction Stats API] GET error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch stats' },
       { status: 500 }

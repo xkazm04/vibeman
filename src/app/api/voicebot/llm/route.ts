@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('LLM API error:', error);
+    logger.error('LLM API error:', { error });
     
     return NextResponse.json(
       {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { staleBranchDb } from '@/app/db';
 import { spawn } from 'child_process';
+import { logger } from '@/lib/logger';
 
 /**
  * Execute a git command
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     const branches = staleBranchDb.getAutoCloseEligible();
     return NextResponse.json({ branches });
   } catch (error) {
-    console.error('Error fetching stale branches:', error);
+    logger.error('Error fetching stale branches:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch stale branches' },
       { status: 500 }
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ branch });
   } catch (error) {
-    console.error('Error creating stale branch record:', error);
+    logger.error('Error creating stale branch record:', { error });
     return NextResponse.json(
       { error: 'Failed to create stale branch record' },
       { status: 500 }
@@ -176,7 +177,7 @@ export async function PATCH(request: NextRequest) {
           branchName: branch.branchName,
         });
       } catch (gitError) {
-        console.error('Git error during branch deletion:', gitError);
+        logger.error('Git error during branch deletion:', { gitError });
         return NextResponse.json(
           { error: 'Failed to delete remote branch', details: String(gitError) },
           { status: 500 }
@@ -189,7 +190,7 @@ export async function PATCH(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error updating stale branch:', error);
+    logger.error('Error updating stale branch:', { error });
     return NextResponse.json(
       { error: 'Failed to update stale branch' },
       { status: 500 }
@@ -218,7 +219,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting stale branch record:', error);
+    logger.error('Error deleting stale branch record:', { error });
     return NextResponse.json(
       { error: 'Failed to delete stale branch record' },
       { status: 500 }

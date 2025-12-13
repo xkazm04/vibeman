@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
 import { ALL_SCAN_TYPES, isValidScanType, resolveScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateQueueId } from '@/lib/idGenerator';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ queueItems });
   } catch (error) {
-    console.error('Error fetching queue items:', error);
+    logger.error('Error fetching queue items:', { error });
     return NextResponse.json(
       { error: 'Failed to fetch queue items', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ queueItem }, { status: 201 });
   } catch (error) {
-    console.error('Error creating queue item:', error);
+    logger.error('Error creating queue item:', { error });
     return NextResponse.json(
       { error: 'Failed to create queue item', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

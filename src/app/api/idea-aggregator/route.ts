@@ -7,6 +7,7 @@ import {
   type AggregatableRole,
   type AggregationCheckResult,
 } from '@/app/features/TaskRunner/lib/ideaAggregator';
+import { logger } from '@/lib/logger';
 
 /**
  * GET - Check if aggregation is possible for a project
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       ...result,
     });
   } catch (error) {
-    console.error('Error checking aggregation:', error);
+    logger.error('Error checking aggregation:', { error });
     return NextResponse.json(
       {
         success: false,
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
-    console.error('Error executing aggregation:', error);
+    logger.error('Error executing aggregation:', { error });
     return NextResponse.json(
       {
         success: false,

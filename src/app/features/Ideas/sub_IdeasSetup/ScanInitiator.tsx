@@ -25,6 +25,7 @@ import ProviderSelector from '@/components/llm/ProviderSelector';
 import ScanButton from './components/ScanButton';
 import BatchScanButton from './components/BatchScanButton';
 import ClaudeIdeasButton from './components/ClaudeIdeasButton';
+import ConvertToPackageButton from './components/ConvertToPackageButton';
 import ProgressBar from './ProgressBar';
 import ScanIdeaScoreboard from './components/ScanIdeaScoreboard';
 import ScanTypeSelector from './ScanTypeSelector';
@@ -61,6 +62,11 @@ export default function ScanInitiator({
 
   // Claude Ideas state
   const [isClaudeIdeasProcessing, setIsClaudeIdeasProcessing] = React.useState(false);
+
+  // Convert to Package state
+  const [isConvertingToPackages, setIsConvertingToPackages] = React.useState(false);
+  const [packagesCreated, setPackagesCreated] = React.useState(false);
+  const [acceptedIdeasCount, setAcceptedIdeasCount] = React.useState(0);
 
   const { activeProject } = useActiveProjectStore();
   const { selectedContextIds, contexts, loadProjectData } = useContextStore();
@@ -100,6 +106,92 @@ export default function ScanInitiator({
     return contexts.filter(c => c.projectId === activeProject.id);
   }, [contexts, activeProject]);
 
+  // Helper function to fetch accepted ideas count
+  const fetchAcceptedIdeasCount = React.useCallback(async () => {
+    if (!activeProject?.id) {
+      setAcceptedIdeasCount(0);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/ideas/convert-to-packages?projectId=${activeProject.id}&status=accepted`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setAcceptedIdeasCount(data.eligibleCount || 0);
+      }
+    } catch (error) {
+      console.error('[ScanInitiator] Failed to fetch accepted ideas count:', error);
+    }
+  }, [activeProject?.id]);
+
+  // Fetch accepted ideas count on project change and after scans complete
+  React.useEffect(() => {
+    fetchAcceptedIdeasCount();
+    // Reset packages created state when project changes
+    setPackagesCreated(false);
+  }, [fetchAcceptedIdeasCount]);
+
+  // Handle Convert to Package click
+  const handleConvertToPackages = async () => {
+    if (!activeProject?.id || !activeProject?.path) {
+      setMessage('No active project selected');
+      return;
+    }
+
+    setIsConvertingToPackages(true);
+    setMessage('📦 Converting accepted ideas to RefactorWizard packages...');
+
+    try {
+      const response = await fetch('/api/ideas/convert-to-packages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: activeProject.id,
+          projectPath: activeProject.path,
+          status: 'accepted',
+          userPreferences: {
+            maxPackages: 10,
+            minIssuesPerPackage: 3,
+            provider: 'gemini',
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage(
+          `✅ Created ${data.stats.packagesGenerated} packages from ${data.stats.ideasProcessed} ideas! Open RefactorWizard to view and execute them.`
+        );
+        setPackagesCreated(true);
+
+        // Store packages in sessionStorage for RefactorWizard to pick up
+        sessionStorage.setItem('ideaPackages', JSON.stringify({
+          packages: data.packages,
+          dependencyGraph: data.dependencyGraph,
+          recommendedOrder: data.recommendedOrder,
+          context: data.context,
+          stats: data.stats,
+          projectId: activeProject.id,
+          timestamp: new Date().toISOString(),
+        }));
+
+        setTimeout(() => {
+          setMessage('');
+        }, 8000);
+      } else {
+        setMessage(`❌ Failed to create packages: ${data.error}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[ScanInitiator] Convert to packages error:', error);
+      setMessage(`❌ Failed to convert ideas to packages: ${errorMessage}`);
+    } finally {
+      setIsConvertingToPackages(false);
+    }
+  };
 
   const handleScan = async () => {
     await handleScanOperation({
@@ -433,6 +525,17 @@ export default function ScanInitiator({
               isProcessing={isClaudeIdeasProcessing}
               scanTypesCount={selectedScanTypes.length}
               contextsCount={currentSelectedContextIds.length}
+            />
+          )}
+
+          {/* Convert to Package Button - Send accepted ideas to RefactorWizard */}
+          {activeProject && (
+            <ConvertToPackageButton
+              onClick={handleConvertToPackages}
+              disabled={scanState === 'scanning' || isConvertingToPackages || !activeProject}
+              isProcessing={isConvertingToPackages}
+              acceptedIdeasCount={acceptedIdeasCount}
+              isComplete={packagesCreated}
             />
           )}
 

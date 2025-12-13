@@ -4,6 +4,7 @@ import { validateSpec, hasBlockingErrors } from '@/app/features/RefactorWizard/l
 import { RefactorSpec, ExecutionResult } from '@/app/features/RefactorWizard/lib/dslTypes';
 import path from 'path';
 import fs from 'fs/promises';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/refactor/execute-dsl
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
       await fs.mkdir(claudeDir, { recursive: true });
       await fs.mkdir(commandsDir, { recursive: true });
     } catch (mkdirError) {
-      console.error('[DSL Executor] Failed to create directories:', mkdirError);
+      logger.error('[DSL Executor] Failed to create directories:', { mkdirError });
     }
 
     // Generate requirement content
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[DSL Executor] Execution failed:', error);
+    logger.error('[DSL Executor] Execution failed:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -126,7 +127,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error('[DSL Executor] Failed to get templates:', error);
+    logger.error('[DSL Executor] Failed to get templates:', { error });
     return NextResponse.json(
       { error: 'Failed to get templates' },
       { status: 500 }

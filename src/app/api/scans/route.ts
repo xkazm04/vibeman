@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scanDb, DbScan } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/scans
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error fetching scans:', error);
+    logger.error('Error fetching scans:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch scans' },
       { status: 500 }
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ scan }, { status: 201 });
   } catch (error) {
-    console.error('Error creating scan:', error);
+    logger.error('Error creating scan:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create scan' },
       { status: 500 }
@@ -134,7 +135,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ scan });
   } catch (error) {
-    console.error('Error updating scan:', error);
+    logger.error('Error updating scan:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update scan' },
       { status: 500 }
@@ -171,7 +172,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting scan:', error);
+    logger.error('Error deleting scan:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete scan' },
       { status: 500 }

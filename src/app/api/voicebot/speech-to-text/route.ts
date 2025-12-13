@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
       alignment: result.alignment
     });
   } catch (error) {
-    console.error('Speech-to-text API error:', error);
+    logger.error('Speech-to-text API error:', { error });
     
     return NextResponse.json(
       { 

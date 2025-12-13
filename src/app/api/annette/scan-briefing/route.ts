@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateScanBriefing, generateQuickScanStatus } from '@/app/features/Annette/lib/scanBriefingService';
+import { logger } from '@/lib/logger';
 
-// Logger utility
-const logger = {
-  error: (message: string, error?: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : error;
-    // eslint-disable-next-line no-console
-    console.error(`[API/ScanBriefing] ${message}`, errorMsg || '');
-  }
-};
 
 interface ScanBriefingResponse {
   success: boolean;

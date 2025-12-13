@@ -13,6 +13,7 @@ import {
   getScheduleStats,
   clearSchedule,
 } from '@/app/features/Onboarding/sub_Blueprint/lib/scanScheduler';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/blueprint/scan-scheduler
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     const scans = getScheduledScans(projectId);
     return NextResponse.json({ success: true, scans, count: scans.length });
   } catch (error) {
-    console.error('Error fetching scheduled scans:', error);
+    logger.error('Error fetching scheduled scans:', { error });
     return NextResponse.json(
       {
         success: false,
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    console.error('Error scheduling scans:', error);
+    logger.error('Error scheduling scans:', { error });
     return NextResponse.json(
       {
         success: false,
@@ -145,7 +146,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Scan removed from schedule',
     });
   } catch (error) {
-    console.error('Error removing scheduled scan:', error);
+    logger.error('Error removing scheduled scan:', { error });
     return NextResponse.json(
       {
         success: false,

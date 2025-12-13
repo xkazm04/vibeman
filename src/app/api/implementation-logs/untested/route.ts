@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { projectDb } from '@/lib/project_database';
 import { contextRepository } from '@/app/db/repositories/context.repository';
+import { logger } from '@/lib/logger';
 
 export interface EnrichedImplementationLog {
   id: string;
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
       count: enrichedLogs.length,
     });
   } catch (error) {
-    console.error('Error fetching untested implementation logs:', error);
+    logger.error('Error fetching untested implementation logs:', { error });
 
     return NextResponse.json(
       {

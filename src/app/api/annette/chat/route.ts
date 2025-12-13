@@ -6,15 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { conversationDb } from "@/app/db";
+import { logger } from '@/lib/logger';
 
-// Logger utility
-const logger = {
-  error: (message: string, error?: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : error;
-    // eslint-disable-next-line no-console
-    console.error(`[API/AnnetteChat] ${message}`, errorMsg || '');
-  }
-};
 
 interface AnnetteRequest {
   projectId: string;
@@ -151,7 +144,7 @@ export async function POST(request: NextRequest) {
     const { insights, nextSteps, recommendedScans } = analyzeResponse(langGraphData.response, langGraphData.toolsUsed || []);
 
     // eslint-disable-next-line no-console
-    console.log('[AnnetteChat] Recommendations generated:', recommendedScans);
+    logger.info('[AnnetteChat] Recommendations generated:', { recommendedScans });
 
     // Format response for voice (make it more conversational)
     const voiceResponse = formatForVoice(langGraphData.response);
@@ -429,9 +422,9 @@ function detectRecommendedScans(response: string, toolsUsed: LangGraphTool[]): s
   const recommended: Set<string> = new Set();
 
   // eslint-disable-next-line no-console
-  console.log('[detectRecommendedScans] Analyzing response:', response.substring(0, 100) + '...');
+  logger.info('[detectRecommendedScans] Analyzing response:', { data: response.substring(0, 100) + '...' });
   // eslint-disable-next-line no-console
-  console.log('[detectRecommendedScans] Tools used:', toolsUsed.map(t => t.tool || t.name));
+  logger.info('[detectRecommendedScans] Tools used:', { data: toolsUsed.map(t => t.tool || t.name) });
 
   // Analyze response text for scan keywords
   const lowerResponse = response.toLowerCase();
@@ -490,7 +483,7 @@ function detectRecommendedScans(response: string, toolsUsed: LangGraphTool[]): s
 
   const result = Array.from(recommended);
   // eslint-disable-next-line no-console
-  console.log('[detectRecommendedScans] Recommended scans:', result);
+  logger.info('[detectRecommendedScans] Recommended scans:', { result });
   return result;
 }
 

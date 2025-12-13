@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import TechDebtRadar from '@/app/features/TechDebtRadar/components/TechDebtRadar';
+import { TechDebtDashboard } from '@/app/features/TechDebt';
 
 export default function TechDebtPage() {
   const { activeProject } = useActiveProjectStore();
@@ -18,5 +18,5 @@ export default function TechDebtPage() {
     );
   }
 
-  return <TechDebtRadar projectId={activeProject.id} />;
+  return <TechDebtDashboard projectId={activeProject.id} projectPath={activeProject.path} />;
 }

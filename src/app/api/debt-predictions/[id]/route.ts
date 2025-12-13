@@ -11,6 +11,7 @@ import {
   preventionActionDb,
   opportunityCardDb,
 } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 // ============================================================================
 // GET: Fetch single prediction
@@ -33,7 +34,7 @@ export async function GET(
 
     return NextResponse.json({ prediction });
   } catch (error) {
-    console.error('[DebtPrediction API] GET error:', error);
+    logger.error('[DebtPrediction API] GET error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch prediction' },
       { status: 500 }
@@ -146,7 +147,7 @@ export async function PATCH(
 
     return NextResponse.json({ prediction: updated });
   } catch (error) {
-    console.error('[DebtPrediction API] PATCH error:', error);
+    logger.error('[DebtPrediction API] PATCH error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update prediction' },
       { status: 500 }
@@ -175,7 +176,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[DebtPrediction API] DELETE error:', error);
+    logger.error('[DebtPrediction API] DELETE error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete prediction' },
       { status: 500 }

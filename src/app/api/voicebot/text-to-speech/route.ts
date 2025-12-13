@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = "WAhoMTNdLdMoq1j3wf3I";
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Text-to-speech API error:', error);
+    logger.error('Text-to-speech API error:', { error });
 
     return NextResponse.json(
       {

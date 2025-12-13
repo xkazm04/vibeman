@@ -14,15 +14,8 @@ import { getLLMClient } from '@/lib/langgraph/langHelpers';
 import { SupportedProvider } from '@/lib/llm/types';
 import { LLMProvider } from '@/lib/langgraph/langTypes';
 import { implementationLogDb } from '@/app/db';
+import { logger } from '@/lib/logger';
 
-// Logger utility
-const logger = {
-  error: (message: string, error?: unknown) => {
-    const errorMsg = error instanceof Error ? error.message : error;
-    // eslint-disable-next-line no-console
-    console.error(`[API/AnnetteStatus] ${message}`, errorMsg || '');
-  }
-};
 
 interface StatusRequest {
   projectId: string;

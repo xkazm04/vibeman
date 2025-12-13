@@ -3,9 +3,8 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, CheckCircle, Sparkles } from 'lucide-react';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useGlobalIdeaStats } from '@/hooks/useGlobalIdeaStats';
 import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 
@@ -93,12 +92,13 @@ function ProjectButton({ projectId, projectName, isSelected, onClick }: ProjectB
  *
  * Global project selector displayed in TopBar
  * Syncs selection across all app modules
- * Updates both unifiedProjectStore (for filtering) and activeProjectStore (for file operations)
+ * Uses consolidated stores: serverProjectStore (projects) and clientProjectStore (selection)
  */
 export default function UnifiedProjectSelector() {
-  const { projects, initializeProjects, syncWithServer } = useProjectConfigStore();
-  const { selectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
-  const { setActiveProject } = useActiveProjectStore();
+  // Server store for canonical project list
+  const { projects, initializeProjects, syncWithServer } = useServerProjectStore();
+  // Client store for selection state
+  const { selectedProjectId, setSelectedProjectId, setActiveProject } = useClientProjectStore();
   const { stats, loading } = useGlobalIdeaStats();
   const { updateCount, lastUpdate } = useProjectUpdatesStore();
 
@@ -111,7 +111,7 @@ export default function UnifiedProjectSelector() {
   useEffect(() => {
     if (updateCount > 0 && lastUpdate) {
       syncWithServer();
-      
+
       // If active project was deleted, reset to 'all'
       if (lastUpdate.type === 'delete' && selectedProjectId === lastUpdate.projectId) {
         setSelectedProjectId('all');
@@ -120,10 +120,10 @@ export default function UnifiedProjectSelector() {
   }, [updateCount, lastUpdate, syncWithServer, selectedProjectId, setSelectedProjectId]);
 
   const handleProjectSelect = (projectId: string) => {
-    // Update unified store for filtering
+    // Update selection state
     setSelectedProjectId(projectId);
 
-    // Update active project store if specific project is selected
+    // Update active project if specific project is selected
     if (projectId !== 'all') {
       const project = projects.find(p => p.id === projectId);
       if (project) {

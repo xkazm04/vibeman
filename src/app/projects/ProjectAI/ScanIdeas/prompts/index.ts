@@ -27,6 +27,7 @@ import { buildDevExperienceEngineerPrompt } from './devExperienceEngineerPrompt'
 import { buildDataFlowOptimizerPrompt } from './dataFlowOptimizerPrompt';
 // Code Cleanup
 import { buildCodeRefactorPrompt } from './codeRefactorPrompt';
+import { buildPragmaticIntegratorPrompt } from './pragmaticIntegratorPrompt';
 
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
@@ -69,6 +70,7 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   data_flow_optimizer: buildDataFlowOptimizerPrompt,
   // Code Cleanup
   code_refactor: buildCodeRefactorPrompt,
+  pragmatic_integrator: buildPragmaticIntegratorPrompt,
 };
 
 /**
@@ -113,4 +115,5 @@ export {
   buildDataFlowOptimizerPrompt,
   // Code Cleanup
   buildCodeRefactorPrompt,
+  buildPragmaticIntegratorPrompt,
 };

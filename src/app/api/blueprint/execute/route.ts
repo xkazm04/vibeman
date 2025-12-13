@@ -26,6 +26,7 @@ import {
   createProcessor,
   createExecutor,
 } from '@/lib/blueprint/components';
+import { logger } from '@/lib/logger';
 
 // ============================================================================
 // Request Types
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as RequestBody;
 
-    console.log(`[Blueprint API] Action: ${body.action}`);
+    logger.info(`[Blueprint API] Action: ${body.action}`);
 
     switch (body.action) {
       case 'run-blueprint':
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error('[Blueprint Execute API] Error:', error);
+    logger.error('[Blueprint Execute API] Error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -163,8 +164,8 @@ async function handleRunBlueprint(body: RunBlueprintRequest) {
     return NextResponse.json({ error: 'blueprint.analyzerId is required' }, { status: 400 });
   }
 
-  console.log(`[Blueprint API] Running blueprint: ${blueprint.name || blueprint.analyzerId}`);
-  console.log(`[Blueprint API] Project: ${projectPath}`);
+  logger.info(`[Blueprint API] Running blueprint: ${blueprint.name || blueprint.analyzerId}`);
+  logger.info(`[Blueprint API] Project: ${projectPath}`);
 
   const runner = new BlueprintTestRunner({
     projectPath,
@@ -183,7 +184,7 @@ async function handleRunBlueprint(body: RunBlueprintRequest) {
 
   const result = await runner.runBlueprint(definition);
 
-  console.log(`[Blueprint API] Blueprint result: ${result.status}, ${result.issues.length} issues`);
+  logger.info(`[Blueprint API] Blueprint result: ${result.status}, ${result.issues.length} issues`);
 
   return NextResponse.json({
     success: result.status !== 'error',
@@ -207,7 +208,7 @@ async function handleRunAnalyzer(body: RunAnalyzerRequest) {
     return NextResponse.json({ error: 'analyzerId is required' }, { status: 400 });
   }
 
-  console.log(`[Blueprint API] Running analyzer: ${analyzerId}`);
+  logger.info(`[Blueprint API] Running analyzer: ${analyzerId}`);
 
   try {
     const analyzer = createAnalyzer(analyzerId as AnalyzerId);
@@ -221,7 +222,7 @@ async function handleRunAnalyzer(body: RunAnalyzerRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const issues = await (analyzer.execute(undefined, context) as Promise<any[]>);
 
-    console.log(`[Blueprint API] Analyzer found ${issues.length} issues`);
+    logger.info(`[Blueprint API] Analyzer found ${issues.length} issues`);
 
     return NextResponse.json({
       success: true,
@@ -232,7 +233,7 @@ async function handleRunAnalyzer(body: RunAnalyzerRequest) {
       },
     });
   } catch (error) {
-    console.error(`[Blueprint API] Analyzer error:`, error);
+    logger.error(`[Blueprint API] Analyzer error:`, { error });
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -255,7 +256,7 @@ async function handleRunProcessor(body: RunProcessorRequest) {
     return NextResponse.json({ error: 'issues array is required' }, { status: 400 });
   }
 
-  console.log(`[Blueprint API] Running processor: ${processorId} on ${issues.length} issues`);
+  logger.info(`[Blueprint API] Running processor: ${processorId} on ${issues.length} issues`);
 
   try {
     const processor = createProcessor(processorId as ProcessorId);
@@ -272,7 +273,7 @@ async function handleRunProcessor(body: RunProcessorRequest) {
     // Handle different processor outputs (some return arrays, some return grouped objects)
     const outputIssues = Array.isArray(result) ? result : issues;
 
-    console.log(`[Blueprint API] Processor output: ${outputIssues.length} issues`);
+    logger.info(`[Blueprint API] Processor output: ${outputIssues.length} issues`);
 
     return NextResponse.json({
       success: true,
@@ -283,7 +284,7 @@ async function handleRunProcessor(body: RunProcessorRequest) {
       },
     });
   } catch (error) {
-    console.error(`[Blueprint API] Processor error:`, error);
+    logger.error(`[Blueprint API] Processor error:`, { error });
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -306,14 +307,14 @@ async function handleRunExecutor(body: RunExecutorRequest) {
     return NextResponse.json({ error: 'issues array is required' }, { status: 400 });
   }
 
-  console.log(`[Blueprint API] Running executor: ${executorId} on ${issues.length} issues`);
+  logger.info(`[Blueprint API] Running executor: ${executorId} on ${issues.length} issues`);
 
   try {
     // For now, just return success - executor implementation is separate
     // The actual Claude Code execution would be handled by existing infrastructure
 
     // TODO: Integrate with ClaudeCodeExecutor when ready
-    console.log(`[Blueprint API] Executor would process ${issues.length} issues`);
+    logger.info(`[Blueprint API] Executor would process ${issues.length} issues`);
 
     return NextResponse.json({
       success: true,
@@ -324,7 +325,7 @@ async function handleRunExecutor(body: RunExecutorRequest) {
       },
     });
   } catch (error) {
-    console.error(`[Blueprint API] Executor error:`, error);
+    logger.error(`[Blueprint API] Executor error:`, { error });
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -347,7 +348,7 @@ async function handleRunChain(body: RunChainRequest) {
     return NextResponse.json({ error: 'blueprints array is required' }, { status: 400 });
   }
 
-  console.log(`[Blueprint API] Running chain: ${chainName || 'unnamed'} (${blueprints.length} blueprints)`);
+  logger.info(`[Blueprint API] Running chain: ${chainName || 'unnamed'} (${blueprints.length} blueprints)`);
 
   const runner = new BlueprintTestRunner({
     projectPath,
@@ -366,7 +367,7 @@ async function handleRunChain(body: RunChainRequest) {
 
   const result = await runner.runChain(definitions, chainName);
 
-  console.log(`[Blueprint API] Chain result: ${result.status}, ${result.totalIssues} total issues`);
+  logger.info(`[Blueprint API] Chain result: ${result.status}, ${result.totalIssues} total issues`);
 
   return NextResponse.json({
     success: result.status !== 'error',
@@ -415,10 +416,10 @@ function createExecutionContext(
     projectPath,
     projectType,
     reportProgress: (progress: number, message?: string) => {
-      console.log(`[Blueprint API] Progress: ${progress}% - ${message || ''}`);
+      logger.info(`[Blueprint API] Progress: ${progress}% - ${message || ''}`);
     },
     log: (level: string, message: string) => {
-      console.log(`[Blueprint API] [${level}] ${message}`);
+      logger.info(`[Blueprint API] [${level}] ${message}`);
     },
     isCancelled: () => false,
     onCancel: () => {},

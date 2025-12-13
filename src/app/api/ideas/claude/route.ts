@@ -11,6 +11,7 @@ import { ScanType, SCAN_TYPE_CONFIGS } from '@/app/features/Ideas/lib/scanTypes'
 import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/prompts';
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
 import { contextDb, goalDb, ideaDb, DbContext } from '@/app/db';
+import { logger } from '@/lib/logger';
 
 interface ClaudeIdeasRequest {
   projectId: string;
@@ -280,7 +281,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[API] Claude Ideas error:', error);
+    logger.error('[API] Claude Ideas error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

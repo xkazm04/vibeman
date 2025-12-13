@@ -56,10 +56,12 @@ async function fetchContextDetails(contextId: string, projectId: string) {
 }
 
 /**
- * Fetch test scenarios for a context
+ * Fetch test scenarios for a context (using unified test-scenarios API)
+ * Returns manual test scenarios with embedded steps
  */
 async function fetchTestScenarios(contextId: string) {
-  const response = await fetch(`/api/test-case-scenarios?contextId=${contextId}`);
+  // Use unified test-scenarios endpoint with type=manual filter
+  const response = await fetch(`/api/test-scenarios?contextId=${contextId}&type=manual`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch test scenarios: ${response.statusText}`);
@@ -75,10 +77,12 @@ async function fetchTestScenarios(contextId: string) {
 }
 
 /**
- * Fetch test steps for a scenario
+ * Fetch test steps for a scenario (using unified test-scenarios API)
+ * Steps are now embedded in scenario response
  */
 async function fetchTestSteps(scenarioId: string) {
-  const response = await fetch(`/api/test-case-steps?scenarioId=${scenarioId}`);
+  // Use unified test-scenarios endpoint to get scenario with embedded steps
+  const response = await fetch(`/api/test-scenarios?id=${scenarioId}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch test steps: ${response.statusText}`);
@@ -90,7 +94,8 @@ async function fetchTestSteps(scenarioId: string) {
     throw new Error(result.error || 'Failed to fetch test steps');
   }
 
-  return result.steps || [];
+  // Steps are now embedded in the scenario response
+  return result.scenario?.steps || [];
 }
 
 /**
