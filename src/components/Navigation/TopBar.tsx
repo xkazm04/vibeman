@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, MoreHorizontal, BookOpen, Wand2, Component, ShoppingBag, Activity, Users } from 'lucide-react';
+import { Store, MoreHorizontal, BookOpen, Wand2, Component, ShoppingBag, Activity, Users, Sunrise } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useMarketplaceStore } from '@/stores/marketplaceStore';
 import UnifiedProjectSelector from './UnifiedProjectSelector';
@@ -28,6 +28,7 @@ const mainNavigationItems: NavigationItem[] = [
 const otherNavigationItems: NavigationItem[] = [
   { module: 'composer', label: 'BP Composer', icon: Wand2 },
   { module: 'reflector', label: 'Reflector', icon: Activity },
+  { module: 'zen', label: 'Zen Mode', icon: Sunrise },
   { module: 'docs', label: 'Docs', icon: BookOpen },
   { module: 'refactor', label: 'Wizard', icon: Wand2 },
   { module: 'storybook', label: 'Storybook', icon: Component },
@@ -252,7 +253,7 @@ export default function TopBar() {
   const { activeModule, setActiveModule } = useOnboardingStore();
 
   // Modules that should NOT show the project selector
-  const modulesWithoutProjectSelector: AppModule[] = ['reflector', 'social'];
+  const modulesWithoutProjectSelector: AppModule[] = ['reflector', 'social', 'zen'];
   const showProjectSelector = !modulesWithoutProjectSelector.includes(activeModule);
 
   return (

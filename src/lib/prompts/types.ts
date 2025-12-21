@@ -198,7 +198,6 @@ export type IdeaCategory =
   | 'security'
   | 'feature'
   | 'architecture'
-  | 'accessibility'
   | 'testing'
   | 'documentation'
   | 'user_value';

@@ -21,6 +21,7 @@ import { Toaster } from 'sonner';
 import StorybookLayout from './features/Storybook/StorybookLayout';
 import { SocialLayout } from './features/Social';
 import { BlueprintComposer } from './features/Composer';
+import ZenLayout from './zen/ZenLayout';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -67,6 +68,8 @@ export default function Home() {
             <BlueprintComposer />
           </div>
         );
+      case 'zen':
+        return <ZenLayout key="zen" />;
       default:
         return <GoalsLayout key="coder" projectId={projectId} />;
     }

@@ -150,6 +150,14 @@ export function runMigrations() {
     migrateROISimulatorTables();
     // Migration 46: Create Goal Hub tables
     migrateGoalHub();
+    // Migration 47: Create Social Channel Configs tables
+    migrateSocialChannelConfigs();
+    // Migration 48: Create Social Feedback Items table
+    migrateSocialFeedbackItems();
+    // Migration 49: Create Social Discovery Configs table
+    migrateSocialDiscoveryConfigs();
+    // Migration 50: Create Offload System tables
+    migrateOffloadSystem();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -1329,7 +1337,7 @@ function migrateMarketplaceTables() {
         solution_approach TEXT NOT NULL,
         category TEXT NOT NULL CHECK (category IN (
           'migration', 'cleanup', 'security', 'performance',
-          'architecture', 'testing', 'accessibility', 'modernization', 'best-practices'
+          'architecture', 'testing', 'modernization', 'best-practices'
         )),
         scope TEXT NOT NULL CHECK (scope IN ('file', 'module', 'project', 'framework')),
         tags TEXT NOT NULL DEFAULT '[]',
@@ -3620,7 +3628,7 @@ function migrateRedTeamTestingTables() {
         name TEXT NOT NULL,
         description TEXT NOT NULL,
         category TEXT NOT NULL CHECK (category IN (
-          'security', 'performance', 'accessibility', 'edge_case',
+          'security', 'performance', 'edge_case',
           'state', 'concurrency', 'input', 'integration'
         )),
         agent_type TEXT NOT NULL,
@@ -4032,4 +4040,36 @@ function migrateGoalHub() {
   // Import and call the migration from the dedicated file
   const { migrateGoalHub: migrate } = require('./037_goal_hub');
   migrate();
+}
+
+function migrateSocialChannelConfigs() {
+  safeMigration('socialChannelConfigs', () => {
+    const db = getConnection();
+    const { migrate038SocialChannelConfigs } = require('./038_social_channel_configs');
+    migrate038SocialChannelConfigs(db);
+  }, migrationLogger);
+}
+
+function migrateSocialFeedbackItems() {
+  safeMigration('socialFeedbackItems', () => {
+    const db = getConnection();
+    const { migrate039SocialFeedbackItems } = require('./039_social_feedback_items');
+    migrate039SocialFeedbackItems(db);
+  }, migrationLogger);
+}
+
+function migrateSocialDiscoveryConfigs() {
+  safeMigration('socialDiscoveryConfigs', () => {
+    const db = getConnection();
+    const { migrate040SocialDiscoveryConfigs } = require('./040_social_discovery_configs');
+    migrate040SocialDiscoveryConfigs(db);
+  }, migrationLogger);
+}
+
+function migrateOffloadSystem() {
+  safeMigration('offloadSystem', () => {
+    const db = getConnection();
+    const { migrate041OffloadSystem } = require('./041_offload_system');
+    migrate041OffloadSystem(db);
+  }, migrationLogger);
 }

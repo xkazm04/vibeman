@@ -1,10 +1,14 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import ContextMenu from '../ContextMenu/ContextMenu';
 import { useTooltipStore } from '../../../../stores/tooltipStore';
 import { Context, ContextGroup } from '../../../../stores/contextStore';
 import MoveToGroupMenu from './components/MoveToGroupMenu';
 import { useDraggableItem } from '@/hooks/dnd';
+
+// DnD activation delay in milliseconds - must match ContextLayout.tsx sensorOptions.delay
+const DND_ACTIVATION_DELAY = 300;
 
 interface ContextJailCardWrapperProps {
   context: Context;
@@ -43,7 +47,9 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
 
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [moveMenuPosition, setMoveMenuPosition] = useState({ x: 0, y: 0 });
+  const [isPendingDrag, setIsPendingDrag] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const pendingDragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { toggleTooltip } = useTooltipStore();
 
@@ -63,6 +69,63 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
     ghostOpacity: 0.3,
     ghostGrayscale: true,
   });
+
+  // Clear pending drag state when dragging actually starts
+  useEffect(() => {
+    if (isDragging) {
+      setIsPendingDrag(false);
+      if (pendingDragTimeoutRef.current) {
+        clearTimeout(pendingDragTimeoutRef.current);
+        pendingDragTimeoutRef.current = null;
+      }
+    }
+  }, [isDragging]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingDragTimeoutRef.current) {
+        clearTimeout(pendingDragTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Cancel pending drag animation
+  const cancelPendingDrag = useCallback(() => {
+    setIsPendingDrag(false);
+    if (pendingDragTimeoutRef.current) {
+      clearTimeout(pendingDragTimeoutRef.current);
+      pendingDragTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Combined pointer down handler - starts animation AND calls DnD-kit's handler
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Only for primary button (left click)
+    if (e.button === 0) {
+      setIsPendingDrag(true);
+
+      // Clear pending state after the activation delay
+      pendingDragTimeoutRef.current = setTimeout(() => {
+        setIsPendingDrag(false);
+      }, DND_ACTIVATION_DELAY);
+    }
+
+    // Call DnD-kit's original handler
+    if (listeners?.onPointerDown) {
+      (listeners.onPointerDown as (e: React.PointerEvent) => void)(e);
+    }
+  }, [listeners]);
+
+  // Handle pointer up to cancel pending drag animation
+  const handlePointerUp = useCallback(() => {
+    cancelPendingDrag();
+  }, [cancelPendingDrag]);
+
+  // Handle pointer leave to cancel pending drag animation
+  const handlePointerLeave = useCallback(() => {
+    cancelPendingDrag();
+  }, [cancelPendingDrag]);
 
   // Memoized handlers for performance
   const handleRightClick = useCallback((ctx: any, e: React.MouseEvent) => {
@@ -171,12 +234,15 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
     );
   }
 
+  // Spread listeners but exclude onPointerDown which we handle manually
+  const { onPointerDown: _dndPointerDown, ...otherListeners } = listeners || {};
+
   return (
     <div
       ref={combinedRef}
-      {...listeners}
+      {...otherListeners}
       {...attributes}
-      style={{ height: '100%' }}
+      style={{ height: '100%', position: 'relative' }}
       tabIndex={0}
       role="button"
       aria-label={`Context: ${context.name}. Press M to move, Enter to select, or right-click for more options.`}
@@ -185,8 +251,52 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
       data-context-id={context.id}
       data-testid={`context-card-${context.id}`}
       onKeyDown={handleKeyDown}
-      className="focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-lg"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      className="focus:outline-none rounded-lg"
     >
+      {/* Scan Line Animation - appears during DnD activation delay */}
+      <AnimatePresence>
+        {isPendingDrag && (
+          <motion.div
+            className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.05 }}
+          >
+            {/* Scanning line that moves from left to right */}
+            <motion.div
+              className="absolute top-0 bottom-0 w-1"
+              style={{
+                background: `linear-gradient(to bottom, transparent, ${group?.color || '#06b6d4'}, transparent)`,
+                boxShadow: `0 0 12px 2px ${group?.color || '#06b6d4'}`,
+              }}
+              initial={{ left: 0 }}
+              animate={{ left: '100%' }}
+              transition={{
+                duration: DND_ACTIVATION_DELAY / 1000,
+                ease: 'linear',
+              }}
+            />
+            {/* Subtle overlay glow following the scan line */}
+            <motion.div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(to right, ${group?.color || '#06b6d4'}15, transparent)`,
+              }}
+              initial={{ opacity: 0.5, scaleX: 0 }}
+              animate={{ opacity: 0, scaleX: 1 }}
+              transition={{
+                duration: DND_ACTIVATION_DELAY / 1000,
+                ease: 'linear',
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Screen reader help text */}
       <span id={`context-card-help-${context.id}`} className="sr-only">
         Use arrow keys to navigate between cards. Press M to move to another group.

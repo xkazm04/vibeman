@@ -21,7 +21,6 @@ const categoryColors: Record<PatternCategory, { bg: string; text: string }> = {
   performance: { bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
   architecture: { bg: 'bg-purple-500/10', text: 'text-purple-400' },
   testing: { bg: 'bg-cyan-500/10', text: 'text-cyan-400' },
-  accessibility: { bg: 'bg-pink-500/10', text: 'text-pink-400' },
   modernization: { bg: 'bg-orange-500/10', text: 'text-orange-400' },
   'best-practices': { bg: 'bg-indigo-500/10', text: 'text-indigo-400' },
 };

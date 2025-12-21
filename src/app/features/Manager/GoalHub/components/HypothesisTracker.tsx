@@ -1,12 +1,12 @@
 /**
  * Hypothesis Tracker Component
- * Kanban-style view for managing hypotheses
+ * Single-column list view for managing hypotheses grouped by status
  */
 
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
   Plus,
   CheckCircle2,
@@ -14,13 +14,11 @@ import {
   Circle,
   Loader2,
   Filter,
-  LayoutGrid,
-  List,
 } from 'lucide-react';
 import { useGoalHubStore } from '@/stores/goalHubStore';
-import HypothesisCard from './HypothesisCard';
+import HypothesisRow from './HypothesisRow';
 import NewHypothesisModal from './NewHypothesisModal';
-import type { GoalHypothesis, HypothesisStatus } from '@/app/db/models/goal-hub.types';
+import type { GoalHypothesis } from '@/app/db/models/goal-hub.types';
 
 interface HypothesisTrackerProps {
   hypotheses: GoalHypothesis[];
@@ -28,67 +26,60 @@ interface HypothesisTrackerProps {
   projectPath: string;
 }
 
-type ViewMode = 'kanban' | 'list';
-
 export default function HypothesisTracker({
   hypotheses,
   isLoading,
   projectPath,
 }: HypothesisTrackerProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isCompletingAll, setIsCompletingAll] = useState(false);
 
-  const { createHypothesis } = useGoalHubStore();
+  const { activeGoal, loadHypotheses } = useGoalHubStore();
+
+  const handleCompleteAll = async () => {
+    if (!activeGoal) return;
+    if (!confirm('Mark all hypotheses as completed?')) return;
+
+    setIsCompletingAll(true);
+    try {
+      const response = await fetch('/api/goal-hub/hypotheses/complete-goal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goalId: activeGoal.id }),
+      });
+
+      if (response.ok) {
+        await loadHypotheses(activeGoal.id);
+      }
+    } catch (error) {
+      console.error('Failed to complete all hypotheses:', error);
+    } finally {
+      setIsCompletingAll(false);
+    }
+  };
 
   // Group hypotheses by status
   const grouped = {
-    unverified: hypotheses.filter((h) => h.status === 'unverified'),
     in_progress: hypotheses.filter((h) => h.status === 'in_progress'),
-    verified: hypotheses.filter((h) => h.status === 'verified'),
+    unverified: hypotheses.filter((h) => h.status === 'unverified'),
+    done: hypotheses.filter((h) => h.status === 'verified' || h.status === 'completed'),
   };
 
   // Filter by category if selected
   const filteredGrouped = filterCategory
     ? {
-        unverified: grouped.unverified.filter((h) => h.category === filterCategory),
         in_progress: grouped.in_progress.filter((h) => h.category === filterCategory),
-        verified: grouped.verified.filter((h) => h.category === filterCategory),
+        unverified: grouped.unverified.filter((h) => h.category === filterCategory),
+        done: grouped.done.filter((h) => h.category === filterCategory),
       }
     : grouped;
 
+  // Count incomplete
+  const incompleteCount = grouped.unverified.length + grouped.in_progress.length;
+
   // Get unique categories
   const categories = Array.from(new Set(hypotheses.map((h) => h.category)));
-
-  const columns: Array<{
-    status: HypothesisStatus;
-    title: string;
-    icon: typeof Circle;
-    color: string;
-    bgColor: string;
-  }> = [
-    {
-      status: 'unverified',
-      title: 'To Verify',
-      icon: Circle,
-      color: 'text-gray-400',
-      bgColor: 'bg-gray-800/50',
-    },
-    {
-      status: 'in_progress',
-      title: 'In Progress',
-      icon: Clock,
-      color: 'text-cyan-400',
-      bgColor: 'bg-cyan-500/10',
-    },
-    {
-      status: 'verified',
-      title: 'Verified',
-      icon: CheckCircle2,
-      color: 'text-emerald-400',
-      bgColor: 'bg-emerald-500/10',
-    },
-  ];
 
   if (isLoading) {
     return (
@@ -124,29 +115,21 @@ export default function HypothesisTracker({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View Toggle */}
-          <div className="flex items-center bg-gray-800 rounded-lg p-1">
+          {/* Complete All */}
+          {incompleteCount > 0 && (
             <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-1.5 rounded ${
-                viewMode === 'kanban'
-                  ? 'bg-gray-700 text-white'
-                  : 'text-gray-500 hover:text-white'
-              }`}
+              onClick={handleCompleteAll}
+              disabled={isCompletingAll}
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium transition-colors"
             >
-              <LayoutGrid className="w-4 h-4" />
+              {isCompletingAll ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              Complete All ({incompleteCount})
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded ${
-                viewMode === 'list'
-                  ? 'bg-gray-700 text-white'
-                  : 'text-gray-500 hover:text-white'
-              }`}
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
+          )}
 
           {/* Add Hypothesis */}
           <button
@@ -154,7 +137,7 @@ export default function HypothesisTracker({
             className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Add Hypothesis
+            Add
           </button>
         </div>
       </div>
@@ -180,64 +163,65 @@ export default function HypothesisTracker({
             Add First Hypothesis
           </button>
         </div>
-      ) : viewMode === 'kanban' ? (
-        /* Kanban View */
-        <div className="grid grid-cols-3 gap-4">
-          {columns.map((column) => {
-            const Icon = column.icon;
-            const items = filteredGrouped[column.status as keyof typeof filteredGrouped];
-
-            return (
-              <div
-                key={column.status}
-                className={`${column.bgColor} border border-gray-800 rounded-xl p-4`}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Icon className={`w-4 h-4 ${column.color}`} />
-                  <h4 className={`font-medium ${column.color}`}>{column.title}</h4>
-                  <span className="ml-auto text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-                    {items.length}
-                  </span>
-                </div>
-
-                <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                  <AnimatePresence>
-                    {items.map((hypothesis) => (
-                      <motion.div
-                        key={hypothesis.id}
-                        layout
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                      >
-                        <HypothesisCard
-                          hypothesis={hypothesis}
-                          projectPath={projectPath}
-                          compact
-                        />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       ) : (
-        /* List View */
-        <div className="space-y-3">
-          <AnimatePresence>
-            {hypotheses.map((hypothesis) => (
-              <motion.div
-                key={hypothesis.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <HypothesisCard hypothesis={hypothesis} projectPath={projectPath} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+        /* Single Column List */
+        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 space-y-4 max-h-[600px] overflow-y-auto">
+          {/* In Progress Section */}
+          {filteredGrouped.in_progress.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-cyan-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <Clock className="w-3 h-3" />
+                In Progress ({filteredGrouped.in_progress.length})
+              </h4>
+              <div className="space-y-1">
+                {filteredGrouped.in_progress.map((hypothesis) => (
+                  <HypothesisRow
+                    key={hypothesis.id}
+                    hypothesis={hypothesis}
+                    projectPath={projectPath}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* To Do Section */}
+          {filteredGrouped.unverified.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <Circle className="w-3 h-3" />
+                To Do ({filteredGrouped.unverified.length})
+              </h4>
+              <div className="space-y-1">
+                {filteredGrouped.unverified.map((hypothesis) => (
+                  <HypothesisRow
+                    key={hypothesis.id}
+                    hypothesis={hypothesis}
+                    projectPath={projectPath}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Done Section */}
+          {filteredGrouped.done.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <CheckCircle2 className="w-3 h-3" />
+                Done ({filteredGrouped.done.length})
+              </h4>
+              <div className="space-y-1">
+                {filteredGrouped.done.map((hypothesis) => (
+                  <HypothesisRow
+                    key={hypothesis.id}
+                    hypothesis={hypothesis}
+                    projectPath={projectPath}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

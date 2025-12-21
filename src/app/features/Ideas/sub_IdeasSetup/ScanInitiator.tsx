@@ -1,33 +1,14 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useContextStore } from '@/stores/contextStore';
-import { SupportedProvider } from '@/lib/llm/types';
-import { ScanState, QueueItem, ContextQueueItem, ScanType } from '../lib/scanTypes';
-import { getScanTypeConfig } from './lib/ScanTypeConfig';
-
-// Modular imports
-import { executeContextScan, getButtonColor, getButtonText } from './lib/scanHandlers';
-import {
-  findNextPending,
-  hasRunningItem,
-  isQueueComplete,
-  calculateQueueStats,
-  updateQueueItem
-} from './lib/scanQueue';
-import { handleScan as handleScanOperation, handleBatchScan as handleBatchScanOperation } from './lib/scanOperations';
+import { ScanType } from '../lib/scanTypes';
 import { executeClaudeIdeasWithContexts } from './lib/claudeIdeasExecutor';
 
 // Component imports
-import ProviderSelector from '@/components/llm/ProviderSelector';
-import ScanButton from './components/ScanButton';
-import BatchScanButton from './components/BatchScanButton';
 import ClaudeIdeasButton from './components/ClaudeIdeasButton';
-import ConvertToPackageButton from './components/ConvertToPackageButton';
-import ProgressBar from './ProgressBar';
-import ScanIdeaScoreboard from './components/ScanIdeaScoreboard';
 import ScanTypeSelector from './ScanTypeSelector';
 
 interface ScanInitiatorProps {
@@ -43,37 +24,16 @@ export default function ScanInitiator({
   selectedScanTypes,
   onScanTypesChange,
   selectedContextIds: propSelectedContextIds,
-  onBatchScan
 }: ScanInitiatorProps) {
-  const [scanState, setScanState] = React.useState<ScanState>('idle');
   const [message, setMessage] = React.useState<string>('');
-  const [totalIdeas, setTotalIdeas] = React.useState<number>(0);
-  const [selectedProvider, setSelectedProvider] = React.useState<SupportedProvider>('ollama');
-  const [showProviderPopup, setShowProviderPopup] = React.useState(false);
 
-  // Queue management for multiple scans
-  const [scanQueue, setScanQueue] = React.useState<QueueItem[]>([]);
-  const [isProcessingQueue, setIsProcessingQueue] = React.useState(false);
-
-  // Queue management for batch context scanning
-  const [contextQueue, setContextQueue] = React.useState<ContextQueueItem[]>([]);
-  const [isProcessingContextQueue, setIsProcessingContextQueue] = React.useState(false);
-  const [batchMode, setBatchMode] = React.useState(false);
-
-  // Claude Ideas state
-  const [isClaudeIdeasProcessing, setIsClaudeIdeasProcessing] = React.useState(false);
-
-  // Convert to Package state
-  const [isConvertingToPackages, setIsConvertingToPackages] = React.useState(false);
-  const [packagesCreated, setPackagesCreated] = React.useState(false);
-  const [acceptedIdeasCount, setAcceptedIdeasCount] = React.useState(0);
+  // Generated Ideas state
+  const [isProcessing, setIsProcessing] = React.useState(false);
 
   const { activeProject } = useActiveProjectStore();
   const { selectedContextIds, contexts, loadProjectData } = useContextStore();
 
   // Load contexts for active project when it changes
-  // Note: loadProjectData is excluded from deps as it's recreated on each render
-  // but internally uses stable closure state
   React.useEffect(() => {
     if (activeProject?.id) {
       loadProjectData(activeProject.id);
@@ -82,153 +42,13 @@ export default function ScanInitiator({
   }, [activeProject?.id]);
 
   // Use prop selected context IDs, or fall back to store's selected context IDs
-  const currentSelectedContextIds = propSelectedContextIds.length > 0 
-    ? propSelectedContextIds 
+  const currentSelectedContextIds = propSelectedContextIds.length > 0
+    ? propSelectedContextIds
     : (selectedContextIds.size > 0 ? Array.from(selectedContextIds) : []);
-  
-  // Get selected contexts data for scanning
-  const selectedContextsData = React.useMemo(() => {
-    return currentSelectedContextIds
-      .map(id => contexts.find(c => c.id === id))
-      .filter((c): c is NonNullable<typeof c> => c !== undefined);
-  }, [currentSelectedContextIds, contexts]);
-  
-  // For backward compatibility - first selected context (used in Claude Ideas)
-  const firstSelectedContextId = currentSelectedContextIds.length > 0 ? currentSelectedContextIds[0] : null;
-  const firstSelectedContext = firstSelectedContextId
-    ? contexts.find(c => c.id === firstSelectedContextId)
-    : undefined;
 
-  // Get ALL contexts for active project
-  // NOTE: Batch scan will use ALL contexts regardless of UI selection
-  const projectContexts = React.useMemo(() => {
-    if (!activeProject) return [];
-    return contexts.filter(c => c.projectId === activeProject.id);
-  }, [contexts, activeProject]);
-
-  // Helper function to fetch accepted ideas count
-  const fetchAcceptedIdeasCount = React.useCallback(async () => {
-    if (!activeProject?.id) {
-      setAcceptedIdeasCount(0);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/api/ideas/convert-to-packages?projectId=${activeProject.id}&status=accepted`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setAcceptedIdeasCount(data.eligibleCount || 0);
-      }
-    } catch (error) {
-      console.error('[ScanInitiator] Failed to fetch accepted ideas count:', error);
-    }
-  }, [activeProject?.id]);
-
-  // Fetch accepted ideas count on project change and after scans complete
-  React.useEffect(() => {
-    fetchAcceptedIdeasCount();
-    // Reset packages created state when project changes
-    setPackagesCreated(false);
-  }, [fetchAcceptedIdeasCount]);
-
-  // Handle Convert to Package click
-  const handleConvertToPackages = async () => {
-    if (!activeProject?.id || !activeProject?.path) {
-      setMessage('No active project selected');
-      return;
-    }
-
-    setIsConvertingToPackages(true);
-    setMessage('📦 Converting accepted ideas to RefactorWizard packages...');
-
-    try {
-      const response = await fetch('/api/ideas/convert-to-packages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: activeProject.id,
-          projectPath: activeProject.path,
-          status: 'accepted',
-          userPreferences: {
-            maxPackages: 10,
-            minIssuesPerPackage: 3,
-            provider: 'gemini',
-          },
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setMessage(
-          `✅ Created ${data.stats.packagesGenerated} packages from ${data.stats.ideasProcessed} ideas! Open RefactorWizard to view and execute them.`
-        );
-        setPackagesCreated(true);
-
-        // Store packages in sessionStorage for RefactorWizard to pick up
-        sessionStorage.setItem('ideaPackages', JSON.stringify({
-          packages: data.packages,
-          dependencyGraph: data.dependencyGraph,
-          recommendedOrder: data.recommendedOrder,
-          context: data.context,
-          stats: data.stats,
-          projectId: activeProject.id,
-          timestamp: new Date().toISOString(),
-        }));
-
-        setTimeout(() => {
-          setMessage('');
-        }, 8000);
-      } else {
-        setMessage(`❌ Failed to create packages: ${data.error}`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[ScanInitiator] Convert to packages error:', error);
-      setMessage(`❌ Failed to convert ideas to packages: ${errorMessage}`);
-    } finally {
-      setIsConvertingToPackages(false);
-    }
-  };
-
-  const handleScan = async () => {
-    await handleScanOperation({
-      activeProject,
-      selectedScanTypes,
-      projectContexts,
-      setScanQueue,
-      setContextQueue,
-      setBatchMode,
-      setTotalIdeas,
-      setScanState,
-      setIsProcessingQueue,
-      setIsProcessingContextQueue,
-      setShowProviderPopup,
-      setMessage
-    });
-  };
-
-  const handleBatchScan = async () => {
-    await handleBatchScanOperation({
-      activeProject,
-      selectedScanTypes,
-      projectContexts,
-      setScanQueue,
-      setContextQueue,
-      setBatchMode,
-      setTotalIdeas,
-      setScanState,
-      setIsProcessingQueue,
-      setIsProcessingContextQueue,
-      setMessage
-    });
-  };
-
-  // Claude Ideas: Create requirement files directly (no batch selection needed)
-  const handleClaudeIdeasClick = async () => {
-    console.log('[ScanInitiator] handleClaudeIdeasClick called');
+  // Generated Ideas: Create requirement files directly
+  const handleGeneratedIdeasClick = async () => {
+    console.log('[ScanInitiator] handleGeneratedIdeasClick called');
     console.log('[ScanInitiator] activeProject:', activeProject);
     console.log('[ScanInitiator] selectedScanTypes:', selectedScanTypes);
     console.log('[ScanInitiator] currentSelectedContextIds:', currentSelectedContextIds);
@@ -245,8 +65,8 @@ export default function ScanInitiator({
       return;
     }
 
-    setIsClaudeIdeasProcessing(true);
-    setMessage('🤖 Creating Claude Code requirement files...');
+    setIsProcessing(true);
+    setMessage('Creating Claude Code requirement files...');
 
     try {
       // Calculate expected file count for user feedback
@@ -272,179 +92,24 @@ export default function ScanInitiator({
       console.log('[ScanInitiator] executeClaudeIdeasWithContexts result:', result);
 
       if (result.success) {
-        setMessage(`✅ ${result.filesCreated}/${expectedFiles} requirement files created! Use TaskRunner to execute them when ready.`);
+        setMessage(`${result.filesCreated}/${expectedFiles} requirement files created! Use TaskRunner to execute them.`);
+        onScanComplete();
 
         // Clear message after delay
         setTimeout(() => {
           setMessage('');
         }, 8000);
       } else {
-        setMessage(`⚠️ Partial success: ${result.filesCreated} files created. Errors: ${result.errors.join(', ')}`);
+        setMessage(`Partial success: ${result.filesCreated} files created. Errors: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[ScanInitiator] executeClaudeIdeasWithContexts EXCEPTION:', error);
-      setMessage(`❌ Failed to create requirement files: ${errorMessage}`);
+      setMessage(`Failed to create requirement files: ${errorMessage}`);
     } finally {
-      setIsClaudeIdeasProcessing(false);
+      setIsProcessing(false);
     }
   };
-
-  // Process scan queue automatically when it changes
-  React.useEffect(() => {
-    if (!isProcessingQueue || scanQueue.length === 0) return;
-
-    const pendingIndex = findNextPending(scanQueue);
-    const hasRunning = hasRunningItem(scanQueue);
-
-    if (isQueueComplete(scanQueue)) {
-      const { successCount, failedCount } = calculateQueueStats(scanQueue);
-
-      setMessage(`Completed ${successCount} scans (${failedCount} failed). Total: ${totalIdeas} ideas!`);
-      setScanState(failedCount === scanQueue.length ? 'error' : 'success');
-      setIsProcessingQueue(false);
-
-      setTimeout(() => {
-        setScanState('idle');
-        setMessage('');
-        setScanQueue([]);
-      }, 5000);
-      return;
-    }
-
-    if (hasRunning || pendingIndex === -1) return;
-
-    const processNextScan = async () => {
-      // Update status to running
-      let updatedQueue = updateQueueItem(scanQueue, pendingIndex, { status: 'running' });
-      setScanQueue(updatedQueue);
-
-      const currentScan = updatedQueue[pendingIndex];
-      const config = getScanTypeConfig(currentScan.scanType);
-      setMessage(`${config?.emoji} Scanning: ${config?.label}...`);
-
-      try {
-        let totalIdeaCount = 0;
-        
-        // If multiple contexts are selected, scan each one
-        if (currentSelectedContextIds.length > 0) {
-          for (const contextId of currentSelectedContextIds) {
-            const contextData = contexts.find(c => c.id === contextId);
-            const ideaCount = await executeContextScan({
-              projectId: activeProject!.id,
-              projectName: activeProject!.name,
-              projectPath: activeProject!.path,
-              scanType: currentScan.scanType,
-              provider: selectedProvider,
-              contextId: contextId,
-              contextFilePaths: contextData?.filePaths
-            });
-            totalIdeaCount += ideaCount;
-          }
-        } else {
-          // No contexts selected - scan full project
-          const ideaCount = await executeContextScan({
-            projectId: activeProject!.id,
-            projectName: activeProject!.name,
-            projectPath: activeProject!.path,
-            scanType: currentScan.scanType,
-            provider: selectedProvider,
-            contextId: undefined,
-            contextFilePaths: undefined
-          });
-          totalIdeaCount = ideaCount;
-        }
-
-        updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
-          status: 'completed',
-          ideaCount: totalIdeaCount
-        });
-        setScanQueue(updatedQueue);
-        setTotalIdeas(prev => prev + totalIdeaCount);
-        onScanComplete();
-
-      } catch (error) {
-        updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Scan failed'
-        });
-        setScanQueue(updatedQueue);
-      }
-    };
-
-    processNextScan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isProcessingQueue, scanQueue]);
-
-  // Process context queue automatically when it changes
-  React.useEffect(() => {
-    if (!isProcessingContextQueue || contextQueue.length === 0) return;
-
-    const pendingIndex = findNextPending(contextQueue);
-    const hasRunning = hasRunningItem(contextQueue);
-
-    if (isQueueComplete(contextQueue)) {
-      const { successCount, failedCount } = calculateQueueStats(contextQueue);
-
-      setMessage(`Batch complete! ${successCount} contexts (${failedCount} failed). Total: ${totalIdeas} ideas!`);
-      setScanState(failedCount === contextQueue.length ? 'error' : 'success');
-      setIsProcessingContextQueue(false);
-
-      setTimeout(() => {
-        setScanState('idle');
-        setMessage('');
-        setContextQueue([]);
-        setBatchMode(false);
-      }, 5000);
-      return;
-    }
-
-    if (hasRunning || pendingIndex === -1) return;
-
-    const processNextContext = async () => {
-      let updatedQueue = updateQueueItem(contextQueue, pendingIndex, { status: 'running' });
-      setContextQueue(updatedQueue);
-
-      const currentContext = updatedQueue[pendingIndex];
-      const scanConfig = getScanTypeConfig(currentContext.scanType);
-
-      setMessage(`${scanConfig?.emoji || '📂'} ${currentContext.contextName} - ${scanConfig?.label}...`);
-
-      try {
-        const contextData = currentContext.contextId
-          ? contexts.find(c => c.id === currentContext.contextId)
-          : null;
-
-        const ideaCount = await executeContextScan({
-          projectId: activeProject!.id,
-          projectName: activeProject!.name,
-          projectPath: activeProject!.path,
-          scanType: currentContext.scanType,
-          provider: selectedProvider,
-          contextId: currentContext.contextId || undefined,
-          contextFilePaths: contextData?.filePaths
-        });
-
-        updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
-          status: 'completed',
-          ideaCount
-        });
-        setContextQueue(updatedQueue);
-        setTotalIdeas(prev => prev + ideaCount);
-        onScanComplete();
-
-      } catch (error) {
-        updatedQueue = updateQueueItem(updatedQueue, pendingIndex, {
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Batch scan failed'
-        });
-        setContextQueue(updatedQueue);
-      }
-    };
-
-    processNextContext();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isProcessingContextQueue, contextQueue]);
 
   return (
     <div className="space-y-4">
@@ -471,92 +136,18 @@ export default function ScanInitiator({
 
         {/* Action Buttons Row */}
         <div className="flex items-center gap-3 pt-2 border-t border-gray-700/20">
-          {/* Generate Button with Provider Popup */}
-          <div className="relative">
-            <ScanButton
-              onClick={handleScan}
-              onProviderClick={() => setShowProviderPopup(!showProviderPopup)}
-              disabled={scanState === 'scanning' || !activeProject}
-              scanState={scanState}
-              buttonColor={getButtonColor(scanState)}
-              buttonText={getButtonText(scanState, batchMode, selectedScanTypes.length, currentSelectedContextIds.length)}
-            />
-
-            {/* Provider Selector Popup */}
-            <AnimatePresence>
-              {showProviderPopup && (
-                <motion.div
-                  className="absolute bottom-full mb-2 left-0 bg-gray-800 border border-gray-700/40 rounded-lg shadow-xl p-3 z-50"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                >
-                  <div className="text-sm text-gray-400 mb-2 font-semibold">Select LLM Provider:</div>
-                  <ProviderSelector
-                    selectedProvider={selectedProvider}
-                    onSelectProvider={(provider) => {
-                      setSelectedProvider(provider);
-                      setShowProviderPopup(false);
-                    }}
-                    disabled={scanState === 'scanning'}
-                    compact={true}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Batch Ideas Button - Next to Generate Button */}
-          {activeProject && (
-            <BatchScanButton
-              onClick={onBatchScan || handleBatchScan}
-              disabled={scanState === 'scanning' || !activeProject}
-              isScanning={scanState === 'scanning' && batchMode}
-              contextsCount={projectContexts.length + 1}
-              scanTypesCount={selectedScanTypes.length}
-            />
-          )}
-
-          {/* Claude Ideas Button - Experimental Claude Code Generation */}
+          {/* Generated Ideas Button */}
           {activeProject && (
             <ClaudeIdeasButton
-              onClick={handleClaudeIdeasClick}
-              disabled={scanState === 'scanning' || isClaudeIdeasProcessing || !activeProject}
-              isProcessing={isClaudeIdeasProcessing}
+              onClick={handleGeneratedIdeasClick}
+              disabled={isProcessing || !activeProject}
+              isProcessing={isProcessing}
               scanTypesCount={selectedScanTypes.length}
               contextsCount={currentSelectedContextIds.length}
             />
           )}
-
-          {/* Convert to Package Button - Send accepted ideas to RefactorWizard */}
-          {activeProject && (
-            <ConvertToPackageButton
-              onClick={handleConvertToPackages}
-              disabled={scanState === 'scanning' || isConvertingToPackages || !activeProject}
-              isProcessing={isConvertingToPackages}
-              acceptedIdeasCount={acceptedIdeasCount}
-              isComplete={packagesCreated}
-            />
-          )}
-
         </div>
       </div>
-
-      {/* Progress Bar - Scan Queue */}
-      {scanQueue.length > 0 && isProcessingQueue && (
-        <>
-          <ProgressBar items={scanQueue} totalIdeas={totalIdeas} type="scan" />
-          <ScanIdeaScoreboard items={scanQueue} totalIdeas={totalIdeas} type="scan" />
-        </>
-      )}
-
-      {/* Progress Bar - Context Queue (Batch Mode) */}
-      {contextQueue.length > 0 && isProcessingContextQueue && (
-        <>
-          <ProgressBar items={contextQueue} totalIdeas={totalIdeas} type="context" />
-          <ScanIdeaScoreboard items={contextQueue} totalIdeas={totalIdeas} type="context" />
-        </>
-      )}
     </div>
   );
 }

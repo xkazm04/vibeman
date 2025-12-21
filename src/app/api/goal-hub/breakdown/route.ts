@@ -1,46 +1,33 @@
 /**
  * Goal Breakdown API
- * Generate multi-agent analysis for a goal using Claude Code
+ * Creates Claude Code requirement file for multi-agent goal analysis
+ * The requirement file instructs Claude Code to:
+ * 1. Analyze goal from multiple agent perspectives
+ * 2. Generate hypotheses and save to database
+ * 3. Create implementation requirement files for each hypothesis
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { goalHubDb, goalDb } from '@/app/db';
-import { randomUUID } from 'crypto';
+import { goalDb, contextDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
-import { SCAN_TYPE_CONFIGS } from '@/app/features/Ideas/lib/scanTypes';
-import type { AgentResponse, HypothesisCategory } from '@/app/db/models/goal-hub.types';
+import { SCAN_TYPE_CONFIGS, type ScanTypeConfig } from '@/app/features/Ideas/lib/scanTypes';
+import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 
-/**
- * GET /api/goal-hub/breakdown?goalId=xxx
- * Get the latest breakdown for a goal
- */
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const goalId = searchParams.get('goalId');
-
-    if (!goalId) {
-      return createErrorResponse('goalId is required', 400);
-    }
-
-    const breakdown = goalHubDb.breakdowns.getByGoalId(goalId);
-    const history = goalHubDb.breakdowns.getHistoryByGoalId(goalId);
-
-    return NextResponse.json({
-      breakdown,
-      history,
-    });
-  } catch (error) {
-    logger.error('Error in GET /api/goal-hub/breakdown:', { data: error });
-    return createErrorResponse('Internal server error', 500);
-  }
-}
+// Agent types most relevant for goal breakdown analysis
+const BREAKDOWN_AGENTS: string[] = [
+  'zen_architect',
+  'bug_hunter',
+  'perf_optimizer',
+  'security_protector',
+  'user_empathy_champion',
+  'data_flow_optimizer',
+  'ambiguity_guardian',
+];
 
 /**
  * POST /api/goal-hub/breakdown
- * Generate a new breakdown for a goal
- * This creates a Claude Code requirement file for execution
+ * Generate a Claude Code requirement file for goal breakdown
  */
 export async function POST(request: NextRequest) {
   try {
@@ -52,187 +39,218 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the goal
-    const goal = goalDb.getGoalById(goalId);
+    let goal;
+    try {
+      goal = goalDb.getGoalById(goalId);
+    } catch (dbError) {
+      logger.error('Database error getting goal:', { data: dbError });
+      return createErrorResponse(`Database error: ${dbError instanceof Error ? dbError.message : 'Unknown'}`, 500);
+    }
+
     if (!goal) {
       return notFoundResponse('Goal');
     }
 
-    // Build the breakdown prompt
-    const prompt = buildBreakdownPrompt(goal.title, goal.description || '');
-
-    // Return the prompt for Claude Code execution
-    // The frontend will create a requirement file and execute it
-    return NextResponse.json({
-      prompt,
-      goalId,
-      projectId,
-      projectPath,
-      requirementName: `goal-breakdown-${goalId.slice(0, 8)}`,
-    });
-  } catch (error) {
-    logger.error('Error in POST /api/goal-hub/breakdown:', { data: error });
-    return createErrorResponse('Internal server error', 500);
-  }
-}
-
-/**
- * POST /api/goal-hub/breakdown/save
- * Save a breakdown result after Claude Code execution
- */
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const {
-      goalId,
-      projectId,
-      agentResponses,
-      promptUsed,
-      modelUsed,
-      inputTokens,
-      outputTokens,
-    } = body as {
-      goalId: string;
-      projectId: string;
-      agentResponses: AgentResponse[];
-      promptUsed?: string;
-      modelUsed?: string;
-      inputTokens?: number;
-      outputTokens?: number;
-    };
-
-    if (!goalId || !projectId || !agentResponses) {
-      return createErrorResponse('goalId, projectId, and agentResponses are required', 400);
-    }
-
-    // Create the breakdown record
-    const breakdown = goalHubDb.breakdowns.create({
-      id: randomUUID(),
-      goalId,
-      projectId,
-      agentResponses,
-      promptUsed,
-      modelUsed,
-      inputTokens,
-      outputTokens,
-      hypothesesGenerated: 0,
-    });
-
-    // Extract and create hypotheses from agent responses
-    const hypothesesToCreate: Array<{
-      id: string;
-      goalId: string;
-      projectId: string;
-      title: string;
-      statement: string;
-      reasoning?: string;
-      category?: HypothesisCategory;
-      priority?: number;
-      agentSource?: string;
-    }> = [];
-
-    for (const response of agentResponses) {
-      for (const h of response.hypotheses) {
-        hypothesesToCreate.push({
-          id: randomUUID(),
-          goalId,
-          projectId,
-          title: h.title,
-          statement: h.statement,
-          category: h.category,
-          priority: h.priority,
-          agentSource: response.agentType,
-        });
+    // Get context if goal has context_id
+    let contextData: { name: string; filePaths: string[] } | null = null;
+    if (goal.context_id) {
+      const context = contextDb.getContextById(goal.context_id);
+      if (context) {
+        contextData = {
+          name: context.name,
+          filePaths: JSON.parse(context.file_paths || '[]'),
+        };
       }
     }
 
-    // Bulk create hypotheses
-    let hypotheses: ReturnType<typeof goalHubDb.hypotheses.getByGoalId> = [];
-    if (hypothesesToCreate.length > 0) {
-      hypotheses = goalHubDb.hypotheses.createBulk(hypothesesToCreate);
+    // Build the breakdown prompt
+    const prompt = buildBreakdownPrompt({
+      goalId,
+      goalTitle: goal.title,
+      goalDescription: goal.description || '',
+      projectId,
+      contextData,
+    });
+
+    const requirementName = `goal-breakdown-${goalId.slice(0, 8)}`;
+
+    logger.info('Creating breakdown requirement file', {
+      requirementName,
+      projectPath,
+      goalId
+    });
+
+    // Create the requirement file directly
+    const result = createRequirement(projectPath, requirementName, prompt, true);
+
+    if (!result.success) {
+      logger.error('Failed to create requirement file:', {
+        error: result.error
+      });
+      return createErrorResponse(result.error || 'Failed to create requirement file', 500);
     }
 
-    // Update goal progress
-    goalHubDb.extensions.updateProgress(goalId);
-
-    // Start the goal if not already started
-    goalHubDb.extensions.startGoal(goalId);
-
     return NextResponse.json({
-      breakdown,
-      hypotheses,
-      hypothesesGenerated: hypothesesToCreate.length,
+      success: true,
+      requirementName,
+      filePath: result.filePath,
+      message: `Requirement file created: ${requirementName}.md`,
     });
   } catch (error) {
-    logger.error('Error in PUT /api/goal-hub/breakdown:', { data: error });
-    return createErrorResponse('Internal server error', 500);
+    logger.error('Error in POST /api/goal-hub/breakdown:', {
+      data: error,
+      message: error instanceof Error ? error.message : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
+    );
   }
 }
 
 /**
  * Build the multi-agent breakdown prompt for Claude Code
  */
-function buildBreakdownPrompt(goalTitle: string, goalDescription: string): string {
-  // Select relevant agents from the scan type configs
-  const relevantAgents = SCAN_TYPE_CONFIGS.filter(agent =>
-    ['zen_architect', 'bug_hunter', 'security_protector', 'perf_optimizer',
-     'user_empathy_champion', 'accessibility_advocate', 'business_visionary',
-     'data_flow_optimizer', 'ambiguity_guardian'].includes(agent.value)
-  );
+function buildBreakdownPrompt(config: {
+  goalId: string;
+  goalTitle: string;
+  goalDescription: string;
+  projectId: string;
+  contextData: { name: string; filePaths: string[] } | null;
+}): string {
+  const { goalId, goalTitle, goalDescription, projectId, contextData } = config;
 
-  const agentDescriptions = relevantAgents.map(agent =>
-    `- **${agent.emoji} ${agent.label}** (${agent.value}): ${agent.description}`
-  ).join('\n');
+  // Get agent configurations
+  const agents = BREAKDOWN_AGENTS
+    .map(type => SCAN_TYPE_CONFIGS.find(c => c.value === type))
+    .filter((c): c is ScanTypeConfig => c !== undefined);
+
+  const agentSection = agents
+    .map(agent => `- **${agent.emoji} ${agent.label}**: ${agent.description}`)
+    .join('\n');
+
+  const contextSection = contextData
+    ? `
+## Feature Context
+
+This goal is associated with the **"${contextData.name}"** context.
+
+### Files in this context:
+${contextData.filePaths.map(f => `- \`${f}\``).join('\n')}
+
+Focus your analysis on how the goal impacts these specific files and this feature area.
+`
+    : '';
 
   return `# Goal Breakdown Analysis
 
-## Goal
-**Title:** ${goalTitle}
-${goalDescription ? `**Description:** ${goalDescription}` : ''}
+## Goal Information
+
+- **Goal ID:** \`${goalId}\`
+- **Title:** ${goalTitle}
+${goalDescription ? `- **Description:** ${goalDescription}` : ''}
+- **Project ID:** \`${projectId}\`
+${contextSection}
 
 ## Your Task
-Analyze this development goal from multiple expert perspectives. For each relevant perspective, provide:
-1. Key considerations and recommendations
-2. Potential risks or challenges
-3. Testable hypotheses that would prove successful implementation
 
-## Available Agent Perspectives
-${agentDescriptions}
+You will:
+1. Analyze this goal from multiple expert perspectives
+2. **SAVE each hypothesis to the database via curl** (REQUIRED - this is how they appear in the UI)
+3. Create ONE consolidated implementation requirement file
 
-## Output Format
-You MUST respond with valid JSON in exactly this structure:
+## Agent Perspectives
 
-\`\`\`json
-{
-  "agentResponses": [
-    {
-      "agentType": "zen_architect",
-      "agentLabel": "Zen Architect",
-      "agentEmoji": "🏗️",
-      "perspective": "Brief summary of this agent's view on the goal",
-      "recommendations": ["Specific recommendation 1", "Specific recommendation 2"],
-      "hypotheses": [
-        {
-          "title": "Short hypothesis title",
-          "statement": "When [condition], then [expected outcome] because [reasoning]",
-          "category": "behavior|performance|security|accessibility|ux|integration|edge_case|data|error",
-          "priority": 1-10
-        }
-      ],
-      "risks": ["Potential risk 1", "Potential risk 2"],
-      "considerations": ["Important consideration 1"]
-    }
-  ]
-}
+${agentSection}
+
+---
+
+## STEP 1: Analyze the Goal
+
+Think through:
+- Architecture and design considerations
+- Potential bugs and edge cases
+- Performance implications
+- Security concerns
+- User experience impact
+- Accessibility requirements
+
+For each insight, prepare a hypothesis with:
+- **title**: Short descriptive name (e.g., "Input validation for user data")
+- **statement**: Testable condition (e.g., "When user submits empty form, validation errors should display")
+- **category**: One of: behavior, performance, security, accessibility, ux, integration, edge_case, data, error
+- **priority**: 1-10 (10=critical, 1=nice-to-have)
+- **agentSource**: Which perspective identified this (e.g., bug_hunter, security_protector)
+
+---
+
+## STEP 2: Save Hypotheses to Database (REQUIRED)
+
+⚠️ **CRITICAL**: You MUST execute a curl command for EACH hypothesis. Without this, hypotheses won't appear in the Goal Hub UI.
+
+For each hypothesis you identified, run:
+
+\`\`\`bash
+curl -X POST "http://localhost:3000/api/goal-hub/hypotheses" -H "Content-Type: application/json" -d '{"goalId":"${goalId}","projectId":"${projectId}","title":"TITLE_HERE","statement":"STATEMENT_HERE","reasoning":"REASONING_HERE","category":"CATEGORY_HERE","priority":PRIORITY_NUMBER,"agentSource":"AGENT_HERE"}'
 \`\`\`
 
-## Guidelines
-1. Only include agents whose perspective is relevant to this specific goal
-2. Each hypothesis should be testable and verifiable
-3. Prioritize hypotheses by importance (10 = critical, 1 = nice to have)
-4. Focus on practical, actionable insights
-5. Consider edge cases and failure modes
-6. Include at least 3-5 hypotheses total across all agents
-7. Use appropriate category for each hypothesis
+**Example** (copy and modify for each hypothesis):
+\`\`\`bash
+curl -X POST "http://localhost:3000/api/goal-hub/hypotheses" -H "Content-Type: application/json" -d '{"goalId":"${goalId}","projectId":"${projectId}","title":"Form validation","statement":"When user submits invalid data, clear error messages should appear","reasoning":"Prevents bad data and improves UX","category":"behavior","priority":8,"agentSource":"bug_hunter"}'
+\`\`\`
 
-Analyze the goal and provide your multi-agent breakdown:`;
+Run one curl command per hypothesis. Verify each returns a JSON response with an "id" field.
+
+---
+
+## STEP 3: Create Implementation Requirement File
+
+After ALL hypotheses are saved to the database, create ONE implementation file.
+
+**File path:** \`.claude/commands/implement-goal-${goalId.slice(0, 8)}.md\`
+
+**Content:**
+
+\`\`\`markdown
+# Implement Goal: ${goalTitle}
+
+## Overview
+Implement all changes required for: "${goalTitle}"
+${contextData ? `\nFeature context: "${contextData.name}"` : ''}
+
+## Changes Required
+
+### 1. [Change Area Name]
+**Files:** \`path/to/file.ts\`
+**What:** Description of changes needed
+**Why:** Which hypothesis this addresses
+
+### 2. [Change Area Name]
+**Files:** \`path/to/file.ts\`
+**What:** Description of changes needed
+**Why:** Which hypothesis this addresses
+
+[Add more sections as needed...]
+
+## Testing
+- [ ] Verify change 1 works correctly
+- [ ] Verify change 2 works correctly
+- [ ] Run existing tests
+- [ ] No regressions
+\`\`\`
+
+---
+
+## Output Checklist
+
+Before finishing, confirm:
+- [ ] Listed all hypotheses identified during analysis
+- [ ] Executed curl command for EACH hypothesis (check for successful JSON responses)
+- [ ] Created implementation file at \`.claude/commands/implement-goal-${goalId.slice(0, 8)}.md\`
+
+Report:
+1. Number of hypotheses saved to database
+2. Path to implementation file created
+`;
 }

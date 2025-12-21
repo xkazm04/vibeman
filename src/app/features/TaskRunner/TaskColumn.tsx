@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { CheckSquare, Square, Trash2, XCircle, Layers } from 'lucide-react';
 import TaskItem from './TaskItem';
 import type { ProjectRequirement } from './lib/types';
 import type { AggregationCheckResult } from './lib/ideaAggregator';
+import type { DbIdea } from '@/app/db';
 
 interface TaskColumnProps {
   projectId: string;
@@ -19,6 +20,9 @@ interface TaskColumnProps {
   onToggleProjectSelection: (projectId: string) => void;
   getRequirementId: (req: ProjectRequirement) => string;
   onRefresh?: () => void;
+  // Optional pre-loaded data to avoid duplicate fetches
+  aggregationData?: AggregationCheckResult | null;
+  ideasData?: Record<string, DbIdea | null>;
 }
 
 const TaskColumn = React.memo(function TaskColumn({
@@ -33,14 +37,24 @@ const TaskColumn = React.memo(function TaskColumn({
   onToggleProjectSelection,
   getRequirementId,
   onRefresh,
+  aggregationData,
+  ideasData,
 }: TaskColumnProps) {
-  // Aggregation state
-  const [aggregationCheck, setAggregationCheck] = useState<AggregationCheckResult | null>(null);
+  // Aggregation state - use prop if provided, otherwise fetch
+  const [aggregationCheck, setAggregationCheck] = useState<AggregationCheckResult | null>(aggregationData || null);
   const [isAggregating, setIsAggregating] = useState(false);
+  // Batch-loaded ideas for all requirements in this column
+  const [ideasMap, setIdeasMap] = useState<Record<string, DbIdea | null>>(ideasData || {});
+  // Refs to prevent duplicate fetches (React Strict Mode double-mount)
+  const aggregationFetchedRef = useRef(false);
+  const ideasFetchedRef = useRef(false);
 
-  // Check for aggregatable files on mount and when requirements change
+  // Check for aggregatable files - skip if data provided via prop
   const checkAggregation = useCallback(async () => {
-    if (!projectPath) return;
+    if (!projectPath || aggregationData !== undefined) return;
+    if (aggregationFetchedRef.current) return; // Prevent duplicate fetch
+
+    aggregationFetchedRef.current = true;
 
     try {
       const response = await fetch(
@@ -53,11 +67,60 @@ const TaskColumn = React.memo(function TaskColumn({
     } catch (error) {
       console.error('Failed to check aggregation:', error);
     }
-  }, [projectPath]);
+  }, [projectPath, aggregationData]);
 
   useEffect(() => {
-    checkAggregation();
-  }, [checkAggregation, requirements.length]);
+    if (aggregationData === undefined) {
+      checkAggregation();
+    }
+  }, [checkAggregation, aggregationData]);
+
+  // Reset fetch guard when project changes
+  useEffect(() => {
+    aggregationFetchedRef.current = false;
+    ideasFetchedRef.current = false;
+  }, [projectPath]);
+
+  // Batch fetch ideas - skip if data provided via prop
+  const requirementNames = useMemo(
+    () => requirements.map((r) => r.requirementName),
+    [requirements]
+  );
+
+  useEffect(() => {
+    // Skip if ideas data was provided via prop
+    if (ideasData !== undefined) {
+      setIdeasMap(ideasData);
+      return;
+    }
+
+    if (ideasFetchedRef.current) return; // Prevent duplicate fetch
+    ideasFetchedRef.current = true;
+
+    const fetchIdeasBatch = async () => {
+      if (requirementNames.length === 0) {
+        setIdeasMap({});
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/ideas/by-requirements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requirementIds: requirementNames }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIdeasMap(data.ideas || {});
+        }
+      } catch (error) {
+        console.debug('Failed to batch fetch ideas:', error);
+      }
+    };
+
+    fetchIdeasBatch();
+  }, [requirementNames, ideasData]);
 
   // Handle aggregation
   const handleAggregate = async () => {
@@ -73,12 +136,23 @@ const TaskColumn = React.memo(function TaskColumn({
 
       const data = await response.json();
       if (data.success) {
-        // Refresh the requirements list
-        onRefresh?.();
-        // Re-check aggregation state
+        // Log aggregation results for debugging
+        if (data.results) {
+          data.results.forEach((result: { role: string; deletedFiles: string[]; newFileName: string }) => {
+            console.log(`[Aggregate] ${result.role}: Created ${result.newFileName}, deleted ${result.deletedFiles?.length || 0} files`);
+          });
+        }
+
+        // Small delay to ensure file system operations complete (Windows)
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Refresh the requirements list for this project only
+        await onRefresh?.();
+
+        // Re-check aggregation state after refresh
         await checkAggregation();
       } else {
-        console.error('Aggregation failed:', data.error);
+        console.error('Aggregation failed:', data.error, data.errors);
       }
     } catch (error) {
       console.error('Failed to aggregate:', error);
@@ -239,6 +313,7 @@ const TaskColumn = React.memo(function TaskColumn({
                 onToggleSelect={() => onToggleSelect(reqId)}
                 onDelete={() => onDelete(reqId)}
                 projectPath={req.projectPath}
+                idea={ideasMap[req.requirementName]}
               />
             );
           })

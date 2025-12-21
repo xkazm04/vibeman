@@ -18,7 +18,8 @@ import { buildAiIntegrationScoutPrompt } from './aiIntegrationScoutPrompt';
 import { buildDelightDesignerPrompt } from './delightDesignerPrompt';
 // People's Choice - User First Approach
 import { buildUserEmpathyChampionPrompt } from './userEmpathyChampionPrompt';
-import { buildAccessibilityAdvocatePrompt } from './accessibilityAdvocatePrompt';
+// Business - Competitive Intelligence
+import { buildCompetitorPrompt } from './competitorPrompt';
 // Mastermind - Ambitious Opportunities
 import { buildParadigmShifterPrompt } from './paradigmShifterPrompt';
 import { buildMoonshotArchitectPrompt } from './moonshotArchitectPrompt';
@@ -61,7 +62,8 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   delight_designer: buildDelightDesignerPrompt,
   // People's Choice - User First Approach
   user_empathy_champion: buildUserEmpathyChampionPrompt,
-  accessibility_advocate: buildAccessibilityAdvocatePrompt,
+  // Business - Competitive Intelligence
+  competitor_analyst: buildCompetitorPrompt,
   // Mastermind - Ambitious Opportunities
   paradigm_shifter: buildParadigmShifterPrompt,
   moonshot_architect: buildMoonshotArchitectPrompt,
@@ -106,7 +108,8 @@ export {
   buildDelightDesignerPrompt,
   // People's Choice
   buildUserEmpathyChampionPrompt,
-  buildAccessibilityAdvocatePrompt,
+  // Business - Competitive Intelligence
+  buildCompetitorPrompt,
   // Mastermind
   buildParadigmShifterPrompt,
   buildMoonshotArchitectPrompt,

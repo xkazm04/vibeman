@@ -1,7 +1,41 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, LucideIcon } from 'lucide-react';
+import { X, LucideIcon, Loader2 } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+
+// Icon button styles for header actions
+const HEADER_ACTION_STYLES = {
+  primary: {
+    bg: 'bg-gradient-to-r from-green-600/80 to-emerald-500/80 hover:from-green-500 hover:to-emerald-400',
+    border: 'border-green-500/60 hover:border-green-400',
+    text: 'text-white',
+  },
+  secondary: {
+    bg: 'bg-slate-700/60 hover:bg-slate-600/80',
+    border: 'border-slate-600/50 hover:border-slate-500',
+    text: 'text-slate-300 hover:text-white',
+  },
+  danger: {
+    bg: 'bg-gradient-to-r from-red-600/80 to-rose-500/80 hover:from-red-500 hover:to-rose-400',
+    border: 'border-red-500/60 hover:border-red-400',
+    text: 'text-white',
+  },
+  success: {
+    bg: 'bg-gradient-to-r from-cyan-600/80 to-blue-500/80 hover:from-cyan-500 hover:to-blue-400',
+    border: 'border-cyan-500/60 hover:border-cyan-400',
+    text: 'text-white',
+  },
+};
+
+interface HeaderAction {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void | Promise<void>;
+  variant?: 'primary' | 'secondary' | 'danger' | 'success';
+  disabled?: boolean;
+  loading?: boolean;
+  testId?: string;
+}
 
 interface UniversalModalProps {
   isOpen: boolean;
@@ -16,6 +50,7 @@ interface UniversalModalProps {
   maxHeight?: string;
   showBackdrop?: boolean;
   backdropBlur?: boolean;
+  headerActions?: HeaderAction[];
 }
 
 export const UniversalModal: React.FC<UniversalModalProps> = ({
@@ -30,7 +65,8 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
   maxWidth = "max-w-4xl",
   maxHeight = "max-h-[85vh]",
   showBackdrop = true,
-  backdropBlur = true
+  backdropBlur = true,
+  headerActions = [],
 }) => {
   // Lock body scroll when modal is open
   useBodyScrollLock(isOpen);
@@ -114,7 +150,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
           stiffness: 300,
           mass: 0.8
         }}
-        className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-12"
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       >
         <div 
           className={`relative w-full ${maxWidth} ${maxHeight} overflow-hidden`}
@@ -152,13 +188,52 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Enhanced Close Button */}
-                  <button
-                    onClick={onClose}
-                    className="p-2 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 rounded-xl transition-all duration-200 group border border-transparent hover:border-slate-600/30"
-                  >
-                    <X className="w-5 h-5 text-slate-400 group-hover:text-slate-300 transition-colors" />
-                  </button>
+                  {/* Header Actions + Close Button */}
+                  <div className="flex items-center gap-2">
+                    {/* Header Action Buttons */}
+                    {headerActions.map((action, index) => {
+                      const variant = action.variant || 'secondary';
+                      const styles = HEADER_ACTION_STYLES[variant];
+                      const ActionIcon = action.icon;
+
+                      return (
+                        <motion.button
+                          key={action.label}
+                          onClick={action.onClick}
+                          disabled={action.disabled}
+                          title={action.label}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1 + index * 0.05 }}
+                          className={`
+                            p-2.5 rounded-xl border transition-all duration-200
+                            ${styles.bg} ${styles.border}
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                            shadow-lg hover:shadow-xl
+                          `}
+                          data-testid={action.testId}
+                          aria-label={action.label}
+                        >
+                          {action.loading ? (
+                            <Loader2 className={`w-5 h-5 ${styles.text} animate-spin`} />
+                          ) : (
+                            <ActionIcon className={`w-5 h-5 ${styles.text}`} aria-hidden="true" />
+                          )}
+                        </motion.button>
+                      );
+                    })}
+
+                    {/* Close Button */}
+                    <button
+                      onClick={onClose}
+                      title="Close"
+                      className="p-2 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 rounded-xl transition-all duration-200 group border border-transparent hover:border-slate-600/30"
+                    >
+                      <X className="w-5 h-5 text-slate-400 group-hover:text-slate-300 transition-colors" />
+                    </button>
+                  </div>
                 </div>
               </div>
 

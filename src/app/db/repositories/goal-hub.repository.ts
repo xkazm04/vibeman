@@ -7,14 +7,11 @@ import { getDatabase } from '../connection';
 import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
 import {
   DbGoalHypothesis,
-  DbGoalBreakdown,
   GoalHypothesis,
-  GoalBreakdown,
   HypothesisStatus,
   HypothesisCategory,
   VerificationMethod,
   EvidenceType,
-  AgentResponse,
 } from '../models/goal-hub.types';
 
 // ============================================================================
@@ -40,21 +37,6 @@ function dbToHypothesis(db: DbGoalHypothesis): GoalHypothesis {
     orderIndex: db.order_index,
     createdAt: new Date(db.created_at),
     updatedAt: new Date(db.updated_at),
-  };
-}
-
-function dbToBreakdown(db: DbGoalBreakdown): GoalBreakdown {
-  return {
-    id: db.id,
-    goalId: db.goal_id,
-    projectId: db.project_id,
-    promptUsed: db.prompt_used,
-    modelUsed: db.model_used,
-    inputTokens: db.input_tokens,
-    outputTokens: db.output_tokens,
-    agentResponses: JSON.parse(db.agent_responses) as AgentResponse[],
-    hypothesesGenerated: db.hypotheses_generated,
-    createdAt: new Date(db.created_at),
   };
 }
 
@@ -244,8 +226,8 @@ export const goalHypothesisRepository = {
     fields.push('updated_at = ?');
     values.push(now);
 
-    // If status is being set to verified, also set verified_at
-    if (updates.status === 'verified') {
+    // If status is being set to verified or completed, also set verified_at
+    if (updates.status === 'verified' || updates.status === 'completed') {
       fields.push('verified_at = ?');
       values.push(now);
     }
@@ -302,121 +284,27 @@ export const goalHypothesisRepository = {
   /**
    * Get hypothesis counts for a goal
    */
-  getCounts(goalId: string): { total: number; verified: number; inProgress: number } {
+  getCounts(goalId: string): { total: number; verified: number; inProgress: number; completed: number } {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as verified,
-        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress
+        SUM(CASE WHEN status IN ('verified', 'completed') THEN 1 ELSE 0 END) as verified,
+        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
       FROM goal_hypotheses
       WHERE goal_id = ?
     `);
-    const result = stmt.get(goalId) as { total: number; verified: number; in_progress: number };
+    const result = stmt.get(goalId) as { total: number; verified: number; in_progress: number; completed: number };
     return {
       total: result.total || 0,
       verified: result.verified || 0,
       inProgress: result.in_progress || 0,
+      completed: result.completed || 0,
     };
   },
 };
 
-// ============================================================================
-// BREAKDOWN REPOSITORY
-// ============================================================================
-
-export const goalBreakdownRepository = {
-  /**
-   * Get breakdown for a goal
-   */
-  getByGoalId(goalId: string): GoalBreakdown | null {
-    const db = getDatabase();
-    const result = selectOne<DbGoalBreakdown>(
-      db,
-      'SELECT * FROM goal_breakdowns WHERE goal_id = ? ORDER BY created_at DESC LIMIT 1',
-      goalId
-    );
-    return result ? dbToBreakdown(result) : null;
-  },
-
-  /**
-   * Get breakdown by ID
-   */
-  getById(id: string): GoalBreakdown | null {
-    const db = getDatabase();
-    const result = selectOne<DbGoalBreakdown>(
-      db,
-      'SELECT * FROM goal_breakdowns WHERE id = ?',
-      id
-    );
-    return result ? dbToBreakdown(result) : null;
-  },
-
-  /**
-   * Create a new breakdown
-   */
-  create(breakdown: {
-    id: string;
-    goalId: string;
-    projectId: string;
-    promptUsed?: string;
-    modelUsed?: string;
-    inputTokens?: number;
-    outputTokens?: number;
-    agentResponses: AgentResponse[];
-    hypothesesGenerated?: number;
-  }): GoalBreakdown {
-    const db = getDatabase();
-    const now = getCurrentTimestamp();
-
-    const stmt = db.prepare(`
-      INSERT INTO goal_breakdowns (
-        id, goal_id, project_id, prompt_used, model_used,
-        input_tokens, output_tokens, agent_responses, hypotheses_generated, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      breakdown.id,
-      breakdown.goalId,
-      breakdown.projectId,
-      breakdown.promptUsed || null,
-      breakdown.modelUsed || null,
-      breakdown.inputTokens || 0,
-      breakdown.outputTokens || 0,
-      JSON.stringify(breakdown.agentResponses),
-      breakdown.hypothesesGenerated || 0,
-      now
-    );
-
-    return this.getById(breakdown.id)!;
-  },
-
-  /**
-   * Get all breakdowns for a goal (history)
-   */
-  getHistoryByGoalId(goalId: string, limit = 10): GoalBreakdown[] {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM goal_breakdowns
-      WHERE goal_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?
-    `);
-    const results = stmt.all(goalId, limit) as DbGoalBreakdown[];
-    return results.map(dbToBreakdown);
-  },
-
-  /**
-   * Delete breakdown
-   */
-  delete(id: string): boolean {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM goal_breakdowns WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
-};
 
 // ============================================================================
 // GOAL EXTENSIONS (updates to existing goals table)

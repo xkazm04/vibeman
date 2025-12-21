@@ -20,22 +20,19 @@ IMPORTANT INSTRUCTIONS:
 
 ## Context Updates
 
-**CRITICAL**: If this requirement references a specific CONTEXT name or feature area, you MUST update the context documentation using the context update skill.
+**When to update contexts**: Only if you **created or deleted files** during implementation.
 
-To update a context:
-1. Invoke the \`update-context\` skill by running: \`/skill update-context\`
-2. The skill will guide you through:
-   - Identifying the correct context to update
-   - Analyzing the files you've changed
-   - Updating the context's file paths to include new/modified files
-   - Refreshing the context description to reflect your changes
+If you created or deleted files, invoke: \`/skill update-context\`
 
-**When to use the context update skill:**
-- The requirement explicitly mentions a context name (e.g., "Update the Goals Management context")
-- You've created, modified, or deleted files within a feature area that has an existing context
-- Your changes significantly impact the architecture or capabilities of a feature
+The skill will guide you through:
+- Updating existing contexts with new/removed files
+- Creating new contexts for new feature areas
+- Splitting large contexts (15+ files)
+- Assigning contexts to appropriate groups
 
-**Important:** Always invoke the skill AFTER completing your implementation, as it needs to analyze your changes.
+**Skip context updates if**: You only modified existing files (no file additions/deletions).
+
+**Non-blocking**: If context update fails, log error and continue. Never block task completion.
 
 ## File Structure Guidelines (Next.js/React Projects)
 

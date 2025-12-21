@@ -87,7 +87,7 @@ export function migrateRedTeamTestingTables(logger: MigrationLogger) {
         name TEXT NOT NULL,
         description TEXT NOT NULL,
         category TEXT NOT NULL CHECK (category IN (
-          'security', 'performance', 'accessibility', 'edge_case',
+          'security', 'performance', 'edge_case',
           'state', 'concurrency', 'input', 'integration'
         )),
         agent_type TEXT NOT NULL,

@@ -25,6 +25,12 @@ import {
   isPollingActive,
   type PollingCallback,
 } from '../lib/pollingManager';
+import {
+  emitTaskStarted,
+  emitTaskCompleted,
+  emitTaskFailed,
+  emitBatchProgress,
+} from '@/lib/bridge/client';
 
 // ============================================================================
 // Requirements Cache (Fix for batch continuation bug)
@@ -541,6 +547,14 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           executingTasks: new Set([...state.executingTasks, nextTask.id]),
         }));
 
+        // Emit bridge event for task started
+        emitTaskStarted(
+          nextTask.id,
+          batchId,
+          requirement.requirementName,
+          requirement.projectId
+        );
+
         try {
           // Execute the task
           const result = await executeRequirementAsync(
@@ -854,6 +868,24 @@ function createPollingCallback(
           };
         });
 
+        // Emit bridge event for task completed
+        emitTaskCompleted(
+          requirementId,
+          batchId,
+          requirement.requirementName,
+          requirement.projectId
+        );
+
+        // Emit batch progress update
+        const currentState = useTaskRunnerStore.getState();
+        const batchProgress = currentState.getBatchProgress(batchId);
+        emitBatchProgress(
+          batchId,
+          batchProgress.completed,
+          batchProgress.total,
+          requirement.projectId
+        );
+
         // Update idea status to 'implemented' and increment context counter
         try {
           await fetch('/api/ideas/update-implementation-status', {
@@ -903,6 +935,25 @@ function createPollingCallback(
             executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
           };
         });
+
+        // Emit bridge event for task failed
+        emitTaskFailed(
+          requirementId,
+          batchId,
+          requirement.requirementName,
+          requirement.projectId,
+          taskStatus.error
+        );
+
+        // Emit batch progress update
+        const failedState = useTaskRunnerStore.getState();
+        const failedBatchProgress = failedState.getBatchProgress(batchId);
+        emitBatchProgress(
+          batchId,
+          failedBatchProgress.completed,
+          failedBatchProgress.total,
+          requirement.projectId
+        );
 
         // Continue with next task using cached requirements
         const allRequirements = getCachedRequirements();

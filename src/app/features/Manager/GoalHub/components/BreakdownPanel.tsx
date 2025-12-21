@@ -1,298 +1,280 @@
 /**
  * Breakdown Panel Component
- * Displays and triggers goal breakdown analysis
+ * Triggers goal breakdown analysis via Claude Code with auto-execution
  */
 
 'use client';
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Sparkles,
   Loader2,
-  ChevronDown,
-  ChevronUp,
+  CheckCircle,
   AlertCircle,
-  Lightbulb,
-  Shield,
-  Zap,
-  RefreshCw,
+  FileCode,
+  Play,
+  Clock,
+  XCircle,
 } from 'lucide-react';
 import { useGoalHubStore } from '@/stores/goalHubStore';
-import { saveRequirement, executeRequirement } from '@/app/Claude/lib/requirementApi';
-import type { GoalBreakdown, AgentResponse } from '@/app/db/models/goal-hub.types';
-import { SCAN_TYPE_CONFIGS } from '@/app/features/Ideas/lib/scanTypes';
+import {
+  useTaskRunnerStore,
+  setCachedRequirements,
+} from '@/app/features/TaskRunner/store/taskRunnerStore';
+import { isTaskCompleted, isTaskFailed } from '@/app/features/TaskRunner/lib/types';
+
+type ExecutionStatus = 'idle' | 'creating' | 'queued' | 'running' | 'completed' | 'failed';
 
 interface BreakdownPanelProps {
-  breakdown: GoalBreakdown | null;
-  isGenerating: boolean;
   projectPath: string;
+  projectId: string;
+  onBreakdownCreated?: () => void;
 }
 
 export default function BreakdownPanel({
-  breakdown,
-  isGenerating,
   projectPath,
+  projectId,
+  onBreakdownCreated,
 }: BreakdownPanelProps) {
-  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionError, setExecutionError] = useState<string | null>(null);
+  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle');
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [requirementName, setRequirementName] = useState<string | null>(null);
 
-  const { generateBreakdown, saveBreakdownResult, activeGoal } = useGoalHubStore();
+  const { activeGoal, loadHypotheses, hypothesisCounts } = useGoalHubStore();
+  const tasks = useTaskRunnerStore((state) => state.tasks);
+  const createBatch = useTaskRunnerStore((state) => state.createBatch);
+  const startBatch = useTaskRunnerStore((state) => state.startBatch);
 
-  const toggleAgent = (agentType: string) => {
-    setExpandedAgents((prev) => {
-      const next = new Set(prev);
-      if (next.has(agentType)) {
-        next.delete(agentType);
-      } else {
-        next.add(agentType);
+  // Poll for task completion
+  useEffect(() => {
+    if (!currentTaskId || executionStatus !== 'running') return;
+
+    const checkStatus = () => {
+      const task = tasks[currentTaskId];
+      if (!task) return;
+
+      if (isTaskCompleted(task.status)) {
+        setExecutionStatus('completed');
+        // Refresh hypotheses after successful completion
+        if (activeGoal) {
+          loadHypotheses(activeGoal.id);
+        }
+        onBreakdownCreated?.();
+      } else if (isTaskFailed(task.status)) {
+        setExecutionStatus('failed');
+        setErrorMessage('Breakdown execution failed');
       }
-      return next;
-    });
-  };
+    };
 
-  const handleGenerateBreakdown = async () => {
+    // Check immediately
+    checkStatus();
+
+    // Then poll every 2 seconds
+    const interval = setInterval(checkStatus, 2000);
+    return () => clearInterval(interval);
+  }, [currentTaskId, executionStatus, tasks, activeGoal, loadHypotheses, onBreakdownCreated]);
+
+  const handleGenerateAndRun = useCallback(async () => {
     if (!activeGoal) return;
 
-    setExecutionError(null);
-    setIsExecuting(true);
+    setExecutionStatus('creating');
+    setErrorMessage(null);
 
     try {
-      // Get the prompt for Claude Code
-      const result = await generateBreakdown(projectPath);
-      if (!result) throw new Error('Failed to generate breakdown prompt');
+      // Step 1: Create the requirement file
+      const response = await fetch('/api/goal-hub/breakdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goalId: activeGoal.id,
+          projectId,
+          projectPath,
+        }),
+      });
 
-      // Save as a requirement file
-      const saved = await saveRequirement(projectPath, result.requirementName, result.prompt);
-      if (!saved) throw new Error('Failed to save requirement file');
+      const data = await response.json();
 
-      // Execute the requirement with Claude Code
-      // Note: In a real implementation, this would spawn a Claude Code process
-      // For now, we'll show instructions to the user
-      setExecutionError(
-        `Requirement saved as "${result.requirementName}". ` +
-        `Run it with Claude Code to generate the breakdown, then paste the JSON result.`
-      );
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create breakdown requirement');
+      }
 
-      // TODO: Integrate with actual Claude Code execution
-      // const executed = await executeRequirement(projectPath, result.requirementName);
-      // if (executed) {
-      //   // Parse the result and save
-      //   const agentResponses = parseClaudeCodeOutput(executed.output);
-      //   await saveBreakdownResult({ agentResponses });
-      // }
+      setRequirementName(data.requirementName);
+      onBreakdownCreated?.();
+
+      // Step 2: Add to TaskRunner batch1 and execute
+      const taskId = `${projectId}:${data.requirementName}`;
+      setCurrentTaskId(taskId);
+
+      // Cache the requirement for execution
+      setCachedRequirements([{
+        projectId,
+        projectName: 'Goal Breakdown',
+        projectPath,
+        requirementName: data.requirementName,
+        status: 'idle',
+      }]);
+
+      // Create batch with single task
+      createBatch('batch1', `Goal: ${activeGoal.title.slice(0, 30)}`, [taskId]);
+
+      // Start execution
+      setExecutionStatus('queued');
+      startBatch('batch1');
+      setExecutionStatus('running');
+
     } catch (error) {
-      setExecutionError(
-        error instanceof Error ? error.message : 'Failed to generate breakdown'
-      );
-    } finally {
-      setIsExecuting(false);
+      setExecutionStatus('failed');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to generate breakdown');
+    }
+  }, [activeGoal, projectId, projectPath, createBatch, startBatch, onBreakdownCreated]);
+
+  const handleRefreshHypotheses = () => {
+    if (activeGoal) {
+      loadHypotheses(activeGoal.id);
     }
   };
 
-  const getAgentConfig = (agentType: string) => {
-    return SCAN_TYPE_CONFIGS.find((c) => c.value === agentType);
+  const getStatusDisplay = () => {
+    switch (executionStatus) {
+      case 'creating':
+        return { icon: Loader2, text: 'Creating requirement...', color: 'text-cyan-400', spin: true };
+      case 'queued':
+        return { icon: Clock, text: 'Queued for execution', color: 'text-amber-400', spin: false };
+      case 'running':
+        return { icon: Loader2, text: 'Running breakdown analysis...', color: 'text-purple-400', spin: true };
+      case 'completed':
+        return { icon: CheckCircle, text: 'Breakdown complete', color: 'text-emerald-400', spin: false };
+      case 'failed':
+        return { icon: XCircle, text: errorMessage || 'Execution failed', color: 'text-red-400', spin: false };
+      default:
+        return null;
+    }
   };
 
-  const renderAgentResponse = (response: AgentResponse) => {
-    const config = getAgentConfig(response.agentType);
-    const isExpanded = expandedAgents.has(response.agentType);
-
-    return (
-      <div
-        key={response.agentType}
-        className="border border-gray-800 rounded-lg overflow-hidden"
-      >
-        <button
-          onClick={() => toggleAgent(response.agentType)}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-800/50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{response.agentEmoji || config?.emoji}</span>
-            <div className="text-left">
-              <h4 className="font-medium text-white">
-                {response.agentLabel || config?.label || response.agentType}
-              </h4>
-              <p className="text-xs text-gray-500 line-clamp-1">
-                {response.perspective}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">
-              {response.hypotheses.length} hypotheses
-            </span>
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-gray-500" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-gray-500" />
-            )}
-          </div>
-        </button>
-
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="border-t border-gray-800"
-            >
-              <div className="p-4 space-y-4">
-                {/* Perspective */}
-                <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wider">
-                    Perspective
-                  </label>
-                  <p className="text-sm text-gray-300 mt-1">{response.perspective}</p>
-                </div>
-
-                {/* Recommendations */}
-                {response.recommendations.length > 0 && (
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                      <Lightbulb className="w-3 h-3" />
-                      Recommendations
-                    </label>
-                    <ul className="mt-2 space-y-1">
-                      {response.recommendations.map((rec, i) => (
-                        <li key={i} className="text-sm text-gray-400 flex items-start gap-2">
-                          <span className="text-cyan-400">•</span>
-                          {rec}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Risks */}
-                {response.risks.length > 0 && (
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Risks
-                    </label>
-                    <ul className="mt-2 space-y-1">
-                      {response.risks.map((risk, i) => (
-                        <li key={i} className="text-sm text-orange-400 flex items-start gap-2">
-                          <span>⚠️</span>
-                          {risk}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Hypotheses Preview */}
-                {response.hypotheses.length > 0 && (
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase tracking-wider">
-                      Generated Hypotheses
-                    </label>
-                    <div className="mt-2 space-y-2">
-                      {response.hypotheses.map((h, i) => (
-                        <div
-                          key={i}
-                          className="p-2 bg-gray-800/50 rounded text-sm"
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-white">{h.title}</span>
-                            <span className="px-1.5 py-0.5 text-xs bg-cyan-500/20 text-cyan-400 rounded">
-                              {h.category}
-                            </span>
-                          </div>
-                          <p className="text-gray-400 text-xs">{h.statement}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
+  const statusDisplay = getStatusDisplay();
+  const isExecuting = ['creating', 'queued', 'running'].includes(executionStatus);
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Header + Agent Badges */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-purple-400" />
           <h3 className="font-semibold text-white">Multi-Agent Breakdown</h3>
         </div>
-        <button
-          onClick={handleGenerateBreakdown}
-          disabled={isGenerating || isExecuting}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium transition-colors"
-        >
-          {isGenerating || isExecuting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Generating...
-            </>
-          ) : breakdown ? (
-            <>
-              <RefreshCw className="w-4 h-4" />
-              Regenerate
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" />
-              Generate Breakdown
-            </>
-          )}
-        </button>
       </div>
 
-      {/* Error/Info Message */}
-      {executionError && (
-        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <p className="text-sm text-yellow-400">{executionError}</p>
+      {/* Agent Perspectives - Compact inline badges */}
+      <div className="flex flex-wrap gap-1.5">
+        <span className="px-2 py-0.5 text-xs bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/30">
+          🏗️ Arch
+        </span>
+        <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-300 rounded-full border border-red-500/30">
+          🐛 Bugs
+        </span>
+        <span className="px-2 py-0.5 text-xs bg-yellow-500/20 text-yellow-300 rounded-full border border-yellow-500/30">
+          ⚡ Perf
+        </span>
+        <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-300 rounded-full border border-green-500/30">
+          🔒 Security
+        </span>
+        <span className="px-2 py-0.5 text-xs bg-fuchsia-500/20 text-fuchsia-300 rounded-full border border-fuchsia-500/30">
+          💖 UX
+        </span>
+        <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded-full border border-blue-500/30">
+          🌊 Data
+        </span>
+        <span className="px-2 py-0.5 text-xs bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30">
+          🌀 Edge
+        </span>
+      </div>
+
+      {/* Action Button */}
+      <button
+        onClick={handleGenerateAndRun}
+        disabled={isExecuting || !activeGoal}
+        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 rounded-lg font-medium transition-all"
+      >
+        {isExecuting ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            {executionStatus === 'creating' ? 'Creating...' :
+             executionStatus === 'queued' ? 'Queued...' : 'Running...'}
+          </>
+        ) : (
+          <>
+            <Play className="w-5 h-5" />
+            Generate & Run Breakdown
+          </>
+        )}
+      </button>
+
+      {/* Status Display */}
+      {statusDisplay && (
+        <div
+          className={`p-3 rounded-lg border flex items-center gap-3 ${
+            executionStatus === 'completed'
+              ? 'bg-emerald-500/10 border-emerald-500/30'
+              : executionStatus === 'failed'
+              ? 'bg-red-500/10 border-red-500/30'
+              : 'bg-gray-800/50 border-gray-700'
+          }`}
+        >
+          <statusDisplay.icon
+            className={`w-5 h-5 ${statusDisplay.color} ${statusDisplay.spin ? 'animate-spin' : ''}`}
+          />
+          <div className="flex-1">
+            <p className={`text-sm font-medium ${statusDisplay.color}`}>
+              {statusDisplay.text}
+            </p>
+            {requirementName && executionStatus === 'running' && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                Task: {requirementName}
+              </p>
+            )}
+          </div>
+          {executionStatus === 'completed' && hypothesisCounts.total > 0 && (
+            <span className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 rounded-full">
+              {hypothesisCounts.total} hypotheses
+            </span>
+          )}
         </div>
       )}
 
-      {/* Content */}
-      {!breakdown ? (
-        <div className="text-center py-16 bg-gradient-to-b from-purple-900/20 to-gray-900/30 border border-gray-800 border-dashed rounded-xl">
-          <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/30">
-            <Sparkles className="w-8 h-8 text-purple-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-300 mb-2">
-            AI-Powered Goal Analysis
-          </h3>
-          <p className="text-gray-500 mb-6 max-w-md mx-auto">
-            Use multiple AI agents to analyze your goal from different perspectives.
-            Each agent provides recommendations, identifies risks, and generates testable hypotheses.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2 mb-6">
-            <span className="px-2.5 py-1 text-xs bg-gray-800/50 text-gray-400 rounded-full">🧘 Architecture</span>
-            <span className="px-2.5 py-1 text-xs bg-gray-800/50 text-gray-400 rounded-full">🐛 Bug Detection</span>
-            <span className="px-2.5 py-1 text-xs bg-gray-800/50 text-gray-400 rounded-full">⚡ Performance</span>
-            <span className="px-2.5 py-1 text-xs bg-gray-800/50 text-gray-400 rounded-full">🛡️ Security</span>
-          </div>
+      {/* Completion Actions */}
+      {executionStatus === 'completed' && (
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            onClick={handleRefreshHypotheses}
+            className="text-sm text-purple-400 hover:text-purple-300 underline"
+          >
+            Refresh hypotheses
+          </button>
+          <button
+            onClick={() => {
+              setExecutionStatus('idle');
+              setCurrentTaskId(null);
+              setRequirementName(null);
+            }}
+            className="text-sm text-gray-500 hover:text-gray-400"
+          >
+            Run again
+          </button>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {/* Metadata */}
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span>Generated: {new Date(breakdown.createdAt).toLocaleString()}</span>
-            {breakdown.modelUsed && <span>Model: {breakdown.modelUsed}</span>}
-            {breakdown.inputTokens > 0 && (
-              <span>
-                Tokens: {breakdown.inputTokens} in / {breakdown.outputTokens} out
-              </span>
-            )}
-          </div>
+      )}
 
-          {/* Agent Responses */}
-          <div className="space-y-3">
-            {breakdown.agentResponses.map(renderAgentResponse)}
-          </div>
-        </div>
+      {/* Error retry */}
+      {executionStatus === 'failed' && (
+        <button
+          onClick={() => {
+            setExecutionStatus('idle');
+            setErrorMessage(null);
+          }}
+          className="text-sm text-red-400 hover:text-red-300 underline"
+        >
+          Try again
+        </button>
       )}
     </div>
   );

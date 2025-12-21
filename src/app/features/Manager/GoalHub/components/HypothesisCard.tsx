@@ -46,6 +46,8 @@ export default function HypothesisCard({
     switch (hypothesis.status) {
       case 'verified':
         return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+      case 'completed':
+        return <CheckCircle2 className="w-4 h-4 text-purple-400" />;
       case 'in_progress':
         return <Clock className="w-4 h-4 text-cyan-400" />;
       default:
@@ -58,7 +60,6 @@ export default function HypothesisCard({
       behavior: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
       performance: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
       security: 'bg-red-500/20 text-red-400 border-red-500/40',
-      accessibility: 'bg-purple-500/20 text-purple-400 border-purple-500/40',
       ux: 'bg-pink-500/20 text-pink-400 border-pink-500/40',
       integration: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
       edge_case: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
@@ -79,6 +80,10 @@ export default function HypothesisCard({
 
   const handleStartProgress = async () => {
     await updateHypothesis(hypothesis.id, { status: 'in_progress' });
+  };
+
+  const handleMarkComplete = async () => {
+    await updateHypothesis(hypothesis.id, { status: 'completed' });
   };
 
   const handleVerify = async () => {
@@ -105,7 +110,7 @@ export default function HypothesisCard({
   return (
     <div
       className={`bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden ${
-        hypothesis.status === 'verified' ? 'opacity-75' : ''
+        hypothesis.status === 'verified' || hypothesis.status === 'completed' ? 'opacity-75' : ''
       }`}
     >
       {/* Header */}
@@ -181,12 +186,25 @@ export default function HypothesisCard({
               )}
 
               {/* Evidence (if verified) */}
-              {hypothesis.status === 'verified' && hypothesis.evidence && (
+              {(hypothesis.status === 'verified' || hypothesis.status === 'completed') && hypothesis.evidence && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase tracking-wider">
                     Evidence ({hypothesis.evidenceType})
                   </label>
                   <p className="text-sm text-emerald-400 mt-1">{hypothesis.evidence}</p>
+                </div>
+              )}
+
+              {/* Completed status badge */}
+              {hypothesis.status === 'completed' && (
+                <div className="flex items-center gap-2 text-purple-400 text-xs">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Marked as completed</span>
+                  {hypothesis.verifiedAt && (
+                    <span className="text-gray-500">
+                      on {new Date(hypothesis.verifiedAt).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -244,14 +262,23 @@ export default function HypothesisCard({
                       Start
                     </button>
                   )}
-                  {hypothesis.status !== 'verified' && (
-                    <button
-                      onClick={() => setIsVerifying(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 rounded-lg"
-                    >
-                      <CheckCircle2 className="w-3 h-3" />
-                      Verify
-                    </button>
+                  {hypothesis.status !== 'verified' && hypothesis.status !== 'completed' && (
+                    <>
+                      <button
+                        onClick={handleMarkComplete}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 rounded-lg"
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        Complete
+                      </button>
+                      <button
+                        onClick={() => setIsVerifying(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 rounded-lg"
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        Verify with Evidence
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={handleDelete}

@@ -80,6 +80,38 @@ export const ideaRepository = {
   },
 
   /**
+   * Get ideas by multiple requirement_ids in a single query (batch)
+   * Returns a map of requirementId -> idea (or null if not found)
+   */
+  getIdeasByRequirementIds: (requirementIds: string[]): Record<string, DbIdea | null> => {
+    const db = getDatabase();
+    const result: Record<string, DbIdea | null> = {};
+
+    // Initialize all as null
+    for (const id of requirementIds) {
+      result[id] = null;
+    }
+
+    if (requirementIds.length === 0) {
+      return result;
+    }
+
+    // Use parameterized query with IN clause
+    const placeholders = requirementIds.map(() => '?').join(',');
+    const stmt = db.prepare(`SELECT * FROM ideas WHERE requirement_id IN (${placeholders})`);
+    const ideas = stmt.all(...requirementIds) as DbIdea[];
+
+    // Map results by requirement_id
+    for (const idea of ideas) {
+      if (idea.requirement_id) {
+        result[idea.requirement_id] = idea;
+      }
+    }
+
+    return result;
+  },
+
+  /**
    * Get a single idea by ID
    */
   getIdeaById: (ideaId: string): DbIdea | null => {

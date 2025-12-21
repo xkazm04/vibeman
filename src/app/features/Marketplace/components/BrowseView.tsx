@@ -14,7 +14,6 @@ const categories: { value: PatternCategory | 'all'; label: string }[] = [
   { value: 'performance', label: 'Performance' },
   { value: 'architecture', label: 'Architecture' },
   { value: 'testing', label: 'Testing' },
-  { value: 'accessibility', label: 'Accessibility' },
   { value: 'modernization', label: 'Modernization' },
   { value: 'best-practices', label: 'Best Practices' },
 ];

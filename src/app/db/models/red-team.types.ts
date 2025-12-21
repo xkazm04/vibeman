@@ -4,7 +4,6 @@
  * AI red team system where agents deliberately try to break code:
  * - Security Protector attempts exploits
  * - Performance Optimizer tries to create bottlenecks
- * - Accessibility Advocate tests with assistive tech
  * - Bug Hunter generates edge cases that crash the system
  * - Parliament debate system surfaces vulnerabilities before production
  */
@@ -16,7 +15,6 @@ import type { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 export type AttackCategory =
   | 'security'         // Security vulnerabilities, exploits
   | 'performance'      // Resource exhaustion, bottlenecks
-  | 'accessibility'    // Break with assistive tech
   | 'edge_case'        // Crash-inducing edge cases
   | 'state'            // Invalid state transitions
   | 'concurrency'      // Race conditions, deadlocks
@@ -79,17 +77,6 @@ export const RED_TEAM_AGENT_ROLES: Record<ScanType, {
       'Large payload attacks'
     ]
   },
-  accessibility_advocate: {
-    attackTypes: ['accessibility', 'input'],
-    adversaryPersona: 'User with assistive technology encountering barriers',
-    focusAreas: [
-      'Screen reader compatibility',
-      'Keyboard-only navigation',
-      'Focus management',
-      'Dynamic content updates',
-      'Color contrast failures'
-    ]
-  },
   bug_hunter: {
     attackTypes: ['edge_case', 'input', 'state'],
     adversaryPersona: 'Chaos engineer finding system breaking points',
@@ -138,7 +125,7 @@ export const RED_TEAM_AGENT_ROLES: Record<ScanType, {
     focusAreas: ['Business rule violations', 'Process bypasses']
   },
   ui_perfectionist: {
-    attackTypes: ['accessibility', 'input'],
+    attackTypes: ['input'],
     adversaryPersona: 'UI exploiter',
     focusAreas: ['UI injection', 'Layout breaking']
   },
@@ -168,7 +155,7 @@ export const RED_TEAM_AGENT_ROLES: Record<ScanType, {
     focusAreas: ['Dead code paths', 'Deprecated API abuse']
   },
   user_empathy_champion: {
-    attackTypes: ['accessibility', 'edge_case'],
+    attackTypes: ['edge_case'],
     adversaryPersona: 'Frustrated user scenario generator',
     focusAreas: ['Error recovery failures', 'Confusing workflows']
   },
@@ -657,14 +644,12 @@ export const DEFAULT_RED_TEAM_CONFIG = {
   defaultAgents: [
     'security_protector',
     'bug_hunter',
-    'perf_optimizer',
-    'accessibility_advocate'
+    'perf_optimizer'
   ] as ScanType[],
   defaultAttackCategories: [
     'security',
     'edge_case',
-    'performance',
-    'accessibility'
+    'performance'
   ] as AttackCategory[],
 };
 
@@ -685,12 +670,6 @@ export const ATTACK_CATEGORY_CONFIGS: Record<AttackCategory, {
     emoji: '🐌',
     color: 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 border-yellow-500/40 text-yellow-300',
     description: 'Resource exhaustion and bottlenecks'
-  },
-  accessibility: {
-    label: 'Accessibility',
-    emoji: '♿',
-    color: 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 border-blue-500/40 text-blue-300',
-    description: 'Assistive technology failures'
   },
   edge_case: {
     label: 'Edge Cases',

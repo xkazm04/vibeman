@@ -14,6 +14,7 @@ import {
   Heart,
   Wrench,
   Link2,
+  Target,
   type LucideIcon
 } from 'lucide-react';
 
@@ -147,13 +148,13 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     bgGradient: 'from-fuchsia-500/5 to-fuchsia-600/2',
     description: 'Human-centered design & emotional UX'
   },
-  accessibility_advocate: {
-    label: 'Accessibility Advocate',
-    icon: Brain,
+  competitor_analyst: {
+    label: 'Competitor Analyst',
+    icon: Target,
     color: 'text-sky-400',
     borderColor: 'border-sky-500/40',
     bgGradient: 'from-sky-500/5 to-sky-600/2',
-    description: 'Universal design & inclusive experiences'
+    description: 'Analyze competitors & improve features'
   },
   paradigm_shifter: {
     label: 'Paradigm Shifter',

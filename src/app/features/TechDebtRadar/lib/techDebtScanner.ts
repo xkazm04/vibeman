@@ -98,7 +98,6 @@ export async function scanProjectForTechDebt(
     'dependencies',
     'architecture',
     'maintainability',
-    'accessibility',
     'other'
   ];
 
@@ -228,8 +227,6 @@ async function scanByCategory(
       return await scanArchitecture(config);
     case 'maintainability':
       return await scanMaintainability(config);
-    case 'accessibility':
-      return await scanAccessibility(config);
     default:
       return [];
   }
@@ -381,23 +378,6 @@ async function scanMaintainability(config: TechDebtScanConfig): Promise<Detected
   ];
 }
 
-/**
- * Scan for accessibility issues
- */
-async function scanAccessibility(config: TechDebtScanConfig): Promise<DetectedIssue[]> {
-  return [
-    createDetectedIssue(
-      'accessibility',
-      'Accessibility Audit Required',
-      'Conduct WCAG compliance audit and improve accessibility',
-      'medium',
-      [],
-      'Non-compliant with accessibility standards',
-      'Excludes users with disabilities and potential legal risks',
-      { standards: ['WCAG 2.1 Level AA'], tools: ['axe', 'Lighthouse', 'WAVE'] }
-    )
-  ];
-}
 
 // Input type for createTechDebt that uses arrays/objects before serialization
 interface TechDebtCreateInput {

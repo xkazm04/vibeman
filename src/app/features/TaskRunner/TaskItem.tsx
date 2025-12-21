@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2 } from 'lucide-react';
 
@@ -24,6 +24,7 @@ interface TaskItemProps {
   onToggleSelect: () => void;
   onDelete: () => void;
   projectPath: string;
+  idea?: DbIdea | null; // Pre-fetched idea from parent (batch loaded)
 }
 
 export default function TaskItem({
@@ -32,33 +33,13 @@ export default function TaskItem({
   onToggleSelect,
   onDelete,
   projectPath,
+  idea, // Pre-fetched from parent via batch API
 }: TaskItemProps) {
   const { requirementName, status } = requirement;
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [showDeleteHint, setShowDeleteHint] = useState(false);
-  const [idea, setIdea] = useState<DbIdea | null>(null);
   const { showFullScreenModal } = useGlobalModal();
-
-  // Fetch idea associated with this requirement
-  useEffect(() => {
-    const fetchIdea = async () => {
-      try {
-        const response = await fetch(`/api/ideas/by-requirement?requirementId=${encodeURIComponent(requirementName)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.idea) {
-            setIdea(data.idea);
-          }
-        }
-      } catch (error) {
-        // Silently fail - not all requirements have associated ideas
-        console.debug('No idea found for requirement:', requirementName);
-      }
-    };
-
-    fetchIdea();
-  }, [requirementName]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

@@ -18,66 +18,44 @@ export function createGoalHypothesesTable() {
   const db = getConnection();
 
   createTableIfNotExists(db, 'goal_hypotheses', `
-    id TEXT PRIMARY KEY,
-    goal_id TEXT NOT NULL,
-    project_id TEXT NOT NULL,
+    CREATE TABLE goal_hypotheses (
+      id TEXT PRIMARY KEY,
+      goal_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
 
-    -- Hypothesis content
-    title TEXT NOT NULL,
-    statement TEXT NOT NULL,
-    reasoning TEXT,
+      -- Hypothesis content
+      title TEXT NOT NULL,
+      statement TEXT NOT NULL,
+      reasoning TEXT,
 
-    -- Classification
-    category TEXT NOT NULL DEFAULT 'behavior',
-    priority INTEGER NOT NULL DEFAULT 5,
-    agent_source TEXT,
+      -- Classification
+      category TEXT NOT NULL DEFAULT 'behavior',
+      priority INTEGER NOT NULL DEFAULT 5,
+      agent_source TEXT,
 
-    -- Verification
-    status TEXT NOT NULL DEFAULT 'unverified',
-    verification_method TEXT DEFAULT 'manual',
-    evidence TEXT,
-    evidence_type TEXT,
-    verified_at TEXT,
+      -- Verification
+      status TEXT NOT NULL DEFAULT 'unverified',
+      verification_method TEXT DEFAULT 'manual',
+      evidence TEXT,
+      evidence_type TEXT,
+      verified_at TEXT,
 
-    -- Metadata
-    order_index INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      -- Metadata
+      order_index INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE
+      FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE
+    )
   `);
 }
 
 /**
- * Create goal_breakdowns table
- * Stores multi-agent analysis results for goal decomposition
+ * DEPRECATED: goal_breakdowns table removed
+ * Breakdown analysis now happens via Claude Code requirement files
+ * which directly populate goal_hypotheses table
  */
-export function createGoalBreakdownsTable() {
-  const db = getConnection();
-
-  createTableIfNotExists(db, 'goal_breakdowns', `
-    id TEXT PRIMARY KEY,
-    goal_id TEXT NOT NULL,
-    project_id TEXT NOT NULL,
-
-    -- Analysis metadata
-    prompt_used TEXT,
-    model_used TEXT,
-    input_tokens INTEGER DEFAULT 0,
-    output_tokens INTEGER DEFAULT 0,
-
-    -- Agent responses stored as JSON
-    agent_responses TEXT NOT NULL,
-
-    -- Generated hypotheses count
-    hypotheses_generated INTEGER DEFAULT 0,
-
-    -- Timestamps
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE
-  `);
-}
+// export function createGoalBreakdownsTable() { ... }
 
 /**
  * Add new columns to goals table for Goal Hub
@@ -100,6 +78,6 @@ export function extendGoalsTable() {
  */
 export function migrateGoalHub() {
   createGoalHypothesesTable();
-  createGoalBreakdownsTable();
+  // createGoalBreakdownsTable(); // DEPRECATED - removed
   extendGoalsTable();
 }

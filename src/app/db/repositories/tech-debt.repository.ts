@@ -296,7 +296,6 @@ export const techDebtRepository = {
       documentation: 0,
       dependencies: 0,
       architecture: 0,
-      accessibility: 0,
       other: 0
     };
 

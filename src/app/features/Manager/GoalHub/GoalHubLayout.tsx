@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Target,
@@ -13,23 +13,25 @@ import {
   ListChecks,
   Activity,
   Plus,
-  ChevronRight,
   Loader2,
+  X,
 } from 'lucide-react';
 import { useGoalHubStore } from '@/stores/goalHubStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { loadRequirements } from '@/app/Claude/lib/requirementApi';
 import GoalPanel from './components/GoalPanel';
 import HypothesisTracker from './components/HypothesisTracker';
 import ActivityFeed from './components/ActivityFeed';
 import BreakdownPanel from './components/BreakdownPanel';
-import NewGoalModal from './components/NewGoalModal';
+import GoalAddPanel from '@/app/features/Onboarding/sub_GoalDrawer/GoalAddPanel';
 import GoalProgress from './components/GoalProgress';
 
 type TabType = 'hypotheses' | 'breakdown' | 'activity';
 
 export default function GoalHubLayout() {
   const [activeTab, setActiveTab] = useState<TabType>('hypotheses');
-  const [isNewGoalModalOpen, setIsNewGoalModalOpen] = useState(false);
+  const [isGoalPanelOpen, setIsGoalPanelOpen] = useState(false);
+  const [breakdownStatus, setBreakdownStatus] = useState<Record<string, boolean>>({});
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const {
@@ -37,10 +39,8 @@ export default function GoalHubLayout() {
     goals,
     hypotheses,
     hypothesisCounts,
-    breakdown,
     isLoading,
     isLoadingHypotheses,
-    isGeneratingBreakdown,
     error,
     loadGoals,
     setActiveGoal,
@@ -68,6 +68,31 @@ export default function GoalHubLayout() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goals.length]);
+
+  // Check for breakdown requirement files
+  const checkBreakdownStatus = useCallback(async () => {
+    if (!activeProject?.path || goals.length === 0) return;
+
+    try {
+      const requirements = await loadRequirements(activeProject.path);
+      const status: Record<string, boolean> = {};
+
+      goals.forEach((goal) => {
+        // Breakdown files are named: goal-breakdown-{goalId.slice(0,8)}
+        const prefix = `goal-breakdown-${goal.id.slice(0, 8)}`;
+        status[goal.id] = requirements.some((r) => r.startsWith(prefix));
+      });
+
+      setBreakdownStatus(status);
+    } catch (error) {
+      console.error('Failed to check breakdown status:', error);
+    }
+  }, [activeProject?.path, goals]);
+
+  // Check breakdown status when goals change
+  useEffect(() => {
+    checkBreakdownStatus();
+  }, [checkBreakdownStatus]);
 
   const tabs: Array<{ id: TabType; label: string; icon: typeof ListChecks }> = [
     { id: 'hypotheses', label: 'Hypotheses', icon: ListChecks },
@@ -112,7 +137,7 @@ export default function GoalHubLayout() {
             </div>
 
             <button
-              onClick={() => setIsNewGoalModalOpen(true)}
+              onClick={() => setIsGoalPanelOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 rounded-lg font-medium transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -157,8 +182,9 @@ export default function GoalHubLayout() {
               <GoalPanel
                 goals={goals}
                 activeGoal={activeGoal}
+                breakdownStatus={breakdownStatus}
                 onSelectGoal={setActiveGoal}
-                onNewGoal={() => setIsNewGoalModalOpen(true)}
+                onNewGoal={() => setIsGoalPanelOpen(true)}
               />
             </div>
 
@@ -254,9 +280,9 @@ export default function GoalHubLayout() {
                         exit={{ opacity: 0, x: -20 }}
                       >
                         <BreakdownPanel
-                          breakdown={breakdown}
-                          isGenerating={isGeneratingBreakdown}
                           projectPath={activeProject.path}
+                          projectId={activeProject.id}
+                          onBreakdownCreated={checkBreakdownStatus}
                         />
                       </motion.div>
                     )}
@@ -284,7 +310,7 @@ export default function GoalHubLayout() {
                       Select a goal from the list or create a new one
                     </p>
                     <button
-                      onClick={() => setIsNewGoalModalOpen(true)}
+                      onClick={() => setIsGoalPanelOpen(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg mx-auto"
                     >
                       <Plus className="w-4 h-4" />
@@ -298,10 +324,63 @@ export default function GoalHubLayout() {
         )}
       </div>
 
-      {/* New Goal Modal */}
+      {/* New Goal Drawer */}
       <AnimatePresence>
-        {isNewGoalModalOpen && (
-          <NewGoalModal onClose={() => setIsNewGoalModalOpen(false)} />
+        {isGoalPanelOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            onClick={() => setIsGoalPanelOpen(false)}
+          >
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute right-0 top-0 h-full w-full max-w-xl bg-gray-900/95 backdrop-blur-xl border-l border-gray-700/50 shadow-2xl overflow-y-auto"
+            >
+              <div className="relative p-8">
+                <button
+                  onClick={() => setIsGoalPanelOpen(false)}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition-colors z-10"
+                >
+                  <X className="w-5 h-5 text-gray-400 hover:text-white" />
+                </button>
+                <GoalAddPanel
+                  projectId={activeProject.id}
+                  onSubmit={async (newGoal) => {
+                    try {
+                      const response = await fetch('/api/goals', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          ...newGoal,
+                          projectId: activeProject.id,
+                        }),
+                      });
+
+                      if (response.ok) {
+                        const data = await response.json();
+                        // Reload goals and set the new one as active
+                        await loadGoals(activeProject.id);
+                        if (data.goal) {
+                          setActiveGoal(data.goal);
+                        }
+                      }
+                    } catch (err) {
+                      // Error handling
+                      console.error('Failed to create goal:', err);
+                    }
+                  }}
+                  onClose={() => setIsGoalPanelOpen(false)}
+                  projectPath={activeProject.path}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

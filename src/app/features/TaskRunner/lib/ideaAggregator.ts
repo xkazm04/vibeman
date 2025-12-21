@@ -5,31 +5,34 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { ABBR_TO_SCAN_TYPE, ScanType, isValidScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 // Agent roles that should be aggregated
 export const AGGREGATABLE_ROLES = [
-  'ambiguity',           // Ambiguity Guardian
+  'ambiguity_guardian',           // Ambiguity Guardian
   'bug_hunter',          // Bug Hunter
   'perf_optimizer',      // Performance Optimizer
   'security_protector',  // Security Protector
   'zen_architect',       // Zen Architect
-  'dev_experience',      // Dev Experience Engineer
+  'dev_experience_engineer',      // Dev Experience Engineer
   'code_refactor',       // Code Refactor
   'user_empathy',        // User Empathy Champion
+  'data_flow_optimizer', // Data Flow Optimizer
 ] as const;
 
 export type AggregatableRole = typeof AGGREGATABLE_ROLES[number];
 
 // Map role slug to display name
 export const ROLE_DISPLAY_NAMES: Record<AggregatableRole, string> = {
-  ambiguity: 'Ambiguity Guardian',
+  ambiguity_guardian: 'Ambiguity Guardian',
   bug_hunter: 'Bug Hunter',
   perf_optimizer: 'Performance Optimizer',
   security_protector: 'Security Protector',
   zen_architect: 'Zen Architect',
-  dev_experience: 'Dev Experience Engineer',
+  dev_experience_engineer: 'Dev Experience Engineer',
   code_refactor: 'Code Refactor',
   user_empathy: 'User Empathy Champion',
+  data_flow_optimizer: 'Data Flow Optimizer',
 };
 
 export interface IdeaFile {
@@ -66,18 +69,41 @@ export interface AggregationResult {
 
 /**
  * Parse an idea-gen filename to extract metadata
- * Format: idea-gen-{role}-ctx-{context_prefix}-{timestamp}.md
+ * New format: idea-gen-<timestamp>-<ctx_prefix|all>-<abbr>
+ * Legacy format: idea-gen-{role}-ctx-{context_prefix}-{timestamp}
  */
-function parseIdeaFileName(fileName: string): { role: string; contextPrefix: string; timestamp: string } | null {
-  // Match pattern: idea-gen-{role}-ctx-{context_prefix}-{timestamp}
-  const match = fileName.match(/^idea-gen-([^-]+(?:_[^-]+)*)-ctx-([^-]+(?:_[^-]+)*)-(\d+)$/);
-  if (!match) return null;
+function parseIdeaFileName(fileName: string): { role: string; roleSlug: ScanType | string; contextPrefix: string; timestamp: string } | null {
+  // Try new format first: idea-gen-<timestamp>-<ctx_prefix|all>-<abbr>
+  // Examples: idea-gen-1734567890123-ctx_abc1-za, idea-gen-1734567890123-all-za
+  const newFormatMatch = fileName.match(/^idea-gen-(\d+)-([^-]+(?:_[^-]*)?)-([a-z]{2,3})$/);
+  if (newFormatMatch) {
+    const timestamp = newFormatMatch[1];
+    const contextPrefix = newFormatMatch[2]; // 'all' or 'ctx_xxxxx'
+    const abbr = newFormatMatch[3];
+    const scanType = ABBR_TO_SCAN_TYPE[abbr];
 
-  return {
-    role: match[1],
-    contextPrefix: match[2],
-    timestamp: match[3],
-  };
+    if (scanType) {
+      return {
+        role: scanType,
+        roleSlug: scanType,
+        contextPrefix,
+        timestamp,
+      };
+    }
+  }
+
+  // Fall back to legacy format: idea-gen-{role}-ctx-{context_prefix}-{timestamp}
+  const legacyMatch = fileName.match(/^idea-gen-([^-]+(?:_[^-]+)*)-ctx-([^-]+(?:_[^-]+)*)-(\d+)$/);
+  if (legacyMatch) {
+    return {
+      role: legacyMatch[1],
+      roleSlug: normalizeRoleSlug(legacyMatch[1]),
+      contextPrefix: legacyMatch[2],
+      timestamp: legacyMatch[3],
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -144,14 +170,29 @@ export function listIdeaGenFiles(commandsPath: string): IdeaFile[] {
     if (!parsed) continue;
 
     const filePath = path.join(commandsPath, file);
+
+    // For new filename format, we already have the roleSlug from the abbreviation
+    // Only read file content for legacy files or to get context details
+    let role = parsed.role;
+    let roleSlug = parsed.roleSlug;
+    let contextId = '';
+    let contextName = '';
+
+    // Read content only for context details (or legacy role extraction if needed)
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    const roleFromContent = extractRoleFromContent(content);
-    const contextId = extractContextIdFromContent(content) || '';
-    const contextName = extractContextNameFromContent(content) || '';
+    // If roleSlug wasn't determined from filename (legacy format), try content
+    if (!isValidScanType(roleSlug as string)) {
+      const roleFromContent = extractRoleFromContent(content);
+      if (roleFromContent) {
+        role = roleFromContent;
+        roleSlug = normalizeRoleSlug(roleFromContent);
+      }
+    }
 
-    const role = roleFromContent || parsed.role;
-    const roleSlug = normalizeRoleSlug(role);
+    // Always extract context info from content
+    contextId = extractContextIdFromContent(content) || '';
+    contextName = extractContextNameFromContent(content) || '';
 
     ideaFiles.push({
       fileName: baseName,
@@ -382,15 +423,47 @@ ${sortedFiles.map(f => `  - ${f.fileName}.md`).join('\n')}
     // Write the new aggregated file
     fs.writeFileSync(newFilePath, aggregatedContent, 'utf-8');
 
+    // Verify the new file was created
+    if (!fs.existsSync(newFilePath)) {
+      return {
+        success: false,
+        role,
+        newFileName,
+        deletedFiles: [],
+        error: 'Failed to create aggregated file',
+      };
+    }
+
     // Delete the old files
     const deletedFiles: string[] = [];
+    const failedDeletes: string[] = [];
+
     for (const file of sortedFiles) {
       try {
-        fs.unlinkSync(file.filePath);
-        deletedFiles.push(file.fileName);
+        // Check if file exists before attempting deletion
+        if (fs.existsSync(file.filePath)) {
+          fs.unlinkSync(file.filePath);
+          // Verify deletion
+          if (!fs.existsSync(file.filePath)) {
+            deletedFiles.push(file.fileName);
+          } else {
+            failedDeletes.push(file.fileName);
+            console.error(`File still exists after unlink: ${file.fileName}`);
+          }
+        } else {
+          // File already doesn't exist, count as deleted
+          deletedFiles.push(file.fileName);
+        }
       } catch (err) {
+        failedDeletes.push(file.fileName);
         console.error(`Failed to delete ${file.fileName}:`, err);
       }
+    }
+
+    // Log results
+    console.log(`[Aggregator] Role ${role}: Created ${newFileName}, deleted ${deletedFiles.length}/${sortedFiles.length} files`);
+    if (failedDeletes.length > 0) {
+      console.warn(`[Aggregator] Failed to delete: ${failedDeletes.join(', ')}`);
     }
 
     return {

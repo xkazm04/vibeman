@@ -22,7 +22,6 @@ export type ScanType =
   | 'refactor_analysis'
   | 'code_refactor'
   | 'user_empathy_champion'
-  | 'accessibility_advocate'
   | 'paradigm_shifter'
   | 'moonshot_architect'
   | 'dev_experience_engineer'

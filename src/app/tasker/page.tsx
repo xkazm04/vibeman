@@ -6,7 +6,7 @@ import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import ImplementationLogList from '@/app/features/Goals/sub_ImplementationLog/ImplementationLogList';
-import { loadRequirements, deleteRequirement } from '@/app/Claude/lib/requirementApi';
+import { loadRequirementsBatch, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
@@ -40,20 +40,26 @@ export default function TaskRunnerPage() {
     initializeProjects();
   }, [initializeProjects]);
 
-  // Load requirements from all projects
+  // Load requirements from all projects in a single batch request
   useEffect(() => {
     const loadAllRequirements = async () => {
       // CRITICAL: Don't reload requirements while a batch is running
-      // This would wipe out status information for queued/running tasks
-      if (isRunning) {        return;
+      if (isRunning) {
+        return;
       }
 
       setIsLoading(true);
-      const allRequirements: ProjectRequirement[] = [];
 
-      for (const project of projects) {
-        try {
-          const reqNames = await loadRequirements(project.path);
+      try {
+        // Single batch request for all projects
+        const requirementsMap = await loadRequirementsBatch(
+          projects.map(p => ({ id: p.id, path: p.path }))
+        );
+
+        const allRequirements: ProjectRequirement[] = [];
+
+        for (const project of projects) {
+          const reqNames = requirementsMap[project.id] || [];
           // Filter out system requirements
           const filtered = reqNames.filter(
             (name) => name !== 'scan-contexts' && name !== 'structure-rules'
@@ -68,10 +74,13 @@ export default function TaskRunnerPage() {
               status: 'idle',
             });
           });
-        } catch (error) {        }
+        }
+
+        setRequirements(allRequirements);
+      } catch (error) {
+        console.error('Failed to load requirements:', error);
       }
 
-      setRequirements(allRequirements);
       setIsLoading(false);
     };
 
@@ -207,11 +216,13 @@ export default function TaskRunnerPage() {
               <AnimatePresence>
                 {Object.entries(groupedRequirements).map(([projectId, projectReqs]) => {
                   const projectName = projectReqs[0]?.projectName || 'Unknown Project';
+                  const projectPath = projectReqs[0]?.projectPath || '';
                   return (
                     <TaskColumn
                       key={projectId}
                       projectId={projectId}
                       projectName={projectName}
+                      projectPath={projectPath}
                       requirements={projectReqs}
                       selectedRequirements={selectedRequirements}
                       onToggleSelect={toggleSelection}

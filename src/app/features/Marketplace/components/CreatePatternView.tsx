@@ -24,7 +24,6 @@ const categories: { value: PatternCategory; label: string; description: string }
   { value: 'performance', label: 'Performance', description: 'Optimize speed and resource usage' },
   { value: 'architecture', label: 'Architecture', description: 'Improve code structure and patterns' },
   { value: 'testing', label: 'Testing', description: 'Add or improve test coverage' },
-  { value: 'accessibility', label: 'Accessibility', description: 'Improve a11y compliance' },
   { value: 'modernization', label: 'Modernization', description: 'Update to modern patterns' },
   { value: 'best-practices', label: 'Best Practices', description: 'Follow coding standards' },
 ];

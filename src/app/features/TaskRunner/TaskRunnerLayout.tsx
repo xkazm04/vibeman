@@ -6,7 +6,7 @@ import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { ToolbarAction } from '@/components/ui/ProjectToolbar';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
-import { loadRequirements, deleteRequirement } from '@/app/Claude/lib/requirementApi';
+import { loadRequirements, loadRequirementsBatch, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import {
   taskStatusToLegacy,
@@ -50,7 +50,7 @@ const TaskRunnerLayout = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load requirements from all projects
+  // Load requirements from all projects in a single batch request
   useEffect(() => {
     const loadAllRequirements = async () => {
       // CRITICAL: Don't reload requirements while a batch is running
@@ -60,11 +60,17 @@ const TaskRunnerLayout = () => {
       }
 
       setIsLoading(true);
-      const allRequirements: ProjectRequirement[] = [];
 
-      for (const project of projects) {
-        try {
-          const reqNames = await loadRequirements(project.path);
+      try {
+        // Single batch request for all projects
+        const requirementsMap = await loadRequirementsBatch(
+          projects.map(p => ({ id: p.id, path: p.path }))
+        );
+
+        const allRequirements: ProjectRequirement[] = [];
+
+        for (const project of projects) {
+          const reqNames = requirementsMap[project.id] || [];
           // Filter out system requirements
           const filtered = reqNames.filter(
             (name) => name !== 'scan-contexts' && name !== 'structure-rules'
@@ -79,12 +85,14 @@ const TaskRunnerLayout = () => {
               status: 'idle',
             });
           });
-        } catch (error) {
-          // Failed to load requirements for project
         }
+
+        setRequirements(allRequirements);
+      } catch (error) {
+        // Failed to load requirements
+        console.error('Failed to load requirements:', error);
       }
 
-      setRequirements(allRequirements);
       setIsLoading(false);
     };
 
@@ -241,6 +249,48 @@ const TaskRunnerLayout = () => {
     }
   };
 
+  // Refresh requirements for a specific project only
+  const refreshProjectRequirements = async (projectId: string, projectPath: string) => {
+    try {
+      const reqNames = await loadRequirements(projectPath);
+      // Filter out system requirements
+      const filtered = reqNames.filter(
+        (name) => name !== 'scan-contexts' && name !== 'structure-rules'
+      );
+
+      const project = projects.find(p => p.id === projectId);
+      if (!project) return;
+
+      const newProjectReqs: ProjectRequirement[] = filtered.map((reqName) => ({
+        projectId: project.id,
+        projectName: project.name,
+        projectPath: project.path,
+        requirementName: reqName,
+        status: 'idle' as const,
+      }));
+
+      // Update requirements: remove old ones for this project, add new ones
+      setRequirements((prev) => {
+        const otherProjectReqs = prev.filter((r) => r.projectId !== projectId);
+        return [...otherProjectReqs, ...newProjectReqs];
+      });
+
+      // Clear selections for this project's old requirements
+      setSelectedRequirements((prev) => {
+        const newSet = new Set(prev);
+        // Remove any selections that belong to this project
+        prev.forEach((reqId) => {
+          if (reqId.startsWith(`${projectId}:`)) {
+            newSet.delete(reqId);
+          }
+        });
+        return newSet;
+      });
+    } catch (error) {
+      console.error('Failed to refresh project requirements:', error);
+    }
+  };
+
   // Open Claude Log Viewer
   const handleOpenLogViewer = () => {
     // Get the first requirement with logs (or most recently run)
@@ -345,11 +395,7 @@ const TaskRunnerLayout = () => {
                       onBulkDelete={handleBulkDelete}
                       onToggleProjectSelection={toggleProjectSelection}
                       getRequirementId={getRequirementId}
-                      onRefresh={() => {
-                        // Trigger a refresh by clearing requirements
-                        setRequirements([]);
-                        setSelectedRequirements(new Set());
-                      }}
+                      onRefresh={() => refreshProjectRequirements(projectId, projectPath)}
                     />
                   );
                 })}

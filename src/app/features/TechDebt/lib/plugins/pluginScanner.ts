@@ -292,8 +292,7 @@ export function getAvailableScanCategories(): string[] {
     'documentation',
     'dependencies',
     'architecture',
-    'maintainability',
-    'accessibility'
+    'maintainability'
   ];
 
   const pluginCategories = pluginRegistry

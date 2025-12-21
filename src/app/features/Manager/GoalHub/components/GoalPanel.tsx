@@ -1,17 +1,17 @@
 /**
  * Goal Panel Component
- * Displays list of goals with selection
+ * Displays compact list of goals with selection and status indicators
  */
 
 'use client';
 
-import { motion } from 'framer-motion';
-import { Target, ChevronRight, Plus, CheckCircle2, Clock, Circle } from 'lucide-react';
+import { Target, ChevronRight, Plus, CheckCircle2, Clock, Circle, FileCode, Lightbulb } from 'lucide-react';
 import type { ExtendedGoal } from '@/app/db/models/goal-hub.types';
 
 interface GoalPanelProps {
   goals: ExtendedGoal[];
   activeGoal: ExtendedGoal | null;
+  breakdownStatus?: Record<string, boolean>; // goalId -> hasBreakdownFile
   onSelectGoal: (goal: ExtendedGoal) => void;
   onNewGoal: () => void;
 }
@@ -19,6 +19,7 @@ interface GoalPanelProps {
 export default function GoalPanel({
   goals,
   activeGoal,
+  breakdownStatus = {},
   onSelectGoal,
   onNewGoal,
 }: GoalPanelProps) {
@@ -51,46 +52,58 @@ export default function GoalPanel({
 
   const renderGoalItem = (goal: ExtendedGoal) => {
     const isActive = activeGoal?.id === goal.id;
+    const hasBreakdown = breakdownStatus[goal.id] || false;
+    const hasHypotheses = (goal.hypothesesTotal || 0) > 0;
 
     return (
-      <motion.button
+      <button
         key={goal.id}
         onClick={() => onSelectGoal(goal)}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className={`w-full text-left p-3 rounded-lg border transition-all ${
+        className={`w-full text-left py-1.5 px-2 rounded-lg border transition-colors ${
           isActive
-            ? 'border-cyan-500 bg-cyan-500/10 shadow-lg shadow-cyan-500/10'
+            ? 'border-cyan-500 bg-cyan-500/10'
             : `${getStatusColor(goal.status)} hover:border-gray-600`
         }`}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-2">
           {getStatusIcon(goal.status)}
           <div className="flex-1 min-w-0">
-            <h4 className={`font-medium truncate ${isActive ? 'text-cyan-300' : 'text-white'}`}>
+            <h4 className={`text-sm font-medium truncate ${isActive ? 'text-cyan-300' : 'text-white'}`}>
               {goal.title}
             </h4>
-            {goal.progress > 0 && (
-              <div className="mt-2">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                  <span>{goal.hypothesesVerified}/{goal.hypothesesTotal} verified</span>
-                  <span>{goal.progress}%</span>
-                </div>
-                <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${goal.progress}%` }}
+            {hasHypotheses && (
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs text-gray-500">
+                  {goal.hypothesesVerified}/{goal.hypothesesTotal}
+                </span>
+                <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden max-w-[80px]">
+                  <div
                     className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
+                    style={{ width: `${goal.progress}%` }}
                   />
                 </div>
+                <span className="text-xs text-gray-600">{goal.progress}%</span>
               </div>
             )}
           </div>
-          {isActive && (
-            <ChevronRight className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-          )}
+          {/* Status indicators */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {hasBreakdown && (
+              <span title="Breakdown file exists">
+                <FileCode className="w-3 h-3 text-purple-400" />
+              </span>
+            )}
+            {hasHypotheses && (
+              <span title="Has hypotheses">
+                <Lightbulb className="w-3 h-3 text-amber-400" />
+              </span>
+            )}
+            {isActive && (
+              <ChevronRight className="w-4 h-4 text-cyan-400" />
+            )}
+          </div>
         </div>
-      </motion.button>
+      </button>
     );
   };
 
@@ -109,14 +122,14 @@ export default function GoalPanel({
         </button>
       </div>
 
-      <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+      <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
         {/* In Progress */}
         {inProgressGoals.length > 0 && (
           <div>
-            <h4 className="text-xs font-medium text-cyan-400 uppercase tracking-wider mb-2">
+            <h4 className="text-xs font-medium text-cyan-400 uppercase tracking-wider mb-1.5">
               In Progress ({inProgressGoals.length})
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {inProgressGoals.map(renderGoalItem)}
             </div>
           </div>
@@ -125,10 +138,10 @@ export default function GoalPanel({
         {/* Open */}
         {openGoals.length > 0 && (
           <div>
-            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
               Open ({openGoals.length})
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {openGoals.map(renderGoalItem)}
             </div>
           </div>
@@ -137,10 +150,10 @@ export default function GoalPanel({
         {/* Done */}
         {doneGoals.length > 0 && (
           <div>
-            <h4 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-2">
+            <h4 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-1.5">
               Completed ({doneGoals.length})
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {doneGoals.map(renderGoalItem)}
             </div>
           </div>

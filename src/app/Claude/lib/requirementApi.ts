@@ -14,7 +14,7 @@ export interface Requirement {
 }
 
 /**
- * Load requirements from API
+ * Load requirements from API (single project)
  */
 export async function loadRequirements(projectPath: string): Promise<string[]> {
   const response = await fetch(
@@ -27,6 +27,33 @@ export async function loadRequirements(projectPath: string): Promise<string[]> {
   }
 
   throw new Error('Failed to load requirements');
+}
+
+/**
+ * Load requirements for multiple projects in a single batch request
+ * Returns a map of projectId -> requirement names
+ */
+export async function loadRequirementsBatch(
+  projects: Array<{ id: string; path: string }>
+): Promise<Record<string, string[]>> {
+  if (projects.length === 0) {
+    return {};
+  }
+
+  const response = await fetch('/api/claude-code/batch-requirements', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectPaths: projects.map(p => ({ id: p.id, path: p.path })),
+    }),
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    return data.requirements || {};
+  }
+
+  throw new Error('Failed to load requirements batch');
 }
 
 /**

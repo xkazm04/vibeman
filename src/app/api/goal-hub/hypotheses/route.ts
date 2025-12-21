@@ -31,8 +31,15 @@ export async function GET(request: NextRequest) {
       return createErrorResponse('goalId is required', 400);
     }
 
-    const hypotheses = goalHubDb.hypotheses.getByGoalId(goalId);
-    const counts = goalHubDb.hypotheses.getCounts(goalId);
+    let hypotheses;
+    let counts;
+    try {
+      hypotheses = goalHubDb.hypotheses.getByGoalId(goalId);
+      counts = goalHubDb.hypotheses.getCounts(goalId);
+    } catch (dbError) {
+      logger.error('Database error in GET hypotheses:', { data: dbError, message: dbError instanceof Error ? dbError.message : 'Unknown' });
+      return createErrorResponse(`Database error: ${dbError instanceof Error ? dbError.message : 'Unknown'}`, 500);
+    }
 
     return NextResponse.json({
       hypotheses,

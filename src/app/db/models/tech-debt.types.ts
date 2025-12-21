@@ -13,7 +13,6 @@ export type TechDebtCategory =
   | 'documentation'
   | 'dependencies'
   | 'architecture'
-  | 'accessibility'
   | 'other';
 
 export type TechDebtStatus = 'detected' | 'acknowledged' | 'planned' | 'in_progress' | 'resolved' | 'dismissed';

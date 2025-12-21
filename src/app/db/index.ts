@@ -141,9 +141,12 @@ import {
 } from './repositories/roi-simulator.repository';
 import {
   goalHypothesisRepository,
-  goalBreakdownRepository,
   goalHubExtensions,
 } from './repositories/goal-hub.repository';
+import {
+  devicePairRepository,
+  offloadQueueRepository,
+} from './repositories/offload.repository';
 
 // Export types
 export * from './models/types';
@@ -166,6 +169,7 @@ export * from './models/focus-mode.types';
 export * from './models/autonomous-ci.types';
 export * from './models/roi-simulator.types';
 export * from './models/goal-hub.types';
+export * from './models/offload.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -194,11 +198,10 @@ export const goalDb = {
 
 /**
  * Goal Hub Database Operations
- * Handles goal hypotheses, breakdowns, and extended goal features
+ * Handles goal hypotheses and extended goal features
  */
 export const goalHubDb = {
   hypotheses: goalHypothesisRepository,
-  breakdowns: goalBreakdownRepository,
   extensions: goalHubExtensions,
   close: closeDatabase
 };
@@ -1105,6 +1108,22 @@ export const roiConfigDb = {
  */
 export const roiSummaryDb = {
   ...roiSummaryRepository,
+};
+
+/**
+ * Device Pair Database Operations
+ * Handles device pairing for cross-device offloading
+ */
+export const devicePairDb = {
+  ...devicePairRepository,
+};
+
+/**
+ * Offload Queue Database Operations
+ * Manages task queue for cross-device offloading
+ */
+export const offloadQueueDb = {
+  ...offloadQueueRepository,
 };
 
 // Cleanup handlers

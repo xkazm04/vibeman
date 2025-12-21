@@ -61,7 +61,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
       }
     },
     sensorOptions: {
-      delay: 500,
+      delay: 300,
       tolerance: 5,
     },
   });

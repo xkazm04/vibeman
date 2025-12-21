@@ -40,7 +40,6 @@ export type PatternCategory =
   | 'performance'
   | 'architecture'
   | 'testing'
-  | 'accessibility'
   | 'modernization'
   | 'best-practices';
 

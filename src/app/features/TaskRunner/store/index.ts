@@ -4,6 +4,7 @@
 
 export * from './taskRunnerStore';
 export * from './useTaskRunnerHooks';
+export * from './remoteBatchStore';
 
 // Re-export discriminated union types and utilities from types.ts
 export type {

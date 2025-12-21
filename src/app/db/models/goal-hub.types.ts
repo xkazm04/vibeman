@@ -7,12 +7,11 @@
 // HYPOTHESIS TYPES
 // ============================================================================
 
-export type HypothesisStatus = 'unverified' | 'in_progress' | 'verified' | 'disproven';
+export type HypothesisStatus = 'unverified' | 'in_progress' | 'verified' | 'disproven' | 'completed';
 export type HypothesisCategory =
   | 'behavior'      // Expected function/feature behavior
   | 'performance'   // Performance characteristics
   | 'security'      // Security requirements
-  | 'accessibility' // Accessibility requirements
   | 'ux'            // User experience
   | 'integration'   // Integration requirements
   | 'edge_case'     // Edge case handling
@@ -64,8 +63,16 @@ export interface GoalHypothesis {
 }
 
 // ============================================================================
-// BREAKDOWN TYPES
+// AGENT RESPONSE TYPES (for breakdown prompt output)
 // ============================================================================
+
+export interface AgentHypothesis {
+  title: string;
+  statement: string;
+  category: HypothesisCategory;
+  priority: number;
+  implementationHint?: string;
+}
 
 export interface AgentResponse {
   agentType: string;
@@ -73,40 +80,9 @@ export interface AgentResponse {
   agentEmoji: string;
   perspective: string;
   recommendations: string[];
-  hypotheses: Array<{
-    title: string;
-    statement: string;
-    category: HypothesisCategory;
-    priority: number;
-  }>;
+  hypotheses: AgentHypothesis[];
   risks: string[];
   considerations: string[];
-}
-
-export interface DbGoalBreakdown {
-  id: string;
-  goal_id: string;
-  project_id: string;
-  prompt_used: string | null;
-  model_used: string | null;
-  input_tokens: number;
-  output_tokens: number;
-  agent_responses: string; // JSON string of AgentResponse[]
-  hypotheses_generated: number;
-  created_at: string;
-}
-
-export interface GoalBreakdown {
-  id: string;
-  goalId: string;
-  projectId: string;
-  promptUsed: string | null;
-  modelUsed: string | null;
-  inputTokens: number;
-  outputTokens: number;
-  agentResponses: AgentResponse[];
-  hypothesesGenerated: number;
-  createdAt: Date;
 }
 
 // ============================================================================
@@ -187,12 +163,9 @@ export interface GoalBreakdownRequest {
   goalTitle: string;
   goalDescription?: string;
   projectPath: string;
+  contextId?: string;
+  contextName?: string;
   contextFiles?: string[];
-}
-
-export interface GoalBreakdownResponse {
-  breakdown: GoalBreakdown;
-  hypotheses: GoalHypothesis[];
 }
 
 // ============================================================================
@@ -203,7 +176,6 @@ export interface GoalHubState {
   activeGoal: ExtendedGoal | null;
   goals: ExtendedGoal[];
   hypotheses: GoalHypothesis[];
-  breakdown: GoalBreakdown | null;
   isLoading: boolean;
   isGeneratingBreakdown: boolean;
   error: string | null;

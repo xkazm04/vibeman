@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ScanType, SCAN_TYPE_CONFIGS } from '@/app/features/Ideas/lib/scanTypes';
+import { ScanType, SCAN_TYPE_CONFIGS, getScanTypeAbbr } from '@/app/features/Ideas/lib/scanTypes';
 import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/prompts';
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
 import { contextDb, goalDb, ideaDb, DbContext } from '@/app/db';
@@ -143,7 +143,7 @@ Content-Type: application/json
 - \`functionality\`: New features, missing capabilities, workflow improvements
 - \`performance\`: Speed, efficiency, memory, database, rendering optimizations
 - \`maintenance\`: Code organization, refactoring, technical debt, testing
-- \`ui\`: Visual design, UX improvements, accessibility, responsiveness
+- \`ui\`: Visual design, UX improvements, responsiveness
 - \`code_quality\`: Security, error handling, type safety, edge cases
 - \`user_benefit\`: High-level value propositions, business impact, user experience
 
@@ -267,10 +267,12 @@ export async function POST(request: NextRequest) {
       context
     });
 
-    // Build unique requirement name
+    // Build unique requirement name with scan type abbreviation
+    // Format: idea-gen-<timestamp>-<ctx_prefix>-<abbr>
     const timestamp = Date.now();
-    const contextSuffix = contextId ? `-ctx-${contextId.slice(0, 8)}` : '';
-    const requirementName = `idea-gen-${scanType}${contextSuffix}-${timestamp}`;
+    const abbr = getScanTypeAbbr(scanType);
+    const contextSuffix = contextId ? `-${contextId.slice(0, 8)}` : '-all';
+    const requirementName = `idea-gen-${timestamp}${contextSuffix}-${abbr}`;
 
     return NextResponse.json({
       success: true,

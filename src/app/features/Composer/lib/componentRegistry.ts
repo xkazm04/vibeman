@@ -185,13 +185,6 @@ export const BUSINESS_PROMPTS: PromptMeta[] = [
     category: 'user',
   },
   {
-    id: 'accessibility_advocate',
-    name: 'Accessibility Advocate',
-    description: 'Ensure accessibility compliance and improvements',
-    icon: 'Eye',
-    category: 'user',
-  },
-  {
     id: 'onboarding_optimizer',
     name: 'Onboarding Optimizer',
     description: 'Improve user onboarding flows',

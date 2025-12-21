@@ -8,11 +8,9 @@ import { devtools } from 'zustand/middleware';
 import type {
   ExtendedGoal,
   GoalHypothesis,
-  GoalBreakdown,
   HypothesisStatus,
   HypothesisCategory,
   EvidenceType,
-  AgentResponse,
 } from '@/app/db/models/goal-hub.types';
 
 // ============================================================================
@@ -40,14 +38,9 @@ interface GoalHubState {
   hypotheses: GoalHypothesis[];
   hypothesisCounts: HypothesisCounts;
 
-  // Breakdown for active goal
-  breakdown: GoalBreakdown | null;
-  breakdownHistory: GoalBreakdown[];
-
   // Loading states
   isLoading: boolean;
   isLoadingHypotheses: boolean;
-  isGeneratingBreakdown: boolean;
   isSavingHypothesis: boolean;
 
   // Error state
@@ -80,17 +73,6 @@ interface GoalHubActions {
   verifyHypothesis: (id: string, evidence: string, evidenceType: EvidenceType) => Promise<void>;
   deleteHypothesis: (id: string) => Promise<void>;
 
-  // Breakdown
-  loadBreakdown: (goalId: string) => Promise<void>;
-  generateBreakdown: (projectPath: string) => Promise<{ prompt: string; requirementName: string } | null>;
-  saveBreakdownResult: (result: {
-    agentResponses: AgentResponse[];
-    promptUsed?: string;
-    modelUsed?: string;
-    inputTokens?: number;
-    outputTokens?: number;
-  }) => Promise<void>;
-
   // Utilities
   clearError: () => void;
   reset: () => void;
@@ -107,11 +89,8 @@ const initialState: GoalHubState = {
   goals: [],
   hypotheses: [],
   hypothesisCounts: { total: 0, verified: 0, inProgress: 0 },
-  breakdown: null,
-  breakdownHistory: [],
   isLoading: false,
   isLoadingHypotheses: false,
-  isGeneratingBreakdown: false,
   isSavingHypothesis: false,
   error: null,
   projectId: null,
@@ -169,15 +148,12 @@ export const useGoalHubStore = create<GoalHubStore>()(
         set({ activeGoal: goal });
 
         if (goal) {
-          // Load hypotheses and breakdown for the active goal
+          // Load hypotheses for the active goal
           get().loadHypotheses(goal.id);
-          get().loadBreakdown(goal.id);
         } else {
           set({
             hypotheses: [],
             hypothesisCounts: { total: 0, verified: 0, inProgress: 0 },
-            breakdown: null,
-            breakdownHistory: [],
           });
         }
       },
@@ -439,102 +415,6 @@ export const useGoalHubStore = create<GoalHubStore>()(
           }));
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to delete hypothesis' });
-        }
-      },
-
-      // ========================================
-      // BREAKDOWN
-      // ========================================
-
-      loadBreakdown: async (goalId) => {
-        const state = get();
-
-        // Skip if already generating (which includes loading)
-        if (state.isGeneratingBreakdown) return;
-
-        try {
-          const response = await fetch(`/api/goal-hub/breakdown?goalId=${goalId}`);
-          if (!response.ok) throw new Error('Failed to load breakdown');
-
-          const data = await response.json();
-          set({
-            breakdown: data.breakdown,
-            breakdownHistory: data.history || [],
-          });
-        } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to load breakdown' });
-        }
-      },
-
-      generateBreakdown: async (projectPath) => {
-        const { activeGoal, projectId } = get();
-        if (!activeGoal || !projectId) return null;
-
-        set({ isGeneratingBreakdown: true, error: null });
-        try {
-          const response = await fetch('/api/goal-hub/breakdown', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              goalId: activeGoal.id,
-              projectId,
-              projectPath,
-            }),
-          });
-
-          if (!response.ok) throw new Error('Failed to generate breakdown prompt');
-
-          const data = await response.json();
-          set({ isGeneratingBreakdown: false });
-
-          return {
-            prompt: data.prompt,
-            requirementName: data.requirementName,
-          };
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to generate breakdown',
-            isGeneratingBreakdown: false,
-          });
-          return null;
-        }
-      },
-
-      saveBreakdownResult: async (result) => {
-        const { activeGoal, projectId } = get();
-        if (!activeGoal || !projectId) return;
-
-        set({ isGeneratingBreakdown: true });
-        try {
-          const response = await fetch('/api/goal-hub/breakdown', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              goalId: activeGoal.id,
-              projectId,
-              ...result,
-            }),
-          });
-
-          if (!response.ok) throw new Error('Failed to save breakdown result');
-
-          const data = await response.json();
-
-          set((state) => ({
-            breakdown: data.breakdown,
-            hypotheses: data.hypotheses || state.hypotheses,
-            hypothesisCounts: {
-              total: data.hypotheses?.length || state.hypothesisCounts.total,
-              verified: 0,
-              inProgress: 0,
-            },
-            isGeneratingBreakdown: false,
-          }));
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to save breakdown result',
-            isGeneratingBreakdown: false,
-          });
         }
       },
 

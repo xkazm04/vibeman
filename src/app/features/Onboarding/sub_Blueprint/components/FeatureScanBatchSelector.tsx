@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, X } from 'lucide-react';
+import { Play, X, Loader2 } from 'lucide-react';
 import BatchSelectionModal from './BatchSelectionModal';
 import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 
@@ -43,39 +43,45 @@ export default function FeatureScanBatchSelector({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="relative">
+      {/* Top-right Action Buttons - positioned to align with modal header */}
+      <div className="absolute -top-14 right-0 flex items-center gap-2 z-10">
+        <motion.button
+          onClick={handleCancel}
+          title="Cancel"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          disabled={isExecuting}
+          className="p-2.5 rounded-xl border transition-all duration-200 bg-slate-700/60 hover:bg-slate-600/80 border-slate-600/50 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+          data-testid="feature-scan-cancel-btn"
+          aria-label="Cancel"
+        >
+          <X className="w-5 h-5 text-slate-300 hover:text-white" />
+        </motion.button>
+
+        <motion.button
+          onClick={handleStartClick}
+          title={isExecuting ? 'Starting...' : 'Select Batch & Start'}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          disabled={isExecuting}
+          className="p-2.5 rounded-xl border transition-all duration-200 bg-gradient-to-r from-green-600/80 to-emerald-500/80 hover:from-green-500 hover:to-emerald-400 border-green-500/60 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+          data-testid="feature-scan-start-btn"
+          aria-label={isExecuting ? 'Starting...' : 'Select Batch & Start'}
+        >
+          {isExecuting ? (
+            <Loader2 className="w-5 h-5 text-white animate-spin" />
+          ) : (
+            <Play className="w-5 h-5 text-white" />
+          )}
+        </motion.button>
+      </div>
+
       {/* Description */}
       <div className="prose prose-invert max-w-none">
         <div className="text-sm text-gray-300 whitespace-pre-line">
           {description}
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-700">
-        <motion.button
-          onClick={handleCancel}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          disabled={isExecuting}
-          className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          data-testid="feature-scan-cancel-btn"
-        >
-          <X className="w-4 h-4 inline-block mr-2" />
-          Cancel
-        </motion.button>
-
-        <motion.button
-          onClick={handleStartClick}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          disabled={isExecuting}
-          className="px-5 py-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          data-testid="feature-scan-start-btn"
-        >
-          <Play className="w-4 h-4" />
-          {isExecuting ? 'Starting...' : 'Select Batch & Start'}
-        </motion.button>
       </div>
 
       {/* Batch Selection Modal */}

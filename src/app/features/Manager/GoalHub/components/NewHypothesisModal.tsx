@@ -19,7 +19,6 @@ const CATEGORIES: Array<{ value: HypothesisCategory; label: string }> = [
   { value: 'behavior', label: 'Behavior' },
   { value: 'performance', label: 'Performance' },
   { value: 'security', label: 'Security' },
-  { value: 'accessibility', label: 'Accessibility' },
   { value: 'ux', label: 'User Experience' },
   { value: 'integration', label: 'Integration' },
   { value: 'edge_case', label: 'Edge Case' },
