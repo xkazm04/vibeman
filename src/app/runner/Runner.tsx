@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { StandalonePreviewLever } from './components/StandalonePreviewLever';
 import EmergencyKillModal from './components/EmergencyKillModal';
 import CompactSystemLogs from './components/CompactSystemLogs';
@@ -93,14 +93,16 @@ export default function Runner() {
   const shadowIntensity = Math.round(chargingLevel / 100 * 20);
   const shadowColor = getInterpolatedColor("#000000", "#FF3E3E", progress * 0.7);
 
-  const handleEmergencyRefresh = async () => {
+  const handleEmergencyRefresh = useCallback(async () => {
     try {
       await forceRefresh();
       await initializeProjects();
-    } catch (error) {    }
-  };
+    } catch (error) {
+      // Error handling
+    }
+  }, [forceRefresh, initializeProjects]);
 
-  const handleToggleServer = async (projectId: string) => {
+  const handleToggleServer = useCallback(async (projectId: string) => {
     const status = processes[projectId];
     const isRunning = status?.status === 'running';
 
@@ -110,8 +112,10 @@ export default function Runner() {
       } else {
         await startServer(projectId);
       }
-    } catch (error) {    }
-  };
+    } catch (error) {
+      // Error handling
+    }
+  }, [processes, stopServer, startServer]);
 
   return (
     <>
@@ -119,8 +123,8 @@ export default function Runner() {
         {/* Neural Background Effects */}
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-indigo-500/5 to-purple-500/5" />
 
-        {/* Animated Grid Pattern */}
-        <motion.div
+        {/* Static Grid Pattern - removed infinite animation for performance */}
+        <div
           className="absolute inset-0 opacity-5"
           style={{
             backgroundImage: `
@@ -128,14 +132,6 @@ export default function Runner() {
               linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)
             `,
             backgroundSize: '30px 30px'
-          }}
-          animate={{
-            backgroundPosition: ['0px 0px', '30px 30px'],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "linear"
           }}
         />
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Save, RotateCcw, SplitSquareHorizontal, GitCompareArrows, WrapText, Eye, EyeOff, Wand2, LucideIcon } from 'lucide-react';
-import MonacoEditor from './MonacoEditor';
+import MonacoEditor from './LazyMonacoEditor';
 import MonacoDiffEditor from './MonacoDiffEditor';
 import FileTab from './FileTab';
 import { getLanguageFromFilename, isBinaryFile } from './editorUtils';

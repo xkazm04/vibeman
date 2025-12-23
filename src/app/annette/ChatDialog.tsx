@@ -32,16 +32,22 @@ const ChatDialog = ({ selectedProject, isProcessing = false }: ChatDialogProps) 
   const analyserRef = useRef<AnalyserNode | null>(null);
   const ollamaClientRef = useRef(new OllamaClient());
 
-  // Audio levels animation
+  // Audio levels animation - throttled to 15fps for performance
   useEffect(() => {
     if (isAudioActive || isListening || isProcessing) {
-      const animateAudio = () => {
-        setAudioLevels(prev => prev.map(() => 
-          Math.random() * (isListening ? 100 : isProcessing ? 60 : 30)
-        ));
+      let lastUpdate = 0;
+      const targetInterval = 1000 / 15; // 15fps instead of 60fps
+
+      const animateAudio = (timestamp: number) => {
+        if (timestamp - lastUpdate >= targetInterval) {
+          setAudioLevels(prev => prev.map(() =>
+            Math.random() * (isListening ? 100 : isProcessing ? 60 : 30)
+          ));
+          lastUpdate = timestamp;
+        }
         audioAnimationRef.current = requestAnimationFrame(animateAudio);
       };
-      animateAudio();
+      audioAnimationRef.current = requestAnimationFrame(animateAudio);
     } else {
       if (audioAnimationRef.current) {
         cancelAnimationFrame(audioAnimationRef.current);
@@ -215,62 +221,62 @@ const ChatDialog = ({ selectedProject, isProcessing = false }: ChatDialogProps) 
           isAudioActive={isAudioActive}
         />
         <div className="flex-1 p-6 flex items-center justify-center relative">
-          <motion.div
+          {/* Static scanlines pattern - removed infinite animation for performance */}
+          <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background: `repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px)`
             }}
-            animate={{ backgroundPosition: ['0px 0px', '0px 20px'] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
           <AnimatePresence mode="wait">
             {!currentResponse && !isLoading ? (
               <motion.div key="idle" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex flex-col items-center text-center">
-                <motion.div className="relative mb-8" animate={{ y: [0, -10, 0] }} transition={{ duration: 4, repeat: Infinity }}>
-                  <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }}>
-                    <Brain className="w-20 h-20 text-cyan-400/60" />
-                  </motion.div>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <motion.div key={i} className="absolute inset-0 flex items-center justify-center" animate={{ rotate: [0, 360] }} transition={{ duration: 8 + i * 2, repeat: Infinity, ease: "linear", delay: i * 0.5 }}>
-                      <motion.div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-cyan-400' : i === 1 ? 'bg-slate-400' : 'bg-blue-400'}`} style={{ transform: `translateX(${40 + i * 10}px)` }} animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }} />
-                    </motion.div>
-                  ))}
-                </motion.div>
+                <div className="relative mb-8">
+                  {/* Static brain icon - removed infinite rotation for performance */}
+                  <Brain className="w-20 h-20 text-cyan-400/60" />
+                  {/* Single orbital dot with CSS animation instead of multiple Framer Motion elements */}
+                  <div className="absolute inset-0 flex items-center justify-center animate-spin" style={{ animationDuration: '10s' }}>
+                    <div className="w-2 h-2 rounded-full bg-cyan-400 opacity-60" style={{ transform: 'translateX(40px)' }} />
+                  </div>
+                </div>
                 <motion.h4 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-slate-400 bg-clip-text text-transparent mb-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
                   NEURAL INTERFACE ACTIVE
                 </motion.h4>
                 <motion.p className="text-cyan-300/60 max-w-md font-mono text-sm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
                   {`>`} Quantum processing ready<br/>{`>`} Multi-dimensional analysis enabled<br/>{`>`} Project intelligence systems online<br/>
-                  <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ duration: 1, repeat: Infinity }}>
+                  {/* Blinking cursor using CSS animation */}
+                  <span className="animate-pulse">
                     {`>`} Awaiting neural input...
-                  </motion.span>
+                  </span>
                 </motion.p>
               </motion.div>
             ) : isLoading ? (
               <motion.div key="loading" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
-                <motion.div className="p-8 rounded-2xl bg-gradient-to-br from-slate-600/20 via-blue-600/10 to-slate-800/20 border border-slate-400/30 backdrop-blur-sm" animate={{ boxShadow: ["0 0 20px rgba(99, 102, 241, 0.3)", "0 0 40px rgba(99, 102, 241, 0.5)", "0 0 20px rgba(99, 102, 241, 0.3)"] }} transition={{ duration: 2, repeat: Infinity }}>
+                {/* Simplified loading card - removed box-shadow animation for performance */}
+                <div className="p-8 rounded-2xl bg-gradient-to-br from-slate-600/20 via-blue-600/10 to-slate-800/20 border border-slate-400/30 backdrop-blur-sm shadow-lg shadow-indigo-500/20">
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-400 to-blue-500 p-0.5">
                       <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center">
-                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
-                          <Brain className="w-8 h-8 text-slate-400" />
-                        </motion.div>
+                        {/* Use CSS animate-spin instead of Framer Motion */}
+                        <Brain className="w-8 h-8 text-slate-400 animate-spin" style={{ animationDuration: '2s' }} />
                       </div>
                     </div>
                     <div className="flex flex-col space-y-3">
                       <div className="flex items-center space-x-2">
                         <span className="text-lg font-mono text-slate-300 uppercase tracking-wider">Neural Processing</span>
-                        <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ duration: 1, repeat: Infinity }} className="w-3 h-3 bg-slate-400 rounded-full" />
+                        {/* CSS pulse instead of Framer Motion opacity animation */}
+                        <div className="w-3 h-3 bg-slate-400 rounded-full animate-pulse" />
                       </div>
+                      {/* Reduced from 12 to 4 particles, using CSS animation */}
                       <div className="flex items-center space-x-1">
-                        {Array.from({ length: 12 }).map((_, i) => (
-                          <motion.div key={i} className="w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-slate-400 rounded-full" animate={{ scale: [0.5, 1.5, 0.5], opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }} />
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-slate-400 rounded-full animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
                         ))}
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               </motion.div>
             ) : (
               <motion.div key="response" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="max-w-3xl w-full">

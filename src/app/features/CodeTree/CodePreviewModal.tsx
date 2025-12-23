@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Loader2, FileCode, Eye } from 'lucide-react';
-import MonacoEditor from '@/components/editor/MonacoEditor';
+import MonacoEditor from '@/components/editor/LazyMonacoEditor';
 import FileErrorDisplay from './components/FileErrorDisplay';
 import { classifyFileError } from './lib/fileOperationErrors';
 

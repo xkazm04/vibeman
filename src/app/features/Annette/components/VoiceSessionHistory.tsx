@@ -1,20 +1,177 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback, memo } from 'react';
+import { motion } from 'framer-motion';
 import { History, Trash2, Play, Clock, MessageCircle, RefreshCw } from 'lucide-react';
+import { List, RowComponentProps } from 'react-window';
 import { VoiceSession } from '../lib/voicebotTypes';
 import { AnnetteTheme } from '../sub_VoiceInterface/AnnetteThemeSwitcher';
 import { THEME_CONFIGS } from '@/stores/themeStore';
 import { getProjectVoiceSessions, getAllVoiceSessions, deleteVoiceSession } from '../lib/voiceSessionStorage';
 
 interface VoiceSessionHistoryProps {
-  projectId?: string; // If provided, show only sessions for this project
+  projectId?: string;
   theme?: AnnetteTheme;
   onSessionSelect?: (session: VoiceSession) => void;
   onSessionDelete?: (sessionId: string) => void;
   className?: string;
 }
+
+// Row data for virtualization - defined outside component to avoid recreation
+interface RowData {
+  sessions: VoiceSession[];
+  themeConfig: typeof THEME_CONFIGS[keyof typeof THEME_CONFIGS];
+  deletingId: string | null;
+  onSelect?: (session: VoiceSession) => void;
+  onDelete: (sessionId: string, event: React.MouseEvent) => void;
+}
+
+// Virtualized row component for react-window v2
+function VirtualSessionRow(props: RowComponentProps<RowData>): React.ReactElement {
+  const { index, style, sessions, themeConfig, deletingId, onSelect, onDelete } = props;
+  const session = sessions[index];
+  return (
+    <div style={{ ...style, paddingRight: 12, paddingLeft: 12, paddingBottom: 8 }}>
+      <SessionRow
+        session={session}
+        themeConfig={themeConfig}
+        deletingId={deletingId}
+        onSelect={onSelect}
+        onDelete={onDelete}
+      />
+    </div>
+  );
+}
+
+// Format date helper
+const formatDate = (date: Date) => {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString();
+};
+
+// Format duration helper
+const formatDuration = (start: Date, end?: Date) => {
+  const endTime = end || new Date();
+  const durationMs = endTime.getTime() - start.getTime();
+  const minutes = Math.floor(durationMs / 60000);
+  const seconds = Math.floor((durationMs % 60000) / 1000);
+
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+};
+
+// Memoized session row component to prevent re-renders
+interface SessionRowProps {
+  session: VoiceSession;
+  themeConfig: typeof THEME_CONFIGS[keyof typeof THEME_CONFIGS];
+  deletingId: string | null;
+  onSelect?: (session: VoiceSession) => void;
+  onDelete: (sessionId: string, event: React.MouseEvent) => void;
+}
+
+const SessionRow = memo(function SessionRow({
+  session,
+  themeConfig,
+  deletingId,
+  onSelect,
+  onDelete,
+}: SessionRowProps) {
+  return (
+    <button
+      onClick={() => onSelect?.(session)}
+      className="w-full text-left bg-gray-950/40 border border-gray-700/30 rounded-lg p-3 hover:bg-gray-950/60 hover:border-gray-600/40 transition-all group"
+      disabled={deletingId === session.id}
+      data-testid={`session-item-${session.id}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        {/* Session info */}
+        <div className="flex-1 min-w-0">
+          {/* Project name and date */}
+          <div className="flex items-center gap-2 mb-1.5">
+            <h4 className="text-sm font-semibold text-gray-200 truncate">
+              {session.projectName}
+            </h4>
+            <span className="text-xs text-gray-500 font-mono whitespace-nowrap">
+              {formatDate(session.startTime)}
+            </span>
+          </div>
+
+          {/* Metadata */}
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <MessageCircle className="w-3 h-3" />
+              <span>{session.totalInteractions} interactions</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span>{formatDuration(session.startTime, session.endTime)}</span>
+            </div>
+          </div>
+
+          {/* First interaction preview */}
+          {session.interactions.length > 0 && (
+            <p className="text-xs text-gray-400 mt-2 line-clamp-2">
+              {session.interactions[0].userText}
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Play button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect?.(session);
+            }}
+            className={`p-1.5 rounded-md ${themeConfig.colors.bg} ${themeConfig.colors.border} border transition-all hover:scale-105 active:scale-95`}
+            aria-label="Replay session"
+            data-testid={`replay-session-btn-${session.id}`}
+          >
+            <Play className={`w-3.5 h-3.5 ${themeConfig.colors.text}`} />
+          </button>
+
+          {/* Delete button */}
+          <button
+            onClick={(e) => onDelete(session.id, e)}
+            className="p-1.5 rounded-md bg-gray-800/80 text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition-all hover:scale-105 active:scale-95"
+            aria-label="Delete session"
+            data-testid={`delete-session-btn-${session.id}`}
+            disabled={deletingId === session.id}
+          >
+            {deletingId === session.id ? (
+              <div className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full border-red-400 animate-spin" />
+            ) : (
+              <Trash2 className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Session status indicator */}
+      {!session.endTime && (
+        <div className="mt-2 pt-2 border-t border-gray-700/30">
+          <div className="flex items-center gap-1.5 text-xs">
+            <div
+              className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${themeConfig.colors.primary} animate-pulse`}
+            />
+            <span className="text-gray-400">Active session</span>
+          </div>
+        </div>
+      )}
+    </button>
+  );
+});
 
 /**
  * VoiceSessionHistory - Component for displaying and managing saved voice sessions
@@ -25,6 +182,7 @@ interface VoiceSessionHistoryProps {
  * - Delete sessions
  * - Select session for replay
  * - Auto-refresh when sessions change
+ * - Virtualized list for performance with large session counts
  */
 export default function VoiceSessionHistory({
   projectId,
@@ -60,7 +218,7 @@ export default function VoiceSessionHistory({
 
   // Delete a session
   const handleDelete = useCallback(async (sessionId: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent triggering onSessionSelect
+    event.stopPropagation();
 
     if (!confirm('Delete this voice session? This action cannot be undone.')) {
       return;
@@ -81,32 +239,10 @@ export default function VoiceSessionHistory({
     }
   }, [onSessionDelete]);
 
-  // Format date
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    return date.toLocaleDateString();
-  };
-
-  // Format duration
-  const formatDuration = (start: Date, end?: Date) => {
-    const endTime = end || new Date();
-    const durationMs = endTime.getTime() - start.getTime();
-    const minutes = Math.floor(durationMs / 60000);
-    const seconds = Math.floor((durationMs % 60000) / 1000);
-
-    if (minutes === 0) return `${seconds}s`;
-    return `${minutes}m ${seconds}s`;
-  };
+  // Calculate row height (including padding)
+  const ITEM_HEIGHT = 120; // Approximate height of each session card
+  const LIST_HEIGHT = 384; // max-h-96 = 24rem = 384px
 
   return (
     <motion.div
@@ -135,26 +271,22 @@ export default function VoiceSessionHistory({
           )}
         </div>
 
-        <motion.button
+        <button
           onClick={loadSessions}
-          whileHover={{ scale: 1.05, rotate: 180 }}
-          whileTap={{ scale: 0.95 }}
-          className="p-1.5 rounded-lg bg-gray-800/50 text-gray-400 border border-gray-700/50 hover:bg-gray-700/50 transition-all"
+          className="p-1.5 rounded-lg bg-gray-800/50 text-gray-400 border border-gray-700/50 hover:bg-gray-700/50 transition-all hover:scale-105 active:scale-95"
           aria-label="Refresh sessions"
           data-testid="refresh-sessions-btn"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-        </motion.button>
+        </button>
       </div>
 
       {/* Session list */}
-      <div className="relative max-h-96 overflow-y-auto">
+      <div className="relative">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              className={`w-6 h-6 border-2 border-t-transparent rounded-full ${themeConfig.colors.border}`}
+            <div
+              className={`w-6 h-6 border-2 border-t-transparent rounded-full ${themeConfig.colors.border} animate-spin`}
             />
           </div>
         ) : sessions.length === 0 ? (
@@ -164,115 +296,20 @@ export default function VoiceSessionHistory({
             <p className="text-xs mt-1">Start a conversation to create a session</p>
           </div>
         ) : (
-          <div className="p-3 space-y-2">
-            <AnimatePresence mode="popLayout">
-              {sessions.map((session, index) => (
-                <motion.div
-                  key={session.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ delay: index * 0.03 }}
-                  data-testid={`session-item-${session.id}`}
-                >
-                  <motion.button
-                    onClick={() => onSessionSelect?.(session)}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    className="w-full text-left bg-gray-950/40 border border-gray-700/30 rounded-lg p-3 hover:bg-gray-950/60 hover:border-gray-600/40 transition-all group"
-                    disabled={deletingId === session.id}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      {/* Session info */}
-                      <div className="flex-1 min-w-0">
-                        {/* Project name and date */}
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <h4 className="text-sm font-semibold text-gray-200 truncate">
-                            {session.projectName}
-                          </h4>
-                          <span className="text-xs text-gray-500 font-mono whitespace-nowrap">
-                            {formatDate(session.startTime)}
-                          </span>
-                        </div>
-
-                        {/* Metadata */}
-                        <div className="flex items-center gap-3 text-xs text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <MessageCircle className="w-3 h-3" />
-                            <span>{session.totalInteractions} interactions</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatDuration(session.startTime, session.endTime)}</span>
-                          </div>
-                        </div>
-
-                        {/* First interaction preview */}
-                        {session.interactions.length > 0 && (
-                          <p className="text-xs text-gray-400 mt-2 line-clamp-2">
-                            {session.interactions[0].userText}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {/* Play button */}
-                        <motion.button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSessionSelect?.(session);
-                          }}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className={`p-1.5 rounded-md ${themeConfig.colors.bg} ${themeConfig.colors.border} border transition-all`}
-                          aria-label="Replay session"
-                          data-testid={`replay-session-btn-${session.id}`}
-                        >
-                          <Play className={`w-3.5 h-3.5 ${themeConfig.colors.text}`} />
-                        </motion.button>
-
-                        {/* Delete button */}
-                        <motion.button
-                          onClick={(e) => handleDelete(session.id, e)}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="p-1.5 rounded-md bg-gray-800/80 text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition-all"
-                          aria-label="Delete session"
-                          data-testid={`delete-session-btn-${session.id}`}
-                          disabled={deletingId === session.id}
-                        >
-                          {deletingId === session.id ? (
-                            <motion.div
-                              animate={{ rotate: 360 }}
-                              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                              className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full border-red-400"
-                            />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" />
-                          )}
-                        </motion.button>
-                      </div>
-                    </div>
-
-                    {/* Session status indicator */}
-                    {!session.endTime && (
-                      <div className="mt-2 pt-2 border-t border-gray-700/30">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <motion.div
-                            className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${themeConfig.colors.primary}`}
-                            animate={{ opacity: [0.5, 1, 0.5] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          />
-                          <span className="text-gray-400">Active session</span>
-                        </div>
-                      </div>
-                    )}
-                  </motion.button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+          <List<RowData>
+            defaultHeight={Math.min(LIST_HEIGHT, sessions.length * ITEM_HEIGHT)}
+            rowCount={sessions.length}
+            rowHeight={ITEM_HEIGHT}
+            overscanCount={2}
+            rowComponent={VirtualSessionRow}
+            rowProps={{
+              sessions,
+              themeConfig,
+              deletingId,
+              onSelect: onSessionSelect,
+              onDelete: handleDelete,
+            }}
+          />
         )}
       </div>
 

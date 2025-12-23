@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { create } from 'zustand';
+import { useShallow } from 'zustand/shallow';
 import { AppState, AppStore, EventLogEntry, CustomBacklogItem, BacklogProposal, TreeNode } from '../types';
 import { isSupportedFile } from '../helpers/typeStyles';
 
@@ -70,86 +71,277 @@ const mockBacklogProposals: BacklogProposal[] = [
   }
 ];
 
-// Zustand-like state management
-export const useStore = (() => {
-  let state: AppState = {
-    activeTab: 'developer',
-    activeAgents: new Set(),
-    selectedNodes: new Set(),
-    highlightedNodes: new Set(),
-    eventLog: [],
-    backlogProposals: [...mockBacklogProposals],
-    inProgressProposals: [],
-    customBacklogItems: []
-  };
-  
-  const listeners = new Set<(state: AppState) => void>();
-  
-  const setState = (updater: ((prev: AppState) => AppState) | Partial<AppState>) => {
-    state = typeof updater === 'function' ? updater(state) : { ...state, ...updater };
-    listeners.forEach(listener => listener(state));
-  };
-  
-  const subscribe = (listener: (state: AppState) => void) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  };
-  
-  // Helper function to normalize paths for comparison
-  const normalizePath = (path: string): string => {
-    return path.replace(/\\/g, '/');
-  };
+// Helper function to normalize paths for comparison
+const normalizePath = (path: string): string => {
+  return path.replace(/\\/g, '/');
+};
 
-  // Helper function to get all child file nodes from a folder
-  const getAllChildFiles = (node: TreeNode, fileStructure: TreeNode | null): string[] => {
-    if (!fileStructure) return [];
+// Helper function to get all child file nodes from a folder
+const getAllChildFiles = (node: TreeNode, fileStructure: TreeNode | null): string[] => {
+  if (!fileStructure) return [];
 
-    const childFiles: string[] = [];
+  const childFiles: string[] = [];
 
-    const traverseNode = (currentNode: TreeNode) => {
-      // Only include files with supported extensions
-      if (currentNode.type === 'file' && isSupportedFile(currentNode.name)) {
-        childFiles.push(currentNode.path);
-      }
-
-      // Recursively check children
-      if (currentNode.children) {
-        currentNode.children.forEach(traverseNode);
-      }
-    };
-
-    // Start traversing from the given node
-    if (node.children) {
-      node.children.forEach(traverseNode);
+  const traverseNode = (currentNode: TreeNode) => {
+    // Only include files with supported extensions
+    if (currentNode.type === 'file' && isSupportedFile(currentNode.name)) {
+      childFiles.push(currentNode.path);
     }
 
-    return childFiles;
+    // Recursively check children
+    if (currentNode.children) {
+      currentNode.children.forEach(traverseNode);
+    }
   };
 
-  // Helper function to find node by ID in tree structure
-  const findNodeById = (nodeId: string, fileStructure: TreeNode | null): TreeNode | null => {
-    if (!fileStructure) return null;
+  // Start traversing from the given node
+  if (node.children) {
+    node.children.forEach(traverseNode);
+  }
 
-    const traverse = (node: TreeNode): TreeNode | null => {
-      if (node.id === nodeId) return node;
+  return childFiles;
+};
 
-      if (node.children) {
-        for (const child of node.children) {
-          const found = traverse(child);
-          if (found) return found;
+// Helper function to find node by ID in tree structure
+const findNodeById = (nodeId: string, fileStructure: TreeNode | null): TreeNode | null => {
+  if (!fileStructure) return null;
+
+  const traverse = (node: TreeNode): TreeNode | null => {
+    if (node.id === nodeId) return node;
+
+    if (node.children) {
+      for (const child of node.children) {
+        const found = traverse(child);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  };
+
+  return traverse(fileStructure);
+};
+
+interface NodeStoreState extends AppState {
+  setActiveTab: (tabId: string) => void;
+  toggleAgent: (agentId: string) => void;
+  toggleNode: (nodeId: string) => void;
+  toggleNodeWithFolder: (nodeId: string, fileStructure: TreeNode | null) => void;
+  highlightNodes: (nodeIds: string[]) => void;
+  clearHighlights: () => void;
+  clearSelection: () => void;
+  selectPaths: (filePaths: string[], fileStructure: TreeNode | null) => void;
+  addEvent: (event: EventLogEntry) => void;
+  acceptProposal: (proposalId: string) => void;
+  rejectProposal: (proposalId: string) => void;
+  addCustomBacklogItem: (item: CustomBacklogItem) => void;
+  moveToInProgress: (proposalId: string) => void;
+  getSelectedFilePaths: (fileStructure: TreeNode | null, activeProjectId: string | null) => string[];
+}
+
+const useStoreBase = create<NodeStoreState>()((set, get) => ({
+  // Initial state
+  activeTab: 'developer',
+  activeAgents: new Set<string>(),
+  selectedNodes: new Set<string>(),
+  highlightedNodes: new Set<string>(),
+  eventLog: [],
+  backlogProposals: [...mockBacklogProposals],
+  inProgressProposals: [],
+  customBacklogItems: [],
+
+  setActiveTab: (tabId: string) => set({ activeTab: tabId }),
+
+  toggleAgent: (agentId: string) => set(state => {
+    const newActiveAgents = new Set(state.activeAgents);
+    if (newActiveAgents.has(agentId)) {
+      newActiveAgents.delete(agentId);
+    } else {
+      newActiveAgents.add(agentId);
+    }
+    return { activeAgents: newActiveAgents };
+  }),
+
+  toggleNode: (nodeId: string) => set(state => {
+    const newSelectedNodes = new Set(state.selectedNodes);
+    if (newSelectedNodes.has(nodeId)) {
+      newSelectedNodes.delete(nodeId);
+    } else {
+      newSelectedNodes.add(nodeId);
+    }
+    return { selectedNodes: newSelectedNodes };
+  }),
+
+  toggleNodeWithFolder: (nodeId: string, fileStructure: TreeNode | null) => {
+    if (!fileStructure) {
+      // Fallback to regular toggle if no file structure
+      set(state => {
+        const newSelectedNodes = new Set(state.selectedNodes);
+        if (newSelectedNodes.has(nodeId)) {
+          newSelectedNodes.delete(nodeId);
+        } else {
+          newSelectedNodes.add(nodeId);
+        }
+        return { selectedNodes: newSelectedNodes };
+      });
+      return;
+    }
+
+    // Find the node in the tree
+    const node = findNodeById(nodeId, fileStructure);
+
+    if (!node) {
+      // Node not found, fallback to regular toggle
+      set(state => {
+        const newSelectedNodes = new Set(state.selectedNodes);
+        if (newSelectedNodes.has(nodeId)) {
+          newSelectedNodes.delete(nodeId);
+        } else {
+          newSelectedNodes.add(nodeId);
+        }
+        return { selectedNodes: newSelectedNodes };
+      });
+      return;
+    }
+
+    set(state => {
+      const newSelectedNodes = new Set(state.selectedNodes);
+
+      if (node.type === 'folder') {
+        // For folders, select/deselect all child files with supported extensions
+        const childFiles = getAllChildFiles(node, fileStructure);
+
+        // Check if all child files are already selected
+        const allSelected = childFiles.every(fileId => newSelectedNodes.has(fileId));
+
+        if (allSelected) {
+          // Deselect all child files
+          childFiles.forEach(fileId => newSelectedNodes.delete(fileId));
+        } else {
+          // Select all child files
+          childFiles.forEach(fileId => newSelectedNodes.add(fileId));
+        }
+      } else {
+        // For files, toggle normally only if it's a supported file type
+        if (isSupportedFile(node.name)) {
+          if (newSelectedNodes.has(nodeId)) {
+            newSelectedNodes.delete(nodeId);
+          } else {
+            newSelectedNodes.add(nodeId);
+          }
         }
       }
 
-      return null;
+      return { selectedNodes: newSelectedNodes };
+    });
+  },
+
+  highlightNodes: (nodeIds: string[]) => set({ highlightedNodes: new Set(nodeIds) }),
+
+  clearHighlights: () => set({ highlightedNodes: new Set() }),
+
+  // Clear all selected nodes
+  clearSelection: () => set({ selectedNodes: new Set() }),
+
+  // Select specific files by their paths
+  selectPaths: (filePaths: string[], fileStructure: TreeNode | null) => {
+    if (!fileStructure || filePaths.length === 0) return;
+
+    const nodeIdsToSelect = new Set<string>();
+
+    // Helper function to find node IDs for given file paths
+    const findNodeIds = (node: TreeNode) => {
+      // Check if this node's ID (which represents the path) matches any of our target paths
+      const normalizedNodePath = node.id.replace(/\\/g, '/');
+      if (node.type === 'file' && filePaths.some(path => {
+        const normalizedPath = path.replace(/\\/g, '/');
+        return normalizedNodePath === normalizedPath || normalizedNodePath.endsWith('/' + normalizedPath) || normalizedPath.endsWith('/' + normalizedNodePath);
+      })) {
+        nodeIdsToSelect.add(node.id);
+      }
+
+      // Recursively check children
+      if (node.children) {
+        node.children.forEach(findNodeIds);
+      }
     };
 
-    return traverse(fileStructure);
-  };
+    findNodeIds(fileStructure);
+
+    set({ selectedNodes: nodeIdsToSelect });
+  },
+
+  addEvent: (event: EventLogEntry) => set(state => ({
+    eventLog: [event, ...state.eventLog].slice(0, 100)
+  })),
+
+  acceptProposal: (proposalId: string) => set(state => {
+    const proposal = state.backlogProposals.find(p => p.id === proposalId);
+    if (!proposal) return state;
+
+    // Update the proposal status to accepted instead of removing it
+    const updatedProposals = state.backlogProposals.map(p =>
+      p.id === proposalId
+        ? { ...p, status: 'accepted' as const, acceptedAt: new Date() }
+        : p
+    );
+
+    // Add to event log
+    const event: EventLogEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date(),
+      type: 'proposal_accepted',
+      message: `Accepted proposal: ${proposal.title}`,
+      agent: proposal.agent,
+      title: 'Proposal Accepted',
+      description: `Accepted proposal: ${proposal.title}`
+    };
+
+    return {
+      backlogProposals: updatedProposals,
+      eventLog: [event, ...state.eventLog].slice(0, 100)
+    };
+  }),
+
+  rejectProposal: (proposalId: string) => set(state => {
+    const proposal = state.backlogProposals.find(p => p.id === proposalId);
+    if (!proposal) return state;
+
+    // Add to event log before removing
+    const event: EventLogEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date(),
+      type: 'proposal_rejected',
+      message: `Rejected proposal: ${proposal.title}`,
+      agent: proposal.agent,
+      title: 'Proposal Rejected',
+      description: `Rejected proposal: ${proposal.title}`
+    };
+
+    return {
+      backlogProposals: state.backlogProposals.filter(p => p.id !== proposalId),
+      eventLog: [event, ...state.eventLog].slice(0, 100)
+    };
+  }),
+
+  addCustomBacklogItem: (item: CustomBacklogItem) => set(state => ({
+    customBacklogItems: [item, ...state.customBacklogItems]
+  })),
+
+  moveToInProgress: (proposalId: string) => set(state => {
+    const proposal = state.backlogProposals.find(p => p.id === proposalId);
+    if (!proposal || proposal.status !== 'accepted') return state;
+
+    return {
+      inProgressProposals: [...state.inProgressProposals, { ...proposal, status: 'in_progress' as const }]
+    };
+  }),
 
   // Helper function to get selected file paths from tree structure
-  const getSelectedFilePaths = (fileStructure: TreeNode | null, activeProjectId: string | null): string[] => {
+  getSelectedFilePaths: (fileStructure: TreeNode | null, activeProjectId: string | null): string[] => {
     if (!fileStructure || !activeProjectId) return [];
 
+    const state = get();
     const selectedPaths: string[] = [];
 
     const traverseTree = (node: TreeNode) => {
@@ -168,214 +360,24 @@ export const useStore = (() => {
 
     traverseTree(fileStructure);
     return selectedPaths;
-  };
-  
-  return (): AppStore => {
-    const [, forceUpdate] = useState({});
-    
-    useEffect(() => {
-      const unsubscribe = subscribe(() => forceUpdate({}));
-      return () => {
-        unsubscribe();
-      };
-    }, []);
-    
-    return {
-      ...state,
-      setActiveTab: (tabId: string) => setState(prev => ({ ...prev, activeTab: tabId })),
-      toggleAgent: (agentId: string) => setState(prev => {
-        const newActiveAgents = new Set(prev.activeAgents);
-        if (newActiveAgents.has(agentId)) {
-          newActiveAgents.delete(agentId);
-        } else {
-          newActiveAgents.add(agentId);
-        }
-        return { ...prev, activeAgents: newActiveAgents };
-      }),
-      toggleNode: (nodeId: string) => setState(prev => {
-        const newSelectedNodes = new Set(prev.selectedNodes);
-        if (newSelectedNodes.has(nodeId)) {
-          newSelectedNodes.delete(nodeId);
-        } else {
-          newSelectedNodes.add(nodeId);
-        }
-        return { ...prev, selectedNodes: newSelectedNodes };
-      }),
-      toggleNodeWithFolder: (nodeId: string, fileStructure: TreeNode | null) => {
-        if (!fileStructure) {
-          // Fallback to regular toggle if no file structure
-          setState(prev => {
-            const newSelectedNodes = new Set(prev.selectedNodes);
-            if (newSelectedNodes.has(nodeId)) {
-              newSelectedNodes.delete(nodeId);
-            } else {
-              newSelectedNodes.add(nodeId);
-            }
-            return { ...prev, selectedNodes: newSelectedNodes };
-          });
-          return;
-        }
+  },
+}));
 
-        // Find the node in the tree
-        const node = findNodeById(nodeId, fileStructure);
+/**
+ * Hook to use the node store with proper selector support
+ *
+ * Usage examples:
+ * // Subscribe to specific state (recommended for performance)
+ * const selectedNodes = useStore(state => state.selectedNodes);
+ * const activeTab = useStore(state => state.activeTab);
+ *
+ * // Subscribe to multiple values with shallow comparison
+ * const { selectedNodes, highlightedNodes } = useStore(useShallow(state => ({ selectedNodes: state.selectedNodes, highlightedNodes: state.highlightedNodes })));
+ *
+ * // Get actions (stable references, won't cause re-renders)
+ * const toggleNode = useStore(state => state.toggleNode);
+ */
+export const useStore = useStoreBase;
 
-        if (!node) {
-          // Node not found, fallback to regular toggle
-          setState(prev => {
-            const newSelectedNodes = new Set(prev.selectedNodes);
-            if (newSelectedNodes.has(nodeId)) {
-              newSelectedNodes.delete(nodeId);
-            } else {
-              newSelectedNodes.add(nodeId);
-            }
-            return { ...prev, selectedNodes: newSelectedNodes };
-          });
-          return;
-        }
-
-        setState(prev => {
-          const newSelectedNodes = new Set(prev.selectedNodes);
-
-          if (node.type === 'folder') {
-            // For folders, select/deselect all child files with supported extensions
-            const childFiles = getAllChildFiles(node, fileStructure);
-
-            // Check if all child files are already selected
-            const allSelected = childFiles.every(fileId => newSelectedNodes.has(fileId));
-
-            if (allSelected) {
-              // Deselect all child files
-              childFiles.forEach(fileId => newSelectedNodes.delete(fileId));
-            } else {
-              // Select all child files
-              childFiles.forEach(fileId => newSelectedNodes.add(fileId));
-            }
-          } else {
-            // For files, toggle normally only if it's a supported file type
-            if (isSupportedFile(node.name)) {
-              if (newSelectedNodes.has(nodeId)) {
-                newSelectedNodes.delete(nodeId);
-              } else {
-                newSelectedNodes.add(nodeId);
-              }
-            }
-          }
-
-          return { ...prev, selectedNodes: newSelectedNodes };
-        });
-      },
-      highlightNodes: (nodeIds: string[]) => setState(prev => ({
-        ...prev,
-        highlightedNodes: new Set(nodeIds)
-      })),
-      clearHighlights: () => setState(prev => ({
-        ...prev,
-        highlightedNodes: new Set()
-      })),
-      
-      // Clear all selected nodes
-      clearSelection: () => setState(prev => ({
-        ...prev,
-        selectedNodes: new Set()
-      })),
-      
-      // Select specific files by their paths
-      selectPaths: (filePaths: string[], fileStructure: TreeNode | null) => {
-        if (!fileStructure || filePaths.length === 0) return;
-        
-        const nodeIdsToSelect = new Set<string>();
-        
-        // Helper function to find node IDs for given file paths
-        const findNodeIds = (node: TreeNode) => {
-          // Check if this node's ID (which represents the path) matches any of our target paths
-          const normalizedNodePath = node.id.replace(/\\/g, '/');
-          if (node.type === 'file' && filePaths.some(path => {
-            const normalizedPath = path.replace(/\\/g, '/');
-            return normalizedNodePath === normalizedPath || normalizedNodePath.endsWith('/' + normalizedPath) || normalizedPath.endsWith('/' + normalizedNodePath);
-          })) {
-            nodeIdsToSelect.add(node.id);
-          }
-          
-          // Recursively check children
-          if (node.children) {
-            node.children.forEach(findNodeIds);
-          }
-        };
-        
-        findNodeIds(fileStructure);
-        
-        setState(prev => ({
-          ...prev,
-          selectedNodes: nodeIdsToSelect
-        }));
-      },
-      addEvent: (event: EventLogEntry) => setState(prev => ({
-        ...prev,
-        eventLog: [event, ...prev.eventLog].slice(0, 100)
-      })),
-      acceptProposal: (proposalId: string) => setState(prev => {
-        const proposal = prev.backlogProposals.find(p => p.id === proposalId);
-        if (!proposal) return prev;
-        
-        // Update the proposal status to accepted instead of removing it
-        const updatedProposals = prev.backlogProposals.map(p => 
-          p.id === proposalId 
-            ? { ...p, status: 'accepted' as const, acceptedAt: new Date() }
-            : p
-        );
-        
-        // Add to event log
-        const event: EventLogEntry = {
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          type: 'proposal_accepted',
-          message: `Accepted proposal: ${proposal.title}`,
-          agent: proposal.agent,
-          title: 'Proposal Accepted',
-          description: `Accepted proposal: ${proposal.title}`
-        };
-        
-        return {
-          ...prev,
-          backlogProposals: updatedProposals,
-          eventLog: [event, ...prev.eventLog].slice(0, 100)
-        };
-      }),
-      rejectProposal: (proposalId: string) => setState(prev => {
-        const proposal = prev.backlogProposals.find(p => p.id === proposalId);
-        if (!proposal) return prev;
-        
-        // Add to event log before removing
-        const event: EventLogEntry = {
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          type: 'proposal_rejected',
-          message: `Rejected proposal: ${proposal.title}`,
-          agent: proposal.agent,
-          title: 'Proposal Rejected',
-          description: `Rejected proposal: ${proposal.title}`
-        };
-        
-        return {
-          ...prev,
-          backlogProposals: prev.backlogProposals.filter(p => p.id !== proposalId),
-          eventLog: [event, ...prev.eventLog].slice(0, 100)
-        };
-      }),
-      addCustomBacklogItem: (item: CustomBacklogItem) => setState(prev => ({
-        ...prev,
-        customBacklogItems: [item, ...prev.customBacklogItems]
-      })),
-      moveToInProgress: (proposalId: string) => setState(prev => {
-        const proposal = prev.backlogProposals.find(p => p.id === proposalId);
-        if (!proposal || proposal.status !== 'accepted') return prev;
-        
-        return {
-          ...prev,
-          inProgressProposals: [...prev.inProgressProposals, { ...proposal, status: 'in_progress' as const }]
-        };
-      }),
-      getSelectedFilePaths
-    };
-  };
-})();
+// Export shallow for convenience
+export { useShallow };

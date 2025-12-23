@@ -182,9 +182,9 @@ function BatchDisplay({
           ? 'border-green-500/50 shadow-sm shadow-green-500/20'
           : 'border-gray-700/50'
       }`}>
-        {/* Animated background for running state */}
+        {/* Static background highlight for running state - removed animate-pulse for performance */}
         {isRunning && (
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5 animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5" />
         )}
 
         <div className="relative p-3 flex items-center gap-4">
@@ -357,20 +357,9 @@ function BatchDisplay({
                         </div>
                       </div>
 
-                      {/* Running pulse effect */}
+                      {/* Running indicator - using CSS animation instead of Framer Motion */}
                       {isRequirementRunning(item.status) && (
-                        <motion.div
-                          className="absolute inset-0 rounded border border-blue-500/30"
-                          animate={{
-                            opacity: [0.3, 0.6, 0.3],
-                            scale: [1, 1.01, 1],
-                          }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                          }}
-                        />
+                        <div className="absolute inset-0 rounded border border-blue-500/40 animate-pulse" />
                       )}
                     </motion.div>
                   );

@@ -147,18 +147,12 @@ export default function DarkBlueprint({
         {/* Deep Space Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-[#050a14] to-gray-950" />
 
-        {/* Animated Mesh Gradient (CSS animations for better performance) */}
+        {/* Static Mesh Gradient - removed infinite animations for performance */}
         <div
-          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-blue-900/20 blur-[120px] rounded-full animate-pulse-slow"
-          style={{
-            animation: 'pulse-slow 20s ease-in-out infinite',
-          }}
+          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-blue-900/20 blur-[120px] rounded-full opacity-25"
         />
         <div
-          className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-cyan-900/20 blur-[120px] rounded-full animate-pulse-slower"
-          style={{
-            animation: 'pulse-slower 25s ease-in-out infinite 2s',
-          }}
+          className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-cyan-900/20 blur-[120px] rounded-full opacity-20"
         />
 
         {/* Pattern Overlay */}

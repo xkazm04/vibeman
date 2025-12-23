@@ -173,7 +173,7 @@ export default function VoiceVisualizer({
     }
   };
 
-  // Animation loop
+  // Animation loop - throttled to 30fps for performance
   useEffect(() => {
     if (!isActive || !analyser) {
       // Draw idle state
@@ -207,13 +207,20 @@ export default function VoiceVisualizer({
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    const animate = () => {
-      analyser.getByteFrequencyData(dataArray);
-      drawWaveform(dataArray, bufferLength);
+    // Throttle to 30fps for better performance
+    let lastFrameTime = 0;
+    const targetFrameInterval = 1000 / 30; // 30fps
+
+    const animate = (timestamp: number) => {
+      if (timestamp - lastFrameTime >= targetFrameInterval) {
+        analyser.getByteFrequencyData(dataArray);
+        drawWaveform(dataArray, bufferLength);
+        lastFrameTime = timestamp;
+      }
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animate();
+    animationFrameRef.current = requestAnimationFrame(animate);
 
     return () => {
       if (animationFrameRef.current) {

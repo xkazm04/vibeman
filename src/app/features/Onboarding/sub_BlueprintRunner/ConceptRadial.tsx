@@ -84,21 +84,17 @@ function OrbitalNode({
       }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
     >
-      {/* Glow */}
-      <AnimatePresence>
-        {(isRunning || isWaiting) && (
-          <motion.div
-            className="absolute inset-0"
-            style={{
-              background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)`,
-              filter: 'blur(5px)',
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0.3, 0.5, 0.3] }}
-            transition={{ duration: 1.2, repeat: Infinity }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Static glow - removed infinite animation for performance */}
+      {(isRunning || isWaiting) && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)`,
+            filter: 'blur(5px)',
+            opacity: 0.4,
+          }}
+        />
+      )}
 
       {/* Main node */}
       <motion.div
@@ -138,13 +134,10 @@ function OrbitalNode({
           </svg>
         )}
 
-        {/* Icon */}
-        <motion.div
-          animate={isRunning ? { rotate: 360 } : isWaiting ? { scale: [1, 1.1, 1] } : {}}
-          transition={{ duration: isWaiting ? 0.8 : 2, repeat: (isRunning || isWaiting) ? Infinity : 0 }}
-        >
-          <Icon className="w-4 h-4" style={{ color: isPending ? '#6b7280' : colors.primary }} />
-        </motion.div>
+        {/* Icon - using CSS animations instead of Framer Motion for performance */}
+        <div className={isRunning ? 'animate-spin' : ''} style={{ animationDuration: isRunning ? '2s' : undefined }}>
+          <Icon className={`w-4 h-4 ${isWaiting ? 'animate-pulse' : ''}`} style={{ color: isPending ? '#6b7280' : colors.primary }} />
+        </div>
 
         {/* Status */}
         <div className="mt-0.5 h-3 flex items-center">
@@ -192,16 +185,15 @@ function DecisionNodeOrbital({
       style={{ left: '50%', top: '50%' }}
       animate={{ x: -40, y: y - 40 }}
     >
-      {/* Glow */}
+      {/* Static glow - removed infinite animation for performance */}
       {isWaiting && (
-        <motion.div
+        <div
           className="absolute inset-0"
           style={{
             background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)`,
             filter: 'blur(8px)',
+            opacity: 0.5,
           }}
-          animate={{ opacity: [0.4, 0.7, 0.4] }}
-          transition={{ duration: 1, repeat: Infinity }}
         />
       )}
 
@@ -287,20 +279,16 @@ function CentralHub({
           />
         </div>
 
-        {/* Content */}
+        {/* Content - using CSS animations instead of Framer Motion */}
         <div className="flex flex-col items-center">
           {waitingForDecision ? (
             <>
-              <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
-                <LucideIcons.HelpCircle className="w-5 h-5 text-pink-400" />
-              </motion.div>
+              <LucideIcons.HelpCircle className="w-5 h-5 text-pink-400 animate-pulse" />
               <span className="text-[8px] font-mono text-pink-400 mt-1">AWAITING</span>
             </>
           ) : currentNode && currentNode.type !== 'decision' ? (
             <>
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-                <LucideIcons.Loader2 className="w-5 h-5 text-cyan-400" />
-              </motion.div>
+              <LucideIcons.Loader2 className="w-5 h-5 text-cyan-400 animate-spin" style={{ animationDuration: '2s' }} />
               <span className="text-[8px] font-mono text-gray-400 mt-1 truncate max-w-[70px]">{currentNode.name}</span>
               <span className="text-xs font-mono font-bold text-cyan-400">{Math.round(currentNode.progress)}%</span>
             </>
@@ -317,7 +305,7 @@ function CentralHub({
   );
 }
 
-// Connection arc
+// Connection arc - optimized to only animate when truly active
 function ConnectionArc({
   fromIndex,
   toIndex,
@@ -362,10 +350,11 @@ function ConnectionArc({
         strokeWidth={isActive ? 2 : 1}
         strokeDasharray={isCompleted ? undefined : '4 4'}
       />
+      {/* Only render animated circle when actively running - removed drop-shadow filter for performance */}
       {isActive && (
-        <motion.circle r="3" fill={colors.primary} style={{ filter: `drop-shadow(0 0 6px ${colors.glow})` }}>
-          <animateMotion dur="0.8s" repeatCount="indefinite" path={pathD} />
-        </motion.circle>
+        <circle r="3" fill={colors.primary}>
+          <animateMotion dur="1.2s" repeatCount="indefinite" path={pathD} />
+        </circle>
       )}
     </g>
   );

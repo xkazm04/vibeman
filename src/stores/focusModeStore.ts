@@ -10,9 +10,6 @@ import {
   DEFAULT_POMODORO_CONFIG,
 } from '@/app/db/models/focus-mode.types';
 
-// Timer interval ID type
-let timerIntervalId: NodeJS.Timeout | null = null;
-
 interface FocusModeStore {
   // Current session
   currentSession: FocusSessionResponse | null;
@@ -20,6 +17,8 @@ interface FocusModeStore {
 
   // Timer state
   timer: FocusTimerState;
+  // Timer interval ID stored in state to avoid module-level global
+  _timerIntervalId: NodeJS.Timeout | null;
 
   // Stats
   todayStats: FocusStatsResponse | null;
@@ -96,11 +95,12 @@ const initialTimerState: FocusTimerState = {
 
 const initialState: Pick<
   FocusModeStore,
-  'currentSession' | 'sessions' | 'timer' | 'todayStats' | 'recentStats' | 'settings' | 'isLoading' | 'isActive' | 'error' | 'projectId'
+  'currentSession' | 'sessions' | 'timer' | '_timerIntervalId' | 'todayStats' | 'recentStats' | 'settings' | 'isLoading' | 'isActive' | 'error' | 'projectId'
 > = {
   currentSession: null,
   sessions: [],
   timer: initialTimerState,
+  _timerIntervalId: null,
   todayStats: null,
   recentStats: [],
   settings: DEFAULT_FOCUS_SETTINGS,
@@ -425,22 +425,26 @@ export const useFocusModeStore = create<FocusModeStore>()(
           }
         },
 
-        // Start timer
+        // Start timer - uses state-based interval ID to avoid shared global state
         startTimer: () => {
-          if (timerIntervalId) {
-            clearInterval(timerIntervalId);
+          const currentIntervalId = get()._timerIntervalId;
+          if (currentIntervalId) {
+            clearInterval(currentIntervalId);
           }
 
-          timerIntervalId = setInterval(() => {
+          const newIntervalId = setInterval(() => {
             get().tickTimer();
           }, 1000);
+
+          set({ _timerIntervalId: newIntervalId });
         },
 
-        // Stop timer
+        // Stop timer - clears state-based interval ID
         stopTimer: () => {
-          if (timerIntervalId) {
-            clearInterval(timerIntervalId);
-            timerIntervalId = null;
+          const currentIntervalId = get()._timerIntervalId;
+          if (currentIntervalId) {
+            clearInterval(currentIntervalId);
+            set({ _timerIntervalId: null });
           }
         },
 
@@ -661,6 +665,7 @@ export const useFocusModeStore = create<FocusModeStore>()(
       {
         name: 'focus-mode-store',
         version: 1,
+        // Only persist settings and projectId - timer interval ID should never be persisted
         partialize: (state) => ({
           settings: state.settings,
           projectId: state.projectId,
