@@ -14,6 +14,15 @@ export interface DbGoal {
   title: string;
   description: string | null;
   status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+  // Extended Goal Hub fields
+  progress?: number;
+  hypotheses_total?: number;
+  hypotheses_verified?: number;
+  target_date?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  // GitHub sync
+  github_item_id: string | null;
   created_at: string;
   updated_at: string;
 }

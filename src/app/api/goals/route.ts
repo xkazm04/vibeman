@@ -3,6 +3,8 @@ import { goalDb } from '@/app/db';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, handleError, notFoundResponse } from '@/lib/api-helpers';
+import { fireAndForgetSync, syncGoalToSupabase, deleteGoalFromSupabase } from '@/lib/supabase/goalSync';
+import { fireAndForgetGitHubSync, syncGoalToGitHub, deleteGoalFromGitHub } from '@/lib/github';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
 export async function GET(request: NextRequest) {
@@ -61,6 +63,18 @@ export async function POST(request: NextRequest) {
       order_index: finalOrderIndex
     });
 
+    // Fire-and-forget sync to Supabase
+    fireAndForgetSync(
+      () => syncGoalToSupabase(goal),
+      `Create goal ${goal.id}`
+    );
+
+    // Fire-and-forget sync to GitHub Projects
+    fireAndForgetGitHubSync(
+      () => syncGoalToGitHub(goal),
+      `Create goal ${goal.id} in GitHub`
+    );
+
     return NextResponse.json({ goal });
   } catch (error) {
     logger.error('Error in POST /api/goals:', { error });
@@ -97,6 +111,18 @@ export async function PUT(request: NextRequest) {
       return notFoundResponse('Goal');
     }
 
+    // Fire-and-forget sync to Supabase
+    fireAndForgetSync(
+      () => syncGoalToSupabase(goal),
+      `Update goal ${goal.id}`
+    );
+
+    // Fire-and-forget sync to GitHub Projects
+    fireAndForgetGitHubSync(
+      () => syncGoalToGitHub(goal),
+      `Update goal ${goal.id} in GitHub`
+    );
+
     return NextResponse.json({ goal });
   } catch (error) {
     logger.error('Error in PUT /api/goals:', { error });
@@ -114,11 +140,27 @@ export async function DELETE(request: NextRequest) {
       return createErrorResponse('Goal ID is required', 400);
     }
 
+    // Get the goal first to capture github_item_id before deletion
+    const goal = goalDb.getGoalById(id);
+    const githubItemId = goal?.github_item_id || null;
+
     const success = goalDb.deleteGoal(id);
 
     if (!success) {
       return notFoundResponse('Goal');
     }
+
+    // Fire-and-forget sync to Supabase
+    fireAndForgetSync(
+      () => deleteGoalFromSupabase(id),
+      `Delete goal ${id}`
+    );
+
+    // Fire-and-forget sync to GitHub Projects
+    fireAndForgetGitHubSync(
+      () => deleteGoalFromGitHub(id, githubItemId),
+      `Delete goal ${id} from GitHub`
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

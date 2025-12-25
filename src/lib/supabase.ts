@@ -20,30 +20,56 @@ export interface Database {
         Row: {
           id: string;
           project_id: string;
+          context_id: string | null;
           order_index: number;
           title: string;
           description: string | null;
-          status: 'open' | 'in_progress' | 'done';
+          status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+          // Extended Goal Hub columns
+          progress: number | null;
+          hypotheses_total: number | null;
+          hypotheses_verified: number | null;
+          target_date: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          // GitHub sync integration
+          github_item_id: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           project_id: string;
+          context_id?: string | null;
           order_index: number;
           title: string;
           description?: string | null;
-          status?: 'open' | 'in_progress' | 'done';
+          status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+          progress?: number | null;
+          hypotheses_total?: number | null;
+          hypotheses_verified?: number | null;
+          target_date?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          github_item_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           project_id?: string;
+          context_id?: string | null;
           order_index?: number;
           title?: string;
           description?: string | null;
-          status?: 'open' | 'in_progress' | 'done';
+          status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+          progress?: number | null;
+          hypotheses_total?: number | null;
+          hypotheses_verified?: number | null;
+          target_date?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          github_item_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

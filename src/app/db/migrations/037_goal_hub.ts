@@ -70,6 +70,8 @@ export function extendGoalsTable() {
     { name: 'target_date', definition: 'TEXT' },
     { name: 'started_at', definition: 'TEXT' },
     { name: 'completed_at', definition: 'TEXT' },
+    // GitHub sync integration
+    { name: 'github_item_id', definition: 'TEXT' },
   ]);
 }
 

@@ -23,3 +23,12 @@ export {
   getSupabaseIdeasCount,
   type PullResult
 } from './pull';
+
+export {
+  syncGoalToSupabase,
+  deleteGoalFromSupabase,
+  batchSyncGoals,
+  fireAndForgetSync,
+  type GoalSyncResult,
+  type BatchSyncResult
+} from './goalSync';

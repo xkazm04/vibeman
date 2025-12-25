@@ -15,6 +15,10 @@ import {
   Plus,
   Loader2,
   X,
+  Cloud,
+  RefreshCw,
+  CheckCircle2,
+  Github,
 } from 'lucide-react';
 import { useGoalHubStore } from '@/stores/goalHubStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -25,6 +29,8 @@ import ActivityFeed from './components/ActivityFeed';
 import BreakdownPanel from './components/BreakdownPanel';
 import GoalAddPanel from '@/app/features/Onboarding/sub_GoalDrawer/GoalAddPanel';
 import GoalProgress from './components/GoalProgress';
+import GoalReviewer from '@/app/features/Onboarding/sub_GoalDrawer/GoalReviewer';
+import { GoalProvider } from '@/contexts/GoalContext';
 
 type TabType = 'hypotheses' | 'breakdown' | 'activity';
 
@@ -32,6 +38,10 @@ export default function GoalHubLayout() {
   const [activeTab, setActiveTab] = useState<TabType>('hypotheses');
   const [isGoalPanelOpen, setIsGoalPanelOpen] = useState(false);
   const [breakdownStatus, setBreakdownStatus] = useState<Record<string, boolean>>({});
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isGitHubSyncing, setIsGitHubSyncing] = useState(false);
+  const [gitHubSyncStatus, setGitHubSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const {
@@ -44,6 +54,7 @@ export default function GoalHubLayout() {
     error,
     loadGoals,
     setActiveGoal,
+    completeGoal,
     clearError,
   } = useGoalHubStore();
 
@@ -94,6 +105,74 @@ export default function GoalHubLayout() {
     checkBreakdownStatus();
   }, [checkBreakdownStatus]);
 
+  // Handle manual sync to Supabase
+  const handleManualSync = useCallback(async () => {
+    if (!activeProject?.id || isSyncing) return;
+
+    setIsSyncing(true);
+    setSyncStatus('idle');
+
+    try {
+      const response = await fetch('/api/goals/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: activeProject.id }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setSyncStatus('success');
+      } else {
+        setSyncStatus('error');
+        console.error('Sync failed:', result.errors);
+      }
+
+      // Reset status after 3 seconds
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } catch (error) {
+      console.error('Sync error:', error);
+      setSyncStatus('error');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [activeProject?.id, isSyncing]);
+
+  // Handle manual sync to GitHub Projects
+  const handleGitHubSync = useCallback(async () => {
+    if (!activeProject?.id || isGitHubSyncing) return;
+
+    setIsGitHubSyncing(true);
+    setGitHubSyncStatus('idle');
+
+    try {
+      const response = await fetch('/api/goals/github-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: activeProject.id }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setGitHubSyncStatus('success');
+      } else {
+        setGitHubSyncStatus('error');
+        console.error('GitHub sync failed:', result.errors);
+      }
+
+      // Reset status after 3 seconds
+      setTimeout(() => setGitHubSyncStatus('idle'), 3000);
+    } catch (error) {
+      console.error('GitHub sync error:', error);
+      setGitHubSyncStatus('error');
+      setTimeout(() => setGitHubSyncStatus('idle'), 3000);
+    } finally {
+      setIsGitHubSyncing(false);
+    }
+  }, [activeProject?.id, isGitHubSyncing]);
+
   const tabs: Array<{ id: TabType; label: string; icon: typeof ListChecks }> = [
     { id: 'hypotheses', label: 'Hypotheses', icon: ListChecks },
     { id: 'breakdown', label: 'Breakdown', icon: Sparkles },
@@ -136,13 +215,60 @@ export default function GoalHubLayout() {
               </div>
             </div>
 
-            <button
-              onClick={() => setIsGoalPanelOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 rounded-lg font-medium transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              New Goal
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Sync to Supabase Button */}
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${
+                  syncStatus === 'success'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : syncStatus === 'error'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'
+                }`}
+                title="Sync goals to Supabase"
+              >
+                {isSyncing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : syncStatus === 'success' ? (
+                  <Cloud className="w-4 h-4" />
+                ) : (
+                  <Cloud className="w-4 h-4" />
+                )}
+                {isSyncing ? 'Syncing...' : 'Sync'}
+              </button>
+
+              {/* Sync to GitHub Projects Button */}
+              <button
+                onClick={handleGitHubSync}
+                disabled={isGitHubSyncing}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${
+                  gitHubSyncStatus === 'success'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : gitHubSyncStatus === 'error'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'
+                }`}
+                title="Sync goals to GitHub Projects"
+              >
+                {isGitHubSyncing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Github className="w-4 h-4" />
+                )}
+                {isGitHubSyncing ? 'Syncing...' : 'GitHub'}
+              </button>
+
+              {/* New Goal Button */}
+              <button
+                onClick={() => setIsGoalPanelOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 rounded-lg font-medium transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                New Goal
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -177,8 +303,8 @@ export default function GoalHubLayout() {
           </div>
         ) : (
           <div className="grid grid-cols-12 gap-6">
-            {/* Left Panel - Goals List */}
-            <div className="col-span-3">
+            {/* Left Panel - Goals List + Goal Reviewer */}
+            <div className="col-span-3 space-y-4">
               <GoalPanel
                 goals={goals}
                 activeGoal={activeGoal}
@@ -186,6 +312,13 @@ export default function GoalHubLayout() {
                 onSelectGoal={setActiveGoal}
                 onNewGoal={() => setIsGoalPanelOpen(true)}
               />
+
+              {/* Goal Reviewer Panel */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+                <GoalProvider projectId={activeProject.id}>
+                  <GoalReviewer projectId={activeProject.id} />
+                </GoalProvider>
+              </div>
             </div>
 
             {/* Main Panel */}
@@ -220,6 +353,18 @@ export default function GoalHubLayout() {
                           <p className="text-gray-400">{activeGoal.description}</p>
                         )}
                       </div>
+
+                      {/* Goal Actions */}
+                      {activeGoal.status !== 'done' && (
+                        <button
+                          onClick={() => completeGoal(activeGoal.id)}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition-all text-white"
+                          title="Mark goal as complete"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          Complete Goal
+                        </button>
+                      )}
                     </div>
 
                     <GoalProgress
