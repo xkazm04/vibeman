@@ -2,7 +2,6 @@
 
 import { lazy, Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Workflow } from 'lucide-react';
 import BlueprintBackground from './components/BlueprintBackground';
 import BlueprintCornerLabels from './components/BlueprintCornerLabels';
 import DecisionPanel from './components/DecisionPanel';
@@ -20,9 +19,6 @@ import BlueprintTestCompact from './components/BlueprintTestCompact';
 import ContextGroupSelector from '../sub_BlueprintContext/components/ContextGroupSelector';
 import BlueprintContextSelector from '../sub_BlueprintContext/components/BlueprintContextSelector';
 import ContextDependentScans from '../sub_BlueprintContext/components/ContextDependentScans';
-import GoalReviewer from '../sub_GoalDrawer/GoalReviewer';
-import GoalDetailPanel from '../sub_GoalDrawer/GoalDetailPanel';
-import GoalAddPanel from '../sub_GoalDrawer/GoalAddPanel';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
@@ -30,8 +26,6 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBlueprintKeyboardShortcuts } from './hooks/useBlueprintKeyboardShortcuts';
 import { useBlueprintData } from './hooks/useBlueprintData';
 import { useBlueprintSelection } from './hooks/useBlueprintSelection';
-import { Goal } from '@/types';
-
 // Lazy load heavy components for better initial load performance
 const StepperConfigPanel = lazy(() => import('./components/StepperConfigPanel'));
 const ContextOverview = lazy(() => import('../../Context/sub_ContextOverview/ContextOverview'));
@@ -43,48 +37,14 @@ const SuspenseFallback = () => (
   </div>
 );
 
-interface DarkBlueprintProps {
-  isGoalReviewerOpen?: boolean;
-  onCloseGoalReviewer?: () => void;
-}
-
-export default function DarkBlueprint({
-  isGoalReviewerOpen = false,
-  onCloseGoalReviewer
-}: DarkBlueprintProps = {}) {
+export default function DarkBlueprint() {
   const { activeProject } = useActiveProjectStore();
   const { closeBlueprint } = useOnboardingStore();
   const { currentDecision } = useDecisionQueueStore();
   const { toggleGroup } = useBlueprintStore();
 
-  // Goal panel state - can be a Goal object (edit mode) or 'add' (add mode) or null (closed)
-  const [selectedGoal, setSelectedGoal] = useState<Goal | 'add' | null>(null);
-
   // Blueprint Runner prototype state
   const [activeRunnerConcept, setActiveRunnerConcept] = useState<VisualizationConcept | null>(null);
-
-  // Handler for adding new goal
-  const handleAddGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
-    if (!activeProject) return;
-
-    try {
-      const response = await fetch('/api/goals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newGoal,
-          projectId: activeProject.id,
-        }),
-      });
-
-      if (response.ok) {
-        // Close the panel after successful creation
-        setSelectedGoal(null);
-      }
-    } catch (error) {
-      // Error handling could be improved here
-    }
-  };
 
   // Custom Hooks
   const { contextGroups, stepperConfig } = useBlueprintData(activeProject);
@@ -303,7 +263,7 @@ export default function DarkBlueprint({
 
           {/* Context Overview - Center */}
           <AnimatePresence>
-            {selectedContext && !isGoalReviewerOpen && (
+            {selectedContext && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -327,84 +287,6 @@ export default function DarkBlueprint({
                   </Suspense>
                 </div>
               </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Goal Reviewer Panel */}
-          <AnimatePresence>
-            {isGoalReviewerOpen && !selectedContextGroupId && activeProject && (
-              <>
-                {/* Left Panel - Goal List */}
-                <motion.div
-                  initial={{ opacity: 0, x: -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 250 }}
-                  className={`absolute pl-[10%] max-w-[1000px] top-16 left-8 bottom-24 z-50 ${selectedGoal ? 'right-1/2 mr-4' : 'right-8'} transition-all duration-300`}
-                  data-testid="blueprint-goal-reviewer"
-                >
-                  <div className="relative justify-center h-full bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden">
-                    {/* Decorative corner elements */}
-                    <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-cyan-500/10 to-transparent pointer-events-none" />
-
-                    <div className="relative h-full overflow-y-auto overflow-x-hidden">
-                      <div className="relative p-8">
-                        {onCloseGoalReviewer && (
-                          <button
-                            onClick={onCloseGoalReviewer}
-                            className="absolute top-4 right-4 p-2 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition-colors z-10"
-                          >
-                            <X className="w-5 h-5 text-gray-400 hover:text-white" />
-                          </button>
-                        )}
-                        <GoalReviewer
-                          projectId={activeProject.id}
-                          onGoalSelect={setSelectedGoal}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Right Panel - Goal Detail or Add */}
-                {selectedGoal && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 50 }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 250 }}
-                    className="absolute top-16 right-8 bottom-24 left-1/2 ml-4 z-50"
-                    data-testid={selectedGoal === 'add' ? 'blueprint-goal-add' : 'blueprint-goal-detail'}
-                  >
-                    <div className="relative h-full bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden">
-                      <div className="relative h-full overflow-y-auto">
-                        <div className="relative p-8">
-                          <button
-                            onClick={() => setSelectedGoal(null)}
-                            className="absolute top-4 right-4 p-2 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition-colors z-10"
-                          >
-                            <X className="w-5 h-5 text-gray-400 hover:text-white" />
-                          </button>
-                          {selectedGoal === 'add' ? (
-                            <GoalAddPanel
-                              projectId={activeProject.id}
-                              onSubmit={handleAddGoal}
-                              onClose={() => setSelectedGoal(null)}
-                              projectPath={activeProject.path}
-                            />
-                          ) : (
-                            <GoalDetailPanel
-                              goal={selectedGoal}
-                              projectId={activeProject.id}
-                              onClose={() => setSelectedGoal(null)}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </>
             )}
           </AnimatePresence>
 

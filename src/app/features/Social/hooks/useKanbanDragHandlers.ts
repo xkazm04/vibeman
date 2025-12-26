@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { FeedbackItem, KanbanStatus } from '../lib/types/feedbackTypes';
 import type { FeedbackAnalysisResult } from '../lib/types/aiTypes';
-import { KANBAN_COLUMNS } from '../lib/types/feedbackTypes';
+import { KANBAN_COLUMNS } from '../lib/config/columnConfig';
 import type { UseFeedbackItemsResult } from './useFeedbackItems';
 
 interface UseKanbanDragHandlersProps {

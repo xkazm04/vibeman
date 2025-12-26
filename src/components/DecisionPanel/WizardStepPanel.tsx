@@ -75,9 +75,6 @@ export default function WizardStepPanel({
   // Sanitize description to prevent XSS
   const sanitizedDescription = useMemo(() => sanitizeContent(description), [description]);
 
-  // Combine all actions (main actions + title actions) for the header
-  const allActions = useMemo(() => [...actions, ...titleActions], [actions, titleActions]);
-
   // Handle close - use onClose if provided, or find a secondary/reject action
   const handleClose = useMemo(() => {
     if (onClose) return onClose;
@@ -94,9 +91,23 @@ export default function WizardStepPanel({
     return null;
   }
 
-  // Transform actions to headerActions format with processing state
+  // Only titleActions go to the header (icon-only buttons in top-right)
   const headerActions = useMemo(() =>
-    allActions.map((action) => ({
+    titleActions.map((action) => ({
+      icon: action.icon,
+      label: action.label,
+      onClick: action.onClick,
+      variant: action.variant,
+      disabled: action.disabled || isProcessing,
+      loading: action.loading,
+      testId: action.testId || `${testId}-header-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`,
+    })),
+    [titleActions, isProcessing, testId]
+  );
+
+  // Main actions go to the footer
+  const footerActions = useMemo(() =>
+    actions.map((action) => ({
       icon: action.icon,
       label: action.label,
       onClick: action.onClick,
@@ -105,7 +116,7 @@ export default function WizardStepPanel({
       loading: action.loading || (isProcessing && action.variant === 'primary'),
       testId: action.testId || `${testId}-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`,
     })),
-    [allActions, isProcessing, testId]
+    [actions, isProcessing, testId]
   );
 
   return (
@@ -120,6 +131,7 @@ export default function WizardStepPanel({
       maxWidth="max-w-4xl"
       maxHeight="max-h-[85vh]"
       headerActions={headerActions}
+      footerActions={footerActions}
     >
       <div data-testid={testId} className="relative">
         {/* Description - only show if no custom content (custom content includes its own description) */}
@@ -128,7 +140,7 @@ export default function WizardStepPanel({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`text-sm ${colors.text} mb-4`}
+            className={`text-sm ${colors.text}`}
             data-testid={`${testId}-description`}
             dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
           />

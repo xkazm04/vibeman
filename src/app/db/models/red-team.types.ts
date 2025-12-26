@@ -159,6 +159,11 @@ export const RED_TEAM_AGENT_ROLES: Record<ScanType, {
     adversaryPersona: 'Frustrated user scenario generator',
     focusAreas: ['Error recovery failures', 'Confusing workflows']
   },
+  competitor_analyst: {
+    attackTypes: ['integration', 'edge_case'],
+    adversaryPersona: 'Competitor intelligence agent',
+    focusAreas: ['Feature gaps', 'Market positioning weaknesses', 'Competitive disadvantages']
+  },
   paradigm_shifter: {
     attackTypes: ['integration', 'state'],
     adversaryPersona: 'Architecture breaker',

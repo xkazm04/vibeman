@@ -52,6 +52,7 @@ function generateSummary(issue: IssueInput): string {
     documentation: 'Update and expand documentation',
     dependencies: 'Update dependencies and resolve version conflicts',
     architecture: 'Refactor architecture for better scalability',
+    accessibility: 'Improve accessibility compliance and user experience',
     other: 'Address identified technical debt issue'
   };
 
@@ -79,6 +80,8 @@ function generateStepsForCategory(issue: IssueInput): RemediationStep[] {
       return generateArchitectureSteps(issue);
     case 'maintainability':
       return generateMaintainabilitySteps(issue);
+    case 'accessibility':
+      return generateAccessibilitySteps(issue);
     default:
       return generateGenericSteps(issue);
   }

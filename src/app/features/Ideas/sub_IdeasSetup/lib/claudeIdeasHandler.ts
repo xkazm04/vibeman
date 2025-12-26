@@ -40,14 +40,21 @@ export async function executeClaudeIdeas(config: ClaudeIdeasConfig): Promise<Cla
   // Convert single context to array for new executor
   const contextIds = config.contextId ? [config.contextId] : [];
 
-  return executeClaudeIdeasWithContexts({
+  const executorResult = await executeClaudeIdeasWithContexts({
     projectId: config.projectId,
     projectName: config.projectName,
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
-    contextIds,
-    batchId: config.batchId
+    contextIds
   });
+
+  // Transform executor result to handler result format
+  return {
+    success: executorResult.success,
+    tasksCreated: executorResult.filesCreated,
+    taskIds: executorResult.requirementPaths,
+    errors: executorResult.errors
+  };
 }
 
 /**
@@ -70,8 +77,7 @@ export async function executeClaudeIdeasBatch(config: {
     projectName: config.projectName,
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
-    contextIds,
-    batchId: config.batchId
+    contextIds
   });
 
   // Also run full project analysis (no context) - for backward compatibility
@@ -80,14 +86,14 @@ export async function executeClaudeIdeasBatch(config: {
     projectName: config.projectName,
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
-    contextIds: [], // Empty means full project
-    batchId: config.batchId
+    contextIds: [] // Empty means full project
   });
 
+  // Transform executor results to handler result format
   return {
     success: result.success || projectResult.success,
-    tasksCreated: result.tasksCreated + projectResult.tasksCreated,
-    taskIds: [...result.taskIds, ...projectResult.taskIds],
+    tasksCreated: result.filesCreated + projectResult.filesCreated,
+    taskIds: [...result.requirementPaths, ...projectResult.requirementPaths],
     errors: [...result.errors, ...projectResult.errors]
   };
 }

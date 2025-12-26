@@ -18,7 +18,7 @@ import { HorizontalContextBar } from './features/Context';
 import GoalsLayout from './features/Goals/GoalsLayout';
 import GlobalTaskBar from '@/components/GlobalTaskBar';
 import { Toaster } from 'sonner';
-import StorybookLayout from './features/Storybook/StorybookLayout';
+import HallOfFameLayout from './features/HallOfFame/HallOfFameLayout';
 import { SocialLayout } from './features/Social';
 import { BlueprintComposer } from './features/Composer';
 import ZenLayout from './zen/ZenLayout';
@@ -58,8 +58,8 @@ export default function Home() {
         return <RefactorPage key="refactor" />;
       case 'manager':
         return <ManagerLayout key="manager" projectId={projectId} />;
-      case 'storybook':
-        return <StorybookLayout key="storybook" />;
+      case 'halloffame':
+        return <HallOfFameLayout key="halloffame" />;
       case 'social':
         return <SocialLayout key="social" />;
       case 'composer':

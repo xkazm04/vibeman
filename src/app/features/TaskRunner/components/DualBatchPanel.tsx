@@ -212,7 +212,6 @@ function BatchDisplay({
                       projectName: r.projectName,
                       projectPath: r.projectPath,
                       requirementName: r.requirementName,
-                      content: r.content || '',
                     }))}
                     onDelegated={(remoteBatchId) => onDelegated?.(batchId, remoteBatchId)}
                   />

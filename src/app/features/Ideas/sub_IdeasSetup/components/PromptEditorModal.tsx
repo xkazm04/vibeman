@@ -228,6 +228,7 @@ function getPromptFileName(scanType: ScanType): string {
     code_refactor: 'codeRefactorPrompt.ts',
     pragmatic_integrator: 'pragmaticIntegratorPrompt.ts',
     user_empathy_champion: 'userEmpathyChampionPrompt.ts',
+    competitor_analyst: 'competitorAnalystPrompt.ts',
     paradigm_shifter: 'paradigmShifterPrompt.ts',
     moonshot_architect: 'moonshotArchitectPrompt.ts',
     dev_experience_engineer: 'devExperienceEngineerPrompt.ts',

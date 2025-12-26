@@ -16,7 +16,7 @@ interface DelegateBatchButtonProps {
     projectName: string;
     projectPath: string;
     requirementName: string;
-    content: string;
+    content?: string;
   }>;
   onDelegated?: (remoteBatchId: string) => void;
 }

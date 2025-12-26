@@ -1,13 +1,9 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowLeft, Target } from 'lucide-react';
-import { useState } from 'react';
+import { X, ArrowLeft } from 'lucide-react';
 import DarkBlueprint from '../sub_Blueprint/DarkBlueprintLayout';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { GoalProvider } from '@/contexts/GoalContext';
-import { useActiveOnboardingStep } from '../lib/useOnboardingConditions';
 
 interface BlueprintModalProps {
   isOpen: boolean;
@@ -16,9 +12,6 @@ interface BlueprintModalProps {
 
 export default function BlueprintModal({ isOpen, onClose }: BlueprintModalProps) {
   const { openControlPanel, closeBlueprint } = useOnboardingStore();
-  const { activeProject } = useActiveProjectStore();
-  const [isGoalDrawerOpen, setIsGoalDrawerOpen] = useState(false);
-  const { isSetUpGoalsActive } = useActiveOnboardingStep();
 
   const handleBackToGettingStarted = () => {
     closeBlueprint();
@@ -68,73 +61,20 @@ export default function BlueprintModal({ isOpen, onClose }: BlueprintModalProps)
                 <span className="text-sm font-medium text-cyan-300">Getting Started</span>
               </motion.button>
 
-              {/* Right - Goal Reviewer Button + Close */}
-              <div className="flex items-center gap-2">
-                {/* Goal Reviewer Button */}
-                {activeProject && (
-                  <motion.button
-                    onClick={() => setIsGoalDrawerOpen(true)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    data-testid="blueprint-goals-btn"
-                    className="relative flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/80 backdrop-blur-xl border border-cyan-500/30 hover:border-cyan-400/50 transition-colors"
-                    animate={isSetUpGoalsActive ? {
-                      boxShadow: [
-                        '0 0 10px rgba(34, 211, 238, 0.3)',
-                        '0 0 20px rgba(34, 211, 238, 0.6)',
-                        '0 0 10px rgba(34, 211, 238, 0.3)',
-                      ],
-                    } : {}}
-                    transition={isSetUpGoalsActive ? {
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    } : {}}
-                  >
-                    <Target className="w-4 h-4 text-cyan-400" />
-                    <span className="text-sm font-medium text-cyan-300">Goals</span>
-
-                    {/* Glow effect when active step */}
-                    {isSetUpGoalsActive && (
-                      <motion.div
-                        className="absolute inset-0 rounded-xl bg-cyan-500/10 blur-md -z-10"
-                        animate={{
-                          opacity: [0.3, 0.7, 0.3],
-                          scale: [1, 1.1, 1],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: 'easeInOut',
-                        }}
-                      />
-                    )}
-                  </motion.button>
-                )}
-
-                {/* Close button */}
-                <motion.button
-                  onClick={onClose}
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-3 rounded-full bg-gray-900/80 backdrop-blur-xl border border-white/10 hover:border-red-500/50 transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-400 hover:text-red-400 transition-colors" />
-                </motion.button>
-              </div>
+              {/* Close button */}
+              <motion.button
+                onClick={onClose}
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-3 rounded-full bg-gray-900/80 backdrop-blur-xl border border-white/10 hover:border-red-500/50 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400 hover:text-red-400 transition-colors" />
+              </motion.button>
             </div>
 
             {/* Blueprint Content */}
             <div className="flex-1 relative overflow-hidden rounded-2xl border-2 border-white/10 shadow-2xl">
-              {activeProject && (
-                <GoalProvider projectId={activeProject.id}>
-                  <DarkBlueprint
-                    isGoalReviewerOpen={isGoalDrawerOpen}
-                    onCloseGoalReviewer={() => setIsGoalDrawerOpen(false)}
-                  />
-                </GoalProvider>
-              )}
-              {!activeProject && <DarkBlueprint />}
+              <DarkBlueprint />
             </div>
           </motion.div>
         </>

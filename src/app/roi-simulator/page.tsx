@@ -1,11 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ROISimulatorLayout } from '@/app/features/ROISimulator';
 import { RefreshCcw } from 'lucide-react';
 
 export default function ROISimulatorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-950 flex items-center justify-center"><RefreshCcw className="w-8 h-8 animate-spin text-cyan-400" /></div>}>
+      <ROISimulatorPageContent />
+    </Suspense>
+  );
+}
+
+function ROISimulatorPageContent() {
   const searchParams = useSearchParams();
   const projectIdParam = searchParams.get('projectId');
   const [projectId, setProjectId] = useState<string | null>(null);

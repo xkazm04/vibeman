@@ -96,48 +96,7 @@ export interface KanbanColumnConfig {
   maxItems: number | null;
 }
 
-export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
-  {
-    id: 'new',
-    title: 'New',
-    subtitle: 'Incoming feedback',
-    iconName: 'inbox',
-    acceptsFrom: [],
-    maxItems: null,
-  },
-  {
-    id: 'analyzed',
-    title: 'Analyzed',
-    subtitle: 'Triaged & categorized',
-    iconName: 'search',
-    acceptsFrom: ['new'],
-    maxItems: null,
-  },
-  {
-    id: 'manual',
-    title: 'Manual',
-    subtitle: 'Human dev pipeline',
-    iconName: 'user',
-    acceptsFrom: ['analyzed'],
-    maxItems: 10,
-  },
-  {
-    id: 'automatic',
-    title: 'Automatic',
-    subtitle: 'AI agent pipeline',
-    iconName: 'bot',
-    acceptsFrom: ['analyzed'],
-    maxItems: 5,
-  },
-  {
-    id: 'done',
-    title: 'Done',
-    subtitle: 'Resolved',
-    iconName: 'check-circle',
-    acceptsFrom: ['manual', 'automatic'],
-    maxItems: null,
-  },
-];
+// KANBAN_COLUMNS is exported from config/columnConfig.ts
 
 export const CHANNEL_ICON_NAMES: Record<KanbanChannel, string> = {
   email: 'mail',

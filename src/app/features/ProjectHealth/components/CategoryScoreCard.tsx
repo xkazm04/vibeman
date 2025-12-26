@@ -24,7 +24,7 @@ interface CategoryScoreCardProps {
   delay?: number;
 }
 
-const CategoryIcons: Record<HealthScoreCategory, React.ComponentType<{ className?: string }>> = {
+const CategoryIcons: Record<HealthScoreCategory, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   idea_backlog: Lightbulb,
   tech_debt: Wrench,
   security: Shield,

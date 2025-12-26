@@ -64,9 +64,14 @@ export default function DecisionPanel() {
   // If so, don't show default action buttons - let custom content handle it
   const hasCustomContent = !!currentDecision.customContent;
 
+  // Check if decision provides its own footer actions
+  const hasFooterActions = currentDecision.footerActions && currentDecision.footerActions.length > 0;
+
   // Build action buttons based on decision type
-  const actions: WizardStepAction[] = hasCustomContent
-    ? [] // Custom content provides its own actions
+  const actions: WizardStepAction[] = (hasCustomContent && hasFooterActions)
+    ? currentDecision.footerActions! // Use provided footer actions
+    : hasCustomContent
+    ? [] // Custom content without footer actions - let it handle internally
     : isNotification
       ? [
         {
@@ -133,6 +138,7 @@ export default function DecisionPanel() {
       isProcessing={isProcessing}
       visible={true}
       customContent={currentDecision.customContent}
+      onClose={rejectDecision}
       testId="decision-panel"
     />
   );

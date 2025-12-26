@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, MessageSquare } from 'lucide-react';
-import AgentReputationDashboard from '@/app/features/Parliament/components/AgentReputationDashboard';
+import { Users, TrendingUp, MessageSquare, Construction } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
 /**
@@ -12,9 +11,6 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
  */
 export default function ParliamentDashboard() {
   const { activeProject } = useActiveProjectStore();
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(
-    activeProject?.id || 'demo-project'
-  );
 
   return (
     <div className="space-y-6">
@@ -84,15 +80,19 @@ export default function ParliamentDashboard() {
         </motion.div>
       </div>
 
-      {/* Main Content - Agent Reputation Dashboard */}
+      {/* Main Content - Under Construction */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
         className="rounded-xl bg-gray-900/40 backdrop-blur-xl border border-gray-800/50 overflow-hidden"
       >
-        <div className="p-6">
-          <AgentReputationDashboard projectId={selectedProjectId} />
+        <div className="p-12 flex flex-col items-center justify-center text-center">
+          <Construction className="w-16 h-16 text-amber-400/50 mb-4" />
+          <h3 className="text-xl font-light text-gray-300 mb-2">Coming Soon</h3>
+          <p className="text-sm text-gray-500">
+            Agent Reputation Dashboard is under development.
+          </p>
         </div>
       </motion.div>
 

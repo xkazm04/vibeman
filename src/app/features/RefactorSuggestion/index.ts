@@ -32,8 +32,4 @@ export {
 } from './lib/refactorSuggestionEngine';
 
 // Component exports
-export {
-  RefactorSuggestionPanel,
-  RefactorSuggestionWidget,
-  SuggestionDetailModal,
-} from './components';
+export { RefactorSuggestionPanel } from './components';

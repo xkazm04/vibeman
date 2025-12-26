@@ -197,6 +197,7 @@ function generateMockIdea(index: number, rng: SeededRandom, projectId: string = 
     user_pattern: 0,
     effort: rng.nextInt(1, 3) as 1 | 2 | 3,
     impact: rng.nextInt(1, 3) as 1 | 2 | 3,
+    risk: rng.nextInt(1, 3),
     requirement_id: null,
     goal_id: rng.next() > 0.7 ? `test-goal-${rng.nextInt(1, 5)}` : null,
     created_at: createdAt.toISOString(),
