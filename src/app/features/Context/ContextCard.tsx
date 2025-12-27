@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
+import { ContextHealthDot } from './components/ContextHealthIndicator';
 import { useTooltipStore } from '../../../stores/tooltipStore';
 import { useStore } from '../../../stores/nodeStore';
 import { MultiFileEditor } from '../../../components/editor';
@@ -259,9 +260,12 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
         <div className="relative flex items-center justify-between space-x-4 card-main-content">
           {/* Left Section - Icon and Name */}
           <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <h5 className="text-base font-bold text-white font-mono mb-1" title={context.name}>
-                {context.name}
-              </h5>
+              <div className="flex items-center gap-2">
+                <ContextHealthDot context={context} />
+                <h5 className="text-base font-bold text-white font-mono mb-1" title={context.name}>
+                  {context.name}
+                </h5>
+              </div>
           </div>
           <div className="flex opacity-50 absolute -top-11 -left-2  items-center space-x-3 flex-shrink-0">
                 {/* File Count Badge */}

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferColumn from './BufferColumn';
 import { GroupedIdeas } from '../lib/ideasUtils';
@@ -13,6 +13,7 @@ import {
   useDeleteContextIdeas,
 } from '@/lib/queries/ideaQueries';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
+import { IdeasBufferSkeleton } from '../components/IdeasSkeleton';
 
 interface BufferViewProps {
   filterProject?: string;
@@ -134,19 +135,7 @@ export default function BufferView({
   );
 
   if (isLoading) {
-    return (
-      <div
-        className="flex items-center justify-center py-24"
-        data-testid="buffer-loading"
-      >
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        >
-          <Loader2 className="w-8 h-8 text-blue-400" />
-        </motion.div>
-      </div>
-    );
+    return <IdeasBufferSkeleton />;
   }
 
   if (filteredIdeas.length === 0) {

@@ -2,8 +2,18 @@
  * Performance Monitoring Utilities
  *
  * Provides tools for tracking page load metrics, component render times,
- * and lazy loading performance benchmarks.
+ * lazy loading performance benchmarks, and React optimization hooks.
  */
+
+// React optimization hooks
+export {
+  useDebouncedValue,
+  useDebouncedState,
+  useDebouncedCallback,
+  useSafeDeferredValue,
+  useDeferredTransition,
+  useThrottledValue,
+} from './useDebouncedValue';
 
 export interface PerformanceMetrics {
   // Navigation timing

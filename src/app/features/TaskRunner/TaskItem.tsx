@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2, Layers } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
+import { TaskProgress } from './components/TaskProgress';
 import { RequirementViewer } from '@/components/RequirementViewer';
 import type { ProjectRequirement } from './lib/types';
 import type { DbIdea } from '@/app/db';
@@ -270,6 +271,13 @@ export default function TaskItem({
         {/* Selection indicator */}
         {isSelected && !isDisabled && (
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+        )}
+
+        {/* Progress bar for running/queued tasks */}
+        {(status === 'running' || status === 'queued') && (
+          <div className="absolute bottom-0 left-0 right-0">
+            <TaskProgress status={status} />
+          </div>
         )}
 
         {/* Delete button overlay */}
