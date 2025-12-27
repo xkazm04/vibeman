@@ -23,6 +23,25 @@ import {
   Hammer, // build - create new things
   Sparkles, // polish - improve existing
 } from 'lucide-react';
+import GoalCandidatesModal from './GoalCandidatesModal';
+
+// Types for goal candidates
+interface GoalCandidate {
+  title: string;
+  description: string;
+  reasoning: string;
+  priorityScore: number;
+  suggestedContext?: string;
+  category: string;
+  source: string;
+  relatedItems?: string[];
+}
+
+interface ProjectCandidates {
+  projectId: string;
+  projectName: string;
+  candidates: GoalCandidate[];
+}
 
 interface AutomationStatus {
   running: boolean;
@@ -77,6 +96,10 @@ export default function AutomationPanel() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Candidates modal state
+  const [showCandidatesModal, setShowCandidatesModal] = useState(false);
+  const [projectCandidates, setProjectCandidates] = useState<ProjectCandidates[]>([]);
 
   // Fetch status and config
   const fetchStatus = useCallback(async () => {
@@ -192,7 +215,7 @@ export default function AutomationPanel() {
         await fetchStatus();
 
         // Show feedback based on results
-        const { summary, debug } = data;
+        const { summary, debug, results } = data;
 
         // Check for issues
         if (!debug?.hasAnthropicKey) {
@@ -206,11 +229,29 @@ export default function AutomationPanel() {
           } else {
             setError('No goals generated - check console for details');
           }
-        } else if (summary.goalsGenerated > 0) {
-          // Show success message
-          setSuccessMessage(`Generated ${summary.goalsGenerated} goal candidate(s)!`);
-          // Clear after 5 seconds
-          setTimeout(() => setSuccessMessage(null), 5000);
+        } else if (summary.goalsGenerated > 0 && results) {
+          // Extract candidates from results and show modal for review
+          console.log('[AutomationPanel] Extracting candidates from results:', results);
+
+          const candidatesData: ProjectCandidates[] = results
+            .filter((r: any) => r.goalsGenerated && r.goalsGenerated.length > 0)
+            .map((r: any) => ({
+              projectId: r.projectId,
+              projectName: r.projectName,
+              candidates: r.goalsGenerated,
+            }));
+
+          console.log('[AutomationPanel] Candidates data:', candidatesData);
+
+          if (candidatesData.length > 0) {
+            setProjectCandidates(candidatesData);
+            setShowCandidatesModal(true);
+            console.log('[AutomationPanel] Modal should now be visible');
+          } else {
+            console.log('[AutomationPanel] No candidates found despite summary showing generation');
+            setSuccessMessage(`Generated ${summary.goalsGenerated} goal candidate(s)!`);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }
         }
       } else {
         setError(data.error || 'Failed to generate goals');
@@ -220,6 +261,30 @@ export default function AutomationPanel() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Accept goal candidates
+  const handleAcceptCandidates = async (projectId: string, candidates: GoalCandidate[]) => {
+    const response = await fetch('/api/standup/automation/accept-candidates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectId,
+        candidates,
+        createAnalysis: true,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to create goals');
+    }
+
+    // Refresh status after creating goals
+    await fetchStatus();
+
+    return data;
   };
 
   // Update config
@@ -484,6 +549,17 @@ export default function AutomationPanel() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Goal Candidates Review Modal */}
+      <GoalCandidatesModal
+        isOpen={showCandidatesModal}
+        onClose={() => {
+          setShowCandidatesModal(false);
+          setProjectCandidates([]);
+        }}
+        projectCandidates={projectCandidates}
+        onAccept={handleAcceptCandidates}
+      />
     </div>
   );
 }
