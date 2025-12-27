@@ -1,12 +1,15 @@
 /**
  * Goal Evaluator Service
  * LLM-powered analysis of goal completion status based on activity
- * Uses Anthropic Claude for evaluation
+ *
+ * NOTE: Direct LLM calls are deprecated. Use Claude Code execution via
+ * claudeCodeExecutor.ts for deep codebase exploration. The direct functions
+ * are kept for backward compatibility but will be removed in a future version.
  */
 
-import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
 import { goalDb, goalHubDb, implementationLogDb, ideaDb } from '@/app/db';
 import { DbGoal } from '@/app/db/models/types';
+import { logger } from '@/lib/logger';
 import {
   GoalEvaluationContext,
   GoalEvaluationResult,
@@ -15,10 +18,24 @@ import {
   AutonomyLevel,
 } from './types';
 
-// Initialize Anthropic client with default model
-const anthropicClient = new AnthropicClient({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Lazy LLM client - only initialized if direct LLM functions are called
+let llmClient: any = null;
+
+async function getLLMClient(): Promise<any> {
+  if (!llmClient) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error('ANTHROPIC_API_KEY not set - use Claude Code execution instead');
+    }
+    // Dynamic import to avoid bundling issues when not using direct LLM
+    const { AnthropicClient } = await import('@/lib/llm/providers/anthropic-client');
+    logger.info('[GoalEvaluator] Initializing Anthropic client (deprecated path)', {
+      hasApiKey: !!apiKey,
+    });
+    llmClient = new AnthropicClient({ apiKey });
+  }
+  return llmClient;
+}
 
 /**
  * Build evaluation prompt for a single goal
@@ -201,6 +218,9 @@ export async function gatherGoalContext(goal: DbGoal): Promise<GoalEvaluationCon
 
 /**
  * Evaluate a single goal using Anthropic Claude
+ *
+ * @deprecated Use executeGoalEvaluationViaClaudeCode from claudeCodeExecutor.ts
+ * for deep codebase exploration with Claude Code CLI
  */
 export async function evaluateGoal(
   goal: DbGoal
@@ -212,7 +232,8 @@ export async function evaluateGoal(
   const prompt = buildEvaluationPrompt(context);
 
   try {
-    const response = await anthropicClient.generate({
+    const client = await getLLMClient();
+    const response = await client.generate({
       prompt,
       systemPrompt: 'You are an AI development manager evaluating goal progress. Analyze objectively and respond with valid JSON only.',
       maxTokens: 1000,
@@ -227,14 +248,14 @@ export async function evaluateGoal(
     };
 
     if (!response.success || !response.response) {
-      console.error('[GoalEvaluator] Anthropic generation failed:', response.error);
+      logger.error('[GoalEvaluator] Anthropic generation failed:', { error: response.error });
       return { result: null, tokensUsed };
     }
 
     const result = parseEvaluationResponse(response.response, goal.id, goal.status);
     return { result, tokensUsed };
   } catch (error) {
-    console.error('[GoalEvaluator] Error evaluating goal:', error);
+    logger.error('[GoalEvaluator] Error evaluating goal:', { error });
     return { result: null, tokensUsed: { input: 0, output: 0 } };
   }
 }

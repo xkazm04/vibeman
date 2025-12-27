@@ -1,10 +1,12 @@
 /**
  * Goal Generator Service
  * LLM-powered generation of new goals based on project analysis
- * Uses Anthropic Claude for goal generation
+ *
+ * NOTE: Direct LLM calls are deprecated. Use Claude Code execution via
+ * claudeCodeExecutor.ts for deep codebase exploration. The direct functions
+ * are kept for backward compatibility but will be removed in a future version.
  */
 
-import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
 import { goalDb, ideaDb, techDebtDb, standupDb } from '@/app/db';
 import { projectDb } from '@/lib/project_database';
 import { logger } from '@/lib/logger';
@@ -16,19 +18,23 @@ import {
   GoalStrategy,
 } from './types';
 
-// Lazy initialization of Anthropic client to ensure env vars are available
-let anthropicClient: AnthropicClient | null = null;
+// Lazy LLM client - only initialized if direct LLM functions are called
+let llmClient: any = null;
 
-function getAnthropicClient(): AnthropicClient {
-  if (!anthropicClient) {
+async function getLLMClient(): Promise<any> {
+  if (!llmClient) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    logger.info('[GoalGenerator] Initializing Anthropic client', {
+    if (!apiKey) {
+      throw new Error('ANTHROPIC_API_KEY not set - use Claude Code execution instead');
+    }
+    // Dynamic import to avoid bundling issues when not using direct LLM
+    const { AnthropicClient } = await import('@/lib/llm/providers/anthropic-client');
+    logger.info('[GoalGenerator] Initializing Anthropic client (deprecated path)', {
       hasApiKey: !!apiKey,
-      keyPrefix: apiKey ? apiKey.slice(0, 10) + '...' : 'MISSING',
     });
-    anthropicClient = new AnthropicClient({ apiKey });
+    llmClient = new AnthropicClient({ apiKey });
   }
-  return anthropicClient;
+  return llmClient;
 }
 
 /**
@@ -249,6 +255,9 @@ export async function gatherGenerationContext(projectId: string): Promise<GoalGe
 
 /**
  * Generate new goal candidates for a project using Anthropic Claude
+ *
+ * @deprecated Use executeGoalGenerationViaClaudeCode from claudeCodeExecutor.ts
+ * for deep codebase exploration with Claude Code CLI
  */
 export async function generateGoals(
   projectId: string,
@@ -265,7 +274,7 @@ export async function generateGoals(
     };
   }
 
-  logger.info('[GoalGenerator] Starting goal generation', {
+  logger.info('[GoalGenerator] Starting goal generation (deprecated direct LLM path)', {
     projectId,
     strategy,
     hasApiKey: true,
@@ -290,7 +299,7 @@ export async function generateGoals(
   });
 
   try {
-    const client = getAnthropicClient();
+    const client = await getLLMClient();
 
     logger.info('[GoalGenerator] Calling Anthropic API...');
 

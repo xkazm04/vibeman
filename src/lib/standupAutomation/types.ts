@@ -196,3 +196,72 @@ export interface LLMGoalGenerationResponse {
     category: string;
   }[];
 }
+
+// ============ Claude Code Automation Session Types ============
+
+export type AutomationSessionPhase =
+  | 'pending'
+  | 'running'
+  | 'exploring'
+  | 'generating'
+  | 'evaluating'
+  | 'complete'
+  | 'failed';
+
+export interface AutomationSession {
+  id: string;
+  projectId: string;
+  projectPath: string;
+  phase: AutomationSessionPhase;
+  taskId?: string;                 // Claude execution queue task ID
+  claudeSessionId?: string;        // Claude CLI session for --resume
+  startedAt: string;
+  completedAt?: string;
+  config: StandupAutomationConfig;
+  result?: AutomationCycleResult;
+  errorMessage?: string;
+}
+
+export interface AutomationExecutionRequest {
+  projectId: string;
+  projectPath: string;
+  modes: StandupAutomationConfig['modes'];
+  strategy: GoalStrategy;
+  autonomyLevel: AutonomyLevel;
+  resumeSessionId?: string;        // Claude CLI session to resume
+}
+
+export interface AutomationProgressUpdate {
+  sessionId: string;
+  phase: AutomationSessionPhase;
+  progress: number;                // 0-100
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+// API callback types for Claude Code to submit results
+export interface CandidateSubmission {
+  projectId: string;
+  sessionId: string;
+  claudeSessionId?: string;
+  candidates: GoalCandidate[];
+  metadata: {
+    explorationSummary: string;
+    filesAnalyzed: string[];
+    patternsIdentified: string[];
+  };
+  tokensUsed?: { input: number; output: number };
+}
+
+export interface EvaluationSubmission {
+  projectId: string;
+  sessionId: string;
+  claudeSessionId?: string;
+  evaluations: GoalEvaluationResult[];
+  metadata: {
+    goalsAnalyzed: number;
+    codebaseChangesDetected: string[];
+    implementationEvidence: Record<string, string[]>;
+  };
+  tokensUsed?: { input: number; output: number };
+}

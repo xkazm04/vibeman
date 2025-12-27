@@ -1,6 +1,10 @@
 /**
  * Automation Engine
  * Core orchestrator for standup automation - ties together all components
+ *
+ * Supports two execution modes:
+ * 1. Direct LLM (legacy): Uses Anthropic client directly for quick evaluations
+ * 2. Claude Code (new): Uses Claude Code CLI for deep codebase exploration
  */
 
 import { randomUUID } from 'crypto';
@@ -13,6 +17,7 @@ import {
   GoalStatusChange,
   GoalCandidate,
   CreatedTask,
+  AutomationSession,
 } from './types';
 import {
   evaluateProjectGoals,
@@ -26,6 +31,13 @@ import {
   getConfig,
   recordTokenUsage,
 } from './automationScheduler';
+import {
+  executeAutomationViaClaudeCode,
+  executeGoalGenerationViaClaudeCode,
+  executeGoalEvaluationViaClaudeCode,
+  getAutomationSessionStatus,
+  getActiveAutomationSessions,
+} from './claudeCodeExecutor';
 
 /**
  * Modes override for selective execution
@@ -307,6 +319,165 @@ export function initializeEngine(): void {
 
 // Auto-initialize on module load
 initializeEngine();
+
+// ============ Claude Code Execution Mode ============
+
+/**
+ * Start a Claude Code automation cycle for a project
+ * Returns immediately with session info - results come via API callbacks
+ *
+ * @param projectId - The project to run automation for
+ * @param modesOverride - Optional modes to override config
+ * @returns Session info with taskId for tracking
+ */
+export async function startClaudeCodeCycle(
+  projectId: string,
+  modesOverride?: ModesOverride
+): Promise<{ sessionId: string; taskId: string }> {
+  const config = getConfig();
+  const project = projectDb.getProject(projectId);
+
+  if (!project) {
+    throw new Error(`Project ${projectId} not found`);
+  }
+
+  if (!project.path) {
+    throw new Error(`Project ${projectId} has no path configured`);
+  }
+
+  // Merge modes with override
+  const effectiveConfig: StandupAutomationConfig = {
+    ...config,
+    modes: modesOverride ? { ...config.modes, ...modesOverride } : config.modes,
+  };
+
+  logger.info('[AutomationEngine] Starting Claude Code cycle', {
+    projectId,
+    projectName: project.name,
+    modes: effectiveConfig.modes,
+    strategy: effectiveConfig.strategy,
+  });
+
+  return executeAutomationViaClaudeCode({
+    projectId,
+    projectPath: project.path,
+    projectName: project.name,
+    config: effectiveConfig,
+  });
+}
+
+/**
+ * Start Claude Code goal generation for a project
+ */
+export async function startClaudeCodeGeneration(
+  projectId: string,
+  strategy?: StandupAutomationConfig['strategy']
+): Promise<{ sessionId: string; taskId: string }> {
+  const config = getConfig();
+  const project = projectDb.getProject(projectId);
+
+  if (!project?.path) {
+    throw new Error(`Project ${projectId} not found or has no path`);
+  }
+
+  return executeGoalGenerationViaClaudeCode({
+    projectId,
+    projectPath: project.path,
+    projectName: project.name,
+    strategy: strategy || config.strategy,
+  });
+}
+
+/**
+ * Start Claude Code goal evaluation for a project
+ */
+export async function startClaudeCodeEvaluation(
+  projectId: string
+): Promise<{ sessionId: string; taskId: string }> {
+  const project = projectDb.getProject(projectId);
+
+  if (!project?.path) {
+    throw new Error(`Project ${projectId} not found or has no path`);
+  }
+
+  return executeGoalEvaluationViaClaudeCode({
+    projectId,
+    projectPath: project.path,
+  });
+}
+
+/**
+ * Get the status of an automation session
+ */
+export function getSessionStatus(sessionId: string): AutomationSession | null {
+  return getAutomationSessionStatus(sessionId);
+}
+
+/**
+ * Get all active Claude Code automation sessions
+ */
+export function getActiveSessions(): AutomationSession[] {
+  return getActiveAutomationSessions();
+}
+
+/**
+ * Start Claude Code cycles for all configured projects
+ * Returns immediately - results come via API callbacks
+ */
+export async function startClaudeCodeCycleForAllProjects(
+  modesOverride?: ModesOverride
+): Promise<Array<{ projectId: string; sessionId: string; taskId: string }>> {
+  const config = getConfig();
+  const results: Array<{ projectId: string; sessionId: string; taskId: string }> = [];
+
+  // Determine which projects to process
+  let projectIds: string[];
+
+  if (config.projectIds === 'all') {
+    const allProjects = projectDb.getAllProjects();
+    projectIds = allProjects.map(p => p.id);
+  } else {
+    projectIds = config.projectIds;
+  }
+
+  logger.info('[AutomationEngine] Starting Claude Code batch cycle', {
+    projectCount: projectIds.length,
+  });
+
+  for (const projectId of projectIds) {
+    try {
+      // Check if project has any active goals worth evaluating
+      const goals = goalDb.getGoalsByProject(projectId);
+      const hasActiveGoals = goals.some(
+        g => g.status === 'open' || g.status === 'in_progress'
+      );
+
+      const effectiveModes = modesOverride
+        ? { ...config.modes, ...modesOverride }
+        : config.modes;
+
+      if (!hasActiveGoals && !effectiveModes.generateGoals) {
+        logger.debug('[AutomationEngine] Skipping project with no active goals', {
+          projectId,
+        });
+        continue;
+      }
+
+      const { sessionId, taskId } = await startClaudeCodeCycle(projectId, modesOverride);
+      results.push({ projectId, sessionId, taskId });
+
+      // Small delay between starting projects to avoid overwhelming the queue
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      logger.error('[AutomationEngine] Failed to start cycle for project', {
+        projectId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  return results;
+}
 
 // Re-export scheduler functions for convenience
 export {

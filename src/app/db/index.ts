@@ -142,6 +142,11 @@ import {
   devicePairRepository,
   offloadQueueRepository,
 } from './repositories/offload.repository';
+import {
+  sessionRepository,
+  sessionTaskRepository,
+} from './repositories/session.repository';
+import { automationSessionRepository } from './repositories/automation-session.repository';
 
 // Export types
 export * from './models/types';
@@ -165,6 +170,8 @@ export * from './models/autonomous-ci.types';
 export * from './models/roi-simulator.types';
 export * from './models/goal-hub.types';
 export * from './models/offload.types';
+export * from './models/session.types';
+export * from './models/automation-session.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -1085,6 +1092,36 @@ export const devicePairDb = {
  */
 export const offloadQueueDb = {
   ...offloadQueueRepository,
+};
+
+/**
+ * Claude Code Session Database Operations
+ * Manages Claude Code sessions with --resume flag support
+ */
+export const sessionDb = {
+  // Session operations
+  ...sessionRepository,
+
+  // Task operations (flattened for ease of use)
+  getTasksBySessionId: sessionTaskRepository.getBySessionId,
+  getNextPending: sessionTaskRepository.getNextPending,
+  getTaskById: sessionTaskRepository.getById,
+  getTaskByTaskId: sessionTaskRepository.getByTaskId,
+  updateTaskStatus: sessionTaskRepository.updateStatus,
+  getTaskStats: sessionTaskRepository.getStats,
+
+  // Nested access for explicit usage
+  tasks: sessionTaskRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Automation Session Database Operations
+ * Manages standup automation sessions executed via Claude Code
+ */
+export const automationSessionDb = {
+  ...automationSessionRepository,
+  close: closeDatabase,
 };
 
 // Cleanup handlers

@@ -158,6 +158,10 @@ export function runMigrations() {
     migrateSocialDiscoveryConfigs();
     // Migration 50: Create Offload System tables
     migrateOffloadSystem();
+    // Migration 51: Create Claude Code Sessions tables
+    migrateClaudeCodeSessions();
+    // Migration 52: Create Automation Sessions table
+    migrateAutomationSessions();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4071,5 +4075,21 @@ function migrateOffloadSystem() {
     const db = getConnection();
     const { migrate041OffloadSystem } = require('./041_offload_system');
     migrate041OffloadSystem(db);
+  }, migrationLogger);
+}
+
+function migrateClaudeCodeSessions() {
+  safeMigration('claudeCodeSessions', () => {
+    const db = getConnection();
+    const { migrate042ClaudeCodeSessions } = require('./042_claude_code_sessions');
+    migrate042ClaudeCodeSessions(db);
+  }, migrationLogger);
+}
+
+function migrateAutomationSessions() {
+  safeMigration('automationSessions', () => {
+    const db = getConnection();
+    const { migrate043AutomationSessions } = require('./043_automation_sessions');
+    migrate043AutomationSessions(db);
   }, migrationLogger);
 }
