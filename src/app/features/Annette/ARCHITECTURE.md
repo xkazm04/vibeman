@@ -1419,7 +1419,7 @@ voicebot_analytics (
 |----------|-------------|---------------|----------|
 | Ollama | `OllamaClient` | `ministral-3:14b` | Local/free inference |
 | OpenAI | `OpenAIClient` | `gpt-5-mini-2025-08-07` | Fast, cost-effective |
-| Anthropic | `AnthropicClient` | `claude-3-5-haiku-latest` | Reasoning, safety |
+| Anthropic | `AnthropicClient` | `claude-haiku-4-5` | Reasoning, safety |
 | Gemini | `GeminiClient` | `gemini-flash-latest` | Default, balanced |
 
 **Client Initialization:**

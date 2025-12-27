@@ -103,6 +103,7 @@ export interface ExtendedDbGoal {
   target_date: string | null;
   started_at: string | null;
   completed_at: string | null;
+  github_item_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -121,6 +122,7 @@ export interface ExtendedGoal {
   targetDate: Date | null;
   startedAt: Date | null;
   completedAt: Date | null;
+  githubItemId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

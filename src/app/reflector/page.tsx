@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Trophy, Calendar, Network, BarChart3 } from 'lucide-react';
@@ -14,6 +14,14 @@ import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/compone
 import { IdeaFilterState, getEmptyFilterState, applyFilters } from '@/app/features/reflector/lib/filterIdeas';
 
 export default function ReflectorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/10 to-gray-900 flex items-center justify-center"><div className="text-gray-400">Loading...</div></div>}>
+      <ReflectorPageContent />
+    </Suspense>
+  );
+}
+
+function ReflectorPageContent() {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'ideas_stats' | 'dependencies'>('weekly');

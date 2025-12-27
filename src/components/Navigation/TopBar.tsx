@@ -31,7 +31,7 @@ const otherNavigationItems: NavigationItem[] = [
   { module: 'zen', label: 'Zen Mode', icon: Sunrise },
   { module: 'docs', label: 'Docs', icon: BookOpen },
   { module: 'refactor', label: 'Wizard', icon: Wand2 },
-  { module: 'storybook', label: 'Storybook', icon: Component },
+  { module: 'halloffame', label: 'Hall of Fame', icon: Component },
 ];
 
 // Navigation item component

@@ -2,26 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { FeedbackItem } from '../lib/types/feedbackTypes';
-
-export type SplitViewWidth = 'narrow' | 'medium' | 'wide';
-
-export const SPLIT_VIEW_WIDTHS: Record<SplitViewWidth, string> = {
-  narrow: 'w-[30%] min-w-[320px]',
-  medium: 'w-[40%] min-w-[400px]',
-  wide: 'w-[50%] min-w-[480px]',
-};
-
-export interface SplitViewState {
-  isOpen: boolean;
-  itemId: string | null;
-  width: SplitViewWidth;
-}
-
-export const DEFAULT_SPLIT_VIEW_STATE: SplitViewState = {
-  isOpen: false,
-  itemId: null,
-  width: 'medium',
-};
+import type { SplitViewState, SplitViewWidth } from '../components/split-view/splitViewTypes';
+import { DEFAULT_SPLIT_VIEW_STATE } from '../components/split-view/splitViewTypes';
 
 interface UseSplitViewOptions {
   items: FeedbackItem[];

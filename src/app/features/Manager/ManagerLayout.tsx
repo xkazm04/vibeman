@@ -8,13 +8,16 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, FileCheck, CheckCircle2 } from 'lucide-react';
+import { Target, FileCheck, CheckCircle2, Users } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { useThemeStore } from '@/stores/themeStore';
 
 // Goal Hub
 import GoalHubLayout from './GoalHub/GoalHubLayout';
+
+// Standup Wizard
+import StandupWizard from './Standup/StandupWizard';
 
 // Original implementation review components
 import { EnrichedImplementationLog } from './lib/types';
@@ -29,7 +32,7 @@ interface ManagerLayoutProps {
   projectId?: string | null;
 }
 
-type ManagerTab = 'goals' | 'review';
+type ManagerTab = 'goals' | 'standup' | 'review';
 
 export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
   // Tab state
@@ -155,6 +158,17 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
               <span className="font-medium">Goal Hub</span>
             </button>
             <button
+              onClick={() => setActiveTab('standup')}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+                activeTab === 'standup'
+                  ? 'border-purple-500 text-purple-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span className="font-medium">Standup</span>
+            </button>
+            <button
               onClick={() => setActiveTab('review')}
               className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
                 activeTab === 'review'
@@ -176,7 +190,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">
-        {activeTab === 'goals' ? (
+        {activeTab === 'goals' && (
           <motion.div
             key="goals"
             initial={{ opacity: 0 }}
@@ -185,7 +199,20 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
           >
             <GoalHubLayout />
           </motion.div>
-        ) : (
+        )}
+
+        {activeTab === 'standup' && (
+          <motion.div
+            key="standup"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <StandupWizard />
+          </motion.div>
+        )}
+
+        {activeTab === 'review' && (
           <motion.div
             key="review"
             initial={{ opacity: 0 }}

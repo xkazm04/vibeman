@@ -360,7 +360,7 @@ export default function KanbanCard({
                     </div>
                   )}
                   {(aiResult?.assignedTeam || item.analysis?.assignedTeam) && (
-                    <TeamIcon team={aiResult?.assignedTeam || item.analysis?.assignedTeam} size="xs" showBadge />
+                    <TeamIcon team={(aiResult?.assignedTeam || item.analysis?.assignedTeam)!} size="xs" showBadge />
                   )}
                   {(aiResult?.customerResponse || item.customerResponse) && (
                     <ResponseIndicator

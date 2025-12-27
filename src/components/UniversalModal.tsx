@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LucideIcon, Loader2 } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -27,7 +28,7 @@ const HEADER_ACTION_STYLES = {
   },
 };
 
-interface HeaderAction {
+export interface ModalAction {
   icon: LucideIcon;
   label: string;
   onClick: () => void | Promise<void>;
@@ -50,7 +51,8 @@ interface UniversalModalProps {
   maxHeight?: string;
   showBackdrop?: boolean;
   backdropBlur?: boolean;
-  headerActions?: HeaderAction[];
+  headerActions?: ModalAction[];
+  footerActions?: ModalAction[];
 }
 
 export const UniversalModal: React.FC<UniversalModalProps> = ({
@@ -67,7 +69,16 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
   showBackdrop = true,
   backdropBlur = true,
   headerActions = [],
+  footerActions = [],
 }) => {
+  // Track if component is mounted (for portal)
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   // Lock body scroll when modal is open
   useBodyScrollLock(isOpen);
 
@@ -119,10 +130,11 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Don't render until mounted (SSR safety) or if not open
+  if (!mounted || !isOpen) return null;
 
-  return (
-    <AnimatePresence>
+  const modalContent = (
+    <AnimatePresence mode="wait">
       {/* Enhanced Backdrop with Gradient */}
       {showBackdrop && (
         <motion.div
@@ -238,13 +250,57 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
               </div>
 
               {/* Content Area with Enhanced Styling */}
-              <div className="p-6 max-h-[70vh] overflow-y-auto bg-gradient-to-b from-slate-900/20 to-slate-800/10 custom-scrollbar">
+              <div className={`p-6 overflow-y-auto bg-gradient-to-b from-slate-900/20 to-slate-800/10 custom-scrollbar ${footerActions.length > 0 ? 'max-h-[55vh]' : 'max-h-[70vh]'}`}>
                 {children}
               </div>
+
+              {/* Footer Actions */}
+              {footerActions.length > 0 && (
+                <div className="relative p-4 border-t border-slate-700/30 bg-gradient-to-r from-slate-800/40 via-slate-800/30 to-slate-700/40">
+                  <div className="flex items-center justify-end gap-3">
+                    {footerActions.map((action, index) => {
+                      const variant = action.variant || 'secondary';
+                      const styles = HEADER_ACTION_STYLES[variant];
+                      const ActionIcon = action.icon;
+
+                      return (
+                        <motion.button
+                          key={action.label}
+                          onClick={action.onClick}
+                          disabled={action.disabled}
+                          whileHover={{ scale: action.disabled ? 1 : 1.02 }}
+                          whileTap={{ scale: action.disabled ? 1 : 0.98 }}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.1 + index * 0.05 }}
+                          className={`
+                            flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200
+                            ${styles.bg} ${styles.border}
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                            shadow-lg hover:shadow-xl
+                            font-medium text-sm
+                          `}
+                          data-testid={action.testId}
+                        >
+                          {action.loading ? (
+                            <Loader2 className={`w-4 h-4 ${styles.text} animate-spin`} />
+                          ) : (
+                            <ActionIcon className={`w-4 h-4 ${styles.text}`} aria-hidden="true" />
+                          )}
+                          <span className={styles.text}>{action.label}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </motion.div>
     </AnimatePresence>
   );
+
+  // Use portal to render at document.body level, bypassing any parent CSS transforms
+  return createPortal(modalContent, document.body);
 }; 

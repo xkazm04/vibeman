@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { standupDb } from '@/app/db';
-import { StandupHistoryItem } from '@/app/features/DailyStandup/lib/types';
 import { logger } from '@/lib/logger';
+
+// Inline type since the original types file was removed
+interface StandupHistoryItem {
+  id: string;
+  periodType: 'daily' | 'weekly';
+  periodStart: string;
+  periodEnd: string;
+  title: string;
+  implementationsCount: number;
+  ideasGenerated: number;
+  velocityTrend: 'increasing' | 'stable' | 'decreasing' | null;
+}
 
 /**
  * GET /api/standup/history

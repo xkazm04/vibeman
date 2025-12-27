@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Play, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Play, X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import BatchSelectionModal from './BatchSelectionModal';
 import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 
@@ -12,6 +13,14 @@ interface FeatureScanBatchSelectorProps {
   onCancel: () => void;
 }
 
+/**
+ * FeatureScanBatchSelector with integrated footer buttons.
+ * Renders description content and action buttons in a layout
+ * that works with UniversalModal's content area.
+ *
+ * The buttons are rendered at the bottom with proper styling
+ * to appear as a footer section within the content.
+ */
 export default function FeatureScanBatchSelector({
   description,
   onStart,
@@ -43,45 +52,45 @@ export default function FeatureScanBatchSelector({
   };
 
   return (
-    <div className="relative">
-      {/* Top-right Action Buttons - positioned to align with modal header */}
-      <div className="absolute -top-14 right-0 flex items-center gap-2 z-10">
+    <div className="flex flex-col h-full">
+      {/* Description - scrollable area */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="prose prose-invert max-w-none">
+          <div className="text-sm text-gray-300 whitespace-pre-line">
+            {description}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Action Buttons */}
+      <div className="flex items-center justify-end gap-3 pt-4 mt-4 border-t border-slate-700/30">
         <motion.button
           onClick={handleCancel}
-          title="Cancel"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
           disabled={isExecuting}
-          className="p-2.5 rounded-xl border transition-all duration-200 bg-slate-700/60 hover:bg-slate-600/80 border-slate-600/50 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+          whileHover={{ scale: isExecuting ? 1 : 1.02 }}
+          whileTap={{ scale: isExecuting ? 1 : 0.98 }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 bg-slate-700/60 hover:bg-slate-600/80 border-slate-600/50 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl font-medium text-sm"
           data-testid="feature-scan-cancel-btn"
-          aria-label="Cancel"
         >
-          <X className="w-5 h-5 text-slate-300 hover:text-white" />
+          <X className="w-4 h-4 text-slate-300" />
+          <span className="text-slate-300 hover:text-white">Cancel</span>
         </motion.button>
 
         <motion.button
           onClick={handleStartClick}
-          title={isExecuting ? 'Starting...' : 'Select Batch & Start'}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
           disabled={isExecuting}
-          className="p-2.5 rounded-xl border transition-all duration-200 bg-gradient-to-r from-green-600/80 to-emerald-500/80 hover:from-green-500 hover:to-emerald-400 border-green-500/60 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+          whileHover={{ scale: isExecuting ? 1 : 1.02 }}
+          whileTap={{ scale: isExecuting ? 1 : 0.98 }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 bg-gradient-to-r from-green-600/80 to-emerald-500/80 hover:from-green-500 hover:to-emerald-400 border-green-500/60 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl font-medium text-sm"
           data-testid="feature-scan-start-btn"
-          aria-label={isExecuting ? 'Starting...' : 'Select Batch & Start'}
         >
           {isExecuting ? (
-            <Loader2 className="w-5 h-5 text-white animate-spin" />
+            <Loader2 className="w-4 h-4 text-white animate-spin" />
           ) : (
-            <Play className="w-5 h-5 text-white" />
+            <Play className="w-4 h-4 text-white" />
           )}
+          <span className="text-white">Select Batch & Start</span>
         </motion.button>
-      </div>
-
-      {/* Description */}
-      <div className="prose prose-invert max-w-none">
-        <div className="text-sm text-gray-300 whitespace-pre-line">
-          {description}
-        </div>
       </div>
 
       {/* Batch Selection Modal */}

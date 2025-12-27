@@ -26,7 +26,8 @@ export type ScanType =
   | 'moonshot_architect'
   | 'dev_experience_engineer'
   | 'data_flow_optimizer'
-  | 'pragmatic_integrator';
+  | 'pragmatic_integrator'
+  | 'accessibility_advocate';
 
 /**
  * Prompt category for organization

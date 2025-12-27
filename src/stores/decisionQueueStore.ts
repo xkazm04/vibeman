@@ -18,6 +18,7 @@ export interface DecisionItem {
   data?: Record<string, unknown>; // Type-specific data to complete the action
   customContent?: React.ReactNode; // Optional custom UI content
   titleActions?: WizardStepAction[]; // Optional title bar action buttons
+  footerActions?: WizardStepAction[]; // Optional footer action buttons (for custom content)
   onAccept: () => Promise<void>;
   onReject?: () => Promise<void>; // Optional - some decisions are info-only
   createdAt: number;

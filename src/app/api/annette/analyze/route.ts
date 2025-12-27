@@ -193,8 +193,8 @@ function getDefaultModel(provider: string): string {
   const defaults: Record<string, string> = {
     ollama: 'ministral-3:14b',
     openai: 'gpt-5-mini-2025-08-07',
-    anthropic: 'claude-3-5-haiku-latest',
-    gemini: 'gemini-flash-latest',
+    anthropic: 'claude-haiku-4-5',
+    gemini: 'gemini-3-flash-preview',
   };
   return defaults[provider] || defaults.gemini;
 }
