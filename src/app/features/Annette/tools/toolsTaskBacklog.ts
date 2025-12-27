@@ -3,7 +3,7 @@
  * Operations for managing tasks and backlog items
  */
 
-import { ToolDefinition } from '@/lib/langgraph/langTypes';
+import { ToolDefinition } from './types';
 
 export const TASK_BACKLOG_TOOLS: ToolDefinition[] = [
   {
@@ -30,7 +30,7 @@ export const TASK_BACKLOG_TOOLS: ToolDefinition[] = [
         },
         tags: {
           type: 'array',
-          items: { type: 'string' },
+          items: { type: 'string', description: 'Tag value' },
           description: 'Tags for categorization (optional)'
         }
       },

@@ -1,4 +1,4 @@
-import { ToolDefinition } from '@/lib/langgraph/langTypes';
+import { ToolDefinition } from './types';
 import { goalQueryHelpers } from '../lib/knowledgeQuery';
 
 export const GOAL_EVALUATOR_TOOLS: ToolDefinition[] = [

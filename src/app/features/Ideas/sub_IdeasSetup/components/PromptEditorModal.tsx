@@ -231,7 +231,8 @@ function getPromptFileName(scanType: ScanType): string {
     paradigm_shifter: 'paradigmShifterPrompt.ts',
     moonshot_architect: 'moonshotArchitectPrompt.ts',
     dev_experience_engineer: 'devExperienceEngineerPrompt.ts',
-    data_flow_optimizer: 'dataFlowOptimizerPrompt.ts'
+    data_flow_optimizer: 'dataFlowOptimizerPrompt.ts',
+    competitor_analyst: 'competitorAnalystPrompt.ts'
   };
 
   return fileMap[scanType] || 'zenArchitectPrompt.ts';

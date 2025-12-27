@@ -10,9 +10,8 @@ import {
   parseStatusResponse,
   StatusPromptData,
 } from '@/app/features/Annette/prompts/statusPrompt';
-import { getLLMClient } from '@/lib/langgraph/langHelpers';
+import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
-import { LLMProvider } from '@/lib/langgraph/langTypes';
 import { implementationLogDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 
@@ -85,9 +84,9 @@ export async function POST(request: NextRequest) {
       throw new Error('Internal provider is not supported for status');
     }
 
-    const llmClient = getLLMClient(provider as LLMProvider);
-    const llmResult = await llmClient.generate({
+    const llmResult = await llmManager.generate({
       prompt,
+      provider: provider as SupportedProvider,
       model: model || getDefaultModel(provider),
       taskType: 'status-report',
     });

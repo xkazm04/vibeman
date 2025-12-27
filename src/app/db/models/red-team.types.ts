@@ -183,6 +183,11 @@ export const RED_TEAM_AGENT_ROLES: Record<ScanType, {
     attackTypes: ['state'],
     adversaryPersona: 'Refactoring regression hunter',
     focusAreas: ['Regression introduction', 'Behavioral changes']
+  },
+  competitor_analyst: {
+    attackTypes: ['integration', 'performance'],
+    adversaryPersona: 'Competitive intelligence exploiter',
+    focusAreas: ['Market positioning weaknesses', 'Feature gap exploitation', 'Performance benchmarking attacks']
   }
 };
 

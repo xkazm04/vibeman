@@ -73,7 +73,10 @@
       "Bash(do:*)",
       "Bash(wc:*)",
       "Bash(rm:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(fi)",
+      "Bash(git fetch:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

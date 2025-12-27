@@ -2,12 +2,10 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Shield, FileText } from 'lucide-react';
-import ParliamentDashboard from './components/ParliamentDashboard';
+import { FileText } from 'lucide-react';
 import ProposalsDashboard from './components/ProposalsDashboard';
-import { SecurityIntelligenceLayout } from '@/app/features/SecurityIntelligence';
 
-type TabId = 'parliament' | 'security' | 'proposals';
+type TabId = 'proposals';
 
 interface Tab {
   id: TabId;
@@ -18,18 +16,6 @@ interface Tab {
 
 const TABS: Tab[] = [
   {
-    id: 'parliament',
-    label: 'Parliament',
-    icon: Users,
-    description: 'Multi-Agent Debate System',
-  },
-  {
-    id: 'security',
-    label: 'Security Intelligence',
-    icon: Shield,
-    description: 'Vulnerability Monitoring',
-  },
-  {
     id: 'proposals',
     label: 'Proposals',
     icon: FileText,
@@ -38,7 +24,7 @@ const TABS: Tab[] = [
 ];
 
 export default function ExperimentalPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('parliament');
+  const [activeTab, setActiveTab] = useState<TabId>('proposals');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
@@ -104,8 +90,6 @@ export default function ExperimentalPage() {
           transition={{ duration: 0.3 }}
           className="min-h-[600px]"
         >
-          {activeTab === 'parliament' && <ParliamentDashboard />}
-          {activeTab === 'security' && <SecurityIntelligenceLayout />}
           {activeTab === 'proposals' && <ProposalsDashboard />}
         </motion.div>
       </div>

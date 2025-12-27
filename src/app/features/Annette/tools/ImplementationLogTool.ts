@@ -1,4 +1,4 @@
-import { ToolDefinition } from '@/lib/langgraph/langTypes';
+import { ToolDefinition } from './types';
 import { implementationLogQueryHelpers } from '../lib/knowledgeQuery';
 
 export const IMPLEMENTATION_LOG_TOOLS: ToolDefinition[] = [

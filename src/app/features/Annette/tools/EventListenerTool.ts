@@ -1,4 +1,4 @@
-import { ToolDefinition } from '@/lib/langgraph/langTypes';
+import { ToolDefinition } from './types';
 import { eventQueryHelpers } from '../lib/knowledgeQuery';
 
 export const EVENT_LISTENER_TOOLS: ToolDefinition[] = [

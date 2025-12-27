@@ -3,7 +3,7 @@
  * Safe operations that only retrieve information
  */
 
-import { ToolDefinition } from '@/lib/langgraph/langTypes';
+import { ToolDefinition } from './types';
 
 export const READ_ONLY_TOOLS: ToolDefinition[] = [
   {

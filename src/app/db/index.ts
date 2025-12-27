@@ -57,12 +57,7 @@ import {
   preventionActionRepository,
   codeChangeEventRepository,
 } from './repositories/debt-prediction.repository';
-import {
-  securityIntelligenceRepository,
-  securityAlertRepository,
-  staleBranchRepository,
-  communitySecurityScoreRepository,
-} from './repositories/security-intelligence.repository';
+// Security Intelligence repositories removed - feature deprecated
 import {
   developerProfileRepository,
   developerDecisionRepository,
@@ -157,7 +152,7 @@ export * from './models/test-scenario.types';
 export * from './models/scan-prediction.types';
 export * from './models/marketplace.types';
 export * from './models/debt-prediction.types';
-export * from './models/security-intelligence.types';
+// Security Intelligence types removed - feature deprecated
 export * from './models/onboarding-accelerator.types';
 export * from './models/strategic-roadmap.types';
 // NOTE: hypothesis-testing.types removed - use goal-hub.types instead
@@ -557,41 +552,7 @@ export const codeChangeEventDb = {
   close: closeDatabase
 };
 
-/**
- * Security Intelligence Database Operations
- * Manages cross-project security metrics and risk scores
- */
-export const securityIntelligenceDb = {
-  ...securityIntelligenceRepository,
-  close: closeDatabase
-};
-
-/**
- * Security Alert Database Operations
- * Manages security alerts and notifications
- */
-export const securityAlertDb = {
-  ...securityAlertRepository,
-  close: closeDatabase
-};
-
-/**
- * Stale Branch Database Operations
- * Tracks and manages stale branches across projects
- */
-export const staleBranchDb = {
-  ...staleBranchRepository,
-  close: closeDatabase
-};
-
-/**
- * Community Security Score Database Operations
- * Manages community-driven security scoring
- */
-export const communitySecurityScoreDb = {
-  ...communitySecurityScoreRepository,
-  close: closeDatabase
-};
+// Security Intelligence DB exports removed - feature deprecated
 
 /**
  * Developer Profile Database Operations

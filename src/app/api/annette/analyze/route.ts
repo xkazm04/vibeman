@@ -12,9 +12,8 @@ import {
   AnalyzePromptData,
   AnalyzeActionType,
 } from '@/app/features/Annette/prompts/analyzePrompt';
-import { getLLMClient } from '@/lib/langgraph/langHelpers';
+import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
-import { LLMProvider } from '@/lib/langgraph/langTypes';
 import { logger } from '@/lib/logger';
 
 
@@ -147,9 +146,9 @@ export async function POST(request: NextRequest) {
       throw new Error('Internal provider is not supported for analyze');
     }
 
-    const llmClient = getLLMClient(provider as LLMProvider);
-    const llmResult = await llmClient.generate({
+    const llmResult = await llmManager.generate({
       prompt,
+      provider: provider as SupportedProvider,
       model: model || getDefaultModel(provider),
       taskType: 'context-analysis',
     });

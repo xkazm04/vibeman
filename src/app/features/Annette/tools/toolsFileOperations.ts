@@ -3,7 +3,7 @@
  * Operations for file and folder management
  */
 
-import { ToolDefinition } from '@/lib/langgraph/langTypes';
+import { ToolDefinition } from './types';
 
 export const FILE_OPERATIONS_TOOLS: ToolDefinition[] = [
   {
