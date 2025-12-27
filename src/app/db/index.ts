@@ -147,6 +147,12 @@ import {
   sessionTaskRepository,
 } from './repositories/session.repository';
 import { automationSessionRepository } from './repositories/automation-session.repository';
+import { automationSessionEventRepository } from './repositories/automation-session-event.repository';
+import {
+  integrationRepository,
+  integrationEventRepository,
+  webhookRepository,
+} from './repositories/integration.repository';
 
 // Export types
 export * from './models/types';
@@ -172,6 +178,8 @@ export * from './models/goal-hub.types';
 export * from './models/offload.types';
 export * from './models/session.types';
 export * from './models/automation-session.types';
+export * from './models/automation-event.types';
+export * from './models/integration.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -1121,6 +1129,42 @@ export const sessionDb = {
  */
 export const automationSessionDb = {
   ...automationSessionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Automation Session Event Database Operations
+ * Manages real-time events during automation sessions (file reads, findings, progress)
+ */
+export const automationSessionEventDb = {
+  ...automationSessionEventRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Integration Database Operations
+ * Manages external service integrations (GitHub, Slack, webhooks, etc.)
+ */
+export const integrationDb = {
+  ...integrationRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Integration Event Database Operations
+ * Manages integration event logs and delivery tracking
+ */
+export const integrationEventDb = {
+  ...integrationEventRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Webhook Database Operations
+ * Manages custom webhook configurations
+ */
+export const webhookDb = {
+  ...webhookRepository,
   close: closeDatabase,
 };
 

@@ -313,6 +313,7 @@ const TaskColumn = React.memo(function TaskColumn({
                 onToggleSelect={() => onToggleSelect(reqId)}
                 onDelete={() => onDelete(reqId)}
                 projectPath={req.projectPath}
+                projectId={projectId}
                 idea={ideasMap[req.requirementName]}
               />
             );

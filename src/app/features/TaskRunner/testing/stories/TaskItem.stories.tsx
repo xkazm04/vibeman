@@ -57,6 +57,7 @@ export function TaskItemIdle() {
         onToggleSelect={() => setIsSelected(!isSelected)}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -79,6 +80,7 @@ export function TaskItemQueued() {
         onToggleSelect={() => {}}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -101,6 +103,7 @@ export function TaskItemRunning() {
         onToggleSelect={() => {}}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -124,6 +127,7 @@ export function TaskItemCompleted() {
         onToggleSelect={() => setIsSelected(!isSelected)}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -147,6 +151,7 @@ export function TaskItemFailed() {
         onToggleSelect={() => setIsSelected(!isSelected)}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -170,6 +175,7 @@ export function TaskItemSessionLimit() {
         onToggleSelect={() => setIsSelected(!isSelected)}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -192,6 +198,7 @@ export function TaskItemSelected() {
         onToggleSelect={() => {}}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -215,6 +222,7 @@ export function TaskItemLongName() {
         onToggleSelect={() => setIsSelected(!isSelected)}
         onDelete={() => console.log('Delete clicked')}
         projectPath={requirement.projectPath}
+        projectId={requirement.projectId}
       />
     </StoryWrapper>
   );
@@ -269,6 +277,7 @@ export function AllStatusVariants() {
                   onToggleSelect={() => isSelectable && toggleSelection(status)}
                   onDelete={() => console.log('Delete:', status)}
                   projectPath={requirement.projectPath}
+                  projectId={requirement.projectId}
                 />
               </div>
             </div>
@@ -360,6 +369,7 @@ export function InteractiveDemo() {
           onToggleSelect={() => isSelectable && setIsSelected(!isSelected)}
           onDelete={() => console.log('Delete clicked')}
           projectPath={requirement.projectPath}
+          projectId={requirement.projectId}
         />
       </div>
 

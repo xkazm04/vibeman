@@ -15,23 +15,31 @@ export interface GitExecutionConfig {
   commitMessage: string;
 }
 
+export interface SessionConfig {
+  sessionId?: string;        // Internal session ID (for tracking)
+  claudeSessionId?: string;  // Claude CLI session ID (for --resume)
+}
+
 /**
  * Execute a requirement using Claude Code CLI
  * Uses headless mode with proper slash command syntax
  * Logs all output to a file for observability
+ * Supports session management with --resume flag
  */
 export async function executeRequirement(
   projectPath: string,
   requirementName: string,
   projectId?: string,
   onProgress?: (data: string) => void,
-  gitConfig?: GitExecutionConfig
+  gitConfig?: GitExecutionConfig,
+  sessionConfig?: SessionConfig
 ): Promise<{
   success: boolean;
   output?: string;
   error?: string;
   sessionLimitReached?: boolean;
   logFilePath?: string;
+  capturedClaudeSessionId?: string;  // Claude session ID captured from output
 }> {
   const { spawn } = require('child_process');
   const logFilePath = getLogFilePath(projectPath, requirementName);
@@ -123,6 +131,15 @@ export async function executeRequirement(
           '--dangerously-skip-permissions',
         ];
 
+        // Add --resume flag if we have a Claude session ID
+        if (sessionConfig?.claudeSessionId) {
+          args.push('--resume', sessionConfig.claudeSessionId);
+          logMessage(`Session resume mode: ${sessionConfig.claudeSessionId}`);
+        }
+
+        // Variable to capture session ID from output
+        let capturedClaudeSessionId: string | undefined;
+
         // Prepare environment - remove ANTHROPIC_API_KEY to force web auth usage
         const env = { ...process.env };
         delete env.ANTHROPIC_API_KEY; // Remove API key to use web subscription auth
@@ -142,11 +159,38 @@ export async function executeRequirement(
         let stdout = '';
         let stderr = '';
 
-        // Capture stdout
+        // Capture stdout and parse for session ID
         childProcess.stdout.on('data', (data: Buffer) => {
           const text = data.toString();
           stdout += text;
           logMessage(`[STDOUT] ${text.trim()}`);
+
+          // Try to parse session ID from stream-json output
+          // Claude CLI outputs session info in JSON format
+          try {
+            const lines = text.split('\n');
+            for (const line of lines) {
+              if (!line.trim()) continue;
+
+              // Parse JSON lines to find session ID
+              const parsed = JSON.parse(line);
+
+              // Session ID might be in different locations depending on message type
+              // Check common patterns:
+              // - {"session_id": "..."}
+              // - {"type": "session", "session_id": "..."}
+              // - {"result": {"session_id": "..."}}
+              if (parsed.session_id && !capturedClaudeSessionId) {
+                capturedClaudeSessionId = parsed.session_id;
+                logMessage(`[SESSION] Captured session ID: ${capturedClaudeSessionId}`);
+              } else if (parsed.result?.session_id && !capturedClaudeSessionId) {
+                capturedClaudeSessionId = parsed.result.session_id;
+                logMessage(`[SESSION] Captured session ID from result: ${capturedClaudeSessionId}`);
+              }
+            }
+          } catch {
+            // Not all lines are JSON, ignore parse errors
+          }
         });
 
         // Capture stderr
@@ -168,6 +212,7 @@ export async function executeRequirement(
               success: true,
               output: stdout || 'Requirement executed successfully',
               logFilePath,
+              capturedClaudeSessionId,
             });
           } else {
             // Check for session limit errors
@@ -213,10 +258,13 @@ export async function executeRequirement(
             logMessage('✓ Simulated execution completed');
             closeLogStream();
 
+            // In simulation mode, generate a fake session ID for testing
+            const simulatedSessionId = `simulated-${Date.now()}`;
             resolve({
               success: true,
               output: `[SIMULATION MODE - Claude CLI not installed]\n\nRequirement: ${requirementName}\n\n✓ Simulated execution completed\n\nLog file: ${logFilePath}`,
               logFilePath,
+              capturedClaudeSessionId: simulatedSessionId,
             });
           } else {
             // Other spawn errors

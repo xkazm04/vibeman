@@ -13,6 +13,7 @@ import { StepperNavigation } from './components/StepperNavigation';
 import { FooterNavigation } from './components/FooterNavigation';
 import { CompletionScreen } from './components/CompletionScreen';
 import AutomationPanel from './components/AutomationPanel';
+import SessionDashboard from './components/SessionDashboard';
 import ProjectGoalReview from './ProjectGoalReview';
 
 export default function StandupWizard() {
@@ -68,11 +69,16 @@ export default function StandupWizard() {
         onStepClick={handleStepClick}
       />
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
+      {/* Main Content - pb-24 accounts for fixed footer height */}
+      <div className="max-w-7xl mx-auto p-6 pb-24">
         {/* Automation Panel */}
-        <div className="mb-6">
+        <div className="mb-4">
           <AutomationPanel />
+        </div>
+
+        {/* Live Session Dashboard */}
+        <div className="mb-6">
+          <SessionDashboard />
         </div>
 
         <AnimatePresence mode="wait">

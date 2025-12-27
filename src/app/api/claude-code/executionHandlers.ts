@@ -22,6 +22,11 @@ export interface GitExecutionConfig {
   commitMessage: string;
 }
 
+export interface SessionConfig {
+  sessionId?: string;
+  claudeSessionId?: string;
+}
+
 /**
  * Queues a requirement for async execution
  */
@@ -29,12 +34,19 @@ export async function queueExecution(
   projectPath: string,
   requirementName: string,
   projectId?: string,
-  gitConfig?: GitExecutionConfig
+  gitConfig?: GitExecutionConfig,
+  sessionConfig?: SessionConfig
 ): Promise<NextResponse> {
-  logger.info('Queuing requirement for execution', { requirementName, projectId, gitEnabled: gitConfig?.enabled });
+  logger.info('Queuing requirement for execution', {
+    requirementName,
+    projectId,
+    gitEnabled: gitConfig?.enabled,
+    sessionId: sessionConfig?.sessionId,
+    claudeSessionId: sessionConfig?.claudeSessionId,
+  });
 
   const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-  const taskId = executionQueue.addTask(projectPath, requirementName, projectId, gitConfig);
+  const taskId = executionQueue.addTask(projectPath, requirementName, projectId, gitConfig, sessionConfig);
 
   logger.info('Task queued successfully', { taskId });
 

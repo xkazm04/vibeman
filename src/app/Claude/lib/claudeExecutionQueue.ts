@@ -12,12 +12,18 @@ export interface GitExecutionConfig {
   commitMessage: string;
 }
 
+export interface SessionConfig {
+  sessionId?: string;        // Internal session ID (for tracking)
+  claudeSessionId?: string;  // Claude CLI session ID (for --resume)
+}
+
 export interface ExecutionTask {
   id: string;
   projectPath: string;
   requirementName: string;
   projectId?: string;
   gitConfig?: GitExecutionConfig;
+  sessionConfig?: SessionConfig;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'session-limit';
   progress: string[];
   output?: string;
@@ -26,6 +32,7 @@ export interface ExecutionTask {
   startTime?: Date;
   endTime?: Date;
   sessionLimitReached?: boolean;
+  capturedClaudeSessionId?: string;  // Claude session ID captured from output
 }
 
 class ClaudeExecutionQueue {
@@ -46,7 +53,8 @@ class ClaudeExecutionQueue {
     projectPath: string,
     requirementName: string,
     projectId?: string,
-    gitConfig?: GitExecutionConfig
+    gitConfig?: GitExecutionConfig,
+    sessionConfig?: SessionConfig
   ): string {
     // Use requirement name as task ID for stable identification
     // This ensures the task ID matches what the frontend expects
@@ -58,6 +66,8 @@ class ClaudeExecutionQueue {
       requirementName,
       projectId,
       gitEnabled: gitConfig?.enabled,
+      sessionId: sessionConfig?.sessionId,
+      claudeSessionId: sessionConfig?.claudeSessionId,
       currentQueueSize: this.tasks.size,
     });
 
@@ -67,6 +77,7 @@ class ClaudeExecutionQueue {
       requirementName,
       projectId,
       gitConfig,
+      sessionConfig,
       status: 'pending',
       progress: [],
     };
@@ -188,7 +199,12 @@ class ClaudeExecutionQueue {
     task.progress.push(this.createProgressEntry('Execution started'));
 
     try {
-      logger.debug('Calling executeRequirement...', { taskId: task.id, gitEnabled: task.gitConfig?.enabled });
+      logger.debug('Calling executeRequirement...', {
+        taskId: task.id,
+        gitEnabled: task.gitConfig?.enabled,
+        sessionId: task.sessionConfig?.sessionId,
+        claudeSessionId: task.sessionConfig?.claudeSessionId,
+      });
 
       // Execute in background (non-blocking)
       const result = await executeRequirement(
@@ -199,7 +215,8 @@ class ClaudeExecutionQueue {
           // Capture progress messages
           task.progress.push(this.createProgressEntry(progressMsg));
         },
-        task.gitConfig // Pass git configuration as 5th parameter
+        task.gitConfig, // Pass git configuration as 5th parameter
+        task.sessionConfig // Pass session configuration as 6th parameter
       );
 
       logger.debug('Received execution result', {
@@ -209,7 +226,14 @@ class ClaudeExecutionQueue {
         hasOutput: !!result.output,
         sessionLimitReached: result.sessionLimitReached,
         logFilePath: result.logFilePath,
+        capturedClaudeSessionId: result.capturedClaudeSessionId,
       });
+
+      // Capture the session ID if available
+      if (result.capturedClaudeSessionId) {
+        task.capturedClaudeSessionId = result.capturedClaudeSessionId;
+        task.progress.push(this.createProgressEntry(`Session ID captured: ${result.capturedClaudeSessionId}`));
+      }
 
       // Update task with results
       if (result.success) {

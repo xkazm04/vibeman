@@ -101,12 +101,28 @@ ${techDebtList || '  No tech debt recorded'}
    - Look at main entry points and core modules
    - Identify patterns, TODOs, and improvement opportunities
 
-2. **Update Progress**: As you explore, report your progress:
-\`\`\`bash
-curl -X POST "${API_BASE_URL}/api/standup/automation/progress" \\
-  -H "Content-Type: application/json" \\
-  -d '{"sessionId": "${sessionId}", "phase": "exploring", "progress": 25, "message": "Analyzing project structure..."}'
-\`\`\`
+2. **Report Events in Real-Time**: As you explore, report your activity for live dashboard visibility:
+
+   **When reading a file:**
+   \`\`\`bash
+   curl -X POST "${API_BASE_URL}/api/standup/automation/progress" \\
+     -H "Content-Type: application/json" \\
+     -d '{"sessionId": "${sessionId}", "type": "file_read", "data": {"file": "src/path/to/file.ts", "purpose": "Analyzing component structure"}}'
+   \`\`\`
+
+   **When you find something notable:**
+   \`\`\`bash
+   curl -X POST "${API_BASE_URL}/api/standup/automation/progress" \\
+     -H "Content-Type: application/json" \\
+     -d '{"sessionId": "${sessionId}", "type": "finding", "data": {"finding": "Missing error handling in login flow", "file": "src/auth/login.ts", "line": 45, "category": "issue"}}'
+   \`\`\`
+
+   **Progress updates:**
+   \`\`\`bash
+   curl -X POST "${API_BASE_URL}/api/standup/automation/progress" \\
+     -H "Content-Type: application/json" \\
+     -d '{"sessionId": "${sessionId}", "type": "progress", "data": {"progress": 25, "message": "Analyzing project structure...", "phase": "exploring"}}'
+   \`\`\`
 
 3. **Generate Goal Candidates**: Based on your analysis, create 1-3 strategic goals that:
    - Align with the ${strategy.toUpperCase()} strategy
@@ -201,14 +217,23 @@ ${goalsInfo}
    - Look for TODOs, comments, or work-in-progress code
    - Search for relevant tests
 
-2. **Update Progress**: Report as you work:
-\`\`\`bash
-curl -X POST "${API_BASE_URL}/api/standup/automation/progress" \\
-  -H "Content-Type: application/json" \\
-  -d '{"sessionId": "${sessionId}", "phase": "evaluating", "progress": 50, "message": "Evaluating goal 2 of ${goals.length}..."}'
-\`\`\`
+2. **Report Events in Real-Time**: As you evaluate, report your activity:
 
-3. **Submit Evaluations**: When complete, submit all evaluations:
+   **When evaluating a goal:**
+   \`\`\`bash
+   curl -X POST "${API_BASE_URL}/api/standup/automation/progress" \\
+     -H "Content-Type: application/json" \\
+     -d '{"sessionId": "${sessionId}", "type": "evaluation", "data": {"goalId": "goal-uuid", "goalTitle": "Goal title", "evaluation": {"progress": 50, "message": "Found partial implementation"}}}'
+   \`\`\`
+
+   **Progress updates:**
+   \`\`\`bash
+   curl -X POST "${API_BASE_URL}/api/standup/automation/progress" \\
+     -H "Content-Type: application/json" \\
+     -d '{"sessionId": "${sessionId}", "type": "progress", "data": {"progress": 50, "message": "Evaluating goal 2 of ${goals.length}...", "phase": "evaluating"}}'
+   \`\`\`
+
+3. **Submit Evaluations with Structured Evidence**: When complete, submit evaluations with file:line references:
 \`\`\`bash
 curl -X POST "${API_BASE_URL}/api/standup/automation/evaluations" \\
   -H "Content-Type: application/json" \\
@@ -221,7 +246,15 @@ curl -X POST "${API_BASE_URL}/api/standup/automation/evaluations" \\
         "shouldUpdate": true,
         "currentStatus": "open",
         "recommendedStatus": "in_progress",
-        "evidence": "Found implementation in src/features/...",
+        "evidence": {
+          "summary": "Found partial implementation in auth module",
+          "references": [
+            {"file": "src/auth/login.ts", "startLine": 45, "endLine": 60, "relevance": "Main login logic"},
+            {"file": "src/auth/session.ts", "startLine": 12, "relevance": "Session handling"}
+          ],
+          "confidence": 85,
+          "verificationMethod": "code_exists"
+        },
         "blockers": [],
         "progress": 45,
         "confidence": 85,

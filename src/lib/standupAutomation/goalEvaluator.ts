@@ -307,7 +307,7 @@ export function shouldAutoApply(
 export function applyStatusChange(
   goal: DbGoal,
   newStatus: string,
-  evidence: string
+  evidence: string | import('./types').StructuredEvidence
 ): GoalStatusChange {
   const previousStatus = goal.status;
 

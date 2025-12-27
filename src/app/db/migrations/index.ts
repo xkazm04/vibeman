@@ -162,6 +162,10 @@ export function runMigrations() {
     migrateClaudeCodeSessions();
     // Migration 52: Create Automation Sessions table
     migrateAutomationSessions();
+    // Migration 53: Create Automation Session Events table
+    migrateAutomationSessionEvents();
+    // Migration 54: Create Integration Framework tables
+    migrateIntegrationFramework();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4091,5 +4095,21 @@ function migrateAutomationSessions() {
     const db = getConnection();
     const { migrate043AutomationSessions } = require('./043_automation_sessions');
     migrate043AutomationSessions(db);
+  }, migrationLogger);
+}
+
+function migrateAutomationSessionEvents() {
+  safeMigration('automationSessionEvents', () => {
+    const db = getConnection();
+    const { migrate044AutomationSessionEvents } = require('./044_automation_session_events');
+    migrate044AutomationSessionEvents(db);
+  }, migrationLogger);
+}
+
+function migrateIntegrationFramework() {
+  safeMigration('integrationFramework', () => {
+    const db = getConnection();
+    const { migrate045IntegrationFramework } = require('./045_integration_framework');
+    migrate045IntegrationFramework(db);
   }, migrationLogger);
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle } from 'lucide-react';
+import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle, Layers } from 'lucide-react';
 import { useEffect } from 'react';
 import type { BatchState, BatchId } from '../store';
 import {
@@ -23,7 +23,13 @@ import type { ProjectRequirement } from '../lib/types';
 import { TaskOffloadButton } from './TaskOffloadPanel';
 import DelegateBatchButton from './DelegateBatchButton';
 import RemoteBatchDisplay, { RemoteBatchId } from './RemoteBatchDisplay';
+import SessionBatchDisplay from './SessionBatchDisplay';
 import { useZenStore } from '@/app/zen/lib/zenStore';
+import {
+  useSessionBatchStore,
+  useAllSessionBatches,
+  type SessionBatchId,
+} from '../store/sessionBatchStore';
 
 interface DualBatchPanelProps {
   batch1: BatchState | null;
@@ -36,6 +42,7 @@ interface DualBatchPanelProps {
   onClearBatch: (batchId: BatchId) => void;
   onCreateBatch: (batchId: BatchId) => void;
   selectedCount: number;
+  selectedTaskIds?: string[];  // Task IDs selected in TaskColumn for session management
   requirements: ProjectRequirement[];
   getRequirementId: (req: ProjectRequirement) => string;
 }
@@ -390,6 +397,7 @@ export default function DualBatchPanel({
   onClearBatch,
   onCreateBatch,
   selectedCount,
+  selectedTaskIds = [],
   requirements,
   getRequirementId,
 }: DualBatchPanelProps) {
@@ -397,6 +405,10 @@ export default function DualBatchPanel({
   const remoteBatches = useAllRemoteBatches();
   const { createRemoteBatch, clearRemoteBatch, getNextAvailableRemoteBatchId } = useRemoteBatchStore();
   const { pairing } = useZenStore();
+
+  // Session batch state
+  const sessionBatches = useAllSessionBatches();
+  const { getActiveSessionBatches } = useSessionBatchStore();
 
   // Handle batch delegation to remote device
   const handleDelegated = (sourceBatchId: BatchId, remoteBatchId: string) => {
@@ -469,6 +481,10 @@ export default function DualBatchPanel({
   // Check if there are any remote batches to show
   const hasRemoteBatches = Object.values(remoteBatches).some(b => b !== null);
   const remoteBatchIds: RemoteBatchId[] = ['remoteBatch1', 'remoteBatch2', 'remoteBatch3', 'remoteBatch4'];
+
+  // Check if there are any session batches to show
+  const hasSessionBatches = Object.values(sessionBatches).some(b => b !== null);
+  const sessionBatchIds: SessionBatchId[] = ['sessionBatch1', 'sessionBatch2', 'sessionBatch3', 'sessionBatch4'];
 
   return (
     <div className="space-y-3 w-full">
@@ -567,6 +583,33 @@ export default function DualBatchPanel({
                 batch={remoteBatch}
                 batchId={remoteBatchId}
                 onClear={clearRemoteBatch}
+              />
+            );
+          })}
+        </>
+      )}
+
+      {/* Claude Code Sessions Section */}
+      {hasSessionBatches && (
+        <>
+          <div className="pt-2 border-t border-purple-700/30">
+            <div className="flex items-center gap-2 mb-3">
+              <Layers className="w-3 h-3 text-purple-400" />
+              <span className="text-xs font-medium text-purple-400 uppercase tracking-wider">
+                Claude Sessions
+              </span>
+            </div>
+          </div>
+
+          {sessionBatchIds.map(sessionBatchId => {
+            const sessionBatch = sessionBatches[sessionBatchId];
+            if (!sessionBatch) return null;
+
+            return (
+              <SessionBatchDisplay
+                key={sessionBatchId}
+                batchId={sessionBatchId}
+                selectedTaskIds={selectedTaskIds}
               />
             );
           })}

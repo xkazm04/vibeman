@@ -26,6 +26,21 @@ export {
   discoverProjectConfig,
 } from './goalSync';
 
+// Cached client exports
+export {
+  getCachedProject,
+  getCachedProjectByNumber,
+  getCachedProjectItem,
+  cachedGraphqlRequest,
+  invalidateProjectCache,
+  invalidateProjectItemCache,
+  invalidateAllGitHubCache,
+  getGitHubCacheStats,
+  cleanupGitHubCache,
+  warmupGitHubCache,
+  githubCache,
+} from './cachedClient';
+
 export type {
   GitHubProjectConfig,
   GitHubProject,

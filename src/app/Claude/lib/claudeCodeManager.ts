@@ -34,6 +34,8 @@ export {
 // Re-export execution functions
 export {
   executeRequirement,
+  type GitExecutionConfig,
+  type SessionConfig,
 } from '../sub_ClaudeCodeManager/executionManager';
 
 // Re-export execution prompt utilities

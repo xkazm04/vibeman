@@ -5,11 +5,10 @@ import BackgroundPattern from "../components/ui/background/BackgroundPattern";
 import QueryProvider from "../components/QueryProvider";
 import { ModalProvider } from "../contexts/ModalContext";
 import { ErrorProvider } from "../contexts/ErrorContext";
-import ContextOverview from "./features/Context/sub_ContextOverview/ContextOverview";
 import TopBar from "../components/Navigation/TopBar";
 import PageTransition from "../components/Navigation/PageTransition";
 import ControlPanelProvider from "./features/Onboarding/ControlPanelProvider";
-import { MarketplaceLayout } from "./features/Marketplace";
+import DeferredWidgets from "../components/lazy/DeferredWidgets";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,8 +44,7 @@ export default function RootLayout({
                 <PageTransition>
                   {children}
                 </PageTransition>
-                <ContextOverview />
-                <MarketplaceLayout />
+                <DeferredWidgets />
               </ControlPanelProvider>
             </ModalProvider>
           </ErrorProvider>

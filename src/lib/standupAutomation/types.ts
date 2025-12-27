@@ -43,6 +43,35 @@ export const DEFAULT_CONFIG: StandupAutomationConfig = {
   notifyOnChanges: true,
 };
 
+// ============ Evidence Types ============
+
+/**
+ * A reference to a specific location in code that serves as evidence
+ */
+export interface CodeReference {
+  file: string;                    // File path relative to project root
+  startLine: number;               // 1-based line number
+  endLine?: number;                // Optional end line for multi-line references
+  snippet?: string;                // 1-3 lines of relevant code
+  relevance: string;               // Why this code is evidence
+}
+
+/**
+ * Verification methods for evidence
+ */
+export type VerificationMethod = 'code_exists' | 'test_passes' | 'pattern_match' | 'manual' | 'hypothesis_verified';
+
+/**
+ * Structured evidence with file:line references for verifiable findings
+ */
+export interface StructuredEvidence {
+  summary: string;                 // Human-readable summary
+  references: CodeReference[];     // Specific code locations
+  confidence: number;              // 0-100
+  verificationMethod: VerificationMethod;
+  verifiedAt?: string;             // ISO timestamp when verified
+}
+
 // ============ Goal Evaluation Types ============
 
 export interface GoalEvaluationContext {
@@ -66,11 +95,22 @@ export interface GoalEvaluationResult {
   shouldUpdate: boolean;
   currentStatus: string;
   recommendedStatus?: string;
-  evidence: string;
+
+  // Evidence - supports both legacy string and structured format
+  evidence: string | StructuredEvidence;
+
+  // Legacy fields (kept for backward compatibility)
   blockers: string[];
   progress: number;                  // 0-100
   confidence: number;                // 0-100
   reasoning: string;
+
+  // Optional hypothesis verifications from this evaluation
+  hypothesisVerifications?: Array<{
+    hypothesisId: string;
+    verified: boolean;
+    evidence: StructuredEvidence;
+  }>;
 }
 
 export interface GoalStatusChange {
@@ -78,7 +118,7 @@ export interface GoalStatusChange {
   goalTitle: string;
   previousStatus: string;
   newStatus: string;
-  evidence: string;
+  evidence: string | StructuredEvidence;
   changedAt: string;
   autoApplied: boolean;
 }

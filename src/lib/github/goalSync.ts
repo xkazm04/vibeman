@@ -12,9 +12,12 @@ import {
   updateSingleSelectField,
   updateDateField,
   deleteItem,
-  getProject,
-  findProjectByNumber,
 } from './client';
+import {
+  getCachedProject,
+  getCachedProjectByNumber,
+  invalidateProjectItemCache,
+} from './cachedClient';
 import type {
   GitHubProjectConfig,
   GitHubSyncResult,
@@ -333,7 +336,7 @@ export async function discoverProjectConfig(
       return { success: false, error: 'GitHub token not configured' };
     }
 
-    const project = await findProjectByNumber(owner, projectNumber, authToken);
+    const project = await getCachedProjectByNumber(owner, projectNumber, authToken);
 
     if (!project) {
       return { success: false, error: `Project #${projectNumber} not found for ${owner}` };

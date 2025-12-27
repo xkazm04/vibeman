@@ -103,10 +103,18 @@ export async function POST(request: NextRequest) {
       ) {
         try {
           const goal = goalDb.getGoalById(validatedEval.goalId);
-          if (goal && goal.status !== validatedEval.recommendedStatus) {
+          const validStatuses = ['open', 'in_progress', 'done', 'rejected', 'undecided'] as const;
+          type GoalStatus = typeof validStatuses[number];
+
+          // Validate the recommended status before applying
+          if (
+            goal &&
+            goal.status !== validatedEval.recommendedStatus &&
+            validStatuses.includes(validatedEval.recommendedStatus as GoalStatus)
+          ) {
             // Update the goal status
             goalDb.updateGoal(validatedEval.goalId, {
-              status: validatedEval.recommendedStatus,
+              status: validatedEval.recommendedStatus as GoalStatus,
             });
 
             statusChanges.push({
