@@ -8,7 +8,7 @@
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS device_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id TEXT NOT NULL,
+    device_id TEXT NOT NULL UNIQUE,  -- UNIQUE required for upsert onConflict
     device_name TEXT NOT NULL,
     project_id TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('active', 'passive', 'observer')),
@@ -20,6 +20,17 @@ CREATE TABLE IF NOT EXISTS device_sessions (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add unique constraint if table already exists (for existing installations)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'device_sessions_device_id_key'
+    ) THEN
+        ALTER TABLE device_sessions ADD CONSTRAINT device_sessions_device_id_key UNIQUE (device_id);
+    END IF;
+END $$;
 
 -- Indexes for device_sessions
 CREATE INDEX IF NOT EXISTS idx_device_sessions_project

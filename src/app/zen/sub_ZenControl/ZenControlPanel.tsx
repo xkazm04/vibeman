@@ -8,7 +8,7 @@ import SupabaseIncomingTasks from './components/SupabaseIncomingTasks';
 import { useZenStore } from '../lib/zenStore';
 import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { isSupabaseRealtimeConfigured } from '@/lib/supabase/realtime';
 
 /**
  * Zen Control Panel
@@ -42,8 +42,8 @@ export default function ZenControlPanel() {
     autoConnect: mode === 'online',
   });
 
-  // Check if Supabase is configured
-  const supabaseConfigured = isSupabaseConfigured();
+  // Check if Supabase is configured (uses NEXT_PUBLIC_ variables for client-side)
+  const supabaseConfigured = isSupabaseRealtimeConfigured();
 
   // Task handlers
   const handleClaimTask = async (taskId: string) => {

@@ -23,8 +23,8 @@ const nextConfig: NextConfig = {
               "font-src 'self' data:",
               // Media sources - allow self and blob URIs
               "media-src 'self' blob:",
-              // Connect sources - allow self and localhost (for remotes)
-              "connect-src 'self' http://localhost:*",
+              // Connect sources - allow self, localhost (for remotes), and Supabase
+              "connect-src 'self' http://localhost:* https://*.supabase.co wss://*.supabase.co",
               // Frame sources - disallow all frames
               "frame-src 'none'",
               // Object sources - disallow plugins

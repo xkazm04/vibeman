@@ -48,6 +48,8 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
   const store = useSupabaseRealtimeStore();
   const isInitialized = useRef(false);
   const deviceIdRef = useRef<string | null>(null);
+  const hasFetchedTasks = useRef(false);
+  const lastConnectionState = useRef(false);
 
   // Connect to Supabase Realtime
   const connect = useCallback(async () => {
@@ -209,9 +211,15 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
     []
   );
 
-  // Fetch tasks
+  // Get stable store methods
+  const setIncomingTasks = store.setIncomingTasks;
+  const setOutgoingTasks = store.setOutgoingTasks;
+  const storeDeviceId = store.deviceId;
+  const isConnected = store.connection.isConnected;
+
+  // Fetch tasks - uses refs and stable methods to avoid dependency issues
   const fetchTasks = useCallback(async () => {
-    const deviceId = deviceIdRef.current || store.deviceId;
+    const deviceId = deviceIdRef.current || storeDeviceId;
     if (!deviceId || !projectId) return;
 
     try {
@@ -220,25 +228,29 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
         `/api/bridge/realtime/tasks?projectId=${projectId}&deviceId=${deviceId}&direction=incoming`
       );
       const { tasks: incoming } = await incomingResponse.json();
-      store.setIncomingTasks(incoming || []);
+      setIncomingTasks(incoming || []);
 
       // Fetch outgoing tasks (created by this device)
       const outgoingResponse = await fetch(
         `/api/bridge/realtime/tasks?projectId=${projectId}&deviceId=${deviceId}&direction=outgoing`
       );
       const { tasks: outgoing } = await outgoingResponse.json();
-      store.setOutgoingTasks(outgoing || []);
+      setOutgoingTasks(outgoing || []);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     }
-  }, [projectId, store]);
+  }, [projectId, storeDeviceId, setIncomingTasks, setOutgoingTasks]);
 
   // Auto-connect on mount
   useEffect(() => {
     if (autoConnect && projectId && !isInitialized.current) {
       isInitialized.current = true;
-      connect().then(() => {
-        fetchTasks();
+      hasFetchedTasks.current = false;
+      connect().then((success) => {
+        if (success && !hasFetchedTasks.current) {
+          hasFetchedTasks.current = true;
+          fetchTasks();
+        }
       });
     }
 
@@ -247,12 +259,19 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
     };
   }, [autoConnect, projectId, connect, fetchTasks]);
 
-  // Fetch tasks when connection state changes
+  // Fetch tasks when connection state changes from disconnected to connected
   useEffect(() => {
-    if (store.connection.isConnected) {
+    // Only fetch when transitioning from disconnected to connected
+    if (isConnected && !lastConnectionState.current && !hasFetchedTasks.current) {
+      hasFetchedTasks.current = true;
       fetchTasks();
     }
-  }, [store.connection.isConnected, fetchTasks]);
+    // Reset the flag when disconnected
+    if (!isConnected) {
+      hasFetchedTasks.current = false;
+    }
+    lastConnectionState.current = isConnected;
+  }, [isConnected, fetchTasks]);
 
   return {
     // Connection

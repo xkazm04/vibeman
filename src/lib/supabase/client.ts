@@ -15,12 +15,19 @@ export interface SupabaseConfig {
 
 /**
  * Check if Supabase is configured with environment variables
+ * For server-side: checks service role key
+ * For client-side: checks anon key (NEXT_PUBLIC_ prefix)
  */
 export function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  return !!(url && key);
+  // On client-side, only NEXT_PUBLIC_ vars are available
+  // Check for anon key (client) or service role key (server)
+  const clientKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serverKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // Return true if URL exists and at least one key is available
+  return !!(url && (clientKey || serverKey));
 }
 
 /**

@@ -270,8 +270,13 @@ export class VibemanRealtime {
       .single();
 
     if (error) {
-      console.error('[Realtime] Failed to register device:', error);
-      throw error;
+      console.error('[Realtime] Failed to register device:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      throw new Error(`Failed to register device: ${error.message || error.code || 'Unknown error'}`);
     }
 
     this.sessionId = data.id;
