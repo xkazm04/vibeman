@@ -3,46 +3,8 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useProjectContexts } from '@/lib/queries/contextsQueries';
-import type { Context as DbContext, ContextGroup as DbContextGroup } from '@/lib/queries/contextsQueries';
 import type { Context, ContextGroup } from '@/lib/queries/contextQueries';
-import ProjectRowSelection from './ProjectRowSelection';
 import ContextRowSelection from './ContextRowSelection';
-
-// Transform snake_case DB format to camelCase UI format
-function transformContext(dbContext: DbContext): Context {
-  return {
-    id: dbContext.id,
-    projectId: dbContext.project_id,
-    groupId: dbContext.group_id,
-    name: dbContext.name,
-    description: dbContext.description ?? undefined,
-    filePaths: dbContext.file_paths ? JSON.parse(dbContext.file_paths) : [],
-    createdAt: new Date(dbContext.created_at),
-    updatedAt: new Date(dbContext.updated_at),
-    hasContextFile: dbContext.has_context_file === 1,
-    contextFilePath: dbContext.context_file_path ?? undefined,
-    preview: dbContext.preview,
-    testScenario: dbContext.test_scenario,
-    testUpdated: dbContext.test_updated,
-    target: dbContext.target,
-    target_fulfillment: dbContext.target_fulfillment,
-    target_rating: dbContext.target_rating,
-  };
-}
-
-function transformContextGroup(dbGroup: DbContextGroup): ContextGroup {
-  return {
-    id: dbGroup.id,
-    projectId: dbGroup.project_id,
-    name: dbGroup.name,
-    color: dbGroup.color,
-    position: dbGroup.position,
-    type: dbGroup.type,
-    icon: dbGroup.icon,
-    createdAt: new Date(dbGroup.created_at),
-    updatedAt: new Date(dbGroup.updated_at),
-  };
-}
 
 interface IdeasHeaderWithFilterProps {
   projects: Array<{ id: string; name: string }>;
@@ -69,13 +31,13 @@ export default function IdeasHeaderWithFilter({
   const projectId = selectedProjectId !== 'all' ? selectedProjectId : null;
   const { data, isLoading } = useProjectContexts(projectId);
 
-  // Transform from DB format (snake_case) to UI format (camelCase)
+  // API returns camelCase data directly - no transformation needed
   const contexts = useMemo(
-    () => (data?.contexts || []).map(transformContext),
+    () => (data?.contexts || []) as unknown as Context[],
     [data?.contexts]
   );
   const contextGroups = useMemo(
-    () => (data?.groups || []).map(transformContextGroup),
+    () => (data?.groups || []) as unknown as ContextGroup[],
     [data?.groups]
   );
 

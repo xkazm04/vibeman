@@ -83,7 +83,7 @@ const activePollingIntervals = new Map<string, PollingState>();
 /** Default polling configuration */
 const DEFAULT_CONFIG: Required<PollingConfig> = {
   intervalMs: 10000, // 10 seconds
-  maxAttempts: 120,  // 20 minutes at 10s intervals
+  maxAttempts: Infinity, // No timeout - sessions can take a long time
   onAttempt: () => {},
 };
 
@@ -139,8 +139,8 @@ export function startPolling(
     attempts++;
     fullConfig.onAttempt(attempts);
 
-    // Check for timeout
-    if (attempts >= fullConfig.maxAttempts) {
+    // Check for timeout (only if maxAttempts is finite)
+    if (Number.isFinite(fullConfig.maxAttempts) && attempts >= fullConfig.maxAttempts) {
       console.error(`⏰ Polling timeout for task: ${taskId} after ${attempts} attempts`);
       stopPolling(taskId);
       return;

@@ -3,7 +3,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useContextStore } from '@/stores/contextStore';
 import { ScanType } from '../lib/scanTypes';
 import { executeClaudeIdeasWithContexts } from './lib/claudeIdeasExecutor';
 
@@ -31,20 +30,9 @@ export default function ScanInitiator({
   const [isProcessing, setIsProcessing] = React.useState(false);
 
   const { activeProject } = useActiveProjectStore();
-  const { selectedContextIds, contexts, loadProjectData } = useContextStore();
 
-  // Load contexts for active project when it changes
-  React.useEffect(() => {
-    if (activeProject?.id) {
-      loadProjectData(activeProject.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProject?.id]);
-
-  // Use prop selected context IDs, or fall back to store's selected context IDs
-  const currentSelectedContextIds = propSelectedContextIds.length > 0
-    ? propSelectedContextIds
-    : (selectedContextIds.size > 0 ? Array.from(selectedContextIds) : []);
+  // Use prop selected context IDs directly - context loading is handled by IdeasHeaderWithFilter
+  const currentSelectedContextIds = propSelectedContextIds;
 
   // Generated Ideas: Create requirement files directly
   const handleGeneratedIdeasClick = async () => {

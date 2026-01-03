@@ -2,10 +2,10 @@
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { DbIdea } from '@/app/db';
-import { Context } from '@/lib/queries/contextQueries';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
+import { useProjectContexts } from '@/lib/queries/contextsQueries';
 
 // Components
 import IdeasHeaderWithFilter from '@/app/features/Ideas/components/IdeasHeaderWithFilter';
@@ -17,50 +17,33 @@ import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 // Handlers and utilities
 import { getProjectName } from '@/app/features/Ideas/lib/ideasUtils';
-import {
-  fetchContextsForProjects,
-  getContextNameFromMap
-} from '@/app/features/Ideas/lib/contextLoader';
 import { ProcessingIdeaProvider } from '@/app/features/Ideas/lib/ProcessingIdeaContext';
 
-const IdeasLayout = () => {
+interface IdeasLayoutProps {
+  selectedProjectId?: string;
+}
+
+const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutProps) => {
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
   const [filterContextIds, setFilterContextIds] = React.useState<string[]>([]);
   const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
-  const [contextsMap, setContextsMap] = React.useState<Record<string, Context[]>>({});
-  const [loadedProjectIds, setLoadedProjectIds] = React.useState<string[]>([]);
 
   const { projects, initializeProjects, getProject } = useProjectConfigStore();
   const { setActiveProject } = useActiveProjectStore();
-  const { selectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
+  const { selectedProjectId: storeSelectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
   const invalidateIdeas = useInvalidateIdeas();
+
+  // Use prop if provided, otherwise fall back to store
+  const selectedProjectId = propSelectedProjectId ?? storeSelectedProjectId;
+
+  // Use React Query for context loading - shared cache with IdeasHeaderWithFilter
+  const projectIdForContexts = selectedProjectId !== 'all' ? selectedProjectId : null;
+  const { data: contextsData } = useProjectContexts(projectIdForContexts);
 
   // Initialize projects on mount
   React.useEffect(() => {
     initializeProjects();
   }, [initializeProjects]);
-
-  // Load contexts when projects change
-  React.useEffect(() => {
-    const loadContexts = async () => {
-      const projectIds = projects.map(p => p.id);
-
-      // Only reload if project list actually changed
-      if (JSON.stringify(projectIds.sort()) === JSON.stringify(loadedProjectIds.sort())) {
-        return;
-      }
-
-      if (projectIds.length > 0) {
-        const contexts = await fetchContextsForProjects(projectIds);
-        setContextsMap(contexts);
-        setLoadedProjectIds(projectIds);
-      }
-    };
-
-    if (projects.length > 0) {
-      loadContexts();
-    }
-  }, [projects, loadedProjectIds]);
 
   const handleIdeaUpdate = React.useCallback(async (updatedIdea: DbIdea) => {
     setSelectedIdea(updatedIdea);
@@ -98,10 +81,16 @@ const IdeasLayout = () => {
   // Get selected project details
   const selectedProject = selectedProjectId !== 'all' ? getProject(selectedProjectId) : null;
 
-  // Helper function to get context name using the loaded contexts map
+  // Helper function to get context name using React Query cached data
   const getContextName = React.useCallback((contextId: string) => {
-    return getContextNameFromMap(contextId, contextsMap);
-  }, [contextsMap]);
+    const contexts = contextsData?.contexts || [];
+    const context = contexts.find(c => c.id === contextId);
+    if (context) {
+      return context.name;
+    }
+    // Fallback: return shortened ID
+    return contextId.substring(0, 8);
+  }, [contextsData?.contexts]);
 
   // Memoize getProjectName callback to prevent re-creating on every render
   const getProjectNameCallback = React.useCallback((projectId: string) => {

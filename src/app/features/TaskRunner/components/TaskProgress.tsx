@@ -59,35 +59,19 @@ export function TaskProgress({ status, className = '' }: TaskProgressProps) {
   const styles = getProgressStyles();
 
   if (status === 'running') {
+    // Static progress bar for running state
     return (
       <div className={`h-1 w-full overflow-hidden rounded-full ${styles.barColor} ${className}`}>
-        <motion.div
-          className={`h-full ${styles.animatedColor} rounded-full`}
-          initial={{ x: '-100%', width: '30%' }}
-          animate={{ x: '400%' }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
+        <div className={`h-full ${styles.animatedColor} rounded-full w-1/2`} />
       </div>
     );
   }
 
   if (status === 'queued') {
+    // Static progress bar for queued state
     return (
       <div className={`h-1 w-full overflow-hidden rounded-full ${styles.barColor} ${className}`}>
-        <motion.div
-          className={`h-full ${styles.animatedColor} rounded-full`}
-          style={{ width: styles.width }}
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
+        <div className={`h-full ${styles.animatedColor} rounded-full`} style={{ width: styles.width }} />
       </div>
     );
   }

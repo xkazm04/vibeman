@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, MoreHorizontal, BookOpen, Wand2, Component, Activity, Users, Sunrise } from 'lucide-react';
+import { Store, MoreHorizontal, BookOpen, Wand2, Component, Activity, Users, Sunrise, Search, Command } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useMarketplaceStore } from '@/stores/marketplaceStore';
+import { useWorkflowStore } from '@/stores/workflowStore';
 import UnifiedProjectSelector from './UnifiedProjectSelector';
 
 interface NavigationItem {
@@ -249,6 +250,28 @@ function MarketplaceDropdownItem() {
   );
 }
 
+// Command palette trigger button
+function CommandPaletteTrigger() {
+  const { openCommandPalette } = useWorkflowStore();
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.3 }}
+      onClick={openCommandPalette}
+      className="group flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800/30 hover:bg-gray-800/50 border border-gray-700/50 hover:border-gray-600 rounded-lg transition-all"
+      data-testid="command-palette-trigger"
+    >
+      <Search className="w-4 h-4" />
+      <span className="hidden sm:inline text-xs">Search...</span>
+      <kbd className="hidden sm:flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-800 rounded border border-gray-700 text-gray-500 group-hover:text-gray-400">
+        <Command className="w-2.5 h-2.5" />K
+      </kbd>
+    </motion.button>
+  );
+}
+
 export default function TopBar() {
   const { activeModule, setActiveModule } = useOnboardingStore();
 
@@ -265,8 +288,13 @@ export default function TopBar() {
         className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-xl border-b border-white/10"
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <nav className="flex items-center justify-center">
-            {/* Module Navigation */}
+          <nav className="flex items-center justify-between">
+            {/* Left: Command Palette Trigger */}
+            <div className="flex-shrink-0 w-40">
+              <CommandPaletteTrigger />
+            </div>
+
+            {/* Center: Module Navigation */}
             <div className="flex items-center space-x-6">
               {mainNavigationItems.map((item, index) => (
                 <NavItem
@@ -286,6 +314,9 @@ export default function TopBar() {
                 startIndex={mainNavigationItems.length}
               />
             </div>
+
+            {/* Right: Placeholder for balance */}
+            <div className="flex-shrink-0 w-40" />
           </nav>
         </div>
 

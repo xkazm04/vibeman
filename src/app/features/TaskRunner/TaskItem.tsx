@@ -150,7 +150,7 @@ export default function TaskItem({
   const getStatusIcon = () => {
     switch (status) {
       case 'running':
-        return <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />;
+        return <Loader2 className="w-3 h-3 text-blue-400" />;
       case 'completed':
         return <CheckCircle2 className="w-3 h-3 text-green-400" />;
       case 'failed':

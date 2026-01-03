@@ -106,7 +106,7 @@ interface WorkflowState {
   // Recent entities for quick access
   recentEntities: Array<{
     id: string;
-    type: 'context' | 'goal' | 'idea' | 'task' | 'requirement';
+    type: 'context' | 'goal' | 'idea' | 'task' | 'requirement' | 'scan';
     name: string;
     module: AppModule;
     projectId?: string;

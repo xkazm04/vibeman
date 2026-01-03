@@ -11,6 +11,7 @@ import PageTransition from "../components/Navigation/PageTransition";
 import ControlPanelProvider from "./features/Onboarding/ControlPanelProvider";
 import DeferredWidgets from "../components/lazy/DeferredWidgets";
 import { ToastContainer } from "../components/ui/Toast";
+import UnifiedWorkflowProvider from "../components/UnifiedWorkflow/UnifiedWorkflowProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,12 +44,14 @@ export default function RootLayout({
             <ErrorBoundary>
               <ModalProvider>
                 <ControlPanelProvider>
-                  <TopBar />
-                  <PageTransition>
-                    {children}
-                  </PageTransition>
-                  <DeferredWidgets />
-                  <ToastContainer position="top-right" />
+                  <UnifiedWorkflowProvider>
+                    <TopBar />
+                    <PageTransition>
+                      {children}
+                    </PageTransition>
+                    <DeferredWidgets />
+                    <ToastContainer position="top-right" />
+                  </UnifiedWorkflowProvider>
                 </ControlPanelProvider>
               </ModalProvider>
             </ErrorBoundary>

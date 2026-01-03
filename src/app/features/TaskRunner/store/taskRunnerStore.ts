@@ -126,6 +126,9 @@ interface TaskRunnerState {
   executingTasks: Set<string>; // Currently executing task IDs
   isPaused: boolean; // Global pause state
 
+  // Progress tracking for running tasks (progressLines from /api/claude-code status)
+  taskProgress: Record<string, number>; // Map of taskId -> progressLines
+
   // Git Configuration
   gitConfig: GitConfig | null;
 
@@ -146,6 +149,7 @@ interface TaskRunnerState {
   // Actions - Task Execution
   executeNextTask: (batchId: BatchId, requirements: ProjectRequirement[]) => Promise<void>;
   updateTaskStatus: (taskId: string, status: TaskStatusUnion) => void;
+  updateTaskProgress: (taskId: string, progressLines: number) => void;
 
   // Actions - Global
   setGitConfig: (config: GitConfig | null) => void;
@@ -180,6 +184,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       tasks: {},
       executingTasks: new Set(),
       isPaused: false,
+      taskProgress: {},
       gitConfig: null,
 
       // ========================================================================
@@ -609,6 +614,15 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         }));
       },
 
+      updateTaskProgress: (taskId, progressLines) => {
+        set((state) => ({
+          taskProgress: {
+            ...state.taskProgress,
+            [taskId]: progressLines,
+          },
+        }));
+      },
+
       // ========================================================================
       // Global Actions
       // ========================================================================
@@ -802,6 +816,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           },
           tasks: {},
           executingTasks: new Set(),
+          taskProgress: {},
         });
       },
     }),
@@ -844,17 +859,29 @@ function createPollingCallback(
         return { done: false };
       }
 
-      console.log(`📊 Task status: ${taskStatus.status}`);
+      // Update progressLines for running tasks
+      if (taskStatus.progressLines !== undefined) {
+        useTaskRunnerStore.setState((state) => ({
+          taskProgress: {
+            ...state.taskProgress,
+            [requirementId]: taskStatus.progressLines,
+          },
+        }));
+      }
 
       if (taskStatus.status === 'completed') {
         // Task completed successfully
         console.log(`✅ Task ${requirementId} completed successfully`);
         state.updateTaskStatus(requirementId, createCompletedStatus());
 
-        // Update batch progress using setState
+        // Update batch progress and clear task progress using setState
         useTaskRunnerStore.setState((state) => {
           const batch = state.batches[batchId];
           if (!batch) return state;
+
+          // Clear progressLines for completed task
+          const newTaskProgress = { ...state.taskProgress };
+          delete newTaskProgress[requirementId];
 
           return {
             batches: {
@@ -865,6 +892,7 @@ function createPollingCallback(
               },
             },
             executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
+            taskProgress: newTaskProgress,
           };
         });
 
@@ -919,10 +947,14 @@ function createPollingCallback(
           createFailedStatus(taskStatus.error || 'Task failed', Date.now(), isSessionLimit)
         );
 
-        // Update batch failed count using setState
+        // Update batch failed count and clear task progress using setState
         useTaskRunnerStore.setState((state) => {
           const batch = state.batches[batchId];
           if (!batch) return state;
+
+          // Clear progressLines for failed task
+          const newTaskProgress = { ...state.taskProgress };
+          delete newTaskProgress[requirementId];
 
           return {
             batches: {
@@ -933,6 +965,7 @@ function createPollingCallback(
               },
             },
             executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
+            taskProgress: newTaskProgress,
           };
         });
 
@@ -989,7 +1022,7 @@ function startTaskPolling(
 
   startPolling(requirementId, callback, {
     intervalMs: 10000, // Poll every 10 seconds
-    maxAttempts: 120,  // 20 minutes at 10s intervals
+    // No maxAttempts - sessions can take a long time
     onAttempt: (attempt) => {
       if (attempt % 6 === 0) { // Log every minute
         console.log(`⏳ Polling attempt #${attempt} for task: ${requirementId}`);

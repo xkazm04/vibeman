@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle, Layers } from 'lucide-react';
 import { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import type { BatchState, BatchId } from '../store';
 import {
   useAutoExecution,
@@ -15,6 +16,9 @@ import {
   isRequirementRunning,
   isRequirementCompleted,
   isRequirementFailed,
+  // Task status helpers
+  isTaskRunning,
+  useTaskRunnerStore,
 } from '../store';
 import type { ProjectRequirement } from '../lib/types';
 import { TaskOffloadButton } from './TaskOffloadPanel';
@@ -120,6 +124,24 @@ function BatchDisplay({
   const completedCount = queueItems.filter(r => isRequirementCompleted(r.status)).length;
   const failedCount = queueItems.filter(r => isRequirementFailed(r.status)).length;
 
+  // Get progressLines for the currently running task from the store
+  const { taskProgress, tasks } = useTaskRunnerStore(
+    useShallow((state) => ({
+      taskProgress: state.taskProgress,
+      tasks: state.tasks,
+    }))
+  );
+
+  // Find the running task for this batch by checking the store's task states
+  const runningTaskId = batch?.taskIds.find(taskId => {
+    const task = tasks[taskId];
+    return task && isTaskRunning(task.status);
+  }) || null;
+
+  const progressLines = runningTaskId ? (taskProgress[runningTaskId] || 0) : 0;
+  // 1000 progressLines = 100% completion
+  const progressLinesPercent = Math.min((progressLines / 1000) * 100, 100);
+
   if (!batch) {
     return (
       <motion.div
@@ -154,9 +176,6 @@ function BatchDisplay({
     );
   }
 
-  const progress = batch.taskIds.length > 0
-    ? (batch.completedCount / batch.taskIds.length) * 100
-    : 0;
   const isRunning = isBatchRunning(batch.status);
   const isPaused = isBatchPaused(batch.status);
   const isCompleted = isBatchCompleted(batch.status);
@@ -301,13 +320,13 @@ function BatchDisplay({
 
           {/* Right Side: Progress Bar and Queue Items */}
           <div className="flex-1 min-w-0 border-l border-gray-700/30 pl-4 space-y-2">
-            {/* Progress Bar - Full Width */}
+            {/* Progress Bar - Based on progressLines from running task (1000 lines = 100%) */}
             <div className="space-y-1">
               <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
+                  animate={{ width: `${isRunning ? progressLinesPercent : (isCompleted ? 100 : 0)}%` }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
                   className={`h-full ${
                     isCompleted
                       ? 'bg-gradient-to-r from-green-500 to-emerald-500'
@@ -317,9 +336,9 @@ function BatchDisplay({
               </div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className={isRunning ? 'text-blue-400 font-medium' : 'text-gray-500'}>
-                  {batch.completedCount} / {batch.taskIds.length}
+                  {isRunning ? `${progressLines} lines` : `${batch.completedCount} / ${batch.taskIds.length}`}
                 </span>
-                <span className="text-gray-500">{Math.round(progress)}%</span>
+                <span className="text-gray-500">{isRunning ? `${Math.round(progressLinesPercent)}%` : (isCompleted ? '100%' : '0%')}</span>
               </div>
             </div>
 
@@ -356,9 +375,9 @@ function BatchDisplay({
                         </div>
                       </div>
 
-                      {/* Running indicator - using CSS animation instead of Framer Motion */}
+                      {/* Running indicator - static border */}
                       {isRequirementRunning(item.status) && (
-                        <div className="absolute inset-0 rounded border border-blue-500/40 animate-pulse" />
+                        <div className="absolute inset-0 rounded border-2 border-blue-500/60" />
                       )}
                     </motion.div>
                   );

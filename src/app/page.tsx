@@ -47,7 +47,7 @@ export default function Home() {
       case 'contexts':
         return <ContextLayout key="contexts" selectedFilesCount={0} />;
       case 'ideas':
-        return <IdeasLayout key="ideas" />;
+        return <IdeasLayout key="ideas" selectedProjectId={selectedProjectId} />;
       case 'tinder':
         return <TinderLayout key="tinder" />;
       case 'tasker':

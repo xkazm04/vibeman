@@ -253,7 +253,7 @@ const TaskColumn = React.memo(function TaskColumn({
                 title={`Aggregate ${aggregationCheck.aggregatableFiles} idea files into ${aggregationCheck.groups.filter(g => g.canAggregate).length} combined files`}
                 data-testid={`aggregate-btn-${projectId}`}
               >
-                <Layers className={`w-3 h-3 ${isAggregating ? 'animate-pulse' : ''}`} />
+                <Layers className="w-3 h-3" />
                 <span>{aggregationCheck.aggregatableFiles}</span>
               </button>
             )}

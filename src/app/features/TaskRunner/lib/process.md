@@ -236,7 +236,7 @@ interface ProjectRequirement {
 | Max Batches | 4 | `taskRunnerStore.ts:32` |
 | Tasks per Batch Running | 1 | `taskRunnerStore.ts:600-610` |
 | Poll Interval | 10 seconds | `taskRunnerStore.ts:848` |
-| Max Poll Attempts | 60 (10 min) | `taskRunnerStore.ts:750` |
+| Max Poll Attempts | Unlimited | `pollingManager.ts:86` |
 | Max Creation Retries | 5 | `taskExecutor.ts:231` |
 | Max Poll Errors | 15 | `taskExecutor.ts:271` |
 | Health Check Attempts | 5 | `taskExecutor.ts:213` |
