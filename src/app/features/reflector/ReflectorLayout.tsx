@@ -6,29 +6,52 @@ import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 
 // Lib imports
-import { IdeaFilterState, getEmptyFilterState, applyFilters } from '@/app/features/reflector/lib/filterIdeas';
+import {
+  IdeaFilterState,
+  UnifiedFilterState,
+  FilterBarConfig,
+  getEmptyFilterState,
+  getEmptyUnifiedFilterState,
+  toUnifiedFilterState,
+  toIdeaFilterState,
+  applyFilters
+} from '@/app/features/reflector/lib/filterIdeas';
 import { calculateImplementedStats, filterIdeasByViewMode } from '@/app/features/reflector/lib/statsHelpers';
 import { parseFiltersFromURL, buildURLFromFilters, removeFilterValue } from '@/app/features/reflector/lib/urlFilterSync';
 
 // Component imports
 import ReflectorHeader from '@/app/features/reflector/components/ReflectorHeader';
 import ReflectorViewTabs, { ViewMode } from '@/app/features/reflector/components/ReflectorViewTabs';
-import TotalViewFilters from '@/app/features/reflector/components/TotalViewFilters';
+import FilterBar from '@/app/features/reflector/components/FilterBar';
 import TotalViewDashboard from '@/app/features/reflector/components/TotalViewDashboard';
 import ActiveFiltersDisplay from '@/app/features/reflector/components/ActiveFiltersDisplay';
 import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { WeeklyDashboard } from '@/app/features/reflector/sub_Weekly/components';
+import ExportButton from '@/app/features/reflector/components/ExportButton';
+
+// FilterBar configuration for TotalViewDashboard
+const TOTAL_VIEW_FILTER_CONFIG: FilterBarConfig = {
+  showProjectFilter: true,
+  showContextFilter: true,
+  showStatusFilter: true,
+  showDateRangeFilter: true,
+  showSearchFilter: true,
+  variant: 'panel',
+};
 
 const ReflectorLayout = () => {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
-  const [filters, setFilters] = useState<IdeaFilterState>(getEmptyFilterState());
+  const [unifiedFilters, setUnifiedFilters] = useState<UnifiedFilterState>(getEmptyUnifiedFilterState());
 
   const { projects, initializeProjects } = useProjectConfigStore();
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // Convert unified filters to IdeaFilterState for backwards compatibility
+  const filters: IdeaFilterState = useMemo(() => toIdeaFilterState(unifiedFilters), [unifiedFilters]);
 
   // Initialize projects and load ideas
   useEffect(() => {
@@ -38,7 +61,8 @@ const ReflectorLayout = () => {
 
   // Sync filters with URL parameters
   useEffect(() => {
-    setFilters(parseFiltersFromURL(searchParams));
+    const parsedFilters = parseFiltersFromURL(searchParams);
+    setUnifiedFilters(toUnifiedFilterState(parsedFilters, unifiedFilters.weekOffset));
   }, [searchParams]);
 
   const loadImplementedIdeas = async () => {
@@ -70,24 +94,30 @@ const ReflectorLayout = () => {
   // Calculate stats
   const stats = useMemo(() => calculateImplementedStats(ideas), [ideas]);
 
-  // Update URL when filters change
-  const handleFilterChange = useCallback((newFilters: IdeaFilterState) => {
-    setFilters(newFilters);
-    const newUrl = buildURLFromFilters(newFilters);
+  // Update URL when unified filters change
+  const handleUnifiedFilterChange = useCallback((newFilters: UnifiedFilterState) => {
+    setUnifiedFilters(newFilters);
+    const ideaFilters = toIdeaFilterState(newFilters);
+    const newUrl = buildURLFromFilters(ideaFilters);
     router.push(newUrl, { scroll: false });
   }, [router]);
 
-  // Remove individual filter
+  // Remove individual filter (for ActiveFiltersDisplay)
   const handleRemoveFilter = useCallback((filterType: keyof IdeaFilterState, value?: string) => {
     const newFilters = removeFilterValue(filters, filterType, value);
-    handleFilterChange(newFilters);
-  }, [filters, handleFilterChange]);
+    setUnifiedFilters(toUnifiedFilterState(newFilters, unifiedFilters.weekOffset));
+    const newUrl = buildURLFromFilters(newFilters);
+    router.push(newUrl, { scroll: false });
+  }, [filters, unifiedFilters.weekOffset, router]);
 
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => (
     filters.projectIds.length > 0 ||
     filters.contextIds.length > 0 ||
     filters.statuses.length > 0 ||
+    filters.scanTypes.length > 0 ||
+    filters.effortLevels.length > 0 ||
+    filters.impactLevels.length > 0 ||
     !!filters.dateRange.start ||
     !!filters.dateRange.end ||
     !!filters.searchQuery.trim()
@@ -119,14 +149,23 @@ const ReflectorLayout = () => {
           <ReflectionDashboard />
         ) : (
           <div className="space-y-6">
-            {/* Filters and Active Filter Display */}
+            {/* Unified FilterBar and Active Filter Display */}
             <div className="space-y-4">
-              <TotalViewFilters
-                projects={projects}
-                filters={filters}
-                onChange={handleFilterChange}
-                ideas={ideas}
-              />
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <FilterBar
+                    projects={projects}
+                    filters={unifiedFilters}
+                    onChange={handleUnifiedFilterChange}
+                    config={TOTAL_VIEW_FILTER_CONFIG}
+                    ideas={ideas}
+                  />
+                </div>
+                <ExportButton
+                  ideas={displayedIdeas}
+                  filename="implemented-ideas"
+                />
+              </div>
               <ActiveFiltersDisplay
                 filters={filters}
                 projects={projects}

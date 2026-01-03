@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { projectServiceDb } from '@/lib/projectServiceDb';
 import { logger } from '@/lib/logger';
+import { detectProjectTypeSync } from '@/lib/projectTypeDetector';
+import type { ProjectType } from '@/types';
+
+const VALID_PROJECT_TYPES: ProjectType[] = [
+  'nextjs', 'react', 'express', 'fastapi', 'django', 'rails', 'generic', 'combined'
+];
 
 // GET /api/projects - Get all projects
 export async function GET() {
@@ -21,20 +27,32 @@ export async function POST(request: NextRequest) {
   try {
     const project = await request.json();
 
-    // Validate required fields
-    if (!project.id || !project.name || !project.path || !project.port) {
+    // Validate required fields (port is optional for 'combined' type)
+    const isCombined = project.type === 'combined';
+    if (!project.id || !project.name || !project.path || (!isCombined && !project.port)) {
       return NextResponse.json(
-        { error: 'Missing required fields: id, name, path, port' },
+        { error: isCombined ? 'Missing required fields: id, name, path' : 'Missing required fields: id, name, path, port' },
         { status: 400 }
       );
     }
 
-    // Validate project type
-    if (project.type && !['nextjs', 'fastapi', 'other'].includes(project.type)) {
+    // Validate project type if manually specified
+    if (project.type && !VALID_PROJECT_TYPES.includes(project.type)) {
       return NextResponse.json(
-        { error: 'Invalid project type. Must be nextjs, fastapi, or other' },
+        { error: `Invalid project type. Must be one of: ${VALID_PROJECT_TYPES.join(', ')}` },
         { status: 400 }
       );
+    }
+
+    // Auto-detect project type if not provided
+    let detectedType: ProjectType = 'generic';
+    if (!project.type) {
+      try {
+        detectedType = detectProjectTypeSync(project.path);
+        logger.info('Auto-detected project type:', { path: project.path, type: detectedType });
+      } catch (err) {
+        logger.warn('Project type detection failed, using generic:', { error: err });
+      }
     }
 
     // Convert form data to Project type
@@ -43,7 +61,7 @@ export async function POST(request: NextRequest) {
       name: project.name,
       path: project.path,
       port: project.port,
-      type: project.type || 'other',
+      type: project.type || detectedType,
       relatedProjectId: project.relatedProjectId,
       runScript: project.run_script,
       allowMultipleInstances: project.allowMultipleInstances || false,
@@ -84,9 +102,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // Validate project type if provided
-    if (updates.type && !['nextjs', 'fastapi', 'other'].includes(updates.type)) {
+    if (updates.type && !VALID_PROJECT_TYPES.includes(updates.type)) {
       return NextResponse.json(
-        { error: 'Invalid project type. Must be nextjs, fastapi, or other' },
+        { error: `Invalid project type. Must be one of: ${VALID_PROJECT_TYPES.join(', ')}` },
         { status: 400 }
       );
     }

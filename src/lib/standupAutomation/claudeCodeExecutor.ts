@@ -6,7 +6,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { automationSessionRepository } from '@/app/db/repositories/automation-session.repository';
 import { executionQueue } from '@/app/Claude/lib/claudeExecutionQueue';
-import { saveRequirement } from '@/app/Claude/lib/requirementApi';
+import { createRequirement } from '@/app/Claude/sub_ClaudeCodeManager/folderManager';
 import { logger } from '@/lib/logger';
 import {
   buildGoalGenerationPrompt,
@@ -91,17 +91,18 @@ export async function executeAutomationViaClaudeCode(params: {
   // Create requirement file
   const requirementName = `${AUTOMATION_REQUIREMENT_PREFIX}${sessionId.slice(0, 8)}`;
 
-  try {
-    await saveRequirement(projectPath, requirementName, prompt);
-    logger.info('[ClaudeCodeExecutor] Requirement file created', {
-      requirementName,
-      projectPath,
-    });
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+  const createResult = createRequirement(projectPath, requirementName, prompt, true);
+  if (!createResult.success) {
+    const errorMsg = createResult.error || 'Unknown error';
     automationSessionRepository.fail(sessionId, `Failed to create requirement: ${errorMsg}`);
-    throw error;
+    throw new Error(`Failed to create requirement: ${errorMsg}`);
   }
+
+  logger.info('[ClaudeCodeExecutor] Requirement file created', {
+    requirementName,
+    projectPath,
+    filePath: createResult.filePath,
+  });
 
   // Queue execution
   const taskId = executionQueue.addTask(
@@ -175,7 +176,10 @@ export async function executeGoalGenerationViaClaudeCode(params: {
 
   // Create requirement
   const requirementName = `${AUTOMATION_REQUIREMENT_PREFIX}gen-${session.id.slice(0, 8)}`;
-  await saveRequirement(projectPath, requirementName, prompt);
+  const createResult = createRequirement(projectPath, requirementName, prompt, true);
+  if (!createResult.success) {
+    throw new Error(`Failed to create requirement: ${createResult.error}`);
+  }
 
   // Queue execution
   const taskId = executionQueue.addTask(
@@ -249,7 +253,10 @@ export async function executeGoalEvaluationViaClaudeCode(params: {
 
   // Create requirement
   const requirementName = `${AUTOMATION_REQUIREMENT_PREFIX}eval-${session.id.slice(0, 8)}`;
-  await saveRequirement(projectPath, requirementName, prompt);
+  const createResult = createRequirement(projectPath, requirementName, prompt, true);
+  if (!createResult.success) {
+    throw new Error(`Failed to create requirement: ${createResult.error}`);
+  }
 
   // Queue execution
   const taskId = executionQueue.addTask(

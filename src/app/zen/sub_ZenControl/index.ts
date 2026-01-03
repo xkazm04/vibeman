@@ -1,15 +1,17 @@
 /**
  * Zen Control Sub-Module
- * Cross-device offload controls for Zen mode
+ * Cross-device controls for Zen mode
+ * Powered by Supabase Realtime for internet-wide connectivity
  */
 
 export { default as ZenControlPanel } from './ZenControlPanel';
 export { default as ModeToggle } from './components/ModeToggle';
-export { default as PairingPanel } from './components/PairingPanel';
-export { default as IncomingTasks } from './components/IncomingTasks';
-export { default as RemoteStatus } from './components/RemoteStatus';
 
-export { useOffloadStore } from './lib/offloadStore';
-export type { OffloadTask } from './lib/offloadStore';
+// Supabase-based components
+export { default as SupabasePairingPanel } from './components/SupabasePairingPanel';
+export { default as OnlineDevices } from './components/OnlineDevices';
+export { default as SupabaseIncomingTasks } from './components/SupabaseIncomingTasks';
 
-export * from './lib/offloadApi';
+// Store and hooks
+export { useSupabaseRealtimeStore } from './lib/supabaseRealtimeStore';
+export { useSupabaseRealtime } from './hooks/useSupabaseRealtime';

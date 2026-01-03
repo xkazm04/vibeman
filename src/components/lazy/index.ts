@@ -5,7 +5,7 @@
  * performance tracking and visual loading states.
  */
 
-export { default as FeatureLoadingSkeleton } from './FeatureLoadingSkeleton';
+export { FeatureSpinner } from '@/components/ui/Spinner';
 export {
   createLazyFeature,
   useTrackMount,

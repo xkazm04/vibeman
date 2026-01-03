@@ -4,7 +4,7 @@ import { projectServiceDb } from '@/lib/projectServiceDb';
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectId } = await request.json();
+    const { projectId, port: overridePort } = await request.json();
 
     const project = await projectServiceDb.getProject(projectId);
 
@@ -15,11 +15,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await processManager.startProcess(project.id, project.path, project.port);
+    // Use override port if provided, otherwise use project's configured port
+    const port = overridePort ?? project.port;
+
+    await processManager.startProcess(project.id, project.path, port);
 
     return NextResponse.json({
       success: true,
-      message: `Started ${project.name} on port ${project.port}`
+      message: `Started ${project.name} on port ${port}`,
+      port
     });
   } catch (error) {
     return NextResponse.json(

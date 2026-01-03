@@ -33,6 +33,16 @@ interface ExecutiveSummaryProps {
   filters: ComparisonFilterState;
 }
 
+type TabId = 'narrative' | 'insights' | 'rankings' | 'recommendations';
+
+interface TabConfig {
+  id: TabId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  borderColor: string;
+}
+
 const severityColors: Record<InsightSeverity, { bg: string; border: string; text: string; icon: string }> = {
   critical: { bg: 'bg-red-500/10', border: 'border-red-500/40', text: 'text-red-400', icon: 'text-red-500' },
   high: { bg: 'bg-orange-500/10', border: 'border-orange-500/40', text: 'text-orange-400', icon: 'text-orange-500' },
@@ -191,16 +201,88 @@ function RecommendationCard({ recommendation, index }: { recommendation: ScanTyp
   );
 }
 
+const TAB_CONFIG: TabConfig[] = [
+  { id: 'narrative', label: 'Summary', icon: FileText, color: 'text-indigo-400', borderColor: 'border-indigo-500/40' },
+  { id: 'insights', label: 'Insights', icon: Lightbulb, color: 'text-amber-400', borderColor: 'border-amber-500/40' },
+  { id: 'rankings', label: 'Rankings', icon: BarChart3, color: 'text-cyan-400', borderColor: 'border-cyan-500/40' },
+  { id: 'recommendations', label: 'Actions', icon: Target, color: 'text-purple-400', borderColor: 'border-purple-500/40' },
+];
+
+function NarrativeContent({ report }: { report: ExecutiveInsightReport }) {
+  return (
+    <div className="space-y-4" data-testid="executive-summary-narrative-content">
+      <p className="text-gray-300 leading-relaxed">{report.narrative.overview}</p>
+
+      {report.narrative.keyFindings.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-gray-400 mb-2">Key Findings</h4>
+          <ul className="space-y-1">
+            {report.narrative.keyFindings.map((finding, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-sm text-gray-400">
+                <span className="text-indigo-400 mt-0.5">•</span>
+                <span>{finding}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="pt-3 border-t border-gray-700/50">
+        <h4 className="text-sm font-semibold text-gray-400 mb-1">Outlook</h4>
+        <p className="text-sm text-gray-500 italic">{report.narrative.outlook}</p>
+      </div>
+    </div>
+  );
+}
+
+function InsightsContent({ report }: { report: ExecutiveInsightReport }) {
+  return (
+    <div className="grid gap-3" data-testid="executive-summary-insights-content">
+      {report.insights.length === 0 ? (
+        <p className="text-sm text-gray-500 italic">No insights available for the current filters.</p>
+      ) : (
+        report.insights.map((insight) => (
+          <InsightCard key={insight.id} insight={insight} />
+        ))
+      )}
+    </div>
+  );
+}
+
+function RankingsContent({ report }: { report: ExecutiveInsightReport }) {
+  return (
+    <div className="space-y-2" data-testid="executive-summary-rankings-content">
+      {report.specialistRankings.length === 0 ? (
+        <p className="text-sm text-gray-500 italic">No specialist rankings available.</p>
+      ) : (
+        report.specialistRankings.slice(0, 10).map((ranking, idx) => (
+          <RankingCard key={ranking.scanType} ranking={ranking} index={idx} />
+        ))
+      )}
+    </div>
+  );
+}
+
+function RecommendationsContent({ report }: { report: ExecutiveInsightReport }) {
+  return (
+    <div className="space-y-3" data-testid="executive-summary-recommendations-content">
+      {report.scanRecommendations.length === 0 ? (
+        <p className="text-sm text-gray-500 italic">No recommendations available for the current filters.</p>
+      ) : (
+        report.scanRecommendations.map((rec, idx) => (
+          <RecommendationCard key={rec.scanType} recommendation={rec} index={idx} />
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
   const [report, setReport] = useState<ExecutiveInsightReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    narrative: true,
-    insights: true,
-    rankings: false,
-    recommendations: false,
-  });
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabId>('narrative');
 
   const loadInsights = useCallback(async () => {
     setLoading(true);
@@ -225,13 +307,6 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
   useEffect(() => {
     loadInsights();
   }, [loadInsights]);
-
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
 
   if (loading) {
     return (
@@ -263,18 +338,38 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
     return null;
   }
 
+  // Get available tabs (filter out recommendations if empty)
+  const availableTabs = TAB_CONFIG.filter(
+    (tab) => tab.id !== 'recommendations' || report.scanRecommendations.length > 0
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'narrative':
+        return <NarrativeContent report={report} />;
+      case 'insights':
+        return <InsightsContent report={report} />;
+      case 'rankings':
+        return <RankingsContent report={report} />;
+      case 'recommendations':
+        return <RecommendationsContent report={report} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-4" data-testid="executive-summary">
-      {/* Narrative Section */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="bg-gradient-to-br from-indigo-500/5 to-purple-600/5 border border-indigo-500/30 rounded-lg overflow-hidden"
       >
+        {/* Header with expand/collapse */}
         <button
-          onClick={() => toggleSection('narrative')}
+          onClick={() => setIsExpanded(!isExpanded)}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors"
-          data-testid="executive-summary-narrative-toggle"
+          data-testid="executive-summary-toggle"
         >
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gray-900/60 rounded-lg border border-indigo-500/40">
@@ -285,7 +380,7 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
               <p className="text-sm text-indigo-400/70">{report.narrative.headline}</p>
             </div>
           </div>
-          {expandedSections.narrative ? (
+          {isExpanded ? (
             <ChevronUp className="w-5 h-5 text-gray-400" />
           ) : (
             <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -293,194 +388,77 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
         </button>
 
         <AnimatePresence>
-          {expandedSections.narrative && (
+          {isExpanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="px-4 pb-4 space-y-4">
-                <p className="text-gray-300 leading-relaxed">{report.narrative.overview}</p>
+              {/* Tab Navigation */}
+              <div className="px-4 border-b border-gray-700/50">
+                <div className="flex gap-1 -mb-px" data-testid="executive-summary-tabs">
+                  {availableTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                          isActive
+                            ? `${tab.color} bg-gray-800/50 border-t border-x ${tab.borderColor}`
+                            : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/30'
+                        }`}
+                        data-testid={`executive-summary-tab-${tab.id}`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{tab.label}</span>
+                        {tab.id === 'insights' && report.insights.length > 0 && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-amber-500/20' : 'bg-gray-700/50'}`}>
+                            {report.insights.length}
+                          </span>
+                        )}
+                        {tab.id === 'rankings' && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-cyan-500/20' : 'bg-gray-700/50'}`}>
+                            {report.specialistRankings.length}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                {report.narrative.keyFindings.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-400 mb-2">Key Findings</h4>
-                    <ul className="space-y-1">
-                      {report.narrative.keyFindings.map((finding, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-400">
-                          <span className="text-indigo-400 mt-0.5">•</span>
-                          <span>{finding}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+              {/* Tab Content */}
+              <div className="p-4">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {renderTabContent()}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Timestamp Footer */}
+              <div className="px-4 pb-3 text-xs text-gray-600 border-t border-gray-700/30 pt-3">
+                Generated {new Date(report.generatedAt).toLocaleString()}
+                {report.filterContext.projectName && (
+                  <span> • Project: {report.filterContext.projectName}</span>
                 )}
-
-                <div className="pt-3 border-t border-gray-700/50">
-                  <h4 className="text-sm font-semibold text-gray-400 mb-1">Outlook</h4>
-                  <p className="text-sm text-gray-500 italic">{report.narrative.outlook}</p>
-                </div>
+                {report.filterContext.contextName && (
+                  <span> • Context: {report.filterContext.contextName}</span>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
-
-      {/* Actionable Insights Section */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="bg-gray-900/50 border border-gray-700/50 rounded-lg overflow-hidden"
-      >
-        <button
-          onClick={() => toggleSection('insights')}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors"
-          data-testid="executive-summary-insights-toggle"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-900/60 rounded-lg border border-amber-500/40">
-              <Lightbulb className="w-4 h-4 text-amber-400" />
-            </div>
-            <div className="text-left">
-              <h3 className="text-lg font-semibold text-gray-200">Actionable Insights</h3>
-              <p className="text-sm text-gray-500">{report.insights.length} insights identified</p>
-            </div>
-          </div>
-          {expandedSections.insights ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
-        </button>
-
-        <AnimatePresence>
-          {expandedSections.insights && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4 grid gap-3">
-                {report.insights.map((insight) => (
-                  <InsightCard key={insight.id} insight={insight} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Specialist Rankings Section */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="bg-gray-900/50 border border-gray-700/50 rounded-lg overflow-hidden"
-      >
-        <button
-          onClick={() => toggleSection('rankings')}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors"
-          data-testid="executive-summary-rankings-toggle"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-900/60 rounded-lg border border-cyan-500/40">
-              <BarChart3 className="w-4 h-4 text-cyan-400" />
-            </div>
-            <div className="text-left">
-              <h3 className="text-lg font-semibold text-gray-200">Specialist Rankings</h3>
-              <p className="text-sm text-gray-500">
-                {report.specialistRankings.length} specialists ranked by performance
-              </p>
-            </div>
-          </div>
-          {expandedSections.rankings ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
-        </button>
-
-        <AnimatePresence>
-          {expandedSections.rankings && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4 space-y-2">
-                {report.specialistRankings.slice(0, 10).map((ranking, idx) => (
-                  <RankingCard key={ranking.scanType} ranking={ranking} index={idx} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Scan Recommendations Section */}
-      {report.scanRecommendations.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="bg-gray-900/50 border border-gray-700/50 rounded-lg overflow-hidden"
-        >
-          <button
-            onClick={() => toggleSection('recommendations')}
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors"
-            data-testid="executive-summary-recommendations-toggle"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-900/60 rounded-lg border border-purple-500/40">
-                <Target className="w-4 h-4 text-purple-400" />
-              </div>
-              <div className="text-left">
-                <h3 className="text-lg font-semibold text-gray-200">Scan Recommendations</h3>
-                <p className="text-sm text-gray-500">
-                  Suggested next steps based on current performance
-                </p>
-              </div>
-            </div>
-            {expandedSections.recommendations ? (
-              <ChevronUp className="w-5 h-5 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-gray-400" />
-            )}
-          </button>
-
-          <AnimatePresence>
-            {expandedSections.recommendations && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="px-4 pb-4 space-y-3">
-                  {report.scanRecommendations.map((rec, idx) => (
-                    <RecommendationCard key={rec.scanType} recommendation={rec} index={idx} />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
-
-      {/* Timestamp Footer */}
-      <div className="text-center text-xs text-gray-600">
-        Generated {new Date(report.generatedAt).toLocaleString()}
-        {report.filterContext.projectName && (
-          <span> • Project: {report.filterContext.projectName}</span>
-        )}
-        {report.filterContext.contextName && (
-          <span> • Context: {report.filterContext.contextName}</span>
-        )}
-      </div>
     </div>
   );
 }

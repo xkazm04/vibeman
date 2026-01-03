@@ -85,7 +85,8 @@
       "Bash(timeout 20 npm run dev:*)",
       "Bash(timeout 90 npm run build:*)",
       "Bash(timeout 120 npm run build:*)",
-      "Bash(.ts$ \")"
+      "Bash(.ts$ \")",
+      "Bash(timeout 150 npm run build:*)"
     ],
     "deny": [],
     "ask": []

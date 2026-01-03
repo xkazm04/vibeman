@@ -22,6 +22,23 @@ interface ClaudeIdeasRequest {
 }
 
 /**
+ * Get the Vibeman API base URL for Claude Code to use
+ * This allows the URL to be configured for different environments
+ */
+function getVibemanApiUrl(): string {
+  // Check environment variable first (for production/staging)
+  if (process.env.VIBEMAN_API_URL) {
+    return process.env.VIBEMAN_API_URL;
+  }
+  // Check if we have a public URL configured
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  // Default to localhost:3000 for local development
+  return 'http://localhost:3000';
+}
+
+/**
  * Build Claude Code requirement content using the standard prompt builder
  * This ensures Claude Ideas uses the same prompts as non-Claude scans
  */
@@ -32,6 +49,7 @@ function buildClaudeIdeaRequirement(config: {
   context: DbContext | null;
 }): string {
   const { projectId, projectName, scanType, context } = config;
+  const apiUrl = getVibemanApiUrl();
 
   const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
   const scanLabel = scanConfig?.label ?? scanType;
@@ -101,7 +119,7 @@ You need to perform TWO steps to save ideas:
 First, create a scan record to track this idea generation session.
 
 \`\`\`bash
-curl -s -X POST http://localhost:3000/api/scans \\
+curl -s -X POST ${apiUrl}/api/scans \\
   -H "Content-Type: application/json" \\
   -d '{
     "project_id": "${projectId}",
@@ -116,7 +134,7 @@ The response will include a \`scan.id\` - save this for the next step.
 For each idea, make a POST request with this JSON body:
 
 \`\`\`
-POST http://localhost:3000/api/ideas
+POST ${apiUrl}/api/ideas
 Content-Type: application/json
 
 {
@@ -186,7 +204,7 @@ Content-Type: application/json
 
 \`\`\`bash
 # Step 1: Create scan record
-SCAN_RESPONSE=$(curl -s -X POST http://localhost:3000/api/scans \\
+SCAN_RESPONSE=$(curl -s -X POST ${apiUrl}/api/scans \\
   -H "Content-Type: application/json" \\
   -d '{
     "project_id": "${projectId}",
@@ -198,7 +216,7 @@ SCAN_RESPONSE=$(curl -s -X POST http://localhost:3000/api/scans \\
 SCAN_ID=$(echo $SCAN_RESPONSE | jq -r '.scan.id')
 
 # Step 2: Create ideas using the scan_id
-curl -X POST http://localhost:3000/api/ideas \\
+curl -X POST ${apiUrl}/api/ideas \\
   -H "Content-Type: application/json" \\
   -d '{
     "scan_id": "'$SCAN_ID'",

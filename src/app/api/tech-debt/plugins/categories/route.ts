@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getAvailableScanCategories } from '@/app/features/TechDebtRadar/lib/plugins';
+import { getAvailableScanCategories } from '@/app/features/TechDebt/lib/plugins';
 import { logger } from '@/lib/logger';
 
 /**

@@ -31,7 +31,18 @@ const BREAKDOWN_AGENTS: string[] = [
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      logger.error('JSON parse error in breakdown API:', {
+        error: parseError instanceof Error ? parseError.message : 'Unknown'
+      });
+      return createErrorResponse(
+        `Invalid JSON in request body: ${parseError instanceof Error ? parseError.message : 'Parse error'}`,
+        400
+      );
+    }
     const { goalId, projectId, projectPath } = body;
 
     if (!goalId || !projectId || !projectPath) {

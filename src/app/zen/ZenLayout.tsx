@@ -20,7 +20,6 @@ export default function ZenLayout() {
   const [activeTab, setActiveTab] = useState<ZenTab>('monitor');
   const {
     mode,
-    pairing,
     selectedBatchId,
     setConnected,
     setCurrentTask,
@@ -163,7 +162,6 @@ export default function ZenLayout() {
                 ? 'bg-gray-700 text-white'
                 : 'text-gray-400 hover:text-white'
               }
-              ${pairing.status === 'paired' ? 'text-cyan-400' : ''}
             `}
           >
             <Settings2 className="w-4 h-4" />

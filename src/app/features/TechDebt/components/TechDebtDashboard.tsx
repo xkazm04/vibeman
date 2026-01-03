@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Target,
-  Shield,
   Scan,
   Filter,
   Puzzle,
@@ -17,7 +16,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Zap,
-  Layers,
 } from 'lucide-react';
 import TechDebtCard from './TechDebtCard';
 import TechDebtDetailModal from './TechDebtDetailModal';
@@ -28,39 +26,13 @@ import OpportunityCard from './OpportunityCard';
 import PredictionList from './PredictionList';
 import type { DbTechDebt, TechDebtStats, TechDebtCategory, TechDebtSeverity, TechDebtStatus } from '@/app/db/models/tech-debt.types';
 import type { DbDebtPrediction } from '@/app/db/models/debt-prediction.types';
-import { UniversalSelect } from '@/components/ui/UniversalSelect';
+import { FilterSelect } from '@/components/ui/FilterSelect';
 import { useDebtPredictionStore, type OpportunityCard as OpportunityCardType } from '@/stores/debtPredictionStore';
 
 interface TechDebtDashboardProps {
   projectId: string;
   projectPath?: string;
 }
-
-type ViewMode = 'radar' | 'predictions' | 'combined';
-
-interface FilterSelectProps {
-  label: string;
-  value: string[];
-  onChange: (values: string[]) => void;
-  options: { value: string; label: string }[];
-}
-
-const FilterSelect: React.FC<FilterSelectProps> = ({ label, value, onChange, options }) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-400 mb-2">
-      {label}
-    </label>
-    <UniversalSelect
-      value={value.length > 0 ? value[0] : ''}
-      onChange={(selectedValue) => {
-        onChange(selectedValue ? [selectedValue] : []);
-      }}
-      options={options}
-      variant="default"
-      placeholder="Select..."
-    />
-  </div>
-);
 
 export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDashboardProps) {
   // Radar state
@@ -79,8 +51,7 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
   const [showSettings, setShowSettings] = useState(false);
   const [availableCategories, setAvailableCategories] = useState<{ value: string; label: string }[]>([]);
 
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('combined');
+  // View state - always show combined view, but allow toggling opportunity panel
   const [showOpportunityPanel, setShowOpportunityPanel] = useState(true);
 
   // Prediction store
@@ -272,43 +243,6 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex items-center bg-gray-800/50 rounded-lg border border-gray-700/50 p-1">
-            <button
-              onClick={() => setViewMode('combined')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
-                viewMode === 'combined'
-                  ? 'bg-cyan-500/20 text-cyan-400'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-              data-testid="view-mode-combined-btn"
-            >
-              <Layers className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('radar')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
-                viewMode === 'radar'
-                  ? 'bg-red-500/20 text-red-400'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-              data-testid="view-mode-radar-btn"
-            >
-              <Target className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('predictions')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
-                viewMode === 'predictions'
-                  ? 'bg-cyan-500/20 text-cyan-400'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-              data-testid="view-mode-predictions-btn"
-            >
-              <Shield className="w-4 h-4" />
-            </button>
-          </div>
-
           <button
             onClick={() => setShowPlugins(!showPlugins)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg
@@ -429,15 +363,13 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
       </AnimatePresence>
 
       {/* Combined Stats Panel */}
-      {(viewMode === 'combined' || viewMode === 'radar') && stats && (
+      {stats && (
         <div className="p-6 border-b border-gray-700/50">
           <div className="flex items-start gap-6">
             {/* Health Score */}
-            {viewMode === 'combined' && (
-              <div className="flex-shrink-0">
-                <HealthScoreGauge score={healthScore} size="md" />
-              </div>
-            )}
+            <div className="flex-shrink-0">
+              <HealthScoreGauge score={healthScore} size="md" />
+            </div>
 
             {/* Stats Panel */}
             <div className="flex-1">
@@ -445,7 +377,7 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
             </div>
 
             {/* Trend Summary */}
-            {viewMode === 'combined' && predictionStats?.trends && (
+            {predictionStats?.trends && (
               <div className="flex flex-col gap-3 text-xs">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-3 h-3 text-red-400" />
@@ -498,6 +430,7 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
                 { value: 'architecture', label: 'Architecture' },
                 { value: 'accessibility', label: 'Accessibility' }
               ]}
+              data-testid="tech-debt-category-filter"
             />
 
             <FilterSelect
@@ -510,6 +443,7 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
                 { value: 'medium', label: 'Medium' },
                 { value: 'low', label: 'Low' }
               ]}
+              data-testid="tech-debt-severity-filter"
             />
 
             <FilterSelect
@@ -524,6 +458,7 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
                 { value: 'resolved', label: 'Resolved' },
                 { value: 'dismissed', label: 'Dismissed' }
               ]}
+              data-testid="tech-debt-status-filter"
             />
           </div>
         </motion.div>
@@ -531,9 +466,9 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Opportunity Cards Panel (for combined/predictions view) */}
+        {/* Opportunity Cards Panel */}
         <AnimatePresence>
-          {(viewMode === 'combined' || viewMode === 'predictions') && showOpportunityPanel && (
+          {showOpportunityPanel && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 320, opacity: 1 }}
@@ -579,8 +514,7 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
         </AnimatePresence>
 
         {/* Toggle panel button */}
-        {(viewMode === 'combined' || viewMode === 'predictions') && (
-          <button
+        <button
             onClick={() => setShowOpportunityPanel(!showOpportunityPanel)}
             className="absolute z-10 p-1 bg-gray-800 border border-white/10 rounded-r-lg hover:bg-gray-700 transition-colors"
             style={{
@@ -595,26 +529,22 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
             ) : (
               <ChevronRight className="w-4 h-4 text-gray-400" />
             )}
-          </button>
-        )}
+        </button>
 
         {/* Main Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          {/* Predictions List (for combined/predictions view) */}
-          {(viewMode === 'combined' || viewMode === 'predictions') && (
-            <div className={`${viewMode === 'combined' ? 'h-1/2 border-b border-gray-700/50' : 'flex-1'} overflow-hidden`}>
-              <PredictionList
-                predictions={predictions}
-                onDismiss={(id) => dismissPrediction(id, 'User dismissed')}
-                onAddress={addressPrediction}
-                onEscalate={escalatePrediction}
-              />
-            </div>
-          )}
+          {/* Predictions List */}
+          <div className="h-1/2 border-b border-gray-700/50 overflow-hidden">
+            <PredictionList
+              predictions={predictions}
+              onDismiss={(id) => dismissPrediction(id, 'User dismissed')}
+              onAddress={addressPrediction}
+              onEscalate={escalatePrediction}
+            />
+          </div>
 
-          {/* Tech Debt Grid (for combined/radar view) */}
-          {(viewMode === 'combined' || viewMode === 'radar') && (
-            <div className={`${viewMode === 'combined' ? 'h-1/2' : 'flex-1'} overflow-y-auto p-6`}>
+          {/* Tech Debt Grid */}
+          <div className="h-1/2 overflow-y-auto p-6">
               {isLoading ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="text-gray-400">Loading tech debt...</div>
@@ -637,8 +567,7 @@ export default function TechDebtDashboard({ projectId, projectPath }: TechDebtDa
                   ))}
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 

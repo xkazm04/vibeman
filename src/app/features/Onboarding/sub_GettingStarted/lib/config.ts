@@ -12,38 +12,51 @@ export interface TaskConfig {
 }
 
 /**
- * Default onboarding tasks configuration
+ * Default onboarding tasks configuration.
+ * Represents the complete workflow from project setup to implementation review.
  */
 export const ONBOARDING_TASKS: TaskConfig[] = [
   {
     id: 'create-project',
-    label: 'Create a project',
-    description: 'Set up your first project to start building',
+    label: 'Register a project',
+    description: 'Connect your codebase to start analyzing',
     location: 'coder'
   },
   {
-    id: 'generate-docs',
-    label: 'Generate documentation',
-    description: 'Use AI to analyze and document your codebase',
-    location: 'coder'
+    id: 'run-blueprint',
+    label: 'Run blueprint scan',
+    description: 'Analyze project structure and auto-create contexts',
+    location: 'blueprint'
   },
   {
-    id: 'compose-context',
-    label: 'Compose a context',
-    description: 'Group related files together for better organization',
-    location: 'coder'
+    id: 'review-contexts',
+    label: 'Review contexts',
+    description: 'Organize your code into logical feature groups',
+    location: 'contexts'
   },
   {
-    id: 'scan-ideas',
-    label: 'Scan for ideas',
-    description: 'Let AI specialists discover improvement opportunities',
+    id: 'generate-ideas',
+    label: 'Generate ideas',
+    description: 'AI agents analyze code for improvements',
     location: 'ideas'
   },
   {
-    id: 'let-code',
-    label: 'Let it Code',
-    description: 'Start implementing ideas with AI assistance',
+    id: 'evaluate-ideas',
+    label: 'Evaluate ideas',
+    description: 'Swipe to accept or reject suggested improvements',
+    location: 'tinder'
+  },
+  {
+    id: 'run-task',
+    label: 'Run first task',
+    description: 'Execute an accepted idea with Claude Code',
     location: 'tasker'
+  },
+  {
+    id: 'review-impl',
+    label: 'Review implementation',
+    description: 'Accept or reject AI-generated code changes',
+    location: 'manager'
   },
 ];
 

@@ -1,5 +1,5 @@
 /**
- * Plugin Architecture Types for TechDebtRadar
+ * Plugin Architecture Types for TechDebt
  * Defines interfaces for custom debt category plugins
  */
 

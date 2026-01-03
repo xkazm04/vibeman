@@ -1,4 +1,4 @@
-import { FolderOpen, Loader2 } from 'lucide-react';
+import { FolderOpen, Loader2, Check } from 'lucide-react';
 import { Directory } from '../types';
 
 interface PathSelectionProps {
@@ -22,67 +22,63 @@ export default function PathSelection({
 }: PathSelectionProps) {
   if (loading) {
     return (
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-3">
-          Project Path *
-        </label>
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-          <span className="ml-2 text-gray-400">Loading directories...</span>
+      <div className="flex items-center justify-center py-6">
+        <div className="flex items-center gap-2 text-gray-500">
+          <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+          <span className="text-sm">Scanning directories...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-300 mb-3">
-        Project Path *
-      </label>
-
-      <div className="text-sm text-gray-500 mb-3">
-        Parent directory: <span className="font-mono text-gray-400">{parentPath}</span>
+    <div className="space-y-2">
+      <div className="text-xs text-gray-500">
+        Parent: <span className="font-mono text-gray-400">{parentPath}</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto custom-scrollbar border border-gray-600 rounded-md p-3 bg-gray-700/30">
-        {directories.map((dir) => (
-          <label
-            key={dir.path}
-            className={`flex items-center space-x-3 p-3 rounded-md cursor-pointer transition-colors ${
-              selectedPath === dir.path
-                ? 'bg-cyan-500/20 border border-cyan-500/30'
-                : 'hover:bg-gray-600/30 border border-transparent'
-            }`}
-          >
-            <input
-              type="radio"
-              name="projectPath"
-              value={dir.path}
-              checked={selectedPath === dir.path}
-              onChange={(e) => {
-                onPathSelect(e.target.value);
-                // Auto-fill project name if empty
+      <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+        {directories.map((dir) => {
+          const isSelected = selectedPath === dir.path;
+          return (
+            <button
+              key={dir.path}
+              type="button"
+              onClick={() => {
+                onPathSelect(dir.path);
                 if (!projectName && onAutoFillName) {
                   onAutoFillName(dir.name);
                 }
               }}
-              className="sr-only"
-            />
-            <FolderOpen className="w-4 h-4 text-blue-400 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">
-                {dir.name}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                isSelected
+                  ? 'bg-cyan-500/20 ring-1 ring-cyan-500/40 text-white'
+                  : 'hover:bg-gray-700/50 text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <div className={`p-1 rounded ${isSelected ? 'bg-cyan-500/20' : 'bg-gray-700/50'}`}>
+                {isSelected ? (
+                  <Check className="w-3 h-3 text-cyan-400" />
+                ) : (
+                  <FolderOpen className="w-3 h-3 text-blue-400" />
+                )}
               </div>
-              <div className="text-sm text-gray-400 truncate font-mono">
-                {dir.path}
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-medium truncate ${isSelected ? 'text-cyan-300' : ''}`}>
+                  {dir.name}
+                </div>
+                <div className="text-[10px] text-gray-500 truncate font-mono">
+                  {dir.path}
+                </div>
               </div>
-            </div>
-          </label>
-        ))}
+            </button>
+          );
+        })}
 
         {directories.length === 0 && (
-          <div className="text-center py-4 text-gray-500">
-            No directories found in parent path
+          <div className="flex flex-col items-center justify-center py-6 text-gray-500">
+            <FolderOpen className="w-6 h-6 mb-2 text-gray-600" />
+            <span className="text-xs">No directories found</span>
           </div>
         )}
       </div>

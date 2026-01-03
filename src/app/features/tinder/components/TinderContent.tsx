@@ -9,9 +9,18 @@ import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import ActionButtons from './TinderButtons';
+import SwipeProgress from './SwipeProgress';
+import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
 import { Context } from '@/lib/queries/contextQueries';
 import { getContextNameFromMap } from '@/app/features/Ideas/lib/contextLoader';
+
+// Tinder keyboard hints
+const TINDER_KEYBOARD_HINTS = [
+  { key: 'A', label: 'Accept', color: 'green' as const },
+  { key: 'Z', label: 'Reject', color: 'red' as const },
+  { key: 'D', label: 'Delete', color: 'gray' as const },
+];
 
 interface TinderContentProps {
   ideas: DbIdea[];
@@ -221,6 +230,21 @@ export default function TinderContent({
         onAccept={onAccept}
         disabled={processing}
       />
+
+      {/* Keyboard Hints */}
+      <div className="mt-4 flex justify-center">
+        <KeyboardHintCompact hints={TINDER_KEYBOARD_HINTS} />
+      </div>
+
+      {/* Progress Indicator */}
+      <div className="mt-6">
+        <SwipeProgress
+          total={ideas.length}
+          reviewed={currentIndex}
+          accepted={ideas.slice(0, currentIndex).filter(i => i.status === 'accepted').length}
+          rejected={ideas.slice(0, currentIndex).filter(i => i.status === 'rejected').length}
+        />
+      </div>
 
       {/* Loading indicator for next batch */}
       {loading && (

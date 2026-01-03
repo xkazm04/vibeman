@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { motion } from 'framer-motion';
+import { FolderOpen, Settings2, GitBranch, Terminal } from 'lucide-react';
 import { useProjectConfigStore } from '../../../../stores/projectConfigStore';
 import ProjectPortSelection from './ProjectPortSelection';
 import {
@@ -21,6 +23,40 @@ import type {
   ProjectType
 } from '../../sub_ProjectForm';
 import { PROJECT_TYPES } from '../../sub_ProjectForm';
+
+// Section wrapper component for consistent styling
+function FormSection({
+  title,
+  icon: Icon,
+  children,
+  description,
+}: {
+  title: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+  description?: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gray-800/40 border border-gray-700/40 rounded-xl overflow-hidden"
+    >
+      <div className="px-4 py-3 border-b border-gray-700/40 bg-gray-800/60">
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-gray-500" />
+          <span className="text-sm font-medium text-gray-300">{title}</span>
+        </div>
+        {description && (
+          <p className="text-xs text-gray-500 mt-1">{description}</p>
+        )}
+      </div>
+      <div className="p-4 space-y-4">
+        {children}
+      </div>
+    </motion.div>
+  );
+}
 
 export default function ProjectForm({
   initialData,
@@ -108,7 +144,9 @@ export default function ProjectForm({
       return;
     }
 
-    if (port < 1000 || port > 65535) {
+    // Validate port only for non-combined types
+    const isCombined = projectType === 'combined';
+    if (!isCombined && (port < 1000 || port > 65535)) {
       return;
     }
 
@@ -116,7 +154,7 @@ export default function ProjectForm({
       id: initialData?.id || uuidv4(),
       name: projectName.trim(),
       path: selectedPath,
-      port: port,
+      port: isCombined ? undefined : port,
       type: projectType,
       relatedProjectId: projectType === 'fastapi' && relatedProjectId ? relatedProjectId : undefined,
       git_repository: gitRepository.trim() || undefined,
@@ -136,73 +174,95 @@ export default function ProjectForm({
   };
 
   return (
-    <form id="project-form" onSubmit={handleSubmit} className="space-y-6">
+    <form id="project-form" onSubmit={handleSubmit} className="space-y-4">
+      {/* Section 1: Project Location */}
+      <FormSection
+        title="Project Location"
+        icon={FolderOpen}
+        description={isEdit ? undefined : "Select the folder containing your project"}
+      >
+        {!isEdit && (
+          <PathSelection
+            directories={directories}
+            selectedPath={selectedPath}
+            onPathSelect={setSelectedPath}
+            onAutoFillName={setProjectName}
+            projectName={projectName}
+            parentPath={parentPath}
+            loading={loadingDirectories}
+          />
+        )}
+        {isEdit && <PathDisplay path={selectedPath} />}
+      </FormSection>
 
-      {/* Path Selection - Only show for new projects */}
-      {!isEdit && (
-        <PathSelection
-          directories={directories}
-          selectedPath={selectedPath}
-          onPathSelect={setSelectedPath}
-          onAutoFillName={setProjectName}
-          projectName={projectName}
-          parentPath={parentPath}
-          loading={loadingDirectories}
+      {/* Section 2: Project Configuration */}
+      <FormSection
+        title="Configuration"
+        icon={Settings2}
+        description="Define the project type and identity"
+      >
+        <ProjectTypeSelector
+          selectedType={projectType}
+          onTypeSelect={handleTypeChange}
+          isEdit={isEdit}
         />
-      )}
 
-      {/* Path Display for Edit Mode */}
-      {isEdit && <PathDisplay path={selectedPath} />}
-
-      {/* Project Type Selection */}
-      <ProjectTypeSelector
-        selectedType={projectType}
-        onTypeSelect={handleTypeChange}
-        isEdit={isEdit}
-      />
-
-      {/* Project Name */}
-      <ProjectNameInput
-        value={projectName}
-        onChange={setProjectName}
-      />
-
-      {/* Port Selection */}
-      {projectType === 'other' ? (
-        <PortInput
-          value={port}
-          onChange={setPort}
+        <ProjectNameInput
+          value={projectName}
+          onChange={setProjectName}
         />
-      ) : (
-        <ProjectPortSelection
-          projectType={projectType}
-          selectedPort={port}
-          onPortSelect={setPort}
+
+        {/* Port Selection - Hidden for Combined type */}
+        {projectType !== 'combined' && (
+          projectType === 'generic' ? (
+            <PortInput
+              value={port}
+              onChange={setPort}
+            />
+          ) : (
+            <ProjectPortSelection
+              projectType={projectType}
+              selectedPort={port}
+              onPortSelect={setPort}
+            />
+          )
+        )}
+
+        {/* FastAPI Related Project */}
+        {projectType === 'fastapi' && (
+          <RelatedProjectSelector
+            value={relatedProjectId}
+            onChange={setRelatedProjectId}
+            nextjsProjects={nextjsProjects}
+          />
+        )}
+      </FormSection>
+
+      {/* Section 3: Git Integration (Collapsible optional) */}
+      <FormSection
+        title="Git Integration"
+        icon={GitBranch}
+        description="Link to a GitHub repository (optional)"
+      >
+        <GitConfigInputs
+          repository={gitRepository}
+          branch={gitBranch}
+          onRepositoryChange={setGitRepository}
+          onBranchChange={setGitBranch}
         />
-      )}
+      </FormSection>
 
-      {/* FastAPI Related Project */}
-      {projectType === 'fastapi' && (
-        <RelatedProjectSelector
-          value={relatedProjectId}
-          onChange={setRelatedProjectId}
-          nextjsProjects={nextjsProjects}
+      {/* Section 4: Run Configuration */}
+      <FormSection
+        title="Run Script"
+        icon={Terminal}
+        description="Command to start the development server"
+      >
+        <RunScriptInput
+          value={runScript}
+          onChange={setRunScript}
         />
-      )}
-
-      {/* Git Repository and Branch */}
-      <GitConfigInputs
-        repository={gitRepository}
-        branch={gitBranch}
-        onRepositoryChange={setGitRepository}
-        onBranchChange={setGitBranch}
-      />
-
-      {/* Run Script */}
-      <RunScriptInput
-        value={runScript}
-        onChange={setRunScript}
-      />
+      </FormSection>
 
       {/* Error Message */}
       <ErrorDisplay error={error} />

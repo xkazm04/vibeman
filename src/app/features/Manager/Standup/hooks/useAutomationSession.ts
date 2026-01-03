@@ -14,7 +14,8 @@ export type AutomationSessionPhase =
   | 'generating'
   | 'evaluating'
   | 'complete'
-  | 'failed';
+  | 'failed'
+  | 'paused';
 
 export type AutomationEventType =
   | 'file_read'

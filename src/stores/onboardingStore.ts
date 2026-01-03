@@ -3,12 +3,14 @@ import { persist } from 'zustand/middleware';
 
 export type OnboardingStep =
   | 'create-project'
-  | 'set-up-goals'
-  | 'scan-context'
+  | 'run-blueprint'
+  | 'review-contexts'
   | 'generate-ideas'
-  | 'let-code';
+  | 'evaluate-ideas'
+  | 'run-task'
+  | 'review-impl';
 
-export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor' | 'manager' | 'halloffame' | 'social' | 'composer' | 'zen';
+export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor' | 'manager' | 'halloffame' | 'social' | 'composer' | 'zen' | 'blueprint';
 
 interface OnboardingState {
   // Project-specific completed steps: { projectId: [steps] }
@@ -44,10 +46,12 @@ interface OnboardingState {
 
 const STEP_ORDER: OnboardingStep[] = [
   'create-project',
-  'set-up-goals',
-  'scan-context',
+  'run-blueprint',
+  'review-contexts',
   'generate-ideas',
-  'let-code'
+  'evaluate-ideas',
+  'run-task',
+  'review-impl'
 ];
 
 export const useOnboardingStore = create<OnboardingState>()(

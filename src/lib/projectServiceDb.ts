@@ -1,4 +1,4 @@
-import { Project } from '@/types';
+import { Project, ProjectType } from '@/types';
 import { projectDb, DbProject } from './project_database';
 
 // Helper function to handle errors consistently
@@ -8,6 +8,12 @@ function handleError(context: string, error: unknown): void {
   // Error is handled and propagated through try-catch blocks
 }
 
+// Map legacy 'other' type to 'generic'
+function normalizeProjectType(type: string | null | undefined): ProjectType {
+  if (!type || type === 'other') return 'generic';
+  return type as ProjectType;
+}
+
 // Convert DbProject to Project type
 function dbProjectToProject(dbProject: DbProject): Project {
   return {
@@ -15,7 +21,7 @@ function dbProjectToProject(dbProject: DbProject): Project {
     name: dbProject.name,
     path: dbProject.path,
     port: dbProject.port,
-    type: (dbProject.type as 'nextjs' | 'fastapi' | 'other') || 'other',
+    type: normalizeProjectType(dbProject.type),
     relatedProjectId: dbProject.related_project_id || undefined,
     allowMultipleInstances: dbProject.allow_multiple_instances === 1,
     basePort: dbProject.base_port || dbProject.port,

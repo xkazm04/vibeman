@@ -15,7 +15,8 @@ import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
 import { ContextTargetsList } from '@/components/ContextComponents';
-import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
+import GoalEmptyState from './components/GoalEmptyState';
+import { GoalProgressMini } from './components/GoalProgressRing';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -53,6 +54,10 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
 
   // Goals are already filtered by projectId in the GoalProvider
   const projectGoals = goals;
+
+  // Calculate goal statistics for progress display
+  const completedGoals = projectGoals.filter(g => g.status === 'done').length;
+  const inProgressGoals = projectGoals.filter(g => g.status === 'in_progress').length;
 
   const handleGoalClick = (goal: Goal) => {
     setSelectedGoal(goal);
@@ -101,9 +106,17 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
                   MISSION CONTROL
                 </h2>
               </div>
-              <span className="px-2 py-1 rounded bg-primary/10 text-xs font-mono text-primary/70 border border-primary/20">
-                {projectGoals.length} OBJECTIVES
-              </span>
+              <div className="flex items-center gap-3">
+                {projectGoals.length > 0 && (
+                  <GoalProgressMini
+                    completed={completedGoals}
+                    total={projectGoals.length}
+                  />
+                )}
+                <span className="px-2 py-1 rounded bg-primary/10 text-xs font-mono text-primary/70 border border-primary/20">
+                  {projectGoals.length} OBJECTIVES
+                </span>
+              </div>
             </div>
 
             <div className="flex-1 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.05)]">
@@ -163,18 +176,9 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
                 </AnimatePresence>
                 
                 {projectGoals.length === 0 && (
-                  <EmptyStateIllustration
-                    type="goals"
-                    headline="No active objectives"
-                    description="Define your project goals to track progress and guide AI-assisted development. Goals help prioritize what matters most."
-                    action={{
-                      label: 'Create Goal',
-                      onClick: () => setShowAddGoal(true),
-                      icon: Crosshair,
-                    }}
-                    height="py-12"
-                    className="px-4"
-                    testId="goals-empty"
+                  <GoalEmptyState
+                    onAddGoal={() => setShowAddGoal(true)}
+                    className="px-2"
                   />
                 )}
 

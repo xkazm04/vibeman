@@ -6,6 +6,7 @@ import { FolderOpen, Plus, Pencil, Target, Zap, Trash2, FileCode } from 'lucide-
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useProjectsToolbarStore } from '@/stores/projectsToolbarStore';
+import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { useThemeStore } from '@/stores/themeStore';
 import { deleteProject } from './sub_ProjectSetting/lib/projectApi';
@@ -38,6 +39,7 @@ export default function ProjectToolbar() {
   const { showFullScreenModal, hideModal } = useGlobalModal();
   const { getThemeColors } = useThemeStore();
   const colors = getThemeColors();
+  const { notifyProjectDeleted } = useProjectUpdatesStore();
 
   // Fetch projects from API instead of store
   const [projects, setProjects] = React.useState<Project[]>([]);
@@ -125,8 +127,11 @@ export default function ProjectToolbar() {
     );
 
     if (confirmDelete) {
-      const success = await deleteProject(activeProject.id);
+      const deletedProjectId = activeProject.id;
+      const success = await deleteProject(deletedProjectId);
       if (success) {
+        // Notify other components (TopBar, UnifiedProjectSelector) about deletion
+        notifyProjectDeleted(deletedProjectId);
         // Refetch projects from API
         await fetchProjects();
         // Get updated projects and set first one as active if available

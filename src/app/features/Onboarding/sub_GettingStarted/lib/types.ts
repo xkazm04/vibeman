@@ -2,7 +2,16 @@
  * Getting Started types and interfaces
  */
 
-export type ModuleLocation = 'coder' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'contexts' | 'docs';
+export type ModuleLocation =
+  | 'coder'
+  | 'ideas'
+  | 'tinder'
+  | 'tasker'
+  | 'reflector'
+  | 'contexts'
+  | 'docs'
+  | 'manager'
+  | 'blueprint';
 
 export interface OnboardingTask {
   id: string;

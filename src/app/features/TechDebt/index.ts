@@ -1,6 +1,5 @@
 /**
  * Unified Tech Debt Feature
- * Combines TechDebtRadar and DebtPrediction functionality
  *
  * Provides:
  * - Radar visualization with stats panel
@@ -16,7 +15,7 @@ export { default as TechDebtLayout } from './TechDebtLayout';
 // Dashboard Components
 export { default as TechDebtDashboard } from './components/TechDebtDashboard';
 
-// Radar Components (from TechDebtRadar)
+// Radar Components
 export { default as TechDebtCard } from './components/TechDebtCard';
 export { default as TechDebtDetailModal } from './components/TechDebtDetailModal';
 export { default as TechDebtStatsPanel } from './components/TechDebtStatsPanel';

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { techDebtDb, scanDb } from '@/app/db';
-import { scanProjectForTechDebt, prepareIssuesForDatabase } from '@/app/features/TechDebtRadar/lib/techDebtScanner';
+import { scanProjectForTechDebt, prepareIssuesForDatabase } from '@/app/features/TechDebt/lib/techDebtScanner';
 import type { TechDebtScanConfig } from '@/app/db/models/tech-debt.types';
 import { logger } from '@/lib/logger';
 

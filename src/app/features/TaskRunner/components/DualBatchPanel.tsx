@@ -15,21 +15,18 @@ import {
   isRequirementRunning,
   isRequirementCompleted,
   isRequirementFailed,
-  // Remote batch
-  useRemoteBatchStore,
-  useAllRemoteBatches,
 } from '../store';
 import type { ProjectRequirement } from '../lib/types';
 import { TaskOffloadButton } from './TaskOffloadPanel';
-import DelegateBatchButton from './DelegateBatchButton';
-import RemoteBatchDisplay, { RemoteBatchId } from './RemoteBatchDisplay';
+import RemoteOffloadButton from './RemoteOffloadButton';
 import SessionBatchDisplay from './SessionBatchDisplay';
-import { useZenStore } from '@/app/zen/lib/zenStore';
 import {
   useSessionBatchStore,
   useAllSessionBatches,
   type SessionBatchId,
 } from '../store/sessionBatchStore';
+
+// NOTE: Remote batch delegation removed - migrating to Supabase Realtime
 
 interface DualBatchPanelProps {
   batch1: BatchState | null;
@@ -94,7 +91,6 @@ function BatchDisplay({
   onClearBatch,
   onCreateBatch,
   selectedCount,
-  onDelegated,
 }: {
   batch: BatchState | null;
   batchId: BatchId;
@@ -107,7 +103,6 @@ function BatchDisplay({
   onClearBatch: (batchId: BatchId) => void;
   onCreateBatch: (batchId: BatchId) => void;
   selectedCount: number;
-  onDelegated?: (batchId: BatchId, remoteBatchId: string) => void;
 }) {
   // Auto-execution hooks - will automatically execute tasks when batch is running
   useAutoExecution(batchId, requirements);
@@ -209,20 +204,18 @@ function BatchDisplay({
               <div className="flex items-center gap-1">
                 {/* Task Offload Button - Move to local batch */}
                 <TaskOffloadButton sourceBatchId={batchId} />
-                {/* Delegate Button - Send to remote device */}
-                {batch && (
-                  <DelegateBatchButton
-                    batchId={batchId}
-                    batch={batch}
-                    requirements={requirements.map(r => ({
-                      projectId: r.projectId,
-                      projectName: r.projectName,
-                      projectPath: r.projectPath,
-                      requirementName: r.requirementName,
-                    }))}
-                    onDelegated={(remoteBatchId) => onDelegated?.(batchId, remoteBatchId)}
-                  />
-                )}
+                {/* Remote Offload Button - Delegate to paired device via Supabase */}
+                <RemoteOffloadButton
+                  taskIds={batch?.taskIds.filter(id => {
+                    const req = requirements.find(r => getRequirementId(r) === id);
+                    return req && isRequirementQueued(req.status);
+                  }) || []}
+                  requirements={requirements.map(r => ({
+                    projectId: r.projectId,
+                    projectPath: r.projectPath,
+                    requirementName: r.requirementName,
+                  }))}
+                />
                 <button
                   onClick={() => onClearBatch(batchId)}
                   className="p-1 hover:bg-red-500/10 rounded transition-colors text-gray-400 hover:text-red-400"
@@ -401,49 +394,11 @@ export default function DualBatchPanel({
   requirements,
   getRequirementId,
 }: DualBatchPanelProps) {
-  // Remote batch state
-  const remoteBatches = useAllRemoteBatches();
-  const { createRemoteBatch, clearRemoteBatch, getNextAvailableRemoteBatchId } = useRemoteBatchStore();
-  const { pairing } = useZenStore();
-
   // Session batch state
   const sessionBatches = useAllSessionBatches();
   const { getActiveSessionBatches } = useSessionBatchStore();
 
-  // Handle batch delegation to remote device
-  const handleDelegated = (sourceBatchId: BatchId, remoteBatchId: string) => {
-    const nextRemoteBatchId = getNextAvailableRemoteBatchId();
-    if (!nextRemoteBatchId) {
-      console.warn('No available remote batch slots');
-      return;
-    }
-
-    // Get the source batch to extract tasks
-    const sourceBatch = { batch1, batch2, batch3, batch4 }[sourceBatchId];
-    if (!sourceBatch) return;
-
-    // Get requirements for the delegated tasks
-    const delegatedTasks = sourceBatch.taskIds.map(taskId => {
-      const [projectId, reqName] = taskId.includes(':') ? taskId.split(':') : [null, taskId];
-      const req = requirements.find(r =>
-        projectId ? r.projectId === projectId && r.requirementName === reqName : r.requirementName === reqName
-      );
-      return {
-        id: taskId,
-        requirementName: req?.requirementName || reqName || taskId,
-      };
-    });
-
-    // Create remote batch
-    createRemoteBatch(
-      nextRemoteBatchId,
-      pairing.partnerDeviceName || 'Remote Device',
-      delegatedTasks
-    );
-
-    // Clear the source batch since tasks are delegated
-    onClearBatch(sourceBatchId);
-  };
+  // NOTE: Remote batch delegation removed - will be added via Supabase in Phase 5
 
   // Auto-reset completed batches after 3 seconds
   useEffect(() => {
@@ -478,10 +433,6 @@ export default function DualBatchPanel({
   // Show batch4 if: any batch is running or batch4 exists
   const showBatch4 = anyBatchRunning || batch4 !== null;
 
-  // Check if there are any remote batches to show
-  const hasRemoteBatches = Object.values(remoteBatches).some(b => b !== null);
-  const remoteBatchIds: RemoteBatchId[] = ['remoteBatch1', 'remoteBatch2', 'remoteBatch3', 'remoteBatch4'];
-
   // Check if there are any session batches to show
   const hasSessionBatches = Object.values(sessionBatches).some(b => b !== null);
   const sessionBatchIds: SessionBatchId[] = ['sessionBatch1', 'sessionBatch2', 'sessionBatch3', 'sessionBatch4'];
@@ -501,7 +452,6 @@ export default function DualBatchPanel({
         onClearBatch={onClearBatch}
         onCreateBatch={onCreateBatch}
         selectedCount={selectedCount}
-        onDelegated={handleDelegated}
       />
 
       {/* Batch 2 - Show when conditions met */}
@@ -518,7 +468,6 @@ export default function DualBatchPanel({
           onClearBatch={onClearBatch}
           onCreateBatch={onCreateBatch}
           selectedCount={selectedCount}
-          onDelegated={handleDelegated}
         />
       )}
 
@@ -536,7 +485,6 @@ export default function DualBatchPanel({
           onClearBatch={onClearBatch}
           onCreateBatch={onCreateBatch}
           selectedCount={selectedCount}
-          onDelegated={handleDelegated}
         />
       )}
 
@@ -554,40 +502,10 @@ export default function DualBatchPanel({
           onClearBatch={onClearBatch}
           onCreateBatch={onCreateBatch}
           selectedCount={selectedCount}
-          onDelegated={handleDelegated}
         />
       )}
 
-      {/* Remote Batches Section - Delegated to paired device */}
-      {hasRemoteBatches && (
-        <>
-          <div className="pt-2 border-t border-purple-700/30">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-              <span className="text-xs font-medium text-purple-400 uppercase tracking-wider">
-                Delegated to Remote
-              </span>
-              {pairing.partnerDeviceName && (
-                <span className="text-xs text-gray-500">({pairing.partnerDeviceName})</span>
-              )}
-            </div>
-          </div>
-
-          {remoteBatchIds.map(remoteBatchId => {
-            const remoteBatch = remoteBatches[remoteBatchId];
-            if (!remoteBatch) return null;
-
-            return (
-              <RemoteBatchDisplay
-                key={remoteBatchId}
-                batch={remoteBatch}
-                batchId={remoteBatchId}
-                onClear={clearRemoteBatch}
-              />
-            );
-          })}
-        </>
-      )}
+      {/* Remote Batches - Coming in Phase 5 via Supabase Realtime */}
 
       {/* Claude Code Sessions Section */}
       {hasSessionBatches && (

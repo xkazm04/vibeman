@@ -2,13 +2,24 @@
 export type { IdeaCategory } from './ideaCategory';
 export { IDEA_CATEGORIES, isStandardCategory, getStandardCategories } from './ideaCategory';
 
+// Project types for framework detection
+export type ProjectType =
+  | 'nextjs'
+  | 'react'
+  | 'express'
+  | 'fastapi'
+  | 'django'
+  | 'rails'
+  | 'generic'
+  | 'combined';
+
 export interface Project {
   id: string;
   name: string;
   path: string;
   port: number;
   description?: string;
-  type?: 'nextjs' | 'fastapi' | 'other';
+  type?: ProjectType;
   relatedProjectId?: string; // For FastAPI projects connected to NextJS
   allowMultipleInstances?: boolean;
   basePort?: number;

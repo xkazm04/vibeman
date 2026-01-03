@@ -42,6 +42,9 @@ function ReflectorPageContent() {
     const projectIds = searchParams.get('projects')?.split(',').filter(Boolean) || [];
     const contextIds = searchParams.get('contexts')?.split(',').filter(Boolean) || [];
     const statuses = searchParams.get('statuses')?.split(',').filter(Boolean) || [];
+    const scanTypes = searchParams.get('scanTypes')?.split(',').filter(Boolean) || [];
+    const effortLevels = searchParams.get('effortLevels')?.split(',').filter(Boolean) || [];
+    const impactLevels = searchParams.get('impactLevels')?.split(',').filter(Boolean) || [];
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const searchQuery = searchParams.get('search') || '';
@@ -50,6 +53,9 @@ function ReflectorPageContent() {
       projectIds,
       contextIds,
       statuses,
+      scanTypes,
+      effortLevels,
+      impactLevels,
       dateRange: {
         start: startDate ? new Date(startDate) : null,
         end: endDate ? new Date(endDate) : null,

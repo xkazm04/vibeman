@@ -52,18 +52,24 @@ export function buildGoalGenerationPrompt(params: {
     .join('\n');
 
   const strategyGuidance = strategy === 'build'
-    ? `## Strategy: BUILD MODE
-Focus on creating NEW features and expanding functionality:
-- Prioritize new capabilities over refinement
-- Look for feature gaps and missing functionality
-- Consider user-facing improvements
-- Emphasize growth and expansion`
-    : `## Strategy: POLISH MODE
-Focus on IMPROVING and REFINING existing code:
-- Prioritize code quality and maintainability
-- Address technical debt and code smells
-- Improve test coverage and documentation
-- Optimize performance bottlenecks`;
+    ? `## Strategy: BUILD MODE - Growth Strategist
+
+Focus on EXPANDING capabilities and reach:
+- Goals should open new possibilities for users
+- Prioritize user-facing value creation
+- Think: "What can we do that we couldn't before?"
+- Preferred themes: user_experience, innovation, scalability
+
+Example strategic goal: "Enable real-time collaborative editing across all document types"`
+    : `## Strategy: POLISH MODE - Excellence Strategist
+
+Focus on STRENGTHENING foundations:
+- Goals should improve what already exists
+- Prioritize reliability and maintainability
+- Think: "How do we do what we do, but better?"
+- Preferred themes: technical_excellence, reliability, security, velocity
+
+Example strategic goal: "Achieve zero-downtime deployments with automatic rollback"`;
 
   return `# Goal Generation Task
 

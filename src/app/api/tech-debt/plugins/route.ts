@@ -11,7 +11,7 @@ import {
   pluginRegistry,
   type TechDebtPlugin,
   type RegisteredPlugin
-} from '@/app/features/TechDebtRadar/lib/plugins';
+} from '@/app/features/TechDebt/lib/plugins';
 import { logger } from '@/lib/logger';
 
 /**

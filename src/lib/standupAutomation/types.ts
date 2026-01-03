@@ -125,6 +125,24 @@ export interface GoalStatusChange {
 
 // ============ Goal Generation Types ============
 
+/**
+ * Goal time horizon for strategic planning
+ */
+export type GoalHorizon = 'immediate' | 'short_term' | 'medium_term' | 'long_term';
+
+/**
+ * Strategic themes that goals can align with
+ */
+export type StrategicTheme =
+  | 'user_experience'       // Delight users, improve usability
+  | 'technical_excellence'  // Code quality, architecture, maintainability
+  | 'velocity'              // Development speed, deployment frequency
+  | 'reliability'           // Uptime, stability, graceful degradation
+  | 'security'              // Protection, compliance, defense-in-depth
+  | 'scalability'           // Growth capacity, performance at scale
+  | 'developer_experience'  // Team productivity, tooling, documentation
+  | 'innovation';           // New capabilities, experimentation
+
 export interface GoalCandidate {
   title: string;
   description: string;
@@ -134,6 +152,18 @@ export interface GoalCandidate {
   category: string;
   source: 'tech_debt' | 'ideas_backlog' | 'pattern_detection' | 'historical';
   relatedItems?: string[];           // IDs of related tech debt, ideas, etc.
+}
+
+/**
+ * Strategic goal candidate with vision-level attributes
+ * Used for generating high-level strategic goals rather than tactical backlog items
+ */
+export interface StrategicGoalCandidate extends GoalCandidate {
+  horizon: GoalHorizon;              // When should this be achieved?
+  strategicTheme: StrategicTheme;    // What strategic pillar does this serve?
+  businessValue: string;             // Why stakeholders care
+  successVision: string;             // Concrete definition of "done"
+  potentialInitiatives: string[];    // Tactical work this might spawn
 }
 
 export interface GoalGenerationContext {
@@ -246,7 +276,8 @@ export type AutomationSessionPhase =
   | 'generating'
   | 'evaluating'
   | 'complete'
-  | 'failed';
+  | 'failed'
+  | 'paused';
 
 export interface AutomationSession {
   id: string;

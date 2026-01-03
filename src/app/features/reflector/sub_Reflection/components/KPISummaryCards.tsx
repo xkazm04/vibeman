@@ -19,9 +19,12 @@ import {
   ConfettiParticle,
 } from '../lib/kpiAnimations';
 
+export type KPIFilterType = 'all' | 'pending' | 'accepted' | 'implemented';
+
 interface KPISummaryCardsProps {
   stats: ReflectionStats;
   animationConfig?: Partial<KPIAnimationConfig>;
+  onFilterClick?: (filterType: KPIFilterType) => void;
 }
 
 interface KPICardData {
@@ -33,6 +36,7 @@ interface KPICardData {
   bgGradient: string;
   description: string;
   colorKey: 'blue' | 'green' | 'purple' | 'amber';
+  filterType: KPIFilterType;
 }
 
 interface AnimatedValueProps {
@@ -144,9 +148,10 @@ interface AnimatedKPICardProps {
   index: number;
   config: KPIAnimationConfig;
   reducedMotion: boolean;
+  onClick?: () => void;
 }
 
-function AnimatedKPICard({ kpi, index, config, reducedMotion }: AnimatedKPICardProps) {
+function AnimatedKPICard({ kpi, index, config, reducedMotion, onClick }: AnimatedKPICardProps) {
   const Icon = kpi.icon;
   const prevValueRef = useRef<number>(parseDisplayValue(kpi.value));
   const [showGlow, setShowGlow] = useState(false);
@@ -184,8 +189,12 @@ function AnimatedKPICard({ kpi, index, config, reducedMotion }: AnimatedKPICardP
     <motion.div
       key={kpi.label}
       {...animationProps}
-      className={`relative bg-gradient-to-br ${kpi.bgGradient} border ${kpi.borderColor} rounded-lg p-4 backdrop-blur-sm overflow-hidden group`}
+      onClick={onClick}
+      className={`relative bg-gradient-to-br ${kpi.bgGradient} border ${kpi.borderColor} rounded-lg p-4 backdrop-blur-sm overflow-hidden group ${onClick ? 'cursor-pointer' : ''}`}
       data-testid={`kpi-card-${kpi.colorKey}`}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
     >
       {/* Glow pulse overlay for threshold crossing */}
       <AnimatePresence>
@@ -240,6 +249,7 @@ function AnimatedKPICard({ kpi, index, config, reducedMotion }: AnimatedKPICardP
 export default function KPISummaryCards({
   stats,
   animationConfig = {},
+  onFilterClick,
 }: KPISummaryCardsProps) {
   // Check for reduced motion preference
   const prefersReducedMotion = useReducedMotion();
@@ -277,6 +287,7 @@ export default function KPISummaryCards({
         bgGradient: 'from-blue-500/5 to-blue-600/2',
         description: 'All ideas generated',
         colorKey: 'blue' as const,
+        filterType: 'all' as const,
       },
       {
         label: 'Acceptance Rate',
@@ -287,6 +298,7 @@ export default function KPISummaryCards({
         bgGradient: 'from-green-500/5 to-green-600/2',
         description: 'Accepted & implemented',
         colorKey: 'green' as const,
+        filterType: 'accepted' as const,
       },
       {
         label: 'Average Impact',
@@ -297,6 +309,7 @@ export default function KPISummaryCards({
         bgGradient: 'from-purple-500/5 to-purple-600/2',
         description: 'Mean specialist performance',
         colorKey: 'purple' as const,
+        filterType: 'implemented' as const,
       },
       {
         label: 'Active Specialists',
@@ -307,6 +320,7 @@ export default function KPISummaryCards({
         bgGradient: 'from-amber-500/5 to-amber-600/2',
         description: 'Scan types with ideas',
         colorKey: 'amber' as const,
+        filterType: 'pending' as const,
       },
     ],
     [stats.overall, stats.scanTypes, calculateAverageImpact]
@@ -324,6 +338,7 @@ export default function KPISummaryCards({
           index={index}
           config={config}
           reducedMotion={reducedMotion}
+          onClick={onFilterClick ? () => onFilterClick(kpi.filterType) : undefined}
         />
       ))}
     </div>

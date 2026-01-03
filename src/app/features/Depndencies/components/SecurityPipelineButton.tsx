@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Loader2, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { ProjectType } from '@/types';
 
 interface SecurityPipelineButtonProps {
   projectId: string;
   projectPath: string;
-  projectType?: 'nextjs' | 'fastapi' | 'other';
+  projectType?: ProjectType;
 }
 
 type PipelineStatus = 'idle' | 'scanning' | 'analyzing' | 'creating_pr' | 'testing' | 'success' | 'error';

@@ -1,5 +1,5 @@
 /**
- * TechDebtRadar Plugin System
+ * TechDebt Plugin System
  * Export all plugin-related modules
  */
 

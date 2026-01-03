@@ -1,3 +1,5 @@
+import { ProjectType as GlobalProjectType } from '@/types';
+
 export interface Directory {
   name: string;
   path: string;
@@ -15,8 +17,8 @@ export interface ProjectFormData {
   id?: string;
   name: string;
   path: string;
-  port: number;
-  type: 'nextjs' | 'fastapi' | 'other';
+  port?: number; // Optional for 'combined' type
+  type: GlobalProjectType;
   relatedProjectId?: string;
   git_repository?: string;
   git_branch?: string;
@@ -26,10 +28,11 @@ export interface ProjectFormData {
 export interface ProjectFormProps {
   initialData?: ProjectFormData;
   onSubmit: (data: ProjectFormData) => Promise<void>;
-  onTypeChange?: (type: 'nextjs' | 'fastapi' | 'other') => Promise<void>;
+  onTypeChange?: (type: GlobalProjectType) => Promise<void>;
   loading: boolean;
   error: string;
   isEdit?: boolean;
 }
 
-export type ProjectType = 'nextjs' | 'fastapi' | 'other';
+// Re-export GlobalProjectType as ProjectType for backward compatibility
+export type ProjectType = GlobalProjectType;

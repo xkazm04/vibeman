@@ -67,7 +67,7 @@ export default function DependenciesTab() {
             <SecurityPipelineButton
               projectId={projects[0].id}
               projectPath={projects[0].path}
-              projectType={projects[0].type as 'nextjs' | 'fastapi' | 'other'}
+              projectType={projects[0].type}
             />
           </motion.div>
         )}

@@ -19,6 +19,7 @@ import BlueprintTestCompact from './components/BlueprintTestCompact';
 import ContextGroupSelector from '../sub_BlueprintContext/components/ContextGroupSelector';
 import BlueprintContextSelector from '../sub_BlueprintContext/components/BlueprintContextSelector';
 import ContextDependentScans from '../sub_BlueprintContext/components/ContextDependentScans';
+import SimpleModeLayout from './components/SimpleModeLayout';
 import { useBlueprintStore } from './store/blueprintStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDecisionQueueStore } from '@/stores/decisionQueueStore';
@@ -42,6 +43,9 @@ export default function DarkBlueprint() {
   const { closeBlueprint } = useOnboardingStore();
   const { currentDecision } = useDecisionQueueStore();
   const { toggleGroup } = useBlueprintStore();
+
+  // Mode toggle - default to simple mode for new users
+  const [isSimpleMode, setIsSimpleMode] = useState(true);
 
   // Blueprint Runner prototype state
   const [activeRunnerConcept, setActiveRunnerConcept] = useState<VisualizationConcept | null>(null);
@@ -93,6 +97,21 @@ export default function DarkBlueprint() {
 
   const bg = "/patterns/bg_blueprint.jpg";
 
+  // Simple mode for beginners - less overwhelming
+  if (isSimpleMode) {
+    return (
+      <SimpleModeLayout
+        config={stepperConfig}
+        selectedScanId={selectedScanId}
+        onScanSelect={handleSelectScan}
+        onSwitchToAdvanced={() => setIsSimpleMode(false)}
+        getDaysAgo={getDaysAgo}
+        getScanStatus={getScanStatusMemoized}
+        isRecommended={isRecommended}
+      />
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -134,8 +153,15 @@ export default function DarkBlueprint() {
       <BlueprintKeyboardShortcuts />
       <BlueprintConfigButton />
 
-      {/* Blueprint Runner Concept Switcher */}
-      <div className="absolute top-4 right-20 z-30 flex items-center gap-2">
+      {/* Blueprint Runner Concept Switcher + Mode Toggle */}
+      <div className="absolute top-4 right-20 z-30 flex items-center gap-3">
+        <button
+          onClick={() => setIsSimpleMode(true)}
+          className="px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 hover:text-white
+                     text-xs rounded-lg border border-gray-700/50 transition-colors backdrop-blur-sm"
+        >
+          Simple Mode
+        </button>
         <BlueprintConceptSwitcher
           activeConcept={activeRunnerConcept}
           onConceptChange={setActiveRunnerConcept}

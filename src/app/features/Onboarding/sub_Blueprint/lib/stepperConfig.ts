@@ -249,32 +249,52 @@ export const FASTAPI_TECHNIQUE_GROUPS: TechniqueGroup[] = [
 ];
 
 /**
- * Get stepper configuration for a project type
+ * Get stepper configuration for a project type.
+ * Maps new project types to their closest configuration.
  */
-export function getStepperConfig(projectType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other'): StepperConfig {
+export function getStepperConfig(projectType: string): StepperConfig {
   let groups: TechniqueGroup[];
+  let normalizedType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other';
 
   switch (projectType) {
     case 'nextjs':
+      normalizedType = 'nextjs';
+      groups = NEXTJS_TECHNIQUE_GROUPS;
+      break;
     case 'react':
+      normalizedType = 'react';
       groups = NEXTJS_TECHNIQUE_GROUPS;
       break;
     case 'fastapi':
-    case 'python':
+      normalizedType = 'fastapi';
       groups = FASTAPI_TECHNIQUE_GROUPS;
       break;
+    case 'django':
+    case 'rails':
+      normalizedType = 'python'; // Use Python-like config for backend frameworks
+      groups = FASTAPI_TECHNIQUE_GROUPS;
+      break;
+    case 'express':
+      normalizedType = 'other'; // Express uses default config
+      groups = DEFAULT_TECHNIQUE_GROUPS;
+      break;
+    case 'combined':
+      normalizedType = 'nextjs'; // Combined uses frontend config as primary
+      groups = NEXTJS_TECHNIQUE_GROUPS;
+      break;
     default:
+      normalizedType = 'other';
       groups = DEFAULT_TECHNIQUE_GROUPS;
   }
 
   // Filter groups by project type
   const filteredGroups = groups.filter(group =>
-    group.projectTypes.includes(projectType)
+    group.projectTypes.includes(normalizedType)
   );
 
   return {
     groups: filteredGroups,
-    projectType,
+    projectType: normalizedType,
   };
 }
 

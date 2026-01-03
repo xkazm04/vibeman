@@ -16,8 +16,8 @@ const caveat = Caveat({
  * Hand-written style button to open the full Blueprint view
  */
 export default function StarterBlueprint({ onOpenBlueprint }: StarterBlueprintProps) {
-  const { isSetUpGoalsActive, isScanContextActive } = useActiveOnboardingStep();
-  const shouldGlow = isSetUpGoalsActive || isScanContextActive;
+  const { isRunBlueprintActive, isReviewContextsActive } = useActiveOnboardingStep();
+  const shouldGlow = isRunBlueprintActive || isReviewContextsActive;
   return (
     <>
       {/* Divider */}

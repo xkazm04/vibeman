@@ -13,7 +13,7 @@ interface ModeToggleProps {
  * Switches between Offline (monitoring) and Online (accepting tasks) modes
  */
 export default function ModeToggle({ onModeChange }: ModeToggleProps) {
-  const { mode, setMode, pairing } = useZenStore();
+  const { mode, setMode } = useZenStore();
 
   const handleModeChange = (newMode: ZenMode) => {
     setMode(newMode);
@@ -39,8 +39,6 @@ export default function ModeToggle({ onModeChange }: ModeToggleProps) {
             : 'bg-gray-800 border border-gray-700'
           }
         `}
-        disabled={pairing.status === 'paired'}
-        title={pairing.status === 'paired' ? 'Disconnect to change mode' : undefined}
       >
         {/* Sliding Indicator */}
         <motion.div

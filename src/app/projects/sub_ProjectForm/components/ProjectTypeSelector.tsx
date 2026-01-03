@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { PROJECT_TYPES } from '../config';
 import { ProjectType } from '../types';
 
@@ -13,38 +14,35 @@ export default function ProjectTypeSelector({
   isEdit = false
 }: ProjectTypeSelectorProps) {
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-300 mb-3">
-        Project Type *
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-gray-400">
+        Type *
       </label>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         {PROJECT_TYPES.map((type) => {
           const Icon = type.icon;
+          const isSelected = selectedType === type.value;
           return (
-            <label
+            <button
               key={type.value}
-              className={`relative flex flex-col items-center p-4 rounded-lg border cursor-pointer transition-all ${
-                selectedType === type.value
-                  ? 'bg-cyan-500/20 border-cyan-500/40 shadow-lg'
-                  : 'bg-gray-700/30 border-gray-600/40 hover:border-gray-500/60'
+              type="button"
+              onClick={() => onTypeSelect(type.value)}
+              className={`relative flex flex-col items-center p-2.5 rounded-lg border transition-all ${
+                isSelected
+                  ? 'bg-cyan-500/15 border-cyan-500/40 ring-1 ring-cyan-500/30'
+                  : 'bg-gray-700/30 border-gray-700/50 hover:border-gray-600/60 hover:bg-gray-700/50'
               }`}
             >
-              <input
-                type="radio"
-                name="projectType"
-                value={type.value}
-                checked={selectedType === type.value}
-                onChange={(e) => {
-                  const newType = e.target.value as ProjectType;
-                  onTypeSelect(newType);
-                }}
-                className="sr-only"
-              />
-              <Icon className={`w-6 h-6 mb-2 ${selectedType === type.value ? 'text-cyan-400' : type.color}`} />
-              <span className={`text-sm font-medium ${selectedType === type.value ? 'text-cyan-300' : 'text-gray-300'}`}>
+              {isSelected && (
+                <div className="absolute top-1 right-1">
+                  <Check className="w-3 h-3 text-cyan-400" />
+                </div>
+              )}
+              <Icon className={`w-5 h-5 mb-1 ${isSelected ? 'text-cyan-400' : type.color}`} />
+              <span className={`text-xs font-medium ${isSelected ? 'text-cyan-300' : 'text-gray-400'}`}>
                 {type.label}
               </span>
-            </label>
+            </button>
           );
         })}
       </div>

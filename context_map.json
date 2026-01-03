@@ -9,8 +9,8 @@
       "summary": "Core blueprint scanning system for comprehensive project analysis including framework detection, scan orchestration, and adapter pattern for different tech stacks.",
       "filepaths": {
         "ui": [
-          "src/app/features/Onboarding/sub_Blueprint/BlueprintPanel.tsx",
-          "src/app/features/Onboarding/sub_Blueprint/BlueprintModal.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/DarkBlueprintLayout.tsx",
+          "src/app/features/Onboarding/components/BlueprintModal.tsx",
           "src/app/features/Onboarding/sub_Blueprint/components/ScanButtonsBar.tsx",
           "src/app/features/Onboarding/sub_Blueprint/components/DecisionPanel.tsx",
           "src/app/features/Onboarding/sub_Blueprint/components/ScanProgress.tsx"

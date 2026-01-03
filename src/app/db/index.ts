@@ -138,10 +138,7 @@ import {
   goalHypothesisRepository,
   goalHubExtensions,
 } from './repositories/goal-hub.repository';
-import {
-  devicePairRepository,
-  offloadQueueRepository,
-} from './repositories/offload.repository';
+// Offload repository removed - migrated to Supabase
 import {
   sessionRepository,
   sessionTaskRepository,
@@ -153,6 +150,7 @@ import {
   integrationEventRepository,
   webhookRepository,
 } from './repositories/integration.repository';
+import * as observatoryRepository from './repositories/observatory.repository';
 
 // Export types
 export * from './models/types';
@@ -175,11 +173,12 @@ export * from './models/focus-mode.types';
 export * from './models/autonomous-ci.types';
 export * from './models/roi-simulator.types';
 export * from './models/goal-hub.types';
-export * from './models/offload.types';
+// Offload types removed - migrated to Supabase
 export * from './models/session.types';
 export * from './models/automation-session.types';
 export * from './models/automation-event.types';
 export * from './models/integration.types';
+export * from './models/observatory.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -1086,21 +1085,7 @@ export const roiSummaryDb = {
   ...roiSummaryRepository,
 };
 
-/**
- * Device Pair Database Operations
- * Handles device pairing for cross-device offloading
- */
-export const devicePairDb = {
-  ...devicePairRepository,
-};
-
-/**
- * Offload Queue Database Operations
- * Manages task queue for cross-device offloading
- */
-export const offloadQueueDb = {
-  ...offloadQueueRepository,
-};
+// Device Pair and Offload Queue removed - migrated to Supabase Realtime
 
 /**
  * Claude Code Session Database Operations
@@ -1165,6 +1150,62 @@ export const integrationEventDb = {
  */
 export const webhookDb = {
   ...webhookRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Observatory Database Operations
+ * Manages Code Health Observatory - continuous observation, predictions, and learning
+ */
+export const observatoryDb = {
+  // Analysis Snapshots
+  createAnalysisSnapshot: observatoryRepository.createAnalysisSnapshot,
+  getAnalysisSnapshotById: observatoryRepository.getAnalysisSnapshotById,
+  updateAnalysisSnapshot: observatoryRepository.updateAnalysisSnapshot,
+  getRecentSnapshots: observatoryRepository.getRecentSnapshots,
+  getSnapshotsByTimeRange: observatoryRepository.getSnapshotsByTimeRange,
+
+  // Prediction Outcomes
+  createPredictionOutcome: observatoryRepository.createPredictionOutcome,
+  getPredictionOutcomeById: observatoryRepository.getPredictionOutcomeById,
+  getPredictionOutcomesByPrediction: observatoryRepository.getPredictionOutcomesByPrediction,
+  updatePredictionOutcome: observatoryRepository.updatePredictionOutcome,
+  getOutcomeStatsByPattern: observatoryRepository.getOutcomeStatsByPattern,
+
+  // Execution Outcomes
+  createExecutionOutcome: observatoryRepository.createExecutionOutcome,
+  getExecutionOutcomeById: observatoryRepository.getExecutionOutcomeById,
+  getExecutionOutcomeByExecutionId: observatoryRepository.getExecutionOutcomeByExecutionId,
+  updateExecutionOutcome: observatoryRepository.updateExecutionOutcome,
+  getRecentExecutionOutcomes: observatoryRepository.getRecentExecutionOutcomes,
+  getExecutionSuccessRate: observatoryRepository.getExecutionSuccessRate,
+
+  // Learned Patterns
+  createLearnedPattern: observatoryRepository.createLearnedPattern,
+  getLearnedPatternById: observatoryRepository.getLearnedPatternById,
+  getLearnedPatterns: observatoryRepository.getLearnedPatterns,
+  updateLearnedPattern: observatoryRepository.updateLearnedPattern,
+  incrementPatternMetric: observatoryRepository.incrementPatternMetric,
+  recalculatePatternScores: observatoryRepository.recalculatePatternScores,
+
+  // Health Metrics
+  createHealthMetric: observatoryRepository.createHealthMetric,
+  getHealthMetricById: observatoryRepository.getHealthMetricById,
+  getHealthMetricHistory: observatoryRepository.getHealthMetricHistory,
+  getLatestHealthMetrics: observatoryRepository.getLatestHealthMetrics,
+
+  // Auto-fix Queue
+  createAutoFixItem: observatoryRepository.createAutoFixItem,
+  getAutoFixItemById: observatoryRepository.getAutoFixItemById,
+  getPendingAutoFixes: observatoryRepository.getPendingAutoFixes,
+  updateAutoFixItem: observatoryRepository.updateAutoFixItem,
+  approveAutoFix: observatoryRepository.approveAutoFix,
+  expireOldAutoFixes: observatoryRepository.expireOldAutoFixes,
+
+  // Aggregates
+  getProjectHealthSummary: observatoryRepository.getProjectHealthSummary,
+  getLearningProgress: observatoryRepository.getLearningProgress,
+
   close: closeDatabase,
 };
 

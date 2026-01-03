@@ -45,6 +45,12 @@ export function addColumnIfNotExists(
   columnDefinition: string,
   logger?: MigrationLogger
 ): boolean {
+  // First check if table exists - if not, skip (table will be created with column by schema)
+  if (!tableExists(db, tableName)) {
+    logger?.info(`Table ${tableName} does not exist yet, skipping column addition`);
+    return false;
+  }
+
   if (hasColumn(db, tableName, columnName)) {
     logger?.info(`Column ${columnName} already exists in ${tableName}`);
     return false;

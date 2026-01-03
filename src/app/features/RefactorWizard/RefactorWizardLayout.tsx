@@ -7,6 +7,7 @@ import WizardStepRouter from './components/WizardStepRouter';
 import WizardProgress from './components/WizardProgress';
 import DebtPredictionLayout from '../DebtPrediction/DebtPredictionLayout';
 import { DSLBuilderLayout } from './components/sub_DSLBuilder';
+import QuickRefactorMode from './components/QuickRefactorMode';
 import { RefactorSpec } from './lib/dslTypes';
 import { generateRequirementFromSpec, generateRequirementFilename } from './lib/dslExecutor';
 
@@ -21,6 +22,7 @@ export default function RefactorWizardLayout() {
   } = useRefactorStore();
   const [showDebtPrediction, setShowDebtPrediction] = useState(false);
   const [isExecutingDSL, setIsExecutingDSL] = useState(false);
+  const [isQuickMode, setIsQuickMode] = useState(true); // Default to quick mode for new users
 
   const handleClose = () => closeWizard();
 
@@ -78,6 +80,37 @@ export default function RefactorWizardLayout() {
     return null;
   }
 
+  // Quick mode - simplified interface
+  if (isQuickMode && !isDSLMode) {
+    return (
+      <div className="w-full h-full flex flex-col bg-gray-900/90 backdrop-blur-xl border border-cyan-500/20 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden relative" data-testid="refactor-wizard-quick-mode">
+        {/* Ambient Background Glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 pointer-events-none" />
+
+        {/* Close Button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 z-20 p-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Quick Mode Content */}
+        <div className="flex-1 overflow-y-auto p-8 lg:p-12 relative z-10">
+          <QuickRefactorMode
+            onSwitchToAdvanced={() => setIsQuickMode(false)}
+            onExecuteWithPackages={() => {
+              // Switch to advanced mode and show execute step
+              setIsQuickMode(false);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col bg-gray-900/90 backdrop-blur-xl border border-cyan-500/20 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden relative" data-testid="refactor-wizard-layout">
       {/* Ambient Background Glow */}
@@ -97,6 +130,7 @@ export default function RefactorWizardLayout() {
         onToggleDSLMode={handleToggleDSLMode}
         onOpenDebtPrediction={handleOpenDebtPrediction}
         onClose={handleClose}
+        onSwitchToQuickMode={() => setIsQuickMode(true)}
       />
 
       {/* Content Area */}

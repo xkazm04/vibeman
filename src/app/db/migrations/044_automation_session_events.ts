@@ -6,7 +6,19 @@
 
 import Database from 'better-sqlite3';
 
+function tableExists(db: Database.Database, tableName: string): boolean {
+  const result = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name=?
+  `).get(tableName) as { name: string } | undefined;
+  return !!result;
+}
+
 export function migrate044AutomationSessionEvents(db: Database.Database): void {
+  // Skip if table already exists
+  if (tableExists(db, 'automation_session_events')) {
+    return;
+  }
+
   // Create automation_session_events table
   db.exec(`
     CREATE TABLE IF NOT EXISTS automation_session_events (

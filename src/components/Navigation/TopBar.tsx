@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, MoreHorizontal, BookOpen, Wand2, Component, ShoppingBag, Activity, Users, Sunrise } from 'lucide-react';
+import { Store, MoreHorizontal, BookOpen, Wand2, Component, Activity, Users, Sunrise } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useMarketplaceStore } from '@/stores/marketplaceStore';
 import UnifiedProjectSelector from './UnifiedProjectSelector';

@@ -2,9 +2,11 @@
  * Bridge Event Emitter
  * In-memory event bus for SSE connections
  * Broadcasts events to connected clients
+ * Also persists events to Supabase for cross-device access
  */
 
 import { BridgeClient, BridgeEvent, BridgeEventType } from './types';
+import { isSupabaseConfigured, createSupabaseClient } from '@/lib/supabase/client';
 
 class BridgeEventEmitter {
   private clients: Map<string, BridgeClient> = new Map();
@@ -51,8 +53,9 @@ class BridgeEventEmitter {
 
   /**
    * Emit event to all connected clients
+   * Also persists to Supabase for cross-device access
    */
-  emit<T>(type: BridgeEventType, payload: T, projectId: string): void {
+  emit<T>(type: BridgeEventType, payload: T, projectId: string, deviceId?: string): void {
     const event: BridgeEvent<T> = {
       type,
       payload,
@@ -60,7 +63,38 @@ class BridgeEventEmitter {
       projectId,
     };
 
+    // Emit to local SSE clients
     this.emitToProject(projectId, event);
+
+    // Persist to Supabase for cross-device access (fire and forget)
+    this.persistToSupabase(type, payload, projectId, deviceId);
+  }
+
+  /**
+   * Persist event to Supabase bridge_events table
+   */
+  private async persistToSupabase<T>(
+    type: BridgeEventType,
+    payload: T,
+    projectId: string,
+    deviceId?: string
+  ): Promise<void> {
+    try {
+      if (!isSupabaseConfigured()) return;
+
+      const supabase = createSupabaseClient();
+
+      await supabase.from('bridge_events').insert({
+        project_id: projectId,
+        device_id: deviceId || null,
+        event_type: type,
+        payload: payload as Record<string, unknown>,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      // Silently fail - don't break local SSE functionality
+      console.warn('[BridgeEventEmitter] Failed to persist to Supabase:', error);
+    }
   }
 
   /**

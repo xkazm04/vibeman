@@ -5,18 +5,32 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Pause, Play, Trash2 } from 'lucide-react';
 import {
   useAutomationSession,
   type ActiveSession,
   type SessionDetails,
   type AutomationSessionPhase,
 } from '../hooks/useAutomationSession';
+import { useAutomationSessionStore } from '@/stores/automationSessionStore';
+
+// Lazy load ManualStandup
+const ManualStandup = lazy(() => import('./ManualStandup'));
+
+interface Project {
+  id: string;
+  name: string;
+  path: string;
+  type?: string;
+}
 
 // ============ Phase Styling ============
 
-const phaseConfig: Record<AutomationSessionPhase, {
+type ExtendedPhase = AutomationSessionPhase | 'paused';
+
+const phaseConfig: Record<ExtendedPhase, {
   label: string;
   color: string;
   bgColor: string;
@@ -29,6 +43,7 @@ const phaseConfig: Record<AutomationSessionPhase, {
   evaluating: { label: 'Evaluating', color: 'text-amber-400', bgColor: 'bg-amber-500/20', icon: '=' },
   complete: { label: 'Complete', color: 'text-green-400', bgColor: 'bg-green-500/20', icon: 'v' },
   failed: { label: 'Failed', color: 'text-red-400', bgColor: 'bg-red-500/20', icon: 'x' },
+  paused: { label: 'Paused', color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', icon: '||' },
 };
 
 // ============ Sub-Components ============
@@ -60,16 +75,22 @@ function SessionCard({
   session,
   isSelected,
   onClick,
+  onPause,
+  onResume,
+  onDelete,
 }: {
   session: ActiveSession;
   isSelected: boolean;
   onClick: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onDelete: () => void;
 }) {
   const isActive = session.phase !== 'complete' && session.phase !== 'failed';
+  const isPaused = (session.phase as string) === 'paused';
 
   return (
-    <motion.button
-      onClick={onClick}
+    <motion.div
       className={`w-full text-left p-3 rounded-lg border transition-colors ${
         isSelected
           ? 'bg-gray-800 border-purple-500/50'
@@ -79,10 +100,43 @@ function SessionCard({
       whileTap={{ scale: 0.99 }}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-200 truncate">
-          {session.projectName || session.projectId.slice(0, 8)}
-        </span>
-        <PhaseIndicator phase={session.phase} />
+        <button
+          onClick={onClick}
+          className="flex-1 text-left flex items-center gap-2"
+        >
+          <span className="text-sm font-medium text-gray-200 truncate">
+            {session.projectName || session.projectId.slice(0, 8)}
+          </span>
+          <PhaseIndicator phase={session.phase} />
+        </button>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1 ml-2">
+          {isPaused ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onResume(); }}
+              className="p-1 hover:bg-green-500/20 rounded transition-colors"
+              title="Resume session"
+            >
+              <Play className="w-3.5 h-3.5 text-green-400" />
+            </button>
+          ) : isActive ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPause(); }}
+              className="p-1 hover:bg-yellow-500/20 rounded transition-colors"
+              title="Pause session"
+            >
+              <Pause className="w-3.5 h-3.5 text-yellow-400" />
+            </button>
+          ) : null}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="p-1 hover:bg-red-500/20 rounded transition-colors"
+            title="Delete session"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+          </button>
+        </div>
       </div>
 
       {isActive && (
@@ -95,7 +149,7 @@ function SessionCard({
       {session.hasError && (
         <p className="text-xs text-red-400 mt-1 truncate">{session.errorMessage}</p>
       )}
-    </motion.button>
+    </motion.div>
   );
 }
 
@@ -296,23 +350,69 @@ export default function SessionDashboard() {
     selectedSession,
     isLoadingDetails,
     selectSession,
+    refreshSessions,
   } = useAutomationSession();
 
+  const {
+    pauseSession,
+    resumeSession,
+    deleteSession,
+  } = useAutomationSessionStore();
+
   const [isExpanded, setIsExpanded] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  // Fetch projects for manual standup
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const response = await fetch('/api/projects');
+        if (response.ok) {
+          const data = await response.json();
+          setProjects(data.projects || []);
+        }
+      } catch {
+        // Silently fail - manual standup will just not appear
+      }
+    }
+    fetchProjects();
+  }, []);
 
   const activeCount = activeSessions.filter(
     s => s.phase !== 'complete' && s.phase !== 'failed'
   ).length;
 
-  const hasAnySession = activeSessions.length > 0;
+  const handlePause = async (sessionId: string) => {
+    await pauseSession(sessionId);
+    refreshSessions();
+  };
+
+  const handleResume = async (sessionId: string) => {
+    await resumeSession(sessionId);
+    refreshSessions();
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    await deleteSession(sessionId);
+    refreshSessions();
+  };
 
   return (
-    <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden">
-      {/* Header - Always visible */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800/30 transition-colors"
-      >
+    <div className="space-y-4">
+      {/* Manual Standup - Daily Review */}
+      {projects.length > 0 && (
+        <Suspense fallback={<div className="h-20 animate-pulse bg-gray-800/50 rounded-xl" />}>
+          <ManualStandup projects={projects} />
+        </Suspense>
+      )}
+
+      {/* Automation Sessions */}
+      <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden">
+        {/* Header - Always visible */}
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800/30 transition-colors"
+        >
         <div className="flex items-center gap-3">
           {isLoading ? (
             <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -362,6 +462,9 @@ export default function SessionDashboard() {
                     onClick={() => selectSession(
                       selectedSession?.sessionId === session.sessionId ? null : session.sessionId
                     )}
+                    onPause={() => handlePause(session.sessionId)}
+                    onResume={() => handleResume(session.sessionId)}
+                    onDelete={() => handleDelete(session.sessionId)}
                   />
                 ))}
               </div>
@@ -382,6 +485,7 @@ export default function SessionDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

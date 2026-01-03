@@ -1,4 +1,4 @@
-import { Link } from 'lucide-react';
+import { Link2 } from 'lucide-react';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
 interface Project {
@@ -24,29 +24,24 @@ export default function RelatedProjectSelector({
   }
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-300 mb-2">
-        Related Next.js Project (Optional)
+    <div className="space-y-2">
+      <label className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
+        <Link2 className="w-3 h-3" />
+        Link to Next.js Frontend
       </label>
-      <div className="relative">
-        <UniversalSelect
-          value={value}
-          onChange={(selectedValue) => onChange(selectedValue)}
-          options={[
-            { value: '', label: 'Select a Next.js project...' },
-            ...nextjsProjects.map((project) => ({
-              value: project.id,
-              label: `${project.name} (:${project.port})`
-            }))
-          ]}
-          variant="default"
-          placeholder="Select a Next.js project..."
-        />
-        <Link className="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
-      </div>
-      <div className="text-sm text-gray-500 mt-1">
-        Link this FastAPI backend to a Next.js frontend
-      </div>
+      <UniversalSelect
+        value={value}
+        onChange={(selectedValue) => onChange(selectedValue)}
+        options={[
+          { value: '', label: 'None' },
+          ...nextjsProjects.map((project) => ({
+            value: project.id,
+            label: `${project.name} (:${project.port})`
+          }))
+        ]}
+        variant="default"
+        placeholder="Select project..."
+      />
     </div>
   );
 }

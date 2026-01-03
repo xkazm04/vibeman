@@ -30,7 +30,7 @@ export class ReactHooksPlugin extends BasePlugin {
     name: 'React Hooks Scanner',
     version: '1.0.0',
     description: 'Scans for React hooks anti-patterns and best practice violations',
-    author: 'TechDebtRadar Team',
+    author: 'TechDebt Team',
     category: 'react_hooks',
     icon: 'Hook',
     tags: ['react', 'hooks', 'performance', 'best-practices'],

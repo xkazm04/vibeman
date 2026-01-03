@@ -6,7 +6,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { projectDb, DbProject } from '@/lib/project_database';
 import { getInitializedRegistry } from '@/app/features/Onboarding/sub_Blueprint/lib/adapters';
-import { Project } from '@/types';
+import { Project, ProjectType } from '@/types';
+
+// Map legacy 'other' type to 'generic'
+function normalizeProjectType(type: string | null | undefined): ProjectType {
+  if (!type || type === 'other') return 'generic';
+  return type as ProjectType;
+}
 
 // Convert DbProject to Project type
 function toProject(dbProject: DbProject): Project {
@@ -15,7 +21,7 @@ function toProject(dbProject: DbProject): Project {
     name: dbProject.name,
     path: dbProject.path,
     port: dbProject.port,
-    type: dbProject.type as 'nextjs' | 'fastapi' | 'other',
+    type: normalizeProjectType(dbProject.type),
     relatedProjectId: dbProject.related_project_id || undefined,
     git: dbProject.git_repository ? {
       repository: dbProject.git_repository,
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
         name: projectId,
         path: projectPath,
         port: 3000,
-        type: projectType as 'nextjs' | 'fastapi' | 'other'
+        type: normalizeProjectType(projectType)
       };
     }
 

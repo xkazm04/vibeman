@@ -5,7 +5,19 @@
 
 import Database from 'better-sqlite3';
 
+function tableExists(db: Database.Database, tableName: string): boolean {
+  const result = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name=?
+  `).get(tableName) as { name: string } | undefined;
+  return !!result;
+}
+
 export function migrate045IntegrationFramework(db: Database.Database): void {
+  // Skip if tables already exist
+  if (tableExists(db, 'integrations') && tableExists(db, 'integration_events') && tableExists(db, 'webhooks')) {
+    return;
+  }
+
   // Create integrations table
   db.exec(`
     CREATE TABLE IF NOT EXISTS integrations (

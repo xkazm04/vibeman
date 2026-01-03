@@ -2,20 +2,20 @@
 
 import React, { Suspense, useEffect, useRef, ComponentType } from 'react';
 import dynamic from 'next/dynamic';
-import FeatureLoadingSkeleton from './FeatureLoadingSkeleton';
+import { FeatureSpinner } from '@/components/ui/Spinner';
 import {
   markLazyLoadStart,
   markLazyLoadEnd,
   createMountMeasure,
 } from '@/lib/performance';
 
-type SkeletonVariant = 'default' | 'sidebar' | 'cards' | 'table' | 'minimal';
+type SpinnerVariant = 'default' | 'sidebar' | 'cards' | 'table' | 'minimal';
 
 interface LazyFeatureOptions {
   /** Feature name for metrics and display */
   featureName: string;
-  /** Skeleton variant to show while loading */
-  skeletonVariant?: SkeletonVariant;
+  /** Spinner variant to show while loading */
+  spinnerVariant?: SpinnerVariant;
   /** Disable server-side rendering */
   ssr?: boolean;
   /** Custom loading component */
@@ -37,7 +37,7 @@ export function createLazyFeature<P extends object>(
 ): ComponentType<P> {
   const {
     featureName,
-    skeletonVariant = 'default',
+    spinnerVariant = 'default',
     ssr = false,
     loadingComponent,
   } = options;
@@ -55,9 +55,9 @@ export function createLazyFeature<P extends object>(
     return loadingComponent ? (
       <>{loadingComponent}</>
     ) : (
-      <FeatureLoadingSkeleton
+      <FeatureSpinner
         featureName={featureName}
-        variant={skeletonVariant}
+        variant={spinnerVariant}
         data-testid={`lazy-loading-${featureName.toLowerCase()}`}
       />
     );
@@ -148,28 +148,28 @@ export const LazyFeaturePresets = {
   /** For features with sidebar navigation */
   withSidebar: (featureName: string) => ({
     featureName,
-    skeletonVariant: 'sidebar' as const,
+    spinnerVariant: 'sidebar' as const,
     ssr: false,
   }),
 
   /** For features displaying card grids */
   withCards: (featureName: string) => ({
     featureName,
-    skeletonVariant: 'cards' as const,
+    spinnerVariant: 'cards' as const,
     ssr: false,
   }),
 
   /** For features with data tables */
   withTable: (featureName: string) => ({
     featureName,
-    skeletonVariant: 'table' as const,
+    spinnerVariant: 'table' as const,
     ssr: false,
   }),
 
   /** For lightweight features */
   minimal: (featureName: string) => ({
     featureName,
-    skeletonVariant: 'minimal' as const,
+    spinnerVariant: 'minimal' as const,
     ssr: false,
   }),
 };

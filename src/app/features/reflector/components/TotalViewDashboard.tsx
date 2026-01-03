@@ -6,10 +6,9 @@ import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useContextStore } from '@/stores/contextStore';
 import { groupIdeasByProjectAndContext } from '../lib/groupIdeasByProjectAndContext';
-import { Sparkles, Package, Circle } from 'lucide-react';
+import { Sparkles, Package } from 'lucide-react';
 import {
   ProjectSection,
-  ConstellationView,
   FocusedProjectView
 } from '../sub_TotalViewDashboard';
 
@@ -22,7 +21,6 @@ export default function TotalViewDashboard({ ideas, isFiltered }: TotalViewDashb
   const { projects } = useProjectConfigStore();
   const { contexts } = useContextStore();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [constellationMode, setConstellationMode] = useState(false);
   const [focusedProject, setFocusedProject] = useState<string | null>(null);
 
   // Group ideas by project and context
@@ -40,15 +38,6 @@ export default function TotalViewDashboard({ ideas, isFiltered }: TotalViewDashb
       }
       return next;
     });
-  };
-
-  const toggleConstellationMode = () => {
-    setConstellationMode(!constellationMode);
-    if (!constellationMode) {
-      // Auto-expand all projects in constellation mode
-      const allProjectIds = new Set(groupedData.projects.map(p => p.projectId));
-      setExpandedProjects(allProjectIds);
-    }
   };
 
   const enterFocusMode = (projectId: string) => {
@@ -90,17 +79,6 @@ export default function TotalViewDashboard({ ideas, isFiltered }: TotalViewDashb
     }
   }
 
-  // Constellation mode
-  if (constellationMode) {
-    return (
-      <ConstellationView
-        groupedData={groupedData}
-        onToggleMode={toggleConstellationMode}
-        onFocusProject={enterFocusMode}
-      />
-    );
-  }
-
   // Standard dashboard view
   return (
     <motion.div
@@ -109,39 +87,24 @@ export default function TotalViewDashboard({ ideas, isFiltered }: TotalViewDashb
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Header with mode toggle */}
-      <div className="flex items-center justify-between">
-        <motion.div
-          className="flex items-center gap-3"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-        >
-          <div className="p-2 bg-gradient-to-br from-yellow-500/20 to-amber-500/30 rounded-lg border border-yellow-500/40">
-            <Sparkles className="w-5 h-5 text-yellow-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-yellow-400">
-              {groupedData.totalIdeas} Ideas Implemented
-            </h2>
-            <p className="text-sm text-gray-400">
-              Across {groupedData.projects.length} {groupedData.projects.length === 1 ? 'project' : 'projects'}
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Constellation mode toggle */}
-        <motion.button
-          onClick={toggleConstellationMode}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20
-                     border border-purple-500/40 rounded-lg text-purple-300 hover:bg-purple-500/30
-                     transition-all group"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Circle className="w-4 h-4 group-hover:animate-pulse" />
-          <span className="text-sm font-semibold">Constellation View</span>
-        </motion.button>
-      </div>
+      {/* Header */}
+      <motion.div
+        className="flex items-center gap-3"
+        initial={{ x: -20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+      >
+        <div className="p-2 bg-gradient-to-br from-yellow-500/20 to-amber-500/30 rounded-lg border border-yellow-500/40">
+          <Sparkles className="w-5 h-5 text-yellow-400" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-yellow-400">
+            {groupedData.totalIdeas} Ideas Implemented
+          </h2>
+          <p className="text-sm text-gray-400">
+            Across {groupedData.projects.length} {groupedData.projects.length === 1 ? 'project' : 'projects'}
+          </p>
+        </div>
+      </motion.div>
 
       {/* Project sections */}
       <AnimatePresence mode="popLayout">

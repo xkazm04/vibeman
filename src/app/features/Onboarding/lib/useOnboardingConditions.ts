@@ -61,30 +61,7 @@ export function useOnboardingAutoComplete() {
     }
   }, [projects.length, activeProject?.id, completeStep, isStepCompleted]);
 
-  // Check Step 2: Set up goals (goals exist for project)
-  useEffect(() => {
-    const checkGoals = async () => {
-      if (!activeProject?.id) return;
-
-      try {
-        const response = await fetch(`/api/goals?projectId=${activeProject.id}`);
-        const data = await response.json();
-
-        if (data.success && data.goals) {
-          const hasAny = data.goals.length > 0;
-          setHasGoals(hasAny);
-
-          completeStepIfNeeded(hasAny, 'set-up-goals', isStepCompleted, completeStep);
-        }
-      } catch {
-        // Silently fail - goal check is non-critical
-      }
-    };
-
-    checkGoals();
-  }, [activeProject?.id, completeStep, isStepCompleted, refreshTrigger]);
-
-  // Check Step 3: Scan context (project-specific, runs on mount and when refreshTrigger changes)
+  // Check Step 2 & 3: Review contexts (contexts exist means blueprint ran)
   useEffect(() => {
     const checkContexts = async () => {
       if (!activeProject?.id) return;
@@ -98,7 +75,9 @@ export function useOnboardingAutoComplete() {
           const hasAny = data.data.contexts.length > 0;
           setHasContexts(hasAny);
 
-          completeStepIfNeeded(hasAny, 'scan-context', isStepCompleted, completeStep);
+          // If contexts exist, both blueprint and review are done
+          completeStepIfNeeded(hasAny, 'run-blueprint', isStepCompleted, completeStep);
+          completeStepIfNeeded(hasAny, 'review-contexts', isStepCompleted, completeStep);
         }
       } catch {
         // Silently fail - context check is non-critical
@@ -108,7 +87,7 @@ export function useOnboardingAutoComplete() {
     checkContexts();
   }, [activeProject?.id, completeStep, isStepCompleted, refreshTrigger]);
 
-  // Check Step 4: Generate ideas (project-specific, runs on mount and when refreshTrigger changes)
+  // Check Step 4: Generate ideas (project-specific)
   useEffect(() => {
     const checkIdeas = async () => {
       if (!activeProject?.id) return;
@@ -124,14 +103,22 @@ export function useOnboardingAutoComplete() {
 
           completeStepIfNeeded(hasAny, 'generate-ideas', isStepCompleted, completeStep);
 
-          // Also check for implemented ideas (Step 5)
+          // Check for accepted ideas (Step 5: evaluate-ideas)
+          const accepted = data.ideas.filter(
+            (idea: Idea) => idea.status === 'accepted' || idea.status === 'implemented'
+          );
+          const hasAccepted = accepted.length > 0;
+          completeStepIfNeeded(hasAccepted, 'evaluate-ideas', isStepCompleted, completeStep);
+
+          // Check for implemented ideas (Step 6 & 7)
           const implemented = data.ideas.filter(
             (idea: Idea) => idea.status === 'implemented'
           );
           const hasImpl = implemented.length > 0;
           setHasImplementedIdeas(hasImpl);
 
-          completeStepIfNeeded(hasImpl, 'let-code', isStepCompleted, completeStep);
+          completeStepIfNeeded(hasImpl, 'run-task', isStepCompleted, completeStep);
+          completeStepIfNeeded(hasImpl, 'review-impl', isStepCompleted, completeStep);
         }
       } catch {
         // Silently fail - idea check is non-critical
@@ -140,6 +127,26 @@ export function useOnboardingAutoComplete() {
 
     checkIdeas();
   }, [activeProject?.id, completeStep, isStepCompleted, refreshTrigger]);
+
+  // Check goals (informational only, not a step)
+  useEffect(() => {
+    const checkGoals = async () => {
+      if (!activeProject?.id) return;
+
+      try {
+        const response = await fetch(`/api/goals?projectId=${activeProject.id}`);
+        const data = await response.json();
+
+        if (data.success && data.goals) {
+          setHasGoals(data.goals.length > 0);
+        }
+      } catch {
+        // Silently fail - goal check is non-critical
+      }
+    };
+
+    checkGoals();
+  }, [activeProject?.id, refreshTrigger]);
 
   return {
     hasProjects: projects.length > 0,
@@ -158,9 +165,11 @@ export function useActiveOnboardingStep() {
 
   return {
     isCreateProjectActive: isStepActive('create-project'),
-    isSetUpGoalsActive: isStepActive('set-up-goals'),
-    isScanContextActive: isStepActive('scan-context'),
+    isRunBlueprintActive: isStepActive('run-blueprint'),
+    isReviewContextsActive: isStepActive('review-contexts'),
     isGenerateIdeasActive: isStepActive('generate-ideas'),
-    isLetCodeActive: isStepActive('let-code'),
+    isEvaluateIdeasActive: isStepActive('evaluate-ideas'),
+    isRunTaskActive: isStepActive('run-task'),
+    isReviewImplActive: isStepActive('review-impl'),
   };
 }

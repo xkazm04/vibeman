@@ -57,7 +57,18 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      logger.error('JSON parse error in hypotheses API:', {
+        error: parseError instanceof Error ? parseError.message : 'Unknown'
+      });
+      return createErrorResponse(
+        `Invalid JSON in request body: ${parseError instanceof Error ? parseError.message : 'Parse error'}`,
+        400
+      );
+    }
     const {
       goalId,
       projectId,

@@ -1,7 +1,9 @@
 /**
  * Zen Layout Store
  * Minimal state management for the holiday monitoring view
- * Extended with cross-device offload support
+ *
+ * NOTE: Cross-device offload pairing migrated to Supabase Realtime.
+ * Supabase connection state will be added in Phase 5.
  */
 
 import { create } from 'zustand';
@@ -26,27 +28,14 @@ export interface ZenStats {
 
 export type ZenMode = 'offline' | 'online';
 
-export interface DevicePairing {
-  status: 'unpaired' | 'pairing' | 'paired';
-  pairingCode?: string;
-  partnerUrl?: string;
-  partnerDeviceName?: string;
-  devicePairId?: string;
-  projectId?: string;
-  myUrl?: string;  // This device's URL for callbacks
-}
-
 interface ZenState {
   // Mode: offline (monitoring) or online (accepting tasks)
   mode: ZenMode;
 
-  // Device pairing state
-  pairing: DevicePairing;
-
   // Selected batch to monitor
   selectedBatchId: BatchId | null;
 
-  // Connection state
+  // Connection state (SSE/Supabase)
   isConnected: boolean;
 
   // Current running task
@@ -64,8 +53,6 @@ interface ZenState {
 
   // Actions
   setMode: (mode: ZenMode) => void;
-  setPairing: (pairing: Partial<DevicePairing>) => void;
-  clearPairing: () => void;
   selectBatch: (batchId: BatchId | null) => void;
   setConnected: (connected: boolean) => void;
   setCurrentTask: (task: { id: string; title: string; progress: number } | null) => void;
@@ -77,16 +64,11 @@ interface ZenState {
   resetSession: () => void;
 }
 
-const initialPairing: DevicePairing = {
-  status: 'unpaired',
-};
-
 export const useZenStore = create<ZenState>()(
   persist(
     (set) => ({
       // Initial state
       mode: 'offline',
-      pairing: initialPairing,
       selectedBatchId: null,
       isConnected: false,
       currentTask: null,
@@ -100,12 +82,6 @@ export const useZenStore = create<ZenState>()(
 
       // Actions
       setMode: (mode) => set({ mode }),
-
-      setPairing: (updates) => set((state) => ({
-        pairing: { ...state.pairing, ...updates },
-      })),
-
-      clearPairing: () => set({ pairing: initialPairing }),
 
       selectBatch: (batchId) => set({ selectedBatchId: batchId }),
 
@@ -151,7 +127,6 @@ export const useZenStore = create<ZenState>()(
       name: 'zen-store',
       partialize: (state) => ({
         mode: state.mode,
-        pairing: state.pairing,
       }),
     }
   )

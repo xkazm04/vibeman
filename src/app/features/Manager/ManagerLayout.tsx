@@ -8,16 +8,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, FileCheck, CheckCircle2, Users } from 'lucide-react';
+import { Target, FileCheck } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { useThemeStore } from '@/stores/themeStore';
 
-// Goal Hub
+// Goal Hub (now includes Standup automation as a tab)
 import GoalHubLayout from './GoalHub/GoalHubLayout';
-
-// Standup Wizard
-import StandupWizard from './Standup/StandupWizard';
 
 // Original implementation review components
 import { EnrichedImplementationLog } from './lib/types';
@@ -25,6 +22,7 @@ import ImplementationLogDetail from './components/ImplementationLogDetail';
 import ManagerHeader, { ViewMode } from './components/ManagerHeader';
 import ManagerCardGrid from './components/ManagerCardGrid';
 import ManagerSystemMap from './components/ManagerSystemMap';
+import TabEmptyState from './components/TabEmptyStates';
 import { acceptImplementation } from '@/lib/tools';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
 
@@ -32,7 +30,7 @@ interface ManagerLayoutProps {
   projectId?: string | null;
 }
 
-type ManagerTab = 'goals' | 'standup' | 'review';
+type ManagerTab = 'goals' | 'review';
 
 export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
   // Tab state
@@ -158,17 +156,6 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
               <span className="font-medium">Goal Hub</span>
             </button>
             <button
-              onClick={() => setActiveTab('standup')}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
-                activeTab === 'standup'
-                  ? 'border-purple-500 text-purple-400'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              <span className="font-medium">Standup</span>
-            </button>
-            <button
               onClick={() => setActiveTab('review')}
               className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
                 activeTab === 'review'
@@ -198,17 +185,6 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
             exit={{ opacity: 0 }}
           >
             <GoalHubLayout />
-          </motion.div>
-        )}
-
-        {activeTab === 'standup' && (
-          <motion.div
-            key="standup"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <StandupWizard />
           </motion.div>
         )}
 
@@ -245,12 +221,8 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
 
             {/* Empty State */}
             {!loading && implementationLogs.length === 0 && (
-              <div className="flex items-center justify-center min-h-[400px]" data-testid="manager-empty-state">
-                <div className="text-center">
-                  <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-white mb-2">All Caught Up!</h2>
-                  <p className="text-gray-400">No untested implementations to review</p>
-                </div>
+              <div data-testid="manager-empty-state">
+                <TabEmptyState tab="review" />
               </div>
             )}
 

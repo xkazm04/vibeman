@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
 import { ContextHealthDot } from './components/ContextHealthIndicator';
+import { FileTypeSummary } from './components/MiniFileTree';
 import { useTooltipStore } from '../../../stores/tooltipStore';
 import { useStore } from '../../../stores/nodeStore';
 import { MultiFileEditor } from '../../../components/editor';
@@ -256,30 +257,33 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
           </div>
         )}
 
-        {/* Main Content - Single Row Layout */}
-        <div className="relative flex items-center justify-between space-x-4 card-main-content">
-          {/* Left Section - Icon and Name */}
-          <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <ContextHealthDot context={context} />
-                <h5 className="text-base font-bold text-white font-mono mb-1" title={context.name}>
-                  {context.name}
-                </h5>
-              </div>
+        {/* Main Content */}
+        <div className="relative space-y-2 card-main-content">
+          {/* Header Row - Name and Health */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <ContextHealthDot context={context} />
+              <h5 className="text-base font-bold text-white font-mono truncate" title={context.name}>
+                {context.name}
+              </h5>
+            </div>
+            {/* File Count Badge */}
+            <div
+              className="px-2 py-0.5 rounded-md text-xs font-bold font-mono"
+              style={{ color: groupColor || '#8B5CF6', backgroundColor: `${groupColor || '#8B5CF6'}15` }}
+            >
+              {context.filePaths.length} files
+            </div>
           </div>
-          <div className="flex opacity-50 absolute -top-11 -left-2  items-center space-x-3 flex-shrink-0">
-                {/* File Count Badge */}
-                <div className="flex items-center space-x-2">
-                  <div
-                    className="px-3 py-1.5 rounded-lg text-sm font-bold font-mono backdrop-blur-sm"
-                    style={{
-                      color: groupColor || '#8B5CF6'
-                    }}
-                  >
-                    {context.filePaths.length}
-                  </div>
-                </div>
-              </div>
+
+          {/* File Type Summary - Shows on hover */}
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: isHovered ? 1 : 0.5, height: 'auto' }}
+            className="overflow-hidden"
+          >
+            <FileTypeSummary filePaths={context.filePaths} />
+          </motion.div>
         </div>
 
         {/* Hover Overlay */}

@@ -1,6 +1,6 @@
 /**
  * Base Plugin Abstract Class
- * Provides a convenient base for creating TechDebtRadar plugins
+ * Provides a convenient base for creating TechDebt plugins
  */
 
 import type {
@@ -25,7 +25,7 @@ import type {
 } from '@/app/db/models/tech-debt.types';
 
 /**
- * Abstract base class for TechDebtRadar plugins
+ * Abstract base class for TechDebt plugins
  * Provides sensible defaults and helper methods
  */
 export abstract class BasePlugin implements TechDebtPlugin {

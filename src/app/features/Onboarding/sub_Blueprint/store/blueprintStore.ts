@@ -55,7 +55,7 @@ interface BlueprintState {
   nextStep: () => void;
   previousStep: () => void;
   resetStepper: () => void;
-  initStepperConfig: (projectType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other') => void;
+  initStepperConfig: (projectType: string) => void;
   toggleGroup: (groupId: string, enabled: boolean) => void;
 
   // Tooltip actions
@@ -341,7 +341,7 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
     });
   },
 
-  initStepperConfig: (projectType: 'nextjs' | 'fastapi' | 'react' | 'python' | 'other') => {
+  initStepperConfig: (projectType: string) => {
     const config = getStepperConfig(projectType);
     // Auto-generate scans from the new config
     const scans = generateDefaultScans(config);

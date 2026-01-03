@@ -1,12 +1,13 @@
 'use client';
 
-import { X, Shield, Code2, Wand2 } from 'lucide-react';
+import { X, Shield, Code2, Wand2, Zap } from 'lucide-react';
 
 export interface WizardHeaderProps {
   isDSLMode: boolean;
   onToggleDSLMode: () => void;
   onOpenDebtPrediction: () => void;
   onClose: () => void;
+  onSwitchToQuickMode?: () => void;
 }
 
 export default function WizardHeader({
@@ -14,6 +15,7 @@ export default function WizardHeader({
   onToggleDSLMode,
   onOpenDebtPrediction,
   onClose,
+  onSwitchToQuickMode,
 }: WizardHeaderProps) {
   return (
     <header className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-cyan-500/10 bg-cyan-950/20 backdrop-blur-md">
@@ -28,6 +30,18 @@ export default function WizardHeader({
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Quick Mode Button */}
+        {onSwitchToQuickMode && (
+          <button
+            onClick={onSwitchToQuickMode}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-colors"
+            data-testid="switch-to-quick-mode"
+          >
+            <Zap className="w-4 h-4" />
+            <span className="hidden sm:inline">Quick Mode</span>
+          </button>
+        )}
+
         {/* DSL Mode Toggle */}
         <button
           onClick={onToggleDSLMode}

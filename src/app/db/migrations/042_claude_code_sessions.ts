@@ -5,7 +5,19 @@
 
 import Database from 'better-sqlite3';
 
+function tableExists(db: Database.Database, tableName: string): boolean {
+  const result = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name=?
+  `).get(tableName) as { name: string } | undefined;
+  return !!result;
+}
+
 export function migrate042ClaudeCodeSessions(db: Database.Database): void {
+  // Skip if tables already exist
+  if (tableExists(db, 'claude_code_sessions') && tableExists(db, 'session_tasks')) {
+    return;
+  }
+
   // Create claude_code_sessions table
   db.exec(`
     CREATE TABLE IF NOT EXISTS claude_code_sessions (

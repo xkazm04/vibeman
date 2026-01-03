@@ -1,29 +1,43 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { WeeklyStats, WeeklyFilters } from '../lib/types';
-import { fetchWeeklyStats, getWeekRange } from '../lib/weeklyApi';
+import { fetchWeeklyStats } from '../lib/weeklyApi';
 import WeeklyKPICards from './WeeklyKPICards';
 import DailyActivityChart from './DailyActivityChart';
 import SpecialistBreakdown from './SpecialistBreakdown';
 import ProjectImplementationRanking from './ProjectImplementationRanking';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { UniversalSelect } from '@/components/ui/UniversalSelect';
+import FilterBar from '../../components/FilterBar';
+import {
+  UnifiedFilterState,
+  FilterBarConfig,
+  getEmptyUnifiedFilterState
+} from '../../lib/filterIdeas';
+
+// FilterBar configuration for WeeklyDashboard
+const WEEKLY_FILTER_CONFIG: FilterBarConfig = {
+  showProjectFilter: true,
+  showWeekNavigation: true,
+  singleProjectSelect: true,
+  variant: 'inline',
+};
 
 export default function WeeklyDashboard() {
   const [stats, setStats] = useState<WeeklyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<WeeklyFilters>({
-    projectId: null,
-    contextId: null,
-    weekOffset: 0,
-  });
+  const [unifiedFilters, setUnifiedFilters] = useState<UnifiedFilterState>(getEmptyUnifiedFilterState());
 
   const { projects, initializeProjects } = useProjectConfigStore();
-  const weekRange = getWeekRange(filters.weekOffset);
+
+  // Convert unified filters to WeeklyFilters for API calls
+  const filters: WeeklyFilters = useMemo(() => ({
+    projectId: unifiedFilters.projectIds[0] || null,
+    contextId: unifiedFilters.contextIds[0] || null,
+    weekOffset: unifiedFilters.weekOffset,
+  }), [unifiedFilters]);
 
   useEffect(() => {
     initializeProjects();
@@ -47,19 +61,9 @@ export default function WeeklyDashboard() {
     loadStats();
   }, [loadStats]);
 
-  const handlePreviousWeek = () => {
-    setFilters(f => ({ ...f, weekOffset: f.weekOffset - 1 }));
-  };
-
-  const handleNextWeek = () => {
-    if (filters.weekOffset < 0) {
-      setFilters(f => ({ ...f, weekOffset: f.weekOffset + 1 }));
-    }
-  };
-
-  const handleCurrentWeek = () => {
-    setFilters(f => ({ ...f, weekOffset: 0 }));
-  };
+  const handleFilterChange = useCallback((newFilters: UnifiedFilterState) => {
+    setUnifiedFilters(newFilters);
+  }, []);
 
   if (loading) {
     return (
@@ -92,76 +96,14 @@ export default function WeeklyDashboard() {
 
   return (
     <div className="space-y-6" data-testid="weekly-dashboard">
-      {/* Week Navigation & Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-      >
-        {/* Week Navigator */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handlePreviousWeek}
-            className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
-            aria-label="Previous week"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-900/30 border border-amber-500/40">
-            <Calendar className="w-4 h-4 text-amber-400" />
-            <span className="text-amber-300 font-medium">{weekRange.label}</span>
-            <span className="text-gray-500 text-sm">
-              ({new Date(stats.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(stats.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
-            </span>
-          </div>
-          
-          <button
-            onClick={handleNextWeek}
-            disabled={filters.weekOffset >= 0}
-            className={`p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 transition-colors ${
-              filters.weekOffset >= 0 
-                ? 'text-gray-600 cursor-not-allowed' 
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
-            }`}
-            aria-label="Next week"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-
-          {filters.weekOffset !== 0 && (
-            <button
-              onClick={handleCurrentWeek}
-              className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors"
-            >
-              Current Week
-            </button>
-          )}
-        </div>
-
-        {/* Project Filter */}
-        <div className="flex items-center gap-3">
-          <div className="w-48">
-            <UniversalSelect
-              value={filters.projectId || ''}
-              onChange={(value) => setFilters(f => ({ ...f, projectId: value || null, contextId: null }))}
-              options={[
-                { value: '', label: 'All Projects' },
-                ...projects.map(p => ({ value: p.id, label: p.name })),
-              ]}
-              variant="compact"
-              size="sm"
-            />
-          </div>
-          <button
-            onClick={loadStats}
-            className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
-            aria-label="Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-      </motion.div>
+      {/* Unified FilterBar */}
+      <FilterBar
+        projects={projects}
+        filters={unifiedFilters}
+        onChange={handleFilterChange}
+        config={WEEKLY_FILTER_CONFIG}
+        onRefresh={loadStats}
+      />
 
       {/* KPI Cards */}
       <WeeklyKPICards stats={stats} />

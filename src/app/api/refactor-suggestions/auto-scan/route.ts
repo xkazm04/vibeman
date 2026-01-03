@@ -209,39 +209,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Hook to trigger auto-scan after feature implementation
- * Called internally by the system
- */
-export async function triggerPostImplementationScan(
-  projectId: string,
-  projectPath: string,
-  changedFiles: string[]
-): Promise<AutoScanResult | null> {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/refactor-suggestions/auto-scan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId,
-        projectPath,
-        triggerSource: 'idea-implement',
-        changedFiles,
-        autoGenerateIdeas: true,
-        maxSuggestions: 10,
-      }),
-    });
-
-    if (!response.ok) {
-      logger.error('[AutoScan] Post-implementation scan failed');
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    logger.error('[AutoScan] Error triggering post-implementation scan:', { error });
-    return null;
-  }
-}
-
 export const maxDuration = 300;

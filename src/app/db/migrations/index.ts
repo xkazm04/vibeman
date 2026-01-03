@@ -6,6 +6,7 @@ import {
   getTableInfo,
   hasColumn,
   safeMigration,
+  tableExists,
   type MigrationLogger,
   type ColumnInfo
 } from './migration.utils';
@@ -156,8 +157,7 @@ export function runMigrations() {
     migrateSocialFeedbackItems();
     // Migration 49: Create Social Discovery Configs table
     migrateSocialDiscoveryConfigs();
-    // Migration 50: Create Offload System tables
-    migrateOffloadSystem();
+    // Migration 50: Offload System - REMOVED (migrated to Supabase)
     // Migration 51: Create Claude Code Sessions tables
     migrateClaudeCodeSessions();
     // Migration 52: Create Automation Sessions table
@@ -166,6 +166,12 @@ export function runMigrations() {
     migrateAutomationSessionEvents();
     // Migration 54: Create Integration Framework tables
     migrateIntegrationFramework();
+    // Migration 55: Create Code Health Observatory tables
+    migrateObservatory();
+    // Migration 56: Add risk column to ideas table
+    migrateIdeasRiskColumn();
+    // Migration 57: Add paused phase to automation_sessions
+    migrateAutomationSessionPausedPhase();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -2631,6 +2637,12 @@ function migrateIdeasExtendedScoring() {
   safeMigration('ideasExtendedScoring', () => {
     const db = getConnection();
 
+    // Check if ideas table exists first
+    if (!tableExists(db, 'ideas')) {
+      migrationLogger.info('Ideas table does not exist yet, skipping extended scoring migration');
+      return;
+    }
+
     // Check if risk column already exists
     const tableInfo = getTableInfo(db, 'ideas');
     const hasRiskColumn = tableInfo.some(col => col.name === 'risk');
@@ -4074,13 +4086,7 @@ function migrateSocialDiscoveryConfigs() {
   }, migrationLogger);
 }
 
-function migrateOffloadSystem() {
-  safeMigration('offloadSystem', () => {
-    const db = getConnection();
-    const { migrate041OffloadSystem } = require('./041_offload_system');
-    migrate041OffloadSystem(db);
-  }, migrationLogger);
-}
+// migrateOffloadSystem removed - migrated to Supabase Realtime
 
 function migrateClaudeCodeSessions() {
   safeMigration('claudeCodeSessions', () => {
@@ -4111,5 +4117,29 @@ function migrateIntegrationFramework() {
     const db = getConnection();
     const { migrate045IntegrationFramework } = require('./045_integration_framework');
     migrate045IntegrationFramework(db);
+  }, migrationLogger);
+}
+
+function migrateObservatory() {
+  safeMigration('observatory', () => {
+    const db = getConnection();
+    const { migrate046Observatory } = require('./046_observatory');
+    migrate046Observatory(db);
+  }, migrationLogger);
+}
+
+function migrateIdeasRiskColumn() {
+  safeMigration('ideas_risk_column', () => {
+    const db = getConnection();
+    const { migrate047 } = require('./047_ideas_risk_column');
+    migrate047(db);
+  }, migrationLogger);
+}
+
+function migrateAutomationSessionPausedPhase() {
+  safeMigration('automation_session_paused_phase', () => {
+    const db = getConnection();
+    const { migrate048AutomationSessionPausedPhase } = require('./048_automation_session_paused_phase');
+    migrate048AutomationSessionPausedPhase(db);
   }, migrationLogger);
 }

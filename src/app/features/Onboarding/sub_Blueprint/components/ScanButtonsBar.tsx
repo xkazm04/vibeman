@@ -33,7 +33,7 @@ export default function ScanButtonsBar({
   isRecommended,
   className = '',
 }: ScanButtonsBarProps) {
-  const { isScanContextActive } = useActiveOnboardingStep();
+  const { isRunBlueprintActive } = useActiveOnboardingStep();
 
   // Memoize expensive computation of scan buttons to avoid recalculating on every render
   const scanButtons = useMemo(() => {
@@ -105,7 +105,7 @@ export default function ScanButtonsBar({
               daysAgo={daysAgo}
               showDaysAgo={true}
               recommended={recommended}
-              cycleBlue={button.id === 'contexts' && isScanContextActive}
+              cycleBlue={button.id === 'contexts' && isRunBlueprintActive}
             />
           </motion.div>
         );

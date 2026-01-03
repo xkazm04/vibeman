@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Zap, TrendingUp, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { FilterState } from '../lib/types';
 
+export type QuadrantType = 'quickWins' | 'majorProjects' | 'fillIns' | 'thankless';
+
 interface QuadrantData {
   count: number;
   acceptanceRate: number;
@@ -44,9 +46,10 @@ interface EffortImpactData {
 
 interface EffortImpactMatrixProps {
   filters: FilterState;
+  onQuadrantClick?: (quadrant: QuadrantType) => void;
 }
 
-export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps) {
+export default function EffortImpactMatrix({ filters, onQuadrantClick }: EffortImpactMatrixProps) {
   const [data, setData] = useState<EffortImpactData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +98,16 @@ export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps)
   }
 
 
-  const quadrantCards = [
+  const quadrantCards: Array<{
+    title: string;
+    icon: typeof Zap;
+    color: string;
+    borderColor: string;
+    bgGradient: string;
+    data: QuadrantData;
+    description: string;
+    quadrantType: QuadrantType;
+  }> = [
     {
       title: 'Quick Wins',
       icon: Zap,
@@ -103,7 +115,8 @@ export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps)
       borderColor: 'border-green-500/40',
       bgGradient: 'from-green-500/10 to-green-600/5',
       data: data.quadrants.quickWins,
-      description: 'Low effort, high impact'
+      description: 'Low effort, high impact',
+      quadrantType: 'quickWins',
     },
     {
       title: 'Major Projects',
@@ -112,7 +125,8 @@ export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps)
       borderColor: 'border-blue-500/40',
       bgGradient: 'from-blue-500/10 to-blue-600/5',
       data: data.quadrants.majorProjects,
-      description: 'High effort, high impact'
+      description: 'High effort, high impact',
+      quadrantType: 'majorProjects',
     },
     {
       title: 'Fill-Ins',
@@ -121,7 +135,8 @@ export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps)
       borderColor: 'border-yellow-500/40',
       bgGradient: 'from-yellow-500/10 to-yellow-600/5',
       data: data.quadrants.fillIns,
-      description: 'Low effort, low impact'
+      description: 'Low effort, low impact',
+      quadrantType: 'fillIns',
     },
     {
       title: 'Thankless Tasks',
@@ -130,7 +145,8 @@ export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps)
       borderColor: 'border-red-500/40',
       bgGradient: 'from-red-500/10 to-red-600/5',
       data: data.quadrants.thankless,
-      description: 'High effort, low impact'
+      description: 'High effort, low impact',
+      quadrantType: 'thankless',
     }
   ];
 
@@ -149,13 +165,30 @@ export default function EffortImpactMatrix({ filters }: EffortImpactMatrixProps)
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {quadrantCards.map((quadrant, index) => {
           const Icon = quadrant.icon;
+          const handleClick = () => {
+            if (onQuadrantClick) {
+              onQuadrantClick(quadrant.quadrantType);
+            }
+          };
+          const handleKeyDown = (e: React.KeyboardEvent) => {
+            if (onQuadrantClick && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              onQuadrantClick(quadrant.quadrantType);
+            }
+          };
           return (
             <motion.div
               key={quadrant.title}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.4 + index * 0.05 }}
-              className={`relative bg-gradient-to-br ${quadrant.bgGradient} border ${quadrant.borderColor} rounded-lg p-4 backdrop-blur-sm`}
+              whileHover={onQuadrantClick ? { scale: 1.02, y: -2 } : undefined}
+              onClick={handleClick}
+              onKeyDown={handleKeyDown}
+              className={`relative bg-gradient-to-br ${quadrant.bgGradient} border ${quadrant.borderColor} rounded-lg p-4 backdrop-blur-sm ${onQuadrantClick ? 'cursor-pointer' : ''}`}
+              data-testid={`quadrant-card-${quadrant.quadrantType}`}
+              role={onQuadrantClick ? 'button' : undefined}
+              tabIndex={onQuadrantClick ? 0 : undefined}
             >
               <div className="flex items-start gap-2 mb-3">
                 <div className={`p-2 bg-gray-900/60 rounded-lg border ${quadrant.borderColor}`}>

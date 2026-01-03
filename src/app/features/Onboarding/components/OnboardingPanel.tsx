@@ -31,33 +31,45 @@ export default function OnboardingPanel({ isOpen, onClose }: OnboardingPanelProp
   const tasks: OnboardingTask[] = [
     {
       id: 'create-project',
-      label: 'Create a project',
-      description: 'Set up your first project to start building',
+      label: 'Register a project',
+      description: 'Connect your codebase to start analyzing',
       completed: isStepCompleted('create-project', activeProjectId ?? undefined)
     },
     {
-      id: 'set-up-goals',
-      label: 'Set up goals',
-      description: 'Define next steps where do you see to push this project',
-      completed: isStepCompleted('set-up-goals', activeProjectId ?? undefined)
+      id: 'run-blueprint',
+      label: 'Run blueprint scan',
+      description: 'Analyze project structure and auto-create contexts',
+      completed: isStepCompleted('run-blueprint', activeProjectId ?? undefined)
     },
     {
-      id: 'scan-context',
-      label: 'Scan context',
-      description: 'Analyze project codebase to identify key features',
-      completed: isStepCompleted('scan-context', activeProjectId ?? undefined)
+      id: 'review-contexts',
+      label: 'Review contexts',
+      description: 'Organize your code into logical feature groups',
+      completed: isStepCompleted('review-contexts', activeProjectId ?? undefined)
     },
     {
       id: 'generate-ideas',
       label: 'Generate ideas',
-      description: 'Let AI specialists discover improvement opportunities',
+      description: 'AI agents analyze code for improvements',
       completed: isStepCompleted('generate-ideas', activeProjectId ?? undefined)
     },
     {
-      id: 'let-code',
-      label: 'Let it Code',
-      description: 'Start implementing ideas with AI assistance',
-      completed: isStepCompleted('let-code', activeProjectId ?? undefined)
+      id: 'evaluate-ideas',
+      label: 'Evaluate ideas',
+      description: 'Swipe to accept or reject suggested improvements',
+      completed: isStepCompleted('evaluate-ideas', activeProjectId ?? undefined)
+    },
+    {
+      id: 'run-task',
+      label: 'Run first task',
+      description: 'Execute an accepted idea with Claude Code',
+      completed: isStepCompleted('run-task', activeProjectId ?? undefined)
+    },
+    {
+      id: 'review-impl',
+      label: 'Review implementation',
+      description: 'Accept or reject AI-generated code changes',
+      completed: isStepCompleted('review-impl', activeProjectId ?? undefined)
     },
   ];
 

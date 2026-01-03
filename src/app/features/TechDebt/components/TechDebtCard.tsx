@@ -64,6 +64,7 @@ export default function TechDebtCard({
 
   return (
     <motion.div
+      data-testid={`tech-debt-card-${techDebt.id}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.02 }}
@@ -134,6 +135,7 @@ export default function TechDebtCard({
       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-700/50">
         {!techDebt.backlog_item_id && techDebt.status !== 'resolved' && techDebt.status !== 'dismissed' && (
           <button
+            data-testid={`create-backlog-btn-${techDebt.id}`}
             onClick={(e) => {
               e.stopPropagation();
               onCreateBacklog();
@@ -156,6 +158,7 @@ export default function TechDebtCard({
         )}
 
         <button
+          data-testid={`view-details-btn-${techDebt.id}`}
           onClick={(e) => {
             e.stopPropagation();
             onSelect();

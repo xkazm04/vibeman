@@ -1,5 +1,5 @@
 /**
- * Plugin Registry for TechDebtRadar
+ * Plugin Registry for TechDebt
  * Manages plugin registration, lifecycle, and access
  */
 
@@ -39,7 +39,7 @@ class PluginRegistry {
   }
 
   /**
-   * Load built-in plugins that ship with TechDebtRadar
+   * Load built-in plugins that ship with TechDebt
    */
   private async loadBuiltInPlugins(): Promise<void> {
     // Built-in plugins will be loaded here

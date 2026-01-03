@@ -2,17 +2,32 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { ScanTypeStats } from '../lib/types';
 import { SCAN_TYPE_CONFIG, STATUS_CONFIG } from '../lib/config';
 
 interface ScanTypeCardProps {
   stats: ScanTypeStats;
   index: number;
+  onScanTypeClick?: (scanType: ScanType) => void;
 }
 
-export default function ScanTypeCard({ stats, index }: ScanTypeCardProps) {
+export default function ScanTypeCard({ stats, index, onScanTypeClick }: ScanTypeCardProps) {
   const config = SCAN_TYPE_CONFIG[stats.scanType];
   const Icon = config.icon;
+
+  const handleClick = () => {
+    if (onScanTypeClick) {
+      onScanTypeClick(stats.scanType);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (onScanTypeClick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onScanTypeClick(stats.scanType);
+    }
+  };
 
   const getAcceptanceIcon = () => {
     if (stats.acceptanceRatio >= 70) return TrendingUp;
@@ -35,7 +50,12 @@ export default function ScanTypeCard({ stats, index }: ScanTypeCardProps) {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ delay: index * 0.05, duration: 0.3 }}
       whileHover={{ scale: 1.02, y: -4 }}
-      className={`relative bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} rounded-lg p-4 backdrop-blur-sm overflow-hidden group`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={`relative bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} rounded-lg p-4 backdrop-blur-sm overflow-hidden group ${onScanTypeClick ? 'cursor-pointer' : ''}`}
+      data-testid={`scan-type-card-${stats.scanType}`}
+      role={onScanTypeClick ? 'button' : undefined}
+      tabIndex={onScanTypeClick ? 0 : undefined}
     >
       {/* Background decoration */}
       <div className={`absolute -top-10 -right-10 w-32 h-32 ${config.color} opacity-5 rounded-full blur-2xl group-hover:opacity-10 transition-opacity`} />

@@ -3,13 +3,13 @@
 import { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FocusTrap from 'focus-trap-react';
-import { LoadingSkeleton } from './LoadingSkeleton';
+import { FullPageSpinner } from '@/components/ui/Spinner';
 import { ErrorOverlay } from './ErrorOverlay';
 
 interface StepContainerProps {
   /** Content to display inside the step */
   children: ReactNode;
-  /** Loading state - shows skeleton when true */
+  /** Loading state - shows spinner when true */
   isLoading?: boolean;
   /** Error state - shows overlay when provided */
   error?: string | null;
@@ -28,7 +28,7 @@ interface StepContainerProps {
  *
  * A reusable container that wraps wizard step content with:
  * - Automatic focus trap for accessibility
- * - Loading skeleton during async operations
+ * - Loading spinner during async operations
  * - Error overlay with dismiss functionality
  * - Smooth Framer Motion entrance/exit transitions
  * - Optional header with title, icon, and progress badge
@@ -66,10 +66,10 @@ export default function StepContainer({
       className={`relative space-y-6 ${className}`}
       data-testid={testId}
     >
-      {/* Loading Skeleton */}
+      {/* Loading Spinner */}
       <AnimatePresence mode="wait">
         {isLoading ? (
-          <LoadingSkeleton key="skeleton" data-testid={`${testId}-loading`} />
+          <FullPageSpinner key="spinner" data-testid={`${testId}-loading`} />
         ) : (
           <motion.div
             key="content"

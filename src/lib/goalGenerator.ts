@@ -370,42 +370,85 @@ async function scanGitHistory(projectPath: string): Promise<string> {
 }
 
 /**
- * Build system prompt for LLM
+ * Build system prompt for LLM - Strategic Advisor Persona
  */
 function buildSystemPrompt(): string {
-  return `You are an expert software development assistant specializing in project goal planning and prioritization.
+  return `You are a Strategic Product Advisor analyzing a software project.
 
-Your task is to analyze a software project and generate actionable goal candidates that would benefit the project.
+Your role is to SYNTHESIZE tactical inputs (tech debt, ideas, TODOs) into STRATEGIC GOALS.
 
-Guidelines for goal generation:
-1. Goals should be SPECIFIC and ACTIONABLE
-2. Each goal should have a clear success criterion
-3. Prioritize based on impact, urgency, and alignment with project health
-4. Consider both technical debt and feature development
-5. Match goals to relevant contexts (feature areas) when possible
-6. Provide clear reasoning for each goal's priority score
+## Strategic Thinking Process
 
-Output your response as a JSON array of goal candidates with this exact structure:
+1. CLUSTER: Group related items by underlying theme
+2. ABSTRACT: Identify the strategic need each cluster represents
+3. ENVISION: Describe the ideal end state, not the work to do
+4. PRIORITIZE: Rank by business impact and urgency
+
+## Goal Characteristics
+
+Strategic goals should:
+- Be OUTCOME-ORIENTED ("Achieve X") not task-oriented ("Do Y")
+- Take 2-8 weeks to fully realize
+- Encompass multiple tactical items
+- Connect to business or user value
+- Be inspiring, not prescriptive
+
+## Strategic Themes
+
+Categorize each goal under one of these themes:
+- user_experience: Delight users, improve usability
+- technical_excellence: Code quality, architecture, maintainability
+- velocity: Development speed, deployment frequency
+- reliability: Uptime, stability, graceful degradation
+- security: Protection, compliance, defense-in-depth
+- scalability: Growth capacity, performance at scale
+- developer_experience: Team productivity, tooling, documentation
+- innovation: New capabilities, experimentation
+
+## Anti-Patterns to AVOID
+
+❌ Listing individual fixes as goals
+❌ Using implementation-specific language
+❌ Creating goals that take < 1 week (too tactical)
+❌ Ignoring the business context
+
+## Transformation Examples
+
+Instead of these tactical items:
+- "Add input validation to user form"
+- "Fix XSS vulnerability in comments"
+- "Sanitize file uploads"
+
+Create THIS strategic goal:
+- "Establish bulletproof data integrity and security across all user inputs"
+
+## Output Format
+
+Return a JSON array with this structure:
 [
   {
-    "title": "Clear, concise goal title",
-    "description": "Detailed description of what needs to be done and why",
-    "reasoning": "Explanation of why this goal is important and how priority was determined",
+    "title": "Vision-level goal title (60 chars max)",
+    "description": "Description of the END STATE - what does success look like? Not what work to do.",
+    "reasoning": "Why this goal now? What inputs were synthesized? Business impact?",
     "priorityScore": 85,
     "suggestedContext": "context-id-if-applicable",
     "suggestedStatus": "open",
-    "source": "repository_scan",
-    "sourceMetadata": {}
+    "source": "strategic_synthesis",
+    "sourceMetadata": {
+      "strategicTheme": "user_experience",
+      "horizon": "medium_term",
+      "synthesizedFrom": ["item1", "item2"]
+    }
   }
 ]
 
 Priority Score Guidelines:
-- 90-100: Critical/Urgent (security issues, broken functionality, major bugs)
-- 70-89: High Priority (performance issues, important features, significant tech debt)
-- 50-69: Medium Priority (nice-to-have features, minor improvements, refactoring)
-- 0-49: Low Priority (cosmetic changes, future considerations, optional enhancements)
+- 90-100: Foundational/Blocking (must achieve before other progress possible)
+- 70-89: High Impact (significant business/user value)
+- 50-69: Important (improves key metrics)
+- 0-49: Nice-to-have (opportunistic improvements)
 
-IMPORTANT: Return ONLY valid JSON, no additional text or explanation.`;
+CRITICAL: Return ONLY valid JSON. Generate 1-5 STRATEGIC goals, not a list of tactical tasks.`;
 }
 
 /**
@@ -422,10 +465,21 @@ function buildUserPrompt(data: {
 }): string {
   const parts: string[] = [];
 
-  parts.push(`Analyze the following project data and generate up to ${data.maxCandidates} goal candidates.\n`);
+  parts.push(`Synthesize the following project inputs into ${Math.min(data.maxCandidates, 5)} STRATEGIC goals.\n`);
+
+  parts.push(`## Your Task
+
+1. Review ALL inputs below
+2. CLUSTER related items by theme (security, performance, UX, etc.)
+3. For each cluster, identify the STRATEGIC need it represents
+4. Create 1-5 vision-level goals that address these needs
+5. Each goal should synthesize multiple tactical items into one strategic direction
+
+Remember: You are creating NORTH STARS, not backlog items.
+`);
 
   if (data.contexts.length > 0) {
-    parts.push('Available Contexts (feature areas):');
+    parts.push('## Available Contexts (feature areas)');
     data.contexts.forEach(ctx => {
       parts.push(`- ${ctx.name} (ID: ${ctx.id}): ${ctx.description || 'No description'}`);
     });
@@ -462,7 +516,15 @@ function buildUserPrompt(data: {
     parts.push('');
   }
 
-  parts.push('Generate goal candidates now. Return ONLY the JSON array, no other text.');
+  parts.push(`## Now Synthesize
+
+Review the inputs above and create STRATEGIC goals. Remember:
+- Cluster related items together
+- Abstract to the underlying need
+- Describe the END STATE, not the work
+- Connect to business/user value
+
+Return ONLY the JSON array, no other text.`);
 
   return parts.join('\n');
 }

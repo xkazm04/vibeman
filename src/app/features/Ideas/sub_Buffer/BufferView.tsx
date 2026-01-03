@@ -13,7 +13,7 @@ import {
   useDeleteContextIdeas,
 } from '@/lib/queries/ideaQueries';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
-import { IdeasBufferSkeleton } from '../components/IdeasSkeleton';
+import { FullPageSpinner } from '@/components/ui/Spinner';
 
 interface BufferViewProps {
   filterProject?: string;
@@ -135,7 +135,7 @@ export default function BufferView({
   );
 
   if (isLoading) {
-    return <IdeasBufferSkeleton />;
+    return <FullPageSpinner label="Loading ideas..." />;
   }
 
   if (filteredIdeas.length === 0) {

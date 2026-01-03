@@ -5,6 +5,8 @@ export { default as ModalContent } from './ModalContent';
 export { default as ModalHeader } from './ModalHeader';
 export { default as SaveFileDialog } from './SaveFileDialog';
 export { UniversalSelect } from './UniversalSelect';
+export { FilterSelect } from './FilterSelect';
+export type { FilterSelectProps } from './FilterSelect';
 export { default as AIErrorDisplay } from './AIErrorDisplay';
 export { default as GradientButton } from './buttons/GradientButton';
 export type {
@@ -51,18 +53,13 @@ export { ToastContainer } from './Toast';
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, CardDivider } from './Card';
 export type { CardVariant, CardPadding } from './Card';
 
-// Skeleton loaders
+// Spinner components
 export {
-  Skeleton,
-  SkeletonText,
-  SkeletonAvatar,
-  SkeletonButton,
-  SkeletonCard,
-  SkeletonTableRow,
-  SkeletonListItem,
-  SkeletonMedia,
-  SkeletonStats,
-} from './Skeleton';
+  Spinner,
+  FullPageSpinner,
+  InlineSpinner,
+  FeatureSpinner,
+} from './Spinner';
 
 // Empty state
 export { default as EmptyStateIllustration } from './EmptyStateIllustration';
@@ -71,4 +68,3 @@ export type { IllustrationType } from './EmptyStateIllustration';
 // Wizard components (re-exported)
 export { default as Badge } from './wizard/Badge';
 export { default as CyberCard } from './wizard/CyberCard';
-export { LoadingSkeleton } from './wizard/LoadingSkeleton';
