@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Save, Plus, Grid3X3, ChevronUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Save, Plus, Grid3X3, ChevronUp, Trash2 } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 
@@ -14,6 +14,7 @@ interface HorizontalContextBarHeaderProps {
   onSaveClick: () => void;
   onAddContextClick: () => void;
   onToggleExpanded: () => void;
+  onDeleteAllClick: () => Promise<void>;
 }
 
 const HorizontalContextBarHeader = React.memo(({
@@ -25,10 +26,23 @@ const HorizontalContextBarHeader = React.memo(({
   isExpanded,
   onSaveClick,
   onAddContextClick,
-  onToggleExpanded
+  onToggleExpanded,
+  onDeleteAllClick
 }: HorizontalContextBarHeaderProps) => {
   // Onboarding
   const { isReviewContextsActive } = useActiveOnboardingStep();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteAll = async () => {
+    setIsDeleting(true);
+    try {
+      await onDeleteAllClick();
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
   return (
     <div className="relative flex items-center justify-between px-8 py-6 bg-gradient-to-r from-gray-800/30 via-slate-900/20 to-gray-800/30 border-b border-gray-700/30 backdrop-blur-sm">
       <div className="flex items-center space-x-6">
@@ -134,7 +148,7 @@ const HorizontalContextBarHeader = React.memo(({
 
             {/* Add Context Button */}
             {groups.length > 0 && (
-              <div className={isReviewContextsActive ? 'onboarding-glow' : ''}>
+              <div className={`flex items-center space-x-2 ${isReviewContextsActive ? 'onboarding-glow' : ''}`}>
                 <motion.button
                   onClick={onAddContextClick}
                   className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30"
@@ -145,6 +159,58 @@ const HorizontalContextBarHeader = React.memo(({
                 >
                   <Plus className="w-5 h-5" />
                 </motion.button>
+
+                {/* Delete All Contexts Button */}
+                {contextsCount > 0 && (
+                  <div className="relative">
+                    <motion.button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="p-3 bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 rounded-xl hover:from-red-500/30 hover:to-rose-500/30 transition-all border border-red-500/30"
+                      title="Delete all contexts"
+                      data-testid="delete-all-contexts-btn"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </motion.button>
+
+                    {/* Confirmation Popup */}
+                    <AnimatePresence>
+                      {showDeleteConfirm && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                          className="absolute top-full left-0 mt-2 z-50 bg-gray-900/95 backdrop-blur-xl border border-red-500/30 rounded-xl p-4 shadow-xl min-w-[240px]"
+                        >
+                          <p className="text-sm text-gray-300 mb-3">
+                            Delete all <span className="text-red-400 font-bold">{contextsCount}</span> contexts?
+                          </p>
+                          <div className="flex items-center space-x-2">
+                            <motion.button
+                              onClick={handleDeleteAll}
+                              disabled={isDeleting}
+                              className="flex-1 px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all border border-red-500/30 text-sm font-medium disabled:opacity-50"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              {isDeleting ? 'Deleting...' : 'Delete All'}
+                            </motion.button>
+                            <motion.button
+                              onClick={() => setShowDeleteConfirm(false)}
+                              disabled={isDeleting}
+                              className="px-3 py-2 bg-gray-700/50 text-gray-400 rounded-lg hover:bg-gray-700/70 transition-all text-sm disabled:opacity-50"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              Cancel
+                            </motion.button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
             )}
           </div>

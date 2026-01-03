@@ -108,6 +108,23 @@ export const contextAPI = {
   },
 
   /**
+   * Delete all contexts for a project
+   */
+  deleteAllContexts: async (projectId: string): Promise<number> => {
+    const response = await fetch(`/api/contexts?projectId=${projectId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete all contexts');
+    }
+
+    const result = await response.json();
+    return result.deletedCount;
+  },
+
+  /**
    * Create a new group
    */
   createGroup: async (groupData: {

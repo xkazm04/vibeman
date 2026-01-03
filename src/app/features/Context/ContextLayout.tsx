@@ -28,7 +28,7 @@ interface HorizontalContextBarProps {
 }
 
 const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalContextBarProps) => {
-  const { contexts, groups, loading, loadProjectData, updateContext, moveContext } = useContextStore();
+  const { contexts, groups, loading, loadProjectData, updateContext, moveContext, deleteAllContexts } = useContextStore();
   const { activeProject } = useActiveProjectStore();
   const { showFullScreenModal } = useGlobalModal();
   const { isDetailOpen, selectedGroupId, closeGroupDetail, openGroupDetail } = useContextDetail();
@@ -163,6 +163,11 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     setIsExpanded(prev => !prev);
   }, []);
 
+  const handleDeleteAllClick = useCallback(async () => {
+    if (!activeProject?.id) return;
+    await deleteAllContexts(activeProject.id);
+  }, [activeProject?.id, deleteAllContexts]);
+
   // Load project data when active project changes
   useEffect(() => {
     if (activeProject?.id && activeProject.id !== lastProjectIdRef.current) {
@@ -232,6 +237,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                 onSaveClick={handleSaveClick}
                 onAddContextClick={handleAddContextClick}
                 onToggleExpanded={handleToggleExpanded}
+                onDeleteAllClick={handleDeleteAllClick}
               />
             </div>
 

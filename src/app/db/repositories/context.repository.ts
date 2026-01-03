@@ -266,5 +266,15 @@ export const contextRepository = {
     // Return the updated context
     const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
     return selectStmt.get(contextId) as DbContext;
+  },
+
+  /**
+   * Delete all contexts for a project
+   */
+  deleteAllContextsByProject: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM contexts WHERE project_id = ?');
+    const result = stmt.run(projectId);
+    return result.changes;
   }
 };

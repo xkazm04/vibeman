@@ -79,6 +79,44 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
           lastConnectedAt: new Date(),
         });
 
+        // Restore pairing state from database
+        try {
+          const devicesResponse = await fetch(
+            `/api/bridge/realtime/devices?projectId=${projectId}&deviceId=${deviceId}`
+          );
+          const devicesData = await devicesResponse.json();
+          if (devicesData.devices) {
+            store.setOnlineDevices(devicesData.devices);
+            // Check if current device has a partner
+            const currentDevice = devicesData.devices.find(
+              (d: DbDeviceSession) => d.device_id === deviceId
+            );
+            if (currentDevice?.partner_device_id) {
+              const partnerDevice = devicesData.devices.find(
+                (d: DbDeviceSession) => d.device_id === currentDevice.partner_device_id
+              );
+              store.setPaired(
+                currentDevice.partner_device_id,
+                partnerDevice?.device_name || 'Partner Device'
+              );
+            }
+          }
+        } catch (err) {
+          console.error('[Realtime] Failed to restore pairing state:', err);
+        }
+
+        // Broadcast local projects to Supabase so other devices can see them
+        try {
+          await fetch('/api/bridge/realtime/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, projectId }),
+          });
+          console.log('[Realtime] Projects broadcasted to Supabase');
+        } catch (err) {
+          console.error('[Realtime] Failed to broadcast projects:', err);
+        }
+
         // Set up callbacks for real-time updates
         vibemanRealtime.onPresenceChange((presenceMap) => {
           const sessions = presenceMapToDeviceSessions(presenceMap);
@@ -148,12 +186,16 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
     async (code: string) => {
       const success = await vibemanRealtime.pairWithCode(code);
       if (success) {
-        // Pairing state will be updated via the event callback
+        // Get pairing info from vibemanRealtime and update the store
+        const pairingInfo = vibemanRealtime.getPairing();
+        if (pairingInfo.partnerId && pairingInfo.partnerName) {
+          store.setPaired(pairingInfo.partnerId, pairingInfo.partnerName);
+        }
         return true;
       }
       return false;
     },
-    []
+    [store]
   );
 
   // Clear pairing
@@ -214,8 +256,42 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
   // Get stable store methods
   const setIncomingTasks = store.setIncomingTasks;
   const setOutgoingTasks = store.setOutgoingTasks;
+  const setOnlineDevices = store.setOnlineDevices;
+  const setPaired = store.setPaired;
+  const pairingStatus = store.pairing.status;
   const storeDeviceId = store.deviceId;
   const isConnected = store.connection.isConnected;
+
+  // Refresh online devices from Supabase and check for pairing
+  const refreshDevices = useCallback(async () => {
+    const deviceId = deviceIdRef.current || storeDeviceId;
+    if (!deviceId || !projectId) return;
+
+    try {
+      const response = await fetch(
+        `/api/bridge/realtime/devices?projectId=${projectId}&deviceId=${deviceId}`
+      );
+      const data = await response.json();
+      if (data.devices) {
+        setOnlineDevices(data.devices);
+
+        // Check if current device has a partner and update pairing state
+        const currentDevice = data.devices.find(
+          (d: DbDeviceSession) => d.device_id === deviceId
+        );
+        if (currentDevice?.partner_device_id && pairingStatus !== 'paired') {
+          // Find the partner device
+          const partnerDevice = data.devices.find(
+            (d: DbDeviceSession) => d.device_id === currentDevice.partner_device_id
+          );
+          const partnerName = partnerDevice?.device_name || 'Partner Device';
+          setPaired(currentDevice.partner_device_id, partnerName);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh devices:', error);
+    }
+  }, [projectId, storeDeviceId, setOnlineDevices, setPaired, pairingStatus]);
 
   // Fetch tasks - uses refs and stable methods to avoid dependency issues
   const fetchTasks = useCallback(async () => {
@@ -296,6 +372,7 @@ export function useSupabaseRealtime({ projectId, autoConnect = true }: UseSupaba
 
     // Devices
     onlineDevices: store.onlineDevices,
+    refreshDevices,
 
     // Tasks
     incomingTasks: store.incomingTasks,

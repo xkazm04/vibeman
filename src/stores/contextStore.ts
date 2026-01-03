@@ -78,6 +78,7 @@ interface ContextStoreState extends ContextState {
   // Data loading
   loadProjectData: (projectId: string) => Promise<void>;
   clearAllContexts: () => void;
+  deleteAllContexts: (projectId: string) => Promise<number>;
   getContext: (contextId: string) => Context | undefined;
   getGroup: (groupId: string) => ContextGroup | undefined;
   getContextsByGroup: (groupId: string) => Context[];
@@ -289,6 +290,25 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
     groups: [],
     initialized: false,
   }),
+
+  // Delete all contexts for a project (database + state)
+  deleteAllContexts: async (projectId: string) => {
+    set(createLoadingState());
+
+    try {
+      const deletedCount = await contextAPI.deleteAllContexts(projectId);
+
+      set(state => ({
+        contexts: [],
+        ...createSuccessState(),
+      }));
+
+      return deletedCount;
+    } catch (error) {
+      set(createErrorState(error, 'Failed to delete all contexts'));
+      throw error;
+    }
+  },
 
   // Get a specific context
   getContext: (contextId: string) => {

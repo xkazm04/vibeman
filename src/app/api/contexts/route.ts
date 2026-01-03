@@ -125,14 +125,26 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE /api/contexts - Delete a context
+// DELETE /api/contexts - Delete a context or all contexts for a project
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const contextId = searchParams.get('contextId');
+    const projectId = searchParams.get('projectId');
 
+    // Delete all contexts for a project
+    if (projectId) {
+      const deletedCount = await contextQueries.deleteAllContextsByProject(projectId);
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${deletedCount} contexts`,
+        deletedCount
+      });
+    }
+
+    // Delete a single context
     if (!contextId) {
-      return createErrorResponse('Context ID is required', 400);
+      return createErrorResponse('Context ID or Project ID is required', 400);
     }
 
     const success = await contextQueries.deleteContext(contextId);

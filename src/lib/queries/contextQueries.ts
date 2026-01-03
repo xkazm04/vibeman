@@ -404,6 +404,14 @@ export const contextQueries = {
       'Failed to batch move contexts'
     );
   },
+
+  // Delete all contexts for a project
+  deleteAllContextsByProject: async (projectId: string): Promise<number> => {
+    return handleAsyncOperation(
+      async () => contextDb.deleteAllContextsByProject(projectId),
+      'Failed to delete all contexts'
+    );
+  },
 };
 
 // Combined queries for convenience

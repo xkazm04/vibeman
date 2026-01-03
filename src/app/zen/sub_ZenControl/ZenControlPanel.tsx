@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import ModeToggle from './components/ModeToggle';
 import SupabasePairingPanel from './components/SupabasePairingPanel';
-import OnlineDevices from './components/OnlineDevices';
+import ConnectedDevices from './components/ConnectedDevices';
+import ProjectPairing from './components/ProjectPairing';
 import SupabaseIncomingTasks from './components/SupabaseIncomingTasks';
 import { useZenStore } from '../lib/zenStore';
 import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
@@ -18,6 +20,7 @@ import { isSupabaseRealtimeConfigured } from '@/lib/supabase/realtime';
 export default function ZenControlPanel() {
   const { mode } = useZenStore();
   const activeProject = useClientProjectStore((state) => state.activeProject);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
   // Supabase Realtime hook - connects when mode is 'online'
   const {
@@ -29,11 +32,13 @@ export default function ZenControlPanel() {
     deviceId,
     pairingStatus,
     pairingCode,
+    partnerId,
     partnerName,
     generatePairingCode,
     pairWithCode,
     unpair,
     onlineDevices,
+    refreshDevices,
     incomingTasks,
     claimTask,
     updateTaskStatus,
@@ -122,12 +127,31 @@ export default function ZenControlPanel() {
                 onUnpair={unpair}
               />
 
-              {/* Online Devices */}
+              {/* Connected Devices */}
               {isConnected && (
-                <OnlineDevices
+                <ConnectedDevices
                   devices={onlineDevices}
                   currentDeviceId={deviceId}
-                  partnerId={pairingStatus === 'paired' ? partnerName : null}
+                  partnerId={partnerId}
+                  partnerName={partnerName}
+                  isPaired={pairingStatus === 'paired'}
+                  selectedDeviceId={selectedDeviceId}
+                  onSelectDevice={setSelectedDeviceId}
+                  onRefresh={refreshDevices}
+                  onUnpair={unpair}
+                />
+              )}
+
+              {/* Project Pairing */}
+              {isConnected && (
+                <ProjectPairing
+                  isConnected={isConnected}
+                  isPaired={pairingStatus === 'paired'}
+                  partnerId={partnerId}
+                  partnerName={partnerName}
+                  selectedDeviceId={selectedDeviceId}
+                  devices={onlineDevices}
+                  currentProjectId={activeProject?.id || null}
                 />
               )}
 
