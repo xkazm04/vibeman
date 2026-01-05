@@ -24,6 +24,9 @@ import type { ProjectRequirement } from '../lib/types';
 import { TaskOffloadButton } from './TaskOffloadPanel';
 import RemoteOffloadButton from './RemoteOffloadButton';
 import SessionBatchDisplay from './SessionBatchDisplay';
+import ActivityIndicator from './ActivityIndicator';
+import CheckpointProgress from './CheckpointProgress';
+import TaskMonitor from './TaskMonitor';
 import {
   useSessionBatchStore,
   useAllSessionBatches,
@@ -124,10 +127,12 @@ function BatchDisplay({
   const completedCount = queueItems.filter(r => isRequirementCompleted(r.status)).length;
   const failedCount = queueItems.filter(r => isRequirementFailed(r.status)).length;
 
-  // Get progressLines for the currently running task from the store
-  const { taskProgress, tasks } = useTaskRunnerStore(
+  // Get progressLines, activity, and checkpoints for the currently running task from the store
+  const { taskProgress, taskActivity, taskCheckpoints, tasks } = useTaskRunnerStore(
     useShallow((state) => ({
       taskProgress: state.taskProgress,
+      taskActivity: state.taskActivity,
+      taskCheckpoints: state.taskCheckpoints,
       tasks: state.tasks,
     }))
   );
@@ -139,8 +144,14 @@ function BatchDisplay({
   }) || null;
 
   const progressLines = runningTaskId ? (taskProgress[runningTaskId] || 0) : 0;
-  // 1000 progressLines = 100% completion
-  const progressLinesPercent = Math.min((progressLines / 1000) * 100, 100);
+  // 100 progressLines = 100% completion
+  const progressLinesPercent = Math.min((progressLines / 100) * 100, 100);
+
+  // Get activity for the running task
+  const currentActivity = runningTaskId ? taskActivity[runningTaskId] || null : null;
+
+  // Get checkpoints for the running task
+  const currentCheckpoints = runningTaskId ? taskCheckpoints[runningTaskId]?.checkpoints || [] : [];
 
   if (!batch) {
     return (
@@ -320,7 +331,7 @@ function BatchDisplay({
 
           {/* Right Side: Progress Bar and Queue Items */}
           <div className="flex-1 min-w-0 border-l border-gray-700/30 pl-4 space-y-2">
-            {/* Progress Bar - Based on progressLines from running task (1000 lines = 100%) */}
+            {/* Progress Bar - Based on progressLines from running task (100 lines = 100%) */}
             <div className="space-y-1">
               <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
                 <motion.div
@@ -341,6 +352,25 @@ function BatchDisplay({
                 <span className="text-gray-500">{isRunning ? `${Math.round(progressLinesPercent)}%` : (isCompleted ? '100%' : '0%')}</span>
               </div>
             </div>
+
+            {/* Activity Indicator and Checkpoints - Combined in one row */}
+            {isRunning && (currentActivity || currentCheckpoints.length > 0) && (
+              <div className="pt-1 border-t border-gray-700/30">
+                <div className="flex items-center gap-2 text-xs">
+                  {/* Checkpoint progress: 4/6 Label */}
+                  {currentCheckpoints.length > 0 && (
+                    <CheckpointProgress checkpoints={currentCheckpoints} compact />
+                  )}
+                  {/* Activity: tool icon + target */}
+                  {currentActivity && (
+                    <>
+                      <span className="text-gray-600">:</span>
+                      <ActivityIndicator activity={currentActivity} compact />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Queue Items */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
@@ -458,6 +488,9 @@ export default function DualBatchPanel({
 
   return (
     <div className="space-y-3 w-full">
+      {/* Task Monitor - Shows all running tasks for transparency */}
+      {anyBatchRunning && <TaskMonitor autoRefresh={true} refreshInterval={5000} />}
+
       {/* Batch 1 - Always shown */}
       <BatchDisplay
         batch={batch1}

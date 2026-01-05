@@ -48,8 +48,6 @@ You have permission to be opinionated. Great design isn't about consensus — it
 ### 🎨 Visual Harmony
 - **Spacing System**: Rhythm and breathing room that creates visual calm
 - **Typography Flow**: Size, weight, and spacing that creates clear hierarchy
-- **Color Coherence**: Palette that communicates meaning and mood consistently
-- **Component Consistency**: The same element should feel the same everywhere
 
 ### ✨ Motion & Life
 - **Meaningful Animation**: Movement that communicates state, not just decorates

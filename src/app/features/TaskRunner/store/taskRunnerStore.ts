@@ -14,6 +14,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ProjectRequirement } from '../lib/types';
+import type { TaskActivity, ActivityEvent } from '../lib/activityClassifier.types';
+import type { TaskCheckpointState, Checkpoint } from '../lib/checkpoint.types';
+import type { BuiltRules } from '@/lib/rules/types';
+import { rulesLoader } from '@/lib/rules';
+import { createTaskCheckpointState } from '../lib/checkpointExtractor';
+import { updateCheckpointStates, finalizeCheckpoints, autoAdvanceCheckpoints } from '../lib/checkpointDetector';
 import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
 import { getContextIdFromRequirement, triggerScreenshotCapture } from '../sub_Screenshot/screenshotApi';
@@ -129,6 +135,12 @@ interface TaskRunnerState {
   // Progress tracking for running tasks (progressLines from /api/claude-code status)
   taskProgress: Record<string, number>; // Map of taskId -> progressLines
 
+  // Activity tracking for running tasks (parsed from stream-json output)
+  taskActivity: Record<string, TaskActivity>; // Map of taskId -> activity
+
+  // Checkpoint tracking for running tasks (derived from execution rules)
+  taskCheckpoints: Record<string, TaskCheckpointState>; // Map of taskId -> checkpoints
+
   // Git Configuration
   gitConfig: GitConfig | null;
 
@@ -150,6 +162,13 @@ interface TaskRunnerState {
   executeNextTask: (batchId: BatchId, requirements: ProjectRequirement[]) => Promise<void>;
   updateTaskStatus: (taskId: string, status: TaskStatusUnion) => void;
   updateTaskProgress: (taskId: string, progressLines: number) => void;
+  updateTaskActivity: (taskId: string, activity: TaskActivity) => void;
+
+  // Actions - Checkpoint Management
+  initializeCheckpoints: (taskId: string, builtRules: BuiltRules) => void;
+  updateCheckpoints: (taskId: string, activity: TaskActivity, events: ActivityEvent[]) => void;
+  finalizeTaskCheckpoints: (taskId: string) => void;
+  clearTaskCheckpoints: (taskId: string) => void;
 
   // Actions - Global
   setGitConfig: (config: GitConfig | null) => void;
@@ -185,6 +204,8 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       executingTasks: new Set(),
       isPaused: false,
       taskProgress: {},
+      taskActivity: {},
+      taskCheckpoints: {},
       gitConfig: null,
 
       // ========================================================================
@@ -552,6 +573,20 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           executingTasks: new Set([...state.executingTasks, nextTask.id]),
         }));
 
+        // Initialize checkpoints for this task
+        // Look up contextId from requirement (may be null if no linked idea)
+        const contextId = await getContextIdFromRequirement(requirement.requirementName);
+        const builtRules = rulesLoader.buildRules({
+          requirementContent: '', // Not needed for checkpoint extraction
+          projectPath: requirement.projectPath,
+          projectId: requirement.projectId,
+          contextId: contextId || undefined,
+          gitEnabled: state.gitConfig?.enabled || false,
+          gitCommitMessage: state.gitConfig?.commitMessage,
+        });
+        state.initializeCheckpoints(nextTask.id, builtRules);
+        console.log(`📋 Initialized ${builtRules.includedRuleIds.length} checkpoints for task: ${nextTask.id}`);
+
         // Emit bridge event for task started
         emitTaskStarted(
           nextTask.id,
@@ -621,6 +656,86 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             [taskId]: progressLines,
           },
         }));
+      },
+
+      updateTaskActivity: (taskId, activity) => {
+        set((state) => ({
+          taskActivity: {
+            ...state.taskActivity,
+            [taskId]: activity,
+          },
+        }));
+      },
+
+      // ========================================================================
+      // Checkpoint Actions
+      // ========================================================================
+
+      initializeCheckpoints: (taskId, builtRules) => {
+        set((state) => ({
+          taskCheckpoints: {
+            ...state.taskCheckpoints,
+            [taskId]: createTaskCheckpointState(taskId, builtRules),
+          },
+        }));
+      },
+
+      updateCheckpoints: (taskId, activity, events) => {
+        set((state) => {
+          const checkpointState = state.taskCheckpoints[taskId];
+          if (!checkpointState) return state;
+
+          // Update checkpoint states based on activity
+          let updatedCheckpoints = updateCheckpointStates(
+            checkpointState.checkpoints,
+            activity,
+            events
+          );
+
+          // Auto-advance earlier checkpoints if a later one started
+          updatedCheckpoints = autoAdvanceCheckpoints(updatedCheckpoints);
+
+          // Find current active checkpoint
+          const currentCheckpoint = updatedCheckpoints.find(
+            (c) => c.status === 'in_progress'
+          );
+
+          return {
+            taskCheckpoints: {
+              ...state.taskCheckpoints,
+              [taskId]: {
+                ...checkpointState,
+                checkpoints: updatedCheckpoints,
+                currentCheckpointId: currentCheckpoint?.id || null,
+              },
+            },
+          };
+        });
+      },
+
+      finalizeTaskCheckpoints: (taskId) => {
+        set((state) => {
+          const checkpointState = state.taskCheckpoints[taskId];
+          if (!checkpointState) return state;
+
+          return {
+            taskCheckpoints: {
+              ...state.taskCheckpoints,
+              [taskId]: {
+                ...checkpointState,
+                checkpoints: finalizeCheckpoints(checkpointState.checkpoints),
+                currentCheckpointId: null,
+              },
+            },
+          };
+        });
+      },
+
+      clearTaskCheckpoints: (taskId) => {
+        set((state) => {
+          const { [taskId]: _, ...rest } = state.taskCheckpoints;
+          return { taskCheckpoints: rest };
+        });
       },
 
       // ========================================================================
@@ -817,6 +932,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           tasks: {},
           executingTasks: new Set(),
           taskProgress: {},
+          taskActivity: {},
         });
       },
     }),
@@ -859,14 +975,62 @@ function createPollingCallback(
         return { done: false };
       }
 
+      // Handle stuck pending tasks - if task is pending after being started, something is wrong
+      if (taskStatus.status === 'pending') {
+        console.warn(`⚠️ Task ${requirementId} still pending - execution may have failed to start`);
+        // Continue polling but log warning - task should transition to running
+        return { done: false };
+      }
+
       // Update progressLines for running tasks
-      if (taskStatus.progressLines !== undefined) {
+      // API returns task.progress as array of strings, we need the count
+      const progressLines = taskStatus.progress?.length || 0;
+      if (progressLines > 0) {
         useTaskRunnerStore.setState((state) => ({
           taskProgress: {
             ...state.taskProgress,
-            [requirementId]: taskStatus.progressLines,
+            [requirementId]: progressLines,
           },
         }));
+      }
+
+      // Update activity for running tasks
+      // API returns activity with { current, history, toolCounts, phase }
+      // We need to map to { currentActivity, activityHistory, toolCounts, phase }
+      // Also need to convert timestamp strings to Date objects
+      if (taskStatus.activity) {
+        // Helper to convert timestamp string to Date
+        const parseEvent = (event: any): ActivityEvent | null => {
+          if (!event) return null;
+          return {
+            ...event,
+            timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
+          };
+        };
+
+        const mappedActivity: TaskActivity = {
+          currentActivity: parseEvent(taskStatus.activity.current),
+          activityHistory: (taskStatus.activity.history || []).map(parseEvent).filter(Boolean) as ActivityEvent[],
+          toolCounts: taskStatus.activity.toolCounts || {},
+          phase: taskStatus.activity.phase || 'idle',
+        };
+
+        useTaskRunnerStore.setState((state) => ({
+          taskActivity: {
+            ...state.taskActivity,
+            [requirementId]: mappedActivity,
+          },
+        }));
+
+        // Update checkpoints based on current activity
+        const currentState = useTaskRunnerStore.getState();
+        if (currentState.taskCheckpoints[requirementId]) {
+          currentState.updateCheckpoints(
+            requirementId,
+            mappedActivity,
+            mappedActivity.activityHistory
+          );
+        }
       }
 
       if (taskStatus.status === 'completed') {
@@ -874,14 +1038,21 @@ function createPollingCallback(
         console.log(`✅ Task ${requirementId} completed successfully`);
         state.updateTaskStatus(requirementId, createCompletedStatus());
 
-        // Update batch progress and clear task progress using setState
+        // Finalize checkpoints (mark remaining as completed)
+        state.finalizeTaskCheckpoints(requirementId);
+
+        // Update batch progress and clear task progress/activity/checkpoints using setState
         useTaskRunnerStore.setState((state) => {
           const batch = state.batches[batchId];
           if (!batch) return state;
 
-          // Clear progressLines for completed task
+          // Clear progressLines, activity, and checkpoints for completed task
           const newTaskProgress = { ...state.taskProgress };
           delete newTaskProgress[requirementId];
+          const newTaskActivity = { ...state.taskActivity };
+          delete newTaskActivity[requirementId];
+          const newTaskCheckpoints = { ...state.taskCheckpoints };
+          delete newTaskCheckpoints[requirementId];
 
           return {
             batches: {
@@ -893,6 +1064,8 @@ function createPollingCallback(
             },
             executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
             taskProgress: newTaskProgress,
+            taskActivity: newTaskActivity,
+            taskCheckpoints: newTaskCheckpoints,
           };
         });
 
@@ -947,14 +1120,18 @@ function createPollingCallback(
           createFailedStatus(taskStatus.error || 'Task failed', Date.now(), isSessionLimit)
         );
 
-        // Update batch failed count and clear task progress using setState
+        // Update batch failed count and clear task progress/activity/checkpoints using setState
         useTaskRunnerStore.setState((state) => {
           const batch = state.batches[batchId];
           if (!batch) return state;
 
-          // Clear progressLines for failed task
+          // Clear progressLines, activity, and checkpoints for failed task
           const newTaskProgress = { ...state.taskProgress };
           delete newTaskProgress[requirementId];
+          const newTaskActivity = { ...state.taskActivity };
+          delete newTaskActivity[requirementId];
+          const newTaskCheckpoints = { ...state.taskCheckpoints };
+          delete newTaskCheckpoints[requirementId];
 
           return {
             batches: {
@@ -966,6 +1143,8 @@ function createPollingCallback(
             },
             executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
             taskProgress: newTaskProgress,
+            taskActivity: newTaskActivity,
+            taskCheckpoints: newTaskCheckpoints,
           };
         });
 

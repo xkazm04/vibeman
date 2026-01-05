@@ -289,6 +289,129 @@ export const sessionRepository = {
   },
 
   /**
+   * Update heartbeat (touch updated_at timestamp)
+   */
+  updateHeartbeat(id: string): boolean {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE claude_code_sessions
+      SET updated_at = ?
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(now, id);
+    return result.changes > 0;
+  },
+
+  /**
+   * Get stale running sessions (no heartbeat for more than thresholdMinutes)
+   */
+  getStaleRunning(thresholdMinutes: number): DbClaudeCodeSession[] {
+    const db = getDatabase();
+    const cutoffTime = new Date(Date.now() - thresholdMinutes * 60 * 1000).toISOString();
+
+    const stmt = db.prepare(`
+      SELECT * FROM claude_code_sessions
+      WHERE status = 'running' AND updated_at < ?
+      ORDER BY updated_at ASC
+    `);
+
+    return stmt.all(cutoffTime) as DbClaudeCodeSession[];
+  },
+
+  /**
+   * Get stale paused sessions (paused for more than thresholdHours)
+   */
+  getStalePaused(thresholdHours: number): DbClaudeCodeSession[] {
+    const db = getDatabase();
+    const cutoffTime = new Date(Date.now() - thresholdHours * 60 * 60 * 1000).toISOString();
+
+    const stmt = db.prepare(`
+      SELECT * FROM claude_code_sessions
+      WHERE status = 'paused' AND updated_at < ?
+      ORDER BY updated_at ASC
+    `);
+
+    return stmt.all(cutoffTime) as DbClaudeCodeSession[];
+  },
+
+  /**
+   * Get stale pending sessions (never started for more than thresholdHours)
+   */
+  getStalePending(thresholdHours: number): DbClaudeCodeSession[] {
+    const db = getDatabase();
+    const cutoffTime = new Date(Date.now() - thresholdHours * 60 * 60 * 1000).toISOString();
+
+    const stmt = db.prepare(`
+      SELECT * FROM claude_code_sessions
+      WHERE status = 'pending' AND created_at < ?
+      ORDER BY created_at ASC
+    `);
+
+    return stmt.all(cutoffTime) as DbClaudeCodeSession[];
+  },
+
+  /**
+   * Get all orphaned sessions using thresholds
+   */
+  getAllOrphaned(thresholds: {
+    runningMinutes: number;
+    pausedHours: number;
+    pendingHours: number;
+  }): {
+    staleRunning: DbClaudeCodeSession[];
+    stalePaused: DbClaudeCodeSession[];
+    stalePending: DbClaudeCodeSession[];
+  } {
+    return {
+      staleRunning: this.getStaleRunning(thresholds.runningMinutes),
+      stalePaused: this.getStalePaused(thresholds.pausedHours),
+      stalePending: this.getStalePending(thresholds.pendingHours),
+    };
+  },
+
+  /**
+   * Bulk update status for multiple sessions
+   */
+  bulkUpdateStatus(sessionIds: string[], status: ClaudeCodeSessionStatus): number {
+    if (sessionIds.length === 0) return 0;
+
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    // Use placeholders for array of IDs
+    const placeholders = sessionIds.map(() => '?').join(',');
+    const stmt = db.prepare(`
+      UPDATE claude_code_sessions
+      SET status = ?, updated_at = ?
+      WHERE id IN (${placeholders})
+    `);
+
+    const result = stmt.run(status, now, ...sessionIds);
+    return result.changes;
+  },
+
+  /**
+   * Delete multiple sessions by IDs
+   */
+  bulkDelete(sessionIds: string[]): number {
+    if (sessionIds.length === 0) return 0;
+
+    const db = getDatabase();
+    const placeholders = sessionIds.map(() => '?').join(',');
+
+    const stmt = db.prepare(`
+      DELETE FROM claude_code_sessions
+      WHERE id IN (${placeholders})
+    `);
+
+    const result = stmt.run(...sessionIds);
+    return result.changes;
+  },
+
+  /**
    * Get session statistics for a project
    */
   getStats(projectId: string): {

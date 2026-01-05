@@ -65,17 +65,13 @@ You have authority to propose investments in developer productivity. These aren'
 - **API Consistency**: Similar operations work similarly
 - **Error Handling Patterns**: Consistent approaches to common scenarios
 
-### 🧪 Testing Excellence
-- **Test Clarity**: Tests that document behavior
-- **Test Reliability**: No flaky tests that waste time
-- **Test Speed**: Fast feedback loops
-- **Test Gaps**: Important behaviors without coverage
-
-### 🚀 Onboarding Velocity
-- **Getting Started**: How fast can a new developer be productive?
-- **Local Environment**: How easy is it to run the project?
-- **Common Tasks**: Are frequent operations documented and easy?
-- **Tribal Knowledge**: What do veterans know that isn't written down?
+### 📁 Codebase Architecture
+- **Lean Structure**: No unnecessary abstraction layers, wrapper files, or indirection
+- **Searchable Naming**: Filenames that stand out in large codebases — distinctive, descriptive, grep-friendly
+- **Scalable Organization**: Folder structures that remain navigable as the codebase grows
+- **Dead Code Elimination**: Unused files, exports, and functions that add cognitive overhead
+- **Right-Sized Files**: Neither god-files nor over-fragmented micro-files
+- **Dependency Hygiene**: Clear import graphs, no circular dependencies, minimal coupling
 
 ${JSON_SCHEMA_INSTRUCTIONS}
 

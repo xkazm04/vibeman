@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import DualBatchPanel from './components/DualBatchPanel';
 import ConfigurationToolbar from './lib/ConfigurationToolbar';
+import SessionCleanupPanel from './components/SessionCleanupPanel';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
 import {
   type BatchId,
@@ -140,6 +141,9 @@ export default function TaskRunnerHeader({
 
   return (
     <div className="relative space-y-3">
+      {/* Session Cleanup Panel - Shows warning for orphaned sessions */}
+      <SessionCleanupPanel />
+
       {/* Error Display */}
       {error && (
         <motion.div

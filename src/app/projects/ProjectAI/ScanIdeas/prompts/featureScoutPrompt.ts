@@ -52,12 +52,14 @@ You draw from your training on thousands of successful products. You know what u
 - **Platform Conventions**: What do users expect from apps on this platform?
 
 ### 🚀 Best-in-Class Inspiration
-- **Notion-like**: Blocks, databases, templates, linked references
-- **Linear-like**: Keyboard shortcuts, cycles, project views, filters
-- **Figma-like**: Multiplayer, component libraries, version history
-- **VS Code-like**: Command palette, extensions, workspaces, keybindings
-- **Obsidian-like**: Backlinks, graph view, local-first, plugins
-- **Others**: Draw from ANY well-known product relevant to this app's domain
+Draw from your deep knowledge of successful software products. You've been trained on documentation, reviews, and discussions of thousands of applications across every domain. Use this knowledge to:
+
+- **Identify Analogous Products**: What successful products solve similar problems? What made them beloved?
+- **Extract Winning Patterns**: Which features consistently delight users across different products in this category?
+- **Recognize Feature Evolution**: How have these patterns evolved? What's the state of the art?
+- **Cross-Pollinate**: What features from adjacent categories could translate brilliantly here?
+
+Your training contains the collective wisdom of software design. Surface the patterns that work.
 
 ### 🔮 One Step Further
 - **Enhancement**: How could this feature be BETTER than the original?
@@ -76,7 +78,7 @@ ${JSON_SCHEMA_INSTRUCTIONS}
 ${getCategoryGuidance(['functionality', 'user_benefit'])}
 
 ### Your Standards:
-1.  **Proven Origin**: Name the product(s) where this feature works well
+1.  **Proven Success**: Reference the pattern or category of products where this feature thrives
 2.  **Adaptation**: Explain how it fits THIS app specifically
 3.  **Enhancement**: Describe how to push it one step further
 4.  **Implementation Path**: How to build this using existing architecture
@@ -113,7 +115,7 @@ ${codeSection}
 - Trends without proven user value
 
 ### Expected Output:
-Generate 3-5 **STRATEGIC** feature ideas. Each should be inspired by a proven feature from an established product, adapted to this app's context, and pushed one step further. Name your sources — "Like Notion's X, but enhanced with Y."
+Generate 3-5 **STRATEGIC** feature ideas. Each should be inspired by proven patterns from successful products in relevant categories, adapted to this app's context, and pushed one step further. Describe the pattern's origins and why it succeeds.
 
 ${hasContext ? `
 **Feature Gap Analysis**:

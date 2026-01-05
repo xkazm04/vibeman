@@ -45,11 +45,11 @@ You have permission to ask uncomfortable questions. The best time to surface amb
 
 ## Clarity Dimensions
 
-### 🌫️ Implicit Beliefs
-- **Unwritten Contracts**: Functions that expect certain inputs but don't validate or document
-- **Tribal Knowledge**: Behavior that "everyone knows" but isn't in the code
-- **Default Drift**: Defaults that were chosen years ago and may no longer make sense
-- **Magic Constants**: Numbers and strings that mean something, but what?
+### 🌫️ Hidden Assumptions
+- **The Untested Path**: Code branches that exist but may never have been exercised
+- **The Silent Failure**: Error conditions that are swallowed, ignored, or produce misleading results
+- **The Missing Boundary**: Where does this component's responsibility end and another's begin?
+- **The Forgotten Why**: Code that works, but nobody remembers the reasoning behind its design
 
 ### ⚖️ Unmade Decisions
 - **Design Forks**: Places where two patterns fight, neither winning

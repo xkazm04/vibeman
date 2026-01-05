@@ -1,0 +1,346 @@
+'use client';
+
+import { useState, useEffect, memo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Activity,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  Eye,
+} from 'lucide-react';
+
+interface ExecutionTask {
+  id: string;
+  projectPath: string;
+  requirementName: string;
+  projectId?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'session-limit';
+  progress: string[];
+  startTime?: string;
+  endTime?: string;
+  error?: string;
+}
+
+interface TaskMonitorProps {
+  projectId?: string;
+  autoRefresh?: boolean;
+  refreshInterval?: number;
+}
+
+/**
+ * Fetches all tasks from the execution queue
+ */
+async function fetchAllTasks(projectPath?: string): Promise<ExecutionTask[]> {
+  try {
+    const response = await fetch('/api/claude-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectPath: projectPath || '',
+        action: 'list-tasks',
+      }),
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    return data.tasks || [];
+  } catch (error) {
+    console.error('Failed to fetch tasks:', error);
+    return [];
+  }
+}
+
+/**
+ * Get status icon based on task status
+ */
+function getStatusIcon(status: ExecutionTask['status'], progressCount: number) {
+  switch (status) {
+    case 'pending':
+      return <Clock className="w-3.5 h-3.5 text-amber-400" />;
+    case 'running':
+      return progressCount === 0 ? (
+        <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+      ) : (
+        <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+      );
+    case 'completed':
+      return <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />;
+    case 'failed':
+    case 'session-limit':
+      return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+    default:
+      return <Activity className="w-3.5 h-3.5 text-gray-400" />;
+  }
+}
+
+/**
+ * Get status color class
+ */
+function getStatusColor(status: ExecutionTask['status'], progressCount: number): string {
+  switch (status) {
+    case 'pending':
+      return 'border-amber-500/30 bg-amber-500/5';
+    case 'running':
+      return progressCount === 0
+        ? 'border-orange-500/30 bg-orange-500/5'
+        : 'border-blue-500/30 bg-blue-500/5';
+    case 'completed':
+      return 'border-green-500/30 bg-green-500/5';
+    case 'failed':
+    case 'session-limit':
+      return 'border-red-500/30 bg-red-500/5';
+    default:
+      return 'border-gray-500/30 bg-gray-500/5';
+  }
+}
+
+/**
+ * Format time duration
+ */
+function formatDuration(startTime?: string, endTime?: string): string {
+  if (!startTime) return '-';
+
+  const start = new Date(startTime);
+  const end = endTime ? new Date(endTime) : new Date();
+  const diffMs = end.getTime() - start.getTime();
+
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+}
+
+/**
+ * Single task item in the monitor
+ */
+const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const progressCount = task.progress?.length || 0;
+  const isStuck = task.status === 'running' && progressCount === 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -5 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`border rounded-lg overflow-hidden ${getStatusColor(task.status, progressCount)}`}
+    >
+      <div
+        className="flex items-center justify-between p-2 cursor-pointer hover:bg-white/5 transition-colors"
+        onClick={() => setShowDetails(!showDetails)}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {getStatusIcon(task.status, progressCount)}
+          <div className="min-w-0">
+            <div className="text-xs font-medium text-gray-300 truncate">
+              {task.requirementName}
+            </div>
+            <div className="text-[10px] text-gray-500 flex items-center gap-2">
+              <span>{task.status}</span>
+              <span>|</span>
+              <span>{progressCount} lines</span>
+              <span>|</span>
+              <span>{formatDuration(task.startTime, task.endTime)}</span>
+              {isStuck && (
+                <>
+                  <span>|</span>
+                  <span className="text-orange-400">No progress</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {showDetails ? (
+            <ChevronUp className="w-3 h-3 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-3 h-3 text-gray-400" />
+          )}
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showDetails && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-2 pb-2 text-[10px] font-mono text-gray-500 max-h-32 overflow-y-auto bg-gray-900/50">
+              {task.progress?.slice(-10).map((line, i) => (
+                <div key={i} className="truncate py-0.5">
+                  {line}
+                </div>
+              )) || <div className="text-gray-600 italic">No progress yet</div>}
+              {task.error && (
+                <div className="text-red-400 mt-1">Error: {task.error}</div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+});
+
+/**
+ * Task Monitor Component
+ * Provides transparency into all running execution tasks
+ */
+export const TaskMonitor = memo(function TaskMonitor({
+  projectId,
+  autoRefresh = true,
+  refreshInterval = 5000,
+}: TaskMonitorProps) {
+  const [tasks, setTasks] = useState<ExecutionTask[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  const refresh = useCallback(async () => {
+    setIsRefreshing(true);
+    const fetchedTasks = await fetchAllTasks();
+    setTasks(fetchedTasks);
+    setLastRefresh(new Date());
+    setIsRefreshing(false);
+  }, []);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    refresh();
+
+    if (autoRefresh) {
+      const interval = setInterval(refresh, refreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh, refreshInterval, refresh]);
+
+  // Count tasks by status
+  const pendingCount = tasks.filter(t => t.status === 'pending').length;
+  const runningCount = tasks.filter(t => t.status === 'running').length;
+  const stuckCount = tasks.filter(t => t.status === 'running' && (t.progress?.length || 0) === 0).length;
+  const completedCount = tasks.filter(t => t.status === 'completed').length;
+  const failedCount = tasks.filter(t => t.status === 'failed' || t.status === 'session-limit').length;
+
+  // Sort: stuck first, then running, then pending, then rest
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const aStuck = a.status === 'running' && (a.progress?.length || 0) === 0;
+    const bStuck = b.status === 'running' && (b.progress?.length || 0) === 0;
+    if (aStuck && !bStuck) return -1;
+    if (!aStuck && bStuck) return 1;
+
+    const statusOrder = { pending: 0, running: 1, failed: 2, 'session-limit': 2, completed: 3 };
+    return (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
+  });
+
+  // Don't render if no tasks
+  if (tasks.length === 0) {
+    return null;
+  }
+
+  const hasIssues = stuckCount > 0 || pendingCount > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`border rounded-lg overflow-hidden ${
+        hasIssues
+          ? 'border-orange-500/30 bg-orange-500/5'
+          : 'border-gray-700/50 bg-gray-800/30'
+      }`}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between p-2.5 cursor-pointer hover:bg-white/5 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-2">
+          <Eye className={`w-4 h-4 ${hasIssues ? 'text-orange-400' : 'text-gray-400'}`} />
+          <span className={`text-xs font-medium ${hasIssues ? 'text-orange-400' : 'text-gray-400'}`}>
+            Task Monitor
+          </span>
+          <div className="flex items-center gap-1.5 text-[10px]">
+            {pendingCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                {pendingCount} pending
+              </span>
+            )}
+            {runningCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">
+                {runningCount} running
+              </span>
+            )}
+            {stuckCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400">
+                {stuckCount} stuck
+              </span>
+            )}
+            {failedCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">
+                {failedCount} failed
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              refresh();
+            }}
+            disabled={isRefreshing}
+            className="p-1 hover:bg-white/10 rounded transition-colors"
+            title="Refresh task list"
+          >
+            <RefreshCw className={`w-3 h-3 text-gray-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          {isExpanded ? (
+            <ChevronUp className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          )}
+        </div>
+      </div>
+
+      {/* Expanded content */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-2.5 pb-2.5 space-y-1.5 max-h-64 overflow-y-auto">
+              {sortedTasks.map((task) => (
+                <TaskItem key={task.id} task={task} />
+              ))}
+            </div>
+            {lastRefresh && (
+              <div className="px-2.5 pb-2 text-[9px] text-gray-600">
+                Last updated: {lastRefresh.toLocaleTimeString()}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+});
+
+export default TaskMonitor;

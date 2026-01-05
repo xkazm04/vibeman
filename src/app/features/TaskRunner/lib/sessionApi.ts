@@ -4,6 +4,7 @@
  */
 
 import type { SessionBatchId, SessionTask } from '../store/sessionBatchStore';
+import { sendSessionHeartbeat } from '../hooks/useSessionCleanup';
 
 // ============================================================================
 // Types
@@ -426,6 +427,13 @@ export class SessionExecutionManager {
 
       try {
         const status = await getTaskExecutionStatus(executionTaskId);
+
+        // Send heartbeat to keep session alive
+        if (this.sessionId) {
+          sendSessionHeartbeat(this.sessionId).catch(() => {
+            // Heartbeat failed, but don't interrupt polling
+          });
+        }
 
         if (status.status === 'completed') {
           console.log(`✅ Task completed: ${sessionTask.id}`);

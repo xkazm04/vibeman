@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import {
+  parseProgressLines,
+  classifyActivity,
+} from '@/app/features/TaskRunner/lib/activityClassifier';
+import type {
+  ActivityEvent,
+  TaskActivity,
+} from '@/app/features/TaskRunner/lib/activityClassifier.types';
 
 interface Task {
   id: string;
@@ -11,6 +19,15 @@ interface Task {
   error?: string;
   output?: string;
   logFilePath?: string;
+}
+
+interface TaskWithActivity extends Task {
+  activity?: {
+    current: ActivityEvent | null;
+    history: ActivityEvent[];
+    toolCounts: Record<string, number>;
+    phase: TaskActivity['phase'];
+  };
 }
 
 interface DbProject {
@@ -148,6 +165,25 @@ export async function getTaskStatus(taskId: string): Promise<NextResponse> {
     }
   }
 
+  // Parse activity from progress lines
+  let activityData: TaskWithActivity['activity'] = undefined;
+  if (task.progress && task.progress.length > 0) {
+    try {
+      const events = parseProgressLines(task.progress);
+      if (events.length > 0) {
+        const activity = classifyActivity(events);
+        activityData = {
+          current: activity.currentActivity,
+          history: activity.activityHistory,
+          toolCounts: activity.toolCounts,
+          phase: activity.phase,
+        };
+      }
+    } catch (parseError) {
+      logger.warn('Failed to parse activity from progress', { taskId, error: parseError });
+    }
+  }
+
   // Log detailed task status for debugging
   logger.info('Task status retrieved', {
     taskId,
@@ -155,7 +191,14 @@ export async function getTaskStatus(taskId: string): Promise<NextResponse> {
     hasError: !!task.error,
     hasOutput: !!task.output,
     progressLines: task.progress?.length || 0,
+    activityPhase: activityData?.phase,
+    toolsUsed: activityData ? Object.keys(activityData.toolCounts).length : 0,
   });
 
-  return NextResponse.json({ task });
+  const taskWithActivity: TaskWithActivity = {
+    ...task,
+    activity: activityData,
+  };
+
+  return NextResponse.json({ task: taskWithActivity });
 }

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     const { projectPath, action, projectName, requirementName, content, settings } = body;
 
     // Actions that don't require projectPath
-    const noProjectPathActions = ['get-task-status'];
+    const noProjectPathActions = ['get-task-status', 'list-tasks', 'clear-old-tasks'];
 
     if (!projectPath && !noProjectPathActions.includes(action)) {
       const validationError = validateRequired({ projectPath }, ['projectPath']);
@@ -157,10 +157,13 @@ export async function POST(request: NextRequest) {
       return getTaskStatus(taskId);
     }
 
-    // List all execution tasks for a project
+    // List all execution tasks (optionally filtered by project)
     if (action === 'list-tasks') {
       const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-      const tasks = executionQueue.getProjectTasks(projectPath);
+      // If projectPath provided, filter by project; otherwise return all tasks
+      const tasks = projectPath
+        ? executionQueue.getProjectTasks(projectPath)
+        : executionQueue.getAllTasks();
 
       return NextResponse.json({ tasks });
     }
