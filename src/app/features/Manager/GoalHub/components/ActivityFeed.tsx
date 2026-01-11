@@ -1,11 +1,12 @@
 /**
  * Activity Feed Component
  * Shows implementation logs and activity related to the project/goal
+ * Features infinite scroll loading
  */
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity,
@@ -18,6 +19,8 @@ import {
 } from 'lucide-react';
 import type { EnrichedImplementationLog } from '@/app/features/Manager/lib/types';
 
+const PAGE_SIZE = 20;
+
 interface ActivityFeedProps {
   projectId: string;
 }
@@ -25,28 +28,68 @@ interface ActivityFeedProps {
 export default function ActivityFeed({ projectId }: ActivityFeedProps) {
   const [logs, setLogs] = useState<EnrichedImplementationLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
   const [selectedLog, setSelectedLog] = useState<EnrichedImplementationLog | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const fetchLogs = useCallback(async () => {
-    setIsLoading(true);
+  const fetchLogs = useCallback(async (reset: boolean = true) => {
+    if (reset) {
+      setIsLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
+
+    const offset = reset ? 0 : logs.length;
+
     try {
       const response = await fetch(
-        `/api/implementation-logs/untested?projectId=${projectId}`
+        `/api/implementation-logs/untested?projectId=${projectId}&limit=${PAGE_SIZE}&offset=${offset}`
       );
       const data = await response.json();
       if (data.success) {
-        setLogs(data.data || []);
+        if (reset) {
+          setLogs(data.data || []);
+        } else {
+          setLogs((prev) => [...prev, ...(data.data || [])]);
+        }
+        setHasMore(data.hasMore ?? false);
+        setTotal(data.total ?? 0);
       }
     } catch (error) {
       console.error('Failed to fetch logs:', error);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
+  }, [projectId, logs.length]);
+
+  // Initial load
+  useEffect(() => {
+    fetchLogs(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  // Infinite scroll handler
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current || isLoadingMore || !hasMore) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const scrollThreshold = 100; // pixels from bottom
+
+    if (scrollHeight - scrollTop - clientHeight < scrollThreshold) {
+      fetchLogs(false);
+    }
+  }, [fetchLogs, isLoadingMore, hasMore]);
+
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -73,17 +116,22 @@ export default function ActivityFeed({ projectId }: ActivityFeedProps) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="w-5 h-5 text-cyan-400" />
-          <h3 className="font-semibold text-white">Recent Activity</h3>
-          <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-            {logs.length}
-          </span>
+      <div className="flex items-center justify-between bg-gray-900/60 backdrop-blur-sm border border-gray-800/80 rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+            <Activity className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-white">Recent Activity</h3>
+            <p className="text-xs text-gray-500">
+              Showing {logs.length} of {total} activities
+            </p>
+          </div>
         </div>
         <button
-          onClick={fetchLogs}
+          onClick={() => fetchLogs(true)}
           className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+          title="Refresh"
         >
           <RefreshCw className="w-4 h-4" />
         </button>
@@ -91,15 +139,23 @@ export default function ActivityFeed({ projectId }: ActivityFeedProps) {
 
       {/* Content */}
       {logs.length === 0 ? (
-        <div className="text-center py-12 bg-gray-900/30 border border-gray-800 rounded-xl">
-          <Activity className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-          <h4 className="text-gray-300 font-medium mb-1">No Recent Activity</h4>
-          <p className="text-sm text-gray-500">
-            Implementation logs will appear here as you work
-          </p>
+        <div className="relative overflow-hidden text-center py-16 bg-gradient-to-b from-gray-900/60 to-gray-900/30 backdrop-blur-sm border border-gray-800/80 rounded-2xl">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.02)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+          <div className="relative">
+            <div className="w-16 h-16 bg-gradient-to-br from-gray-800/80 to-gray-900/80 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-700/50 shadow-xl">
+              <Activity className="w-8 h-8 text-gray-500" />
+            </div>
+            <h4 className="text-lg font-medium text-gray-300 mb-2">No Recent Activity</h4>
+            <p className="text-sm text-gray-500 max-w-sm mx-auto">
+              Implementation logs will appear here as you work on your goals
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div
+          ref={scrollContainerRef}
+          className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar"
+        >
           {logs.map((log) => (
             <motion.div
               key={log.id}
@@ -199,6 +255,21 @@ export default function ActivityFeed({ projectId }: ActivityFeedProps) {
               </AnimatePresence>
             </motion.div>
           ))}
+
+          {/* Loading More Indicator */}
+          {isLoadingMore && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+              <span className="ml-2 text-sm text-gray-500">Loading more...</span>
+            </div>
+          )}
+
+          {/* End of List Indicator */}
+          {!hasMore && logs.length > 0 && (
+            <div className="text-center py-4 text-xs text-gray-600">
+              All activities loaded
+            </div>
+          )}
         </div>
       )}
     </div>

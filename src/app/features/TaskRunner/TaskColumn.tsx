@@ -2,11 +2,19 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Square, Trash2, XCircle, Layers } from 'lucide-react';
+import { CheckSquare, Square, Trash2, XCircle, Layers, FolderOpen } from 'lucide-react';
 import TaskItem from './TaskItem';
 import type { ProjectRequirement } from './lib/types';
 import type { AggregationCheckResult } from './lib/ideaAggregator';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea, DbContext } from '@/app/db';
+
+// Context info for grouping
+interface ContextInfo {
+  id: string;
+  name: string;
+  groupName?: string; // Context group name for display
+  color?: string;
+}
 
 interface TaskColumnProps {
   projectId: string;
@@ -23,6 +31,7 @@ interface TaskColumnProps {
   // Optional pre-loaded data to avoid duplicate fetches
   aggregationData?: AggregationCheckResult | null;
   ideasData?: Record<string, DbIdea | null>;
+  contextsData?: Record<string, ContextInfo>;
 }
 
 const TaskColumn = React.memo(function TaskColumn({
@@ -39,15 +48,19 @@ const TaskColumn = React.memo(function TaskColumn({
   onRefresh,
   aggregationData,
   ideasData,
+  contextsData,
 }: TaskColumnProps) {
   // Aggregation state - use prop if provided, otherwise fetch
   const [aggregationCheck, setAggregationCheck] = useState<AggregationCheckResult | null>(aggregationData || null);
   const [isAggregating, setIsAggregating] = useState(false);
   // Batch-loaded ideas for all requirements in this column
   const [ideasMap, setIdeasMap] = useState<Record<string, DbIdea | null>>(ideasData || {});
+  // Contexts map for grouping
+  const [contextsMap, setContextsMap] = useState<Record<string, ContextInfo>>(contextsData || {});
   // Refs to prevent duplicate fetches (React Strict Mode double-mount)
   const aggregationFetchedRef = useRef(false);
   const ideasFetchedRef = useRef(false);
+  const contextsFetchedRef = useRef(false);
 
   // Check for aggregatable files - skip if data provided via prop
   const checkAggregation = useCallback(async () => {
@@ -79,6 +92,7 @@ const TaskColumn = React.memo(function TaskColumn({
   useEffect(() => {
     aggregationFetchedRef.current = false;
     ideasFetchedRef.current = false;
+    contextsFetchedRef.current = false;
   }, [projectPath]);
 
   // Batch fetch ideas - skip if data provided via prop
@@ -121,6 +135,94 @@ const TaskColumn = React.memo(function TaskColumn({
 
     fetchIdeasBatch();
   }, [requirementNames, ideasData]);
+
+  // Fetch contexts for grouping - skip if data provided via prop
+  useEffect(() => {
+    if (contextsData !== undefined) {
+      setContextsMap(contextsData);
+      return;
+    }
+
+    if (contextsFetchedRef.current) return;
+    contextsFetchedRef.current = true;
+
+    const fetchContexts = async () => {
+      try {
+        const response = await fetch(`/api/contexts?projectId=${encodeURIComponent(projectId)}`);
+        if (response.ok) {
+          const data = await response.json();
+          const contexts = data.data?.contexts || [];
+          const groups = data.data?.groups || [];
+
+          // Build maps for group info (color and name)
+          const groupInfo: Record<string, { color: string; name: string }> = {};
+          groups.forEach((g: { id: string; color: string; name: string }) => {
+            groupInfo[g.id] = { color: g.color, name: g.name };
+          });
+
+          const map: Record<string, ContextInfo> = {};
+          contexts.forEach((ctx: DbContext) => {
+            const group = ctx.group_id ? groupInfo[ctx.group_id] : undefined;
+            map[ctx.id] = {
+              id: ctx.id,
+              name: ctx.name,
+              groupName: group?.name,
+              color: group?.color,
+            };
+          });
+          setContextsMap(map);
+        }
+      } catch (error) {
+        console.debug('Failed to fetch contexts:', error);
+      }
+    };
+
+    fetchContexts();
+  }, [projectId, contextsData]);
+
+  // Group requirements by context
+  const groupedRequirements = useMemo(() => {
+    // First sort by status
+    const sorted = [...requirements].sort((a, b) => {
+      const statusOrder = { idle: 0, queued: 1, running: 2, failed: 3, 'session-limit': 4, completed: 5 };
+      return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+    });
+
+    // Group by context_id from the associated idea
+    const groups: Record<string, { context: ContextInfo | null; requirements: ProjectRequirement[] }> = {};
+    const NO_CONTEXT_KEY = '__no_context__';
+
+    sorted.forEach((req) => {
+      const idea = ideasMap[req.requirementName];
+      const contextId = idea?.context_id || null;
+      const key = contextId || NO_CONTEXT_KEY;
+
+      if (!groups[key]) {
+        const contextInfo = contextId ? contextsMap[contextId] : null;
+        groups[key] = {
+          context: contextId
+            ? contextInfo || { id: contextId, name: 'Unknown Context', groupName: undefined, color: undefined }
+            : null,
+          requirements: [],
+        };
+      }
+      groups[key].requirements.push(req);
+    });
+
+    // Convert to array and sort: contexts first (alphabetically), then no-context
+    const entries = Object.entries(groups);
+    entries.sort(([keyA, a], [keyB, b]) => {
+      if (keyA === NO_CONTEXT_KEY) return 1;
+      if (keyB === NO_CONTEXT_KEY) return -1;
+      return (a.context?.name || '').localeCompare(b.context?.name || '');
+    });
+
+    return entries.map(([key, value]) => ({
+      key,
+      context: value.context,
+      requirements: value.requirements,
+    }));
+  }, [requirements, ideasMap, contextsMap]);
 
   // Handle aggregation
   const handleAggregate = async () => {
@@ -170,14 +272,6 @@ const TaskColumn = React.memo(function TaskColumn({
   ).length;
   const allSelected = selectableRequirements.length > 0 && selectedCount === selectableRequirements.length;
   const someSelected = selectedCount > 0 && !allSelected;
-
-  // Sort requirements by status
-  const sortedRequirements = React.useMemo(() => {
-    return [...requirements].sort((a, b) => {
-      const statusOrder = { idle: 0, queued: 1, running: 2, failed: 3, 'session-limit': 4, completed: 5 };
-      return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
-    });
-  }, [requirements]);
 
   // Calculate clearable (completed/failed) count
   const clearableRequirements = requirements.filter(
@@ -296,28 +390,57 @@ const TaskColumn = React.memo(function TaskColumn({
         </div>
       </div>
 
-      {/* Requirements List */}
-      <div className="flex-1 px-2 py-2 space-y-1 min-h-[100px] max-h-[500px] overflow-y-auto custom-scrollbar">
-        {sortedRequirements.length === 0 ? (
+      {/* Requirements List - Grouped by Context */}
+      <div className="flex-1 px-2 py-2 min-h-[100px] max-h-[500px] overflow-y-auto custom-scrollbar">
+        {requirements.length === 0 ? (
           <div className="flex items-center justify-center h-20 text-[10px] text-gray-600">
             No requirements
           </div>
         ) : (
-          sortedRequirements.map((req) => {
-            const reqId = getRequirementId(req);
-            return (
-              <TaskItem
-                key={reqId}
-                requirement={req}
-                isSelected={selectedRequirements.has(reqId)}
-                onToggleSelect={() => onToggleSelect(reqId)}
-                onDelete={() => onDelete(reqId)}
-                projectPath={req.projectPath}
-                projectId={projectId}
-                idea={ideasMap[req.requirementName]}
-              />
-            );
-          })
+          groupedRequirements.map((group) => (
+            <div key={group.key} className="mb-3 last:mb-0">
+              {/* Context Divider - Always show when we have context info */}
+              <div className="flex items-center gap-2 py-1 px-1 mb-1">
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: group.context?.color || '#4b5563' }}
+                />
+                <span
+                  className="text-[10px] font-medium truncate"
+                  style={{ color: group.context?.color || '#9ca3af' }}
+                >
+                  {group.context
+                    ? group.context.groupName
+                      ? `${group.context.groupName} - ${group.context.name}`
+                      : group.context.name
+                    : 'Without Context'}
+                </span>
+                <div className="flex-1 h-px bg-gray-700/40" />
+                <span className="text-[9px] text-gray-500 font-mono">
+                  {group.requirements.length}
+                </span>
+              </div>
+
+              {/* Tasks in this group */}
+              <div className="space-y-1 pl-1">
+                {group.requirements.map((req) => {
+                  const reqId = getRequirementId(req);
+                  return (
+                    <TaskItem
+                      key={reqId}
+                      requirement={req}
+                      isSelected={selectedRequirements.has(reqId)}
+                      onToggleSelect={() => onToggleSelect(reqId)}
+                      onDelete={() => onDelete(reqId)}
+                      projectPath={req.projectPath}
+                      projectId={projectId}
+                      idea={ideasMap[req.requirementName]}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </motion.div>

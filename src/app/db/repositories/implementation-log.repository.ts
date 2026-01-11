@@ -60,6 +60,35 @@ export const implementationLogRepository = {
   },
 
   /**
+   * Get untested implementation logs for a project with pagination
+   */
+  getUntestedLogsByProjectPaginated: (
+    projectId: string,
+    limit: number = 20,
+    offset: number = 0
+  ): { logs: DbImplementationLog[]; total: number } => {
+    const db = getDatabase();
+
+    // Get total count
+    const countStmt = db.prepare(`
+      SELECT COUNT(*) as total FROM implementation_log
+      WHERE project_id = ? AND tested = 0
+    `);
+    const countResult = countStmt.get(projectId) as { total: number };
+
+    // Get paginated logs
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE project_id = ? AND tested = 0
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const logs = stmt.all(projectId, limit, offset) as DbImplementationLog[];
+
+    return { logs, total: countResult.total };
+  },
+
+  /**
    * Get untested implementation logs for a specific context
    */
   getUntestedLogsByContext: (contextId: string): DbImplementationLog[] => {

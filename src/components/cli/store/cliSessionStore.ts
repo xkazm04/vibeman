@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QueuedTask } from '../types';
+import type { SkillId } from '../skills';
 
 // Session IDs
 export type CLISessionId = 'cliSession1' | 'cliSession2' | 'cliSession3' | 'cliSession4';
@@ -23,6 +24,7 @@ export interface CLISessionState {
   createdAt: number;
   lastActivityAt: number;
   completedCount: number; // Tasks completed during this session
+  enabledSkills: SkillId[]; // Active skills for this session
 }
 
 // Store state
@@ -39,6 +41,8 @@ interface CLISessionStoreState {
   setRunning: (sessionId: CLISessionId, isRunning: boolean) => void;
   setAutoStart: (sessionId: CLISessionId, autoStart: boolean) => void;
   updateLastActivity: (sessionId: CLISessionId) => void;
+  toggleSkill: (sessionId: CLISessionId, skillId: SkillId) => void;
+  setSkills: (sessionId: CLISessionId, skillIds: SkillId[]) => void;
 
   // Recovery
   getActiveSessions: () => CLISessionState[];
@@ -56,6 +60,7 @@ const createDefaultSession = (id: CLISessionId): CLISessionState => ({
   createdAt: 0,
   lastActivityAt: 0,
   completedCount: 0,
+  enabledSkills: [],
 });
 
 // Session IDs
@@ -221,6 +226,36 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         }));
       },
 
+      toggleSkill: (sessionId, skillId) => {
+        set((state) => {
+          const session = state.sessions[sessionId];
+          const hasSkill = session.enabledSkills.includes(skillId);
+          return {
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...session,
+                enabledSkills: hasSkill
+                  ? session.enabledSkills.filter((s) => s !== skillId)
+                  : [...session.enabledSkills, skillId],
+              },
+            },
+          };
+        });
+      },
+
+      setSkills: (sessionId, skillIds) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              enabledSkills: skillIds,
+            },
+          },
+        }));
+      },
+
       getActiveSessions: () => {
         const { sessions } = get();
         return SESSION_IDS.map((id) => sessions[id]).filter(
@@ -243,7 +278,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
     }),
     {
       name: 'cli-session-storage',
-      version: 2, // Bump when adding new fields
+      version: 3, // Bump when adding new fields
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist session data, not ephemeral state
@@ -252,12 +287,19 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
       // Handle migration from older versions
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as { sessions?: Record<string, CLISessionState> };
-        if (version < 2 && state?.sessions) {
-          // Add completedCount to sessions from v1
+        if (state?.sessions) {
           const migratedSessions = { ...state.sessions };
           for (const id of Object.keys(migratedSessions)) {
-            if (migratedSessions[id] && migratedSessions[id].completedCount === undefined) {
-              migratedSessions[id] = { ...migratedSessions[id], completedCount: 0 };
+            const session = migratedSessions[id];
+            if (session) {
+              // v1 -> v2: Add completedCount
+              if (version < 2 && session.completedCount === undefined) {
+                migratedSessions[id] = { ...session, completedCount: 0 };
+              }
+              // v2 -> v3: Add enabledSkills
+              if (version < 3 && session.enabledSkills === undefined) {
+                migratedSessions[id] = { ...migratedSessions[id], enabledSkills: [] };
+              }
             }
           }
           return { sessions: migratedSessions };

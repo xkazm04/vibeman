@@ -98,35 +98,55 @@ export default function HypothesisRow({ hypothesis, projectPath }: HypothesisRow
 
   const isComplete = hypothesis.status === 'verified' || hypothesis.status === 'completed';
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Ignore clicks on action buttons
+    if ((e.target as HTMLElement).closest('[data-action-button]')) {
+      return;
+    }
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setIsExpanded(!isExpanded);
+    }
+  };
+
   return (
     <div className="group">
       {/* Compact Row */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className={`w-full text-left py-1.5 px-2 rounded-lg border transition-colors ${statusConfig.bgColor} ${
-          isExpanded ? 'border-cyan-500 bg-cyan-500/10' : 'hover:border-gray-600'
-        } ${isComplete ? 'opacity-70' : ''}`}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleRowClick}
+        onKeyDown={handleKeyDown}
+        className={`w-full text-left py-2 px-3 rounded-xl border transition-all cursor-pointer ${statusConfig.bgColor} ${
+          isExpanded ? 'border-cyan-500/50 bg-cyan-500/10 shadow-lg shadow-cyan-500/5' : 'hover:border-gray-600 hover:bg-gray-800/30'
+        } ${isComplete ? 'opacity-60' : ''}`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* Status Icon */}
-          <StatusIcon className={`w-4 h-4 flex-shrink-0 ${statusConfig.color}`} />
+          <div className={`p-1 rounded-lg ${isComplete ? 'bg-emerald-500/10' : 'bg-gray-800/50'}`}>
+            <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
+          </div>
 
           {/* Title */}
-          <span className={`text-sm font-medium truncate flex-1 min-w-0 ${isComplete ? 'text-gray-400' : 'text-white'}`}>
+          <span className={`text-sm font-medium truncate flex-1 min-w-0 ${isComplete ? 'text-gray-400 line-through' : 'text-white'}`}>
             {hypothesis.title}
           </span>
 
           {/* Tags */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Priority badge */}
             {hypothesis.priority >= 8 && (
-              <span className="px-1.5 py-0.5 text-[10px] bg-red-500/20 text-red-400 rounded">
+              <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-red-500/20 text-red-400 rounded-full border border-red-500/30">
                 High
               </span>
             )}
 
             {/* Category badge */}
-            <span className={`px-1.5 py-0.5 text-[10px] rounded ${categoryColor}`}>
+            <span className={`px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide rounded-full border border-white/10 ${categoryColor}`}>
               {hypothesis.category}
             </span>
 
@@ -139,20 +159,22 @@ export default function HypothesisRow({ hypothesis, projectPath }: HypothesisRow
 
             {/* Quick actions (visible on hover) */}
             {!isComplete && (
-              <div className="hidden group-hover:flex items-center gap-1">
+              <div className="hidden group-hover:flex items-center gap-1" data-action-button>
                 {hypothesis.status === 'unverified' && (
                   <button
                     onClick={handleStartProgress}
-                    className="p-1 rounded bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30"
+                    className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30 transition-all"
                     title="Start"
+                    data-action-button
                   >
                     <Play className="w-3 h-3" />
                   </button>
                 )}
                 <button
                   onClick={handleMarkComplete}
-                  className="p-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"
+                  className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 transition-all"
                   title="Complete"
+                  data-action-button
                 >
                   <CheckCircle2 className="w-3 h-3" />
                 </button>
@@ -165,7 +187,7 @@ export default function HypothesisRow({ hypothesis, projectPath }: HypothesisRow
             />
           </div>
         </div>
-      </button>
+      </div>
 
       {/* Expanded Details */}
       <AnimatePresence>
@@ -174,40 +196,50 @@ export default function HypothesisRow({ hypothesis, projectPath }: HypothesisRow
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <div className="pl-6 pr-2 py-2 space-y-2 bg-gray-900/30 rounded-b-lg border-x border-b border-gray-800 -mt-1">
+            <div className="ml-4 mr-2 mt-1 p-4 space-y-3 bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-800/80 shadow-inner">
               {/* Statement */}
-              <p className="text-xs text-gray-400">{hypothesis.statement}</p>
+              <div className="space-y-1">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Statement</span>
+                <p className="text-sm text-gray-300 leading-relaxed">{hypothesis.statement}</p>
+              </div>
 
               {/* Reasoning */}
               {hypothesis.reasoning && (
-                <p className="text-xs text-gray-500 italic">{hypothesis.reasoning}</p>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Reasoning</span>
+                  <p className="text-sm text-gray-400 italic leading-relaxed">{hypothesis.reasoning}</p>
+                </div>
               )}
 
               {/* Evidence (if verified) */}
               {isComplete && hypothesis.evidence && (
-                <div className="text-xs">
-                  <span className="text-gray-500">{hypothesis.evidenceType}: </span>
-                  <span className="text-emerald-400">{hypothesis.evidence}</span>
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-400 block mb-1">
+                    {hypothesis.evidenceType}
+                  </span>
+                  <p className="text-sm text-emerald-300">{hypothesis.evidence}</p>
                 </div>
               )}
 
               {/* Verification Form */}
               {isVerifying ? (
-                <div className="space-y-2 pt-2 border-t border-gray-800">
-                  <div className="flex gap-1 flex-wrap">
+                <div className="space-y-3 pt-3 border-t border-gray-800/50">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Evidence Type</span>
+                  <div className="flex gap-2 flex-wrap">
                     {evidenceTypes.map(({ value, label, icon: Icon }) => (
                       <button
                         key={value}
                         onClick={() => setEvidenceType(value)}
-                        className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                           evidenceType === value
-                            ? 'bg-cyan-500/20 text-cyan-400'
-                            : 'bg-gray-800 text-gray-400 hover:text-white'
+                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm shadow-cyan-500/10'
+                            : 'bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-700/60 border border-transparent'
                         }`}
                       >
-                        <Icon className="w-2.5 h-2.5" />
+                        <Icon className="w-3 h-3" />
                         {label}
                       </button>
                     ))}
@@ -215,35 +247,35 @@ export default function HypothesisRow({ hypothesis, projectPath }: HypothesisRow
                   <textarea
                     value={evidence}
                     onChange={(e) => setEvidence(e.target.value)}
-                    placeholder="Evidence..."
-                    className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 resize-none"
-                    rows={2}
+                    placeholder="Describe the evidence..."
+                    className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700/60 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 resize-none transition-all"
+                    rows={3}
                   />
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => setIsVerifying(false)}
-                      className="px-2 py-1 text-[10px] text-gray-400 hover:text-white"
+                      className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800/50"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleVerify}
                       disabled={!evidence.trim()}
-                      className="px-2 py-1 text-[10px] bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 rounded"
+                      className="px-4 py-2 text-xs font-medium bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 rounded-lg transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none"
                     >
-                      Verify
+                      Verify Hypothesis
                     </button>
                   </div>
                 </div>
               ) : (
                 /* Actions */
-                <div className="flex items-center gap-2 pt-2 border-t border-gray-800">
+                <div className="flex items-center gap-2 pt-3 border-t border-gray-800/50">
                   {hypothesis.status === 'unverified' && (
                     <button
                       onClick={handleStartProgress}
-                      className="flex items-center gap-1 px-2 py-1 text-[10px] bg-cyan-600 hover:bg-cyan-500 rounded"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 rounded-lg transition-all shadow-lg shadow-cyan-500/20"
                     >
-                      <Play className="w-2.5 h-2.5" />
+                      <Play className="w-3 h-3" />
                       Start
                     </button>
                   )}
@@ -251,25 +283,26 @@ export default function HypothesisRow({ hypothesis, projectPath }: HypothesisRow
                     <>
                       <button
                         onClick={handleMarkComplete}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] bg-purple-600 hover:bg-purple-500 rounded"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 rounded-lg transition-all shadow-lg shadow-purple-500/20"
                       >
-                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <CheckCircle2 className="w-3 h-3" />
                         Complete
                       </button>
                       <button
                         onClick={() => setIsVerifying(true)}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] bg-emerald-600 hover:bg-emerald-500 rounded"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 rounded-lg transition-all shadow-lg shadow-emerald-500/20"
                       >
-                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <CheckCircle2 className="w-3 h-3" />
                         Verify
                       </button>
                     </>
                   )}
                   <button
                     onClick={handleDelete}
-                    className="ml-auto p-1 text-gray-500 hover:text-red-400"
+                    className="ml-auto p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                    title="Delete hypothesis"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               )}

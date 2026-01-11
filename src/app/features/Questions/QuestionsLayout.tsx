@@ -13,6 +13,7 @@ import {
   answerQuestion,
   deleteQuestion,
   generateQuestionRequirement,
+  setupContextMapGenerator,
   ContextMapEntry,
   QuestionsResponse
 } from './lib/questionsApi';
@@ -109,6 +110,12 @@ export default function QuestionsLayout() {
   const handleClearAll = () => {
     setSelectedContextIds([]);
   };
+
+  const handleSetupContextMap = useCallback(async () => {
+    if (!activeProject?.path) return;
+
+    await setupContextMapGenerator(activeProject.path);
+  }, [activeProject?.path]);
 
   const handleGenerate = async (questionsPerContext: number) => {
     if (!activeProject) return;
@@ -233,6 +240,7 @@ export default function QuestionsLayout() {
               onClearAll={handleClearAll}
               loading={contextMapLoading}
               error={contextMapError}
+              onSetupContextMap={handleSetupContextMap}
             />
 
             {/* Generate Button */}

@@ -31,18 +31,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const contextId = searchParams.get('contextId');
     const projectId = searchParams.get('projectId');
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     let logs;
+    let total: number | undefined;
 
     if (contextId) {
-      // Get untested logs for specific context
+      // Get untested logs for specific context (no pagination yet)
       logs = implementationLogRepository.getUntestedLogsByContext(contextId);
+      total = logs.length;
     } else if (projectId) {
-      // Get untested logs for entire project
-      logs = implementationLogRepository.getUntestedLogsByProject(projectId);
+      // Get untested logs for entire project with pagination
+      const result = implementationLogRepository.getUntestedLogsByProjectPaginated(
+        projectId,
+        limit,
+        offset
+      );
+      logs = result.logs;
+      total = result.total;
     } else {
-      // Get all untested logs
+      // Get all untested logs (no pagination)
       logs = implementationLogRepository.getAllUntestedLogs();
+      total = logs.length;
     }
 
     // Enrich each log with project, context names, and group id
@@ -81,6 +92,8 @@ export async function GET(request: NextRequest) {
       success: true,
       data: enrichedLogs,
       count: enrichedLogs.length,
+      total,
+      hasMore: total !== undefined ? offset + enrichedLogs.length < total : false,
     });
   } catch (error) {
     logger.error('Error fetching untested implementation logs:', { error });

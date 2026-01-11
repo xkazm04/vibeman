@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Layers, AlertCircle } from 'lucide-react';
+import { Check, Layers, AlertCircle, Wand2 } from 'lucide-react';
 import { ContextMapEntry } from '../lib/questionsApi';
 
 interface ContextMapSelectorProps {
@@ -13,6 +13,7 @@ interface ContextMapSelectorProps {
   onClearAll: () => void;
   loading?: boolean;
   error?: string | null;
+  onSetupContextMap?: () => Promise<void>;
 }
 
 export default function ContextMapSelector({
@@ -22,10 +23,30 @@ export default function ContextMapSelector({
   onSelectAll,
   onClearAll,
   loading = false,
-  error = null
+  error = null,
+  onSetupContextMap
 }: ContextMapSelectorProps) {
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupSuccess, setSetupSuccess] = useState(false);
+
   const allSelected = contexts.length > 0 && selectedContextIds.length === contexts.length;
   const someSelected = selectedContextIds.length > 0;
+
+  const handleSetup = async () => {
+    if (!onSetupContextMap) return;
+
+    setSetupLoading(true);
+    setSetupSuccess(false);
+
+    try {
+      await onSetupContextMap();
+      setSetupSuccess(true);
+    } catch (err) {
+      console.error('Failed to setup context map:', err);
+    } finally {
+      setSetupLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -41,14 +62,42 @@ export default function ContextMapSelector({
   if (error) {
     return (
       <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl p-4 border border-amber-700/40">
-        <div className="flex items-center gap-3 text-amber-400">
-          <AlertCircle className="w-5 h-5" />
-          <div>
-            <p className="font-medium">{error}</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Use the <code className="bg-gray-700 px-1 rounded">/context-map-generator</code> skill to create one.
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 text-amber-400">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">{error}</p>
+              {!setupSuccess && (
+                <p className="text-sm text-gray-400 mt-1">
+                  Setup the context-map-generator skill to create one.
+                </p>
+              )}
+              {setupSuccess && (
+                <p className="text-sm text-green-400 mt-1">
+                  Skill and requirement files created. Run <code className="bg-gray-700 px-1 rounded">/generate-context-map</code> in Claude Code.
+                </p>
+              )}
+            </div>
           </div>
+          {onSetupContextMap && !setupSuccess && (
+            <button
+              onClick={handleSetup}
+              disabled={setupLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+            >
+              {setupLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Setting up...</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4" />
+                  <span>Setup Skill</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     );

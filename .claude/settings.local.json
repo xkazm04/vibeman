@@ -95,7 +95,8 @@
       "Bash(then rm \"C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman\\\\src\\\\types\\\\cli.ts\")",
       "Bash(else echo \"Not found\")",
       "Bash(sqlite3 database/vibeman.db \"DELETE FROM migrations WHERE name = ''questionsTable''; SELECT ''Migration reset'';\")",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

@@ -12,6 +12,7 @@ import {
   useCLIRecoveryStatus,
   type CLISessionId,
 } from './store';
+import { getAllSkills, type SkillId } from './skills';
 
 // Map old session IDs to new CLI session IDs
 const SESSION_ID_MAP: Record<string, CLISessionId> = {
@@ -77,6 +78,10 @@ export function CLIBatchPanel({
   const setRunning = useCLISessionStore((state) => state.setRunning);
   const updateTaskStatus = useCLISessionStore((state) => state.updateTaskStatus);
   const removeTask = useCLISessionStore((state) => state.removeTask);
+  const toggleSkill = useCLISessionStore((state) => state.toggleSkill);
+
+  // Get all available skills
+  const allSkills = useMemo(() => getAllSkills(), []);
 
   // Recovery hook - recovers sessions on mount
   useCLIRecovery();
@@ -272,6 +277,30 @@ export function CLIBatchPanel({
                     <span>{selectedTaskIds.length}</span>
                   </button>
 
+                  {/* Skill toggles - only show when session has tasks and not running */}
+                  {hasQueue && !session.isRunning && (
+                    <div className="flex items-center gap-0.5 px-1 border-l border-gray-700/50 ml-1">
+                      {allSkills.map((skill) => {
+                        const Icon = skill.icon;
+                        const isActive = session.enabledSkills.includes(skill.id);
+                        const colorClasses = {
+                          violet: isActive ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' : 'text-gray-500 hover:text-violet-400 hover:bg-violet-500/10',
+                          pink: isActive ? 'bg-pink-500/20 text-pink-400 border-pink-500/50' : 'text-gray-500 hover:text-pink-400 hover:bg-pink-500/10',
+                        };
+                        return (
+                          <button
+                            key={skill.id}
+                            onClick={() => toggleSkill(sessionId, skill.id)}
+                            className={`p-1 rounded border transition-colors ${isActive ? 'border' : 'border-transparent'} ${colorClasses[skill.color as keyof typeof colorClasses]}`}
+                            title={`${skill.name}: ${skill.description}${isActive ? ' (active)' : ''}`}
+                          >
+                            <Icon className="w-3 h-3" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Start */}
                   {canStart && (
                     <button
@@ -339,6 +368,7 @@ export function CLIBatchPanel({
                     className="h-full border-0 rounded-none"
                     taskQueue={session.queue}
                     autoStart={session.autoStart}
+                    enabledSkills={session.enabledSkills}
                     onTaskStart={(taskId) => handleTaskStart(sessionId, taskId)}
                     onTaskComplete={(taskId, success) => handleTaskComplete(sessionId, taskId, success)}
                     onQueueEmpty={() => handleQueueEmpty(sessionId)}

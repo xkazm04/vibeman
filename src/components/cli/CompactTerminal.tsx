@@ -29,6 +29,7 @@ import type {
   ExecutionResult,
   CLISSEEvent,
 } from './types';
+import { buildSkillsPrompt } from './skills';
 
 /**
  * Compact Terminal Component
@@ -46,6 +47,7 @@ export function CompactTerminal({
   onTaskComplete,
   onQueueEmpty,
   autoStart = false,
+  enabledSkills = [],
 }: CompactTerminalProps) {
   // Local state for this instance
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -237,11 +239,16 @@ export function CompactTerminal({
     setCurrentTaskId(task.id);
     onTaskStart?.(task.id);
 
+    // Build skills prefix for first task in session
+    const skillsPrefix = !resumeSession && enabledSkills.length > 0
+      ? buildSkillsPrompt(enabledSkills)
+      : '';
+
     // Add system log
     addLog({
       id: `task-${Date.now()}`,
       type: 'system',
-      content: `Starting: ${task.requirementName}`,
+      content: `Starting: ${task.requirementName}${enabledSkills.length > 0 && !resumeSession ? ` [${enabledSkills.join(', ')}]` : ''}`,
       timestamp: Date.now(),
     });
 
@@ -251,7 +258,7 @@ export function CompactTerminal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectPath: task.projectPath,
-          prompt: `Execute the requirement file: ${task.requirementName}`,
+          prompt: `${skillsPrefix}Execute the requirement file: ${task.requirementName}`,
           resumeSessionId: resumeSession ? sessionId : undefined,
         }),
       });
@@ -275,7 +282,7 @@ export function CompactTerminal({
       processedTasksRef.current.add(task.id);
       setCurrentTaskId(null);
     }
-  }, [sessionId, addLog, connectToStream, onTaskStart, onTaskComplete]);
+  }, [sessionId, addLog, connectToStream, onTaskStart, onTaskComplete, enabledSkills]);
 
   // Track pending next task execution
   const pendingNextTaskRef = useRef<NodeJS.Timeout | null>(null);

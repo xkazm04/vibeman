@@ -90,6 +90,11 @@ export interface CLISSEEvent {
 }
 
 /**
+ * Skill IDs for CLI sessions
+ */
+export type SkillId = 'deep-analysis' | 'ui-mastery';
+
+/**
  * Props for CompactTerminal with task queue
  */
 export interface CompactTerminalProps {
@@ -103,6 +108,8 @@ export interface CompactTerminalProps {
   onTaskComplete?: (taskId: string, success: boolean) => void;
   onQueueEmpty?: () => void;
   autoStart?: boolean;
+  // Skills for specialized instructions
+  enabledSkills?: SkillId[];
 }
 
 /**

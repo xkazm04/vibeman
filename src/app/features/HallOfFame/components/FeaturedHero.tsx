@@ -1,39 +1,89 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Star, Sparkles, Zap, ArrowRight } from 'lucide-react';
+import { Star, Zap, ExternalLink } from 'lucide-react';
 import { getFeaturedComponents, getCategoryById } from '../lib/showcaseRegistry';
+import {
+  MotionButtonPreview,
+  UniversalSelectPreview,
+  DecisionCardPreview,
+  StatusChipPreview,
+  ModalTransitionPreview,
+  IlluminatedButtonPreview,
+  StackedBarChartPreview,
+} from './previews';
 
 interface FeaturedHeroProps {
   onComponentClick: (componentId: string) => void;
 }
 
-const FEATURED_GRADIENTS = [
-  'from-cyan-600/30 via-blue-600/20 to-purple-600/30',
-  'from-purple-600/30 via-pink-600/20 to-red-600/30',
-  'from-amber-600/30 via-orange-600/20 to-red-600/30',
-  'from-emerald-600/30 via-teal-600/20 to-cyan-600/30',
-];
+const ACCENT_COLORS: Record<string, { border: string; glow: string; bg: string; text: string }> = {
+  'motion-button': { border: 'border-cyan-500/40', glow: 'hover:shadow-cyan-500/20', bg: 'from-cyan-500/10', text: 'text-cyan-400' },
+  'universal-select': { border: 'border-purple-500/40', glow: 'hover:shadow-purple-500/20', bg: 'from-purple-500/10', text: 'text-purple-400' },
+  'decision-card': { border: 'border-amber-500/40', glow: 'hover:shadow-amber-500/20', bg: 'from-amber-500/10', text: 'text-amber-400' },
+  'status-chip': { border: 'border-emerald-500/40', glow: 'hover:shadow-emerald-500/20', bg: 'from-emerald-500/10', text: 'text-emerald-400' },
+  'modal-transition': { border: 'border-pink-500/40', glow: 'hover:shadow-pink-500/20', bg: 'from-pink-500/10', text: 'text-pink-400' },
+  'illuminated-button': { border: 'border-blue-500/40', glow: 'hover:shadow-blue-500/20', bg: 'from-blue-500/10', text: 'text-blue-400' },
+  'stacked-bar-chart': { border: 'border-violet-500/40', glow: 'hover:shadow-violet-500/20', bg: 'from-violet-500/10', text: 'text-violet-400' },
+};
 
-const FEATURED_BORDERS = [
-  'border-cyan-500/50',
-  'border-purple-500/50',
-  'border-amber-500/50',
-  'border-emerald-500/50',
-];
+function getDefaultProps(componentId: string): Record<string, unknown> {
+  switch (componentId) {
+    case 'motion-button':
+      return { colorScheme: 'cyan', variant: 'solid', size: 'md' };
+    case 'universal-select':
+      return { variant: 'cyber', size: 'md' };
+    case 'decision-card':
+      return { severity: 'info', size: 'sm' };
+    case 'status-chip':
+      return { status: 'processing', size: 'md', animated: true };
+    case 'modal-transition':
+      return { variant: 'spring' };
+    case 'illuminated-button':
+      return { color: 'cyan', size: 'md', selected: false, scanning: false };
+    case 'stacked-bar-chart':
+      return { showTotalBadge: true, showAvgBadge: false };
+    default:
+      return {};
+  }
+}
 
-const FEATURED_GLOWS = [
-  'shadow-cyan-500/20',
-  'shadow-purple-500/20',
-  'shadow-amber-500/20',
-  'shadow-emerald-500/20',
-];
+function renderComponentPreview(componentId: string) {
+  const props = getDefaultProps(componentId);
+
+  switch (componentId) {
+    case 'motion-button':
+      return <MotionButtonPreview props={props} />;
+    case 'universal-select':
+      return <UniversalSelectPreview props={props} />;
+    case 'decision-card':
+      return (
+        <div className="scale-[0.85] origin-center">
+          <DecisionCardPreview props={props} />
+        </div>
+      );
+    case 'status-chip':
+      return <StatusChipPreview props={props} />;
+    case 'modal-transition':
+      return <ModalTransitionPreview props={props} />;
+    case 'illuminated-button':
+      return <IlluminatedButtonPreview props={props} />;
+    case 'stacked-bar-chart':
+      return (
+        <div className="w-full max-w-[280px] scale-[0.9] origin-center">
+          <StackedBarChartPreview props={props} />
+        </div>
+      );
+    default:
+      return null;
+  }
+}
 
 export function FeaturedHero({ onComponentClick }: FeaturedHeroProps) {
   const featuredComponents = getFeaturedComponents();
 
   return (
-    <div className="mb-8">
+    <div className="mb-10">
       {/* Section Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30">
@@ -41,89 +91,87 @@ export function FeaturedHero({ onComponentClick }: FeaturedHeroProps) {
         </div>
         <div>
           <h2 className="text-xl font-bold text-white">Featured Components</h2>
-          <p className="text-sm text-gray-400">Best of the best - interactive showcases</p>
+          <p className="text-sm text-gray-400">Live previews - click to explore variants</p>
         </div>
       </div>
 
-      {/* Featured Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Featured Components Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
         {featuredComponents.map((component, index) => {
           const category = getCategoryById(component.categoryId);
-          const gradient = FEATURED_GRADIENTS[index % FEATURED_GRADIENTS.length];
-          const border = FEATURED_BORDERS[index % FEATURED_BORDERS.length];
-          const glow = FEATURED_GLOWS[index % FEATURED_GLOWS.length];
+          const colors = ACCENT_COLORS[component.id] || ACCENT_COLORS['motion-button'];
 
           return (
             <motion.div
               key={component.id}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1, duration: 0.4 }}
-              whileHover={{ scale: 1.03, y: -8 }}
+              transition={{ delay: index * 0.08, duration: 0.4 }}
               onClick={() => onComponentClick(component.id)}
               className={`
                 group relative cursor-pointer
-                rounded-2xl overflow-hidden
-                bg-gradient-to-br ${gradient}
-                border ${border}
-                shadow-xl hover:shadow-2xl ${glow}
-                backdrop-blur-xl
+                rounded-xl overflow-hidden
+                bg-gray-900/60 backdrop-blur-sm
+                border ${colors.border}
+                shadow-lg ${colors.glow} hover:shadow-xl
                 transition-all duration-300
+                hover:border-opacity-70
               `}
             >
-              {/* Animated background pattern */}
-              <div className="absolute inset-0 opacity-30">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1),transparent_50%)]" />
-                <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_50%,transparent_75%)] bg-[length:200%_200%] animate-shimmer" />
-              </div>
+              {/* Gradient accent at top */}
+              <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${colors.bg} to-transparent`} />
 
-              {/* Content */}
-              <div className="relative p-6">
-                {/* Icon + Badge */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                    <Sparkles className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-white/10 text-white/80 rounded-full">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    Featured
-                  </span>
+              {/* Header bar */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/50 bg-gray-900/40">
+                <div className="flex items-center gap-2">
+                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <span className="text-sm font-medium text-white">{component.name}</span>
                 </div>
-
-                {/* Name */}
-                <h3 className="text-lg font-bold text-white mb-2 group-hover:text-cyan-200 transition-colors">
-                  {component.name}
-                </h3>
-
-                {/* Description */}
-                <p className="text-sm text-white/70 mb-4 line-clamp-2">
-                  {component.description}
-                </p>
-
-                {/* Stats row */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   {component.variantCount && (
-                    <span className="flex items-center gap-1 text-xs text-white/60">
+                    <span className="flex items-center gap-1 text-xs text-gray-500">
                       <Zap className="w-3 h-3" />
-                      {component.variantCount} variants
+                      {component.variantCount}
                     </span>
                   )}
+                  <ExternalLink className="w-3.5 h-3.5 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+
+              {/* Component Preview Area */}
+              <div className="relative min-h-[160px] flex items-center justify-center p-6 bg-gray-950/30">
+                {/* Subtle grid pattern */}
+                <div
+                  className="absolute inset-0 opacity-[0.03]"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+                    backgroundSize: '16px 16px'
+                  }}
+                />
+
+                {/* Live component */}
+                <div className="relative z-10 pointer-events-none">
+                  {renderComponentPreview(component.id)}
+                </div>
+              </div>
+
+              {/* Footer with category */}
+              <div className="px-4 py-2.5 border-t border-gray-800/30 bg-gray-900/30">
+                <div className="flex items-center justify-between">
                   {category && (
-                    <span className="text-xs text-white/50">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <category.icon className="w-3 h-3" />
                       {category.name}
                     </span>
                   )}
-                </div>
-
-                {/* Hover action */}
-                <div className="absolute bottom-6 right-6 flex items-center gap-1 text-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-xs">Explore</span>
-                  <ArrowRight className="w-3 h-3" />
+                  <span className={`text-xs ${colors.text} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                    View all variants →
+                  </span>
                 </div>
               </div>
 
-              {/* Bottom glow line */}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             </motion.div>
           );
         })}

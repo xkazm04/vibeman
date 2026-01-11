@@ -1,112 +1,285 @@
 {
   "version": "1.0.0",
-  "generated": "2025-12-23",
-  "description": "Context map documenting all feature modules and their file locations in the Vibeman codebase",
+  "generated": "2026-01-11",
+  "description": "Business feature map for Vibeman - AI-powered project management and codebase analysis platform. Each context represents a user capability with all implementation layers bundled.",
   "contexts": [
     {
-      "id": "blueprint-core",
-      "title": "Blueprint Scanning Core",
-      "summary": "Core blueprint scanning system for comprehensive project analysis including framework detection, scan orchestration, and adapter pattern for different tech stacks.",
+      "id": "blueprint-scanning-ui",
+      "title": "Blueprint Scanning UI & Controls",
+      "summary": "Run codebase scans from the blueprint interface. Select scan types, configure options, view progress bars, and handle scan errors. Main entry point for all scanning operations.",
       "filepaths": {
         "ui": [
           "src/app/features/Onboarding/sub_Blueprint/DarkBlueprintLayout.tsx",
-          "src/app/features/Onboarding/components/BlueprintModal.tsx",
           "src/app/features/Onboarding/sub_Blueprint/components/ScanButtonsBar.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/ScanProgressBars.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/ScanProgressBreakdown.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/ScanErrorBanner.tsx",
           "src/app/features/Onboarding/sub_Blueprint/components/DecisionPanel.tsx",
-          "src/app/features/Onboarding/sub_Blueprint/components/ScanProgress.tsx"
+          "src/app/features/Onboarding/sub_Blueprint/components/TaskProgressPanel.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/SimpleModeLayout.tsx"
         ],
-        "lib": [
-          "src/app/features/Onboarding/sub_Blueprint/lib/blueprintScan.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/index.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/nextjsAdapter.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/fastApiAdapter.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/reactNativeAdapter.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/scanTypes.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/prompts/index.ts"
+        "logic": [
+          "src/app/features/Onboarding/sub_Blueprint/hooks/useBlueprintData.ts",
+          "src/app/features/Onboarding/sub_Blueprint/hooks/useBlueprintKeyboardShortcuts.ts",
+          "src/app/features/Onboarding/sub_Blueprint/store/blueprintStore.ts",
+          "src/stores/blueprintExecutionStore.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/blueprint/route.ts",
+          "src/app/api/blueprint/execute/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "blueprint-context-selection",
+      "title": "Blueprint Context & File Selection",
+      "summary": "Select which contexts and files to include in scans. Batch selection modal, file grid, and context selector for targeted scanning operations.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Onboarding/sub_Blueprint/components/ContextSelector.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/ContextSelectionList.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/BatchSelectionModal.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/FileSelectionGrid.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/FeatureScanBatchSelector.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/ScreenCoverageWithBatchSelection.tsx"
+        ],
+        "logic": [
+          "src/app/features/Onboarding/sub_Blueprint/hooks/useBlueprintSelection.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprint-scan/scanSelection.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "blueprint-framework-adapters",
+      "title": "Blueprint Framework Adapters",
+      "summary": "Framework-specific scan adapters for Next.js, Express, FastAPI, Django, and generic backends. Each adapter knows how to scan its framework's structure, build, and contexts.",
+      "filepaths": {
+        "ui": [],
+        "logic": [
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/BaseAdapter.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/initialize.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/ScanBuilder.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/ScanRegistry.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/types.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/nextjs/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/nextjs/NextJSStructureAdapter.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/nextjs/NextJSContextsAdapter.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/nextjs/NextJSBuildAdapter.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/express/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/fastapi/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/django/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/adapters/generic-backend/index.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "blueprint-core-scans",
+      "title": "Blueprint Core Scan Types",
+      "summary": "Execute core scan types: structure, build, contexts, vision, and unused file detection. Handles scan execution, prompts, and result processing.",
+      "filepaths": {
+        "ui": [],
+        "logic": [
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprintBuildScan.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprintContextsScan.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprintVisionScan.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprintUnusedScan.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprintScreenCoverage.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprint-scan/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprint-scan/scanHandler.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/featureBasedContextsScan.ts"
+        ],
+        "server": [
           "src/app/api/blueprint/scan/route.ts",
-          "src/app/api/structure-scan/route.ts"
-        ]
+          "src/app/api/blueprint/scans/route.ts"
+        ],
+        "data": []
       }
     },
     {
       "id": "blueprint-context-scans",
-      "title": "Blueprint Context Scans",
-      "summary": "Specialized scan types for context generation including photo scanning, test design, code review, and context-based analysis.",
+      "title": "Blueprint Context-Aware Scans",
+      "summary": "Run specialized scans per context: photo scanning, test design, code review, separator analysis, and structure scans. AI-powered analysis of specific code areas.",
       "filepaths": {
-        "ui": [
-          "src/app/features/Onboarding/sub_Blueprint/components/ScreenCoverageWithBatchSelection.tsx",
-          "src/app/features/Onboarding/sub_Blueprint/components/ContextSelector.tsx",
-          "src/app/features/Onboarding/sub_Blueprint/components/BlueprintContextReview.tsx"
-        ],
-        "lib": [
-          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintContextReviewScan.ts",
+        "ui": [],
+        "logic": [
+          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/index.ts",
           "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintPhotoScan.ts",
           "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintTestDesign.ts",
           "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintTestScan.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintContextScan.ts",
-          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/index.ts"
+          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintContextReviewScan.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintSeparatorScan.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintStructureScan.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/scanUtils.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/prompts/contextReview.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/context-scans/prompts/testDesign.ts"
         ],
-        "api": [
-          "src/app/api/blueprint/context-scan/route.ts",
-          "src/app/api/contexts/generate-description/route.ts"
+        "server": [
+          "src/app/api/blueprint/context-scan/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "blueprint-workers-scheduler",
+      "title": "Blueprint Workers & Scheduler",
+      "summary": "Background workers for parallel scan execution. Manage worker threads, schedule scans, track history, and predict scan durations.",
+      "filepaths": {
+        "ui": [],
+        "logic": [
+          "src/app/features/Onboarding/sub_Blueprint/lib/blueprintScansWithWorkers.ts",
+          "src/app/features/Onboarding/sub_Blueprint/workers/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/workers/workerManager.ts",
+          "src/app/features/Onboarding/sub_Blueprint/workers/types.ts",
+          "src/app/features/Onboarding/sub_Blueprint/workers/buildScan.worker.ts",
+          "src/app/features/Onboarding/sub_Blueprint/workers/contextsScan.worker.ts",
+          "src/app/features/Onboarding/sub_Blueprint/workers/structureScan.worker.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/scanScheduler.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/scanHistoryService.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/predictiveModel.ts",
+          "src/app/features/Onboarding/sub_Blueprint/hooks/useScanScheduler.ts"
+        ],
+        "server": [
+          "src/app/api/blueprint/scan-scheduler/route.ts",
+          "src/app/api/blueprint/scan-history/route.ts",
+          "src/app/api/blueprint/scan-predictions/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "blueprint-state-machine",
+      "title": "Blueprint State Machine",
+      "summary": "Configure and run automated scan pipelines using state machines. Define scan sequences, decision points, and conditional flows for complex scanning operations.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Onboarding/sub_Blueprint/components/StateMachineEditor.tsx",
+          "src/app/features/Onboarding/sub_Blueprint/components/StepperConfigPanel.tsx"
+        ],
+        "logic": [
+          "src/app/features/Onboarding/sub_Blueprint/lib/stateMachineInterpreter.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/stateMachineTypes.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/defaultStateMachines.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/stepperConfig.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/pipeline/index.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/pipeline/claudeCodePipeline.ts",
+          "src/app/features/Onboarding/sub_Blueprint/lib/pipeline/types.ts"
+        ],
+        "server": [],
+        "data": [
+          "src/stores/slices/blueprintExecution/index.ts",
+          "src/stores/slices/blueprintExecution/executionSlice.ts",
+          "src/stores/slices/blueprintExecution/types.ts"
         ]
       }
     },
     {
-      "id": "onboarding-flow",
-      "title": "Onboarding Flow",
-      "summary": "Project onboarding wizard including getting started panels, control panel, goal drawer, and task item management.",
+      "id": "onboarding-getting-started",
+      "title": "Getting Started & Onboarding Flow",
+      "summary": "Guide new users through initial project setup. Control panel with task items, getting started panels, and onboarding state management.",
       "filepaths": {
         "ui": [
           "src/app/features/Onboarding/OnboardingPanel.tsx",
           "src/app/features/Onboarding/ControlPanel.tsx",
           "src/app/features/Onboarding/OnboardingTaskItem.tsx",
           "src/app/features/Onboarding/sub_GettingStarted/GettingStartedPanel.tsx",
-          "src/app/features/Onboarding/sub_GoalDrawer/GoalDrawer.tsx",
           "src/app/features/Onboarding/sub_BlueprintRunner/BlueprintRunner.tsx",
           "src/app/features/Onboarding/sub_BlueprintContext/BlueprintContextPanel.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/stores/onboardingStore.ts",
-          "src/stores/blueprintExecutionStore.ts"
+          "src/app/features/Onboarding/lib/onboardingConfig.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/onboarding/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "context-management",
-      "title": "Context Management",
-      "summary": "Core context CRUD operations, context cards, menus, and file tree selection for organizing code into business domains.",
+      "id": "onboarding-goal-drawer",
+      "title": "Goal Drawer & Quick Add",
+      "summary": "Quickly add and manage goals from the sidebar drawer. Streamlined goal creation flow integrated with the onboarding experience.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Onboarding/sub_GoalDrawer/GoalDrawer.tsx",
+          "src/app/features/Onboarding/sub_GoalDrawer/components/GoalDrawerContent.tsx",
+          "src/app/features/Onboarding/sub_GoalDrawer/components/GoalDrawerHeader.tsx"
+        ],
+        "logic": [
+          "src/app/features/Onboarding/sub_GoalDrawer/lib/goalDrawerApi.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "context-cards-layout",
+      "title": "Context Cards & Layout",
+      "summary": "Browse and manage code contexts as visual cards. Main context layout with card grid, context menu, and basic CRUD operations.",
       "filepaths": {
         "ui": [
           "src/app/features/Context/ContextLayout.tsx",
           "src/app/features/Context/ContextCard.tsx",
-          "src/app/features/Context/components/ContextMenu.tsx",
-          "src/app/features/Context/components/ErrorDisplay.tsx",
-          "src/app/features/Context/components/FileTreeSelector.tsx"
+          "src/app/features/Context/components/ContextCardContent.tsx",
+          "src/app/features/Context/components/ContextCardHeader.tsx",
+          "src/app/features/Context/ContextMenu/ContextMenu.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Context/lib/contextApi.ts",
           "src/app/features/Context/lib/contextUtils.ts",
           "src/stores/contextStore.ts",
-          "src/stores/contextAPI.ts",
-          "src/stores/contextStoreTypes.ts"
+          "src/stores/context/contextAPI.ts",
+          "src/stores/context/contextStoreTypes.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/contexts/route.ts",
           "src/app/api/contexts/[id]/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/context.repository.ts"
         ]
       }
     },
     {
-      "id": "context-detail-views",
-      "title": "Context Detail Views",
-      "summary": "Detailed context views including files, headers, info panels, related contexts, and timeline visualization.",
+      "id": "context-groups-organization",
+      "title": "Context Groups & Organization",
+      "summary": "Organize contexts into color-coded groups. Create sections, manage group hierarchy, drag-and-drop reordering, and gradient color picker.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Context/sub_ContextGroups/ContextSection.tsx",
+          "src/app/features/Context/sub_ContextGroups/ContextSectionHeader.tsx",
+          "src/app/features/Context/sub_ContextGroups/ContextSectionContent.tsx",
+          "src/app/features/Context/sub_ContextGroups/ContextCards.tsx",
+          "src/app/features/Context/sub_ContextGroups/LazyContextCards.tsx",
+          "src/app/features/Context/sub_ContextGroups/components/GradientPalettePicker.tsx",
+          "src/app/features/Context/sub_ContextGroups/components/MoveToGroupMenu.tsx",
+          "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_modal.tsx",
+          "src/app/features/Context/sub_ContextGroups/ContextGroupManagement/CG_section.tsx"
+        ],
+        "logic": [
+          "src/app/features/Context/sub_ContextGroups/hooks/useKeyboardNavigation.ts",
+          "src/app/features/Context/sub_ContextGroups/lib/gradientUtils.ts",
+          "src/app/features/Context/sub_ContextGroups/types.ts"
+        ],
+        "server": [
+          "src/app/api/context-groups/route.ts",
+          "src/app/api/context-group-relationships/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/context-group.repository.ts"
+        ]
+      }
+    },
+    {
+      "id": "context-detail-files",
+      "title": "Context Detail & File Viewer",
+      "summary": "View detailed context information including files, timeline, and related contexts. File modal for code preview and context file management.",
       "filepaths": {
         "ui": [
           "src/app/features/Context/sub_ContextDetail/ContextDetailFiles.tsx",
@@ -114,44 +287,44 @@
           "src/app/features/Context/sub_ContextDetail/ContextDetailInfo.tsx",
           "src/app/features/Context/sub_ContextDetail/ContextDetailRelated.tsx",
           "src/app/features/Context/sub_ContextDetail/ContextDetailTimeline.tsx",
-          "src/app/features/Context/sub_ContextDetail/GroupDetailView.tsx",
           "src/app/features/Context/sub_ContextFile/ContextFileModal.tsx",
           "src/app/features/Context/sub_ContextFile/ContextModalContent.tsx",
           "src/app/features/Context/sub_ContextFile/ContextModalHeader.tsx"
         ],
-        "lib": [],
-        "api": [
-          "src/app/api/context-files/route.ts"
-        ]
+        "logic": [],
+        "server": [
+          "src/app/api/context-files/route.ts",
+          "src/app/api/context-files/[contextId]/route.ts"
+        ],
+        "data": []
       }
     },
     {
-      "id": "context-generation",
-      "title": "Context Generation",
-      "summary": "AI-powered context generation forms, file selection, editing modals, and context groups with color coding.",
+      "id": "context-generation-ai",
+      "title": "Context AI Generation",
+      "summary": "Generate context descriptions and metadata using AI. Form for context creation, file selection, and AI-powered description generation.",
       "filepaths": {
         "ui": [
           "src/app/features/Context/sub_ContextGen/ContextGenForm.tsx",
           "src/app/features/Context/sub_ContextGen/ContextGenFiles.tsx",
           "src/app/features/Context/sub_ContextGen/ContextEditModal.tsx",
-          "src/app/features/Context/sub_ContextGroups/ContextGroupsPanel.tsx",
-          "src/app/features/Context/sub_ContextGroups/GradientPalettePicker.tsx"
+          "src/app/features/Context/sub_ContextGen/SelectedFilesList.tsx"
         ],
-        "lib": [
-          "src/app/features/Context/sub_ContextGen/contextGenApi.ts",
-          "src/app/features/Context/lib/context-prompt.md",
-          "src/app/features/Context/lib/context-template.md"
+        "logic": [
+          "src/app/features/Context/sub_ContextGen/lib/contextGenApi.ts",
+          "src/app/features/Context/sub_ContextGen/lib/contextGenPrompts.ts"
         ],
-        "api": [
-          "src/app/api/context-groups/route.ts",
-          "src/app/api/context-group-relationships/route.ts"
-        ]
+        "server": [
+          "src/app/api/contexts/generate-description/route.ts",
+          "src/app/api/contexts/generate-metadata/route.ts"
+        ],
+        "data": []
       }
     },
     {
-      "id": "context-testing",
-      "title": "Context Testing & Preview",
-      "summary": "Context overview with test scenarios, preview management, target generation, and selector APIs for automated testing.",
+      "id": "context-preview-testing",
+      "title": "Context Preview & Testing",
+      "summary": "Preview context coverage with image paths and test scenarios. Test scenario editor, selector APIs, and context target popup for validation.",
       "filepaths": {
         "ui": [
           "src/app/features/Context/sub_ContextOverview/ContextOverview.tsx",
@@ -162,93 +335,82 @@
           "src/app/features/Context/sub_ContextPreview/ImagePathInput.tsx",
           "src/app/features/Context/sub_ContextTargetPopup/ContextTargetPopup.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Context/sub_ContextPreview/selectorsApi.ts"
         ],
-        "api": [
-          "src/app/api/test-scenarios/route.ts",
-          "src/app/api/test-results/route.ts"
+        "server": [
+          "src/app/api/contexts/preview/route.ts",
+          "src/app/api/test-scenarios/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/test-scenario.repository.ts"
         ]
       }
     },
     {
-      "id": "ideas-core",
-      "title": "Ideas Core System",
-      "summary": "Main ideas layout, detail modals, filtering, and core idea management with project/context selection.",
+      "id": "ideas-scanning-setup",
+      "title": "Ideas Scanning & Setup",
+      "summary": "Configure and initiate idea generation scans. Select scan types, choose LLM provider, edit prompts, and filter by project/context.",
       "filepaths": {
         "ui": [
           "src/app/features/Ideas/IdeasLayout.tsx",
-          "src/app/features/Ideas/components/IdeaDetailModal.tsx",
-          "src/app/features/Ideas/components/IdeasHeaderWithFilter.tsx",
-          "src/app/features/Ideas/components/ContextRowSelection.tsx",
-          "src/app/features/Ideas/components/ProjectRowSelection.tsx"
-        ],
-        "lib": [
-          "src/app/features/Ideas/lib/ideaConfig.ts",
-          "src/app/features/Ideas/lib/ideasHandlers.ts",
-          "src/app/features/Ideas/lib/ideasUtils.ts",
-          "src/app/features/Ideas/lib/contextLoader.ts"
-        ],
-        "api": [
-          "src/app/api/ideas/route.ts",
-          "src/app/api/ideas/[id]/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "ideas-scanning",
-      "title": "Ideas Scanning & Generation",
-      "summary": "Scan initiation, type selection, Claude integration, prompt editing, and LLM provider selection for idea generation.",
-      "filepaths": {
-        "ui": [
           "src/app/features/Ideas/sub_IdeasSetup/ScanInitiator.tsx",
           "src/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector.tsx",
           "src/app/features/Ideas/sub_IdeasSetup/ProjectFilter.tsx",
-          "src/app/features/Ideas/sub_IdeasSetup/ClaudeIdeasButton.tsx",
-          "src/app/features/Ideas/sub_IdeasSetup/PromptEditorModal.tsx",
+          "src/app/features/Ideas/sub_IdeasSetup/components/ClaudeIdeasButton.tsx",
+          "src/app/features/Ideas/sub_IdeasSetup/components/PromptEditorModal.tsx",
           "src/app/features/Ideas/sub_IdeasSetup/components/ProviderSelector.tsx"
         ],
-        "lib": [
-          "src/app/features/Ideas/sub_IdeasSetup/lib/claudeIdeasExecutor.ts",
-          "src/app/features/Ideas/sub_IdeasSetup/lib/claudeIdeasHandler.ts",
+        "logic": [
           "src/app/features/Ideas/sub_IdeasSetup/lib/scanHandlers.ts",
           "src/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig.ts",
+          "src/app/features/Ideas/sub_IdeasSetup/lib/claudeIdeasExecutor.ts",
+          "src/app/features/Ideas/sub_IdeasSetup/lib/claudeIdeasHandler.ts",
           "src/app/features/Ideas/lib/scanApi.ts",
-          "src/app/features/Ideas/lib/scanTypes.ts",
-          "src/app/features/Ideas/lib/llmProviders.ts"
+          "src/app/features/Ideas/lib/scanTypes.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/scans/route.ts",
           "src/app/api/scan-queue/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/scan.repository.ts"
         ]
       }
     },
     {
-      "id": "ideas-lifecycle",
-      "title": "Ideas Lifecycle & Buffer",
-      "summary": "Idea lifecycle dashboard with phase indicators, configuration, and buffer view for idea management workflow.",
+      "id": "ideas-browse-filter",
+      "title": "Ideas Browse & Filter",
+      "summary": "Browse generated ideas with filtering and detail views. Filter by context, project, status. View idea details in modal with full information.",
       "filepaths": {
         "ui": [
-          "src/app/features/Ideas/sub_Lifecycle/LifecycleDashboard.tsx",
-          "src/app/features/Ideas/sub_Lifecycle/LifecyclePhaseIndicator.tsx",
-          "src/app/features/Ideas/sub_Lifecycle/LifecycleConfigPanel.tsx",
-          "src/app/features/Ideas/sub_Buffer/BufferView.tsx",
-          "src/app/features/Ideas/sub_Buffer/BufferColumn.tsx",
-          "src/app/features/Ideas/sub_Buffer/BufferItem.tsx"
+          "src/app/features/Ideas/components/IdeasHeaderWithFilter.tsx",
+          "src/app/features/Ideas/components/IdeaDetailModal.tsx",
+          "src/app/features/Ideas/components/ContextRowSelection.tsx",
+          "src/app/features/Ideas/components/ContextGroupSelector.tsx",
+          "src/app/features/Ideas/components/ContextItemSelector.tsx",
+          "src/app/features/Ideas/components/ProjectRowSelection.tsx",
+          "src/app/features/Ideas/components/ScanTypePreview.tsx"
         ],
-        "lib": [
-          "src/app/features/Ideas/sub_Lifecycle/lifecycleOrchestrator.ts"
+        "logic": [
+          "src/app/features/Ideas/lib/ideasHandlers.ts",
+          "src/app/features/Ideas/lib/ideasUtils.ts",
+          "src/app/features/Ideas/lib/contextLoader.ts",
+          "src/app/features/Ideas/lib/ideaConfig.ts"
         ],
-        "api": [
-          "src/app/api/lifecycle/route.ts",
-          "src/app/api/ideas/update-implementation-status/route.ts"
+        "server": [
+          "src/app/api/ideas/route.ts",
+          "src/app/api/ideas/[id]/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/idea.repository.ts"
         ]
       }
     },
     {
-      "id": "ideas-evaluation",
-      "title": "Ideas Evaluation (Tinder)",
-      "summary": "Swipe-based idea evaluation interface with cards, controls, and LLM-powered evaluation for selecting best ideas.",
+      "id": "ideas-tinder-evaluation",
+      "title": "Ideas Tinder Evaluation",
+      "summary": "Swipe-based idea evaluation interface. Review ideas with card UI, accept/reject controls, and LLM-powered evaluation suggestions.",
       "filepaths": {
         "ui": [
           "src/app/features/tinder/TinderLayout.tsx",
@@ -258,146 +420,204 @@
           "src/app/features/tinder/components/TinderButtons.tsx",
           "src/app/features/tinder/components/TestModeControls.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/tinder/lib/tinderApi.ts",
           "src/app/features/tinder/lib/tinderHooks.ts",
-          "src/app/features/tinder/lib/tinderUtils.ts",
-          "src/app/features/tinder/lib/testScenarios.ts",
-          "src/app/api/ideas/vibeman/lib/ideaEvaluator.ts",
-          "src/app/api/ideas/vibeman/lib/ideaHelpers.ts"
+          "src/app/features/tinder/lib/tinderUtils.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/ideas/tinder/route.ts",
           "src/app/api/ideas/vibeman/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "refactor-wizard-core",
-      "title": "RefactorWizard Core",
-      "summary": "Main refactoring wizard layout, progress tracking, step routing, and core wizard infrastructure.",
+      "id": "ideas-lifecycle-buffer",
+      "title": "Ideas Lifecycle & Buffer",
+      "summary": "Track idea progress through lifecycle phases. Kanban-style buffer view for idea management with columns, timeline, and phase configuration.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Ideas/sub_Lifecycle/LifecycleDashboard.tsx",
+          "src/app/features/Ideas/sub_Lifecycle/components/LifecyclePhaseIndicator.tsx",
+          "src/app/features/Ideas/sub_Lifecycle/components/LifecycleConfigPanel.tsx",
+          "src/app/features/Ideas/sub_Lifecycle/components/LifecycleTimeline.tsx",
+          "src/app/features/Ideas/sub_Buffer/BufferView.tsx",
+          "src/app/features/Ideas/sub_Buffer/BufferColumn.tsx",
+          "src/app/features/Ideas/sub_Buffer/BufferItem.tsx"
+        ],
+        "logic": [
+          "src/app/features/Ideas/sub_Lifecycle/lib/lifecycleOrchestrator.ts",
+          "src/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes.ts"
+        ],
+        "server": [
+          "src/app/api/lifecycle/route.ts",
+          "src/app/api/ideas/update-implementation-status/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "refactor-wizard-steps",
+      "title": "Refactor Wizard Steps",
+      "summary": "Multi-step refactoring wizard with scan, review, plan, package, settings, and execute phases. Progress tracking and step navigation.",
       "filepaths": {
         "ui": [
           "src/app/features/RefactorWizard/RefactorWizardLayout.tsx",
           "src/app/features/RefactorWizard/components/WizardProgress.tsx",
           "src/app/features/RefactorWizard/components/WizardStepRouter.tsx",
-          "src/app/features/RefactorWizard/components/PackageCard.tsx",
-          "src/app/features/RefactorWizard/components/OpportunityCard.tsx",
-          "src/app/features/RefactorWizard/components/VirtualizedOpportunityList.tsx"
-        ],
-        "lib": [
-          "src/stores/refactorStore.ts",
-          "src/stores/slices/refactor/wizardSlice.ts",
-          "src/stores/slices/refactor/opportunitiesSlice.ts"
-        ],
-        "api": [
-          "src/app/api/refactor/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "refactor-wizard-steps",
-      "title": "RefactorWizard Steps",
-      "summary": "Individual wizard steps including scan, review, plan, package, settings, results, and execute phases.",
-      "filepaths": {
-        "ui": [
           "src/app/features/RefactorWizard/sub_WizardSteps/ScanStep.tsx",
           "src/app/features/RefactorWizard/sub_WizardSteps/ReviewStep.tsx",
           "src/app/features/RefactorWizard/sub_WizardSteps/PlanStep.tsx",
           "src/app/features/RefactorWizard/sub_WizardSteps/PackageStep.tsx",
           "src/app/features/RefactorWizard/sub_WizardSteps/SettingsStep.tsx",
-          "src/app/features/RefactorWizard/sub_WizardSteps/ResultsStep.tsx",
-          "src/app/features/RefactorWizard/sub_WizardSteps/ExecuteStep.tsx",
-          "src/app/features/RefactorWizard/Results/ResultsIndex.tsx",
-          "src/app/features/RefactorWizard/Results/ResultsController.tsx"
+          "src/app/features/RefactorWizard/sub_WizardSteps/ExecuteStep.tsx"
         ],
-        "lib": [],
-        "api": []
+        "logic": [
+          "src/stores/refactorStore.ts",
+          "src/stores/slices/refactor/wizardSlice.ts"
+        ],
+        "server": [
+          "src/app/api/refactor/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "refactor-opportunities-packages",
+      "title": "Refactor Opportunities & Packages",
+      "summary": "Identify refactoring opportunities and package them into actionable items. Opportunity cards, package cards, and suggestion integration.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/RefactorWizard/components/OpportunityCard.tsx",
+          "src/app/features/RefactorWizard/components/PackageCard.tsx",
+          "src/app/features/RefactorWizard/components/VirtualizedOpportunityList.tsx",
+          "src/app/features/RefactorWizard/components/SuggestionIntegrationPanel.tsx"
+        ],
+        "logic": [
+          "src/app/features/RefactorWizard/lib/packageGenerator.ts",
+          "src/app/features/RefactorWizard/lib/patternDetectors.ts",
+          "src/stores/slices/refactor/opportunitiesSlice.ts",
+          "src/stores/slices/refactor/packagesSlice.ts"
+        ],
+        "server": [
+          "src/app/api/refactor-suggestions/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "refactor-dsl-builder",
+      "title": "Refactor DSL Builder",
+      "summary": "Build and execute refactoring operations using a domain-specific language. Template selector, execution config, and DSL validation.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/RefactorWizard/components/sub_DSLBuilder/DSLBuilder.tsx",
+          "src/app/features/RefactorWizard/components/sub_DSLBuilder/TemplateSelector.tsx",
+          "src/app/features/RefactorWizard/components/sub_DSLBuilder/ExecutionConfig.tsx",
+          "src/app/features/RefactorWizard/components/sub_Execute/ExecutePanel.tsx"
+        ],
+        "logic": [
+          "src/app/features/RefactorWizard/lib/dslExecutor.ts",
+          "src/app/features/RefactorWizard/lib/dslValidator.ts",
+          "src/stores/slices/refactor/dslSlice.ts"
+        ],
+        "server": [],
+        "data": []
       }
     },
     {
       "id": "refactor-ai-analysis",
-      "title": "RefactorWizard AI Analysis",
-      "summary": "AI-powered analysis including package generation, pattern detection, DSL building, and strategic requirement generation.",
+      "title": "Refactor AI Analysis",
+      "summary": "AI-powered code analysis for refactoring suggestions. Strategic requirement generation and automated analysis of codebase patterns.",
+      "filepaths": {
+        "ui": [],
+        "logic": [
+          "src/app/features/RefactorWizard/lib/aiAnalyzer.ts",
+          "src/app/features/RefactorWizard/lib/strategicRequirementGenerator.ts",
+          "src/stores/slices/refactor/analysisSlice.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "refactor-results",
+      "title": "Refactor Results & History",
+      "summary": "View refactoring results and execution history. Results dashboard, detailed result views, and historical comparison.",
       "filepaths": {
         "ui": [
-          "src/app/features/RefactorWizard/sub_DSLBuilder/DSLBuilder.tsx",
-          "src/app/features/RefactorWizard/sub_DSLBuilder/TemplateSelector.tsx",
-          "src/app/features/RefactorWizard/sub_DSLBuilder/ExecutionConfig.tsx",
-          "src/app/features/RefactorWizard/components/SuggestionIntegrationPanel.tsx"
+          "src/app/features/RefactorWizard/results/ResultsIndex.tsx",
+          "src/app/features/RefactorWizard/results/ResultsController.tsx",
+          "src/app/features/RefactorWizard/sub_WizardSteps/ResultsStep.tsx"
         ],
-        "lib": [
-          "src/app/features/RefactorWizard/lib/aiAnalyzer.ts",
-          "src/app/features/RefactorWizard/lib/packageGenerator.ts",
-          "src/app/features/RefactorWizard/lib/dslExecutor.ts",
-          "src/app/features/RefactorWizard/lib/dslValidator.ts",
-          "src/app/features/RefactorWizard/lib/patternDetectors.ts",
-          "src/app/features/RefactorWizard/lib/strategicRequirementGenerator.ts",
-          "src/stores/slices/refactor/analysisSlice.ts",
-          "src/stores/slices/refactor/dslSlice.ts",
-          "src/stores/slices/refactor/packagesSlice.ts"
+        "logic": [
+          "src/app/features/RefactorWizard/results/hooks/useResultsData.ts"
         ],
-        "api": [
-          "src/app/api/refactor-suggestions/route.ts"
-        ]
+        "server": [],
+        "data": []
       }
     },
     {
       "id": "annette-voice-core",
       "title": "Annette Voice Assistant Core",
-      "summary": "Main voice assistant panel, audio handling, session management, and response caching system.",
+      "summary": "Voice-powered AI assistant for project guidance. Audio handling, session management, response caching, and TTS generation.",
       "filepaths": {
         "ui": [
           "src/app/features/Annette/AnnettePanel.tsx",
           "src/app/features/Annette/components/VoiceSessionHistory.tsx",
           "src/app/features/Annette/components/VoiceSessionReplay.tsx",
           "src/app/features/Annette/components/ResponseCacheManager.tsx",
-          "src/app/features/Annette/components/TTSCacheManager.tsx"
+          "src/app/features/Annette/components/TTSCacheManager.tsx",
+          "src/app/features/Annette/sub_VoiceInterface/VoiceVisualizer.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Annette/hooks/useAnnetteAudio.ts",
           "src/app/features/Annette/hooks/useAnnetteSession.ts",
           "src/app/features/Annette/lib/voicebotApi.ts",
           "src/app/features/Annette/lib/ttsGen.ts",
           "src/app/features/Annette/lib/ttsCache.ts",
-          "src/app/features/Annette/lib/voicebotResponseCache.ts",
-          "src/app/features/Annette/lib/annetteErrors.ts"
+          "src/app/features/Annette/lib/voicebotResponseCache.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/annette/route.ts",
           "src/app/api/voicebot/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "annette-insights",
+      "id": "annette-insights-knowledge",
       "title": "Annette Insights & Knowledge",
-      "summary": "Insights panel, knowledge sources, live event ticker, context HUD, and scan briefing services.",
+      "summary": "AI-powered insights panel with knowledge sources, live event ticker, and context HUD. Scan briefing and analytics services.",
       "filepaths": {
         "ui": [
           "src/app/features/Annette/components/InsightsPanel.tsx",
           "src/app/features/Annette/components/KnowledgeSourcesPanel.tsx",
           "src/app/features/Annette/components/LiveEventTicker.tsx",
           "src/app/features/Annette/components/ActionCard.tsx",
-          "src/app/features/Annette/components/ContextHUD.tsx",
-          "src/app/features/Annette/sub_VoiceInterface/VoiceVisualizer.tsx",
-          "src/app/features/Annette/sub_VoiceInterface/AnnetteThemeSwitcher.tsx"
+          "src/app/features/Annette/components/ContextHUD.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Annette/lib/scanBriefingService.ts",
           "src/app/features/Annette/lib/knowledgeQuery.ts",
-          "src/app/features/Annette/lib/analyticsService.ts"
+          "src/app/features/Annette/lib/analyticsService.ts",
+          "src/stores/annetteActionsStore.ts"
         ],
-        "api": []
+        "server": [
+          "src/app/api/annette/scan-briefing/route.ts",
+          "src/app/api/annette/analytics/route.ts"
+        ],
+        "data": []
       }
     },
     {
-      "id": "annette-tools",
+      "id": "annette-ai-tools",
       "title": "Annette AI Tools",
-      "summary": "Voice assistant tool integrations including event listener, goal evaluator, implementation log, and file operations.",
+      "summary": "AI tool integrations for the voice assistant. Event listener, goal evaluator, implementation log, and file operation tools.",
       "filepaths": {
         "ui": [],
-        "lib": [
+        "logic": [
           "src/app/features/Annette/tools/EventListenerTool.ts",
           "src/app/features/Annette/tools/GoalEvaluatorTool.ts",
           "src/app/features/Annette/tools/ImplementationLogTool.ts",
@@ -405,13 +625,14 @@
           "src/app/features/Annette/tools/toolsReadOnly.ts",
           "src/app/features/Annette/tools/toolsTaskBacklog.ts"
         ],
-        "api": []
+        "server": [],
+        "data": []
       }
     },
     {
-      "id": "task-runner",
-      "title": "TaskRunner Batch Execution",
-      "summary": "Batch task execution system with dual panels, task columns, remote batch display, and execution management.",
+      "id": "task-runner-batch-execution",
+      "title": "Task Runner Batch Execution",
+      "summary": "Execute batches of tasks with progress tracking. Task columns, items, dual batch panel, and remote batch display for distributed execution.",
       "filepaths": {
         "ui": [
           "src/app/features/TaskRunner/TaskRunnerLayout.tsx",
@@ -423,25 +644,24 @@
           "src/app/features/TaskRunner/components/TaskOffloadPanel.tsx",
           "src/app/features/TaskRunner/components/DelegateBatchButton.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/TaskRunner/store/taskRunnerStore.ts",
           "src/app/features/TaskRunner/store/remoteBatchStore.ts",
-          "src/app/features/TaskRunner/store/useTaskRunnerHooks.ts",
           "src/app/features/TaskRunner/lib/taskExecutor.ts",
           "src/app/features/TaskRunner/lib/ideaAggregator.ts",
-          "src/app/features/TaskRunner/lib/pollingManager.ts",
-          "src/app/features/TaskRunner/lib/batchStorage.ts"
+          "src/app/features/TaskRunner/lib/pollingManager.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/task-runner/route.ts",
           "src/app/api/idea-aggregator/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "task-runner-git",
-      "title": "TaskRunner Git & Screenshots",
-      "summary": "Git control integration, screenshot capture, and configuration toolbars for task execution.",
+      "id": "task-runner-git-integration",
+      "title": "Task Runner Git & Screenshots",
+      "summary": "Git control integration and screenshot capture for task execution. Configuration toolbars and execution prompt editing.",
       "filepaths": {
         "ui": [
           "src/app/features/TaskRunner/sub_Git/GitControl.tsx",
@@ -449,200 +669,286 @@
           "src/app/features/TaskRunner/lib/ConfigurationToolbar.tsx",
           "src/app/features/TaskRunner/lib/ExecutionPromptEditor.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/TaskRunner/sub_Git/gitApi.ts",
           "src/app/features/TaskRunner/sub_Git/useGitConfig.ts",
           "src/app/features/TaskRunner/sub_Screenshot/screenshotApi.ts",
           "src/app/features/TaskRunner/sub_Screenshot/useScreenshotConfig.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/git/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "goals-management",
-      "title": "Goals Management",
-      "summary": "Goal lifecycle management with modals, forms, implementation logs, and screen catalog.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/Goals/GoalsLayout.tsx",
-          "src/app/features/Goals/sub_GoalModal/GoalModal.tsx",
-          "src/app/features/Goals/sub_GoalModal/GoalForm.tsx",
-          "src/app/features/Goals/sub_GoalModal/GoalsAddModal.tsx",
-          "src/app/features/Goals/sub_GoalModal/GoalsDetailModalContent.tsx",
-          "src/app/features/Goals/sub_GoalModal/GoalsDetailDescription.tsx",
-          "src/app/features/Goals/sub_GoalModal/CandidateCard.tsx",
-          "src/app/features/Goals/sub_ImplementationLog/ImplementationLogList.tsx",
-          "src/app/features/Goals/sub_ImplementationLog/ImplementationLogItem.tsx"
         ],
-        "lib": [
-          "src/app/features/Goals/lib/goalUtils.ts",
-          "src/app/features/Goals/lib/goalConstants.ts"
-        ],
-        "api": [
-          "src/app/api/goals/route.ts",
-          "src/app/api/goal-contexts/route.ts"
-        ]
+        "data": []
       }
     },
     {
       "id": "manager-goal-hub",
       "title": "Manager Goal Hub",
-      "summary": "Goal hub dashboard with panels, progress tracking, hypothesis management, and activity feeds.",
+      "summary": "Goal management dashboard with list, detail panels, and progress tracking. Create goals, track hypotheses, and view activity feed.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Manager/GoalHub/GoalHubLayout.tsx",
+          "src/app/features/Manager/GoalHub/components/GoalHubHeader.tsx",
+          "src/app/features/Manager/GoalHub/components/GoalListPanel.tsx",
+          "src/app/features/Manager/GoalHub/components/GoalListItem.tsx",
+          "src/app/features/Manager/GoalHub/components/GoalDetailPanel.tsx",
+          "src/app/features/Manager/GoalHub/components/GoalProgress.tsx",
+          "src/app/features/Manager/GoalHub/components/NewGoalModal.tsx",
+          "src/app/features/Manager/GoalHub/components/GoalAddDrawer.tsx"
+        ],
+        "logic": [
+          "src/stores/goalHubStore.ts",
+          "src/app/features/Manager/lib/advisorConfig.ts"
+        ],
+        "server": [
+          "src/app/api/goal-hub/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "manager-hypothesis-tracking",
+      "title": "Manager Hypothesis Tracking",
+      "summary": "Track and validate hypotheses related to goals. Hypothesis cards, tracker panel, and modal for creating new hypotheses.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Manager/GoalHub/components/HypothesisTracker.tsx",
+          "src/app/features/Manager/GoalHub/components/HypothesisCard.tsx",
+          "src/app/features/Manager/GoalHub/components/HypothesisRow.tsx",
+          "src/app/features/Manager/GoalHub/components/NewHypothesisModal.tsx",
+          "src/app/features/Manager/GoalHub/components/BreakdownPanel.tsx",
+          "src/app/features/Manager/GoalHub/components/ActivityFeed.tsx"
+        ],
+        "logic": [
+          "src/app/features/Manager/lib/promptTemplates.ts",
+          "src/app/features/Manager/lib/llmHelpers.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "manager-implementation-logs",
+      "title": "Manager Implementation Logs",
+      "summary": "Track implementation progress with logs and system map. Log cards, detail views, and proposal bridge for connecting ideas to implementations.",
       "filepaths": {
         "ui": [
           "src/app/features/Manager/ManagerLayout.tsx",
-          "src/app/features/Manager/ManagerHeader.tsx",
-          "src/app/features/Manager/GoalHub/GoalHubLayout.tsx",
-          "src/app/features/Manager/GoalHub/GoalPanel.tsx",
-          "src/app/features/Manager/GoalHub/GoalProgress.tsx",
-          "src/app/features/Manager/GoalHub/BreakdownPanel.tsx",
-          "src/app/features/Manager/GoalHub/ActivityFeed.tsx",
-          "src/app/features/Manager/GoalHub/HypothesisTracker.tsx",
-          "src/app/features/Manager/GoalHub/HypothesisCard.tsx",
-          "src/app/features/Manager/GoalHub/NewGoalModal.tsx",
-          "src/app/features/Manager/GoalHub/NewHypothesisModal.tsx"
+          "src/app/features/Manager/components/ManagerHeader.tsx",
+          "src/app/features/Manager/components/ManagerCardGrid.tsx",
+          "src/app/features/Manager/components/ManagerSystemMap.tsx",
+          "src/app/features/Manager/components/ImplementationLogCard.tsx",
+          "src/app/features/Manager/components/ImplementationLogDetail.tsx",
+          "src/app/features/Manager/components/ImplementationProposalBridge.tsx",
+          "src/app/features/Manager/components/LogPreview.tsx"
         ],
-        "lib": [
-          "src/app/features/Manager/lib/advisorConfig.ts",
-          "src/app/features/Manager/lib/llmHelpers.ts",
-          "src/app/features/Manager/lib/promptTemplates.ts",
-          "src/stores/goalHubStore.ts"
-        ],
-        "api": [
-          "src/app/api/goal-hub/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "manager-cards",
-      "title": "Manager Cards & System Map",
-      "summary": "Manager card grid, system map visualization, task input panels, and implementation log views.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/Manager/ManagerCardGrid.tsx",
-          "src/app/features/Manager/ManagerSystemMap.tsx",
-          "src/app/features/Manager/NewTaskInputPanel.tsx",
-          "src/app/features/Manager/NewTaskModal.tsx",
-          "src/app/features/Manager/UserInputPanel.tsx",
-          "src/app/features/Manager/StatsBar.tsx",
-          "src/app/features/Manager/LogPreview.tsx",
-          "src/app/features/Manager/ImplementationLogCard.tsx",
-          "src/app/features/Manager/ImplementationLogDetail.tsx",
-          "src/app/features/Manager/ImplementationProposalBridge.tsx"
-        ],
-        "lib": [
+        "logic": [
           "src/app/features/Manager/lib/proposalAdapter.ts",
           "src/app/features/Manager/lib/types.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/implementation-log/route.ts",
           "src/app/api/implementation-logs/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/implementation-log.repository.ts"
         ]
       }
     },
     {
-      "id": "social-kanban",
-      "title": "Social Kanban Board",
-      "summary": "Kanban board for communication management with cards, columns, stats bar, and drag state handling.",
+      "id": "manager-standup-wizard",
+      "title": "Manager Standup Wizard",
+      "summary": "Daily standup workflow with project review, goal updates, and automation controls. Stepper navigation through standup phases.",
       "filepaths": {
         "ui": [
+          "src/app/features/Manager/Standup/StandupWizard.tsx",
+          "src/app/features/Manager/Standup/ProjectGoalReview.tsx",
+          "src/app/features/Manager/Standup/components/StandupHeader.tsx",
+          "src/app/features/Manager/Standup/components/WizardHeader.tsx",
+          "src/app/features/Manager/Standup/components/StepperNavigation.tsx",
+          "src/app/features/Manager/Standup/components/FooterNavigation.tsx",
+          "src/app/features/Manager/Standup/components/GoalsList.tsx",
+          "src/app/features/Manager/Standup/components/GoalCard.tsx"
+        ],
+        "logic": [
+          "src/app/features/Manager/Standup/hooks/useStandupWizard.ts",
+          "src/app/features/Manager/Standup/hooks/useProjectGoals.ts",
+          "src/app/features/Manager/Standup/lib/standupConfig.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "manager-standup-automation",
+      "title": "Manager Standup Automation",
+      "summary": "Automated standup execution with server control, session dashboard, and candidate selection. Run standups with AI assistance.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Manager/Standup/components/SessionDashboard.tsx",
+          "src/app/features/Manager/Standup/components/AutomationPanel.tsx",
+          "src/app/features/Manager/Standup/components/AutomationControls.tsx",
+          "src/app/features/Manager/Standup/components/AutomationStats.tsx",
+          "src/app/features/Manager/Standup/components/ServerControlBar.tsx",
+          "src/app/features/Manager/Standup/components/CandidateCard.tsx",
+          "src/app/features/Manager/Standup/components/GoalCandidatesModal.tsx"
+        ],
+        "logic": [
+          "src/app/features/Manager/Standup/hooks/useAutomation.ts",
+          "src/app/features/Manager/Standup/hooks/useAutomationSession.ts",
+          "src/app/features/Manager/Standup/hooks/useServerControl.ts",
+          "src/app/features/Manager/Standup/hooks/useStandupAutomation.ts"
+        ],
+        "server": [],
+        "data": [
+          "src/app/db/models/automation-session.types.ts",
+          "src/stores/automationSessionStore.ts"
+        ]
+      }
+    },
+    {
+      "id": "social-kanban-board",
+      "title": "Social Kanban Board",
+      "summary": "Kanban board for managing social communications. Columns, cards, drag-and-drop, and stats bar for tracking feedback items.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Social/SocialLayout.tsx",
           "src/app/features/Social/components/KanbanBoard.tsx",
-          "src/app/features/Social/components/KanbanCard.tsx",
           "src/app/features/Social/components/KanbanMainView.tsx",
           "src/app/features/Social/components/KanbanColumn.tsx",
-          "src/app/features/Social/components/StatsBar.tsx",
-          "src/app/features/Social/State/DragStateProvider.tsx",
-          "src/app/features/Social/State/SelectionStateProvider.tsx",
-          "src/app/features/Social/State/ViewModeProvider.tsx",
-          "src/app/features/Social/State/KanbanStateProviders.tsx"
+          "src/app/features/Social/components/KanbanCard.tsx",
+          "src/app/features/Social/components/KanbanCardCompact.tsx",
+          "src/app/features/Social/components/CardMenu.tsx",
+          "src/app/features/Social/components/StatsBar.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Social/hooks/useKanbanBoardLogic.ts",
+          "src/app/features/Social/hooks/useKanbanDragHandlers.ts",
+          "src/app/features/Social/hooks/useKanbanCardHandlers.ts",
           "src/app/features/Social/lib/config/columnConfig.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/social/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "social-cards",
-      "title": "Social Card Types",
-      "summary": "Different social card content types including chat, email, Facebook, Instagram, reviews, and X (Twitter).",
+      "id": "social-card-types",
+      "title": "Social Card Content Types",
+      "summary": "Different card content types for various social channels: chat, email, Facebook, Instagram, reviews, and X/Twitter.",
       "filepaths": {
         "ui": [
-          "src/app/features/Social/Cards/ChatCardContent.tsx",
-          "src/app/features/Social/Cards/EmailCardContent.tsx",
-          "src/app/features/Social/Cards/FacebookCardContent.tsx",
-          "src/app/features/Social/Cards/InstagramCardContent.tsx",
-          "src/app/features/Social/Cards/ReviewCardContent.tsx",
-          "src/app/features/Social/Cards/XCardContent.tsx"
+          "src/app/features/Social/components/cards/ChatCardContent.tsx",
+          "src/app/features/Social/components/cards/EmailCardContent.tsx",
+          "src/app/features/Social/components/cards/FacebookCardContent.tsx",
+          "src/app/features/Social/components/cards/InstagramCardContent.tsx",
+          "src/app/features/Social/components/cards/ReviewCardContent.tsx",
+          "src/app/features/Social/components/cards/XCardContent.tsx",
+          "src/app/features/Social/components/CardDetailModal.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Social/lib/types/feedbackTypes.ts",
           "src/app/features/Social/lib/types/activityTypes.ts",
           "src/app/features/Social/lib/types/aiTypes.ts"
         ],
-        "api": []
+        "server": [],
+        "data": []
       }
     },
     {
-      "id": "social-features",
-      "title": "Social Activity & Features",
-      "summary": "Activity panel, filters, SLA tracking, swimlanes view, and GitHub integration.",
+      "id": "social-activity-filters",
+      "title": "Social Activity & Filters",
+      "summary": "Activity tracking and filtering for social items. Filter bar, SLA badges, swimlanes view, and split-view panel for detailed review.",
       "filepaths": {
         "ui": [
-          "src/app/features/Social/Activity/ActivityPanel.tsx",
-          "src/app/features/Social/Activity/ActivityItem.tsx",
-          "src/app/features/Social/Activity/ActivityTimeline.tsx",
-          "src/app/features/Social/Filters/FilterBar.tsx",
-          "src/app/features/Social/Filters/FilterChip.tsx",
-          "src/app/features/Social/SLA/SLABadge.tsx",
-          "src/app/features/Social/SLA/AgingIndicator.tsx",
-          "src/app/features/Social/Swimlanes/SwimlanesView.tsx",
-          "src/app/features/Social/Swimlanes/SwimlaneRow.tsx",
-          "src/app/features/Social/Split-View/SplitViewPanel.tsx"
+          "src/app/features/Social/components/activity/ActivityPanel.tsx",
+          "src/app/features/Social/components/activity/ActivityItem.tsx",
+          "src/app/features/Social/components/activity/ActivityTimeline.tsx",
+          "src/app/features/Social/components/filters/FilterBar.tsx",
+          "src/app/features/Social/components/filters/FilterChip.tsx",
+          "src/app/features/Social/components/sla/SLABadge.tsx",
+          "src/app/features/Social/components/sla/AgingIndicator.tsx",
+          "src/app/features/Social/components/swimlanes/SwimlanesView.tsx",
+          "src/app/features/Social/components/split-view/SplitViewPanel.tsx"
         ],
-        "lib": [
-          "src/app/features/Social/hooks/useActivity.ts",
+        "logic": [
+          "src/app/features/Social/hooks/useActivity.tsx",
           "src/app/features/Social/hooks/useFilters.ts",
-          "src/app/features/Social/hooks/useGitHubIntegration.ts",
           "src/app/features/Social/hooks/useSLA.ts",
-          "src/app/features/Social/hooks/useSwimlanes.ts",
-          "src/app/features/Social/lib/config/slaConfig.ts",
-          "src/app/features/Social/lib/utils/sentimentUtils.ts",
-          "src/app/features/Social/lib/utils/timeUtils.ts"
+          "src/app/features/Social/hooks/useSwimlanes.tsx",
+          "src/app/features/Social/lib/config/slaConfig.ts"
         ],
-        "api": []
+        "server": [],
+        "data": []
       }
     },
     {
-      "id": "social-discovery",
-      "title": "Social Discovery & Config",
-      "summary": "Social channel configuration, discovery panels for Twitter/X, and tweet selection features.",
+      "id": "social-state-management",
+      "title": "Social State Management",
+      "summary": "State providers for social features: drag state, selection state, view mode. Centralized state management for kanban interactions.",
+      "filepaths": {
+        "ui": [],
+        "logic": [
+          "src/app/features/Social/state/KanbanStateProviders.tsx",
+          "src/app/features/Social/state/DragStateProvider.tsx",
+          "src/app/features/Social/state/SelectionStateProvider.tsx",
+          "src/app/features/Social/state/ViewModeProvider.tsx",
+          "src/app/features/Social/state/dragTypes.ts",
+          "src/app/features/Social/state/selectionTypes.ts",
+          "src/app/features/Social/state/viewModeTypes.ts",
+          "src/app/features/Social/hooks/useFeedbackItems.ts",
+          "src/app/features/Social/hooks/useCardActions.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "social-discovery-twitter",
+      "title": "Social Discovery (Twitter/X)",
+      "summary": "Discover and import tweets for review. Search configuration, tweet result cards, and selection panel for importing social content.",
       "filepaths": {
         "ui": [
-          "src/app/features/Social/sub_SocConfig/ChannelIcon.tsx",
-          "src/app/features/Social/sub_SocConfig/ConfigForm.tsx",
-          "src/app/features/Social/sub_SocConfig/ConfigList.tsx",
-          "src/app/features/Social/sub_SocConfig/ConfigurationPanel.tsx",
-          "src/app/features/Social/sub_SocDiscovery/DiscoveryPanel.tsx",
-          "src/app/features/Social/sub_SocDiscovery/DiscoveryConfigForm.tsx",
-          "src/app/features/Social/sub_SocDiscovery/TweetResultCard.tsx",
-          "src/app/features/Social/sub_SocDiscovery/TweetSelectionPanel.tsx"
+          "src/app/features/Social/sub_SocDiscovery/components/DiscoveryPanel.tsx",
+          "src/app/features/Social/sub_SocDiscovery/components/DiscoverySearch.tsx",
+          "src/app/features/Social/sub_SocDiscovery/components/DiscoveryConfigForm.tsx",
+          "src/app/features/Social/sub_SocDiscovery/components/DiscoveryConfigList.tsx",
+          "src/app/features/Social/sub_SocDiscovery/components/TweetResultCard.tsx",
+          "src/app/features/Social/sub_SocDiscovery/components/TweetSelectionPanel.tsx"
         ],
-        "lib": [
-          "src/app/features/Social/lib/config/aiPrompts.ts"
+        "logic": [
+          "src/app/features/Social/sub_SocDiscovery/hooks/useDiscovery.ts",
+          "src/app/features/Social/sub_SocDiscovery/lib/promptBuilder.ts",
+          "src/app/features/Social/sub_SocDiscovery/lib/types.ts"
         ],
-        "api": []
+        "server": [],
+        "data": []
       }
     },
     {
-      "id": "reflector-dashboard",
-      "title": "Reflector Dashboard",
-      "summary": "Ideas analysis dashboard with filters, status tracking, and total view with project/context sections.",
+      "id": "social-channel-config",
+      "title": "Social Channel Configuration",
+      "summary": "Configure social channel integrations. Channel icons, configuration forms, and encrypted credential storage for social APIs.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Social/sub_SocConfig/components/ConfigurationPanel.tsx",
+          "src/app/features/Social/sub_SocConfig/components/ConfigForm.tsx",
+          "src/app/features/Social/sub_SocConfig/components/ConfigList.tsx",
+          "src/app/features/Social/sub_SocConfig/components/ChannelIcon.tsx"
+        ],
+        "logic": [
+          "src/app/features/Social/sub_SocConfig/lib/encryption.ts",
+          "src/app/features/Social/sub_SocConfig/lib/types.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "reflector-dashboard-filters",
+      "title": "Reflector Dashboard & Filters",
+      "summary": "Ideas analysis dashboard with filtering by status, date range, context, and project. View tabs and active filter display.",
       "filepaths": {
         "ui": [
           "src/app/features/reflector/ReflectorLayout.tsx",
@@ -652,23 +958,23 @@
           "src/app/features/reflector/components/DateRangeFilter.tsx",
           "src/app/features/reflector/components/ContextFilter.tsx",
           "src/app/features/reflector/components/ProjectFilter.tsx",
-          "src/app/features/reflector/components/TotalViewDashboard.tsx",
           "src/app/features/reflector/components/ActiveFiltersDisplay.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/reflector/lib/filterIdeas.ts",
           "src/app/features/reflector/lib/urlFilterSync.ts",
           "src/app/features/reflector/lib/statsHelpers.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/reflector/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "reflector-analytics",
+      "id": "reflector-analytics-insights",
       "title": "Reflector Analytics & Insights",
-      "summary": "Reflection analytics with executive summary, effort/impact matrix, KPI cards, and insight generation.",
+      "summary": "Reflection analytics with executive summary, effort/impact matrix, KPI cards, and AI-generated insights for decision making.",
       "filepaths": {
         "ui": [
           "src/app/features/reflector/sub_Reflection/ReflectionDashboard.tsx",
@@ -679,42 +985,42 @@
           "src/app/features/reflector/sub_Reflection/KPISummaryCards.tsx",
           "src/app/features/reflector/sub_Reflection/ScanTypeCard.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/reflector/sub_Reflection/lib/insightGenerator.ts",
           "src/app/features/reflector/sub_Reflection/lib/statsApi.ts",
-          "src/app/features/reflector/sub_Reflection/lib/kpiAnimations.ts",
-          "src/app/features/reflector/sub_Reflection/lib/executiveInsightTypes.ts",
-          "src/app/features/reflector/lib/ideaAggregationService.ts",
-          "src/app/features/reflector/lib/groupIdeasByProjectAndContext.ts"
+          "src/app/features/reflector/sub_Reflection/lib/executiveInsightTypes.ts"
         ],
-        "api": []
+        "server": [],
+        "data": []
       }
     },
     {
-      "id": "reflector-views",
-      "title": "Reflector Constellation & Weekly",
-      "summary": "Constellation view, focused project view, weekly dashboard with daily activity and specialist breakdowns.",
+      "id": "reflector-views-weekly",
+      "title": "Reflector Views (Weekly & Constellation)",
+      "summary": "Specialized reflector views: constellation for project relationships, weekly dashboard with daily activity and specialist breakdowns.",
       "filepaths": {
         "ui": [
+          "src/app/features/reflector/components/TotalViewDashboard.tsx",
           "src/app/features/reflector/sub_TotalViewDashboard/ConstellationView.tsx",
           "src/app/features/reflector/sub_TotalViewDashboard/FocusedProjectView.tsx",
-          "src/app/features/reflector/sub_TotalViewDashboard/ContextSection.tsx",
-          "src/app/features/reflector/sub_TotalViewDashboard/ProjectSection.tsx",
           "src/app/features/reflector/sub_TotalViewDashboard/IdeaCard.tsx",
           "src/app/features/reflector/sub_Weekly/WeeklyDashboard.tsx",
           "src/app/features/reflector/sub_Weekly/DailyActivityChart.tsx",
-          "src/app/features/reflector/sub_Weekly/ProjectImplementationRanking.tsx",
-          "src/app/features/reflector/sub_Weekly/SpecialistBreakdown.tsx",
-          "src/app/features/reflector/sub_Weekly/WeeklyKPICards.tsx"
+          "src/app/features/reflector/sub_Weekly/WeeklyKPICards.tsx",
+          "src/app/features/reflector/sub_Weekly/SpecialistBreakdown.tsx"
         ],
-        "lib": [],
-        "api": []
+        "logic": [
+          "src/app/features/reflector/lib/ideaAggregationService.ts",
+          "src/app/features/reflector/lib/groupIdeasByProjectAndContext.ts"
+        ],
+        "server": [],
+        "data": []
       }
     },
     {
-      "id": "docs-architecture",
+      "id": "docs-architecture-analysis",
       "title": "Docs Architecture Analysis",
-      "summary": "Documentation and architecture analysis with system maps, module explorer, and navigation breadcrumbs.",
+      "summary": "Architecture documentation with system maps, module explorer, and navigation. Visualize codebase structure and module relationships.",
       "filepaths": {
         "ui": [
           "src/app/features/Docs/sub_DocsAnalysis/DocsAnalysisLayout.tsx",
@@ -724,24 +1030,25 @@
           "src/app/features/Docs/sub_DocsAnalysis/SystemMap/SystemMap.tsx",
           "src/app/features/Docs/sub_DocsAnalysis/SystemMap/ConnectionLine.tsx",
           "src/app/features/Docs/sub_DocsAnalysis/SystemMap/ModuleNode.tsx",
-          "src/app/features/Docs/sub_DocsAnalysis/ModuleExplorer/ModuleExplorer.tsx",
-          "src/app/features/Docs/sub_DocsAnalysis/ModuleExplorer/FileCard.tsx"
+          "src/app/features/Docs/sub_DocsAnalysis/ModuleExplorer/ModuleExplorer.tsx"
         ],
-        "lib": [
-          "src/app/features/Docs/sub_DocsAnalysis/lib/queries/useDataQueries.ts",
-          "src/app/features/Docs/sub_DocsAnalysis/lib/queries/useMutations.ts",
-          "src/app/features/Docs/sub_DocsAnalysis/lib/useArchitectureNavigation.ts"
+        "logic": [
+          "src/app/features/Docs/sub_DocsAnalysis/lib/useArchitectureNavigation.ts",
+          "src/app/features/Docs/sub_DocsAnalysis/lib/queries/useDataQueries.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/architecture/route.ts",
           "src/app/api/architecture-graph/route.ts"
+        ],
+        "data": [
+          "src/app/db/models/architecture-graph.types.ts"
         ]
       }
     },
     {
       "id": "docs-impact-xray",
       "title": "Docs Impact Simulator & X-Ray",
-      "summary": "Impact analysis panel, simulation system map, and X-Ray hot paths visualization.",
+      "summary": "Simulate code change impacts and visualize hot paths. Impact analysis panel, simulation mode, and X-Ray visualization for critical paths.",
       "filepaths": {
         "ui": [
           "src/app/features/Docs/sub_ImpactSimulator/ImpactAnalysisPanel.tsx",
@@ -752,48 +1059,47 @@
           "src/app/features/Docs/sub_XRay/XRayModeToggle.tsx",
           "src/app/features/Docs/sub_XRay/XRayHotPathsPanel.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Docs/sub_DocsAnalysis/lib/impactSimulator.ts",
           "src/stores/xrayStore.ts"
         ],
-        "api": [
+        "server": [
+          "src/app/api/architecture/impact-analysis/route.ts",
           "src/app/api/xray/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "tech-debt",
-      "title": "Tech Debt Management",
-      "summary": "Technical debt radar, cards, detail modals, health score gauges, and plugin-based scanning.",
+      "id": "tech-debt-radar",
+      "title": "Tech Debt Radar & Scanning",
+      "summary": "Track and visualize technical debt. Radar visualization, debt cards, detail modals, and plugin-based scanning for different debt types.",
       "filepaths": {
         "ui": [
-          "src/app/features/TechDebtRadar/components/TechDebtRadar.tsx",
-          "src/app/features/TechDebtRadar/components/TechDebtCard.tsx",
-          "src/app/features/TechDebtRadar/components/TechDebtDetailModal.tsx",
-          "src/app/features/TechDebtRadar/components/TechDebtStatsPanel.tsx",
-          "src/app/features/TechDebtRadar/components/PluginManager.tsx",
           "src/app/features/TechDebt/TechDebtLayout.tsx",
           "src/app/features/TechDebt/TechDebtDashboard.tsx",
-          "src/app/features/TechDebt/components/HealthScoreGauge.tsx"
+          "src/app/features/TechDebt/components/HealthScoreGauge.tsx",
+          "src/app/features/TechDebt/components/TechDebtCard.tsx",
+          "src/app/features/TechDebt/components/TechDebtDetailModal.tsx",
+          "src/app/features/TechDebt/components/TechDebtStatsPanel.tsx"
         ],
-        "lib": [
-          "src/app/features/TechDebtRadar/lib/techDebtScanner.ts",
-          "src/app/features/TechDebtRadar/lib/riskScoring.ts",
-          "src/app/features/TechDebtRadar/lib/remediationPlanner.ts",
-          "src/app/features/TechDebtRadar/lib/monitoringScheduler.ts",
-          "src/app/features/TechDebtRadar/plugins/BasePlugin.ts",
-          "src/app/features/TechDebtRadar/plugins/ReactHooksPlugin.ts",
-          "src/app/features/TechDebtRadar/plugins/pluginRegistry.ts"
+        "logic": [
+          "src/app/features/TechDebt/lib/techDebtScanner.ts",
+          "src/app/features/TechDebt/lib/riskScoring.ts",
+          "src/app/features/TechDebt/lib/remediationPlanner.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/tech-debt/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/tech-debt.repository.ts"
         ]
       }
     },
     {
-      "id": "debt-prediction",
-      "title": "Debt Prediction & ROI",
-      "summary": "Predictive debt analysis, opportunity cards, health gauges, and ROI simulation.",
+      "id": "debt-prediction-roi",
+      "title": "Debt Prediction & ROI Simulator",
+      "summary": "Predictive debt analysis and ROI simulation. Opportunity cards, health gauges, prediction lists, and ROI calculation for refactoring decisions.",
       "filepaths": {
         "ui": [
           "src/app/features/DebtPrediction/DebtPredictionLayout.tsx",
@@ -802,25 +1108,218 @@
           "src/app/features/DebtPrediction/components/PredictionList.tsx",
           "src/app/features/ROISimulator/ROISimulatorLayout.tsx",
           "src/app/features/ROISimulator/components/ROIDashboard.tsx",
-          "src/app/features/ROISimulator/components/RefactoringCard.tsx",
-          "src/app/features/ROISimulator/components/ROIGauge.tsx",
           "src/app/features/ROISimulator/components/SimulationBuilder.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/DebtPrediction/lib/predictionEngine.ts",
           "src/stores/debtPredictionStore.ts",
           "src/stores/roiSimulatorStore.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/debt-predictions/route.ts",
           "src/app/api/roi-simulator/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "claude-code-requirements",
+      "title": "Claude Code Requirements",
+      "summary": "Manage Claude Code requirements for AI-assisted development. Requirement list, detail views, run controls, and batch processing.",
+      "filepaths": {
+        "ui": [
+          "src/app/Claude/ClaudeLogViewer.tsx",
+          "src/app/Claude/components/CostEstimation.tsx",
+          "src/app/Claude/sub_ClaudeStructureScan/components/RuleEditorRow.tsx",
+          "src/app/Claude/sub_ClaudeStructureScan/components/StructureTemplateEditor.tsx"
+        ],
+        "logic": [
+          "src/app/Claude/lib/requirementApi.ts",
+          "src/app/Claude/lib/requirementHandlers.ts",
+          "src/app/Claude/lib/requirementPrompts.ts",
+          "src/app/Claude/lib/requirementUtils.ts"
+        ],
+        "server": [
+          "src/app/api/claude-code/route.ts",
+          "src/app/api/claude-code/requirement/route.ts",
+          "src/app/api/requirements/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "claude-code-execution",
+      "title": "Claude Code Execution",
+      "summary": "Execute Claude Code requirements with queue management. Execution manager, folder management, log tracking, and context auto-update.",
+      "filepaths": {
+        "ui": [],
+        "logic": [
+          "src/app/Claude/lib/claudeCodeManager.ts",
+          "src/app/Claude/lib/claudeExecutionQueue.ts",
+          "src/app/Claude/lib/contextAutoUpdate.ts",
+          "src/app/Claude/lib/contextScanManager.ts",
+          "src/app/Claude/sub_ClaudeCodeManager/executionManager.ts",
+          "src/app/Claude/sub_ClaudeCodeManager/executionPrompt.ts",
+          "src/app/Claude/sub_ClaudeCodeManager/folderManager.ts",
+          "src/app/Claude/sub_ClaudeCodeManager/logManager.ts"
+        ],
+        "server": [
+          "src/app/api/claude-code/sessions/route.ts",
+          "src/app/api/claude-code/logs/route.ts",
+          "src/app/api/claude-code/status/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "goals-management",
+      "title": "Goals Management",
+      "summary": "Core goals CRUD with modals, forms, and screen catalog. Create, edit, and track goals with implementation log integration.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Goals/GoalsLayout.tsx",
+          "src/app/features/Goals/sub_GoalModal/GoalModal.tsx",
+          "src/app/features/Goals/sub_GoalModal/GoalForm.tsx",
+          "src/app/features/Goals/sub_GoalModal/GoalsAddModal.tsx",
+          "src/app/features/Goals/sub_GoalModal/GoalsDetailModalContent.tsx",
+          "src/app/features/Goals/sub_GoalModal/GoalsDetailDescription.tsx",
+          "src/app/features/Goals/sub_ImplementationLog/ImplementationLogList.tsx",
+          "src/app/features/Goals/sub_ImplementationLog/ImplementationLogItem.tsx"
+        ],
+        "logic": [
+          "src/app/features/Goals/lib/goalUtils.ts",
+          "src/app/features/Goals/lib/goalConstants.ts"
+        ],
+        "server": [
+          "src/app/api/goals/route.ts",
+          "src/app/api/goal-contexts/route.ts"
+        ],
+        "data": [
+          "src/app/db/repositories/goal.repository.ts"
         ]
       }
     },
     {
-      "id": "composer",
+      "id": "code-tree-navigation",
+      "title": "Code Tree Navigation",
+      "summary": "File tree navigation with search and code preview. Tree view, search input, suggestions dropdown, and code preview modal.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/CodeTree/TreeView.tsx",
+          "src/app/features/CodeTree/TreeHeader.tsx",
+          "src/app/features/CodeTree/TreeNode.tsx",
+          "src/app/features/CodeTree/TreeSearch.tsx",
+          "src/app/features/CodeTree/TreeSearchInput.tsx",
+          "src/app/features/CodeTree/TreeSuggestion.tsx",
+          "src/app/features/CodeTree/TreeSuggestionsDropdown.tsx",
+          "src/app/features/CodeTree/CodePreviewModal.tsx"
+        ],
+        "logic": [
+          "src/app/features/CodeTree/lib/hooks.ts",
+          "src/app/features/CodeTree/lib/treeUtils.ts",
+          "src/app/features/CodeTree/lib/searchRankingStrategy.ts",
+          "src/app/features/CodeTree/lib/projectApi.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "dependencies-management",
+      "title": "Dependencies Management",
+      "summary": "Scan and manage project dependencies. Column view, security pipeline, direct upgrades, and PR automation for package updates.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Depndencies/DependenciesTab.tsx",
+          "src/app/features/Depndencies/components/DependencyColumnView.tsx",
+          "src/app/features/Depndencies/components/ScanSetupBar.tsx",
+          "src/app/features/Depndencies/components/SecurityPipelineButton.tsx"
+        ],
+        "logic": [
+          "src/app/features/Depndencies/lib/api.ts",
+          "src/app/features/Depndencies/lib/directUpgrade.ts",
+          "src/app/features/Depndencies/lib/securityScanner.ts",
+          "src/app/features/Depndencies/lib/prAutomation.ts",
+          "src/app/features/Depndencies/lib/ScanContext.tsx"
+        ],
+        "server": [
+          "src/app/api/dependencies/route.ts",
+          "src/app/api/file-dependencies/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "autonomous-ci",
+      "title": "Autonomous CI/CD",
+      "summary": "Continuous integration dashboard with pipeline management. Build status, history, predictions, and flaky test detection.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/AutonomousCI/AutonomousCIDashboard.tsx",
+          "src/app/features/AutonomousCI/components/BuildStatusBadge.tsx",
+          "src/app/features/AutonomousCI/components/PipelineCard.tsx",
+          "src/app/features/AutonomousCI/components/BuildHistoryList.tsx",
+          "src/app/features/AutonomousCI/components/CIDashboardStats.tsx"
+        ],
+        "logic": [
+          "src/app/features/AutonomousCI/lib/ciHelpers.ts",
+          "src/stores/autonomousCIStore.ts"
+        ],
+        "server": [
+          "src/app/api/autonomous-ci/route.ts",
+          "src/app/api/autonomous-ci/builds/route.ts",
+          "src/app/api/autonomous-ci/predictions/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "project-health-security",
+      "title": "Project Health & Security",
+      "summary": "Project health dashboard with security intelligence. Health score gauges, trend charts, vulnerability breakdown, and risk scoring.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/ProjectHealth/components/ProjectHealthDashboard.tsx",
+          "src/app/features/ProjectHealth/components/HealthScoreGauge.tsx",
+          "src/app/features/ProjectHealth/components/HealthTrendChart.tsx",
+          "src/app/features/ProjectHealth/components/CategoryScoreCard.tsx",
+          "src/app/features/ProjectHealth/components/AIInsightsPanel.tsx"
+        ],
+        "logic": [
+          "src/app/features/ProjectHealth/lib/healthHelpers.ts",
+          "src/stores/projectHealthStore.ts"
+        ],
+        "server": [
+          "src/app/api/project-health/route.ts",
+          "src/app/api/security/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "architecture-evolution",
+      "title": "Architecture Evolution",
+      "summary": "Track architecture changes with graph visualization. Drift detection, node details, and AI-powered architecture suggestions.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/ArchitectureEvolution/components/ArchitectureGraph.tsx",
+          "src/app/features/ArchitectureEvolution/components/DriftsList.tsx",
+          "src/app/features/ArchitectureEvolution/components/NodeDetailPanel.tsx",
+          "src/app/features/ArchitectureEvolution/components/SuggestionsList.tsx"
+        ],
+        "logic": [
+          "src/app/features/ArchitectureEvolution/lib/graphAnalyzer.ts",
+          "src/app/features/ArchitectureEvolution/lib/suggestionGenerator.ts",
+          "src/stores/architectureEvolutionStore.ts"
+        ],
+        "server": [],
+        "data": []
+      }
+    },
+    {
+      "id": "composer-blueprint",
       "title": "Blueprint Composer",
-      "summary": "Blueprint composition with chain builder, component columns, decision nodes, and trigger selection.",
+      "summary": "Compose automated scan pipelines visually. Chain builder, component selection, conditional branches, and trigger configuration.",
       "filepaths": {
         "ui": [
           "src/app/features/Composer/BlueprintComposer.tsx",
@@ -829,218 +1328,46 @@
           "src/app/features/Composer/components/ComposerHeader.tsx",
           "src/app/features/Composer/components/ConditionalBranchEditor.tsx",
           "src/app/features/Composer/components/DecisionNodeConfig.tsx",
-          "src/app/features/Composer/components/EvidencePanel.tsx",
-          "src/app/features/Composer/components/PostChainEventEditor.tsx",
           "src/app/features/Composer/components/TriggerSelector.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Composer/lib/blueprintExecutor.ts",
           "src/app/features/Composer/lib/componentRegistry.ts",
           "src/app/features/Composer/lib/executionEngine.ts",
-          "src/app/features/Composer/store/blueprintComposerStore.ts",
-          "src/app/features/Composer/types/chainTypes.ts"
+          "src/app/features/Composer/store/blueprintComposerStore.ts"
         ],
-        "api": []
+        "server": [],
+        "data": []
       }
     },
     {
-      "id": "claude-code-integration",
-      "title": "Claude Code Integration",
-      "summary": "Claude Code requirement management, execution pipeline, context auto-update, and execution queue.",
+      "id": "marketplace-patterns",
+      "title": "Marketplace & Patterns",
+      "summary": "Browse and share code patterns. Pattern cards, detail views, favorites, and community recommendations for reusable solutions.",
       "filepaths": {
         "ui": [
-          "src/app/Claude/ClaudeLayout.tsx",
-          "src/app/Claude/ClaudeRequirementsList.tsx",
-          "src/app/Claude/sub_ClaudeRequirement/ClaudeRequirement.tsx",
-          "src/app/Claude/sub_ClaudeRequirement/ClaudeRequirementDetail.tsx",
-          "src/app/Claude/sub_ClaudeRequirement/ClaudeRequirementRun.tsx",
-          "src/app/Claude/sub_ClaudeRequirement/ClaudeRequirementDelete.tsx"
+          "src/app/features/Marketplace/MarketplaceLayout.tsx",
+          "src/app/features/Marketplace/components/BrowseView.tsx",
+          "src/app/features/Marketplace/components/PatternCard.tsx",
+          "src/app/features/Marketplace/components/PatternDetailView.tsx",
+          "src/app/features/Marketplace/components/FavoritesView.tsx",
+          "src/app/features/Marketplace/components/MyPatternsView.tsx"
         ],
-        "lib": [
-          "src/app/Claude/lib/executionPrompt.ts",
-          "src/app/Claude/lib/contextAutoUpdate.ts",
-          "src/app/Claude/lib/claudeExecutionQueue.ts",
-          "src/app/Claude/lib/executionManager.ts"
+        "logic": [
+          "src/stores/marketplaceStore.ts",
+          "src/stores/slices/marketplace/dataSlice.ts",
+          "src/stores/slices/marketplace/favoritesSlice.ts"
         ],
-        "api": [
-          "src/app/api/claude-code/route.ts",
-          "src/app/api/claude-code/requirement/route.ts",
-          "src/app/api/requirements/route.ts"
-        ]
+        "server": [
+          "src/app/api/marketplace/route.ts"
+        ],
+        "data": []
       }
     },
     {
-      "id": "scan-queue",
-      "title": "Scan Queue Management",
-      "summary": "Background scan queue with progress tracking, notifications, and worker management.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/ScanQueue/ScanQueueControl.tsx",
-          "src/app/features/ScanQueue/ScanQueueProgress.tsx",
-          "src/app/features/ScanQueue/ScanNotifications.tsx"
-        ],
-        "lib": [
-          "src/lib/scan/scanOrchestrator.ts",
-          "src/lib/scan/scanQueue.ts"
-        ],
-        "api": [
-          "src/app/api/scan-queue/route.ts",
-          "src/app/api/scan-queue/[id]/route.ts",
-          "src/app/api/scan-queue/worker/route.ts",
-          "src/app/api/scan-queue/notifications/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "code-tree",
-      "title": "Code Tree Navigation",
-      "summary": "Tree view for code navigation with search, suggestions, and code preview modals.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/CodeTree/TreeView.tsx",
-          "src/app/features/CodeTree/TreeHeader.tsx",
-          "src/app/features/CodeTree/TreeFooter.tsx",
-          "src/app/features/CodeTree/TreeNode.tsx",
-          "src/app/features/CodeTree/TreeSearch.tsx",
-          "src/app/features/CodeTree/TreeSearchInput.tsx",
-          "src/app/features/CodeTree/TreeSuggestion.tsx",
-          "src/app/features/CodeTree/TreeSuggestionsDropdown.tsx",
-          "src/app/features/CodeTree/CodePreviewModal.tsx",
-          "src/app/features/CodeTree/components/FileErrorDisplay.tsx"
-        ],
-        "lib": [
-          "src/app/features/CodeTree/lib/hooks.ts",
-          "src/app/features/CodeTree/lib/projectApi.ts",
-          "src/app/features/CodeTree/lib/searchRankingStrategy.ts",
-          "src/app/features/CodeTree/lib/treeUtils.ts",
-          "src/app/features/CodeTree/lib/fileOperationErrors.ts"
-        ],
-        "api": []
-      }
-    },
-    {
-      "id": "dependencies",
-      "title": "Dependencies Management",
-      "summary": "Dependency scanning, security pipeline, direct upgrades, and PR automation for package management.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/Depndencies/DependenciesTab.tsx",
-          "src/app/features/Depndencies/components/DependencyColumnView.tsx",
-          "src/app/features/Depndencies/components/ScanSetupBar.tsx",
-          "src/app/features/Depndencies/components/SecurityPipelineButton.tsx"
-        ],
-        "lib": [
-          "src/app/features/Depndencies/lib/api.ts",
-          "src/app/features/Depndencies/lib/directUpgrade.ts",
-          "src/app/features/Depndencies/lib/patchGenerator.ts",
-          "src/app/features/Depndencies/lib/prAutomation.ts",
-          "src/app/features/Depndencies/lib/securityScanner.ts",
-          "src/app/features/Depndencies/lib/ScanContext.tsx",
-          "src/app/features/Depndencies/lib/types.ts",
-          "src/app/features/Depndencies/lib/utils.ts"
-        ],
-        "api": [
-          "src/app/api/dependencies/route.ts",
-          "src/app/api/file-dependencies/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "architecture-evolution",
-      "title": "Architecture Evolution",
-      "summary": "Architecture tracking with graph visualization, drift detection, and AI-powered suggestions.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/ArchitectureEvolution/components/ArchitectureGraph.tsx",
-          "src/app/features/ArchitectureEvolution/components/DriftsList.tsx",
-          "src/app/features/ArchitectureEvolution/components/NodeDetailPanel.tsx",
-          "src/app/features/ArchitectureEvolution/components/SuggestionsList.tsx"
-        ],
-        "lib": [
-          "src/app/features/ArchitectureEvolution/lib/graphAnalyzer.ts",
-          "src/app/features/ArchitectureEvolution/lib/suggestionGenerator.ts",
-          "src/stores/architectureEvolutionStore.ts"
-        ],
-        "api": []
-      }
-    },
-    {
-      "id": "project-health",
-      "title": "Project Health & Security",
-      "summary": "Project health dashboard, security intelligence, vulnerability breakdown, and risk scoring.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/ProjectHealth/components/ProjectHealthDashboard.tsx",
-          "src/app/features/ProjectHealth/components/HealthScoreGauge.tsx",
-          "src/app/features/ProjectHealth/components/HealthTrendChart.tsx",
-          "src/app/features/ProjectHealth/components/CategoryScoreCard.tsx",
-          "src/app/features/ProjectHealth/components/AIInsightsPanel.tsx",
-          "src/app/features/SecurityIntelligence/components/AlertsList.tsx",
-          "src/app/features/SecurityIntelligence/components/ProjectSecurityCard.tsx",
-          "src/app/features/SecurityIntelligence/components/RiskScoreGauge.tsx",
-          "src/app/features/SecurityIntelligence/components/VulnerabilityBreakdown.tsx"
-        ],
-        "lib": [
-          "src/app/features/ProjectHealth/lib/healthHelpers.ts",
-          "src/app/features/SecurityIntelligence/lib/securityApi.ts",
-          "src/stores/projectHealthStore.ts"
-        ],
-        "api": [
-          "src/app/api/project-health/route.ts",
-          "src/app/api/security-intelligence/route.ts",
-          "src/app/api/security/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "autonomous-ci",
-      "title": "Autonomous CI/CD",
-      "summary": "Continuous integration dashboard with pipeline management, build status, and history tracking.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/AutonomousCI/components/AutonomousCIDashboard.tsx",
-          "src/app/features/AutonomousCI/components/BuildStatusBadge.tsx",
-          "src/app/features/AutonomousCI/components/PipelineCard.tsx",
-          "src/app/features/AutonomousCI/components/CreatePipelineModal.tsx",
-          "src/app/features/AutonomousCI/components/CIDashboardStats.tsx",
-          "src/app/features/AutonomousCI/components/BuildHistoryList.tsx"
-        ],
-        "lib": [
-          "src/app/features/AutonomousCI/lib/ciHelpers.ts",
-          "src/stores/autonomousCIStore.ts"
-        ],
-        "api": [
-          "src/app/api/autonomous-ci/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "daily-standup",
-      "title": "Daily Standup Reports",
-      "summary": "Daily standup dashboard with summary cards, stats, blockers, and history tracking.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/DailyStandup/components/StandupDashboard.tsx",
-          "src/app/features/DailyStandup/components/StandupSummaryCard.tsx",
-          "src/app/features/DailyStandup/components/StandupStatsRow.tsx",
-          "src/app/features/DailyStandup/components/StandupBlockersHighlights.tsx",
-          "src/app/features/DailyStandup/components/StandupHistory.tsx"
-        ],
-        "lib": [
-          "src/app/features/DailyStandup/lib/standupApi.ts",
-          "src/app/features/DailyStandup/lib/standupGenerator.ts",
-          "src/app/features/DailyStandup/lib/types.ts",
-          "src/stores/standupStore.ts"
-        ],
-        "api": [
-          "src/app/api/standup/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "proposals",
-      "title": "Proposals Management",
-      "summary": "Proposal panel with cards, headers, content sections, and action buttons for proposal workflow.",
+      "id": "proposals-workflow",
+      "title": "Proposals Workflow",
+      "summary": "Manage implementation proposals. Proposal cards with headers, content, and action buttons for approval workflow.",
       "filepaths": {
         "ui": [
           "src/app/features/Proposals/ProposalPanel.tsx",
@@ -1049,65 +1376,18 @@
           "src/app/features/Proposals/components/ProposalCardContent.tsx",
           "src/app/features/Proposals/components/ProposalCardActions.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/Proposals/lib/useProposals.ts",
           "src/app/features/Proposals/types/types.ts"
         ],
-        "api": []
-      }
-    },
-    {
-      "id": "marketplace",
-      "title": "Pattern Marketplace",
-      "summary": "Pattern library marketplace with browsing, favorites, profile badges, and community recommendations.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/Marketplace/MarketplaceLayout.tsx",
-          "src/app/features/Marketplace/components/BrowseView.tsx",
-          "src/app/features/Marketplace/components/CreatePatternView.tsx",
-          "src/app/features/Marketplace/components/FavoritesView.tsx",
-          "src/app/features/Marketplace/components/MyPatternsView.tsx",
-          "src/app/features/Marketplace/components/PatternCard.tsx",
-          "src/app/features/Marketplace/components/PatternDetailView.tsx",
-          "src/app/features/Marketplace/components/ProfileBadges.tsx",
-          "src/app/features/Marketplace/components/CommunityPatternRecommendations.tsx"
-        ],
-        "lib": [
-          "src/stores/marketplaceStore.ts",
-          "src/stores/slices/marketplace/dataSlice.ts",
-          "src/stores/slices/marketplace/favoritesSlice.ts",
-          "src/stores/slices/marketplace/filtersSlice.ts"
-        ],
-        "api": [
-          "src/app/api/marketplace/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "storybook",
-      "title": "Storybook Component Gallery",
-      "summary": "Component documentation gallery with list view, detail panels, and coverage charts.",
-      "filepaths": {
-        "ui": [
-          "src/app/features/Storybook/StorybookLayout.tsx",
-          "src/app/features/Storybook/components/ComponentList.tsx",
-          "src/app/features/Storybook/components/ComponentDetail.tsx",
-          "src/app/features/Storybook/components/StorybookHeader.tsx",
-          "src/app/features/Storybook/components/CoverageChart.tsx"
-        ],
-        "lib": [
-          "src/app/features/Storybook/lib/storybookStore.ts",
-          "src/app/features/Storybook/lib/types.ts"
-        ],
-        "api": [
-          "src/app/api/storybook/route.ts"
-        ]
+        "server": [],
+        "data": []
       }
     },
     {
       "id": "strategic-roadmap",
       "title": "Strategic Roadmap",
-      "summary": "Roadmap planning with timeline visualization, headers, and initiative detail panels.",
+      "summary": "Plan and visualize project roadmap. Timeline visualization, initiative panels, and roadmap headers for strategic planning.",
       "filepaths": {
         "ui": [
           "src/app/features/StrategicRoadmap/StrategicRoadmap.tsx",
@@ -1115,18 +1395,19 @@
           "src/app/features/StrategicRoadmap/components/RoadmapHeader.tsx",
           "src/app/features/StrategicRoadmap/components/InitiativeDetailPanel.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/stores/strategicRoadmapStore.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/strategic-roadmap/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
       "id": "onboarding-accelerator",
       "title": "Onboarding Accelerator",
-      "summary": "Learning path system with module cards, quiz panels, and code walkthrough viewer.",
+      "summary": "Learning paths for team onboarding. Module cards, quiz panels, code walkthrough viewer, and path creation for structured learning.",
       "filepaths": {
         "ui": [
           "src/app/features/OnboardingAccelerator/OnboardingAccelerator.tsx",
@@ -1136,41 +1417,91 @@
           "src/app/features/OnboardingAccelerator/components/CodeWalkthroughViewer.tsx",
           "src/app/features/OnboardingAccelerator/components/CreatePathModal.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/app/features/OnboardingAccelerator/lib/api.ts",
           "src/stores/onboardingAcceleratorStore.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/onboarding-accelerator/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
-      "id": "test-generation",
-      "title": "Test Generation",
-      "summary": "Automated test scenario generation with Playwright integration and scenario analysis.",
+      "id": "hall-of-fame",
+      "title": "Hall of Fame",
+      "summary": "Celebrate implemented ideas and achievements. Gallery view, achievement cards, and statistics for team motivation.",
       "filepaths": {
-        "ui": [],
-        "lib": [
-          "src/app/features/TestScenarioGenerator/lib/playwrightGenerator.ts",
-          "src/app/features/TestScenarioGenerator/lib/scenarioAnalyzer.ts",
-          "src/app/features/RefactorSuggestion/lib/ideaGenerator.ts",
-          "src/app/features/RefactorSuggestion/lib/refactorSuggestionEngine.ts"
+        "ui": [
+          "src/app/features/HallOfFame/HallOfFameLayout.tsx",
+          "src/app/features/HallOfFame/components/HallOfFameGallery.tsx",
+          "src/app/features/HallOfFame/components/AchievementCard.tsx",
+          "src/app/features/HallOfFame/components/HallOfFameHeader.tsx",
+          "src/app/features/HallOfFame/components/IdeaDetailPanel.tsx",
+          "src/app/features/HallOfFame/components/StatsOverview.tsx"
         ],
-        "api": [
-          "src/app/api/tester/route.ts"
-        ]
+        "logic": [
+          "src/app/features/HallOfFame/lib/hallOfFameApi.ts",
+          "src/app/features/HallOfFame/lib/types.ts"
+        ],
+        "server": [
+          "src/app/api/hall-of-fame/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "observatory-monitoring",
+      "title": "Observatory & Monitoring",
+      "summary": "Monitor project metrics and events. Real-time dashboard, event timeline, and metric visualizations for project health tracking.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Observatory/ObservatoryLayout.tsx",
+          "src/app/features/Observatory/components/ObservatoryDashboard.tsx",
+          "src/app/features/Observatory/components/EventTimeline.tsx",
+          "src/app/features/Observatory/components/MetricCard.tsx",
+          "src/app/features/Observatory/components/AlertsPanel.tsx"
+        ],
+        "logic": [
+          "src/app/features/Observatory/lib/observatoryApi.ts",
+          "src/app/features/Observatory/lib/types.ts"
+        ],
+        "server": [
+          "src/app/api/observatory/route.ts"
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "questions-clarification",
+      "title": "Questions & Clarification",
+      "summary": "Generate and manage clarifying questions. Question cards, context-aware prompts, and answer collection for better understanding.",
+      "filepaths": {
+        "ui": [
+          "src/app/features/Questions/QuestionsLayout.tsx",
+          "src/app/features/Questions/components/QuestionCard.tsx",
+          "src/app/features/Questions/components/QuestionsHeader.tsx",
+          "src/app/features/Questions/components/AnswerInput.tsx"
+        ],
+        "logic": [
+          "src/app/features/Questions/lib/questionsApi.ts",
+          "src/app/features/Questions/lib/questionGenerator.ts"
+        ],
+        "server": [
+          "src/app/api/questions/route.ts"
+        ],
+        "data": []
       }
     },
     {
       "id": "llm-providers",
       "title": "LLM Provider Integration",
-      "summary": "Unified LLM manager with multi-provider support (OpenAI, Anthropic, Gemini, Ollama) and token tracking.",
+      "summary": "Multi-provider LLM integration: OpenAI, Anthropic, Gemini, Ollama. Provider selector, token tracking, and unified API interface.",
       "filepaths": {
         "ui": [
           "src/components/llm/ProviderSelector.tsx"
         ],
-        "lib": [
+        "logic": [
           "src/lib/llm/llm-manager.ts",
           "src/lib/llm/base-client.ts",
           "src/lib/llm/openai-client.ts",
@@ -1178,132 +1509,94 @@
           "src/lib/llm/gemini-client.ts",
           "src/lib/llm/ollama-client.ts",
           "src/lib/llm/providers-config.ts",
-          "src/lib/llm/types.ts"
+          "src/lib/llm/types.ts",
+          "src/app/features/Ideas/lib/llmProviders.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/llm/route.ts",
           "src/app/api/llm/providers/route.ts",
           "src/app/api/ai/route.ts"
-        ]
+        ],
+        "data": []
       }
     },
     {
       "id": "database-layer",
       "title": "Database Layer",
-      "summary": "Multi-database driver pattern with SQLite/PostgreSQL support, migrations, and repository utilities.",
+      "summary": "Database connection and drivers. SQLite driver, migrations, and connection management for data persistence.",
       "filepaths": {
         "ui": [],
-        "lib": [
+        "logic": [
           "src/app/db/connection.ts",
-          "src/app/db/drivers/sqlite-driver.ts",
-          "src/app/db/drivers/postgres-driver.ts",
+          "src/app/db/index.ts",
+          "src/app/db/drivers/index.ts",
+          "src/app/db/drivers/sqlite.driver.ts",
+          "src/app/db/drivers/types.ts",
           "src/app/db/migrations/index.ts",
-          "src/app/db/repositories/repository.utils.ts",
-          "src/app/db/models/types.ts",
-          "src/app/db/index.ts"
+          "src/app/db/migrations/migration.utils.ts"
         ],
-        "api": [
-          "src/app/api/db-sync/route.ts"
-        ]
+        "server": [
+          "src/app/api/db-sync/route.ts",
+          "src/app/api/db-sync/status/route.ts"
+        ],
+        "data": []
       }
     },
     {
-      "id": "core-repositories",
-      "title": "Core Repositories",
-      "summary": "Database repositories for contexts, ideas, goals, scans, and implementation logs.",
-      "filepaths": {
-        "ui": [],
-        "lib": [
-          "src/app/db/repositories/context.repository.ts",
-          "src/app/db/repositories/context-group.repository.ts",
-          "src/app/db/repositories/idea.repository.ts",
-          "src/app/db/repositories/goal.repository.ts",
-          "src/app/db/repositories/scan.repository.ts",
-          "src/app/db/repositories/scan-queue.repository.ts",
-          "src/app/db/repositories/implementation-log.repository.ts",
-          "src/app/db/repositories/test-scenario.repository.ts",
-          "src/app/db/repositories/tech-debt.repository.ts",
-          "src/app/db/repositories/security-patch.repository.ts",
-          "src/app/db/repositories/backlog.repository.ts"
-        ],
-        "api": []
-      }
-    },
-    {
-      "id": "file-operations",
+      "id": "file-system-operations",
       "title": "File System Operations",
-      "summary": "File system interface, file watcher, disk operations, and dependency scanning utilities.",
+      "summary": "File system interface for reading, writing, and watching files. Git manager, dependency scanner, and process management.",
       "filepaths": {
         "ui": [],
-        "lib": [
+        "logic": [
           "src/lib/fileOperations.ts",
           "src/lib/fileSystemInterface.ts",
           "src/lib/fileWatcher.ts",
-          "src/lib/dependencyScanner.ts",
           "src/lib/gitManager.ts",
+          "src/lib/dependencyScanner.ts",
           "src/lib/processManager.ts",
           "src/lib/impactedFilesUtils.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/disk/route.ts",
           "src/app/api/disk/read-file/route.ts",
           "src/app/api/file-scanner/route.ts",
-          "src/app/api/file-watch/route.ts",
-          "src/app/api/file-fixer/route.ts"
-        ]
+          "src/app/api/file-watch/route.ts"
+        ],
+        "data": []
       }
     },
     {
       "id": "project-management",
       "title": "Project Management",
-      "summary": "Project CRUD, configuration, analysis, and real-time synchronization across components.",
+      "summary": "Project CRUD and synchronization. Project stores, configuration, and real-time updates across the application.",
       "filepaths": {
         "ui": [],
-        "lib": [
+        "logic": [
           "src/lib/project_database.ts",
           "src/lib/projectAnalysis.ts",
           "src/lib/projectServiceDb.ts",
           "src/stores/activeProjectStore.ts",
-          "src/stores/projectConfigStore.ts",
+          "src/stores/clientProjectStore.ts",
           "src/stores/serverProjectStore.ts",
           "src/stores/unifiedProjectStore.ts",
-          "src/stores/projectsToolbarStore.ts",
-          "src/stores/projectUpdatesStore.ts"
+          "src/stores/projectConfigStore.ts",
+          "src/stores/projectsToolbarStore.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/projects/route.ts",
           "src/app/api/project/route.ts"
-        ]
-      }
-    },
-    {
-      "id": "ui-stores",
-      "title": "UI State Management",
-      "summary": "Zustand stores for UI concerns including themes, tooltips, badges, focus mode, and decision queue.",
-      "filepaths": {
-        "ui": [],
-        "lib": [
-          "src/stores/themeStore.ts",
-          "src/stores/tooltipStore.ts",
-          "src/stores/badgeStore.ts",
-          "src/stores/focusModeStore.ts",
-          "src/stores/decisionQueueStore.ts",
-          "src/stores/userConfigStore.ts",
-          "src/stores/realtimeStore.ts",
-          "src/stores/analysisStore.ts",
-          "src/stores/stateMachineStore.ts",
-          "src/stores/testResultStore.ts"
         ],
-        "api": []
+        "data": []
       }
     },
     {
       "id": "api-utilities",
-      "title": "API Utilities",
-      "summary": "API helper functions, error handling, validation, logging, and common response patterns.",
+      "title": "API Utilities & Helpers",
+      "summary": "Common API utilities: error handling, JSON parsing, logging, and configuration. Shared helpers across all API routes.",
       "filepaths": {
         "ui": [],
-        "lib": [
+        "logic": [
           "src/lib/api-helpers.ts",
           "src/lib/api-errors.ts",
           "src/lib/logger.ts",
@@ -1314,9 +1607,31 @@
           "src/lib/errorClassifier.ts",
           "src/lib/sanitize.ts"
         ],
-        "api": [
+        "server": [
           "src/app/api/server/route.ts"
-        ]
+        ],
+        "data": []
+      }
+    },
+    {
+      "id": "ui-state-stores",
+      "title": "UI State Stores",
+      "summary": "Zustand stores for UI state: themes, tooltips, badges, focus mode, and decision queue. Cross-cutting UI concerns.",
+      "filepaths": {
+        "ui": [],
+        "logic": [
+          "src/stores/themeStore.ts",
+          "src/stores/tooltipStore.ts",
+          "src/stores/badgeStore.ts",
+          "src/stores/focusModeStore.ts",
+          "src/stores/decisionQueueStore.ts",
+          "src/stores/userConfigStore.ts",
+          "src/stores/realtimeStore.ts",
+          "src/stores/analysisStore.ts",
+          "src/stores/nodeStore.ts"
+        ],
+        "server": [],
+        "data": []
       }
     }
   ]

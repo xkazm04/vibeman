@@ -10,13 +10,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Loader2 } from 'lucide-react';
 import { useGoalHubStore } from '@/stores/goalHubStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { loadRequirements } from '@/app/Claude/lib/requirementApi';
 import { GoalProvider } from '@/contexts/GoalContext';
 
 // Eagerly loaded components
 import GoalHubHeader from './components/GoalHubHeader';
 import SyncButtons from './components/SyncButtons';
-import GoalListPanel from './components/GoalListPanel';
 import GoalAddDrawer from './components/GoalAddDrawer';
 import EmptyProjectState from './components/EmptyProjectState';
 import AutomationTrigger from './components/AutomationTrigger';
@@ -43,7 +41,6 @@ function LoadingSpinner() {
 export default function GoalHubLayout() {
   const [viewMode, setViewMode] = useState<ViewMode>('goals');
   const [isGoalPanelOpen, setIsGoalPanelOpen] = useState(false);
-  const [breakdownStatus, setBreakdownStatus] = useState<Record<string, boolean>>({});
   const [selectedGoalForModal, setSelectedGoalForModal] = useState<string | null>(null);
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
@@ -80,32 +77,13 @@ export default function GoalHubLayout() {
     }
   }, [goals.length, activeGoal, setActiveGoal]);
 
-  // Check for breakdown requirement files
-  const checkBreakdownStatus = useCallback(async () => {
-    if (!activeProject?.path || goals.length === 0) return;
-
-    try {
-      const requirements = await loadRequirements(activeProject.path);
-      const status: Record<string, boolean> = {};
-
-      goals.forEach((goal) => {
-        const prefix = `goal-breakdown-${goal.id.slice(0, 8)}`;
-        status[goal.id] = requirements.some((r) => r.startsWith(prefix));
-      });
-
-      setBreakdownStatus(status);
-    } catch (error) {
-      console.error('Failed to check breakdown status:', error);
+  // Refresh callback for breakdown panel
+  const handleBreakdownCreated = useCallback(async () => {
+    // Refresh goals to pick up any changes
+    if (activeProject?.id) {
+      await loadGoals(activeProject.id);
     }
-  }, [activeProject?.path, goals]);
-
-  useEffect(() => {
-    checkBreakdownStatus();
-  }, [checkBreakdownStatus]);
-
-  const handleGoalDetails = useCallback((goal: { id: string }) => {
-    setSelectedGoalForModal(goal.id);
-  }, []);
+  }, [activeProject?.id, loadGoals]);
 
   const handleCloseModal = useCallback(() => {
     setSelectedGoalForModal(null);
@@ -174,22 +152,25 @@ export default function GoalHubLayout() {
           </Suspense>
         ) : (
           <div className="grid grid-cols-12 gap-6">
-            {/* Left Panel - Goals List */}
-            <div className="col-span-3 space-y-4">
-              <GoalListPanel
-                goals={goals}
-                activeGoal={activeGoal}
-                breakdownStatus={breakdownStatus}
-                onSelectGoal={setActiveGoal}
-                onNewGoal={() => setIsGoalPanelOpen(true)}
-                onGoalDetails={handleGoalDetails}
-              />
-
-              {/* Goal Reviewer Panel */}
-              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+            {/* Left Panel - Goal Reviewer */}
+            <div className="col-span-3">
+              <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-800/80 rounded-2xl p-4 shadow-xl">
                 <Suspense fallback={<LoadingSpinner />}>
                   <GoalProvider projectId={activeProject.id}>
-                    <GoalReviewer projectId={activeProject.id} />
+                    <GoalReviewer
+                      projectId={activeProject.id}
+                      onGoalSelect={(goal) => {
+                        if (goal !== 'add') {
+                          // Find the extended goal from the store
+                          const extendedGoal = goals.find((g) => g.id === goal.id);
+                          if (extendedGoal) {
+                            setActiveGoal(extendedGoal);
+                          }
+                        } else {
+                          setIsGoalPanelOpen(true);
+                        }
+                      }}
+                    />
                   </GoalProvider>
                 </Suspense>
               </div>
@@ -207,7 +188,7 @@ export default function GoalHubLayout() {
                   projectId={activeProject.id}
                   onCompleteGoal={completeGoal}
                   onNewGoal={() => setIsGoalPanelOpen(true)}
-                  onBreakdownCreated={checkBreakdownStatus}
+                  onBreakdownCreated={handleBreakdownCreated}
                   HypothesisTracker={HypothesisTracker}
                   BreakdownPanel={BreakdownPanel}
                   ActivityFeed={ActivityFeed}

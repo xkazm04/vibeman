@@ -57,6 +57,13 @@ export interface GenerateQuestionsResponse {
   expectedQuestions: number;
 }
 
+export interface ContextMapSetupResponse {
+  success: boolean;
+  skillPath: string;
+  requirementPath: string;
+  message: string;
+}
+
 /**
  * Fetch context map from a project
  */
@@ -160,6 +167,24 @@ export async function generateQuestionRequirement(data: {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to generate requirement');
+  }
+  return response.json();
+}
+
+/**
+ * Setup context map generator in target project
+ * Copies the skill file and creates a requirement file
+ */
+export async function setupContextMapGenerator(projectPath: string): Promise<ContextMapSetupResponse> {
+  const response = await fetch('/api/context-map/setup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectPath })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to setup context map generator');
   }
   return response.json();
 }
