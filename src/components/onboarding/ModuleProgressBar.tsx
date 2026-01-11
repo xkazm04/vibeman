@@ -27,6 +27,7 @@ const MODULE_STEPS: Record<AppModule, OnboardingStep | null> = {
   social: null,
   composer: null,
   zen: null,
+  questions: null,
 };
 
 const STEP_LABELS: Record<OnboardingStep, string> = {

@@ -101,6 +101,28 @@ ${context ? `
 ## Target: Full Project Analysis
 `}
 
+---
+
+## CRITICAL: Understanding Your Task
+
+**IMPORTANT DISTINCTION - READ CAREFULLY:**
+
+1. **ANALYZE**: The "${projectName}" project (the codebase you're exploring)
+2. **SAVE TO**: Vibeman's idea management database (a SEPARATE system at ${apiUrl})
+
+You are NOT creating API endpoints. You are NOT modifying the target project's code.
+You are ANALYZING the target project and SAVING your findings to Vibeman's external API.
+
+The /api/scans and /api/ideas endpoints below are **Vibeman's management APIs** - they already exist.
+Do NOT attempt to create these endpoints in the "${projectName}" project.
+
+Your job is:
+- READ and ANALYZE the "${projectName}" codebase
+- GENERATE ideas based on your analysis
+- SAVE those ideas by calling Vibeman's existing APIs via curl
+
+---
+
 ## Analysis Prompt
 
 Below is the specialized analysis prompt for this scan type. Use this to guide your analysis:
@@ -111,7 +133,9 @@ ${fullPrompt}
 
 ---
 
-## Saving Ideas to Database
+## Saving Ideas to Vibeman's Database
+
+**Note:** These API calls go to Vibeman's idea management system (${apiUrl}), NOT the project you're analyzing.
 
 You need to perform TWO steps to save ideas:
 
@@ -235,13 +259,18 @@ curl -X POST ${apiUrl}/api/ideas \\
 
 ## Execution Steps
 
+**Phase 1: Analyze the "${projectName}" project**
 1. Read the project's CLAUDE.md or AI.md documentation if available
 2. Explore the codebase structure${context ? `, focusing on the context files` : ''}
 3. Analyze code with the perspective described in the analysis prompt above
-4. Generate high-quality ideas that would genuinely push this project forward (no arbitrary limits - focus on value)
-5. Create a scan record via /api/scans
-6. Save each idea via /api/ideas using the scan_id
+4. Generate high-quality ideas that would genuinely push this project forward
+
+**Phase 2: Save ideas to Vibeman (external system at ${apiUrl})**
+5. Create a scan record via curl to ${apiUrl}/api/scans
+6. Save each idea via curl to ${apiUrl}/api/ideas using the scan_id
 7. Report what ideas were created
+
+**REMINDER:** Do NOT create any files or endpoints in "${projectName}". Only READ/ANALYZE it.
 
 ## Quality Standards
 
@@ -254,9 +283,15 @@ curl -X POST ${apiUrl}/api/ideas \\
 ## Output
 
 After completing the task, summarize:
-- How many ideas were created
+- How many ideas were created (saved to Vibeman at ${apiUrl})
 - Brief list of idea titles
-- Any observations about the codebase
+- Any observations about the "${projectName}" codebase
+
+**Final Checklist:**
+- [ ] I analyzed the "${projectName}" codebase (READ ONLY)
+- [ ] I did NOT create any new files in "${projectName}"
+- [ ] I saved ideas via curl to Vibeman's API at ${apiUrl}
+- [ ] Each idea has effort, impact, and risk scores (1-10)
 `;
 }
 

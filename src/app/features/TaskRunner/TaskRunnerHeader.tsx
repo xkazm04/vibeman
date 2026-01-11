@@ -1,9 +1,10 @@
 'use client';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Layers, Terminal } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import DualBatchPanel from './components/DualBatchPanel';
+import { CLIBatchPanel } from '@/components/cli';
 import ConfigurationToolbar from './lib/ConfigurationToolbar';
 import SessionCleanupPanel from './components/SessionCleanupPanel';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
@@ -17,6 +18,8 @@ import {
   useOverallProgress,
   useTaskRunnerStore,
 } from './store';
+
+type ExecutionMode = 'batch' | 'cli';
 
 interface TaskRunnerHeaderProps {
   selectedCount: number;
@@ -42,6 +45,19 @@ export default function TaskRunnerHeader({
   getRequirementId,
 }: TaskRunnerHeaderProps) {
   const { setRequirements, setIsRunning, setProcessedCount, setError } = actions;
+
+  // Execution mode toggle (batch vs CLI)
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('taskrunner-mode') as ExecutionMode) || 'batch';
+    }
+    return 'batch';
+  });
+
+  // Persist mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('taskrunner-mode', executionMode);
+  }, [executionMode]);
 
   // Blueprint store for syncing tasker progress
   const { updateTaskerProgress, resetTaskerProgress } = useBlueprintStore();
@@ -166,27 +182,77 @@ export default function TaskRunnerHeader({
         </motion.div>
       )}
 
-      {/* Configuration Toolbar - Centered */}
-      <div className="flex items-center justify-center">
+      {/* Configuration Toolbar and Mode Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex-1" />
         <ConfigurationToolbar />
+        <div className="flex-1 flex justify-end">
+          {/* Mode Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-gray-800/50 rounded-lg border border-gray-700/50">
+            <button
+              onClick={() => setExecutionMode('batch')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                executionMode === 'batch'
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
+              }`}
+              title="Batch execution mode"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Batch
+            </button>
+            <button
+              onClick={() => setExecutionMode('cli')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                executionMode === 'cli'
+                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
+              }`}
+              title="CLI session mode"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              CLI
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Multi-Batch Panel with integrated queues (up to 4 batches) */}
+      {/* Execution Panel - Batch or CLI mode */}
       <div className="relative bg-gray-900/40 backdrop-blur-sm border border-gray-800/30 rounded-lg p-4">
-        <DualBatchPanel
-          batch1={batches.batch1}
-          batch2={batches.batch2}
-          batch3={batches.batch3}
-          batch4={batches.batch4}
-          onStartBatch={handleStartBatch}
-          onPauseBatch={handlePauseBatch}
-          onResumeBatch={handleResumeBatch}
-          onClearBatch={handleClearBatch}
-          onCreateBatch={handleCreateBatch}
-          selectedCount={selectedCount}
-          requirements={requirements}
-          getRequirementId={getRequirementId}
-        />
+        {executionMode === 'batch' ? (
+          <DualBatchPanel
+            batch1={batches.batch1}
+            batch2={batches.batch2}
+            batch3={batches.batch3}
+            batch4={batches.batch4}
+            onStartBatch={handleStartBatch}
+            onPauseBatch={handlePauseBatch}
+            onResumeBatch={handleResumeBatch}
+            onClearBatch={handleClearBatch}
+            onCreateBatch={handleCreateBatch}
+            selectedCount={selectedCount}
+            selectedTaskIds={Array.from(selectedRequirements)}
+            requirements={requirements}
+            getRequirementId={getRequirementId}
+          />
+        ) : (
+          <CLIBatchPanel
+            selectedTaskIds={Array.from(selectedRequirements)}
+            requirements={requirements}
+            getRequirementId={getRequirementId}
+            onClearSelection={() => actions.setSelectedRequirements(new Set())}
+            onRequirementCompleted={(reqId) => {
+              // Remove completed requirement from list
+              setRequirements(prev => prev.filter(r => getRequirementId(r) !== reqId));
+              // Remove from selected if was selected
+              actions.setSelectedRequirements(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(reqId);
+                return newSet;
+              });
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -324,12 +324,23 @@ export const useServerProjectStore = create<ServerProjectStore>()(
       }),
       {
         name: 'server-project-store',
-        version: 2,
+        version: 3,
         // Only persist projects list, not runtime process state
+        // NOTE: Do NOT persist 'initialized' - we want fresh fetch on each page load
         partialize: (state) => ({
           projects: state.projects,
-          initialized: state.initialized,
         }),
+        // Handle migration from older versions
+        migrate: (persistedState: unknown, version: number) => {
+          const state = persistedState as { projects?: unknown[] };
+          // Version 1-2 -> 3: Just ensure projects array exists
+          if (version < 3) {
+            return {
+              projects: Array.isArray(state?.projects) ? state.projects : [],
+            };
+          }
+          return state;
+        },
       }
     ),
     { name: 'ServerProjectStore' }

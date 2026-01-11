@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, Zap, CheckCircle, XCircle, Sparkles, Pause, Play, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Zap, CheckCircle, XCircle, Sparkles, Pause, Play, Trash2, Terminal, Clock } from 'lucide-react';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { useAutomationSessionStore } from '@/stores/automationSessionStore';
+import { useAllSessions, type CLISessionId } from '@/components/cli/store';
 import TaskProgressItem from './TaskProgressItem';
 import type { TaskState } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import {
@@ -37,6 +38,9 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
     resumeSession,
     deleteSession,
   } = useAutomationSessionStore();
+
+  // Subscribe to CLI Session store
+  const cliSessions = useAllSessions();
 
   // Track notified tasks to avoid duplicate toasts
   const notifiedTasksRef = useRef<Set<string>>(new Set());
@@ -100,7 +104,32 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
   );
   const hasActiveAutomation = activeAutomationSessions.length > 0;
 
-  const hasAnyTasks = hasRunningTasks || hasCompletedTasks || hasFailedTasks || hasActiveAutomation;
+  // CLI session stats
+  const cliStats = useMemo(() => {
+    const sessionIds: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
+    let running = 0;
+    let pending = 0;
+    let completed = 0;
+    let failed = 0;
+
+    sessionIds.forEach(id => {
+      const session = cliSessions[id];
+      if (session && session.queue.length > 0) {
+        session.queue.forEach(task => {
+          if (task.status === 'running') running++;
+          else if (task.status === 'pending') pending++;
+          else if (task.status === 'completed') completed++;
+          else if (task.status === 'failed') failed++;
+        });
+      }
+    });
+
+    return { running, pending, completed, failed, total: running + pending + completed + failed };
+  }, [cliSessions]);
+
+  const hasActiveCLI = cliStats.running > 0 || cliStats.pending > 0;
+
+  const hasAnyTasks = hasRunningTasks || hasCompletedTasks || hasFailedTasks || hasActiveAutomation || hasActiveCLI;
 
   // Parse task ID to get project name and requirement name
   const parseTaskId = (taskId: string | undefined) => {
@@ -126,13 +155,13 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
 
   // Don't auto-expand - let user manually expand to see batch details
 
-  // Auto-collapse when no running tasks or automation sessions (after delay)
+  // Auto-collapse when no running tasks, automation sessions, or CLI sessions (after delay)
   useEffect(() => {
-    if (!hasRunningTasks && !hasActiveAutomation && isExpanded) {
+    if (!hasRunningTasks && !hasActiveAutomation && !hasActiveCLI && isExpanded) {
       const timer = setTimeout(() => setIsExpanded(false), 5000); // 5 seconds
       return () => clearTimeout(timer);
     }
-  }, [hasRunningTasks, hasActiveAutomation, isExpanded]);
+  }, [hasRunningTasks, hasActiveAutomation, hasActiveCLI, isExpanded]);
 
   // Show toast notifications for recently completed/failed tasks
   useEffect(() => {
@@ -315,6 +344,15 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                   </span>
                 </div>
               )}
+
+              {hasActiveCLI && (
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-cyan-400" />
+                  <span className="text-sm font-medium text-cyan-400">
+                    {cliStats.running > 0 ? `${cliStats.running} CLI running` : `${cliStats.pending} CLI pending`}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Right: Expand Button */}
@@ -369,6 +407,12 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                       <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded">
                         <Sparkles className="w-3 h-3" />
                         {activeAutomationSessions.length}
+                      </span>
+                    )}
+                    {hasActiveCLI && (
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">
+                        <Terminal className="w-3 h-3" />
+                        {cliStats.running + cliStats.pending}
                       </span>
                     )}
                   </div>
@@ -574,6 +618,74 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CLI Sessions Section */}
+              {hasActiveCLI && (
+                <div className="px-4 pb-4">
+                  <div className="border border-cyan-500/30 rounded-lg bg-cyan-500/5 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-cyan-500/20 bg-cyan-500/10">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="w-4 h-4 text-cyan-400" />
+                        <span className="text-sm font-medium text-cyan-300">
+                          CLI Sessions
+                        </span>
+                        <span className="px-1.5 py-0.5 text-xs bg-cyan-500/20 text-cyan-400 rounded">
+                          {cliStats.running} running
+                        </span>
+                        {cliStats.pending > 0 && (
+                          <span className="px-1.5 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded">
+                            {cliStats.pending} pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="divide-y divide-cyan-500/10">
+                      {(['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'] as const).map((sessionId) => {
+                        const session = cliSessions[sessionId];
+                        if (!session || session.queue.length === 0) return null;
+
+                        const runningTask = session.queue.find(t => t.status === 'running');
+                        const pendingCount = session.queue.filter(t => t.status === 'pending').length;
+
+                        return (
+                          <div
+                            key={sessionId}
+                            className="px-3 py-2 flex items-center justify-between gap-3"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono text-gray-400">
+                                  {sessionId.replace('cliSession', 'S')}
+                                </span>
+                                {runningTask ? (
+                                  <span className="text-sm text-gray-200 truncate">
+                                    {runningTask.requirementName}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-gray-400 italic">
+                                    Idle
+                                  </span>
+                                )}
+                                {session.isRunning && (
+                                  <span className="px-1.5 py-0.5 text-[10px] bg-cyan-500/20 text-cyan-400 rounded">
+                                    running
+                                  </span>
+                                )}
+                              </div>
+                              {pendingCount > 0 && (
+                                <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                                  <Clock className="w-3 h-3" />
+                                  {pendingCount} pending
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

@@ -96,16 +96,16 @@ function ProjectButton({ projectId, projectName, isSelected, onClick }: ProjectB
  */
 export default function UnifiedProjectSelector() {
   // Server store for canonical project list
-  const { projects, initializeProjects, syncWithServer } = useServerProjectStore();
+  const { projects, syncWithServer } = useServerProjectStore();
   // Client store for selection state
   const { selectedProjectId, setSelectedProjectId, setActiveProject } = useClientProjectStore();
   const { stats, loading } = useGlobalIdeaStats();
   const { updateCount, lastUpdate } = useProjectUpdatesStore();
 
-  // Initialize projects on mount
+  // Initialize projects on mount - always sync with server for fresh data
   useEffect(() => {
-    initializeProjects();
-  }, [initializeProjects]);
+    syncWithServer();
+  }, [syncWithServer]);
 
   // Listen for project updates (add/delete) and refresh the list
   useEffect(() => {

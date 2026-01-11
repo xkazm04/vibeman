@@ -92,6 +92,7 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   composer: { label: 'Blueprint Composer', description: 'Compose project blueprints', keywords: ['blueprint', 'compose', 'setup', 'wizard'], icon: 'Layers' },
   zen: { label: 'Zen Mode', description: 'Focused work mode', keywords: ['zen', 'focus', 'calm', 'work'], icon: 'Sunrise' },
   blueprint: { label: 'Blueprint', description: 'Project blueprint and setup', keywords: ['blueprint', 'setup', 'project'], icon: 'Map' },
+  questions: { label: 'Questions', description: 'Generate clarifying questions for precise idea generation', keywords: ['questions', 'clarify', 'context', 'requirements'], icon: 'HelpCircle' },
 };
 
 interface WorkflowState {

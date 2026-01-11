@@ -303,6 +303,23 @@ export function listRequirements(projectPath: string): {
 }
 
 /**
+ * Check if a requirement file exists
+ */
+export function requirementExists(
+  projectPath: string,
+  requirementName: string
+): boolean {
+  try {
+    const structure = getClaudeFolderStructure(projectPath);
+    const fileName = requirementName.endsWith('.md') ? requirementName : `${requirementName}.md`;
+    const filePath = path.join(structure.commands, fileName);
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Delete a requirement file
  */
 export function deleteRequirement(

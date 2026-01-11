@@ -19,6 +19,7 @@ export {
   updateRequirement,
   listRequirements,
   deleteRequirement,
+  requirementExists,
   updateClaudeSettings,
   readClaudeSettings,
   createContextScanRequirement,

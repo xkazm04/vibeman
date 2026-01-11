@@ -86,7 +86,16 @@
       "Bash(timeout 90 npm run build:*)",
       "Bash(timeout 120 npm run build:*)",
       "Bash(.ts$ \")",
-      "Bash(timeout 150 npm run build:*)"
+      "Bash(timeout 150 npm run build:*)",
+      "WebSearch",
+      "Bash(xargs:*)",
+      "Bash(if [ -f \"src/app/features/CLI/styles/virtualized-terminal.css\" ])",
+      "Bash(then mv \"src/app/features/CLI/styles/virtualized-terminal.css\" \"src/app/features/CLI/styles/virtualized-terminal.css.skip\")",
+      "Bash(if [ -f \"C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman\\\\src\\\\types\\\\cli.ts\" ])",
+      "Bash(then rm \"C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman\\\\src\\\\types\\\\cli.ts\")",
+      "Bash(else echo \"Not found\")",
+      "Bash(sqlite3 database/vibeman.db \"DELETE FROM migrations WHERE name = ''questionsTable''; SELECT ''Migration reset'';\")",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

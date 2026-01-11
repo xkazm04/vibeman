@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, MoreHorizontal, BookOpen, Wand2, Component, Activity, Users, Sunrise, Search, Command } from 'lucide-react';
+import { Store, MoreHorizontal, BookOpen, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useMarketplaceStore } from '@/stores/marketplaceStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
@@ -33,6 +33,7 @@ const otherNavigationItems: NavigationItem[] = [
   { module: 'docs', label: 'Docs', icon: BookOpen },
   { module: 'refactor', label: 'Wizard', icon: Wand2 },
   { module: 'halloffame', label: 'Hall of Fame', icon: Component },
+  { module: 'questions', label: 'Questions', icon: HelpCircle },
 ];
 
 // Navigation item component

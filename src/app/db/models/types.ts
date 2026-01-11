@@ -566,5 +566,55 @@ export interface LearningInsightData {
   comparisonData?: Record<string, unknown>;
 }
 
+// Question types (for guided idea generation)
+export interface DbQuestion {
+  id: string;
+  project_id: string;
+  context_map_id: string;      // References context_map.json entry id
+  context_map_title: string;   // Denormalized for display
+  goal_id: string | null;      // Set when answer is saved (auto-creates goal)
+  question: string;
+  answer: string | null;
+  status: 'pending' | 'answered';
+  created_at: string;
+  updated_at: string;
+}
+
+// Claude Terminal Session types
+export interface DbTerminalSession {
+  id: string;
+  project_path: string;
+  status: 'idle' | 'running' | 'waiting_approval' | 'completed' | 'error';
+  message_count: number;
+  last_prompt: string | null;
+  total_tokens_in: number;
+  total_tokens_out: number;
+  total_cost_usd: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbTerminalMessage {
+  id: string;
+  session_id: string;
+  type: 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'error' | 'system' | 'approval_request' | 'streaming';
+  content: string;
+  timestamp: string;
+  metadata: string | null; // JSON string
+}
+
+export interface DbPendingApproval {
+  id: string;
+  session_id: string;
+  tool_use_id: string;
+  tool_name: string;
+  tool_input: string; // JSON string
+  status: 'pending' | 'approved' | 'denied';
+  decision: 'approve' | 'deny' | null;
+  decision_reason: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
 // Export standard category type for use in type annotations
 export type { IdeaCategory };

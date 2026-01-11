@@ -24,6 +24,7 @@ import ContextLayout from './features/Context/ContextLayout';
 import SocialLayout from './features/Social/SocialLayout';
 import BlueprintComposer from './features/Composer/BlueprintComposer';
 import ZenLayout from './zen/ZenLayout';
+import QuestionsLayout from './features/Questions/QuestionsLayout';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -72,6 +73,8 @@ export default function Home() {
         );
       case 'zen':
         return <ZenLayout key="zen" />;
+      case 'questions':
+        return <QuestionsLayout key="questions" />;
       default:
         return <GoalsLayout key="coder" projectId={projectId} />;
     }

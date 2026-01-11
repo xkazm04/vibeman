@@ -151,6 +151,7 @@ import {
   webhookRepository,
 } from './repositories/integration.repository';
 import * as observatoryRepository from './repositories/observatory.repository';
+import { questionRepository } from './repositories/question.repository';
 
 // Export types
 export * from './models/types';
@@ -1206,6 +1207,16 @@ export const observatoryDb = {
   getProjectHealthSummary: observatoryRepository.getProjectHealthSummary,
   getLearningProgress: observatoryRepository.getLearningProgress,
 
+  close: closeDatabase,
+};
+
+/**
+ * Question Database Operations
+ * Manages questions for guided idea generation
+ * Questions are generated per context_map entry and when answered, auto-create Goals
+ */
+export const questionDb = {
+  ...questionRepository,
   close: closeDatabase,
 };
 

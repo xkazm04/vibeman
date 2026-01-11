@@ -10,7 +10,7 @@ export type OnboardingStep =
   | 'run-task'
   | 'review-impl';
 
-export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor' | 'manager' | 'halloffame' | 'social' | 'composer' | 'zen' | 'blueprint';
+export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'docs' | 'refactor' | 'manager' | 'halloffame' | 'social' | 'composer' | 'zen' | 'blueprint' | 'questions';
 
 interface OnboardingState {
   // Project-specific completed steps: { projectId: [steps] }

@@ -172,6 +172,10 @@ export function runMigrations() {
     migrateIdeasRiskColumn();
     // Migration 57: Add paused phase to automation_sessions
     migrateAutomationSessionPausedPhase();
+    // Migration 58: Create questions table for guided idea generation
+    migrateQuestionsTable();
+    // Migration 59: Create Claude Terminal tables
+    migrateClaudeTerminalTables();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4141,5 +4145,123 @@ function migrateAutomationSessionPausedPhase() {
     const db = getConnection();
     const { migrate048AutomationSessionPausedPhase } = require('./048_automation_session_paused_phase');
     migrate048AutomationSessionPausedPhase(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 58: Create questions table for guided idea generation
+ * Questions are generated per context_map entry and when answered, auto-create Goals
+ */
+function migrateQuestionsTable() {
+  safeMigration('questionsTable', () => {
+    const db = getConnection();
+    const created = createTableIfNotExists(db, 'questions', `
+      CREATE TABLE questions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        context_map_id TEXT NOT NULL,
+        context_map_title TEXT NOT NULL,
+        goal_id TEXT,
+        question TEXT NOT NULL,
+        answer TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'answered')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
+      )
+    `, migrationLogger);
+
+    if (created) {
+      // Create indexes for efficient queries
+      db.exec(`
+        CREATE INDEX idx_questions_project_id ON questions(project_id);
+        CREATE INDEX idx_questions_context_map_id ON questions(context_map_id);
+        CREATE INDEX idx_questions_status ON questions(status);
+        CREATE INDEX idx_questions_goal_id ON questions(goal_id);
+      `);
+      migrationLogger.info('questions table created successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Migration 59: Create Claude Terminal tables
+ * Tables for the CLI-like UI component using Claude Agent SDK
+ */
+function migrateClaudeTerminalTables() {
+  safeMigration('claudeTerminalTables', () => {
+    const db = getConnection();
+
+    // Create terminal_sessions table
+    const sessionsCreated = createTableIfNotExists(db, 'terminal_sessions', `
+      CREATE TABLE terminal_sessions (
+        id TEXT PRIMARY KEY,
+        project_path TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'running', 'waiting_approval', 'completed', 'error')),
+        message_count INTEGER NOT NULL DEFAULT 0,
+        last_prompt TEXT,
+        total_tokens_in INTEGER NOT NULL DEFAULT 0,
+        total_tokens_out INTEGER NOT NULL DEFAULT 0,
+        total_cost_usd REAL NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (sessionsCreated) {
+      db.exec(`
+        CREATE INDEX idx_terminal_sessions_project_path ON terminal_sessions(project_path);
+        CREATE INDEX idx_terminal_sessions_status ON terminal_sessions(status);
+        CREATE INDEX idx_terminal_sessions_updated_at ON terminal_sessions(updated_at);
+      `);
+      migrationLogger.info('terminal_sessions table created successfully');
+    }
+
+    // Create terminal_messages table
+    const messagesCreated = createTableIfNotExists(db, 'terminal_messages', `
+      CREATE TABLE terminal_messages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('user', 'assistant', 'tool_use', 'tool_result', 'error', 'system', 'approval_request', 'streaming')),
+        content TEXT NOT NULL,
+        timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+        metadata TEXT,
+        FOREIGN KEY (session_id) REFERENCES terminal_sessions(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (messagesCreated) {
+      db.exec(`
+        CREATE INDEX idx_terminal_messages_session_id ON terminal_messages(session_id);
+        CREATE INDEX idx_terminal_messages_type ON terminal_messages(type);
+        CREATE INDEX idx_terminal_messages_timestamp ON terminal_messages(timestamp);
+      `);
+      migrationLogger.info('terminal_messages table created successfully');
+    }
+
+    // Create pending_approvals table
+    const approvalsCreated = createTableIfNotExists(db, 'pending_approvals', `
+      CREATE TABLE pending_approvals (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        tool_use_id TEXT NOT NULL,
+        tool_name TEXT NOT NULL,
+        tool_input TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+        decision TEXT CHECK (decision IN ('approve', 'deny')),
+        decision_reason TEXT,
+        decided_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (session_id) REFERENCES terminal_sessions(id) ON DELETE CASCADE
+      )
+    `, migrationLogger);
+
+    if (approvalsCreated) {
+      db.exec(`
+        CREATE INDEX idx_pending_approvals_session_id ON pending_approvals(session_id);
+        CREATE INDEX idx_pending_approvals_status ON pending_approvals(status);
+      `);
+      migrationLogger.info('pending_approvals table created successfully');
+    }
   }, migrationLogger);
 }
