@@ -8,7 +8,6 @@ import {
   PreviewModalProps,
   PropsControl,
   // Button Previews
-  MotionButtonPreview,
   AnimatedButtonPreview,
   IconButtonPreview,
   IlluminatedButtonPreview,
@@ -23,9 +22,6 @@ import {
   LoadingSpinnerPreview,
   EmptyStatePreview,
   // Card Previews
-  DecisionCardPreview,
-  CyberCardPreview,
-  GlowCardPreview,
   CompactListPreview,
   PerformanceCardPreview,
   // Chart Previews
@@ -34,6 +30,31 @@ import {
   // Overlay Previews
   ModalTransitionPreview,
   SlideDrawerPreview,
+  // Feature Previews (24 new components)
+  ScreenThumbnailPreview,
+  CandidateCardPreview,
+  ScanTypeCardPreview,
+  ProviderStatusPreview,
+  IdeaCardPreview,
+  SwipeProgressPreview,
+  SessionBatchDisplayPreview,
+  CheckpointProgressPreview,
+  ImplementationLogCardPreview,
+  HypothesisRowPreview,
+  ContextJailCardPreview,
+  GradientPalettePickerPreview,
+  WeeklyKPICardsPreview,
+  KPISummaryCardsPreview,
+  SLABadgePreview,
+  AIProcessingPanelPreview,
+  ChainBuilderPreview,
+  DecisionNodeConfigPreview,
+  ZenStatsPreview,
+  ModeTogglePreview,
+  ContextMapSelectorPreview,
+  DirectionCardPreview,
+  PackageCardPreview,
+  HeroBadgePreview,
 } from './previews';
 
 function GenericPreview({ name }: { name: string }) {
@@ -78,7 +99,6 @@ export function PreviewModal({ componentId, onClose }: PreviewModalProps) {
     if (!component) return null;
     switch (component.id) {
       // Buttons
-      case 'motion-button': return <MotionButtonPreview props={props} />;
       case 'animated-button': return <AnimatedButtonPreview props={props} />;
       case 'icon-button': return <IconButtonPreview props={props} />;
       case 'illuminated-button': return <IlluminatedButtonPreview props={props} />;
@@ -93,9 +113,6 @@ export function PreviewModal({ componentId, onClose }: PreviewModalProps) {
       case 'loading-spinner': return <LoadingSpinnerPreview props={props} />;
       case 'empty-state': return <EmptyStatePreview props={props} />;
       // Cards
-      case 'decision-card': return <DecisionCardPreview props={props} />;
-      case 'cyber-card': return <CyberCardPreview props={props} />;
-      case 'glow-card': return <GlowCardPreview props={props} />;
       case 'compact-list': return <CompactListPreview props={props} />;
       case 'performance-card': return <PerformanceCardPreview props={props} />;
       // Charts
@@ -104,6 +121,42 @@ export function PreviewModal({ componentId, onClose }: PreviewModalProps) {
       // Overlays
       case 'modal-transition': return <ModalTransitionPreview props={props} />;
       case 'slide-drawer': return <SlideDrawerPreview props={props} />;
+      // GoalsLayout
+      case 'screen-thumbnail': return <ScreenThumbnailPreview props={props} />;
+      case 'candidate-card': return <CandidateCardPreview props={props} />;
+      // IdeasLayout
+      case 'scan-type-card': return <ScanTypeCardPreview props={props} />;
+      case 'provider-status': return <ProviderStatusPreview props={props} />;
+      // TinderLayout
+      case 'idea-card': return <IdeaCardPreview props={props} />;
+      case 'swipe-progress': return <SwipeProgressPreview props={props} />;
+      // TaskRunnerLayout
+      case 'session-batch-display': return <SessionBatchDisplayPreview props={props} />;
+      case 'checkpoint-progress': return <CheckpointProgressPreview props={props} />;
+      // ManagerLayout
+      case 'implementation-log-card': return <ImplementationLogCardPreview props={props} />;
+      case 'hypothesis-row': return <HypothesisRowPreview props={props} />;
+      // ContextLayout
+      case 'context-jail-card': return <ContextJailCardPreview props={props} />;
+      case 'gradient-palette-picker': return <GradientPalettePickerPreview props={props} />;
+      // ReflectorLayout
+      case 'weekly-kpi-cards': return <WeeklyKPICardsPreview props={props} />;
+      case 'kpi-summary-cards': return <KPISummaryCardsPreview props={props} />;
+      // SocialLayout
+      case 'sla-badge': return <SLABadgePreview props={props} />;
+      case 'ai-processing-panel': return <AIProcessingPanelPreview props={props} />;
+      // BlueprintComposer
+      case 'chain-builder': return <ChainBuilderPreview props={props} />;
+      case 'decision-node-config': return <DecisionNodeConfigPreview props={props} />;
+      // ZenLayout
+      case 'zen-stats': return <ZenStatsPreview props={props} />;
+      case 'mode-toggle': return <ModeTogglePreview props={props} />;
+      // QuestionsLayout
+      case 'context-map-selector': return <ContextMapSelectorPreview props={props} />;
+      case 'direction-card': return <DirectionCardPreview props={props} />;
+      // RefactorPage
+      case 'package-card': return <PackageCardPreview props={props} />;
+      case 'hero-badge': return <HeroBadgePreview props={props} />;
       default: return <GenericPreview name={component.name} />;
     }
   };

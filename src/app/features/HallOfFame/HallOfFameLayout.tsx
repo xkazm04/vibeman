@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Sparkles } from 'lucide-react';
 import { FeaturedHero } from './components/FeaturedHero';
@@ -13,8 +13,51 @@ import type { CategoryId } from './lib/types';
 export default function HallOfFameLayout() {
   const [activeCategory, setActiveCategory] = useState<CategoryId>('core-ui');
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
+  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
 
   const totalCount = getTotalComponentCount();
+
+  // Fetch starred IDs on mount
+  useEffect(() => {
+    async function fetchStarred() {
+      try {
+        const response = await fetch('/api/hall-of-fame/star');
+        if (response.ok) {
+          const data = await response.json();
+          setStarredIds(new Set(data.starredIds));
+        }
+      } catch (error) {
+        console.error('Failed to fetch starred components:', error);
+      }
+    }
+    fetchStarred();
+  }, []);
+
+  // Toggle star handler
+  const handleToggleStar = useCallback(async (componentId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    try {
+      const response = await fetch('/api/hall-of-fame/star', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ componentId }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStarredIds(prev => {
+          const next = new Set(prev);
+          if (data.starred) {
+            next.add(componentId);
+          } else {
+            next.delete(componentId);
+          }
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to toggle star:', error);
+    }
+  }, []);
 
   const handleComponentClick = (componentId: string) => {
     setSelectedComponentId(componentId);
@@ -58,7 +101,7 @@ export default function HallOfFameLayout() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <FeaturedHero onComponentClick={handleComponentClick} />
+          <FeaturedHero onComponentClick={handleComponentClick} starredIds={starredIds} />
         </motion.div>
 
         {/* Category Section */}
@@ -84,6 +127,8 @@ export default function HallOfFameLayout() {
             <ComponentTable
               categoryId={activeCategory}
               onComponentClick={handleComponentClick}
+              starredIds={starredIds}
+              onToggleStar={handleToggleStar}
             />
           </div>
         </motion.div>

@@ -152,6 +152,8 @@ import {
 } from './repositories/integration.repository';
 import * as observatoryRepository from './repositories/observatory.repository';
 import { questionRepository } from './repositories/question.repository';
+import { directionRepository } from './repositories/direction.repository';
+import { hallOfFameRepository } from './repositories/hall-of-fame.repository';
 
 // Export types
 export * from './models/types';
@@ -1217,6 +1219,25 @@ export const observatoryDb = {
  */
 export const questionDb = {
   ...questionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Direction Database Operations
+ * Manages directions for actionable development guidance
+ * Directions are generated per context_map entry and when accepted, create Claude Code requirements
+ */
+export const directionDb = {
+  ...directionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Hall of Fame Database Operations
+ * Manages starred/featured component selections for component showcase
+ */
+export const hallOfFameDb = {
+  ...hallOfFameRepository,
   close: closeDatabase,
 };
 

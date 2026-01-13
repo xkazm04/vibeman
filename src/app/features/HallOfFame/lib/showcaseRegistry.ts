@@ -59,67 +59,6 @@ export interface ShowcaseComponentData {
 export const showcaseComponentsData: ShowcaseComponentData[] = [
   // ===== CORE UI =====
   {
-    id: 'motion-button',
-    name: 'MotionButton',
-    description: '13 color schemes, 4 variants, 5 sizes, and 5 animation presets with Framer Motion',
-    categoryId: 'core-ui',
-    isFeatured: true,
-    variantCount: 260,
-    propsConfig: [
-      {
-        name: 'colorScheme',
-        type: 'select',
-        label: 'Color',
-        options: [
-          { label: 'Cyan', value: 'cyan' },
-          { label: 'Blue', value: 'blue' },
-          { label: 'Purple', value: 'purple' },
-          { label: 'Green', value: 'green' },
-          { label: 'Red', value: 'red' },
-          { label: 'Orange', value: 'orange' },
-        ],
-        defaultValue: 'cyan',
-      },
-      {
-        name: 'variant',
-        type: 'select',
-        label: 'Variant',
-        options: [
-          { label: 'Solid', value: 'solid' },
-          { label: 'Outline', value: 'outline' },
-          { label: 'Ghost', value: 'ghost' },
-          { label: 'Glassmorphic', value: 'glassmorphic' },
-        ],
-        defaultValue: 'solid',
-      },
-      {
-        name: 'size',
-        type: 'select',
-        label: 'Size',
-        options: [
-          { label: 'XS', value: 'xs' },
-          { label: 'SM', value: 'sm' },
-          { label: 'MD', value: 'md' },
-          { label: 'LG', value: 'lg' },
-          { label: 'XL', value: 'xl' },
-        ],
-        defaultValue: 'md',
-      },
-    ],
-    codeSnippet: `import { MotionButton } from '@/components/ui/buttons/MotionButton';
-import { Sparkles } from 'lucide-react';
-
-<MotionButton
-  colorScheme="cyan"
-  variant="solid"
-  size="md"
-  icon={Sparkles}
->
-  Click Me
-</MotionButton>`,
-    sourcePath: 'src/components/ui/buttons/MotionButton.tsx',
-  },
-  {
     id: 'animated-button',
     name: 'AnimatedButton',
     description: 'Semantic button with 7 variants: primary, secondary, success, danger, warning, ghost, outline',
@@ -313,54 +252,6 @@ import { Settings } from 'lucide-react';
   },
 
   // ===== DATA DISPLAY =====
-  {
-    id: 'decision-card',
-    name: 'DecisionCard',
-    description: 'Feature-rich card with severity levels, pulsing animations, and floating particles',
-    categoryId: 'data-display',
-    isFeatured: true,
-    variantCount: 12,
-    propsConfig: [
-      {
-        name: 'severity',
-        type: 'select',
-        label: 'Severity',
-        options: [
-          { label: 'Info', value: 'info' },
-          { label: 'Warning', value: 'warning' },
-          { label: 'Error', value: 'error' },
-          { label: 'Success', value: 'success' },
-        ],
-        defaultValue: 'info',
-      },
-      {
-        name: 'size',
-        type: 'select',
-        label: 'Size',
-        options: [
-          { label: 'Small', value: 'sm' },
-          { label: 'Medium', value: 'md' },
-          { label: 'Large', value: 'lg' },
-        ],
-        defaultValue: 'md',
-      },
-    ],
-    codeSnippet: `import { DecisionCard } from '@/components/DecisionPanel/DecisionCard';
-import { CheckCircle, ArrowRight } from 'lucide-react';
-
-<DecisionCard
-  config={{
-    title: "Review Complete",
-    description: "All checks passed",
-    severity: "success",
-    icon: CheckCircle,
-    actions: [
-      { label: "Continue", icon: ArrowRight, onClick: handleContinue }
-    ]
-  }}
-/>`,
-    sourcePath: 'src/components/DecisionPanel/DecisionCard.tsx',
-  },
   {
     id: 'status-chip',
     name: 'StatusChip',
@@ -573,63 +464,6 @@ import { Check } from 'lucide-react';
   },
 
   // ===== ADVANCED =====
-  {
-    id: 'cyber-card',
-    name: 'CyberCard',
-    description: 'Futuristic card with blueprint-inspired grid pattern and glow variants',
-    categoryId: 'advanced',
-    variantCount: 3,
-    propsConfig: [
-      {
-        name: 'variant',
-        type: 'select',
-        label: 'Variant',
-        options: [
-          { label: 'Default', value: 'default' },
-          { label: 'Dark', value: 'dark' },
-          { label: 'Glow', value: 'glow' },
-        ],
-        defaultValue: 'default',
-      },
-    ],
-    codeSnippet: `import { CyberCard } from '@/components/ui/wizard/CyberCard';
-
-<CyberCard variant="glow" onClick={handleClick}>
-  <h3>Futuristic Design</h3>
-  <p>With animated grid patterns</p>
-</CyberCard>`,
-    sourcePath: 'src/components/ui/wizard/CyberCard.tsx',
-  },
-  {
-    id: 'glow-card',
-    name: 'GlowCard',
-    description: 'Glassmorphic card with configurable glow colors and hover effects',
-    categoryId: 'advanced',
-    variantCount: 4,
-    propsConfig: [
-      {
-        name: 'glowColor',
-        type: 'select',
-        label: 'Glow Color',
-        options: [
-          { label: 'Cyan', value: 'cyan' },
-          { label: 'Blue', value: 'blue' },
-          { label: 'Green', value: 'green' },
-          { label: 'Red', value: 'red' },
-        ],
-        defaultValue: 'cyan',
-      },
-    ],
-    codeSnippet: `import { GlowCard } from '@/components/GlowCard';
-
-<GlowCard glowColor="cyan">
-  <h3>Glowing Card</h3>
-  <p>With glassmorphic backdrop</p>
-</GlowCard>`,
-    sourcePath: 'src/components/GlowCard.tsx',
-  },
-
-  // ===== NEW EXTRACTED COMPONENTS =====
   {
     id: 'illuminated-button',
     name: 'IlluminatedButton',
@@ -927,6 +761,781 @@ import { Sparkles } from 'lucide-react';
   }}
 />`,
     sourcePath: 'src/components/ui/EmptyStateIllustration.tsx',
+  },
+
+  // ===== NEW SHOWCASE COMPONENTS =====
+
+  // --- GoalsLayout Components ---
+  {
+    id: 'screen-thumbnail',
+    name: 'ScreenThumbnail',
+    description: 'Parallax image card with mouse tracking, gradient glow on hover, and staggered entry animations',
+    categoryId: 'data-display',
+    variantCount: 3,
+    propsConfig: [
+      {
+        name: 'hasImage',
+        type: 'toggle',
+        label: 'Has Image',
+        defaultValue: true,
+      },
+      {
+        name: 'isHovered',
+        type: 'toggle',
+        label: 'Hovered',
+        defaultValue: false,
+      },
+    ],
+    codeSnippet: `import { ScreenThumbnail } from '@/app/features/Goals/sub_ScreenCatalog/ScreenThumbnail';
+
+<ScreenThumbnail
+  context={{ id: '1', name: 'Dashboard', preview: '/preview.png', groupColor: '#06b6d4' }}
+  onClick={() => {}}
+  index={0}
+/>`,
+    sourcePath: 'src/app/features/Goals/sub_ScreenCatalog/ScreenThumbnail.tsx',
+  },
+  {
+    id: 'candidate-card',
+    name: 'CandidateCard',
+    description: 'Priority-coded card with view/edit modes, collapsible reasoning, and multi-action buttons',
+    categoryId: 'data-display',
+    variantCount: 8,
+    propsConfig: [
+      {
+        name: 'priority',
+        type: 'select',
+        label: 'Priority',
+        options: [
+          { label: 'Critical', value: 'critical' },
+          { label: 'High', value: 'high' },
+          { label: 'Medium', value: 'medium' },
+          { label: 'Low', value: 'low' },
+        ],
+        defaultValue: 'medium',
+      },
+      {
+        name: 'isEditing',
+        type: 'toggle',
+        label: 'Edit Mode',
+        defaultValue: false,
+      },
+    ],
+    codeSnippet: `import { CandidateCard } from '@/app/features/Goals/sub_GoalModal/components/CandidateCard';
+
+<CandidateCard
+  candidate={{ title: 'Add auth', priority_score: 85 }}
+  onAccept={() => {}}
+  onReject={() => {}}
+/>`,
+    sourcePath: 'src/app/features/Goals/sub_GoalModal/components/CandidateCard.tsx',
+  },
+
+  // --- IdeasLayout Components ---
+  {
+    id: 'scan-type-card',
+    name: 'ScanTypeCard',
+    description: 'Collapsible preview card with emoji labels, category colors, and hover-reveal examples',
+    categoryId: 'core-ui',
+    variantCount: 12,
+    propsConfig: [
+      {
+        name: 'category',
+        type: 'select',
+        label: 'Category',
+        options: [
+          { label: 'Technical', value: 'technical' },
+          { label: 'User Focus', value: 'user' },
+          { label: 'Business', value: 'business' },
+          { label: 'Mastermind', value: 'mastermind' },
+        ],
+        defaultValue: 'technical',
+      },
+      {
+        name: 'selected',
+        type: 'toggle',
+        label: 'Selected',
+        defaultValue: false,
+      },
+    ],
+    codeSnippet: `import { ScanTypeCard } from '@/app/features/Ideas/components/ScanTypePreview';
+
+<ScanTypeCard
+  config={{ label: 'Bug Hunter', emoji: '🐛', category: 'technical' }}
+  selected={false}
+  onSelect={() => {}}
+/>`,
+    sourcePath: 'src/app/features/Ideas/components/ScanTypePreview.tsx',
+  },
+  {
+    id: 'provider-status',
+    name: 'ProviderStatus',
+    description: 'Connection status indicator with 5 states, pulsing animations, and 3 size variants',
+    categoryId: 'data-display',
+    variantCount: 15,
+    propsConfig: [
+      {
+        name: 'state',
+        type: 'select',
+        label: 'State',
+        options: [
+          { label: 'Connected', value: 'connected' },
+          { label: 'Disconnected', value: 'disconnected' },
+          { label: 'Checking', value: 'checking' },
+          { label: 'Error', value: 'error' },
+          { label: 'Unknown', value: 'unknown' },
+        ],
+        defaultValue: 'connected',
+      },
+      {
+        name: 'variant',
+        type: 'select',
+        label: 'Variant',
+        options: [
+          { label: 'Full', value: 'full' },
+          { label: 'Badge', value: 'badge' },
+          { label: 'Dot', value: 'dot' },
+        ],
+        defaultValue: 'full',
+      },
+    ],
+    codeSnippet: `import { ProviderStatus } from '@/app/features/Ideas/components/ProviderStatus';
+
+<ProviderStatus
+  provider="OpenAI"
+  state="connected"
+  modelName="gpt-4"
+/>`,
+    sourcePath: 'src/app/features/Ideas/components/ProviderStatus.tsx',
+  },
+
+  // --- TinderLayout Components ---
+  {
+    id: 'idea-card',
+    name: 'IdeaCard',
+    description: 'Swipeable card with gesture detection, rotation transforms, and ACCEPT/REJECT overlays',
+    categoryId: 'advanced',
+    variantCount: 4,
+    propsConfig: [
+      {
+        name: 'swipeDirection',
+        type: 'select',
+        label: 'Swipe Preview',
+        options: [
+          { label: 'None', value: 'none' },
+          { label: 'Left (Reject)', value: 'left' },
+          { label: 'Right (Accept)', value: 'right' },
+        ],
+        defaultValue: 'none',
+      },
+    ],
+    codeSnippet: `import { IdeaCard } from '@/app/features/tinder/components/IdeaCard';
+
+<IdeaCard
+  idea={{ title: 'Add dark mode', description: '...' }}
+  onSwipeLeft={() => {}}
+  onSwipeRight={() => {}}
+/>`,
+    sourcePath: 'src/app/features/tinder/components/IdeaCard.tsx',
+  },
+  {
+    id: 'swipe-progress',
+    name: 'SwipeProgress',
+    description: 'Gradient progress bar with stats, accept rate display, and 3 layout variants',
+    categoryId: 'data-display',
+    variantCount: 3,
+    propsConfig: [
+      {
+        name: 'variant',
+        type: 'select',
+        label: 'Variant',
+        options: [
+          { label: 'Full', value: 'full' },
+          { label: 'Compact', value: 'compact' },
+          { label: 'Badges', value: 'badges' },
+        ],
+        defaultValue: 'full',
+      },
+    ],
+    codeSnippet: `import { SwipeProgress } from '@/app/features/tinder/components/SwipeProgress';
+
+<SwipeProgress
+  total={20}
+  reviewed={12}
+  accepted={8}
+  rejected={4}
+/>`,
+    sourcePath: 'src/app/features/tinder/components/SwipeProgress.tsx',
+  },
+
+  // --- TaskRunnerLayout Components ---
+  {
+    id: 'session-batch-display',
+    name: 'SessionBatchDisplay',
+    description: 'Status-based batch card with animated progress bar, task pulses, and color-coded glows',
+    categoryId: 'advanced',
+    variantCount: 4,
+    propsConfig: [
+      {
+        name: 'status',
+        type: 'select',
+        label: 'Status',
+        options: [
+          { label: 'Running', value: 'running' },
+          { label: 'Paused', value: 'paused' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Idle', value: 'idle' },
+        ],
+        defaultValue: 'running',
+      },
+    ],
+    codeSnippet: `import { SessionBatchDisplay } from '@/app/features/TaskRunner/components/SessionBatchDisplay';
+
+<SessionBatchDisplay
+  batchId="batch-1"
+  selectedTaskIds={[]}
+/>`,
+    sourcePath: 'src/app/features/TaskRunner/components/SessionBatchDisplay.tsx',
+  },
+  {
+    id: 'checkpoint-progress',
+    name: 'CheckpointProgress',
+    description: 'ASCII-style checkpoint indicators with pulsing states and compact/full variants',
+    categoryId: 'data-display',
+    variantCount: 8,
+    propsConfig: [
+      {
+        name: 'compact',
+        type: 'toggle',
+        label: 'Compact',
+        defaultValue: false,
+      },
+      {
+        name: 'status',
+        type: 'select',
+        label: 'Current Status',
+        options: [
+          { label: 'Pending', value: 'pending' },
+          { label: 'In Progress', value: 'in_progress' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Skipped', value: 'skipped' },
+        ],
+        defaultValue: 'in_progress',
+      },
+    ],
+    codeSnippet: `import { CheckpointProgress } from '@/app/features/TaskRunner/components/CheckpointProgress';
+
+<CheckpointProgress
+  checkpoints={[
+    { label: 'Init', status: 'completed' },
+    { label: 'Build', status: 'in_progress' },
+  ]}
+  compact={false}
+/>`,
+    sourcePath: 'src/app/features/TaskRunner/components/CheckpointProgress.tsx',
+  },
+
+  // --- ManagerLayout Components ---
+  {
+    id: 'implementation-log-card',
+    name: 'ImplementationLogCard',
+    description: 'Neon glow card with scanline animations, gradient underline, and compact variant',
+    categoryId: 'data-display',
+    variantCount: 4,
+    propsConfig: [
+      {
+        name: 'compact',
+        type: 'toggle',
+        label: 'Compact',
+        defaultValue: false,
+      },
+      {
+        name: 'tested',
+        type: 'toggle',
+        label: 'Tested',
+        defaultValue: false,
+      },
+    ],
+    codeSnippet: `import { ImplementationLogCard } from '@/app/features/Manager/components/ImplementationLogCard';
+
+<ImplementationLogCard
+  log={{ title: 'Feature X', screenshot: '/img.png' }}
+  onClick={() => {}}
+/>`,
+    sourcePath: 'src/app/features/Manager/components/ImplementationLogCard.tsx',
+  },
+  {
+    id: 'hypothesis-row',
+    name: 'HypothesisRow',
+    description: 'Expandable row with 5 status states, 9 category colors, and evidence type selector',
+    categoryId: 'data-display',
+    variantCount: 45,
+    propsConfig: [
+      {
+        name: 'status',
+        type: 'select',
+        label: 'Status',
+        options: [
+          { label: 'Unverified', value: 'unverified' },
+          { label: 'In Progress', value: 'in_progress' },
+          { label: 'Verified', value: 'verified' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Disproven', value: 'disproven' },
+        ],
+        defaultValue: 'unverified',
+      },
+      {
+        name: 'category',
+        type: 'select',
+        label: 'Category',
+        options: [
+          { label: 'Behavior', value: 'behavior' },
+          { label: 'Performance', value: 'performance' },
+          { label: 'Security', value: 'security' },
+          { label: 'UX', value: 'ux' },
+        ],
+        defaultValue: 'behavior',
+      },
+    ],
+    codeSnippet: `import { HypothesisRow } from '@/app/features/Manager/GoalHub/components/HypothesisRow';
+
+<HypothesisRow
+  hypothesis={{ title: 'Users prefer dark mode', status: 'unverified' }}
+  projectPath="/project"
+/>`,
+    sourcePath: 'src/app/features/Manager/GoalHub/components/HypothesisRow.tsx',
+  },
+
+  // --- ContextLayout Components ---
+  {
+    id: 'context-jail-card',
+    name: 'ContextJailCard',
+    description: 'Unique jail bar aesthetic with animated bars, corner reinforcements, and selection glow',
+    categoryId: 'advanced',
+    variantCount: 6,
+    propsConfig: [
+      {
+        name: 'isSelected',
+        type: 'toggle',
+        label: 'Selected',
+        defaultValue: false,
+      },
+      {
+        name: 'taskCount',
+        type: 'select',
+        label: 'Task Count',
+        options: [
+          { label: 'None', value: '0' },
+          { label: 'Few (1-2)', value: '2' },
+          { label: 'Some (3-4)', value: '4' },
+          { label: 'Many (5+)', value: '6' },
+        ],
+        defaultValue: '0',
+      },
+    ],
+    codeSnippet: `import { ContextJailCard } from '@/components/ContextComponents/ContextJailCard';
+
+<ContextJailCard
+  context={{ id: '1', name: 'Auth Module', implemented_tasks: 3 }}
+  group={{ color: '#06b6d4' }}
+  isSelected={false}
+  onClick={() => {}}
+/>`,
+    sourcePath: 'src/components/ContextComponents/ContextJailCard.tsx',
+  },
+  {
+    id: 'gradient-palette-picker',
+    name: 'GradientPalettePicker',
+    description: 'Animated color picker with 5 palette modes, live gradient preview, and compact variant',
+    categoryId: 'core-ui',
+    variantCount: 10,
+    propsConfig: [
+      {
+        name: 'compact',
+        type: 'toggle',
+        label: 'Compact',
+        defaultValue: false,
+      },
+      {
+        name: 'primaryColor',
+        type: 'select',
+        label: 'Primary Color',
+        options: [
+          { label: 'Cyan', value: '#06b6d4' },
+          { label: 'Purple', value: '#a855f7' },
+          { label: 'Pink', value: '#ec4899' },
+          { label: 'Green', value: '#22c55e' },
+        ],
+        defaultValue: '#06b6d4',
+      },
+    ],
+    codeSnippet: `import { GradientPalettePicker } from '@/app/features/Context/sub_ContextGroups/components/GradientPalettePicker';
+
+<GradientPalettePicker
+  primaryColor="#06b6d4"
+  accentColor="#a855f7"
+  onAccentChange={(color) => {}}
+/>`,
+    sourcePath: 'src/app/features/Context/sub_ContextGroups/components/GradientPalettePicker.tsx',
+  },
+
+  // --- ReflectorLayout Components ---
+  {
+    id: 'weekly-kpi-cards',
+    name: 'WeeklyKPICards',
+    description: 'Neon glow KPI cards with corner markers, trend indicators, and 4 color variants',
+    categoryId: 'data-display',
+    variantCount: 8,
+    propsConfig: [
+      {
+        name: 'accentColor',
+        type: 'select',
+        label: 'Accent',
+        options: [
+          { label: 'Amber', value: 'amber' },
+          { label: 'Emerald', value: 'emerald' },
+          { label: 'Cyan', value: 'cyan' },
+          { label: 'Purple', value: 'purple' },
+        ],
+        defaultValue: 'cyan',
+      },
+      {
+        name: 'showTrend',
+        type: 'toggle',
+        label: 'Show Trend',
+        defaultValue: true,
+      },
+    ],
+    codeSnippet: `import { WeeklyKPICards } from '@/app/features/reflector/sub_Weekly/components/WeeklyKPICards';
+
+<WeeklyKPICards stats={{ total: 45, accepted: 32, implemented: 18, pending: 13 }} />`,
+    sourcePath: 'src/app/features/reflector/sub_Weekly/components/WeeklyKPICards.tsx',
+  },
+  {
+    id: 'kpi-summary-cards',
+    name: 'KPISummaryCards',
+    description: 'Animated KPI cards with confetti celebrations, spring physics, and threshold triggers',
+    categoryId: 'data-display',
+    variantCount: 4,
+    propsConfig: [
+      {
+        name: 'confettiEnabled',
+        type: 'toggle',
+        label: 'Confetti',
+        defaultValue: true,
+      },
+      {
+        name: 'cardType',
+        type: 'select',
+        label: 'Card Type',
+        options: [
+          { label: 'Total', value: 'total' },
+          { label: 'Acceptance Rate', value: 'rate' },
+          { label: 'Impact', value: 'impact' },
+          { label: 'Specialists', value: 'specialists' },
+        ],
+        defaultValue: 'total',
+      },
+    ],
+    codeSnippet: `import { KPISummaryCards } from '@/app/features/reflector/sub_Reflection/components/KPISummaryCards';
+
+<KPISummaryCards
+  stats={{ totalReflections: 100, acceptanceRate: 75 }}
+  animationConfig={{ confettiEnabled: true }}
+/>`,
+    sourcePath: 'src/app/features/reflector/sub_Reflection/components/KPISummaryCards.tsx',
+  },
+
+  // --- SocialLayout Components ---
+  {
+    id: 'sla-badge',
+    name: 'SLABadge',
+    description: 'Multi-status badge with pulsing animations for critical/overdue states and compact variant',
+    categoryId: 'data-display',
+    variantCount: 8,
+    propsConfig: [
+      {
+        name: 'status',
+        type: 'select',
+        label: 'Status',
+        options: [
+          { label: 'OK', value: 'ok' },
+          { label: 'Warning', value: 'warning' },
+          { label: 'Critical', value: 'critical' },
+          { label: 'Overdue', value: 'overdue' },
+        ],
+        defaultValue: 'ok',
+      },
+      {
+        name: 'compact',
+        type: 'toggle',
+        label: 'Compact',
+        defaultValue: false,
+      },
+    ],
+    codeSnippet: `import { SLABadge } from '@/app/features/Social/components/sla/SLABadge';
+
+<SLABadge
+  item={{ priority: 'high', createdAt: '2024-01-01' }}
+  compact={false}
+/>`,
+    sourcePath: 'src/app/features/Social/components/sla/SLABadge.tsx',
+  },
+  {
+    id: 'ai-processing-panel',
+    name: 'AIProcessingPanel',
+    description: 'Multi-stage panel with gradient progress bar, 4 states, and Gemini branding',
+    categoryId: 'advanced',
+    variantCount: 4,
+    propsConfig: [
+      {
+        name: 'status',
+        type: 'select',
+        label: 'Status',
+        options: [
+          { label: 'Idle', value: 'idle' },
+          { label: 'Processing', value: 'processing' },
+          { label: 'Success', value: 'success' },
+          { label: 'Error', value: 'error' },
+        ],
+        defaultValue: 'idle',
+      },
+    ],
+    codeSnippet: `import { AIProcessingPanel } from '@/app/features/Social/components/AIProcessingPanel';
+
+<AIProcessingPanel
+  selectedCount={5}
+  processingStatus="idle"
+  onProcess={() => {}}
+/>`,
+    sourcePath: 'src/app/features/Social/components/AIProcessingPanel.tsx',
+  },
+
+  // --- BlueprintComposer Components ---
+  {
+    id: 'chain-builder',
+    name: 'ChainBuilder',
+    description: 'Drag-and-drop workflow builder with step connectors, collapsible panels, and blueprint carousel',
+    categoryId: 'advanced',
+    variantCount: 3,
+    propsConfig: [
+      {
+        name: 'hasChains',
+        type: 'toggle',
+        label: 'Has Chains',
+        defaultValue: true,
+      },
+    ],
+    codeSnippet: `import { ChainBuilder } from '@/app/features/Composer/components/ChainBuilder';
+
+<ChainBuilder onRun={(chain) => console.log(chain)} />`,
+    sourcePath: 'src/app/features/Composer/components/ChainBuilder.tsx',
+  },
+  {
+    id: 'decision-node-config',
+    name: 'DecisionNodeConfig',
+    description: 'Spring-animated toggle with severity buttons, expandable config, and 3 position variants',
+    categoryId: 'core-ui',
+    variantCount: 12,
+    propsConfig: [
+      {
+        name: 'position',
+        type: 'select',
+        label: 'Position',
+        options: [
+          { label: 'After Analyzer', value: 'after-analyzer' },
+          { label: 'After Processor', value: 'after-processor' },
+          { label: 'Before Executor', value: 'before-executor' },
+        ],
+        defaultValue: 'after-analyzer',
+      },
+      {
+        name: 'enabled',
+        type: 'toggle',
+        label: 'Enabled',
+        defaultValue: true,
+      },
+    ],
+    codeSnippet: `import { DecisionNodeConfig } from '@/app/features/Composer/components/DecisionNodeConfig';
+
+<DecisionNodeConfig
+  config={{ enabled: true, autoApprove: false }}
+  onChange={(config) => {}}
+  position="after-analyzer"
+/>`,
+    sourcePath: 'src/app/features/Composer/components/DecisionNodeConfig.tsx',
+  },
+
+  // --- ZenLayout Components ---
+  {
+    id: 'zen-stats',
+    name: 'ZenStats',
+    description: 'Color-coded stat cards with staggered animations and glassmorphism effect',
+    categoryId: 'data-display',
+    variantCount: 3,
+    propsConfig: [
+      {
+        name: 'variant',
+        type: 'select',
+        label: 'Status',
+        options: [
+          { label: 'Completed', value: 'completed' },
+          { label: 'Pending', value: 'pending' },
+          { label: 'Failed', value: 'failed' },
+        ],
+        defaultValue: 'completed',
+      },
+    ],
+    codeSnippet: `import { ZenStats } from '@/app/zen/components/ZenStats';
+
+<ZenStats /> // Uses useZenStore internally`,
+    sourcePath: 'src/app/zen/components/ZenStats.tsx',
+  },
+  {
+    id: 'mode-toggle',
+    name: 'ModeToggle',
+    description: 'Spring-animated toggle with gradient backgrounds, icon swap, and pulsing status dot',
+    categoryId: 'core-ui',
+    variantCount: 2,
+    propsConfig: [
+      {
+        name: 'mode',
+        type: 'select',
+        label: 'Mode',
+        options: [
+          { label: 'Offline', value: 'offline' },
+          { label: 'Online', value: 'online' },
+        ],
+        defaultValue: 'offline',
+      },
+    ],
+    codeSnippet: `import { ModeToggle } from '@/app/zen/sub_ZenControl/components/ModeToggle';
+
+<ModeToggle onModeChange={(mode) => console.log(mode)} />`,
+    sourcePath: 'src/app/zen/sub_ZenControl/components/ModeToggle.tsx',
+  },
+
+  // --- QuestionsLayout Components ---
+  {
+    id: 'context-map-selector',
+    name: 'ContextMapSelector',
+    description: 'Multi-state selector with loading/error/empty states, selection animations, and file count badges',
+    categoryId: 'core-ui',
+    variantCount: 4,
+    propsConfig: [
+      {
+        name: 'state',
+        type: 'select',
+        label: 'State',
+        options: [
+          { label: 'Default', value: 'default' },
+          { label: 'Loading', value: 'loading' },
+          { label: 'Error', value: 'error' },
+          { label: 'Empty', value: 'empty' },
+        ],
+        defaultValue: 'default',
+      },
+    ],
+    codeSnippet: `import { ContextMapSelector } from '@/app/features/Questions/components/ContextMapSelector';
+
+<ContextMapSelector
+  contexts={[{ id: '1', title: 'Auth', files: ['auth.ts'] }]}
+  selectedContextIds={['1']}
+  onToggleContext={(id) => {}}
+/>`,
+    sourcePath: 'src/app/features/Questions/components/ContextMapSelector.tsx',
+  },
+  {
+    id: 'direction-card',
+    name: 'DirectionCard',
+    description: 'Status-based card with pending/accepted/rejected colors, loading spinners, and action buttons',
+    categoryId: 'data-display',
+    variantCount: 3,
+    propsConfig: [
+      {
+        name: 'status',
+        type: 'select',
+        label: 'Status',
+        options: [
+          { label: 'Pending', value: 'pending' },
+          { label: 'Accepted', value: 'accepted' },
+          { label: 'Rejected', value: 'rejected' },
+        ],
+        defaultValue: 'pending',
+      },
+    ],
+    codeSnippet: `import { DirectionCard } from '@/app/features/Questions/components/DirectionCard';
+
+<DirectionCard
+  direction={{ id: '1', summary: 'Add validation', status: 'pending' }}
+  onAccept={() => {}}
+  onReject={() => {}}
+/>`,
+    sourcePath: 'src/app/features/Questions/components/DirectionCard.tsx',
+  },
+
+  // --- RefactorPage Components ---
+  {
+    id: 'package-card',
+    name: 'PackageCard',
+    description: 'Category-gradient card with grid overlay, execution badge, and expand/collapse animation',
+    categoryId: 'data-display',
+    variantCount: 10,
+    propsConfig: [
+      {
+        name: 'category',
+        type: 'select',
+        label: 'Category',
+        options: [
+          { label: 'Migration', value: 'migration' },
+          { label: 'Cleanup', value: 'cleanup' },
+          { label: 'Security', value: 'security' },
+          { label: 'Performance', value: 'performance' },
+          { label: 'Architecture', value: 'architecture' },
+        ],
+        defaultValue: 'cleanup',
+      },
+      {
+        name: 'isSelected',
+        type: 'toggle',
+        label: 'Selected',
+        defaultValue: false,
+      },
+    ],
+    codeSnippet: `import { PackageCard } from '@/app/features/RefactorWizard/components/PackageCard';
+
+<PackageCard
+  package={{ name: 'Cleanup Utils', category: 'cleanup' }}
+  isSelected={false}
+  onToggleSelect={() => {}}
+/>`,
+    sourcePath: 'src/app/features/RefactorWizard/components/PackageCard.tsx',
+  },
+  {
+    id: 'hero-badge',
+    name: 'HeroBadge',
+    description: 'Achievement modal with confetti burst, trophy spotlight, glass morphism stats, and multi-layer gradients',
+    categoryId: 'overlays',
+    variantCount: 2,
+    propsConfig: [
+      {
+        name: 'isVisible',
+        type: 'toggle',
+        label: 'Visible',
+        defaultValue: true,
+      },
+    ],
+    codeSnippet: `import { HeroBadge } from '@/app/features/RefactorWizard/components/HeroBadge';
+
+<HeroBadge
+  isVisible={true}
+  onClose={() => {}}
+  userName="Developer"
+  opportunitiesCount={42}
+  filesCount={15}
+  batchCount={3}
+/>`,
+    sourcePath: 'src/app/features/RefactorWizard/components/HeroBadge.tsx',
   },
 ];
 

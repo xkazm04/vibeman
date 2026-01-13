@@ -176,6 +176,10 @@ export function runMigrations() {
     migrateQuestionsTable();
     // Migration 59: Create Claude Terminal tables
     migrateClaudeTerminalTables();
+    // Migration 60: Create directions table for actionable development guidance
+    migrateDirectionsTable();
+    // Migration 61: Create hall_of_fame_stars table
+    migrateHallOfFameStars();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4262,6 +4266,60 @@ function migrateClaudeTerminalTables() {
         CREATE INDEX idx_pending_approvals_status ON pending_approvals(status);
       `);
       migrationLogger.info('pending_approvals table created successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Migration 60: Create directions table for actionable development guidance
+ * Directions are generated per context_map entry and when accepted, create Claude Code requirements
+ */
+function migrateDirectionsTable() {
+  safeMigration('directionsTable', () => {
+    const db = getConnection();
+    const created = createTableIfNotExists(db, 'directions', `
+      CREATE TABLE directions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        context_map_id TEXT NOT NULL,
+        context_map_title TEXT NOT NULL,
+        direction TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+        requirement_id TEXT,
+        requirement_path TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      // Create indexes for efficient queries
+      db.exec(`
+        CREATE INDEX idx_directions_project_id ON directions(project_id);
+        CREATE INDEX idx_directions_context_map_id ON directions(context_map_id);
+        CREATE INDEX idx_directions_status ON directions(status);
+      `);
+      migrationLogger.info('directions table created successfully');
+    }
+  }, migrationLogger);
+}
+
+/**
+ * Create hall_of_fame_stars table for persisting featured component selections
+ */
+function migrateHallOfFameStars() {
+  safeMigration('hallOfFameStars', () => {
+    const db = getConnection();
+    const created = createTableIfNotExists(db, 'hall_of_fame_stars', `
+      CREATE TABLE hall_of_fame_stars (
+        component_id TEXT PRIMARY KEY,
+        starred_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `, migrationLogger);
+
+    if (created) {
+      migrationLogger.info('hall_of_fame_stars table created successfully');
     }
   }, migrationLogger);
 }

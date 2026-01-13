@@ -1,82 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CheckCircle, Settings, Star, Zap } from 'lucide-react';
+import { Settings, Star, Zap } from 'lucide-react';
 import { PreviewProps } from './types';
-
-export function DecisionCardPreview({ props }: PreviewProps) {
-  const severity = (props.severity as string) || 'info';
-  const size = (props.size as string) || 'md';
-
-  const colors = {
-    info: { bg: 'from-blue-600/40 to-cyan-500/40', border: 'border-cyan-500/50', text: 'text-cyan-300' },
-    warning: { bg: 'from-yellow-600/40 to-amber-500/40', border: 'border-yellow-500/50', text: 'text-yellow-300' },
-    error: { bg: 'from-red-600/40 to-rose-500/40', border: 'border-red-500/50', text: 'text-red-300' },
-    success: { bg: 'from-green-600/40 to-emerald-500/40', border: 'border-green-500/50', text: 'text-green-300' },
-  };
-
-  const sizeClasses = { sm: 'p-3 text-sm', md: 'p-4', lg: 'p-6 text-lg' };
-  const c = colors[severity as keyof typeof colors] || colors.info;
-  const s = sizeClasses[size as keyof typeof sizeClasses] || sizeClasses.md;
-
-  return (
-    <div className={`rounded-xl bg-gradient-to-br ${c.bg} border ${c.border} ${s}`}>
-      <div className="flex items-center gap-3 mb-2">
-        <div className={`w-8 h-8 rounded-full bg-white/10 flex items-center justify-center ${c.text}`}>
-          <CheckCircle className="w-4 h-4" />
-        </div>
-        <h4 className="font-semibold text-white">Decision Card</h4>
-      </div>
-      <p className={`${c.text} text-sm opacity-80`}>This is a {severity} severity card.</p>
-      <div className="mt-3 flex gap-2">
-        <button className="px-3 py-1.5 bg-white/10 rounded-lg text-white text-sm hover:bg-white/20 transition-colors">
-          Action
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function CyberCardPreview({ props }: PreviewProps) {
-  const variant = (props.variant as string) || 'default';
-
-  const variants: Record<string, string> = {
-    default: 'bg-gray-900/50 border-white/10',
-    dark: 'bg-black/60 border-gray-800',
-    glow: 'bg-gray-900/50 border-cyan-500/30 shadow-lg shadow-cyan-500/10',
-  };
-
-  return (
-    <motion.div
-      className={`p-6 rounded-xl border ${variants[variant]} backdrop-blur-sm`}
-      whileHover={{ scale: 1.02 }}
-    >
-      <h3 className="text-lg font-semibold text-white mb-2">CyberCard</h3>
-      <p className="text-gray-400 text-sm">Futuristic design with {variant} variant</p>
-    </motion.div>
-  );
-}
-
-export function GlowCardPreview({ props }: PreviewProps) {
-  const glowColor = (props.glowColor as string) || 'cyan';
-
-  const colors: Record<string, string> = {
-    cyan: 'shadow-cyan-500/20 border-cyan-500/30',
-    blue: 'shadow-blue-500/20 border-blue-500/30',
-    green: 'shadow-green-500/20 border-green-500/30',
-    red: 'shadow-red-500/20 border-red-500/30',
-  };
-
-  return (
-    <motion.div
-      className={`p-6 rounded-xl bg-gray-900/80 backdrop-blur-sm border shadow-lg ${colors[glowColor]}`}
-      whileHover={{ scale: 1.02 }}
-    >
-      <h3 className="text-lg font-semibold text-white mb-2">GlowCard</h3>
-      <p className="text-gray-400 text-sm">With {glowColor} glow effect</p>
-    </motion.div>
-  );
-}
 
 export function CompactListPreview({ props }: PreviewProps) {
   const status = (props.status as string) || 'pending';

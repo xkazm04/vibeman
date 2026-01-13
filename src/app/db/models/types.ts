@@ -580,6 +580,21 @@ export interface DbQuestion {
   updated_at: string;
 }
 
+// Direction types (for actionable development guidance)
+export interface DbDirection {
+  id: string;
+  project_id: string;
+  context_map_id: string;           // References context_map.json entry id
+  context_map_title: string;        // Denormalized for display
+  direction: string;                // Full markdown content
+  summary: string;                  // One-liner summary
+  status: 'pending' | 'accepted' | 'rejected';
+  requirement_id: string | null;    // Set when accepted (created requirement)
+  requirement_path: string | null;  // Path to created requirement file
+  created_at: string;
+  updated_at: string;
+}
+
 // Claude Terminal Session types
 export interface DbTerminalSession {
   id: string;

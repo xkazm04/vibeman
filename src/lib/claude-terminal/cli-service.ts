@@ -265,6 +265,86 @@ export function startExecution(
 
     // Buffer for incomplete lines
     let lineBuffer = '';
+    let resultEventEmitted = false;
+    let initEventReceived = false;
+    let assistantMessageCount = 0;
+
+    // Process a single line of JSON output
+    const processLine = (line: string) => {
+      const parsed = parseStreamJsonLine(line);
+      if (!parsed) return;
+
+      if (parsed.type === 'system' && parsed.subtype === 'init') {
+        initEventReceived = true;
+        execution.sessionId = parsed.session_id;
+        emitEvent({
+          type: 'init',
+          data: {
+            sessionId: parsed.session_id,
+            tools: parsed.tools,
+            model: parsed.model,
+            cwd: parsed.cwd,
+            version: parsed.claude_code_version,
+          },
+          timestamp: Date.now(),
+        });
+      } else if (parsed.type === 'assistant') {
+        assistantMessageCount++;
+        // Extract text content
+        const textContent = extractTextContent(parsed);
+        if (textContent) {
+          emitEvent({
+            type: 'text',
+            data: {
+              content: textContent,
+              model: parsed.message.model,
+            },
+            timestamp: Date.now(),
+          });
+        }
+
+        // Extract tool uses
+        const toolUses = extractToolUses(parsed);
+        for (const toolUse of toolUses) {
+          emitEvent({
+            type: 'tool_use',
+            data: {
+              id: toolUse.id,
+              name: toolUse.name,
+              input: toolUse.input,
+            },
+            timestamp: Date.now(),
+          });
+        }
+      } else if (parsed.type === 'user') {
+        // Tool results
+        const results = parsed.message.content.filter(c => c.type === 'tool_result');
+        for (const result of results) {
+          emitEvent({
+            type: 'tool_result',
+            data: {
+              toolUseId: result.tool_use_id,
+              content: result.content,
+            },
+            timestamp: Date.now(),
+          });
+        }
+      } else if (parsed.type === 'result') {
+        resultEventEmitted = true;
+        execution.sessionId = parsed.result?.session_id || execution.sessionId;
+        emitEvent({
+          type: 'result',
+          data: {
+            sessionId: parsed.result?.session_id,
+            usage: parsed.result?.usage,
+            durationMs: parsed.duration_ms,
+            costUsd: parsed.cost_usd,
+            isError: parsed.is_error,
+          },
+          timestamp: Date.now(),
+        });
+      }
+    };
 
     // Handle stdout (stream-json output)
     childProcess.stdout.on('data', (data: Buffer) => {
@@ -284,76 +364,7 @@ export function startExecution(
       lineBuffer = lines.pop() || ''; // Keep incomplete line in buffer
 
       for (const line of lines) {
-        const parsed = parseStreamJsonLine(line);
-        if (!parsed) continue;
-
-        if (parsed.type === 'system' && parsed.subtype === 'init') {
-          execution.sessionId = parsed.session_id;
-          emitEvent({
-            type: 'init',
-            data: {
-              sessionId: parsed.session_id,
-              tools: parsed.tools,
-              model: parsed.model,
-              cwd: parsed.cwd,
-              version: parsed.claude_code_version,
-            },
-            timestamp: Date.now(),
-          });
-        } else if (parsed.type === 'assistant') {
-          // Extract text content
-          const textContent = extractTextContent(parsed);
-          if (textContent) {
-            emitEvent({
-              type: 'text',
-              data: {
-                content: textContent,
-                model: parsed.message.model,
-              },
-              timestamp: Date.now(),
-            });
-          }
-
-          // Extract tool uses
-          const toolUses = extractToolUses(parsed);
-          for (const toolUse of toolUses) {
-            emitEvent({
-              type: 'tool_use',
-              data: {
-                id: toolUse.id,
-                name: toolUse.name,
-                input: toolUse.input,
-              },
-              timestamp: Date.now(),
-            });
-          }
-        } else if (parsed.type === 'user') {
-          // Tool results
-          const results = parsed.message.content.filter(c => c.type === 'tool_result');
-          for (const result of results) {
-            emitEvent({
-              type: 'tool_result',
-              data: {
-                toolUseId: result.tool_use_id,
-                content: result.content,
-              },
-              timestamp: Date.now(),
-            });
-          }
-        } else if (parsed.type === 'result') {
-          execution.sessionId = parsed.result?.session_id || execution.sessionId;
-          emitEvent({
-            type: 'result',
-            data: {
-              sessionId: parsed.result?.session_id,
-              usage: parsed.result?.usage,
-              durationMs: parsed.duration_ms,
-              costUsd: parsed.cost_usd,
-              isError: parsed.is_error,
-            },
-            timestamp: Date.now(),
-          });
-        }
+        processLine(line);
       }
     });
 
@@ -365,8 +376,19 @@ export function startExecution(
 
     // Handle process exit
     childProcess.on('close', (code: number) => {
+      // Flush any remaining content in the line buffer
+      if (lineBuffer.trim()) {
+        logMessage(`[STDOUT-FINAL] ${lineBuffer.trim()}`);
+        processLine(lineBuffer);
+        lineBuffer = '';
+      }
+
+      const durationMs = Date.now() - execution.startTime;
       logMessage('');
       logMessage(`Process exited with code: ${code}`);
+      logMessage(`Duration: ${durationMs}ms`);
+      logMessage(`Init received: ${initEventReceived}, Assistant messages: ${assistantMessageCount}`);
+      logMessage(`Result event emitted: ${resultEventEmitted}`);
       logMessage('=== Claude Terminal Execution Finished ===');
       closeLogStream();
 
@@ -379,6 +401,30 @@ export function startExecution(
           data: { exitCode: code, message: `Process exited with code ${code}` },
           timestamp: Date.now(),
         });
+      } else if (!resultEventEmitted) {
+        // Process completed successfully but no result event was captured
+        // Only emit synthetic result if CLI actually started and did meaningful work:
+        // - Must have received init event (CLI initialized)
+        // - Must have at least one assistant message (Claude responded)
+        // - Must have run for at least 5 seconds (to filter out immediate failures)
+        const shouldEmitSynthetic = initEventReceived && assistantMessageCount > 0 && durationMs > 5000;
+
+        if (shouldEmitSynthetic) {
+          logMessage('[SYNTHETIC] Emitting synthetic result event (CLI did work but result not captured)');
+          emitEvent({
+            type: 'result',
+            data: {
+              sessionId: execution.sessionId,
+              isError: false,
+              synthetic: true, // Mark as synthetic for debugging
+            },
+            timestamp: Date.now(),
+          });
+        } else {
+          // Don't emit anything - let the SSE stream handler deal with status changes
+          // This prevents premature task failure for CLI processes that are still initializing
+          logMessage(`[NO-SYNTHETIC] Skipping synthetic result: init=${initEventReceived}, msgs=${assistantMessageCount}, duration=${durationMs}ms`);
+        }
       }
     });
 

@@ -4,41 +4,6 @@ import { motion } from 'framer-motion';
 import { Plus, Settings2, Star } from 'lucide-react';
 import { PreviewProps } from './types';
 
-export function MotionButtonPreview({ props }: PreviewProps) {
-  const colorScheme = (props.colorScheme as string) || 'cyan';
-  const variant = (props.variant as string) || 'solid';
-  const size = (props.size as string) || 'md';
-
-  const colorStyles: Record<string, Record<string, string>> = {
-    cyan: { solid: 'bg-gradient-to-r from-cyan-600 to-blue-600', outline: 'border-cyan-500 text-cyan-400' },
-    blue: { solid: 'bg-gradient-to-r from-blue-600 to-indigo-600', outline: 'border-blue-500 text-blue-400' },
-    purple: { solid: 'bg-gradient-to-r from-purple-600 to-pink-600', outline: 'border-purple-500 text-purple-400' },
-    green: { solid: 'bg-gradient-to-r from-green-600 to-emerald-600', outline: 'border-green-500 text-green-400' },
-    red: { solid: 'bg-gradient-to-r from-red-600 to-rose-600', outline: 'border-red-500 text-red-400' },
-    orange: { solid: 'bg-gradient-to-r from-orange-600 to-amber-600', outline: 'border-orange-500 text-orange-400' },
-  };
-
-  const sizeClasses: Record<string, string> = {
-    xs: 'px-2 py-1 text-xs', sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2',
-    lg: 'px-5 py-2.5 text-lg', xl: 'px-6 py-3 text-xl',
-  };
-
-  const colors = colorStyles[colorScheme] || colorStyles.cyan;
-  const sizeClass = sizeClasses[size] || sizeClasses.md;
-
-  let buttonClass = `rounded-lg font-medium transition-all duration-200 ${sizeClass}`;
-  if (variant === 'solid') buttonClass += ` ${colors.solid} text-white border border-white/10`;
-  else if (variant === 'outline') buttonClass += ` bg-transparent border-2 ${colors.outline}`;
-  else if (variant === 'ghost') buttonClass += ` bg-transparent ${colors.outline.split(' ')[1]} hover:bg-white/5`;
-  else buttonClass += ` bg-white/10 backdrop-blur-sm border border-white/20 text-white`;
-
-  return (
-    <motion.button className={buttonClass} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-      Click Me
-    </motion.button>
-  );
-}
-
 export function AnimatedButtonPreview({ props }: PreviewProps) {
   const variant = (props.variant as string) || 'primary';
   const size = (props.size as string) || 'md';
