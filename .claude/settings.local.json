@@ -96,7 +96,9 @@
       "Bash(else echo \"Not found\")",
       "Bash(sqlite3 database/vibeman.db \"DELETE FROM migrations WHERE name = ''questionsTable''; SELECT ''Migration reset'';\")",
       "Bash(python3:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(while read dir)",
+      "Bash(npm run test:*)"
     ],
     "deny": [],
     "ask": []
