@@ -1,10 +1,8 @@
-# Vibeman
-
 ![Vibeman](public/logo/vibeman_logo.png)
 
 **AI-Driven End-to-End Software Development Lifecycle Automation**
 
-> Boost personal developer productivity 100x-1000x through intelligent automation at every stage of the development lifecycle.
+> Boost personal developer productivity 100x through intelligent automation at every stage of the development lifecycle.
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
@@ -34,17 +32,25 @@ Transform the developer from a code writer into a **high-level technical manager
 **Vision:** Aggregate feedback from all channels into a unified queue for AI processing.
 
 **Current State:**
+
+- Multiproject support - Develop up to 20 projects in parallel
+
+![Projects](public/screenshots/readme/readme_project.png)
+
+
+**Halfway there:**
 - Social Kanban Board with multi-channel support (chat, email, Facebook, Instagram, X/Twitter, reviews)
 - Twitter/X discovery integration for relevant discussions
 - Activity timeline with SLA tracking and aging indicators
-- AI-generated clarifying questions for ambiguous feedback
+- AI-generated clarifying questions and proposed directons for ambiguous feedback
+
+![Feedback](public/screenshots/readme/readme_directions.png)
 
 **Future Directions:**
 - Helpdesk integrations (Zendesk, Intercom)
-- Sentiment analysis for automatic prioritization
+- Automated feedback from technical monitoring
 - App store review aggregation (iOS/Android)
 - Slack/Discord bot for real-time capture
-- Feedback clustering via embeddings
 
 ---
 
@@ -55,16 +61,16 @@ Transform the developer from a code writer into a **high-level technical manager
 **Current State:**
 - Goals Management with full lifecycle tracking (open → in_progress → done)
 - Goal Hub dashboard with hypothesis testing and activity feeds
-- Strategic Roadmap for milestone visualization
-- Proposals workflow for requirement approval
+
+![Goals](public/screenshots/readme/readme_goals.png)
 - Claude Code requirement files for AI implementation
 
+**Halfway there:**
+- Strategic Roadmap for milestone visualization
+
 **Future Directions:**
-- Requirement templates (user story, bug report, technical spec)
 - AI-generated acceptance criteria
-- Dependency graphing between requirements
 - GitHub Issues bi-directional sync
-- Historical effort estimation
 
 ---
 
@@ -72,21 +78,17 @@ Transform the developer from a code writer into a **high-level technical manager
 
 **Vision:** Continuous AI analysis surfacing improvement opportunities, prioritized by effort/impact.
 
-![Ideas](public/screenshots/screen_ideas.png)
+
+
 
 **Current State:**
-- **12 Specialized AI Agents** generating ideas:
-  - `zen_architect` — Architecture improvements
-  - `bug_hunter` — Bug detection
-  - `perf_optimizer` — Performance optimization
-  - `security_protector` — Security vulnerabilities
-  - `ux_whisperer` — UX/accessibility
-  - `docs_master` — Documentation gaps
-  - Plus 6 more specialists...
+- **Specialized AI Agents** generating ideas:
+
+![Agents](public/screenshots/readme/readme_ideas.png)
 
 - **Tinder-Style Evaluation** — Swipe to accept/reject with LLM suggestions
 
-![Tinder](public/screenshots/screen_tinder.png)
+![Agents](public/screenshots/readme/readme_tinder.png)
 
 - **Blueprint Scanning** — Multi-type codebase analysis:
   - Structure, Build, Context, Vision scans
@@ -105,8 +107,6 @@ Transform the developer from a code writer into a **high-level technical manager
 - **Debt Prediction** — ROI simulation for refactoring decisions
 
 **Future Directions:**
-- Idea voting/ranking for team prioritization
-- Automatic idea-to-requirement conversion
 - ML-based quality scoring from accept/reject patterns
 - Semantic deduplication
 - Context-aware generation (only for modified files)
@@ -124,7 +124,6 @@ Transform the developer from a code writer into a **high-level technical manager
   - Requirement file management (`.claude/requirements/`)
   - Execution queue with session management
   - Auto-update contexts from file changes
-  - Cost estimation and log tracking
 
 - **Task Runner** — Batch execution:
   - Dual panel UI (selection + status)
@@ -132,16 +131,9 @@ Transform the developer from a code writer into a **high-level technical manager
   - Git auto-commit after tasks
   - Screenshot capture for validation
   - Remote delegation for distributed execution
+  - CLI mode with session management to batch tasks in one memory context
 
-- **Annette Voice Assistant** — Voice-powered guidance
-
-**Future Directions:**
-- Parallel execution across multiple Claude sessions
-- Automatic PR creation from completed tasks
-- Implementation rollback capability
-- Diff preview before execution
-- Progress checkpointing for long tasks
-- Cost budgeting with alerts
+![Task Runner](public/screenshots/readme/readme_tasker.png)
 
 ---
 
@@ -193,17 +185,6 @@ The foundation — organizing code into business feature "contexts" that flow th
 - **Context Groups** — Color-coded organization by layer
 - **Context Auto-Update** — Automatic mapping after implementations
 
-### LLM Integration
-Multi-provider AI backbone powering all intelligent features.
-
-| Provider | Use Case |
-|----------|----------|
-| OpenAI GPT-4/5 | Complex analysis |
-| Anthropic Claude | Requirement execution |
-| Google Gemini | Fast operations |
-| Ollama (local) | Infinite free runs |
-
----
 
 ## Tech Stack
 
@@ -216,40 +197,6 @@ Multi-provider AI backbone powering all intelligent features.
 | AI | OpenAI, Anthropic, Gemini, Ollama |
 | Testing | Vitest, BrowserBase |
 
----
-
-## Quick Start
-
-### Prerequisites
-- Node.js 18+
-- npm or yarn
-- Git
-
-### Installation
-```bash
-# Clone the repository
-git clone <repository-url>
-cd vibeman
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-### Configuration
-```env
-# At least one LLM provider required
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=...
-OLLAMA_BASE_URL=http://localhost:11434
-
-# Optional services
-ELEVENLABS_API_KEY=...  # Voice assistant
-BROWSERBASE_API_KEY=... # Automated screenshots
-```
 
 ### Database
 SQLite databases are created automatically on first run. No manual setup required.
@@ -275,17 +222,6 @@ src/
 └── lib/
     └── llm/              # LLM provider clients
 ```
-
----
-
-## Key Challenges & Solutions
-
-| Challenge | Solution |
-|-----------|----------|
-| **Generating valuable ideas** | Multi-dimensional analysis with 12 AI agent perspectives per feature |
-| **Producing 1000x code quality** | Well-structured requirement files + Claude Code with defined skills |
-| **Managing rapid development** | Simple UI over complex scans + metrics for oversight |
-| **Preventing AI going sideways** | Automated testing + human approval gates |
 
 ---
 
