@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Scroll, Github, Camera } from 'lucide-react';
+import { FileText, Scroll, Github, Camera, Monitor } from 'lucide-react';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { useGitConfig } from '../sub_Git/useGitConfig';
 import { useScreenshotConfig } from '../sub_Screenshot/useScreenshotConfig';
+import { useUIVerificationConfig } from '../sub_UIVerification/useUIVerificationConfig';
 import ExecutionPromptEditor from './ExecutionPromptEditor';
 import GitConfigModalContent from '../sub_Git/GitConfigModalContent';
 
@@ -46,6 +47,7 @@ export default function ConfigurationToolbar() {
   const { showModal, hideModal } = useGlobalModal();
   const { gitEnabled, setGitEnabled } = useGitConfig();
   const { screenshotEnabled, setScreenshotEnabled } = useScreenshotConfig();
+  const { uiVerificationEnabled, setUIVerificationEnabled } = useUIVerificationConfig();
 
   // Log streaming toggle (default: true)
   const [logStreamingEnabled, setLogStreamingEnabled] = useState(() => {
@@ -83,6 +85,10 @@ export default function ConfigurationToolbar() {
 
   const handleToggleScreenshot = () => {
     setScreenshotEnabled(prev => !prev);
+  };
+
+  const handleToggleUIVerification = () => {
+    setUIVerificationEnabled(prev => !prev);
   };
 
   const handleOpenGitConfig = () => {
@@ -142,6 +148,16 @@ export default function ConfigurationToolbar() {
         title={screenshotEnabled ? 'Screenshot after completion enabled' : 'Screenshot after completion disabled'}
         isActive={screenshotEnabled}
         activeColor="text-cyan-400 hover:text-cyan-300"
+      />
+
+      {/* Monitor Icon - UI Verification */}
+      <IconButton
+        onClick={handleToggleUIVerification}
+        icon={Monitor}
+        title={uiVerificationEnabled ? 'UI verification enabled (agent-browser)' : 'UI verification disabled'}
+        isActive={uiVerificationEnabled}
+        activeColor="text-green-400 hover:text-green-300"
+        testId="taskrunner-ui-verification-btn"
       />
 
       {/* Github Icon */}

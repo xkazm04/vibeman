@@ -104,6 +104,23 @@ const DETECTION_RULES: Record<string, DetectionRule> = {
       ).length >= 1,
   },
 
+  'ui-verification': {
+    // Starts when we see the verify-ui script being created or run
+    startOn: (activity, events) =>
+      events.some(
+        (e) =>
+          e.tool === 'Bash' &&
+          (e.target?.includes('verify-ui') || e.target?.includes('playwright'))
+      ),
+    // Completes after verification script runs
+    completeOn: (activity, events) =>
+      events.some(
+        (e) =>
+          e.tool === 'Bash' &&
+          e.target?.includes('verify-ui')
+      ),
+  },
+
   'git-operations': {
     // Starts when we see a git command
     startOn: (activity, events) =>

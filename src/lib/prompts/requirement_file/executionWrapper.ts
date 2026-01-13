@@ -22,6 +22,7 @@ export interface ExecutionWrapperConfig {
   gitEnabled?: boolean;
   gitCommands?: string[];
   gitCommitMessage?: string;
+  uiVerificationEnabled?: boolean;
 }
 
 /**

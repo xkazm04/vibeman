@@ -26,6 +26,12 @@ export const finalChecklistRule: RuleDefinition = {
       defaultValue: '',
     },
     {
+      name: 'hasUIVerification',
+      placeholder: '{{uiVerificationCheckbox}}',
+      configKey: 'uiVerificationEnabled',
+      defaultValue: '',
+    },
+    {
       name: 'hasGit',
       placeholder: '{{gitCheckbox}}',
       configKey: 'gitEnabled',
@@ -39,7 +45,7 @@ Before finishing:
 - [ ] Test IDs added to interactive components
 - [ ] File structure follows guidelines
 - [ ] UI components match existing theme
-- [ ] Implementation log entry created{{screenshotCheckbox}}{{gitCheckbox}}
+- [ ] Implementation log entry created{{screenshotCheckbox}}{{uiVerificationCheckbox}}{{gitCheckbox}}
 - [ ] NO separate documentation files created (unless new major feature)`,
 };
 
@@ -49,10 +55,15 @@ Before finishing:
  */
 export function buildFinalChecklistContent(config: {
   contextId?: string;
+  uiVerificationEnabled?: boolean;
   gitEnabled?: boolean;
 }): string {
   const screenshotLine = config.contextId
     ? '\n- [ ] Screenshot captured (if test scenario exists)'
+    : '';
+
+  const uiVerificationLine = config.uiVerificationEnabled
+    ? '\n- [ ] UI verification passed (or issues fixed)'
     : '';
 
   const gitLine = config.gitEnabled
@@ -66,6 +77,6 @@ Before finishing:
 - [ ] Test IDs added to interactive components
 - [ ] File structure follows guidelines
 - [ ] UI components match existing theme
-- [ ] Implementation log entry created${screenshotLine}${gitLine}
+- [ ] Implementation log entry created${screenshotLine}${uiVerificationLine}${gitLine}
 - [ ] NO separate documentation files created (unless new major feature)`;
 }

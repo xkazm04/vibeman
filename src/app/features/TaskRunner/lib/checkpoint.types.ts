@@ -80,6 +80,10 @@ export const CHECKPOINT_METADATA: Record<string, CheckpointMetadata> = {
     label: 'Capture screenshot',
     activeLabel: 'Capturing screenshot',
   },
+  'ui-verification': {
+    label: 'Verify UI changes',
+    activeLabel: 'Verifying UI',
+  },
   'git-operations': {
     label: 'Execute git operations',
     activeLabel: 'Executing git',

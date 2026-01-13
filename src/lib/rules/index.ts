@@ -17,6 +17,7 @@ import { themingRule } from './definitions/theming';
 import { documentationPolicyRule } from './definitions/documentation-policy';
 import { implementationLoggingRule } from './definitions/implementation-logging';
 import { screenshotCaptureRule } from './definitions/screenshot-capture';
+import { uiVerificationRule } from './definitions/ui-verification';
 import { gitOperationsRule } from './definitions/git-operations';
 import { finalChecklistRule, buildFinalChecklistContent } from './definitions/final-checklist';
 
@@ -29,6 +30,7 @@ export {
   documentationPolicyRule,
   implementationLoggingRule,
   screenshotCaptureRule,
+  uiVerificationRule,
   gitOperationsRule,
   finalChecklistRule,
   buildFinalChecklistContent,
@@ -48,6 +50,7 @@ export const defaultRules = [
   documentationPolicyRule,
   implementationLoggingRule,
   screenshotCaptureRule,
+  uiVerificationRule,
   gitOperationsRule,
   finalChecklistRule,
 ];
