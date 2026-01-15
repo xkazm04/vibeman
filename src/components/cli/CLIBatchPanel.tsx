@@ -12,6 +12,12 @@ import {
   type CLISessionId,
 } from './store';
 import type { SkillId } from './skills';
+import {
+  useTaskRunnerStore,
+  createRunningStatus,
+  createCompletedStatus,
+  createFailedStatus,
+} from '@/app/features/TaskRunner/store';
 
 const SESSIONS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
 
@@ -71,6 +77,9 @@ export function CLIBatchPanel({
   const removeTask = useCLISessionStore((state) => state.removeTask);
   const toggleSkill = useCLISessionStore((state) => state.toggleSkill);
 
+  // TaskRunner store for syncing task status to TaskColumn
+  const updateTaskRunnerStatus = useTaskRunnerStore((state) => state.updateTaskStatus);
+
   // Recovery hook - recovers sessions on mount
   useCLIRecovery();
   const { isRecovering, sessionsToRecover } = useCLIRecoveryStatus();
@@ -112,15 +121,19 @@ export function CLIBatchPanel({
   // Handle task start
   const handleTaskStart = useCallback((sessionId: CLISessionId, taskId: string) => {
     updateTaskStatus(sessionId, taskId, 'running');
-  }, [updateTaskStatus]);
+    // Sync to TaskRunner store so TaskColumn shows correct status
+    updateTaskRunnerStatus(taskId, createRunningStatus());
+  }, [updateTaskStatus, updateTaskRunnerStatus]);
 
   // Handle task completion - delete requirement file if successful
   const handleTaskComplete = useCallback(async (sessionId: CLISessionId, taskId: string, success: boolean) => {
     // Get task details before updating state
     const task = sessions[sessionId]?.queue.find(t => t.id === taskId);
 
-    // Update store immediately
+    // Update CLI store immediately
     updateTaskStatus(sessionId, taskId, success ? 'completed' : 'failed');
+    // Sync to TaskRunner store so TaskColumn shows correct status
+    updateTaskRunnerStatus(taskId, success ? createCompletedStatus() : createFailedStatus('Task failed'));
 
     // If successful, perform cleanup actions
     if (success && task) {
@@ -140,7 +153,7 @@ export function CLIBatchPanel({
         }, 2000); // Show completed state briefly before removing
       }
     }
-  }, [sessions, updateTaskStatus, removeTask, onRequirementCompleted]);
+  }, [sessions, updateTaskStatus, updateTaskRunnerStatus, removeTask, onRequirementCompleted]);
 
   // Handle queue empty
   const handleQueueEmpty = useCallback((sessionId: CLISessionId) => {

@@ -187,8 +187,10 @@ export default function QuestionsLayout() {
   }, [activeProject?.id]);
 
   const handleDeleteQuestion = useCallback(async (questionId: string) => {
-    await deleteQuestion(questionId);
-    // Remove from local state immediately
+    // Store deleted question for potential rollback
+    const deletedQuestion = questionsData?.questions.find(q => q.id === questionId);
+
+    // Optimistic update - remove immediately
     setQuestionsData(prev => {
       if (!prev) return null;
       return {
@@ -201,16 +203,41 @@ export default function QuestionsLayout() {
         counts: {
           ...prev.counts,
           total: prev.counts.total - 1,
-          pending: prev.questions.find(q => q.id === questionId)?.status === 'pending'
+          pending: deletedQuestion?.status === 'pending'
             ? prev.counts.pending - 1
             : prev.counts.pending,
-          answered: prev.questions.find(q => q.id === questionId)?.status === 'answered'
+          answered: deletedQuestion?.status === 'answered'
             ? prev.counts.answered - 1
             : prev.counts.answered
         }
       };
     });
-  }, []);
+
+    // Fire and forget - assume success
+    deleteQuestion(questionId).catch(err => {
+      console.error('Failed to delete question:', err);
+      // Rollback on error - restore question
+      if (deletedQuestion) {
+        setQuestionsData(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            questions: [...prev.questions, deletedQuestion],
+            counts: {
+              ...prev.counts,
+              total: prev.counts.total + 1,
+              pending: deletedQuestion.status === 'pending'
+                ? prev.counts.pending + 1
+                : prev.counts.pending,
+              answered: deletedQuestion.status === 'answered'
+                ? prev.counts.answered + 1
+                : prev.counts.answered
+            }
+          };
+        });
+      }
+    });
+  }, [questionsData?.questions]);
 
   // Directions handlers
   const handleGenerateDirections = async (
@@ -250,23 +277,88 @@ export default function QuestionsLayout() {
   const handleAcceptDirection = useCallback(async (directionId: string) => {
     if (!activeProject?.path) return;
 
-    await acceptDirection(directionId, activeProject.path);
-    // Reload directions to get updated state
-    loadDirections();
+    // Optimistic update - mark as accepted immediately
+    setDirectionsData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        directions: prev.directions.map(d =>
+          d.id === directionId ? { ...d, status: 'accepted' as const } : d
+        ),
+        counts: {
+          ...prev.counts,
+          pending: prev.counts.pending - 1,
+          accepted: prev.counts.accepted + 1
+        }
+      };
+    });
+
+    // Fire and forget - assume success
+    acceptDirection(directionId, activeProject.path).catch(err => {
+      console.error('Failed to accept direction:', err);
+      // Rollback on error
+      setDirectionsData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          directions: prev.directions.map(d =>
+            d.id === directionId ? { ...d, status: 'pending' as const } : d
+          ),
+          counts: {
+            ...prev.counts,
+            pending: prev.counts.pending + 1,
+            accepted: prev.counts.accepted - 1
+          }
+        };
+      });
+    });
   }, [activeProject?.path]);
 
   const handleRejectDirection = useCallback(async (directionId: string) => {
-    await rejectDirection(directionId);
-    // Reload directions to get updated state
-    loadDirections();
+    // Optimistic update - mark as rejected immediately
+    setDirectionsData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        directions: prev.directions.map(d =>
+          d.id === directionId ? { ...d, status: 'rejected' as const } : d
+        ),
+        counts: {
+          ...prev.counts,
+          pending: prev.counts.pending - 1,
+          rejected: prev.counts.rejected + 1
+        }
+      };
+    });
+
+    // Fire and forget - assume success
+    rejectDirection(directionId).catch(err => {
+      console.error('Failed to reject direction:', err);
+      // Rollback on error
+      setDirectionsData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          directions: prev.directions.map(d =>
+            d.id === directionId ? { ...d, status: 'pending' as const } : d
+          ),
+          counts: {
+            ...prev.counts,
+            pending: prev.counts.pending + 1,
+            rejected: prev.counts.rejected - 1
+          }
+        };
+      });
+    });
   }, []);
 
   const handleDeleteDirection = useCallback(async (directionId: string) => {
-    await deleteDirection(directionId);
-    // Remove from local state immediately
+    // Store deleted direction for potential rollback
+    const deletedDirection = directionsData?.directions.find(d => d.id === directionId);
+
+    // Optimistic update - remove immediately
     setDirectionsData(prev => {
       if (!prev) return null;
-      const deletedDirection = prev.directions.find(d => d.id === directionId);
       return {
         ...prev,
         directions: prev.directions.filter(d => d.id !== directionId),
@@ -289,7 +381,35 @@ export default function QuestionsLayout() {
         }
       };
     });
-  }, []);
+
+    // Fire and forget - assume success
+    deleteDirection(directionId).catch(err => {
+      console.error('Failed to delete direction:', err);
+      // Rollback on error - restore direction
+      if (deletedDirection) {
+        setDirectionsData(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            directions: [...prev.directions, deletedDirection],
+            counts: {
+              ...prev.counts,
+              total: prev.counts.total + 1,
+              pending: deletedDirection.status === 'pending'
+                ? prev.counts.pending + 1
+                : prev.counts.pending,
+              accepted: deletedDirection.status === 'accepted'
+                ? prev.counts.accepted + 1
+                : prev.counts.accepted,
+              rejected: deletedDirection.status === 'rejected'
+                ? prev.counts.rejected + 1
+                : prev.counts.rejected
+            }
+          };
+        });
+      }
+    });
+  }, [directionsData?.directions]);
 
   const handleRefresh = () => {
     loadQuestions();

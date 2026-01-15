@@ -71,6 +71,7 @@ export function CompactTerminal({
 
   // Task queue state
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -264,22 +265,32 @@ export function CompactTerminal({
   // Execute task from queue
   const executeTask = useCallback(async (task: QueuedTask, resumeSession: boolean) => {
     // Register task start with server registry
-    const startResult = await registerTaskStart(task.id, instanceId, task.requirementName);
+    let startResult = await registerTaskStart(task.id, instanceId, task.requirementName);
     if (!startResult.success && startResult.runningTask) {
-      // Another task is already running - check if it's stale
-      const status = await getTaskStatus(startResult.runningTask.taskId);
-      if (status.isStale) {
-        // Mark stale task as failed and retry
-        await registerTaskComplete(startResult.runningTask.taskId, instanceId, false);
-      } else {
-        // Wait for the other task to complete
+      // Server says another task is running - but we're not streaming and have no current task
+      // This means the server's record is stale (probably from a crash or incomplete cleanup)
+      const otherTaskId = startResult.runningTask.taskId;
+
+      // Since we're in executeTask and !isStreaming (checked by useEffect before calling us),
+      // we know the client has no running task. Force clear the stale registry entry.
+      addLog({
+        id: `clear-${Date.now()}`,
+        type: 'system',
+        content: `Clearing stale registry entry ${otherTaskId.slice(0, 8)}`,
+        timestamp: Date.now(),
+      });
+      await registerTaskComplete(otherTaskId, instanceId, false);
+
+      // Retry registration
+      startResult = await registerTaskStart(task.id, instanceId, task.requirementName);
+      if (!startResult.success) {
+        // Still failed - log and proceed anyway (registry shouldn't block execution)
         addLog({
-          id: `wait-${Date.now()}`,
+          id: `warn-${Date.now()}`,
           type: 'system',
-          content: `Waiting for task ${startResult.runningTask.taskId.slice(0, 8)} to complete...`,
+          content: `Registry conflict, proceeding anyway`,
           timestamp: Date.now(),
         });
-        return;
       }
     }
 
