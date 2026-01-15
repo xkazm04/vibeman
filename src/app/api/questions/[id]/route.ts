@@ -7,9 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { questionDb, goalDb } from '@/app/db';
+import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
-import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(
   request: NextRequest,
@@ -60,40 +59,10 @@ export async function PUT(
 
     const { answer } = body;
 
-    // If answer is provided and question wasn't already answered, auto-create a Goal
-    let createdGoal = null;
-    let goalId = existingQuestion.goal_id;
-
-    if (answer && existingQuestion.status !== 'answered' && !existingQuestion.goal_id) {
-      // Get max order_index for goals in this project
-      const maxOrderIndex = goalDb.getMaxOrderIndex(existingQuestion.project_id);
-
-      // Create goal from the answered question
-      const goalTitle = existingQuestion.question.length > 100
-        ? existingQuestion.question.substring(0, 97) + '...'
-        : existingQuestion.question;
-
-      createdGoal = goalDb.createGoal({
-        id: `goal_${uuidv4()}`,
-        project_id: existingQuestion.project_id,
-        title: goalTitle,
-        description: answer,
-        status: 'open',
-        order_index: maxOrderIndex + 1
-      });
-
-      goalId = createdGoal.id;
-      logger.info('[API] Auto-created goal from answered question:', {
-        questionId: id,
-        goalId: createdGoal.id
-      });
-    }
-
-    // Update the question
+    // Update the question (no longer auto-creates goals)
     const updatedQuestion = questionDb.updateQuestion(id, {
       answer: answer ?? body.answer,
       status: answer ? 'answered' : body.status,
-      goal_id: goalId,
       question: body.question,
       context_map_title: body.context_map_title
     });
@@ -105,11 +74,11 @@ export async function PUT(
       );
     }
 
+    logger.info('[API] Question updated:', { questionId: id, hasAnswer: !!answer });
+
     return NextResponse.json({
       success: true,
-      question: updatedQuestion,
-      goal: createdGoal,
-      goalCreated: !!createdGoal
+      question: updatedQuestion
     });
 
   } catch (error) {

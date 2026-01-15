@@ -64,7 +64,6 @@ export function CompactTerminal({
 
   // Task queue state
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-  const processedTasksRef = useRef<Set<string>>(new Set());
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -177,7 +176,6 @@ export function CompactTerminal({
         if (currentTaskId) {
           const success = !data.isError;
           onTaskComplete?.(currentTaskId, success);
-          processedTasksRef.current.add(currentTaskId);
           setCurrentTaskId(null);
         }
         break;
@@ -196,7 +194,6 @@ export function CompactTerminal({
         // Handle task failure
         if (currentTaskId) {
           onTaskComplete?.(currentTaskId, false);
-          processedTasksRef.current.add(currentTaskId);
           setCurrentTaskId(null);
         }
         break;
@@ -268,7 +265,6 @@ export function CompactTerminal({
         setError(err.error);
         setIsStreaming(false);
         onTaskComplete?.(task.id, false);
-        processedTasksRef.current.add(task.id);
         setCurrentTaskId(null);
         return;
       }
@@ -279,7 +275,6 @@ export function CompactTerminal({
       setError(e instanceof Error ? e.message : 'Failed to start task');
       setIsStreaming(false);
       onTaskComplete?.(task.id, false);
-      processedTasksRef.current.add(task.id);
       setCurrentTaskId(null);
     }
   }, [sessionId, addLog, connectToStream, onTaskStart, onTaskComplete, enabledSkills]);
@@ -297,28 +292,21 @@ export function CompactTerminal({
 
     if (isStreaming || taskQueue.length === 0) return;
 
-    // Find next pending task that hasn't been processed
-    const nextTask = taskQueue.find(
-      t => t.status === 'pending' && !processedTasksRef.current.has(t.id)
-    );
+    // Find next pending task (store status is the single source of truth)
+    const nextTask = taskQueue.find(t => t.status === 'pending');
 
     if (nextTask && autoStart) {
       // Add delay before starting next task to allow cleanup to complete
       // This ensures requirement file deletion happens before next task starts
       pendingNextTaskRef.current = setTimeout(() => {
-        // Double-check task is still pending (not processed while waiting)
-        if (!processedTasksRef.current.has(nextTask.id)) {
-          // Resume session if we have one (for chaining)
-          const shouldResume = sessionId !== null;
-          executeTask(nextTask, shouldResume);
-        }
+        // Resume session if we have one (for chaining)
+        const shouldResume = sessionId !== null;
+        executeTask(nextTask, shouldResume);
       }, 3000); // 3 second delay between tasks for cleanup
-    } else if (!nextTask && taskQueue.length > 0) {
-      // All tasks processed
-      const allProcessed = taskQueue.every(t => processedTasksRef.current.has(t.id));
-      if (allProcessed) {
-        onQueueEmpty?.();
-      }
+    } else if (!nextTask && taskQueue.length > 0 && autoStart) {
+      // All tasks processed and we were actively running - signal queue empty
+      // Guard with autoStart to prevent infinite loop (onQueueEmpty sets autoStart=false)
+      onQueueEmpty?.();
     }
 
     return () => {
@@ -384,7 +372,6 @@ export function CompactTerminal({
     setIsStreaming(false);
     if (currentTaskId) {
       onTaskComplete?.(currentTaskId, false);
-      processedTasksRef.current.add(currentTaskId);
       setCurrentTaskId(null);
     }
   }, [currentTaskId, onTaskComplete]);
@@ -396,7 +383,6 @@ export function CompactTerminal({
     setError(null);
     setSessionId(null);
     setCurrentTaskId(null);
-    processedTasksRef.current.clear();
   }, []);
 
   // History navigation
@@ -453,7 +439,7 @@ export function CompactTerminal({
 
   const editCount = fileChanges.filter(c => c.changeType === 'edit').length;
   const writeCount = fileChanges.filter(c => c.changeType === 'write').length;
-  const queuePendingCount = taskQueue.filter(t => t.status === 'pending' && !processedTasksRef.current.has(t.id)).length;
+  const queuePendingCount = taskQueue.filter(t => t.status === 'pending').length;
 
   return (
     <div className={`flex flex-col bg-gray-900 border border-gray-800 rounded-lg overflow-hidden ${className}`}>

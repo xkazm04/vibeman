@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { HelpCircle, Compass, RefreshCw } from 'lucide-react';
+import { DbQuestion } from '@/app/db';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import ContextMapSelector from './components/ContextMapSelector';
-import GenerateQuestionsButton from './components/GenerateQuestionsButton';
-import GenerateDirectionsButton from './components/GenerateDirectionsButton';
-import QuestionsList from './components/QuestionsList';
-import DirectionsList from './components/DirectionsList';
+import CombinedGeneratePanel from './components/CombinedGeneratePanel';
+import UnifiedTable from './components/UnifiedTable';
+import AnswerQuestionModal from './components/AnswerQuestionModal';
 import {
   fetchContextMap,
   fetchQuestions,
@@ -25,16 +25,12 @@ import {
   rejectDirection,
   deleteDirection,
   generateDirectionRequirement,
-  DirectionsResponse
+  DirectionsResponse,
+  AnsweredQuestionInput
 } from './lib/directionsApi';
-
-type FeatureTab = 'questions' | 'directions';
 
 export default function QuestionsLayout() {
   const { activeProject } = useActiveProjectStore();
-
-  // Tab state
-  const [activeTab, setActiveTab] = useState<FeatureTab>('questions');
 
   // Context map state
   const [contexts, setContexts] = useState<ContextMapEntry[]>([]);
@@ -50,6 +46,9 @@ export default function QuestionsLayout() {
   const [directionsData, setDirectionsData] = useState<DirectionsResponse | null>(null);
   const [directionsLoading, setDirectionsLoading] = useState(false);
 
+  // Answer modal state
+  const [answerModalQuestion, setAnswerModalQuestion] = useState<DbQuestion | null>(null);
+
   // Load context map when project changes
   useEffect(() => {
     if (!activeProject?.path) {
@@ -62,27 +61,17 @@ export default function QuestionsLayout() {
     loadContextMap();
   }, [activeProject?.path]);
 
-  // Load questions when project changes
+  // Load questions and directions when project changes
   useEffect(() => {
     if (!activeProject?.id) {
       setQuestionsData(null);
-      return;
-    }
-
-    loadQuestions();
-  }, [activeProject?.id]);
-
-  // Load directions when project changes or tab switches to directions
-  useEffect(() => {
-    if (!activeProject?.id) {
       setDirectionsData(null);
       return;
     }
 
-    if (activeTab === 'directions') {
-      loadDirections();
-    }
-  }, [activeProject?.id, activeTab]);
+    loadQuestions();
+    loadDirections();
+  }, [activeProject?.id]);
 
   const loadContextMap = async () => {
     if (!activeProject?.path) return;
@@ -183,6 +172,14 @@ export default function QuestionsLayout() {
     };
   };
 
+  const handleOpenAnswerModal = useCallback((question: DbQuestion) => {
+    setAnswerModalQuestion(question);
+  }, []);
+
+  const handleCloseAnswerModal = useCallback(() => {
+    setAnswerModalQuestion(null);
+  }, []);
+
   const handleSaveAnswer = useCallback(async (questionId: string, answer: string) => {
     await answerQuestion(questionId, answer);
     // Reload questions to get updated state
@@ -216,17 +213,32 @@ export default function QuestionsLayout() {
   }, []);
 
   // Directions handlers
-  const handleGenerateDirections = async (directionsPerContext: number) => {
+  const handleGenerateDirections = async (
+    directionsPerContext: number,
+    userContext: string,
+    selectedQuestionIds: string[]
+  ) => {
     if (!activeProject) return;
 
     const selectedContexts = contexts.filter(c => selectedContextIds.includes(c.id));
+
+    // Build answered questions array from selected IDs
+    const answeredQuestionsInput: AnsweredQuestionInput[] = answeredQuestions
+      .filter(q => selectedQuestionIds.includes(q.id))
+      .map(q => ({
+        id: q.id,
+        question: q.question,
+        answer: q.answer || ''
+      }));
 
     const result = await generateDirectionRequirement({
       projectId: activeProject.id,
       projectName: activeProject.name,
       projectPath: activeProject.path,
       selectedContexts,
-      directionsPerContext
+      directionsPerContext,
+      userContext: userContext.trim() || undefined,
+      answeredQuestions: answeredQuestionsInput.length > 0 ? answeredQuestionsInput : undefined
     });
 
     return {
@@ -280,21 +292,22 @@ export default function QuestionsLayout() {
   }, []);
 
   const handleRefresh = () => {
-    if (activeTab === 'questions') {
-      loadQuestions();
-    } else {
-      loadDirections();
-    }
+    loadQuestions();
+    loadDirections();
   };
 
-  // Dynamic stats based on active tab
-  const currentStats = activeTab === 'questions'
-    ? questionsData && questionsData.counts.total > 0
-      ? { current: questionsData.counts.answered, total: questionsData.counts.total, label: 'answered' }
-      : null
-    : directionsData && directionsData.counts.total > 0
-      ? { current: directionsData.counts.accepted, total: directionsData.counts.total, label: 'accepted' }
-      : null;
+  // Derived data
+  const questions = questionsData?.questions || [];
+  const directions = directionsData?.directions || [];
+  const answeredQuestions = useMemo(() =>
+    questions.filter(q => q.status === 'answered'),
+    [questions]
+  );
+
+  const isLoading = questionsLoading || directionsLoading;
+
+  // Stats
+  const totalPending = (questionsData?.counts.pending || 0) + (directionsData?.counts.pending || 0);
 
   return (
     <div className="min-h-full bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
@@ -307,94 +320,43 @@ export default function QuestionsLayout() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`
-                flex items-center justify-center w-14 h-14 rounded-2xl border shadow-lg
-                ${activeTab === 'questions'
-                  ? 'bg-gradient-to-br from-purple-500/20 via-blue-500/10 to-cyan-500/20 border-purple-500/30 shadow-purple-500/10'
-                  : 'bg-gradient-to-br from-cyan-500/20 via-teal-500/10 to-emerald-500/20 border-cyan-500/30 shadow-cyan-500/10'
-                }
-              `}>
-                {activeTab === 'questions' ? (
-                  <HelpCircle className="w-7 h-7 text-purple-400" />
-                ) : (
-                  <Compass className="w-7 h-7 text-cyan-400" />
-                )}
+              <div className="flex items-center justify-center w-14 h-14 rounded-2xl border shadow-lg bg-gradient-to-br from-purple-500/20 via-cyan-500/10 to-teal-500/20 border-purple-500/30 shadow-purple-500/10">
+                <div className="flex items-center gap-0.5">
+                  <HelpCircle className="w-5 h-5 text-purple-400" />
+                  <Compass className="w-5 h-5 text-cyan-400" />
+                </div>
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
-                  {activeTab === 'questions' ? 'Questions' : 'Directions'}
+                  Questions & Directions
                 </h1>
                 <p className="text-gray-400">
-                  {activeTab === 'questions'
-                    ? 'Generate clarifying questions for precise idea generation'
-                    : 'Get actionable development guidance for your contexts'
-                  }
+                  Brainstorm development direction through strategic questions
                 </p>
               </div>
             </div>
 
-            {/* Stats */}
-            {currentStats && (
-              <div className="flex items-center gap-4">
+            {/* Stats & Refresh */}
+            <div className="flex items-center gap-4">
+              {totalPending > 0 && (
                 <div className="text-right">
                   <div className="text-2xl font-bold text-white">
-                    {currentStats.current}/{currentStats.total}
+                    {totalPending}
                   </div>
-                  <div className="text-xs text-gray-400">{currentStats.label}</div>
+                  <div className="text-xs text-gray-400">pending</div>
                 </div>
-                <button
-                  onClick={handleRefresh}
-                  className="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 text-gray-400 transition-colors"
-                  title={`Refresh ${activeTab}`}
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+              )}
+              <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 text-gray-400 transition-colors disabled:opacity-50"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
         </motion.div>
-
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-800 mb-6">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab('questions')}
-              className={`
-                flex items-center gap-2 px-4 py-3 border-b-2 transition-colors
-                ${activeTab === 'questions'
-                  ? 'border-purple-500 text-purple-400'
-                  : 'border-transparent text-gray-400 hover:text-white'
-                }
-              `}
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span className="font-medium">Questions</span>
-              {questionsData && questionsData.counts.pending > 0 && (
-                <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">
-                  {questionsData.counts.pending}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('directions')}
-              className={`
-                flex items-center gap-2 px-4 py-3 border-b-2 transition-colors
-                ${activeTab === 'directions'
-                  ? 'border-cyan-500 text-cyan-400'
-                  : 'border-transparent text-gray-400 hover:text-white'
-                }
-              `}
-            >
-              <Compass className="w-4 h-4" />
-              <span className="font-medium">Directions</span>
-              {directionsData && directionsData.counts.pending > 0 && (
-                <span className="px-1.5 py-0.5 text-xs bg-cyan-500/20 text-cyan-400 rounded-full">
-                  {directionsData.counts.pending}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
 
         {/* Project check */}
         {!activeProject && (
@@ -408,102 +370,63 @@ export default function QuestionsLayout() {
         )}
 
         {activeProject && (
-          <AnimatePresence mode="wait">
-            {/* Questions Tab Content */}
-            {activeTab === 'questions' && (
-              <motion.div
-                key="questions"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-6"
-              >
-                {/* Context Map Selector */}
-                <ContextMapSelector
-                  contexts={contexts}
-                  selectedContextIds={selectedContextIds}
-                  onToggleContext={handleToggleContext}
-                  onSelectAll={handleSelectAll}
-                  onClearAll={handleClearAll}
-                  loading={contextMapLoading}
-                  error={contextMapError}
-                  onSetupContextMap={handleSetupContextMap}
-                />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {/* Context Map Selector */}
+            <ContextMapSelector
+              contexts={contexts}
+              selectedContextIds={selectedContextIds}
+              onToggleContext={handleToggleContext}
+              onSelectAll={handleSelectAll}
+              onClearAll={handleClearAll}
+              loading={contextMapLoading}
+              error={contextMapError}
+              onSetupContextMap={handleSetupContextMap}
+            />
 
-                {/* Generate Button */}
-                {contexts.length > 0 && (
-                  <GenerateQuestionsButton
-                    onGenerate={handleGenerateQuestions}
-                    selectedCount={selectedContextIds.length}
-                    disabled={selectedContextIds.length === 0}
-                  />
-                )}
-
-                {/* Questions List */}
-                <div className="pt-4">
-                  <h2 className="text-lg font-semibold text-white mb-4">
-                    Generated Questions
-                  </h2>
-                  <QuestionsList
-                    grouped={questionsData?.grouped || []}
-                    onSaveAnswer={handleSaveAnswer}
-                    onDeleteQuestion={handleDeleteQuestion}
-                    loading={questionsLoading}
-                  />
-                </div>
-              </motion.div>
+            {/* Combined Generate Panel */}
+            {contexts.length > 0 && (
+              <CombinedGeneratePanel
+                contexts={contexts}
+                selectedContextIds={selectedContextIds}
+                answeredQuestions={answeredQuestions}
+                onGenerateQuestions={handleGenerateQuestions}
+                onGenerateDirections={handleGenerateDirections}
+                disabled={selectedContextIds.length === 0}
+              />
             )}
 
-            {/* Directions Tab Content */}
-            {activeTab === 'directions' && (
-              <motion.div
-                key="directions"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-6"
-              >
-                {/* Context Map Selector (shared) */}
-                <ContextMapSelector
-                  contexts={contexts}
-                  selectedContextIds={selectedContextIds}
-                  onToggleContext={handleToggleContext}
-                  onSelectAll={handleSelectAll}
-                  onClearAll={handleClearAll}
-                  loading={contextMapLoading}
-                  error={contextMapError}
-                  onSetupContextMap={handleSetupContextMap}
-                />
-
-                {/* Generate Directions Button */}
-                {contexts.length > 0 && (
-                  <GenerateDirectionsButton
-                    onGenerate={handleGenerateDirections}
-                    selectedCount={selectedContextIds.length}
-                    disabled={selectedContextIds.length === 0}
-                  />
-                )}
-
-                {/* Directions List */}
-                <div className="pt-4">
-                  <h2 className="text-lg font-semibold text-white mb-4">
-                    Generated Directions
-                  </h2>
-                  <DirectionsList
-                    grouped={directionsData?.grouped || []}
-                    onAccept={handleAcceptDirection}
-                    onReject={handleRejectDirection}
-                    onDelete={handleDeleteDirection}
-                    loading={directionsLoading}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* Unified Table */}
+            <div className="pt-4">
+              <h2 className="text-lg font-semibold text-white mb-4">
+                Generated Items
+              </h2>
+              <UnifiedTable
+                questions={questions}
+                directions={directions}
+                onAnswerQuestion={handleOpenAnswerModal}
+                onAcceptDirection={handleAcceptDirection}
+                onRejectDirection={handleRejectDirection}
+                onDeleteQuestion={handleDeleteQuestion}
+                onDeleteDirection={handleDeleteDirection}
+                loading={isLoading}
+              />
+            </div>
+          </motion.div>
         )}
       </div>
+
+      {/* Answer Question Modal */}
+      <AnswerQuestionModal
+        question={answerModalQuestion}
+        isOpen={answerModalQuestion !== null}
+        onClose={handleCloseAnswerModal}
+        onSave={handleSaveAnswer}
+      />
     </div>
   );
 }

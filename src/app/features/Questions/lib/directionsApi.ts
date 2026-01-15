@@ -37,6 +37,12 @@ export interface AcceptDirectionResponse {
   requirementPath: string;
 }
 
+export interface AnsweredQuestionInput {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 /**
  * Fetch all directions for a project
  */
@@ -137,6 +143,8 @@ export async function deleteDirection(
 
 /**
  * Generate Claude Code requirement for direction generation
+ * @param data.userContext - Optional user-provided focus area or dilemma
+ * @param data.answeredQuestions - Optional selected answered questions to include as context
  */
 export async function generateDirectionRequirement(data: {
   projectId: string;
@@ -144,6 +152,8 @@ export async function generateDirectionRequirement(data: {
   projectPath: string;
   selectedContexts: ContextMapEntry[];
   directionsPerContext?: number;
+  userContext?: string;
+  answeredQuestions?: AnsweredQuestionInput[];
 }): Promise<GenerateDirectionsResponse> {
   const response = await fetch('/api/directions/generate', {
     method: 'POST',

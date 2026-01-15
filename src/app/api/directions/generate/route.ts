@@ -11,12 +11,20 @@ import fs from 'fs';
 import path from 'path';
 import { ContextMapEntry } from '../../context-map/route';
 
+interface AnsweredQuestion {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 interface GenerateDirectionsRequest {
   projectId: string;
   projectName: string;
   projectPath: string;
   selectedContexts: ContextMapEntry[];
   directionsPerContext?: number;
+  userContext?: string;  // User's dilemma/topic description
+  answeredQuestions?: AnsweredQuestion[];  // Selected answered questions for context
 }
 
 /**
@@ -41,8 +49,10 @@ function buildDirectionRequirement(config: {
   projectPath: string;
   selectedContexts: ContextMapEntry[];
   directionsPerContext: number;
+  userContext?: string;
+  answeredQuestions?: AnsweredQuestion[];
 }): string {
-  const { projectId, projectName, projectPath, selectedContexts, directionsPerContext } = config;
+  const { projectId, projectName, projectPath, selectedContexts, directionsPerContext, userContext, answeredQuestions = [] } = config;
   const apiUrl = getVibemanApiUrl();
 
   // Build context sections
@@ -83,7 +93,24 @@ Each direction should be **substantial enough to warrant its own Claude Code ses
 - **Project Path**: ${projectPath}
 - **Directions per Context**: ${directionsPerContext}
 
-## Context Map Entries to Analyze
+${userContext ? `## User Focus Area
+
+The user has provided the following context about their current focus or dilemma:
+
+> ${userContext}
+
+**Use this focus area to prioritize and guide your direction suggestions.** Ensure generated directions align with or address this specific concern.
+
+` : ''}${answeredQuestions.length > 0 ? `## Strategic Input from Answered Questions
+
+The user has answered the following strategic questions about the project. These represent their thinking about the project direction:
+
+${answeredQuestions.map(q => `**Q:** ${q.question}
+**A:** ${q.answer}`).join('\n\n')}
+
+**Consider these answers when generating directions.** They provide valuable insight into the user's priorities and vision.
+
+` : ''}## Context Map Entries to Analyze
 
 ${contextSections}
 
@@ -223,7 +250,9 @@ export async function POST(request: NextRequest) {
       projectName,
       projectPath,
       selectedContexts,
-      directionsPerContext = 3
+      directionsPerContext = 3,
+      userContext,
+      answeredQuestions
     } = body;
 
     // Validate required fields
@@ -259,7 +288,9 @@ export async function POST(request: NextRequest) {
       projectName,
       projectPath: normalizedProjectPath,
       selectedContexts,
-      directionsPerContext
+      directionsPerContext,
+      userContext,
+      answeredQuestions
     });
 
     // Create requirement file with short name
