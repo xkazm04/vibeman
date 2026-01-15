@@ -30,6 +30,13 @@ import type {
   CLISSEEvent,
 } from './types';
 import { buildSkillsPrompt } from './skills';
+import {
+  registerTaskStart,
+  registerTaskComplete,
+  sendTaskHeartbeat,
+  getTaskStatus,
+  clearSessionTasks,
+} from './taskRegistry';
 
 /**
  * Compact Terminal Component
@@ -68,6 +75,8 @@ export function CompactTerminal({
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const stuckCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -89,6 +98,12 @@ export function CompactTerminal({
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+      if (stuckCheckIntervalRef.current) {
+        clearInterval(stuckCheckIntervalRef.current);
       }
     };
   }, []);
@@ -172,9 +187,17 @@ export function CompactTerminal({
         setLastResult(data);
         setIsStreaming(false);
 
+        // Stop heartbeat
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+
         // Handle task completion
         if (currentTaskId) {
           const success = !data.isError;
+          // Register completion with server registry (fire-and-forget)
+          registerTaskComplete(currentTaskId, instanceId, success);
           onTaskComplete?.(currentTaskId, success);
           setCurrentTaskId(null);
         }
@@ -184,6 +207,13 @@ export function CompactTerminal({
         const data = event.data as { error: string };
         setError(data.error);
         setIsStreaming(false);
+
+        // Stop heartbeat
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+
         addLog({
           id: `error-${Date.now()}`,
           type: 'error',
@@ -193,6 +223,8 @@ export function CompactTerminal({
 
         // Handle task failure
         if (currentTaskId) {
+          // Register failure with server registry (fire-and-forget)
+          registerTaskComplete(currentTaskId, instanceId, false);
           onTaskComplete?.(currentTaskId, false);
           setCurrentTaskId(null);
         }
@@ -231,10 +263,38 @@ export function CompactTerminal({
 
   // Execute task from queue
   const executeTask = useCallback(async (task: QueuedTask, resumeSession: boolean) => {
+    // Register task start with server registry
+    const startResult = await registerTaskStart(task.id, instanceId, task.requirementName);
+    if (!startResult.success && startResult.runningTask) {
+      // Another task is already running - check if it's stale
+      const status = await getTaskStatus(startResult.runningTask.taskId);
+      if (status.isStale) {
+        // Mark stale task as failed and retry
+        await registerTaskComplete(startResult.runningTask.taskId, instanceId, false);
+      } else {
+        // Wait for the other task to complete
+        addLog({
+          id: `wait-${Date.now()}`,
+          type: 'system',
+          content: `Waiting for task ${startResult.runningTask.taskId.slice(0, 8)} to complete...`,
+          timestamp: Date.now(),
+        });
+        return;
+      }
+    }
+
     setIsStreaming(true);
     setError(null);
     setCurrentTaskId(task.id);
     onTaskStart?.(task.id);
+
+    // Start heartbeat for long-running tasks (every 2 minutes)
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+    }
+    heartbeatIntervalRef.current = setInterval(() => {
+      sendTaskHeartbeat(task.id);
+    }, 2 * 60 * 1000);
 
     // Build skills prefix for first task in session
     const skillsPrefix = !resumeSession && enabledSkills.length > 0
@@ -264,8 +324,15 @@ export function CompactTerminal({
         const err = await response.json();
         setError(err.error);
         setIsStreaming(false);
+        // Register failure with server
+        registerTaskComplete(task.id, instanceId, false);
         onTaskComplete?.(task.id, false);
         setCurrentTaskId(null);
+        // Stop heartbeat
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
         return;
       }
 
@@ -274,13 +341,98 @@ export function CompactTerminal({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start task');
       setIsStreaming(false);
+      // Register failure with server
+      registerTaskComplete(task.id, instanceId, false);
       onTaskComplete?.(task.id, false);
       setCurrentTaskId(null);
+      // Stop heartbeat
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
     }
-  }, [sessionId, addLog, connectToStream, onTaskStart, onTaskComplete, enabledSkills]);
+  }, [sessionId, instanceId, addLog, connectToStream, onTaskStart, onTaskComplete, enabledSkills]);
 
   // Track pending next task execution
   const pendingNextTaskRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Stuck task detection - periodically check server registry for stuck tasks
+  useEffect(() => {
+    if (!autoStart || !isStreaming || !currentTaskId) {
+      // Clear stuck check when not actively running
+      if (stuckCheckIntervalRef.current) {
+        clearInterval(stuckCheckIntervalRef.current);
+        stuckCheckIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Check every 30 seconds if current task is stuck
+    stuckCheckIntervalRef.current = setInterval(async () => {
+      if (!currentTaskId) return;
+
+      const status = await getTaskStatus(currentTaskId);
+
+      // If server says task is completed but we're still streaming, sync state
+      if (status.found && status.status !== 'running') {
+        addLog({
+          id: `sync-${Date.now()}`,
+          type: 'system',
+          content: `Server reports task ${status.status} - syncing state`,
+          timestamp: Date.now(),
+        });
+
+        // Close SSE if still open
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+
+        setIsStreaming(false);
+        const success = status.status === 'completed';
+        onTaskComplete?.(currentTaskId, success);
+        setCurrentTaskId(null);
+
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+      }
+
+      // If task is stale (running too long), mark as failed
+      if (status.isStale) {
+        addLog({
+          id: `stale-${Date.now()}`,
+          type: 'system',
+          content: `Task timed out - marking as failed`,
+          timestamp: Date.now(),
+        });
+
+        // Close SSE if still open
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+
+        setIsStreaming(false);
+        registerTaskComplete(currentTaskId, instanceId, false);
+        onTaskComplete?.(currentTaskId, false);
+        setCurrentTaskId(null);
+
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+      }
+    }, 30 * 1000); // Check every 30 seconds
+
+    return () => {
+      if (stuckCheckIntervalRef.current) {
+        clearInterval(stuckCheckIntervalRef.current);
+        stuckCheckIntervalRef.current = null;
+      }
+    };
+  }, [autoStart, isStreaming, currentTaskId, instanceId, addLog, onTaskComplete]);
 
   // Process task queue - serialized execution with delay between tasks
   useEffect(() => {
@@ -370,20 +522,42 @@ export function CompactTerminal({
       eventSourceRef.current = null;
     }
     setIsStreaming(false);
+
+    // Stop heartbeat
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+
     if (currentTaskId) {
+      // Register abort as failure with server
+      registerTaskComplete(currentTaskId, instanceId, false);
       onTaskComplete?.(currentTaskId, false);
       setCurrentTaskId(null);
     }
-  }, [currentTaskId, onTaskComplete]);
+  }, [currentTaskId, instanceId, onTaskComplete]);
 
   // Clear logs and reset session
-  const handleClear = useCallback(() => {
+  const handleClear = useCallback(async () => {
+    // Clear session tasks from server registry
+    await clearSessionTasks(instanceId);
+
     setLogs([]);
     setFileChanges([]);
     setError(null);
     setSessionId(null);
     setCurrentTaskId(null);
-  }, []);
+
+    // Stop any running intervals
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    if (stuckCheckIntervalRef.current) {
+      clearInterval(stuckCheckIntervalRef.current);
+      stuckCheckIntervalRef.current = null;
+    }
+  }, [instanceId]);
 
   // History navigation
   const navigateHistory = useCallback((direction: 'up' | 'down') => {
