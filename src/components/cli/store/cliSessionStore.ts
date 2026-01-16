@@ -18,6 +18,8 @@ export interface CLISessionState {
   id: CLISessionId;
   projectPath: string | null;
   claudeSessionId: string | null; // For --resume flag
+  currentExecutionId: string | null; // Active execution ID for reconnection
+  currentTaskId: string | null; // Task ID associated with current execution
   queue: QueuedTask[];
   isRunning: boolean;
   autoStart: boolean;
@@ -38,6 +40,7 @@ interface CLISessionStoreState {
   updateTaskStatus: (sessionId: CLISessionId, taskId: string, status: QueuedTask['status']) => void;
   removeTask: (sessionId: CLISessionId, taskId: string) => void;
   setClaudeSessionId: (sessionId: CLISessionId, claudeSessionId: string) => void;
+  setCurrentExecution: (sessionId: CLISessionId, executionId: string | null, taskId: string | null) => void;
   setRunning: (sessionId: CLISessionId, isRunning: boolean) => void;
   setAutoStart: (sessionId: CLISessionId, autoStart: boolean) => void;
   updateLastActivity: (sessionId: CLISessionId) => void;
@@ -54,6 +57,8 @@ const createDefaultSession = (id: CLISessionId): CLISessionState => ({
   id,
   projectPath: null,
   claudeSessionId: null,
+  currentExecutionId: null,
+  currentTaskId: null,
   queue: [],
   isRunning: false,
   autoStart: false,
@@ -188,6 +193,20 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         }));
       },
 
+      setCurrentExecution: (sessionId, executionId, taskId) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              currentExecutionId: executionId,
+              currentTaskId: taskId,
+              lastActivityAt: Date.now(),
+            },
+          },
+        }));
+      },
+
       setRunning: (sessionId, isRunning) => {
         set((state) => ({
           sessions: {
@@ -278,7 +297,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
     }),
     {
       name: 'cli-session-storage',
-      version: 3, // Bump when adding new fields
+      version: 4, // Bump when adding new fields
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist session data, not ephemeral state
@@ -299,6 +318,15 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
               // v2 -> v3: Add enabledSkills
               if (version < 3 && session.enabledSkills === undefined) {
                 migratedSessions[id] = { ...migratedSessions[id], enabledSkills: [] };
+              }
+              // v3 -> v4: Add currentExecutionId and currentTaskId for background processing
+              if (version < 4) {
+                const existingSession = migratedSessions[id] as CLISessionState & { currentExecutionId?: string | null; currentTaskId?: string | null };
+                migratedSessions[id] = {
+                  ...migratedSessions[id],
+                  currentExecutionId: existingSession.currentExecutionId ?? null,
+                  currentTaskId: existingSession.currentTaskId ?? null,
+                };
               }
             }
           }

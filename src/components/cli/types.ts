@@ -110,6 +110,10 @@ export interface CompactTerminalProps {
   autoStart?: boolean;
   // Skills for specialized instructions
   enabledSkills?: SkillId[];
+  // Background processing support
+  currentExecutionId?: string | null;
+  currentStoredTaskId?: string | null;
+  onExecutionChange?: (executionId: string | null, taskId: string | null) => void;
 }
 
 /**

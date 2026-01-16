@@ -201,6 +201,32 @@ const TaskRunnerLayout = () => {
     }
   };
 
+  // Reset task status to idle (remove from store)
+  const handleReset = (reqId: string) => {
+    // Remove the task from the store's tasks map
+    // This will cause requirementsWithStatus to show 'idle' for this requirement
+    useTaskRunnerStore.setState((state) => {
+      const newTasks = { ...state.tasks };
+      delete newTasks[reqId];
+      return { tasks: newTasks };
+    });
+
+    // Also clear any progress/activity/checkpoint data
+    useTaskRunnerStore.setState((state) => {
+      const newProgress = { ...state.taskProgress };
+      const newActivity = { ...state.taskActivity };
+      const newCheckpoints = { ...state.taskCheckpoints };
+      delete newProgress[reqId];
+      delete newActivity[reqId];
+      delete newCheckpoints[reqId];
+      return {
+        taskProgress: newProgress,
+        taskActivity: newActivity,
+        taskCheckpoints: newCheckpoints,
+      };
+    });
+  };
+
   const handleBulkDelete = async (reqIds: string[]) => {
     if (reqIds.length === 0) return;
 
@@ -392,6 +418,7 @@ const TaskRunnerLayout = () => {
                       selectedRequirements={selectedRequirements}
                       onToggleSelect={toggleSelection}
                       onDelete={handleDelete}
+                      onReset={handleReset}
                       onBulkDelete={handleBulkDelete}
                       onToggleProjectSelection={toggleProjectSelection}
                       getRequirementId={getRequirementId}

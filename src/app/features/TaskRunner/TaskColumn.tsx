@@ -24,6 +24,7 @@ interface TaskColumnProps {
   selectedRequirements: Set<string>;
   onToggleSelect: (reqId: string) => void;
   onDelete: (reqId: string) => void;
+  onReset?: (reqId: string) => void; // Reset task status to idle/open
   onBulkDelete?: (reqIds: string[]) => void;
   onToggleProjectSelection: (projectId: string) => void;
   getRequirementId: (req: ProjectRequirement) => string;
@@ -42,6 +43,7 @@ const TaskColumn = React.memo(function TaskColumn({
   selectedRequirements,
   onToggleSelect,
   onDelete,
+  onReset,
   onBulkDelete,
   onToggleProjectSelection,
   getRequirementId,
@@ -432,6 +434,7 @@ const TaskColumn = React.memo(function TaskColumn({
                       isSelected={selectedRequirements.has(reqId)}
                       onToggleSelect={() => onToggleSelect(reqId)}
                       onDelete={() => onDelete(reqId)}
+                      onReset={onReset ? () => onReset(reqId) : undefined}
                       projectPath={req.projectPath}
                       projectId={projectId}
                       idea={ideasMap[req.requirementName]}

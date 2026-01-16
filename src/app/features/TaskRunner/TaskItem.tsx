@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2, Layers } from 'lucide-react';
+import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2, Layers, RotateCcw } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { TaskProgress } from './components/TaskProgress';
@@ -29,6 +29,7 @@ interface TaskItemProps {
   isSelected: boolean;
   onToggleSelect: () => void;
   onDelete: () => void;
+  onReset?: () => void; // Reset task status to idle/open
   projectPath: string;
   projectId: string;
   idea?: DbIdea | null; // Pre-fetched idea from parent (batch loaded)
@@ -39,6 +40,7 @@ export default function TaskItem({
   isSelected,
   onToggleSelect,
   onDelete,
+  onReset,
   projectPath,
   projectId,
   idea, // Pre-fetched from parent via batch API
@@ -123,29 +125,66 @@ export default function TaskItem({
     }
   };
 
-  const contextMenuItems = [
-    // Only show "Create Session" if task is not already in a session and there's an available slot
-    ...(!isInSession && getNextAvailableSessionBatchId() !== null
-      ? [
-          {
-            label: 'Create Session',
-            icon: Layers,
-            onClick: handleCreateSession,
-          },
-        ]
-      : []),
-    {
-      label: 'Edit Requirement',
-      icon: Edit2,
-      onClick: handleEdit,
-    },
-    {
-      label: 'Delete Requirement',
-      icon: Trash2,
-      destructive: true,
-      onClick: onDelete,
-    },
-  ];
+  // Determine if task is in progress (running or queued)
+  const isInProgress = status === 'running' || status === 'queued';
+
+  // Determine if task has a status that can be reset (not idle/open)
+  const hasStatus = status && status !== 'idle';
+
+  // Build context menu items based on task state
+  const contextMenuItems = isInProgress
+    ? [
+        // In Progress: Show only Reset and Delete
+        ...(onReset
+          ? [
+              {
+                label: 'Reset to Open',
+                icon: RotateCcw,
+                onClick: onReset,
+              },
+            ]
+          : []),
+        {
+          label: 'Delete Requirement',
+          icon: Trash2,
+          destructive: true,
+          onClick: onDelete,
+        },
+      ]
+    : [
+        // Open or Completed/Failed: Show full menu
+        // Reset option (only if task has a status to reset from)
+        ...(hasStatus && onReset
+          ? [
+              {
+                label: 'Reset to Open',
+                icon: RotateCcw,
+                onClick: onReset,
+              },
+            ]
+          : []),
+        // Create Session (only if not in session and slot available)
+        ...(!isInSession && getNextAvailableSessionBatchId() !== null
+          ? [
+              {
+                label: 'Create Session',
+                icon: Layers,
+                onClick: handleCreateSession,
+              },
+            ]
+          : []),
+        {
+          label: 'Edit Requirement',
+          icon: Edit2,
+          onClick: handleEdit,
+        },
+        {
+          label: 'Delete Requirement',
+          icon: Trash2,
+          destructive: true,
+          onClick: onDelete,
+        },
+      ];
 
   const getStatusIcon = () => {
     switch (status) {

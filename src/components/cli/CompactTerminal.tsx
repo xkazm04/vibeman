@@ -55,6 +55,9 @@ export function CompactTerminal({
   onQueueEmpty,
   autoStart = false,
   enabledSkills = [],
+  currentExecutionId,
+  currentStoredTaskId,
+  onExecutionChange,
 }: CompactTerminalProps) {
   // Local state for this instance
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -72,6 +75,12 @@ export function CompactTerminal({
   // Task queue state
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
+
+  // Ref for currentTaskId to avoid stale closure issues in SSE handler
+  // The SSE handler callback is created when connectToStream is called,
+  // but setCurrentTaskId is async - so the closure may have stale value.
+  // Using a ref ensures the handler always reads the latest task ID.
+  const currentTaskIdRef = useRef<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -108,6 +117,9 @@ export function CompactTerminal({
       }
     };
   }, []);
+
+  // Track if we've attempted reconnection
+  const hasAttemptedReconnectRef = useRef(false);
 
   // Add log entry
   const addLog = useCallback((entry: LogEntry) => {
@@ -194,12 +206,16 @@ export function CompactTerminal({
           heartbeatIntervalRef.current = null;
         }
 
-        // Handle task completion
-        if (currentTaskId) {
+        // Handle task completion - use ref to avoid stale closure
+        const taskId = currentTaskIdRef.current;
+        if (taskId) {
           const success = !data.isError;
           // Register completion with server registry (fire-and-forget)
-          registerTaskComplete(currentTaskId, instanceId, success);
-          onTaskComplete?.(currentTaskId, success);
+          registerTaskComplete(taskId, instanceId, success);
+          onTaskComplete?.(taskId, success);
+          // Clear execution ID for background processing
+          onExecutionChange?.(null, null);
+          currentTaskIdRef.current = null;
           setCurrentTaskId(null);
         }
         break;
@@ -222,17 +238,21 @@ export function CompactTerminal({
           timestamp: event.timestamp,
         });
 
-        // Handle task failure
-        if (currentTaskId) {
+        // Handle task failure - use ref to avoid stale closure
+        const taskId = currentTaskIdRef.current;
+        if (taskId) {
           // Register failure with server registry (fire-and-forget)
-          registerTaskComplete(currentTaskId, instanceId, false);
-          onTaskComplete?.(currentTaskId, false);
+          registerTaskComplete(taskId, instanceId, false);
+          onTaskComplete?.(taskId, false);
+          // Clear execution ID for background processing
+          onExecutionChange?.(null, null);
+          currentTaskIdRef.current = null;
           setCurrentTaskId(null);
         }
         break;
       }
     }
-  }, [addLog, addFileChange, instanceId, currentTaskId, onTaskComplete]);
+  }, [addLog, addFileChange, instanceId, onTaskComplete, onExecutionChange]);
 
   // Connect to SSE stream
   const connectToStream = useCallback((streamUrl: string) => {
@@ -261,6 +281,84 @@ export function CompactTerminal({
       eventSourceRef.current = null;
     };
   }, [handleSSEEvent]);
+
+  // Reconnect to active execution on mount (background processing support)
+  useEffect(() => {
+    // Only attempt reconnection once per mount
+    if (hasAttemptedReconnectRef.current) return;
+    if (!currentExecutionId || isStreaming) return;
+
+    hasAttemptedReconnectRef.current = true;
+
+    // Check if execution is still active on server
+    const attemptReconnect = async () => {
+      try {
+        const response = await fetch(`/api/claude-terminal/query?executionId=${currentExecutionId}`);
+        if (!response.ok) {
+          // Execution not found - clear it
+          onExecutionChange?.(null, null);
+          return;
+        }
+
+        const { execution } = await response.json();
+
+        if (execution?.status === 'running') {
+          // Execution still running - reconnect!
+          addLog({
+            id: `reconnect-${Date.now()}`,
+            type: 'system',
+            content: `Reconnecting to running task...`,
+            timestamp: Date.now(),
+          });
+
+          // Set state for active task
+          setIsStreaming(true);
+          currentTaskIdRef.current = currentStoredTaskId || null;
+          setCurrentTaskId(currentStoredTaskId || null);
+
+          // Notify parent task is running
+          if (currentStoredTaskId) {
+            onTaskStart?.(currentStoredTaskId);
+          }
+
+          // Start heartbeat
+          if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+          }
+          heartbeatIntervalRef.current = setInterval(() => {
+            if (currentStoredTaskId) {
+              sendTaskHeartbeat(currentStoredTaskId);
+            }
+          }, 2 * 60 * 1000);
+
+          // Connect to stream - server will replay events from where we left off
+          connectToStream(`/api/claude-terminal/stream?executionId=${currentExecutionId}`);
+        } else {
+          // Execution completed while we were away
+          addLog({
+            id: `completed-away-${Date.now()}`,
+            type: 'system',
+            content: `Task completed while away (${execution?.status || 'unknown'})`,
+            timestamp: Date.now(),
+          });
+
+          // Clear execution and notify completion
+          onExecutionChange?.(null, null);
+
+          if (currentStoredTaskId) {
+            const success = execution?.status === 'completed';
+            onTaskComplete?.(currentStoredTaskId, success);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to reconnect:', error);
+        // Clear on error
+        onExecutionChange?.(null, null);
+      }
+    };
+
+    attemptReconnect();
+  }, [currentExecutionId, currentStoredTaskId, isStreaming, onExecutionChange, onTaskStart, onTaskComplete, addLog, connectToStream]);
 
   // Execute task from queue
   const executeTask = useCallback(async (task: QueuedTask, resumeSession: boolean) => {
@@ -294,6 +392,8 @@ export function CompactTerminal({
       }
     }
 
+    // Set ref BEFORE connecting to stream to avoid stale closure
+    currentTaskIdRef.current = task.id;
     setIsStreaming(true);
     setError(null);
     setCurrentTaskId(task.id);
@@ -338,6 +438,7 @@ export function CompactTerminal({
         // Register failure with server
         registerTaskComplete(task.id, instanceId, false);
         onTaskComplete?.(task.id, false);
+        currentTaskIdRef.current = null;
         setCurrentTaskId(null);
         // Stop heartbeat
         if (heartbeatIntervalRef.current) {
@@ -347,7 +448,13 @@ export function CompactTerminal({
         return;
       }
 
-      const { streamUrl } = await response.json();
+      const { streamUrl, executionId } = await response.json();
+
+      // Store execution ID for background processing / reconnection
+      if (executionId) {
+        onExecutionChange?.(executionId, task.id);
+      }
+
       connectToStream(streamUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start task');
@@ -355,6 +462,7 @@ export function CompactTerminal({
       // Register failure with server
       registerTaskComplete(task.id, instanceId, false);
       onTaskComplete?.(task.id, false);
+      currentTaskIdRef.current = null;
       setCurrentTaskId(null);
       // Stop heartbeat
       if (heartbeatIntervalRef.current) {
@@ -362,7 +470,7 @@ export function CompactTerminal({
         heartbeatIntervalRef.current = null;
       }
     }
-  }, [sessionId, instanceId, addLog, connectToStream, onTaskStart, onTaskComplete, enabledSkills]);
+  }, [sessionId, instanceId, addLog, connectToStream, onTaskStart, onTaskComplete, onExecutionChange, enabledSkills]);
 
   // Track pending next task execution
   const pendingNextTaskRef = useRef<NodeJS.Timeout | null>(null);
@@ -380,9 +488,11 @@ export function CompactTerminal({
 
     // Check every 30 seconds if current task is stuck
     stuckCheckIntervalRef.current = setInterval(async () => {
-      if (!currentTaskId) return;
+      // Use ref to get current task ID (avoids stale closure)
+      const taskId = currentTaskIdRef.current;
+      if (!taskId) return;
 
-      const status = await getTaskStatus(currentTaskId);
+      const status = await getTaskStatus(taskId);
 
       // If server says task is completed but we're still streaming, sync state
       if (status.found && status.status !== 'running') {
@@ -401,7 +511,8 @@ export function CompactTerminal({
 
         setIsStreaming(false);
         const success = status.status === 'completed';
-        onTaskComplete?.(currentTaskId, success);
+        onTaskComplete?.(taskId, success);
+        currentTaskIdRef.current = null;
         setCurrentTaskId(null);
 
         if (heartbeatIntervalRef.current) {
@@ -426,8 +537,9 @@ export function CompactTerminal({
         }
 
         setIsStreaming(false);
-        registerTaskComplete(currentTaskId, instanceId, false);
-        onTaskComplete?.(currentTaskId, false);
+        registerTaskComplete(taskId, instanceId, false);
+        onTaskComplete?.(taskId, false);
+        currentTaskIdRef.current = null;
         setCurrentTaskId(null);
 
         if (heartbeatIntervalRef.current) {
@@ -540,13 +652,16 @@ export function CompactTerminal({
       heartbeatIntervalRef.current = null;
     }
 
-    if (currentTaskId) {
+    // Use ref for current task ID (avoids stale closure)
+    const taskId = currentTaskIdRef.current;
+    if (taskId) {
       // Register abort as failure with server
-      registerTaskComplete(currentTaskId, instanceId, false);
-      onTaskComplete?.(currentTaskId, false);
+      registerTaskComplete(taskId, instanceId, false);
+      onTaskComplete?.(taskId, false);
+      currentTaskIdRef.current = null;
       setCurrentTaskId(null);
     }
-  }, [currentTaskId, instanceId, onTaskComplete]);
+  }, [instanceId, onTaskComplete]);
 
   // Clear logs and reset session
   const handleClear = useCallback(async () => {
@@ -557,6 +672,7 @@ export function CompactTerminal({
     setFileChanges([]);
     setError(null);
     setSessionId(null);
+    currentTaskIdRef.current = null;
     setCurrentTaskId(null);
 
     // Stop any running intervals

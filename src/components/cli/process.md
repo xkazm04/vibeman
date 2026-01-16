@@ -513,16 +513,69 @@ SSE events: connected -> message* -> tool_use* -> tool_result* -> result|error
 
 **Files Modified**: `CLIBatchPanel.tsx`
 
+### ✅ FIXED: Task Completion Sometimes Skipped (Stale Closure)
+
+**Status**: FIXED (2025-01)
+
+**Original Issue**: Task completion callbacks were inconsistently triggered. Sometimes tasks would finish executing but not transition to "completed" status.
+
+**Root Cause**: Classic React stale closure problem. In `executeTask`:
+1. `setCurrentTaskId(task.id)` schedules async state update
+2. `connectToStream(streamUrl)` runs immediately with `handleSSEEvent` callback
+3. The callback closure captured the OLD `currentTaskId` value (often `null`)
+4. When SSE `result` event arrived, `if (currentTaskId)` check failed
+
+**Fix Applied**:
+- Added `currentTaskIdRef` ref to track current task ID
+- Set ref BEFORE connecting to stream: `currentTaskIdRef.current = task.id`
+- Updated all handlers to read from ref instead of state closure:
+  - `handleSSEEvent` (result and error cases)
+  - `handleAbort`
+  - `handleClear`
+  - Stuck task detection interval
+- Ref provides immediate, synchronous access to latest value
+
+**Key Code Pattern**:
+```typescript
+// Before (stale closure problem)
+if (currentTaskId) {  // May be null due to stale closure
+  onTaskComplete?.(currentTaskId, success);
+}
+
+// After (ref always current)
+const taskId = currentTaskIdRef.current;
+if (taskId) {
+  onTaskComplete?.(taskId, success);
+  currentTaskIdRef.current = null;
+}
+```
+
+**Files Modified**: `CompactTerminal.tsx`
+
 ---
 
 ## Optimization Recommendations
 
-### 1. Session Persistence Across Page Navigation (Priority: MEDIUM)
+### 1. ✅ Session Persistence Across Page Navigation (IMPLEMENTED)
 
-Currently, active SSE connections are lost on navigation. Consider:
-- Background execution mode
-- Reconnection to active streams
-- Service worker for persistent connections
+**Status**: Implemented in Phase 1 (2025-01)
+
+Users can now navigate away from CLI module and return - execution continues seamlessly.
+
+**Implementation Summary**:
+- Added `currentExecutionId` and `currentTaskId` to Zustand store (v4)
+- Store execution ID when task starts
+- On mount, check if execution exists and reconnect to SSE stream
+- Server already supported this (keeps executions in memory, replays events)
+
+**Files Modified**:
+- `store/cliSessionStore.ts` - Added fields, action, migration
+- `types.ts` - Added props to CompactTerminalProps
+- `CompactTerminal.tsx` - Reconnection logic
+- `CLISession.tsx` - Pass new props
+- `CLIBatchPanel.tsx` - Handle execution changes
+
+**Future Enhancement (Phase 2)**: Background execution service singleton for true multi-tab/component-unmount resilience.
 
 ### 2. Parallel Task Execution (Priority: LOW)
 

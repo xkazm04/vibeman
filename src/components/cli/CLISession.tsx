@@ -20,6 +20,7 @@ interface CLISessionProps {
   onTaskStart: (sessionId: CLISessionId, taskId: string) => void;
   onTaskComplete: (sessionId: CLISessionId, taskId: string, success: boolean) => void;
   onQueueEmpty: (sessionId: CLISessionId) => void;
+  onExecutionChange: (sessionId: CLISessionId, executionId: string | null, taskId: string | null) => void;
 }
 
 /**
@@ -51,6 +52,7 @@ export function CLISession({
   onTaskStart,
   onTaskComplete,
   onQueueEmpty,
+  onExecutionChange,
 }: CLISessionProps) {
   const [copiedTaskId, setCopiedTaskId] = useState<string | null>(null);
   const allSkills = getAllSkills();
@@ -79,6 +81,7 @@ export function CLISession({
   const handleTaskStart = useCallback((taskId: string) => onTaskStart(sessionId, taskId), [sessionId, onTaskStart]);
   const handleTaskComplete = useCallback((taskId: string, success: boolean) => onTaskComplete(sessionId, taskId, success), [sessionId, onTaskComplete]);
   const handleQueueEmpty = useCallback(() => onQueueEmpty(sessionId), [sessionId, onQueueEmpty]);
+  const handleExecutionChange = useCallback((executionId: string | null, taskId: string | null) => onExecutionChange(sessionId, executionId, taskId), [sessionId, onExecutionChange]);
 
   return (
     <motion.div
@@ -241,9 +244,12 @@ export function CLISession({
             taskQueue={session.queue}
             autoStart={session.autoStart}
             enabledSkills={session.enabledSkills}
+            currentExecutionId={session.currentExecutionId}
+            currentStoredTaskId={session.currentTaskId}
             onTaskStart={handleTaskStart}
             onTaskComplete={handleTaskComplete}
             onQueueEmpty={handleQueueEmpty}
+            onExecutionChange={handleExecutionChange}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-600 text-xs">

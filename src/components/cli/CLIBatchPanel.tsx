@@ -76,6 +76,7 @@ export function CLIBatchPanel({
   const updateTaskStatus = useCLISessionStore((state) => state.updateTaskStatus);
   const removeTask = useCLISessionStore((state) => state.removeTask);
   const toggleSkill = useCLISessionStore((state) => state.toggleSkill);
+  const setCurrentExecution = useCLISessionStore((state) => state.setCurrentExecution);
 
   // TaskRunner store for syncing task status to TaskColumn
   const updateTaskRunnerStatus = useTaskRunnerStore((state) => state.updateTaskStatus);
@@ -161,6 +162,11 @@ export function CLIBatchPanel({
     setRunning(sessionId, false);
   }, [setAutoStart, setRunning]);
 
+  // Handle execution change (for background processing / reconnection)
+  const handleExecutionChange = useCallback((sessionId: CLISessionId, executionId: string | null, taskId: string | null) => {
+    setCurrentExecution(sessionId, executionId, taskId);
+  }, [setCurrentExecution]);
+
   return (
     <div className="space-y-3 w-full">
       {/* Header */}
@@ -197,6 +203,7 @@ export function CLIBatchPanel({
             onTaskStart={handleTaskStart}
             onTaskComplete={handleTaskComplete}
             onQueueEmpty={handleQueueEmpty}
+            onExecutionChange={handleExecutionChange}
           />
         ))}
       </div>
