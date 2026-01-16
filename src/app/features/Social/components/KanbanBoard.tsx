@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, Activity, LayoutDashboard, Settings, Compass } from 'lucide-react';
+import { RotateCcw, Activity, LayoutDashboard, Settings, Compass, Inbox } from 'lucide-react';
 import type { FeedbackItem } from '../lib/types/feedbackTypes';
 import CardDetailModal from './CardDetailModal';
 import AIProcessingPanel from './AIProcessingPanel';
@@ -19,8 +19,9 @@ import { useKanbanCardHandlers } from '../hooks/useKanbanCardHandlers';
 import { useKanbanAIProcessing } from '../hooks/useKanbanAIProcessing';
 import { ConfigurationPanel } from '../sub_SocConfig';
 import { DiscoveryPanel } from '../sub_SocDiscovery';
+import { UnifiedInbox } from '../sub_UnifiedInbox';
 
-type TabType = 'overview' | 'configuration' | 'discovery';
+type TabType = 'overview' | 'inbox' | 'configuration' | 'discovery';
 
 interface ToastType {
   success: (title: string, message: string) => void;
@@ -178,6 +179,19 @@ function KanbanBoardInner({ toast = defaultToast, projectId = 'default' }: Kanba
               Overview
             </button>
             <button
+              onClick={() => setActiveTab('inbox')}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${activeTab === 'inbox'
+                  ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/25'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/60'
+                }
+              `}
+            >
+              <Inbox className="w-4 h-4" />
+              Inbox
+            </button>
+            <button
               onClick={() => setActiveTab('configuration')}
               className={`
                 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
@@ -332,6 +346,11 @@ function KanbanBoardInner({ toast = defaultToast, projectId = 'default' }: Kanba
               />
             </div>
           </>
+        ) : activeTab === 'inbox' ? (
+          /* Unified Inbox Tab */
+          <div className="flex-1 overflow-hidden">
+            <UnifiedInbox projectId={projectId} feedbackItems={feedbackItems} />
+          </div>
         ) : activeTab === 'configuration' ? (
           /* Configuration Tab */
           <div className="flex-1 overflow-hidden">

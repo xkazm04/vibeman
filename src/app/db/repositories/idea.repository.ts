@@ -434,5 +434,25 @@ export const ideaRepository = {
     const stmt = db.prepare('DELETE FROM ideas');
     const result = stmt.run();
     return result.changes;
+  },
+
+  /**
+   * Delete all pending ideas for a project (for Tinder flush)
+   */
+  deletePendingIdeasByProject: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM ideas WHERE project_id = ? AND status = ?');
+    const result = stmt.run(projectId, 'pending');
+    return result.changes;
+  },
+
+  /**
+   * Delete all pending ideas across all projects (for Tinder flush all)
+   */
+  deleteAllPendingIdeas: (): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM ideas WHERE status = ?');
+    const result = stmt.run('pending');
+    return result.changes;
   }
 };

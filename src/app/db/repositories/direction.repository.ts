@@ -74,6 +74,39 @@ export const directionRepository = {
   },
 
   /**
+   * Get all pending directions across all projects (for Tinder "all projects" mode)
+   */
+  getAllPendingDirections: (): DbDirection[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM directions
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+    `);
+    return stmt.all() as DbDirection[];
+  },
+
+  /**
+   * Delete all pending directions for a project (for Tinder flush)
+   */
+  deletePendingDirectionsByProject: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM directions WHERE project_id = ? AND status = ?');
+    const result = stmt.run(projectId, 'pending');
+    return result.changes;
+  },
+
+  /**
+   * Delete all pending directions across all projects (for Tinder flush all)
+   */
+  deleteAllPendingDirections: (): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM directions WHERE status = ?');
+    const result = stmt.run('pending');
+    return result.changes;
+  },
+
+  /**
    * Get a single direction by ID
    */
   getDirectionById: (directionId: string): DbDirection | null => {

@@ -1,7 +1,7 @@
 'use client';
 import { useRefactorStore } from '@/stores/refactorStore';
 import { useMemo, useState } from 'react';
-import { Info, CheckSquare, FolderTree, Package } from 'lucide-react';
+import { Info, CheckSquare, FolderTree, Package, Network, Eye } from 'lucide-react';
 import { StepContainer, CyberCard, StepHeader } from '@/components/ui/wizard';
 import { VirtualizedOpportunityList } from '../../components/VirtualizedOpportunityList';
 import CommunityPatternRecommendations from '@/app/features/Marketplace/components/CommunityPatternRecommendations';
@@ -11,6 +11,7 @@ import { ReviewFilters } from './sub_ReviewStep/ReviewFilters';
 import { ReviewActionBar, ReviewBottomBar } from './sub_ReviewStep/ReviewActionBar';
 import ReviewToolbar from '../../components/ReviewToolbar';
 import { useResultsController } from '../../results/hooks/useResultsController';
+import { ImpactVisualization } from '../../sub_Impact';
 
 /** ReviewStep - Fourth step (4/7) of the RefactorWizard workflow. */
 export default function ReviewStep() {
@@ -18,6 +19,7 @@ export default function ReviewStep() {
     filterSeverity, setFilterCategory, setFilterSeverity, setCurrentStep, packages, selectedPackages,
     selectedFolders, clearPackages } = useRefactorStore();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showImpactViz, setShowImpactViz] = useState(false);
 
   const displayOpportunities = useMemo(() => {
     if (packages.length > 0 && selectedPackages.size > 0) {
@@ -60,9 +62,20 @@ export default function ReviewStep() {
         description={`${stats.total} refactoring opportunities found across ${stats.fileCount} files`} />
       {(selectedFolders.length > 0 || hasPackageContext) && (
         <CyberCard variant="dark" className="!p-4 mb-6">
-          <div className="flex items-center gap-4 text-sm">
-            {selectedFolders.length > 0 && <div className="flex items-center gap-2 text-cyan-400"><FolderTree className="w-4 h-4" /><span>Scoped to {selectedFolders.length} folder(s)</span></div>}
-            {hasPackageContext && <div className="flex items-center gap-2 text-purple-400"><Package className="w-4 h-4" /><span>{selectedPkgs.length} package(s) selected</span></div>}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 text-sm">
+              {selectedFolders.length > 0 && <div className="flex items-center gap-2 text-cyan-400"><FolderTree className="w-4 h-4" /><span>Scoped to {selectedFolders.length} folder(s)</span></div>}
+              {hasPackageContext && <div className="flex items-center gap-2 text-purple-400"><Package className="w-4 h-4" /><span>{selectedPkgs.length} package(s) selected</span></div>}
+            </div>
+            {selectedOpportunities.size > 0 && (
+              <button
+                onClick={() => setShowImpactViz(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg hover:border-purple-400/50 transition-colors"
+              >
+                <Network className="w-4 h-4 text-purple-400" />
+                <span className="text-purple-300">View Impact</span>
+              </button>
+            )}
           </div>
         </CyberCard>
       )}
@@ -88,7 +101,28 @@ export default function ReviewStep() {
           </div>
         )}
       </div>
+      {/* Impact Visualization Button - shown when no context card but opportunities selected */}
+      {!(selectedFolders.length > 0 || hasPackageContext) && selectedOpportunities.size > 0 && (
+        <div className="mb-6 flex justify-end">
+          <button
+            onClick={() => setShowImpactViz(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg hover:border-purple-400/50 transition-colors"
+          >
+            <Network className="w-4 h-4 text-purple-400" />
+            <span className="text-purple-300">View Impact Analysis</span>
+            <Eye className="w-4 h-4 text-cyan-400" />
+          </button>
+        </div>
+      )}
       <ReviewBottomBar selectedCount={selectedOpportunities.size} onContinue={handleContinue} onSkipPackaging={handleSkipPackaging} />
+
+      {/* Impact Visualization Modal */}
+      <ImpactVisualization
+        opportunities={displayOpportunities}
+        selectedOpportunities={selectedOpportunities}
+        isOpen={showImpactViz}
+        onClose={() => setShowImpactViz(false)}
+      />
     </StepContainer>
   );
 }

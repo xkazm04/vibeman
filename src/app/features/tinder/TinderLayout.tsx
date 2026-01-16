@@ -1,11 +1,12 @@
 'use client';
 
-import React, {useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
-import TinderContent from '@/app/features/tinder/components/TinderContent';
+import TinderItemsContent from '@/app/features/tinder/components/TinderItemsContent';
+import TinderFilterTabs from '@/app/features/tinder/components/TinderFilterTabs';
 import TestModeControls from '@/app/features/tinder/components/TestModeControls';
-import { useTinderIdeas, useTinderKeyboardShortcuts } from '@/app/features/tinder/lib/tinderHooks';
+import { useTinderItems, useTinderItemsKeyboardShortcuts } from '@/app/features/tinder/lib/useTinderItems';
 import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTestMode';
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
 import { Context } from '@/lib/queries/contextQueries';
@@ -36,33 +37,34 @@ const TinderLayout = () => {
     loadContexts();
   }, [projects]);
 
-  // Use the custom hook for tinder functionality (real mode)
-  const realModeIdeas = useTinderIdeas(selectedProjectId);
+  // Use the unified tinder items hook
+  const tinderItems = useTinderItems(selectedProjectId);
 
-  // Select data source based on test mode
   const {
-    ideas,
+    items,
     currentIndex,
-    currentIdea,
+    currentItem,
     loading,
     processing,
-    stats,
+    combinedStats,
     remainingCount,
+    filterMode,
+    counts,
+    setFilterMode,
     handleAccept,
     handleReject,
     handleDelete,
     resetStats,
-    loadIdeas,
-  } = testMode.isTestMode ? testModeIdeas : realModeIdeas;
+    loadItems,
+  } = tinderItems;
 
   // Setup keyboard shortcuts
-  useTinderKeyboardShortcuts(handleAccept, handleReject, !processing);
+  useTinderItemsKeyboardShortcuts(handleAccept, handleReject, !processing);
 
   const handleStartOver = () => {
     resetStats();
-    loadIdeas();
+    loadItems();
   };
-
 
   return (
     <div className="min-h-full bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
@@ -70,23 +72,35 @@ const TinderLayout = () => {
       {testMode.isTestMode && (
         <TestModeControls
           testMode={testMode}
-          stats={stats}
+          stats={combinedStats}
           remainingCount={remainingCount}
-          onReload={loadIdeas}
+          onReload={loadItems}
         />
       )}
 
-      <TinderContent
-        ideas={ideas}
+      {/* Filter Tabs */}
+      <div className="max-w-2xl mx-auto px-6 pt-6">
+        <TinderFilterTabs
+          filterMode={filterMode}
+          onFilterChange={setFilterMode}
+          counts={counts}
+          disabled={loading || processing}
+        />
+      </div>
+
+      <TinderItemsContent
+        items={items}
         currentIndex={currentIndex}
-        currentIdea={currentIdea}
+        currentItem={currentItem}
         loading={loading}
         processing={processing}
+        filterMode={filterMode}
+        stats={combinedStats}
         onAccept={handleAccept}
         onReject={handleReject}
         onDelete={handleDelete}
         onStartOver={handleStartOver}
-        onFlushComplete={loadIdeas}
+        onFlushComplete={loadItems}
         contextsMap={contextsMap}
       />
     </div>
