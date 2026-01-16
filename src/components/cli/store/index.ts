@@ -13,6 +13,7 @@ export {
   getSessionsNeedingRecovery,
   type CLISessionId,
   type CLISessionState,
+  type CLIGitConfig,
 } from './cliSessionStore';
 
 // Execution manager
@@ -25,6 +26,7 @@ export {
   getSessionExecutionStatus,
   setCachedRequirements,
   getCachedRequirements,
+  abortSessionExecution,
 } from './cliExecutionManager';
 
 // Recovery hooks

@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, Layers, Terminal } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import DualBatchPanel from './components/DualBatchPanel';
@@ -185,7 +185,19 @@ export default function TaskRunnerHeader({
       {/* Configuration Toolbar and Mode Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex-1" />
-        <ConfigurationToolbar />
+        {/* Configuration Toolbar - only visible in Batch mode */}
+        <AnimatePresence mode="wait">
+          {executionMode === 'batch' && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+            >
+              <ConfigurationToolbar />
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="flex-1 flex justify-end">
           {/* Mode Toggle */}
           <div className="flex items-center gap-1 p-1 bg-gray-800/50 rounded-lg border border-gray-700/50">

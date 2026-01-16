@@ -13,10 +13,17 @@ import type { SkillId } from '../skills';
 // Session IDs
 export type CLISessionId = 'cliSession1' | 'cliSession2' | 'cliSession3' | 'cliSession4';
 
+// Git config for CLI sessions
+export interface CLIGitConfig {
+  commands: string[];
+  commitMessageTemplate: string;
+}
+
 // Session state
 export interface CLISessionState {
   id: CLISessionId;
   projectPath: string | null;
+  projectId: string | null; // For git API operations
   claudeSessionId: string | null; // For --resume flag
   currentExecutionId: string | null; // Active execution ID for reconnection
   currentTaskId: string | null; // Task ID associated with current execution
@@ -27,6 +34,8 @@ export interface CLISessionState {
   lastActivityAt: number;
   completedCount: number; // Tasks completed during this session
   enabledSkills: SkillId[]; // Active skills for this session
+  gitEnabled: boolean; // Whether to auto-commit after tasks
+  gitConfig: CLIGitConfig | null; // Git commands and template
 }
 
 // Store state
@@ -46,6 +55,9 @@ interface CLISessionStoreState {
   updateLastActivity: (sessionId: CLISessionId) => void;
   toggleSkill: (sessionId: CLISessionId, skillId: SkillId) => void;
   setSkills: (sessionId: CLISessionId, skillIds: SkillId[]) => void;
+  setProjectId: (sessionId: CLISessionId, projectId: string | null) => void;
+  setGitEnabled: (sessionId: CLISessionId, enabled: boolean) => void;
+  setGitConfig: (sessionId: CLISessionId, config: CLIGitConfig | null) => void;
 
   // Recovery
   getActiveSessions: () => CLISessionState[];
@@ -56,6 +68,7 @@ interface CLISessionStoreState {
 const createDefaultSession = (id: CLISessionId): CLISessionState => ({
   id,
   projectPath: null,
+  projectId: null,
   claudeSessionId: null,
   currentExecutionId: null,
   currentTaskId: null,
@@ -66,6 +79,8 @@ const createDefaultSession = (id: CLISessionId): CLISessionState => ({
   lastActivityAt: 0,
   completedCount: 0,
   enabledSkills: [],
+  gitEnabled: false,
+  gitConfig: null,
 });
 
 // Session IDs
@@ -113,8 +128,9 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
 
           if (newTasks.length === 0) return state;
 
-          // Use first task's project path if not set
+          // Use first task's project path and id if not set
           const projectPath = session.projectPath || newTasks[0]?.projectPath || null;
+          const projectId = session.projectId || newTasks[0]?.projectId || null;
 
           return {
             sessions: {
@@ -122,6 +138,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
               [sessionId]: {
                 ...session,
                 projectPath,
+                projectId,
                 queue: [...session.queue, ...newTasks],
                 lastActivityAt: Date.now(),
               },
@@ -275,6 +292,45 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         }));
       },
 
+      setProjectId: (sessionId, projectId) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              projectId,
+              lastActivityAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      setGitEnabled: (sessionId, enabled) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              gitEnabled: enabled,
+              lastActivityAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      setGitConfig: (sessionId, config) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              gitConfig: config,
+              lastActivityAt: Date.now(),
+            },
+          },
+        }));
+      },
+
       getActiveSessions: () => {
         const { sessions } = get();
         return SESSION_IDS.map((id) => sessions[id]).filter(
@@ -297,7 +353,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
     }),
     {
       name: 'cli-session-storage',
-      version: 4, // Bump when adding new fields
+      version: 5, // Bump when adding new fields
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist session data, not ephemeral state
@@ -326,6 +382,20 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
                   ...migratedSessions[id],
                   currentExecutionId: existingSession.currentExecutionId ?? null,
                   currentTaskId: existingSession.currentTaskId ?? null,
+                };
+              }
+              // v4 -> v5: Add projectId, gitEnabled, gitConfig for git operations
+              if (version < 5) {
+                const existingSession = migratedSessions[id] as CLISessionState & {
+                  projectId?: string | null;
+                  gitEnabled?: boolean;
+                  gitConfig?: CLIGitConfig | null;
+                };
+                migratedSessions[id] = {
+                  ...migratedSessions[id],
+                  projectId: existingSession.projectId ?? null,
+                  gitEnabled: existingSession.gitEnabled ?? false,
+                  gitConfig: existingSession.gitConfig ?? null,
                 };
               }
             }

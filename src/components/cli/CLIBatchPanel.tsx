@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { Terminal, RotateCcw } from 'lucide-react';
+import { Terminal, RotateCcw, Github } from 'lucide-react';
 import { CLISession } from './CLISession';
 import type { CLIBatchPanelProps } from './types';
 import { requirementToQueuedTask } from './types';
@@ -9,6 +9,7 @@ import {
   useCLISessionStore,
   useCLIRecovery,
   useCLIRecoveryStatus,
+  abortSessionExecution,
   type CLISessionId,
 } from './store';
 import type { SkillId } from './skills';
@@ -18,6 +19,10 @@ import {
   createCompletedStatus,
   createFailedStatus,
 } from '@/app/features/TaskRunner/store';
+import {
+  executeGitOperations,
+  generateCommitMessage,
+} from '@/app/features/TaskRunner/sub_Git/gitApi';
 
 const SESSIONS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
 
@@ -70,13 +75,14 @@ export function CLIBatchPanel({
   // Use persistent store for sessions
   const sessions = useCLISessionStore((state) => state.sessions);
   const addTasksToSession = useCLISessionStore((state) => state.addTasksToSession);
-  const clearSession = useCLISessionStore((state) => state.clearSession);
   const setAutoStart = useCLISessionStore((state) => state.setAutoStart);
   const setRunning = useCLISessionStore((state) => state.setRunning);
   const updateTaskStatus = useCLISessionStore((state) => state.updateTaskStatus);
   const removeTask = useCLISessionStore((state) => state.removeTask);
   const toggleSkill = useCLISessionStore((state) => state.toggleSkill);
   const setCurrentExecution = useCLISessionStore((state) => state.setCurrentExecution);
+  const setGitEnabled = useCLISessionStore((state) => state.setGitEnabled);
+  const setGitConfig = useCLISessionStore((state) => state.setGitConfig);
 
   // TaskRunner store for syncing task status to TaskColumn
   const updateTaskRunnerStatus = useTaskRunnerStore((state) => state.updateTaskStatus);
@@ -103,10 +109,10 @@ export function CLIBatchPanel({
     onClearSelection?.();
   }, [selectedRequirements, getRequirementId, addTasksToSession, onClearSelection]);
 
-  // Clear a session
-  const handleClearSession = useCallback((sessionId: CLISessionId) => {
-    clearSession(sessionId);
-  }, [clearSession]);
+  // Delete a session (abort execution if running, clear all state)
+  const handleDeleteSession = useCallback(async (sessionId: CLISessionId) => {
+    await abortSessionExecution(sessionId);
+  }, []);
 
   // Start session (enable autoStart)
   const handleStartSession = useCallback((sessionId: CLISessionId) => {
@@ -128,8 +134,9 @@ export function CLIBatchPanel({
 
   // Handle task completion - delete requirement file if successful
   const handleTaskComplete = useCallback(async (sessionId: CLISessionId, taskId: string, success: boolean) => {
-    // Get task details before updating state
-    const task = sessions[sessionId]?.queue.find(t => t.id === taskId);
+    // Get task and session details before updating state
+    const session = sessions[sessionId];
+    const task = session?.queue.find(t => t.id === taskId);
 
     // Update CLI store immediately
     updateTaskStatus(sessionId, taskId, success ? 'completed' : 'failed');
@@ -140,6 +147,27 @@ export function CLIBatchPanel({
     if (success && task) {
       // Update idea status (fire-and-forget)
       updateIdeaStatus(task.requirementName);
+
+      // Git operations if enabled
+      if (session?.gitEnabled && session.gitConfig && session.projectId) {
+        try {
+          const commitMessage = generateCommitMessage(
+            session.gitConfig.commitMessageTemplate,
+            task.requirementName,
+            task.projectName || 'Unknown'
+          );
+
+          await executeGitOperations(
+            session.projectId,
+            session.gitConfig.commands,
+            commitMessage
+          );
+          console.log(`[Git] Committed: ${task.requirementName}`);
+        } catch (error) {
+          console.error('[Git] Failed:', error);
+          // Don't block - git failure is non-fatal
+        }
+      }
 
       // Delete the requirement file
       const deleted = await deleteRequirementFile(task.projectPath, task.requirementName);
@@ -166,6 +194,30 @@ export function CLIBatchPanel({
   const handleExecutionChange = useCallback((sessionId: CLISessionId, executionId: string | null, taskId: string | null) => {
     setCurrentExecution(sessionId, executionId, taskId);
   }, [setCurrentExecution]);
+
+  // Handle git toggle
+  const handleToggleGit = useCallback((sessionId: CLISessionId) => {
+    const session = sessions[sessionId];
+    const newEnabled = !session.gitEnabled;
+    setGitEnabled(sessionId, newEnabled);
+
+    // If enabling and no config, set defaults
+    if (newEnabled && !session.gitConfig) {
+      setGitConfig(sessionId, {
+        commands: ['git add .', 'git commit -m "{commitMessage}"', 'git push'],
+        commitMessageTemplate: 'Auto-commit: {requirementName}'
+      });
+    }
+  }, [sessions, setGitEnabled, setGitConfig]);
+
+  // Handle git config change
+  const handleGitConfigChange = useCallback((sessionId: CLISessionId, config: { commands: string[]; commitMessageTemplate: string }) => {
+    setGitConfig(sessionId, config);
+    // Also enable git if it was disabled
+    if (!sessions[sessionId].gitEnabled) {
+      setGitEnabled(sessionId, true);
+    }
+  }, [sessions, setGitConfig, setGitEnabled]);
 
   return (
     <div className="space-y-3 w-full">
@@ -197,9 +249,11 @@ export function CLIBatchPanel({
             index={index}
             selectedCount={selectedTaskIds.length}
             onAddTasks={handleAddToSession}
-            onClearSession={handleClearSession}
+            onDeleteSession={handleDeleteSession}
             onStartSession={handleStartSession}
             onToggleSkill={handleToggleSkill}
+            onToggleGit={handleToggleGit}
+            onGitConfigChange={handleGitConfigChange}
             onTaskStart={handleTaskStart}
             onTaskComplete={handleTaskComplete}
             onQueueEmpty={handleQueueEmpty}

@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Trash2, Play, CheckCircle, XCircle, Clock, Copy, Check } from 'lucide-react';
+import { useCallback, useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Play, CheckCircle, XCircle, Clock, Copy, Check, Github, Settings, X, AlertTriangle } from 'lucide-react';
 import { CompactTerminal } from './CompactTerminal';
+import { CLIGitConfigPanel } from './CLIGitConfigPanel';
 import type { QueuedTask } from './types';
-import type { CLISessionId, CLISessionState } from './store';
+import type { CLISessionId, CLISessionState, CLIGitConfig } from './store';
 import { getAllSkills, type SkillId } from './skills';
 
 interface CLISessionProps {
@@ -14,9 +15,11 @@ interface CLISessionProps {
   index: number;
   selectedCount: number;
   onAddTasks: (sessionId: CLISessionId) => void;
-  onClearSession: (sessionId: CLISessionId) => void;
+  onDeleteSession: (sessionId: CLISessionId) => void;
   onStartSession: (sessionId: CLISessionId) => void;
   onToggleSkill: (sessionId: CLISessionId, skillId: SkillId) => void;
+  onToggleGit: (sessionId: CLISessionId) => void;
+  onGitConfigChange: (sessionId: CLISessionId, config: CLIGitConfig) => void;
   onTaskStart: (sessionId: CLISessionId, taskId: string) => void;
   onTaskComplete: (sessionId: CLISessionId, taskId: string, success: boolean) => void;
   onQueueEmpty: (sessionId: CLISessionId) => void;
@@ -46,21 +49,54 @@ export function CLISession({
   index,
   selectedCount,
   onAddTasks,
-  onClearSession,
+  onDeleteSession,
   onStartSession,
   onToggleSkill,
+  onToggleGit,
+  onGitConfigChange,
   onTaskStart,
   onTaskComplete,
   onQueueEmpty,
   onExecutionChange,
 }: CLISessionProps) {
   const [copiedTaskId, setCopiedTaskId] = useState<string | null>(null);
+  const [showGitConfig, setShowGitConfig] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const gitConfigRef = useRef<HTMLDivElement>(null);
+  const deleteConfirmRef = useRef<HTMLDivElement>(null);
   const allSkills = getAllSkills();
+
+  // Close git config panel on outside click
+  useEffect(() => {
+    if (!showGitConfig) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (gitConfigRef.current && !gitConfigRef.current.contains(e.target as Node)) {
+        setShowGitConfig(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showGitConfig]);
+
+  // Close delete confirm on outside click
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (deleteConfirmRef.current && !deleteConfirmRef.current.contains(e.target as Node)) {
+        setShowDeleteConfirm(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDeleteConfirm]);
 
   const stats = getSessionStats(session.queue);
   const isRunning = session.isRunning;
   const hasQueue = stats.total > 0;
   const canStart = stats.pending > 0 && !isRunning;
+
+  // Session has state that can be cleared (resolved tasks, queue, running, or claude session)
+  const hasSessionState = session.completedCount > 0 || hasQueue || isRunning || session.claudeSessionId;
 
   // Copy requirement name to clipboard
   const handleCopyFilename = useCallback(async (taskId: string, requirementName: string) => {
@@ -75,9 +111,17 @@ export function CLISession({
 
   // Handlers that pass sessionId to parent
   const handleAddTasks = useCallback(() => onAddTasks(sessionId), [sessionId, onAddTasks]);
-  const handleClear = useCallback(() => onClearSession(sessionId), [sessionId, onClearSession]);
+  const handleDelete = useCallback(() => {
+    onDeleteSession(sessionId);
+    setShowDeleteConfirm(false);
+  }, [sessionId, onDeleteSession]);
   const handleStart = useCallback(() => onStartSession(sessionId), [sessionId, onStartSession]);
   const handleToggleSkill = useCallback((skillId: SkillId) => onToggleSkill(sessionId, skillId), [sessionId, onToggleSkill]);
+  const handleToggleGit = useCallback(() => onToggleGit(sessionId), [sessionId, onToggleGit]);
+  const handleGitConfigChange = useCallback((config: CLIGitConfig) => {
+    onGitConfigChange(sessionId, config);
+    setShowGitConfig(false);
+  }, [sessionId, onGitConfigChange]);
   const handleTaskStart = useCallback((taskId: string) => onTaskStart(sessionId, taskId), [sessionId, onTaskStart]);
   const handleTaskComplete = useCallback((taskId: string, success: boolean) => onTaskComplete(sessionId, taskId, success), [sessionId, onTaskComplete]);
   const handleQueueEmpty = useCallback(() => onQueueEmpty(sessionId), [sessionId, onQueueEmpty]);
@@ -93,9 +137,70 @@ export function CLISession({
       {/* Session Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-gray-800/50 border-b border-gray-700/50">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-300">
-            Session {index + 1}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-medium text-gray-300">
+              Session {index + 1}
+            </span>
+            {/* Reset/Delete session button - shows when session has any state */}
+            {hasSessionState && (
+              <div className="relative" ref={deleteConfirmRef}>
+                <button
+                  onClick={() => {
+                    if (isRunning) {
+                      setShowDeleteConfirm(true);
+                    } else {
+                      handleDelete();
+                    }
+                  }}
+                  className={`p-0.5 rounded transition-colors ${
+                    isRunning
+                      ? 'text-red-400/70 hover:text-red-400 hover:bg-red-500/20'
+                      : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
+                  }`}
+                  title={isRunning ? 'Stop & reset session' : 'Reset session'}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+
+                {/* Delete Confirmation Popover */}
+                <AnimatePresence>
+                  {showDeleteConfirm && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-sm border border-red-500/30 rounded-lg shadow-xl p-3 min-w-[200px]"
+                    >
+                      <div className="flex items-start gap-2 mb-3">
+                        <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs text-gray-200 font-medium">Stop execution?</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            This will abort the running task and reset the session.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="px-2 py-1 text-[10px] text-gray-400 hover:text-gray-300 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          className="px-2 py-1 text-[10px] bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors font-medium"
+                        >
+                          Stop & Reset
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
           {/* Session resolved count */}
           {session.completedCount > 0 && (
             <span className="text-[9px] px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded font-medium">
@@ -152,6 +257,60 @@ export function CLISession({
             <span>{selectedCount}</span>
           </button>
 
+          {/* Git toggle with config - show when session has tasks and not running */}
+          {hasQueue && !session.isRunning && (
+            <div className="relative" ref={gitConfigRef}>
+              <div className="flex items-center">
+                {/* Toggle button */}
+                <button
+                  onClick={handleToggleGit}
+                  className={`p-1 rounded-l transition-colors border-r border-gray-700/30 ${
+                    session.gitEnabled
+                      ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                      : 'text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10'
+                  }`}
+                  title={session.gitEnabled ? 'Git auto-commit enabled (click to disable)' : 'Git auto-commit disabled (click to enable)'}
+                >
+                  <Github className="w-3 h-3" />
+                </button>
+                {/* Config button */}
+                <button
+                  onClick={() => setShowGitConfig(!showGitConfig)}
+                  className={`p-1 rounded-r transition-colors ${
+                    showGitConfig
+                      ? 'bg-purple-500/20 text-purple-400'
+                      : session.gitEnabled
+                        ? 'bg-yellow-500/10 text-yellow-400/60 hover:text-yellow-400'
+                        : 'text-gray-600 hover:text-gray-400 hover:bg-gray-700/30'
+                  }`}
+                  title="Configure git settings"
+                >
+                  <Settings className="w-2.5 h-2.5" />
+                </button>
+              </div>
+
+              {/* Git Config Popover */}
+              <AnimatePresence>
+                {showGitConfig && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl p-3 min-w-[320px]"
+                  >
+                    <CLIGitConfigPanel
+                      config={session.gitConfig}
+                      projectName={session.queue[0]?.projectName}
+                      onChange={handleGitConfigChange}
+                      onClose={() => setShowGitConfig(false)}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
           {/* Skill toggles - only show when session has tasks and not running */}
           {hasQueue && !session.isRunning && (
             <div className="flex items-center gap-0.5 px-1 border-l border-gray-700/50 ml-1">
@@ -184,17 +343,6 @@ export function CLISession({
               title="Start queue"
             >
               <Play className="w-3 h-3" />
-            </button>
-          )}
-
-          {/* Clear */}
-          {hasQueue && (
-            <button
-              onClick={handleClear}
-              className="p-1 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-              title="Clear session"
-            >
-              <Trash2 className="w-3 h-3" />
             </button>
           )}
         </div>

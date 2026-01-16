@@ -375,6 +375,41 @@ export function stopSessionPolling(sessionId: CLISessionId): void {
 }
 
 /**
+ * Abort a session's current execution and cleanup
+ * Used when user wants to delete/cancel a running session
+ */
+export async function abortSessionExecution(sessionId: CLISessionId): Promise<boolean> {
+  const store = useCLISessionStore.getState();
+  const session = store.sessions[sessionId];
+
+  // Stop any polling/streaming first
+  stopSessionPolling(sessionId);
+
+  // Try to abort the execution via API if we have an execution ID
+  if (session.currentExecutionId) {
+    try {
+      const response = await fetch(
+        `/api/claude-terminal/query?executionId=${session.currentExecutionId}`,
+        { method: 'DELETE' }
+      );
+
+      if (response.ok) {
+        console.log(`[CLI] Aborted execution ${session.currentExecutionId}`);
+      } else {
+        console.warn(`[CLI] Failed to abort execution ${session.currentExecutionId}`);
+      }
+    } catch (error) {
+      console.error('[CLI] Error aborting execution:', error);
+    }
+  }
+
+  // Clear the session state
+  store.clearSession(sessionId);
+
+  return true;
+}
+
+/**
  * Cleanup all CLI sessions (on unmount)
  */
 export function cleanupAllCLISessions(): void {
