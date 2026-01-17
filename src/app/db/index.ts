@@ -67,25 +67,6 @@ import {
   skillTrackingRepository,
 } from './repositories/developer-mind-meld.repository';
 import {
-  learningPathRepository,
-  learningModuleRepository,
-  codeWalkthroughRepository,
-  quizQuestionRepository,
-  quizResponseRepository,
-  learningMetricsRepository,
-  onboardingRecommendationRepository,
-} from './repositories/onboarding-accelerator.repository';
-import {
-  strategicInitiativeRepository,
-  roadmapMilestoneRepository,
-  impactPredictionRepository,
-  featureInteractionRepository,
-  debtPreventionRuleRepository,
-  velocityTrackingRepository,
-  roadmapSimulationRepository,
-  roadmapSummaryRepository,
-} from './repositories/strategic-roadmap.repository';
-import {
   hypothesisRepository,
   invariantRepository,
   fuzzSessionRepository,
@@ -93,7 +74,6 @@ import {
   testKnowledgeRepository,
   hypothesisTestingSummaryRepository,
 } from './repositories/hypothesis-testing.repository';
-import { projectHealthRepository } from './repositories/project-health.repository';
 import { standupRepository } from './repositories/standup.repository';
 import {
   redTeamSessionRepository,
@@ -103,37 +83,10 @@ import {
   redTeamSummaryRepository,
 } from './repositories/red-team.repository';
 import {
-  architectureNodeRepository,
-  architectureEdgeRepository,
-  architectureDriftRepository,
-  architectureSuggestionRepository,
-  architectureIdealRepository,
-  architectureSnapshotRepository,
-} from './repositories/architecture-graph.repository';
-import {
   focusSessionRepository,
   focusBreakRepository,
   focusStatsRepository,
 } from './repositories/focus-mode.repository';
-import {
-  ciPipelineRepository,
-  buildExecutionRepository,
-  ciPredictionRepository,
-  flakyTestRepository,
-  ciConfigRepository,
-  pipelineOptimizationRepository,
-  ciDashboardRepository,
-} from './repositories/autonomous-ci.repository';
-import {
-  refactoringEconomicsRepository,
-  roiSimulationRepository,
-  portfolioOptimizationRepository,
-  velocityPredictionRepository,
-  debtPaydownStrategyRepository,
-  economicEventRepository,
-  roiConfigRepository,
-  roiSummaryRepository,
-} from './repositories/roi-simulator.repository';
 import {
   goalHypothesisRepository,
   goalHubExtensions,
@@ -150,10 +103,10 @@ import {
   integrationEventRepository,
   webhookRepository,
 } from './repositories/integration.repository';
-import * as observatoryRepository from './repositories/observatory.repository';
 import { questionRepository } from './repositories/question.repository';
 import { directionRepository } from './repositories/direction.repository';
 import { hallOfFameRepository } from './repositories/hall-of-fame.repository';
+import { observabilityRepository } from './repositories/observability.repository';
 
 // Export types
 export * from './models/types';
@@ -165,23 +118,17 @@ export * from './models/scan-prediction.types';
 export * from './models/marketplace.types';
 export * from './models/debt-prediction.types';
 // Security Intelligence types removed - feature deprecated
-export * from './models/onboarding-accelerator.types';
-export * from './models/strategic-roadmap.types';
 // NOTE: hypothesis-testing.types removed - use goal-hub.types instead
-export * from './models/project-health.types';
 export * from './models/standup.types';
 export * from './models/red-team.types';
-export * from './models/architecture-graph.types';
 export * from './models/focus-mode.types';
-export * from './models/autonomous-ci.types';
-export * from './models/roi-simulator.types';
 export * from './models/goal-hub.types';
 // Offload types removed - migrated to Supabase
 export * from './models/session.types';
 export * from './models/automation-session.types';
 export * from './models/automation-event.types';
 export * from './models/integration.types';
-export * from './models/observatory.types';
+export * from './models/observability.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -625,139 +572,6 @@ export const skillTrackingDb = {
   close: closeDatabase
 };
 
-/**
- * Learning Path Database Operations
- * Manages developer onboarding learning paths
- */
-export const learningPathDb = {
-  ...learningPathRepository,
-  close: closeDatabase
-};
-
-/**
- * Learning Module Database Operations
- * Manages individual learning modules within paths
- */
-export const learningModuleDb = {
-  ...learningModuleRepository,
-  close: closeDatabase
-};
-
-/**
- * Code Walkthrough Database Operations
- * Manages interactive code explanations
- */
-export const codeWalkthroughDb = {
-  ...codeWalkthroughRepository,
-  close: closeDatabase
-};
-
-/**
- * Quiz Question Database Operations
- * Manages quiz questions for knowledge verification
- */
-export const quizQuestionDb = {
-  ...quizQuestionRepository,
-  close: closeDatabase
-};
-
-/**
- * Quiz Response Database Operations
- * Tracks developer quiz answers and performance
- */
-export const quizResponseDb = {
-  ...quizResponseRepository,
-  close: closeDatabase
-};
-
-/**
- * Learning Metrics Database Operations
- * Tracks adaptive learning metrics and progress
- */
-export const learningMetricsDb = {
-  ...learningMetricsRepository,
-  close: closeDatabase
-};
-
-/**
- * Onboarding Recommendation Database Operations
- * Manages AI-generated learning recommendations
- */
-export const onboardingRecommendationDb = {
-  ...onboardingRecommendationRepository,
-  close: closeDatabase
-};
-
-/**
- * Strategic Initiative Database Operations
- * Manages strategic development initiatives for the roadmap
- */
-export const strategicInitiativeDb = {
-  ...strategicInitiativeRepository,
-  close: closeDatabase
-};
-
-/**
- * Roadmap Milestone Database Operations
- * Manages quarterly milestones and targets
- */
-export const roadmapMilestoneDb = {
-  ...roadmapMilestoneRepository,
-  close: closeDatabase
-};
-
-/**
- * Impact Prediction Database Operations
- * Manages AI-predicted impact of decisions
- */
-export const impactPredictionDb = {
-  ...impactPredictionRepository,
-  close: closeDatabase
-};
-
-/**
- * Feature Interaction Database Operations
- * Manages feature interactions (synergies, conflicts, dependencies)
- */
-export const featureInteractionDb = {
-  ...featureInteractionRepository,
-  close: closeDatabase
-};
-
-/**
- * Debt Prevention Rule Database Operations
- * Manages proactive debt prevention rules
- */
-export const debtPreventionRuleDb = {
-  ...debtPreventionRuleRepository,
-  close: closeDatabase
-};
-
-/**
- * Velocity Tracking Database Operations
- * Tracks development velocity over time
- */
-export const velocityTrackingDb = {
-  ...velocityTrackingRepository,
-  close: closeDatabase
-};
-
-/**
- * Roadmap Simulation Database Operations
- * Manages roadmap simulation scenarios
- */
-export const roadmapSimulationDb = {
-  ...roadmapSimulationRepository,
-  close: closeDatabase
-};
-
-/**
- * Roadmap Summary Database Operations
- * Provides aggregated roadmap statistics
- */
-export const roadmapSummaryDb = {
-  ...roadmapSummaryRepository,
-};
 
 /**
  * Hypothesis Database Operations
@@ -812,14 +626,6 @@ export const hypothesisTestingSummaryDb = {
   ...hypothesisTestingSummaryRepository,
 };
 
-/**
- * Project Health Score Database Operations
- * Manages project health scores, history, and configuration
- */
-export const projectHealthDb = {
-  ...projectHealthRepository,
-  close: closeDatabase,
-};
 
 /**
  * Standup Summary Database Operations
@@ -874,59 +680,6 @@ export const redTeamSummaryDb = {
   ...redTeamSummaryRepository,
 };
 
-/**
- * Architecture Node Database Operations
- * Manages architecture graph nodes (modules, components, etc.)
- */
-export const architectureNodeDb = {
-  ...architectureNodeRepository,
-  close: closeDatabase,
-};
-
-/**
- * Architecture Edge Database Operations
- * Manages dependency edges between architecture nodes
- */
-export const architectureEdgeDb = {
-  ...architectureEdgeRepository,
-  close: closeDatabase,
-};
-
-/**
- * Architecture Drift Database Operations
- * Manages architecture drift alerts and violations
- */
-export const architectureDriftDb = {
-  ...architectureDriftRepository,
-  close: closeDatabase,
-};
-
-/**
- * Architecture Suggestion Database Operations
- * Manages AI-generated refactoring suggestions
- */
-export const architectureSuggestionDb = {
-  ...architectureSuggestionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Architecture Ideal Database Operations
- * Manages architecture rules and ideals
- */
-export const architectureIdealDb = {
-  ...architectureIdealRepository,
-  close: closeDatabase,
-};
-
-/**
- * Architecture Snapshot Database Operations
- * Manages point-in-time architecture snapshots
- */
-export const architectureSnapshotDb = {
-  ...architectureSnapshotRepository,
-  close: closeDatabase,
-};
 
 /**
  * Focus Session Database Operations
@@ -955,138 +708,8 @@ export const focusStatsDb = {
   close: closeDatabase,
 };
 
-/**
- * CI Pipeline Database Operations
- * Manages CI/CD pipeline configurations
- */
-export const ciPipelineDb = {
-  ...ciPipelineRepository,
-  close: closeDatabase,
-};
 
-/**
- * Build Execution Database Operations
- * Manages individual build runs and test results
- */
-export const buildExecutionDb = {
-  ...buildExecutionRepository,
-  close: closeDatabase,
-};
 
-/**
- * CI Prediction Database Operations
- * Manages AI-generated predictions about builds
- */
-export const ciPredictionDb = {
-  ...ciPredictionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Flaky Test Database Operations
- * Tracks and manages flaky tests for self-healing
- */
-export const flakyTestDb = {
-  ...flakyTestRepository,
-  close: closeDatabase,
-};
-
-/**
- * CI Config Database Operations
- * Manages per-project CI configuration
- */
-export const ciConfigDb = {
-  ...ciConfigRepository,
-  close: closeDatabase,
-};
-
-/**
- * Pipeline Optimization Database Operations
- * Manages AI-suggested pipeline optimizations
- */
-export const pipelineOptimizationDb = {
-  ...pipelineOptimizationRepository,
-  close: closeDatabase,
-};
-
-/**
- * CI Dashboard Database Operations
- * Provides aggregated CI statistics for dashboards
- */
-export const ciDashboardDb = {
-  ...ciDashboardRepository,
-};
-
-/**
- * Refactoring Economics Database Operations
- * Manages refactoring items with economic modeling
- */
-export const refactoringEconomicsDb = {
-  ...refactoringEconomicsRepository,
-  close: closeDatabase,
-};
-
-/**
- * ROI Simulation Database Operations
- * Manages ROI simulation scenarios
- */
-export const roiSimulationDb = {
-  ...roiSimulationRepository,
-  close: closeDatabase,
-};
-
-/**
- * Portfolio Optimization Database Operations
- * Manages optimized refactoring portfolios
- */
-export const portfolioOptimizationDb = {
-  ...portfolioOptimizationRepository,
-  close: closeDatabase,
-};
-
-/**
- * Velocity Prediction Database Operations
- * Manages velocity predictions based on technical decisions
- */
-export const velocityPredictionDb = {
-  ...velocityPredictionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Debt Paydown Strategy Database Operations
- * Manages game-theoretic debt paydown strategies
- */
-export const debtPaydownStrategyDb = {
-  ...debtPaydownStrategyRepository,
-  close: closeDatabase,
-};
-
-/**
- * Economic Event Database Operations
- * Tracks actual economic events for ROI validation
- */
-export const economicEventDb = {
-  ...economicEventRepository,
-  close: closeDatabase,
-};
-
-/**
- * ROI Config Database Operations
- * Manages per-project ROI configuration
- */
-export const roiConfigDb = {
-  ...roiConfigRepository,
-  close: closeDatabase,
-};
-
-/**
- * ROI Summary Database Operations
- * Provides aggregated ROI statistics for dashboards
- */
-export const roiSummaryDb = {
-  ...roiSummaryRepository,
-};
 
 // Device Pair and Offload Queue removed - migrated to Supabase Realtime
 
@@ -1156,61 +779,6 @@ export const webhookDb = {
   close: closeDatabase,
 };
 
-/**
- * Observatory Database Operations
- * Manages Code Health Observatory - continuous observation, predictions, and learning
- */
-export const observatoryDb = {
-  // Analysis Snapshots
-  createAnalysisSnapshot: observatoryRepository.createAnalysisSnapshot,
-  getAnalysisSnapshotById: observatoryRepository.getAnalysisSnapshotById,
-  updateAnalysisSnapshot: observatoryRepository.updateAnalysisSnapshot,
-  getRecentSnapshots: observatoryRepository.getRecentSnapshots,
-  getSnapshotsByTimeRange: observatoryRepository.getSnapshotsByTimeRange,
-
-  // Prediction Outcomes
-  createPredictionOutcome: observatoryRepository.createPredictionOutcome,
-  getPredictionOutcomeById: observatoryRepository.getPredictionOutcomeById,
-  getPredictionOutcomesByPrediction: observatoryRepository.getPredictionOutcomesByPrediction,
-  updatePredictionOutcome: observatoryRepository.updatePredictionOutcome,
-  getOutcomeStatsByPattern: observatoryRepository.getOutcomeStatsByPattern,
-
-  // Execution Outcomes
-  createExecutionOutcome: observatoryRepository.createExecutionOutcome,
-  getExecutionOutcomeById: observatoryRepository.getExecutionOutcomeById,
-  getExecutionOutcomeByExecutionId: observatoryRepository.getExecutionOutcomeByExecutionId,
-  updateExecutionOutcome: observatoryRepository.updateExecutionOutcome,
-  getRecentExecutionOutcomes: observatoryRepository.getRecentExecutionOutcomes,
-  getExecutionSuccessRate: observatoryRepository.getExecutionSuccessRate,
-
-  // Learned Patterns
-  createLearnedPattern: observatoryRepository.createLearnedPattern,
-  getLearnedPatternById: observatoryRepository.getLearnedPatternById,
-  getLearnedPatterns: observatoryRepository.getLearnedPatterns,
-  updateLearnedPattern: observatoryRepository.updateLearnedPattern,
-  incrementPatternMetric: observatoryRepository.incrementPatternMetric,
-  recalculatePatternScores: observatoryRepository.recalculatePatternScores,
-
-  // Health Metrics
-  createHealthMetric: observatoryRepository.createHealthMetric,
-  getHealthMetricById: observatoryRepository.getHealthMetricById,
-  getHealthMetricHistory: observatoryRepository.getHealthMetricHistory,
-  getLatestHealthMetrics: observatoryRepository.getLatestHealthMetrics,
-
-  // Auto-fix Queue
-  createAutoFixItem: observatoryRepository.createAutoFixItem,
-  getAutoFixItemById: observatoryRepository.getAutoFixItemById,
-  getPendingAutoFixes: observatoryRepository.getPendingAutoFixes,
-  updateAutoFixItem: observatoryRepository.updateAutoFixItem,
-  approveAutoFix: observatoryRepository.approveAutoFix,
-  expireOldAutoFixes: observatoryRepository.expireOldAutoFixes,
-
-  // Aggregates
-  getProjectHealthSummary: observatoryRepository.getProjectHealthSummary,
-  getLearningProgress: observatoryRepository.getLearningProgress,
-
-  close: closeDatabase,
-};
 
 /**
  * Question Database Operations
@@ -1238,6 +806,15 @@ export const directionDb = {
  */
 export const hallOfFameDb = {
   ...hallOfFameRepository,
+  close: closeDatabase,
+};
+
+/**
+ * API Observability Database Operations
+ * Tracks API endpoint usage, response times, and error rates
+ */
+export const observabilityDb = {
+  ...observabilityRepository,
   close: closeDatabase,
 };
 

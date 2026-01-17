@@ -10,7 +10,9 @@
     "refactor:ci": "ts-node scripts/refactor-ci.ts",
     "create-refactor-pr": "ts-node scripts/create-refactor-pr.ts",
     "test": "vitest run",
-    "bench:results": "ts-node --esm scripts/benchmark-results.ts"
+    "bench:results": "ts-node --esm scripts/benchmark-results.ts",
+    "build:mcp": "tsc -p src/mcp-server/tsconfig.json",
+    "mcp-server": "node dist/mcp-server/index.js"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.3",

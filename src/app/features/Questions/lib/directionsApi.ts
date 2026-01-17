@@ -145,6 +145,7 @@ export async function deleteDirection(
  * Generate Claude Code requirement for direction generation
  * @param data.userContext - Optional user-provided focus area or dilemma
  * @param data.answeredQuestions - Optional selected answered questions to include as context
+ * @param data.brainstormAll - When true, generates directions with holistic view of entire project
  */
 export async function generateDirectionRequirement(data: {
   projectId: string;
@@ -154,6 +155,7 @@ export async function generateDirectionRequirement(data: {
   directionsPerContext?: number;
   userContext?: string;
   answeredQuestions?: AnsweredQuestionInput[];
+  brainstormAll?: boolean;
 }): Promise<GenerateDirectionsResponse> {
   const response = await fetch('/api/directions/generate', {
     method: 'POST',

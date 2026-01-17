@@ -1,0 +1,1 @@
+{"version":3,"file":"context.d.ts","sourceRoot":"","sources":["../../../src/mcp-server/tools/context.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAGH,OAAO,EAAE,SAAS,EAAE,MAAM,yCAAyC,CAAC;AACpE,OAAO,EAAE,iBAAiB,EAAE,MAAM,mBAAmB,CAAC;AACtD,OAAO,EAAE,SAAS,EAAE,MAAM,cAAc,CAAC;AA2BzC,wBAAgB,oBAAoB,CAClC,MAAM,EAAE,SAAS,EACjB,MAAM,EAAE,SAAS,EACjB,MAAM,EAAE,iBAAiB,QAmJ1B"}

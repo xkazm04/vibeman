@@ -10,6 +10,7 @@ import {
   isValidIdeaStatus,
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { analyticsAggregationService } from '@/lib/services/analyticsAggregation';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/ideas
@@ -22,7 +23,7 @@ import { analyticsAggregationService } from '@/lib/services/analyticsAggregation
  * - limit: Limit number of results
  * - withColors: Include context colors in response (default: true for better performance)
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
  * POST /api/ideas
  * Create a new idea
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
  * PATCH /api/ideas
  * Update an existing idea
  */
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -196,7 +197,7 @@ export async function PATCH(request: NextRequest) {
  * - id: Delete a single idea by ID
  * - all=true: Delete all ideas (WARNING: destructive)
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -245,3 +246,9 @@ export async function DELETE(request: NextRequest) {
     return handleIdeasApiError(error, IdeasErrorCode.DELETE_FAILED);
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/ideas');
+export const POST = withObservability(handlePost, '/api/ideas');
+export const PATCH = withObservability(handlePatch, '/api/ideas');
+export const DELETE = withObservability(handleDelete, '/api/ideas');

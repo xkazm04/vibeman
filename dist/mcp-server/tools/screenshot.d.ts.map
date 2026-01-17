@@ -1,0 +1,1 @@
+{"version":3,"file":"screenshot.d.ts","sourceRoot":"","sources":["../../../src/mcp-server/tools/screenshot.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAGH,OAAO,EAAE,SAAS,EAAE,MAAM,yCAAyC,CAAC;AACpE,OAAO,EAAE,iBAAiB,EAAE,MAAM,mBAAmB,CAAC;AACtD,OAAO,EAAE,SAAS,EAAE,MAAM,cAAc,CAAC;AAezC,wBAAgB,uBAAuB,CACrC,MAAM,EAAE,SAAS,EACjB,MAAM,EAAE,SAAS,EACjB,MAAM,EAAE,iBAAiB,QAoI1B"}

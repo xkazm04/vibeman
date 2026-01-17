@@ -2,5 +2,14 @@
   "projectName": "vibeman",
   "createdAt": "2025-10-24T18:07:00.286Z",
   "updatedAt": "2025-10-24T18:07:00.286Z",
-  "customConfig": {}
+  "customConfig": {},
+  "mcpServers": {
+    "vibeman": {
+      "command": "node",
+      "args": ["dist/mcp-server/index.js"],
+      "env": {
+        "VIBEMAN_BASE_URL": "http://localhost:3000"
+      }
+    }
+  }
 }

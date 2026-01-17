@@ -468,3 +468,147 @@ All optimization recommendations have been implemented:
 
 **Files Modified**:
 - `lib/prompts/requirement_file/executionWrapper.ts`: Removed duplicate instructions
+
+---
+
+## MCP Server Integration (2026-01)
+
+### Overview
+
+The TaskRunner now supports an MCP (Model Context Protocol) server for streamlined tool execution. This enables A/B testing between:
+
+- **DualBatchPanel (MCP mode)**: Uses compact prompts (~115 tokens) with MCP tools
+- **CLI Batch Process**: Uses full prompts (~1780 tokens) with curl commands
+
+### Architecture
+
+```
+┌─────────────────┐     stdio      ┌──────────────────┐     HTTP      ┌─────────────┐
+│  Claude Code    │ ←────────────→ │  MCP Server      │ ──────────→  │  Next.js    │
+│  (DualBatch)    │                │  (Node process)  │               │  API Routes │
+└─────────────────┘                └──────────────────┘               └─────────────┘
+
+┌─────────────────┐                ┌──────────────────┐
+│  Claude Code    │ ──────────────→│  Full prompts    │  (CLI - unchanged)
+│  (CLI Batch)    │   direct       │  with curl cmds  │
+└─────────────────┘                └──────────────────┘
+```
+
+### MCP Server
+
+**Location**: `src/mcp-server/`
+
+**Build & Run**:
+```bash
+npm run build:mcp    # Compile TypeScript
+npm run mcp-server   # Run server (for testing)
+```
+
+**Environment Variables**:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VIBEMAN_BASE_URL` | No | API base URL (default: http://localhost:3000) |
+| `VIBEMAN_PROJECT_ID` | Yes | Project ID for logging |
+| `VIBEMAN_CONTEXT_ID` | No | Context ID for screenshots |
+| `VIBEMAN_PROJECT_PORT` | No | Dev server port |
+| `VIBEMAN_RUN_SCRIPT` | No | Dev server command |
+
+### MCP Tools
+
+| Tool | Description | Replaces |
+|------|-------------|----------|
+| `log_implementation` | Log work to Vibeman DB | curl to `/api/implementation-log` |
+| `check_test_scenario` | Check if context has test scenario | First curl in screenshot rule |
+| `capture_screenshot` | Capture UI screenshot | Second curl in screenshot rule |
+| `get_context` | Get context details | N/A (new capability) |
+| `get_config` | Get current configuration | N/A (debugging) |
+
+### Wrapper Modes
+
+**File**: `src/lib/prompts/requirement_file/`
+
+| Mode | Function | Tokens | Use Case |
+|------|----------|--------|----------|
+| `mcp` | `wrapRequirementForMCP()` | ~115 | Ideas → DualBatchPanel |
+| `full` | `wrapRequirementForExecution()` | ~1780 | Directions → CLI |
+
+### Ideas Accept Route
+
+**File**: `src/app/api/ideas/tinder/accept/route.ts`
+
+The route now accepts a `wrapperMode` parameter:
+
+```typescript
+POST /api/ideas/tinder/accept
+{
+  ideaId: string,
+  projectPath: string,
+  wrapperMode?: 'mcp' | 'full'  // Default: 'mcp'
+}
+```
+
+### Token Savings
+
+| Wrapper | Tokens | Savings |
+|---------|--------|---------|
+| Full (curl commands) | ~1,780 | Baseline |
+| Compact (MCP tools) | ~115 | **93% reduction** |
+
+### A/B Testing Strategy
+
+**Group A (MCP)**: Ideas → DualBatchPanel with compact wrapper + MCP tools
+- Default behavior
+- Lower token usage
+- Tools provide structured responses
+
+**Group B (Legacy)**: Ideas → DualBatchPanel with full wrapper + curl commands
+- Pass `wrapperMode: 'full'` to accept route
+- Fallback for troubleshooting
+
+**Control**: Directions → CLI with full wrapper (unchanged)
+- CLI batch process unchanged
+- No MCP server involved
+
+### Rollback
+
+To rollback to full prompts:
+1. Change default in `/api/ideas/tinder/accept/route.ts` from `'mcp'` to `'full'`
+2. Or pass `wrapperMode: 'full'` per request
+
+### Configuration
+
+**File**: `.claude/settings.json`
+
+```json
+{
+  "mcpServers": {
+    "vibeman": {
+      "command": "node",
+      "args": ["dist/mcp-server/index.js"],
+      "env": {
+        "VIBEMAN_BASE_URL": "http://localhost:3000"
+      }
+    }
+  }
+}
+```
+
+### Files Added
+
+| File | Purpose |
+|------|---------|
+| `src/mcp-server/index.ts` | Server entry point |
+| `src/mcp-server/config.ts` | Environment config parsing |
+| `src/mcp-server/http-client.ts` | Next.js API HTTP client |
+| `src/mcp-server/tools/*.ts` | Tool implementations |
+| `src/mcp-server/tsconfig.json` | TypeScript build config |
+| `src/lib/prompts/requirement_file/compactWrapper.ts` | Compact MCP wrapper |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/lib/prompts/requirement_file/index.ts` | Export compact wrapper |
+| `src/app/api/ideas/tinder/accept/route.ts` | Add wrapperMode routing |
+| `.claude/settings.json` | Add mcpServers config |
+| `package.json` | Add build:mcp script |

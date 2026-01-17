@@ -117,7 +117,9 @@
       "Bash(ping:*)",
       "Bash(node verify-ui.mjs:*)",
       "Bash(del /f \"C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman\\\\src\\\\app\\\\test\\\\page.tsx\")",
-      "Bash(del /f \"C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman\\\\verify-ui.mjs\")"
+      "Bash(del /f \"C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman\\\\verify-ui.mjs\")",
+      "Bash(npm run build:mcp:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": []

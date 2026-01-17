@@ -10,6 +10,7 @@ export interface ClaudeFolderStructure {
   scripts: string;
   commands: string;
   agents: string;
+  skills: string;
   settingsFile: string;
   claudeMdFile: string;
 }
@@ -38,6 +39,7 @@ export function getClaudeFolderStructure(projectPath: string): ClaudeFolderStruc
     scripts: path.join(claudePath, 'scripts'),
     commands: path.join(claudePath, 'commands'),
     agents: path.join(claudePath, 'agents'),
+    skills: path.join(claudePath, 'skills'),
     settingsFile: path.join(claudePath, 'settings.json'),
     claudeMdFile: path.join(claudePath, 'CLAUDE.md'),
   };
@@ -475,6 +477,112 @@ export function createStructureRulesFile(
   } catch (error) {    return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Default skills to copy to new projects
+ * These are copied from the vibeman .claude/skills/ directory
+ */
+const DEFAULT_SKILLS_TO_COPY = [
+  'context-map-generator.md',
+  'brain-training.md',
+];
+
+/**
+ * Get the source skills directory path (vibeman's .claude/skills/)
+ * This assumes vibeman is running from its own project directory
+ */
+function getSourceSkillsPath(): string {
+  return path.join(process.cwd(), '.claude', 'skills');
+}
+
+/**
+ * Copy default skills from vibeman to a target project's .claude/skills/ folder
+ *
+ * @param projectPath - The target project path
+ * @param skillsToCopy - Optional array of skill filenames to copy (defaults to DEFAULT_SKILLS_TO_COPY)
+ * @returns Result with success status, copied files list, and any errors
+ */
+export function copyDefaultSkills(
+  projectPath: string,
+  skillsToCopy: string[] = DEFAULT_SKILLS_TO_COPY
+): {
+  success: boolean;
+  copied: string[];
+  skipped: string[];
+  errors: Array<{ file: string; error: string }>;
+} {
+  const copied: string[] = [];
+  const skipped: string[] = [];
+  const errors: Array<{ file: string; error: string }> = [];
+
+  try {
+    const claudePath = getClaudeFolderPath(projectPath);
+    const targetSkillsDir = path.join(claudePath, 'skills');
+    const sourceSkillsDir = getSourceSkillsPath();
+
+    // Create skills directory if it doesn't exist
+    if (!fs.existsSync(targetSkillsDir)) {
+      fs.mkdirSync(targetSkillsDir, { recursive: true });
+    }
+
+    // Check if source skills directory exists
+    if (!fs.existsSync(sourceSkillsDir)) {
+      return {
+        success: false,
+        copied: [],
+        skipped: [],
+        errors: [{ file: '*', error: 'Source skills directory not found' }],
+      };
+    }
+
+    // Copy each skill
+    for (const skillFile of skillsToCopy) {
+      const sourcePath = path.join(sourceSkillsDir, skillFile);
+      const targetPath = path.join(targetSkillsDir, skillFile);
+
+      try {
+        // Check if source file exists
+        if (!fs.existsSync(sourcePath)) {
+          errors.push({ file: skillFile, error: 'Source file not found' });
+          continue;
+        }
+
+        // Skip if target already exists (don't overwrite)
+        if (fs.existsSync(targetPath)) {
+          skipped.push(skillFile);
+          continue;
+        }
+
+        // Copy the file
+        const content = fs.readFileSync(sourcePath, 'utf-8');
+        fs.writeFileSync(targetPath, content, 'utf-8');
+        copied.push(skillFile);
+      } catch (fileError) {
+        errors.push({
+          file: skillFile,
+          error: fileError instanceof Error ? fileError.message : 'Unknown error',
+        });
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      copied,
+      skipped,
+      errors,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      copied,
+      skipped,
+      errors: [{
+        file: '*',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }],
     };
   }
 }

@@ -2,13 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, goalDb, contextDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
-import { wrapRequirementForExecution } from '@/lib/prompts/requirement_file';
+import {
+  wrapRequirementForExecution,
+  wrapRequirementForMCP,
+  type WrapperMode,
+} from '@/lib/prompts/requirement_file';
 import { createErrorResponse, createSuccessResponse } from '../utils';
 import { logger } from '@/lib/logger';
 
 interface AcceptIdeaRequest {
   ideaId: string;
   projectPath: string;
+  /**
+   * Wrapper mode for requirement generation:
+   * - 'mcp': Compact wrapper with MCP tool references (default, ~115 tokens)
+   * - 'full': Full wrapper with curl commands (~1780 tokens)
+   */
+  wrapperMode?: WrapperMode;
 }
 
 /**
@@ -16,8 +26,12 @@ interface AcceptIdeaRequest {
  */
 function validateRequest(body: unknown): body is AcceptIdeaRequest {
   const req = body as AcceptIdeaRequest;
-  return typeof req.ideaId === 'string' && req.ideaId.length > 0 &&
-         typeof req.projectPath === 'string' && req.projectPath.length > 0;
+  const hasValidIdea = typeof req.ideaId === 'string' && req.ideaId.length > 0;
+  const hasValidPath = typeof req.projectPath === 'string' && req.projectPath.length > 0;
+  const hasValidMode = req.wrapperMode === undefined ||
+                       req.wrapperMode === 'mcp' ||
+                       req.wrapperMode === 'full';
+  return hasValidIdea && hasValidPath && hasValidMode;
 }
 
 /**
@@ -67,7 +81,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('ideaId and projectPath are required', undefined, 400);
     }
 
-    const { ideaId, projectPath } = body;
+    const { ideaId, projectPath, wrapperMode = 'mcp' } = body;
 
     // Get the idea
     const idea = ideaDb.getIdeaById(ideaId);
@@ -129,17 +143,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Wrap requirement content with execution instructions
+    // Use compact MCP wrapper by default, or full wrapper for CLI execution
     let wrappedContent: string;
     try {
-      wrappedContent = wrapRequirementForExecution({
-        requirementContent,
-        projectPath,
-        projectId: idea.project_id,
-        contextId: idea.context_id || undefined,
-        // Note: projectPort and runScript would come from project config if needed
-      });
+      if (wrapperMode === 'full') {
+        // Full wrapper with curl commands for CLI execution (~1780 tokens)
+        wrappedContent = wrapRequirementForExecution({
+          requirementContent,
+          projectPath,
+          projectId: idea.project_id,
+          contextId: idea.context_id || undefined,
+        });
+        logger.info('[API] Using full wrapper mode for idea', { ideaId, wrapperMode });
+      } else {
+        // Compact MCP wrapper for DualBatchPanel execution (~115 tokens)
+        wrappedContent = wrapRequirementForMCP({
+          requirementContent,
+          projectId: idea.project_id,
+          contextId: idea.context_id || undefined,
+        });
+        logger.info('[API] Using MCP wrapper mode for idea', { ideaId, wrapperMode });
+      }
     } catch (error) {
-      logger.error('[API] Failed to wrap requirement content:', { error });
+      logger.error('[API] Failed to wrap requirement content:', { error, wrapperMode });
       // Rollback status change
       try {
         ideaDb.updateIdea(ideaId, { status: 'pending' });
@@ -174,7 +200,8 @@ export async function POST(request: NextRequest) {
 
     return createSuccessResponse({
       requirementName,
-      message: 'Idea accepted and requirement file created'
+      wrapperMode,
+      message: `Idea accepted and requirement file created (${wrapperMode} mode)`
     });
   } catch (error) {
     logger.error('[API /ideas/tinder/accept] Error details:', {

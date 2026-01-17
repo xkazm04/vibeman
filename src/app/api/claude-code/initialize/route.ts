@@ -3,6 +3,7 @@ import {
   initializeClaudeFolder,
   createContextScanRequirement,
   createStructureRulesFile,
+  copyDefaultSkills,
 } from '@/app/Claude/lib/claudeCodeManager';
 import { logger } from '@/lib/logger';
 
@@ -13,11 +14,19 @@ interface InitializationResult {
   error?: string;
 }
 
+interface SkillsCopyResult {
+  copied: boolean;
+  files?: string[];
+  skipped?: string[];
+  errors?: Array<{ file: string; error: string }>;
+}
+
 interface InitializeResponse {
   message: string;
   structure?: unknown;
   contextScanRequirement: InitializationResult;
   structureRules: InitializationResult;
+  skills: SkillsCopyResult;
 }
 
 /**
@@ -83,6 +92,24 @@ function handleStructureRulesFile(
 }
 
 /**
+ * Handle default skills copying
+ */
+function handleSkillsCopy(projectPath: string): SkillsCopyResult {
+  const result = copyDefaultSkills(projectPath);
+
+  if (!result.success && result.errors.length > 0) {
+    logger.warn('Some skills failed to copy:', result.errors);
+  }
+
+  return {
+    copied: result.copied.length > 0,
+    files: result.copied.length > 0 ? result.copied : undefined,
+    skipped: result.skipped.length > 0 ? result.skipped : undefined,
+    errors: result.errors.length > 0 ? result.errors : undefined,
+  };
+}
+
+/**
  * POST /api/claude-code/initialize
  * Initialize Claude Code folder structure in a project
  */
@@ -118,12 +145,14 @@ export async function POST(request: NextRequest) {
     // Create optional files
     const requirementResult = handleContextScanRequirement(projectId, projectPath, projectName);
     const structureRulesResult = handleStructureRulesFile(projectType, projectPath);
+    const skillsResult = handleSkillsCopy(projectPath);
 
     const response: InitializeResponse = {
       message: 'Claude Code initialized successfully',
       structure: result.structure,
       contextScanRequirement: requirementResult,
       structureRules: structureRulesResult,
+      skills: skillsResult,
     };
 
     return NextResponse.json(response);

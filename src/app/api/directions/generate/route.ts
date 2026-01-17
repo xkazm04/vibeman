@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
 import { ContextMapEntry } from '../../context-map/route';
+import { getBrainContext, formatBrainForDirections, getObservabilityContext, formatObservabilityForBrain } from '@/lib/brain/brainContext';
 
 interface AnsweredQuestion {
   id: string;
@@ -25,6 +26,7 @@ interface GenerateDirectionsRequest {
   directionsPerContext?: number;
   userContext?: string;  // User's dilemma/topic description
   answeredQuestions?: AnsweredQuestion[];  // Selected answered questions for context
+  brainstormAll?: boolean;  // When true, brainstorm across entire project holistically
 }
 
 /**
@@ -51,8 +53,9 @@ function buildDirectionRequirement(config: {
   directionsPerContext: number;
   userContext?: string;
   answeredQuestions?: AnsweredQuestion[];
+  brainContext?: string;  // Injected brain decision patterns
 }): string {
-  const { projectId, projectName, projectPath, selectedContexts, directionsPerContext, userContext, answeredQuestions = [] } = config;
+  const { projectId, projectName, projectPath, selectedContexts, directionsPerContext, userContext, answeredQuestions = [], brainContext = '' } = config;
   const apiUrl = getVibemanApiUrl();
 
   // Build context sections
@@ -110,7 +113,7 @@ ${answeredQuestions.map(q => `**Q:** ${q.question}
 
 **Consider these answers when generating directions.** They provide valuable insight into the user's priorities and vision.
 
-` : ''}## Context Map Entries to Analyze
+` : ''}${brainContext}## Context Map Entries to Analyze
 
 ${contextSections}
 
@@ -241,6 +244,167 @@ After generating all directions, summarize:
 `;
 }
 
+/**
+ * Build brainstorm requirement - holistic view across entire project
+ */
+function buildBrainstormRequirement(config: {
+  projectId: string;
+  projectName: string;
+  projectPath: string;
+  allContexts: ContextMapEntry[];
+  directionsCount: number;
+  userContext?: string;
+  answeredQuestions?: AnsweredQuestion[];
+  brainContext?: string;
+}): string {
+  const { projectId, projectName, projectPath, allContexts, directionsCount, userContext, answeredQuestions = [], brainContext = '' } = config;
+  const apiUrl = getVibemanApiUrl();
+
+  // Build condensed context overview
+  const contextOverview = allContexts.map(ctx => {
+    const fileCount = [
+      ...(ctx.filepaths.ui || []),
+      ...(ctx.filepaths.lib || []),
+      ...(ctx.filepaths.api || [])
+    ].length;
+    return `- **${ctx.title}** (${ctx.id}): ${ctx.summary} [${fileCount} files]`;
+  }).join('\n');
+
+  return `# Strategic Brainstorm: ${projectName}
+
+## Mission
+
+Generate **${directionsCount} strategic development directions** by analyzing the entire project holistically. Unlike focused context analysis, this is a **bird's-eye view** exercise - look for cross-cutting opportunities, architectural improvements, and strategic initiatives that span multiple areas.
+
+**Think like a Principal Engineer reviewing the entire product.** What would move the needle? What opportunities exist at the intersections of different features?
+
+## Project Information
+
+- **Project ID**: ${projectId}
+- **Project Path**: ${projectPath}
+- **Total Contexts**: ${allContexts.length}
+- **Directions to Generate**: ${directionsCount}
+
+${userContext ? `## Focus Area
+
+The user has provided this context about their current thinking:
+
+> ${userContext}
+
+**Let this guide your brainstorming** - but don't limit yourself to only this area.
+
+` : ''}${answeredQuestions.length > 0 ? `## Strategic Input from User
+
+The user has shared these thoughts about the project direction:
+
+${answeredQuestions.map(q => `**Q:** ${q.question}
+**A:** ${q.answer}`).join('\n\n')}
+
+` : ''}${brainContext}## Project Landscape
+
+Here's an overview of all ${allContexts.length} contexts in this project:
+
+${contextOverview}
+
+---
+
+## Instructions
+
+### Step 1: Holistic Analysis
+
+Take a **bird's-eye view** of the project:
+
+1. **Map the ecosystem** - How do these contexts relate to each other?
+2. **Identify gaps** - What's missing between the pieces?
+3. **Spot patterns** - What repeated problems could be solved systematically?
+4. **Consider the user journey** - What friction points exist across features?
+5. **Think scale** - What would need to change for 10x growth?
+
+### Step 2: Cross-Cutting Opportunities
+
+Look for opportunities that span multiple contexts:
+
+**Integration Opportunities:**
+- Where could features work better together?
+- What data could be shared more effectively?
+- What user workflows cross multiple contexts?
+
+**Architectural Opportunities:**
+- What patterns are inconsistent across the codebase?
+- What infrastructure would benefit multiple features?
+- What abstractions would reduce overall complexity?
+
+**Strategic Opportunities:**
+- What would differentiate this product?
+- What would make power users significantly more productive?
+- What would reduce operational burden?
+
+### Step 3: Generate Strategic Directions
+
+Generate exactly **${directionsCount} directions** that:
+- Span or benefit multiple contexts
+- Address systemic rather than local issues
+- Would make a visible difference to users or developers
+- Are worthy of dedicated implementation sessions
+
+**For each direction, use context_map_id "cross-cutting"** since these span multiple areas.
+
+### Step 4: Save Directions to Database
+
+For each direction, make a POST request:
+
+\`\`\`bash
+curl -X POST ${apiUrl}/api/directions \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "project_id": "${projectId}",
+    "context_map_id": "cross-cutting",
+    "context_map_title": "Cross-Cutting Initiative",
+    "summary": "<compelling one-liner summary>",
+    "direction": "<full markdown content with all sections>"
+  }'
+\`\`\`
+
+## Direction Format
+
+Each direction should include:
+
+1. **Summary** (compelling one-liner): What is this initiative?
+2. **Direction content** (detailed markdown):
+   - **Vision**: What does success look like?
+   - **Contexts Affected**: Which areas does this touch?
+   - **Business Value**: Why does this matter?
+   - **Approach**: High-level implementation strategy
+   - **Success Criteria**: How do we know it's done?
+   - **Key Risks**: What could go wrong?
+
+## Quality Guidelines
+
+**EXCELLENT Brainstorm Directions:**
+- "Unify state management patterns across all feature modules"
+- "Build cross-context search that surfaces content from any feature"
+- "Create shared component library with consistent interaction patterns"
+- "Implement project-wide keyboard navigation system"
+
+**NOT Brainstorm Material** (too narrow):
+- "Add loading spinner to one component"
+- "Fix bug in single feature"
+- "Refactor one file"
+
+## Output Summary
+
+After generating all directions, provide:
+- List of all ${directionsCount} directions created
+- Key themes that emerged
+- Recommended implementation order
+- Dependencies between directions
+
+---
+
+**Remember**: This is strategic thinking time. These directions should represent meaningful investments that improve the product as a whole, not just individual features.
+`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: GenerateDirectionsRequest = await request.json();
@@ -252,7 +416,8 @@ export async function POST(request: NextRequest) {
       selectedContexts,
       directionsPerContext = 3,
       userContext,
-      answeredQuestions
+      answeredQuestions,
+      brainstormAll = false
     } = body;
 
     // Validate required fields
@@ -282,20 +447,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build requirement content
-    const requirementContent = buildDirectionRequirement({
-      projectId,
-      projectName,
-      projectPath: normalizedProjectPath,
-      selectedContexts,
-      directionsPerContext,
-      userContext,
-      answeredQuestions
-    });
+    // Load brain context if available
+    const brain = getBrainContext(normalizedProjectPath);
+    const brainContext = formatBrainForDirections(brain);
+
+    if (brain.exists) {
+      logger.info('[API] Brain context loaded for direction generation');
+    }
+
+    // Load observability context if available
+    const obsContext = getObservabilityContext(projectId);
+    const obsSection = formatObservabilityForBrain(obsContext);
+
+    if (obsContext.hasData) {
+      logger.info('[API] Observability context loaded for direction generation', {
+        topEndpoints: obsContext.topEndpoints.length,
+        highErrorEndpoints: obsContext.highErrorEndpoints.length
+      });
+    }
+
+    // Combine brain and observability context
+    const combinedContext = brainContext + obsSection;
+
+    // Build requirement content - use brainstorm builder for holistic mode
+    const requirementContent = brainstormAll
+      ? buildBrainstormRequirement({
+          projectId,
+          projectName,
+          projectPath: normalizedProjectPath,
+          allContexts: selectedContexts,
+          directionsCount: directionsPerContext,
+          userContext,
+          answeredQuestions,
+          brainContext: combinedContext
+        })
+      : buildDirectionRequirement({
+          projectId,
+          projectName,
+          projectPath: normalizedProjectPath,
+          selectedContexts,
+          directionsPerContext,
+          userContext,
+          answeredQuestions,
+          brainContext: combinedContext
+        });
 
     // Create requirement file with short name
     const timestamp = Date.now();
-    const requirementName = `direction-gen-${timestamp}`;
+    const requirementName = brainstormAll ? `brainstorm-${timestamp}` : `direction-gen-${timestamp}`;
 
     // Ensure .claude/commands directory exists
     const requirementsDir = path.join(normalizedProjectPath, '.claude', 'commands');
@@ -321,6 +520,7 @@ export async function POST(request: NextRequest) {
       requirementPath,
       contextCount: selectedContexts.length,
       directionsPerContext,
+      brainstormAll,
       fileExists,
       fileSize: fileStats?.size
     });
@@ -337,7 +537,10 @@ export async function POST(request: NextRequest) {
       requirementName,
       requirementPath,
       contextCount: selectedContexts.length,
-      expectedDirections: selectedContexts.length * directionsPerContext
+      expectedDirections: brainstormAll ? directionsPerContext : selectedContexts.length * directionsPerContext,
+      brainContextUsed: brain.exists,
+      observabilityContextUsed: obsContext.hasData,
+      brainstormAll
     });
 
   } catch (error) {

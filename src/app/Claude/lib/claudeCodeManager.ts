@@ -24,6 +24,7 @@ export {
   readClaudeSettings,
   createContextScanRequirement,
   createStructureRulesFile,
+  copyDefaultSkills,
 } from '../sub_ClaudeCodeManager/folderManager';
 
 // Re-export log management functions

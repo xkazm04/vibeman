@@ -180,6 +180,8 @@ export function runMigrations() {
     migrateDirectionsTable();
     // Migration 61: Create hall_of_fame_stars table
     migrateHallOfFameStars();
+    // Migration 62: Create API Observability tables
+    migrateApiObservability();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4321,5 +4323,17 @@ function migrateHallOfFameStars() {
     if (created) {
       migrationLogger.info('hall_of_fame_stars table created successfully');
     }
+  }, migrationLogger);
+}
+
+/**
+ * Migration 62: Create API Observability tables
+ * Tracks API endpoint usage, response times, and error rates
+ */
+function migrateApiObservability() {
+  safeMigration('api_observability', () => {
+    const db = getConnection();
+    const { migrate049ApiObservability } = require('./049_api_observability');
+    migrate049ApiObservability(db);
   }, migrationLogger);
 }

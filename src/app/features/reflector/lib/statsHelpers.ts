@@ -46,7 +46,7 @@ export function calculateImplementedStats(ideas: DbIdea[]): ReflectorStats {
  */
 export function filterIdeasByViewMode(
   ideas: DbIdea[],
-  viewMode: 'weekly' | 'total' | 'ideas_stats' | 'dependencies'
+  viewMode: 'weekly' | 'total' | 'ideas_stats' | 'dependencies' | 'observability'
 ): DbIdea[] {
   if (viewMode === 'weekly') {
     const oneWeekAgo = new Date();

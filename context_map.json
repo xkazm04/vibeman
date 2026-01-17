@@ -1634,5 +1634,337 @@
         "data": []
       }
     }
-  ]
+  ],
+  "summary": {
+    "overview": "Vibeman is an AI-driven development platform that automates the software development lifecycle. Users can analyze codebases (Blueprint), generate improvement ideas with 12 specialized AI agents (Ideas), batch-execute code changes (TaskRunner), track goals and implementations (Manager), manage code contexts visually (Context), and orchestrate refactoring at scale (RefactorWizard). The platform integrates multiple LLM providers and Claude Code for autonomous code execution.",
+    "entryPoints": [
+      "project-management",
+      "onboarding-getting-started",
+      "blueprint-scanning-ui"
+    ],
+    "interconnections": [
+      {
+        "from": "onboarding-getting-started",
+        "to": "blueprint-scanning-ui",
+        "relationship": "triggers",
+        "description": "Onboarding guides users to run initial blueprint scans to understand their codebase"
+      },
+      {
+        "from": "blueprint-scanning-ui",
+        "to": "blueprint-framework-adapters",
+        "relationship": "uses",
+        "description": "Scan UI selects appropriate framework adapter (Next.js, FastAPI, etc.) for codebase analysis"
+      },
+      {
+        "from": "blueprint-framework-adapters",
+        "to": "blueprint-core-scans",
+        "relationship": "calls",
+        "description": "Framework adapters invoke core scan types (structure, build, contexts) for analysis"
+      },
+      {
+        "from": "blueprint-core-scans",
+        "to": "context-cards-layout",
+        "relationship": "triggers",
+        "description": "Completed scans generate contexts that appear in the context management interface"
+      },
+      {
+        "from": "blueprint-context-selection",
+        "to": "blueprint-context-scans",
+        "relationship": "triggers",
+        "description": "Selected contexts are passed to specialized context-aware scans for deeper analysis"
+      },
+      {
+        "from": "blueprint-state-machine",
+        "to": "blueprint-workers-scheduler",
+        "relationship": "calls",
+        "description": "State machine orchestrates worker execution for parallel scan pipelines"
+      },
+      {
+        "from": "context-cards-layout",
+        "to": "context-groups-organization",
+        "relationship": "uses",
+        "description": "Context cards are organized into color-coded groups for visual management"
+      },
+      {
+        "from": "context-cards-layout",
+        "to": "context-detail-files",
+        "relationship": "triggers",
+        "description": "Clicking a context card opens detailed view with files, timeline, and related contexts"
+      },
+      {
+        "from": "context-cards-layout",
+        "to": "context-generation-ai",
+        "relationship": "triggers",
+        "description": "Creating new contexts invokes AI to generate descriptions and metadata"
+      },
+      {
+        "from": "ideas-scanning-setup",
+        "to": "llm-providers",
+        "relationship": "uses",
+        "description": "Idea scans use configured LLM providers to generate improvement suggestions"
+      },
+      {
+        "from": "ideas-scanning-setup",
+        "to": "ideas-browse-filter",
+        "relationship": "triggers",
+        "description": "Completed idea scans populate the browsable ideas list"
+      },
+      {
+        "from": "ideas-browse-filter",
+        "to": "ideas-tinder-evaluation",
+        "relationship": "triggers",
+        "description": "User can switch to tinder-style evaluation for rapid idea review"
+      },
+      {
+        "from": "ideas-tinder-evaluation",
+        "to": "ideas-lifecycle-buffer",
+        "relationship": "triggers",
+        "description": "Accepted ideas move to lifecycle buffer for implementation tracking"
+      },
+      {
+        "from": "ideas-lifecycle-buffer",
+        "to": "task-runner-batch-execution",
+        "relationship": "triggers",
+        "description": "Buffered ideas become executable tasks in the task runner"
+      },
+      {
+        "from": "task-runner-batch-execution",
+        "to": "claude-code-execution",
+        "relationship": "calls",
+        "description": "Task runner invokes Claude Code to execute requirements autonomously"
+      },
+      {
+        "from": "task-runner-batch-execution",
+        "to": "task-runner-git-integration",
+        "relationship": "uses",
+        "description": "Task execution can automatically create git commits and branches"
+      },
+      {
+        "from": "claude-code-execution",
+        "to": "context-cards-layout",
+        "relationship": "triggers",
+        "description": "After code changes, context auto-update refreshes affected contexts"
+      },
+      {
+        "from": "refactor-wizard-steps",
+        "to": "refactor-opportunities-packages",
+        "relationship": "triggers",
+        "description": "Wizard scans identify refactoring opportunities grouped into packages"
+      },
+      {
+        "from": "refactor-opportunities-packages",
+        "to": "refactor-ai-analysis",
+        "relationship": "uses",
+        "description": "AI analyzer provides strategic recommendations for refactoring packages"
+      },
+      {
+        "from": "refactor-ai-analysis",
+        "to": "refactor-dsl-builder",
+        "relationship": "triggers",
+        "description": "AI recommendations feed into DSL-based refactoring execution"
+      },
+      {
+        "from": "refactor-dsl-builder",
+        "to": "task-runner-batch-execution",
+        "relationship": "triggers",
+        "description": "DSL-defined refactoring operations become executable tasks"
+      },
+      {
+        "from": "manager-goal-hub",
+        "to": "manager-hypothesis-tracking",
+        "relationship": "triggers",
+        "description": "Goals contain hypotheses that need validation through implementation"
+      },
+      {
+        "from": "manager-goal-hub",
+        "to": "manager-implementation-logs",
+        "relationship": "triggers",
+        "description": "Goal progress is tracked through implementation log entries"
+      },
+      {
+        "from": "manager-standup-wizard",
+        "to": "manager-standup-automation",
+        "relationship": "uses",
+        "description": "Standup wizard can be automated with AI assistance"
+      },
+      {
+        "from": "annette-voice-core",
+        "to": "annette-ai-tools",
+        "relationship": "uses",
+        "description": "Voice assistant uses AI tools for goal evaluation and file operations"
+      },
+      {
+        "from": "annette-voice-core",
+        "to": "annette-insights-knowledge",
+        "relationship": "triggers",
+        "description": "Voice queries surface insights and knowledge from project context"
+      },
+      {
+        "from": "social-kanban-board",
+        "to": "social-card-types",
+        "relationship": "uses",
+        "description": "Kanban cards render different content types for each social channel"
+      },
+      {
+        "from": "social-kanban-board",
+        "to": "social-activity-filters",
+        "relationship": "uses",
+        "description": "Kanban board can be filtered by activity, SLA, and status"
+      },
+      {
+        "from": "social-discovery-twitter",
+        "to": "social-kanban-board",
+        "relationship": "triggers",
+        "description": "Discovered tweets are imported into the kanban board for review"
+      },
+      {
+        "from": "reflector-dashboard-filters",
+        "to": "reflector-analytics-insights",
+        "relationship": "triggers",
+        "description": "Filtered ideas are analyzed to generate executive insights"
+      },
+      {
+        "from": "reflector-dashboard-filters",
+        "to": "reflector-views-weekly",
+        "relationship": "triggers",
+        "description": "Different view modes visualize idea data in constellation or weekly formats"
+      },
+      {
+        "from": "docs-architecture-analysis",
+        "to": "docs-impact-xray",
+        "relationship": "uses",
+        "description": "Architecture graph enables impact simulation and hot path analysis"
+      },
+      {
+        "from": "tech-debt-radar",
+        "to": "debt-prediction-roi",
+        "relationship": "triggers",
+        "description": "Detected tech debt feeds into ROI simulation for prioritization"
+      },
+      {
+        "from": "composer-blueprint",
+        "to": "blueprint-state-machine",
+        "relationship": "uses",
+        "description": "Visual composer creates state machine configurations for scan pipelines"
+      },
+      {
+        "from": "goals-management",
+        "to": "manager-goal-hub",
+        "relationship": "uses",
+        "description": "Core goals CRUD feeds into the goal hub dashboard"
+      }
+    ],
+    "userJourneys": [
+      {
+        "name": "New Project Analysis",
+        "description": "User onboards a new project and runs initial codebase analysis",
+        "steps": [
+          { "context": "project-management", "action": "Add a new project by selecting its path" },
+          { "context": "onboarding-getting-started", "action": "Follow the getting started checklist" },
+          { "context": "blueprint-scanning-ui", "action": "Run structure and context scans" },
+          { "context": "context-cards-layout", "action": "Review generated contexts and organize into groups" },
+          { "context": "context-generation-ai", "action": "Refine context descriptions with AI assistance" }
+        ]
+      },
+      {
+        "name": "Idea-Driven Development",
+        "description": "User generates ideas, reviews them, and executes accepted improvements",
+        "steps": [
+          { "context": "ideas-scanning-setup", "action": "Configure and run idea generation scans" },
+          { "context": "ideas-browse-filter", "action": "Browse generated ideas by context and type" },
+          { "context": "ideas-tinder-evaluation", "action": "Swipe through ideas to accept or reject" },
+          { "context": "ideas-lifecycle-buffer", "action": "Review accepted ideas in the buffer" },
+          { "context": "task-runner-batch-execution", "action": "Execute accepted ideas as batch tasks" },
+          { "context": "claude-code-execution", "action": "Monitor Claude Code executing requirements" }
+        ]
+      },
+      {
+        "name": "Strategic Refactoring",
+        "description": "User identifies refactoring opportunities and executes them systematically",
+        "steps": [
+          { "context": "refactor-wizard-steps", "action": "Start the refactor wizard and run analysis" },
+          { "context": "refactor-opportunities-packages", "action": "Review identified opportunities grouped into packages" },
+          { "context": "refactor-ai-analysis", "action": "Get AI recommendations for prioritization" },
+          { "context": "refactor-dsl-builder", "action": "Configure refactoring operations with DSL" },
+          { "context": "task-runner-batch-execution", "action": "Execute refactoring tasks in batches" },
+          { "context": "refactor-results", "action": "Review execution results and history" }
+        ]
+      },
+      {
+        "name": "Goal Tracking & Standup",
+        "description": "User tracks development goals and runs daily standups",
+        "steps": [
+          { "context": "manager-goal-hub", "action": "Create or select an active goal" },
+          { "context": "manager-hypothesis-tracking", "action": "Define hypotheses to validate" },
+          { "context": "manager-standup-wizard", "action": "Run daily standup workflow" },
+          { "context": "manager-implementation-logs", "action": "Review implementation progress" },
+          { "context": "hall-of-fame", "action": "Celebrate completed implementations" }
+        ]
+      }
+    ],
+    "sharedDependencies": [
+      {
+        "context": "llm-providers",
+        "usedBy": [
+          "blueprint-core-scans",
+          "blueprint-context-scans",
+          "ideas-scanning-setup",
+          "refactor-ai-analysis",
+          "context-generation-ai",
+          "annette-voice-core",
+          "questions-clarification"
+        ],
+        "purpose": "Unified LLM integration layer - all AI features route through here for consistent token tracking, provider switching, and cost monitoring across OpenAI, Anthropic, Gemini, and Ollama"
+      },
+      {
+        "context": "database-layer",
+        "usedBy": [
+          "context-cards-layout",
+          "ideas-browse-filter",
+          "goals-management",
+          "manager-implementation-logs",
+          "tech-debt-radar",
+          "docs-architecture-analysis"
+        ],
+        "purpose": "SQLite database with WAL mode and migrations - provides persistence for all entities (contexts, ideas, goals, scans, tech debt) with driver abstraction for future PostgreSQL support"
+      },
+      {
+        "context": "project-management",
+        "usedBy": [
+          "blueprint-scanning-ui",
+          "ideas-scanning-setup",
+          "context-cards-layout",
+          "task-runner-batch-execution",
+          "claude-code-execution",
+          "refactor-wizard-steps"
+        ],
+        "purpose": "Active project state and configuration - all project-scoped features depend on knowing which project is currently selected and its path"
+      },
+      {
+        "context": "file-system-operations",
+        "usedBy": [
+          "blueprint-framework-adapters",
+          "claude-code-execution",
+          "code-tree-navigation",
+          "dependencies-management",
+          "task-runner-git-integration"
+        ],
+        "purpose": "File system interface with git integration - handles file reading/writing, watching, and version control operations for code analysis and modification"
+      },
+      {
+        "context": "api-utilities",
+        "usedBy": [
+          "all API routes"
+        ],
+        "purpose": "Common API helpers for error handling, JSON parsing, logging, and configuration - ensures consistent error responses and logging across 158+ API endpoints"
+      },
+      {
+        "context": "ui-state-stores",
+        "usedBy": [
+          "all UI features"
+        ],
+        "purpose": "Cross-cutting UI state (theme, tooltips, focus mode, decision queue) - Zustand stores that provide consistent UX behavior across all feature modules"
+      }
+    ]
+  }
 }

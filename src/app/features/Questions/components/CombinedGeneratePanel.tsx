@@ -10,7 +10,8 @@ import {
   ChevronDown,
   CheckSquare,
   Square,
-  MessageSquare
+  MessageSquare,
+  Globe2
 } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
 import { ContextMapEntry } from '../lib/questionsApi';
@@ -28,7 +29,8 @@ interface CombinedGeneratePanelProps {
   onGenerateDirections: (
     count: number,
     userContext: string,
-    selectedQuestionIds: string[]
+    selectedQuestionIds: string[],
+    brainstormAll?: boolean
   ) => Promise<GenerateResult | void>;
   disabled?: boolean;
 }
@@ -53,6 +55,7 @@ export default function CombinedGeneratePanel({
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [showDirectionOptions, setShowDirectionOptions] = useState(false);
+  const [brainstormAll, setBrainstormAll] = useState(false);
 
   const selectedContextCount = selectedContextIds.length;
 
@@ -79,17 +82,19 @@ export default function CombinedGeneratePanel({
   };
 
   const handleGenerateDirections = async () => {
-    if (selectedContextCount === 0) return;
+    // Allow generation if brainstormAll is enabled OR contexts are selected
+    if (!brainstormAll && selectedContextCount === 0) return;
 
     setGeneratingDirections(true);
     setStatus(null);
     setMessage('');
 
     try {
-      const result = await onGenerateDirections(directionsPerContext, userContext, selectedQuestionIds);
+      const result = await onGenerateDirections(directionsPerContext, userContext, selectedQuestionIds, brainstormAll);
       if (result) {
         setStatus('success');
-        setMessage(`Directions requirement created! → ${result.requirementPath}`);
+        const modeLabel = brainstormAll ? 'Brainstorm' : 'Directions';
+        setMessage(`${modeLabel} requirement created! → ${result.requirementPath}`);
         setUserContext('');
         setSelectedQuestionIds([]);
       }
@@ -173,10 +178,10 @@ export default function CombinedGeneratePanel({
               className="w-12 bg-gray-900/50 border border-gray-700/50 rounded px-2 py-1 text-white text-center text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
               disabled={isGenerating}
             />
-            <span className="text-xs text-gray-500">/ctx</span>
+            <span className="text-xs text-gray-500">{brainstormAll ? 'total' : '/ctx'}</span>
             <button
               onClick={handleGenerateDirections}
-              disabled={disabled || isGenerating || selectedContextCount === 0}
+              disabled={disabled || isGenerating || (!brainstormAll && selectedContextCount === 0)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-cyan-600/80 hover:bg-cyan-500 text-white"
             >
               {generatingDirections ? (
@@ -185,6 +190,19 @@ export default function CombinedGeneratePanel({
                 <Sparkles className="w-3.5 h-3.5" />
               )}
               Generate
+            </button>
+            {/* Brainstorm All toggle */}
+            <button
+              onClick={() => setBrainstormAll(!brainstormAll)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                brainstormAll
+                  ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+                  : 'bg-gray-800/50 border border-gray-700/50 text-gray-400 hover:text-white hover:border-gray-600/50'
+              }`}
+              title="Brainstorm across entire project"
+            >
+              <Globe2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">All</span>
             </button>
             {/* Expand options button */}
             <button
@@ -197,7 +215,11 @@ export default function CombinedGeneratePanel({
           </div>
 
           {/* Context count indicator */}
-          {selectedContextCount === 0 ? (
+          {brainstormAll ? (
+            <span className="text-xs text-amber-400/70">
+              Brainstorming across {contexts.length} contexts
+            </span>
+          ) : selectedContextCount === 0 ? (
             <span className="text-xs text-gray-500">Select contexts above</span>
           ) : (
             <span className="text-xs text-gray-400">

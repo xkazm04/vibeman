@@ -29,6 +29,7 @@ import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { WeeklyDashboard } from '@/app/features/reflector/sub_Weekly/components';
 import ExportButton from '@/app/features/reflector/components/ExportButton';
+import ObservabilityDashboard from '@/app/features/reflector/sub_Observability/ObservabilityDashboard';
 
 // FilterBar configuration for TotalViewDashboard
 const TOTAL_VIEW_FILTER_CONFIG: FilterBarConfig = {
@@ -137,7 +138,7 @@ const ReflectorLayout = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {loading && viewMode !== 'dependencies' && viewMode !== 'ideas_stats' ? (
+        {loading && viewMode !== 'dependencies' && viewMode !== 'ideas_stats' && viewMode !== 'observability' ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-gray-400">Loading...</div>
           </div>
@@ -147,6 +148,8 @@ const ReflectorLayout = () => {
           <DependenciesTab />
         ) : viewMode === 'ideas_stats' ? (
           <ReflectionDashboard />
+        ) : viewMode === 'observability' ? (
+          <ObservabilityDashboard />
         ) : (
           <div className="space-y-6">
             {/* Unified FilterBar and Active Filter Display */}

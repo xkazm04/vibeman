@@ -243,11 +243,15 @@ export default function QuestionsLayout() {
   const handleGenerateDirections = async (
     directionsPerContext: number,
     userContext: string,
-    selectedQuestionIds: string[]
+    selectedQuestionIds: string[],
+    brainstormAll?: boolean
   ) => {
     if (!activeProject) return;
 
-    const selectedContexts = contexts.filter(c => selectedContextIds.includes(c.id));
+    // In brainstorm mode, use all contexts; otherwise use selected ones
+    const selectedContexts = brainstormAll
+      ? contexts
+      : contexts.filter(c => selectedContextIds.includes(c.id));
 
     // Build answered questions array from selected IDs
     const answeredQuestionsInput: AnsweredQuestionInput[] = answeredQuestions
@@ -265,7 +269,8 @@ export default function QuestionsLayout() {
       selectedContexts,
       directionsPerContext,
       userContext: userContext.trim() || undefined,
-      answeredQuestions: answeredQuestionsInput.length > 0 ? answeredQuestionsInput : undefined
+      answeredQuestions: answeredQuestionsInput.length > 0 ? answeredQuestionsInput : undefined,
+      brainstormAll
     });
 
     return {
