@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries } from '@/lib/queries/contextQueries';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface SavedContext {
   id: string;
@@ -45,7 +46,7 @@ interface SavedContext {
  *   errors?: string[];
  * }
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, projectPath, projectType, provider, model } = body;
@@ -178,3 +179,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/contexts/scripted-scan-and-save');

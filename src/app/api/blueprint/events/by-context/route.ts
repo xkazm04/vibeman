@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventRepository } from '@/app/db/repositories/event.repository';
 import { extractProjectId, createErrorResponse } from '../utils';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/blueprint/events/by-context
@@ -14,7 +15,7 @@ import { extractProjectId, createErrorResponse } from '../utils';
  * Note: This endpoint looks for events with matching titles and extracts
  * context_id from the event record (not from the title).
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const { projectId, error: projectError } = extractProjectId(request);
@@ -63,3 +64,5 @@ export async function GET(request: NextRequest) {
     return createErrorResponse(error);
   }
 }
+
+export const GET = withObservability(handleGet, '/api/blueprint/events/by-context');

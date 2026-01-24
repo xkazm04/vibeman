@@ -3,6 +3,7 @@
  */
 
 import { DbIdea } from '@/app/db';
+import { SuggestionFilter } from './unifiedTypes';
 
 export interface IdeaFilterState {
   projectIds: string[];
@@ -36,6 +37,7 @@ export interface UnifiedFilterState {
   };
   searchQuery: string;
   weekOffset: number; // 0 = current week, -1 = last week, etc.
+  suggestionType: SuggestionFilter; // 'ideas' | 'directions' | 'both'
 }
 
 /**
@@ -71,13 +73,18 @@ export function getEmptyUnifiedFilterState(): UnifiedFilterState {
     },
     searchQuery: '',
     weekOffset: 0,
+    suggestionType: 'both',
   };
 }
 
 /**
  * Convert IdeaFilterState to UnifiedFilterState
  */
-export function toUnifiedFilterState(filters: IdeaFilterState, weekOffset: number = 0): UnifiedFilterState {
+export function toUnifiedFilterState(
+  filters: IdeaFilterState,
+  weekOffset: number = 0,
+  suggestionType: SuggestionFilter = 'both'
+): UnifiedFilterState {
   return {
     projectIds: filters.projectIds,
     contextIds: filters.contextIds,
@@ -88,6 +95,7 @@ export function toUnifiedFilterState(filters: IdeaFilterState, weekOffset: numbe
     dateRange: filters.dateRange,
     searchQuery: filters.searchQuery,
     weekOffset,
+    suggestionType,
   };
 }
 

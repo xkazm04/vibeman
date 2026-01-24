@@ -90,8 +90,38 @@ export interface DbContext {
   target_fulfillment: string | null; // Current progress toward target
   target_rating: number | null; // Rating 1-5 for target progress visualization
   implemented_tasks: number; // Counter for implemented tasks in this context
+  // NEW: Enhanced context fields (Phase 1)
+  category: 'ui' | 'lib' | 'api' | 'data' | null; // File category classification
+  api_routes: string | null; // JSON array of API paths handled by this context
+  business_feature: string | null; // Human-readable business feature name
   created_at: string;
   updated_at: string;
+}
+
+// Context API Route mapping types (Phase 1)
+export interface DbContextApiRoute {
+  id: string;
+  context_id: string;           // References contexts.id
+  api_path: string;             // e.g., "/api/users", "/api/ideas"
+  http_methods: string;         // Comma-separated: "GET,POST,PUT,DELETE"
+  layer: 'pages' | 'client' | 'server' | 'external';
+  created_at: string;
+}
+
+// X-Ray Event types (Phase 1 - for persisted API traffic visualization)
+export interface DbXRayEvent {
+  id: string;
+  api_call_id: string | null;   // References obs_api_calls.id
+  context_id: string | null;    // References contexts.id
+  context_group_id: string | null; // References context_groups.id
+  source_layer: 'pages' | 'client' | 'server' | null;
+  target_layer: 'server' | 'external' | null;
+  method: string;               // HTTP method
+  path: string;                 // API path
+  status: number;               // HTTP status code
+  duration: number;             // Response time in ms
+  timestamp: number;            // Unix timestamp
+  created_at: string;
 }
 
 // Event types
@@ -584,8 +614,14 @@ export interface DbQuestion {
 export interface DbDirection {
   id: string;
   project_id: string;
+  // Legacy JSON-based fields (kept for backwards compatibility)
   context_map_id: string;           // References context_map.json entry id
   context_map_title: string;        // Denormalized for display
+  // NEW: SQLite context-based fields (Phase 5)
+  context_id: string | null;        // References contexts.id
+  context_name: string | null;      // Denormalized for display
+  context_group_id: string | null;  // References context_groups.id
+  // Content
   direction: string;                // Full markdown content
   summary: string;                  // One-liner summary
   status: 'pending' | 'accepted' | 'rejected';
@@ -629,6 +665,50 @@ export interface DbPendingApproval {
   decision_reason: string | null;
   decided_at: string | null;
   created_at: string;
+}
+
+// Prompt Template types (for reusable prompt composition and requirement generation)
+export type PromptTemplateCategory = 'storywriting' | 'research' | 'code_generation' | 'analysis' | 'review' | 'custom';
+
+export interface PromptTemplateVariable {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'text';
+  required: boolean;
+  default_value?: string;
+  description?: string;
+}
+
+export interface DbPromptTemplate {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  category: PromptTemplateCategory;
+  template_content: string;
+  variables: string; // JSON array of PromptTemplateVariable
+  created_at: string;
+  updated_at: string;
+}
+
+// === Workspace Types ===
+
+export interface DbWorkspace {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbWorkspaceProject {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  position: number;
+  added_at: string;
 }
 
 // Export standard category type for use in type annotations

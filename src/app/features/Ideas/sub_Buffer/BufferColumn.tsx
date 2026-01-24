@@ -14,6 +14,8 @@ interface BufferColumnProps {
   onIdeaClick: (idea: DbIdea) => void;
   onIdeaDelete: (ideaId: string) => void;
   onContextDelete?: (contextId: string) => void;
+  onIdeaConvert?: (ideaId: string) => void;
+  onIdeaQueueForExecution?: (ideaId: string) => void;
 }
 
 const BufferColumn = React.memo(function BufferColumn({
@@ -23,6 +25,8 @@ const BufferColumn = React.memo(function BufferColumn({
   onIdeaClick,
   onIdeaDelete,
   onContextDelete,
+  onIdeaConvert,
+  onIdeaQueueForExecution,
 }: BufferColumnProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -125,6 +129,8 @@ const BufferColumn = React.memo(function BufferColumn({
               idea={idea}
               onClick={() => onIdeaClick(idea)}
               onDelete={onIdeaDelete}
+              onConvert={onIdeaConvert}
+              onQueueForExecution={onIdeaQueueForExecution}
             />
           ))
         )}

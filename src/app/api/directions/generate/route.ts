@@ -3,6 +3,10 @@
  *
  * POST /api/directions/generate
  * Creates a Claude Code requirement file for direction generation
+ *
+ * Supports both:
+ * - SQLite contexts (primary) via selectedContextIds
+ * - JSON contexts (fallback) via selectedContexts
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,6 +15,10 @@ import fs from 'fs';
 import path from 'path';
 import { ContextMapEntry } from '../../context-map/route';
 import { getBrainContext, formatBrainForDirections, getObservabilityContext, formatObservabilityForBrain } from '@/lib/brain/brainContext';
+import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
+import { withObservability } from '@/lib/observability/middleware';
+import { contextDb, contextGroupDb } from '@/app/db';
+import type { DbContext, DbContextGroup } from '@/app/db';
 
 interface AnsweredQuestion {
   id: string;
@@ -18,15 +26,96 @@ interface AnsweredQuestion {
   answer: string;
 }
 
+/**
+ * Unified context format for direction generation
+ * Works with both SQLite and JSON context sources
+ */
+interface UnifiedContext {
+  id: string;
+  title: string;
+  summary: string;
+  filepaths: {
+    ui?: string[];
+    lib?: string[];
+    api?: string[];
+    data?: string[];
+  };
+  // SQLite-specific fields
+  contextId?: string;  // SQLite context ID
+  groupId?: string;    // SQLite context group ID
+  groupName?: string;  // Context group name
+  layer?: string;      // pages, client, server, external
+  category?: string;   // ui, lib, api, data
+  businessFeature?: string;  // Human-readable feature name
+}
+
 interface GenerateDirectionsRequest {
   projectId: string;
   projectName: string;
   projectPath: string;
-  selectedContexts: ContextMapEntry[];
+  // PRIMARY: SQLite context IDs
+  selectedContextIds?: string[];
+  // FALLBACK: JSON contexts (for backward compatibility)
+  selectedContexts?: ContextMapEntry[];
   directionsPerContext?: number;
   userContext?: string;  // User's dilemma/topic description
   answeredQuestions?: AnsweredQuestion[];  // Selected answered questions for context
   brainstormAll?: boolean;  // When true, brainstorm across entire project holistically
+}
+
+/**
+ * Convert SQLite context to unified format
+ */
+function sqliteContextToUnified(ctx: DbContext, group: DbContextGroup | null): UnifiedContext {
+  // Parse file_paths if stored as JSON string
+  let filePaths: string[] = [];
+  if (ctx.file_paths) {
+    try {
+      filePaths = typeof ctx.file_paths === 'string'
+        ? JSON.parse(ctx.file_paths)
+        : ctx.file_paths;
+    } catch {
+      filePaths = [];
+    }
+  }
+
+  // Categorize files by type based on path patterns
+  const categorizedFiles = {
+    ui: filePaths.filter(f => f.includes('/components/') || f.includes('/features/') || f.endsWith('.tsx')),
+    lib: filePaths.filter(f => f.includes('/lib/') || f.includes('/hooks/') || f.includes('/utils/')),
+    api: filePaths.filter(f => f.includes('/api/') || f.includes('route.ts')),
+    data: filePaths.filter(f => f.includes('/db/') || f.includes('/models/') || f.includes('types.ts')),
+  };
+
+  return {
+    id: ctx.id,
+    title: ctx.name,
+    summary: ctx.description || '',
+    filepaths: categorizedFiles,
+    contextId: ctx.id,
+    groupId: ctx.group_id || undefined,
+    groupName: group?.name || undefined,
+    layer: group?.type || undefined,
+    category: ctx.category || undefined,
+    businessFeature: ctx.business_feature || undefined,
+  };
+}
+
+/**
+ * Convert JSON context to unified format (for backward compatibility)
+ */
+function jsonContextToUnified(ctx: ContextMapEntry): UnifiedContext {
+  return {
+    id: ctx.id,
+    title: ctx.title,
+    summary: ctx.summary,
+    filepaths: {
+      ui: ctx.filepaths.ui || [],
+      lib: ctx.filepaths.lib || ctx.filepaths.logic || [],
+      api: ctx.filepaths.api || ctx.filepaths.server || [],
+      data: ctx.filepaths.data || [],
+    },
+  };
 }
 
 /**
@@ -49,7 +138,7 @@ function buildDirectionRequirement(config: {
   projectId: string;
   projectName: string;
   projectPath: string;
-  selectedContexts: ContextMapEntry[];
+  selectedContexts: UnifiedContext[];
   directionsPerContext: number;
   userContext?: string;
   answeredQuestions?: AnsweredQuestion[];
@@ -58,16 +147,25 @@ function buildDirectionRequirement(config: {
   const { projectId, projectName, projectPath, selectedContexts, directionsPerContext, userContext, answeredQuestions = [], brainContext = '' } = config;
   const apiUrl = getVibemanApiUrl();
 
-  // Build context sections
+  // Build context sections with SQLite metadata
   const contextSections = selectedContexts.map(ctx => {
     const allFiles = [
       ...(ctx.filepaths.ui || []),
       ...(ctx.filepaths.lib || []),
-      ...(ctx.filepaths.api || [])
+      ...(ctx.filepaths.api || []),
+      ...(ctx.filepaths.data || [])
     ];
 
-    return `### ${ctx.title} (${ctx.id})
+    // Include SQLite-specific info if available
+    const sqliteInfo = ctx.contextId ? `
+**SQLite Context ID**: \`${ctx.contextId}\`
+**Group**: ${ctx.groupName || 'Ungrouped'} (Layer: ${ctx.layer || 'unknown'})
+**Category**: ${ctx.category || 'unclassified'}
+**Business Feature**: ${ctx.businessFeature || 'General'}
+` : '';
 
+    return `### ${ctx.title} (${ctx.id})
+${sqliteInfo}
 **Summary**: ${ctx.summary}
 
 **Files to analyze**:
@@ -179,19 +277,24 @@ For each context, generate exactly ${directionsPerContext} ambitious directions.
 
 ### Step 4: Save Directions to Database
 
-For each direction, make a POST request:
+For each direction, make a POST request with **SQLite context references**:
 
 \`\`\`bash
 curl -X POST ${apiUrl}/api/directions \\
   -H "Content-Type: application/json" \\
   -d '{
     "project_id": "${projectId}",
+    "context_id": "<sqlite_context_id>",
+    "context_name": "<context_title>",
+    "context_group_id": "<sqlite_group_id_if_available>",
     "context_map_id": "<context_id>",
     "context_map_title": "<context_title>",
     "summary": "<compelling one-liner summary>",
     "direction": "<full markdown content with all sections>"
   }'
 \`\`\`
+
+**Important**: Use the SQLite Context ID from the context entry (shown as "SQLite Context ID" above) for \`context_id\`. This links the direction to the unified context system for X-Ray visualization and observability.
 
 ## Direction Quality Guidelines
 
@@ -251,7 +354,7 @@ function buildBrainstormRequirement(config: {
   projectId: string;
   projectName: string;
   projectPath: string;
-  allContexts: ContextMapEntry[];
+  allContexts: UnifiedContext[];
   directionsCount: number;
   userContext?: string;
   answeredQuestions?: AnsweredQuestion[];
@@ -260,14 +363,16 @@ function buildBrainstormRequirement(config: {
   const { projectId, projectName, projectPath, allContexts, directionsCount, userContext, answeredQuestions = [], brainContext = '' } = config;
   const apiUrl = getVibemanApiUrl();
 
-  // Build condensed context overview
+  // Build condensed context overview with SQLite info if available
   const contextOverview = allContexts.map(ctx => {
     const fileCount = [
       ...(ctx.filepaths.ui || []),
       ...(ctx.filepaths.lib || []),
-      ...(ctx.filepaths.api || [])
+      ...(ctx.filepaths.api || []),
+      ...(ctx.filepaths.data || [])
     ].length;
-    return `- **${ctx.title}** (${ctx.id}): ${ctx.summary} [${fileCount} files]`;
+    const layerInfo = ctx.layer ? ` [${ctx.layer}]` : '';
+    return `- **${ctx.title}** (${ctx.id})${layerInfo}: ${ctx.summary} [${fileCount} files]`;
   }).join('\n');
 
   return `# Strategic Brainstorm: ${projectName}
@@ -405,7 +510,7 @@ After generating all directions, provide:
 `;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body: GenerateDirectionsRequest = await request.json();
 
@@ -413,6 +518,7 @@ export async function POST(request: NextRequest) {
       projectId,
       projectName,
       projectPath,
+      selectedContextIds,
       selectedContexts,
       directionsPerContext = 3,
       userContext,
@@ -428,9 +534,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!selectedContexts || selectedContexts.length === 0) {
+    // Build unified contexts from either SQLite IDs or JSON contexts
+    let unifiedContexts: UnifiedContext[] = [];
+
+    // PRIMARY: Use SQLite context IDs if provided
+    if (selectedContextIds && selectedContextIds.length > 0) {
+      logger.info('[API] Fetching contexts from SQLite database', { count: selectedContextIds.length });
+
+      for (const ctxId of selectedContextIds) {
+        const ctx = contextDb.getContextById(ctxId);
+        if (ctx) {
+          const group = ctx.group_id ? contextGroupDb.getGroupById(ctx.group_id) : null;
+          unifiedContexts.push(sqliteContextToUnified(ctx, group));
+        } else {
+          logger.warn('[API] Context not found in SQLite:', { ctxId });
+        }
+      }
+    }
+    // FALLBACK: Use JSON contexts for backward compatibility
+    else if (selectedContexts && selectedContexts.length > 0) {
+      logger.info('[API] Using JSON contexts (fallback mode)', { count: selectedContexts.length });
+      unifiedContexts = selectedContexts.map(jsonContextToUnified);
+    }
+
+    if (unifiedContexts.length === 0) {
       return NextResponse.json(
-        { error: 'At least one context must be selected' },
+        { error: 'At least one context must be selected (via selectedContextIds or selectedContexts)' },
         { status: 400 }
       );
     }
@@ -466,8 +595,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Combine brain and observability context
-    const combinedContext = brainContext + obsSection;
+    // Load behavioral context (user activity patterns)
+    const behavioralCtx = getBehavioralContext(projectId);
+    const behavioralSection = formatBehavioralForPrompt(behavioralCtx);
+
+    if (behavioralCtx.hasData) {
+      logger.info('[API] Behavioral context loaded for direction generation', {
+        activeContexts: behavioralCtx.currentFocus.activeContexts.length,
+        successRate: behavioralCtx.patterns.successRate
+      });
+    }
+
+    // Combine brain, observability, and behavioral context
+    const combinedContext = brainContext + obsSection + behavioralSection;
 
     // Build requirement content - use brainstorm builder for holistic mode
     const requirementContent = brainstormAll
@@ -475,7 +615,7 @@ export async function POST(request: NextRequest) {
           projectId,
           projectName,
           projectPath: normalizedProjectPath,
-          allContexts: selectedContexts,
+          allContexts: unifiedContexts,
           directionsCount: directionsPerContext,
           userContext,
           answeredQuestions,
@@ -485,7 +625,7 @@ export async function POST(request: NextRequest) {
           projectId,
           projectName,
           projectPath: normalizedProjectPath,
-          selectedContexts,
+          selectedContexts: unifiedContexts,
           directionsPerContext,
           userContext,
           answeredQuestions,
@@ -518,11 +658,12 @@ export async function POST(request: NextRequest) {
     logger.info('[API] Direction generation requirement created:', {
       requirementName,
       requirementPath,
-      contextCount: selectedContexts.length,
+      contextCount: unifiedContexts.length,
       directionsPerContext,
       brainstormAll,
       fileExists,
-      fileSize: fileStats?.size
+      fileSize: fileStats?.size,
+      usedSqliteContexts: !!selectedContextIds && selectedContextIds.length > 0
     });
 
     if (!fileExists) {
@@ -536,11 +677,12 @@ export async function POST(request: NextRequest) {
       success: true,
       requirementName,
       requirementPath,
-      contextCount: selectedContexts.length,
-      expectedDirections: brainstormAll ? directionsPerContext : selectedContexts.length * directionsPerContext,
+      contextCount: unifiedContexts.length,
+      expectedDirections: brainstormAll ? directionsPerContext : unifiedContexts.length * directionsPerContext,
       brainContextUsed: brain.exists,
       observabilityContextUsed: obsContext.hasData,
-      brainstormAll
+      brainstormAll,
+      usedSqliteContexts: !!selectedContextIds && selectedContextIds.length > 0
     });
 
   } catch (error) {
@@ -551,3 +693,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/directions/generate');

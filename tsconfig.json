@@ -41,6 +41,9 @@
     "node_modules",
     "docs",
     "tests",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }

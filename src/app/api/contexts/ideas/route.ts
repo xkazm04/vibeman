@@ -8,6 +8,7 @@ import {
   handleIdeasApiError,
   createIdeasSuccessResponse,
 } from '@/app/features/Ideas/lib/ideasHandlers';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * DELETE /api/contexts/ideas
@@ -15,7 +16,7 @@ import {
  * Also deletes any associated requirement files
  * Supports 'no-context' for deleting General ideas (null context_id)
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const contextId = searchParams.get('contextId');
@@ -72,3 +73,5 @@ async function deleteRequirementFiles(ideas: DbIdea[], projectPath: string): Pro
     }
   }
 }
+
+export const DELETE = withObservability(handleDelete, '/api/contexts/ideas');

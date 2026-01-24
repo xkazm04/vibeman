@@ -1,0 +1,598 @@
+'use client';
+
+/**
+ * TemplateDetailPanel - Redesigned
+ * Inline editing panel for templates
+ * Features:
+ * - Markdown editor (replaces split editor/preview)
+ * - System variables with context dropdown
+ * - Custom variables section
+ * - Darker theme with no focus outlines
+ */
+
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  X,
+  Edit3,
+  Save,
+  Play,
+  ChevronDown,
+  Sparkles,
+  Check,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react';
+import type { PromptTemplateCategory, PromptTemplateVariable } from '@/app/db/models/types';
+import { TemplateVariableEditor } from './TemplateVariableEditor';
+import { SystemVariableSelector } from './SystemVariableSelector';
+import { AIRandomizerButton } from './AIRandomizerButton';
+import { LLMReviewPanel } from './LLMReviewPanel';
+import { MarkdownEditor } from './MarkdownEditor';
+import { CATEGORY_THEMES, CATEGORY_LABELS, type PromptTemplate } from './TemplateCategoryColumn';
+
+// Shared input class (no focus outline)
+const inputClass = 'w-full px-3 py-2 bg-gray-900/60 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-0 focus:border-purple-500/50 transition-colors';
+const selectClass = 'w-full px-3 py-2 bg-gray-900/60 border border-gray-700/50 rounded-lg text-sm text-white appearance-none focus:outline-none focus:ring-0 focus:border-purple-500/50 transition-colors cursor-pointer';
+
+// All categories
+const CATEGORIES: PromptTemplateCategory[] = [
+  'storywriting',
+  'research',
+  'code_generation',
+  'analysis',
+  'review',
+  'custom',
+];
+
+interface TemplateDetailPanelProps {
+  template: PromptTemplate | null;
+  isNew: boolean;
+  projectId: string;
+  projectPath: string;
+  onClose: () => void;
+  onSave: (template: PromptTemplate) => void;
+  onDelete?: (templateId: string) => void;
+}
+
+export function TemplateDetailPanel({
+  template,
+  isNew,
+  projectId,
+  projectPath,
+  onClose,
+  onSave,
+  onDelete,
+}: TemplateDetailPanelProps) {
+  // Form state
+  const [isEditing, setIsEditing] = useState(isNew);
+  const [name, setName] = useState(template?.name || '');
+  const [description, setDescription] = useState(template?.description || '');
+  const [category, setCategory] = useState<PromptTemplateCategory>(template?.category || 'custom');
+  const [templateContent, setTemplateContent] = useState(template?.template_content || '');
+  const [variables, setVariables] = useState<PromptTemplateVariable[]>(template?.variables || []);
+  const [systemVariables, setSystemVariables] = useState<Record<string, string>>({});
+
+  // Generate requirement state
+  const [variableValues, setVariableValues] = useState<Record<string, string>>({});
+  const [requirementName, setRequirementName] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [showReview, setShowReview] = useState(false);
+
+  // Sync form state when template changes
+  useEffect(() => {
+    if (template) {
+      setName(template.name);
+      setDescription(template.description || '');
+      setCategory(template.category);
+      setTemplateContent(template.template_content);
+      setVariables(template.variables || []);
+      setRequirementName(`${template.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`);
+      // Initialize variable values with defaults
+      const values: Record<string, string> = {};
+      for (const v of template.variables || []) {
+        values[v.name] = v.default_value || '';
+      }
+      setVariableValues(values);
+      // Check for system variables in content
+      if (template.template_content.includes('${contextSection}')) {
+        setSystemVariables({ contextSection: '' });
+      } else {
+        setSystemVariables({});
+      }
+    } else {
+      // Reset for new template
+      setName('');
+      setDescription('');
+      setCategory('custom');
+      setTemplateContent('');
+      setVariables([]);
+      setVariableValues({});
+      setSystemVariables({});
+      setRequirementName('');
+    }
+    setIsEditing(isNew);
+    setError(null);
+    setSuccess(null);
+  }, [template, isNew]);
+
+  // Check for missing required variables
+  const missingRequired = useMemo(() => {
+    const missing: string[] = [];
+    // Check custom variables
+    for (const v of variables) {
+      if (v.required && !variableValues[v.name]?.trim()) {
+        missing.push(v.name);
+      }
+    }
+    // Check system variables
+    for (const [key, value] of Object.entries(systemVariables)) {
+      if (!value) {
+        missing.push(key);
+      }
+    }
+    return missing;
+  }, [variables, variableValues, systemVariables]);
+
+  // Darker gradient based on category
+  const theme = CATEGORY_THEMES[category];
+  const darkGradient = 'from-gray-900/95 via-gray-900/90 to-gray-950/95';
+
+  // Handle save
+  const handleSave = async () => {
+    if (!name.trim() || !templateContent.trim()) {
+      setError('Name and content are required');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const payload = {
+        projectId,
+        name: name.trim(),
+        description: description.trim() || null,
+        category,
+        templateContent: templateContent.trim(),
+        variables,
+        ...(template?.id && { id: template.id }),
+      };
+
+      const response = await fetch('/api/prompt-templates', {
+        method: template ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess('Template saved');
+        setIsEditing(false);
+        onSave(data);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(data.error || 'Failed to save');
+      }
+    } catch {
+      setError('Failed to save template');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle generate requirement
+  const handleGenerate = async () => {
+    if (!template?.id || !projectPath || missingRequired.length > 0) return;
+
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/prompt-templates/generate-requirement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: template.id,
+          projectPath,
+          variables: { ...variableValues, ...systemVariables },
+          requirementName: requirementName.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(`Created: ${data.filePath}`);
+        setTimeout(() => setSuccess(null), 5000);
+      } else {
+        setError(data.error || 'Failed to generate');
+      }
+    } catch {
+      setError('Failed to generate requirement');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Handle AI randomize
+  const handleRandomize = (values: Record<string, string>) => {
+    setVariableValues({ ...variableValues, ...values });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.2 }}
+      className={`rounded-xl bg-gradient-to-br ${darkGradient} border ${theme.border} overflow-hidden shadow-2xl`}
+    >
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="flex items-center justify-between px-4 py-3 border-b border-gray-800/80 bg-gray-950/50"
+      >
+        <div className="flex items-center gap-3">
+          <h3 className={`font-semibold ${theme.text}`}>
+            {isNew ? 'New Template' : template?.name}
+          </h3>
+          {!isNew && (
+            <span className={`text-xs px-2 py-0.5 rounded ${theme.badge}`}>
+              {CATEGORY_LABELS[category]}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {!isNew && !isEditing && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-gray-800/60 text-gray-300 hover:bg-gray-800 transition-colors"
+            >
+              <Edit3 className="w-3 h-3" />
+              Edit
+            </motion.button>
+          )}
+          {isEditing && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowReview(!showReview)}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-colors"
+            >
+              <Sparkles className="w-3 h-3" />
+              LLM Review
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Success/Error Messages */}
+      <AnimatePresence>
+        {(error || success) && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className={`px-4 py-2 text-sm flex items-center gap-2 ${
+              error ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'
+            }`}
+          >
+            {error ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+            {error || success}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* LLM Review Panel */}
+      <AnimatePresence>
+        {showReview && isEditing && (
+          <LLMReviewPanel
+            templateContent={templateContent}
+            category={category}
+            onApply={(improved) => setTemplateContent(improved)}
+            onClose={() => setShowReview(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Content */}
+      <div className="p-4 space-y-4">
+        {/* Name & Category Row */}
+        <AnimatePresence>
+          {isEditing && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="grid grid-cols-3 gap-3"
+            >
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-400 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Template name"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Category</label>
+                <div className="relative">
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as PromptTemplateCategory)}
+                    className={selectClass}
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Description */}
+        <AnimatePresence>
+          {isEditing ? (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <label className="block text-xs text-gray-400 mb-1">Description (optional)</label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What does this template do?"
+                className={inputClass}
+              />
+            </motion.div>
+          ) : template?.description ? (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-sm text-gray-400"
+            >
+              {template.description}
+            </motion.p>
+          ) : null}
+        </AnimatePresence>
+
+        {/* Markdown Editor */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs text-gray-400">
+              {isEditing ? 'Template Content' : 'Template'}
+            </label>
+            {isEditing && (
+              <span className="text-xs text-gray-500">
+                Use {'{{VAR}}'} for custom, {'${var}'} for system variables
+              </span>
+            )}
+          </div>
+          {isEditing ? (
+            <MarkdownEditor
+              value={templateContent}
+              onChange={setTemplateContent}
+              placeholder="Write your template here using Markdown..."
+              height={250}
+              previewMode="live"
+            />
+          ) : (
+            <div className="min-h-[200px] px-3 py-2 bg-gray-900/60 border border-gray-700/30 rounded-lg overflow-y-auto">
+              <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+                {templateContent}
+              </pre>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Variables Section - Split Layout */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.15 }}
+          className="border-t border-gray-800/80 pt-4"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            {/* Custom Variables */}
+            <div>
+              <TemplateVariableEditor
+                variables={variables}
+                templateContent={templateContent}
+                onChange={setVariables}
+                disabled={!isEditing}
+              />
+            </div>
+
+            {/* System Variables */}
+            <div>
+              <SystemVariableSelector
+                projectId={projectId}
+                selectedVariables={systemVariables}
+                onChange={setSystemVariables}
+                disabled={!isEditing}
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Save Button (Edit Mode) */}
+        <AnimatePresence>
+          {isEditing && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="flex items-center justify-end gap-2 border-t border-gray-800/80 pt-4"
+            >
+              {!isNew && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </motion.button>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSave}
+                disabled={saving || !name.trim() || !templateContent.trim()}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-colors"
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {isNew ? 'Create Template' : 'Save Changes'}
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Generate Requirement Section (View Mode) */}
+        <AnimatePresence>
+          {!isEditing && template && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="border-t border-gray-800/80 pt-4 space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-gray-300">Generate Requirement</h4>
+                <AIRandomizerButton
+                  template={template}
+                  onRandomize={handleRandomize}
+                />
+              </div>
+
+              {/* Variable Inputs */}
+              {variables.length > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  {variables.map((v) => (
+                    <div key={v.name}>
+                      <label className="flex items-center gap-1 text-xs text-gray-400 mb-1">
+                        <code className="text-purple-400">{v.name}</code>
+                        {v.required && <span className="text-red-400">*</span>}
+                      </label>
+                      {v.type === 'text' ? (
+                        <textarea
+                          value={variableValues[v.name] || ''}
+                          onChange={(e) => setVariableValues({ ...variableValues, [v.name]: e.target.value })}
+                          placeholder={v.default_value || v.name}
+                          rows={2}
+                          className={`${inputClass} resize-none`}
+                        />
+                      ) : v.type === 'boolean' ? (
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={variableValues[v.name] === 'true'}
+                            onChange={(e) => setVariableValues({
+                              ...variableValues,
+                              [v.name]: e.target.checked ? 'true' : 'false',
+                            })}
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-0 focus:ring-offset-0"
+                          />
+                          <span className="text-sm text-gray-300">
+                            {variableValues[v.name] === 'true' ? 'Yes' : 'No'}
+                          </span>
+                        </label>
+                      ) : (
+                        <input
+                          type={v.type === 'number' ? 'number' : 'text'}
+                          value={variableValues[v.name] || ''}
+                          onChange={(e) => setVariableValues({ ...variableValues, [v.name]: e.target.value })}
+                          placeholder={v.default_value || v.name}
+                          className={inputClass}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* System Variable Values (Context) */}
+              {Object.keys(systemVariables).length > 0 && (
+                <div className="p-2 bg-gray-900/40 rounded-lg border border-gray-800/50">
+                  <SystemVariableSelector
+                    projectId={projectId}
+                    selectedVariables={systemVariables}
+                    onChange={setSystemVariables}
+                    disabled={false}
+                  />
+                </div>
+              )}
+
+              {/* Filename & Generate */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={requirementName}
+                  onChange={(e) => setRequirementName(e.target.value)}
+                  placeholder="requirement-name"
+                  className={`flex-1 ${inputClass}`}
+                />
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleGenerate}
+                  disabled={generating || missingRequired.length > 0 || !projectPath}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-colors"
+                >
+                  {generating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Generate
+                </motion.button>
+              </div>
+
+              {missingRequired.length > 0 && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-xs text-amber-400"
+                >
+                  Missing required: {missingRequired.join(', ')}
+                </motion.p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}

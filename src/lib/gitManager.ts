@@ -211,12 +211,12 @@ export class GitManager {
    */
   static async clone(repository: string, targetPath: string, branch?: string): Promise<{ success: boolean; message: string }> {
     try {
-      const cloneCommand = branch 
+      const cloneCommand = branch
         ? `git clone -b ${branch} ${repository} .`
         : `git clone ${repository} .`;
-      
+
       await execAsync(cloneCommand, { cwd: targetPath });
-      
+
       return {
         success: true,
         message: `Successfully cloned ${repository}`
@@ -226,6 +226,65 @@ export class GitManager {
         success: false,
         message: `Failed to clone: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
+    }
+  }
+
+  /**
+   * Get recent commits with file changes
+   * Used by Brain reflection to correlate decisions with actual code changes
+   */
+  static async getRecentCommits(
+    repoPath: string,
+    options?: { since?: string; limit?: number }
+  ): Promise<Array<{ sha: string; message: string; date: string; filesChanged: string[] }>> {
+    try {
+      const limit = options?.limit ?? 30;
+      const sinceArg = options?.since ? `--since="${options.since}"` : '';
+
+      const { stdout } = await execAsync(
+        `git log --pretty=format:"__COMMIT__%H||%s||%ai" --name-only ${sinceArg} -n ${limit}`,
+        { cwd: repoPath, maxBuffer: 1024 * 1024 }
+      );
+
+      if (!stdout.trim()) return [];
+
+      const commits: Array<{ sha: string; message: string; date: string; filesChanged: string[] }> = [];
+      const blocks = stdout.split('__COMMIT__').filter(Boolean);
+
+      for (const block of blocks) {
+        const lines = block.trim().split('\n');
+        if (lines.length === 0) continue;
+
+        const headerLine = lines[0];
+        const parts = headerLine.split('||');
+        if (parts.length < 3) continue;
+
+        const sha = parts[0].trim();
+        const message = parts[1].trim();
+        const date = parts[2].trim();
+        const filesChanged = lines
+          .slice(1)
+          .map(l => l.trim())
+          .filter(l => l.length > 0 && !l.startsWith('__COMMIT__'));
+
+        commits.push({ sha, message, date, filesChanged });
+      }
+
+      return commits;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Get the remote URL for a repository (origin)
+   */
+  static async getRemoteUrl(repoPath: string): Promise<string | null> {
+    try {
+      const { stdout } = await execAsync('git remote get-url origin', { cwd: repoPath });
+      return stdout.trim() || null;
+    } catch {
+      return null;
     }
   }
 }

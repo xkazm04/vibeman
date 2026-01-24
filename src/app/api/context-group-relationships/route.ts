@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { contextGroupRelationshipQueries } from '@/lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
+import { withObservability } from '@/lib/observability/middleware';
 
 // GET /api/context-group-relationships - Get all relationships for a project
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/context-group-relationships - Create a new relationship
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, sourceGroupId, targetGroupId } = body;
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE /api/context-group-relationships - Delete a relationship
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const relationshipId = searchParams.get('relationshipId');
@@ -96,3 +97,7 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/context-group-relationships');
+export const POST = withObservability(handlePost, '/api/context-group-relationships');
+export const DELETE = withObservability(handleDelete, '/api/context-group-relationships');

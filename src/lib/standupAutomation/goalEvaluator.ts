@@ -7,7 +7,7 @@
  * are kept for backward compatibility but will be removed in a future version.
  */
 
-import { goalDb, goalHubDb, implementationLogDb, ideaDb } from '@/app/db';
+import { goalDb, implementationLogDb, ideaDb } from '@/app/db';
 import { DbGoal } from '@/app/db/models/types';
 import { logger } from '@/lib/logger';
 import {
@@ -41,14 +41,7 @@ async function getLLMClient(): Promise<any> {
  * Build evaluation prompt for a single goal
  */
 function buildEvaluationPrompt(context: GoalEvaluationContext): string {
-  const { goal, hypotheses, relatedImplementations, relatedIdeas, contextActivity, periodStats } = context;
-
-  const verifiedHypotheses = hypotheses.filter(h => h.status === 'verified').length;
-  const totalHypotheses = hypotheses.length;
-
-  const hypothesisList = hypotheses
-    .map(h => `  - [${h.status.toUpperCase()}] ${h.title}`)
-    .join('\n');
+  const { goal, relatedImplementations, relatedIdeas, contextActivity, periodStats } = context;
 
   const implementationList = relatedImplementations
     .slice(0, 5)
@@ -69,10 +62,6 @@ function buildEvaluationPrompt(context: GoalEvaluationContext): string {
 - **Context ID**: ${goal.context_id || 'No context assigned'}
 - **Created**: ${goal.created_at}
 
-## Hypotheses (Success Criteria)
-${totalHypotheses > 0 ? `Verified: ${verifiedHypotheses}/${totalHypotheses}` : 'No hypotheses defined'}
-${hypothesisList || '  None'}
-
 ## Recent Implementations
 ${relatedImplementations.length > 0 ? `Count: ${relatedImplementations.length}` : 'No related implementations'}
 ${implementationList || '  None'}
@@ -89,8 +78,8 @@ ${ideaList || '  None'}
 - Ideas implemented: ${periodStats.ideasImplemented}
 
 ## Status Transition Rules
-- **open → in_progress**: Work has started (implementations, verified hypotheses, or significant activity)
-- **in_progress → done**: All hypotheses verified OR clear evidence of completion
+- **open → in_progress**: Work has started (implementations or significant activity)
+- **in_progress → done**: Clear evidence of completion
 - **in_progress → blocked**: Explicit blockers identified, no recent progress
 - **blocked → in_progress**: Blockers resolved, work resumed
 
@@ -153,9 +142,6 @@ function parseEvaluationResponse(response: string, goalId: string, currentStatus
  * Gather context data for goal evaluation
  */
 export async function gatherGoalContext(goal: DbGoal): Promise<GoalEvaluationContext> {
-  // Get hypotheses for this goal
-  const hypotheses = goalHubDb.hypotheses.getByGoalId(goal.id);
-
   // Get implementations - filter by context if available
   const allImplementations = implementationLogDb.getLogsByProject(goal.project_id);
 
@@ -201,7 +187,6 @@ export async function gatherGoalContext(goal: DbGoal): Promise<GoalEvaluationCon
 
   return {
     goal,
-    hypotheses,
     relatedImplementations: relatedImplementations.slice(0, 10),
     relatedIdeas: relatedIdeas.slice(0, 10),
     contextActivity: {

@@ -8,7 +8,6 @@
  */
 
 import type { DbGoal, DbIdea } from '@/app/db/models/types';
-import type { GoalHypothesis } from '@/app/db/models/goal-hub.types';
 import type { GoalStrategy, AutonomyLevel } from './types';
 
 const API_BASE_URL = 'http://localhost:3000';
@@ -22,7 +21,7 @@ export interface UnifiedAutomationContext {
   autonomyLevel: AutonomyLevel;
 
   // Current state
-  goals: Array<DbGoal & { hypotheses?: GoalHypothesis[] }>;
+  goals: DbGoal[];
   pendingIdeas: DbIdea[];
   techDebtItems: Array<{ id: string; title: string; severity: string; description?: string }>;
 
@@ -51,10 +50,7 @@ export function buildUnifiedAutomationPrompt(context: UnifiedAutomationContext):
   const completedGoals = goals.filter(g => g.status === 'done').slice(0, 5);
 
   const openGoalsList = openGoals.map(g => {
-    const hypothesesInfo = g.hypotheses?.length
-      ? `(${g.hypotheses.filter(h => h.status === 'verified').length}/${g.hypotheses.length} hypotheses verified)`
-      : '';
-    return `  - [${g.status}] ${g.title} ${hypothesesInfo}
+    return `  - [${g.status}] ${g.title}
     ID: ${g.id}
     ${g.description || 'No description'}`;
   }).join('\n\n');
@@ -111,8 +107,7 @@ You are performing a comprehensive goal management automation for a software pro
 1. Explore the codebase to understand current state
 2. Evaluate existing goals and update their status
 3. Create new goals based on ideas/tech debt
-4. Create hypotheses for each goal (testable success criteria)
-5. Report completion
+4. Report completion
 
 ## Project Information
 - **Name**: ${projectName}
@@ -163,11 +158,6 @@ curl -X PUT "${API_BASE_URL}/api/goals" -H "Content-Type: application/json" -d '
 
 Valid statuses: "open", "in_progress", "done", "blocked"
 
-**To verify a hypothesis (if goal has hypotheses):**
-\`\`\`bash
-curl -X POST "${API_BASE_URL}/api/goal-hub/hypotheses/verify" -H "Content-Type: application/json" -d '{"id":"HYPOTHESIS_ID","evidence":"Found in src/file.ts:45-60","evidenceType":"code"}'
-\`\`\`
-
 Report progress:
 \`\`\`bash
 curl -X POST "${API_BASE_URL}/api/standup/automation/progress" -H "Content-Type: application/json" -d '{"sessionId":"${sessionId}","type":"progress","data":{"progress":50,"message":"Goal evaluation complete","phase":"evaluating"}}'
@@ -190,7 +180,7 @@ Before creating goals, answer these questions:
 ### Goal Hierarchy - Think in Layers
 
 - **Strategic Goal** (what you create): "Achieve enterprise-grade API performance"
-- **Tactical Goals** (become hypotheses): "Implement caching", "Add CDN", "Optimize queries"
+- **Tactical Goals**: "Implement caching", "Add CDN", "Optimize queries"
 - **Tasks** (future work): Individual PRs and tickets
 
 You create the TOP layer only. Each strategic goal should:
@@ -266,8 +256,6 @@ Before creating a goal, verify it passes these tests:
 curl -X POST "${API_BASE_URL}/api/goals" -H "Content-Type: application/json" -d '{"projectId":"${projectId}","title":"Strategic vision-level title","description":"Description of the END STATE, not the work. What does success look like?","status":"open"}'
 \`\`\`
 
-**IMPORTANT**: After creating each goal, note the returned goal ID - you'll need it for Phase 4.
-
 Report progress:
 \`\`\`bash
 curl -X POST "${API_BASE_URL}/api/standup/automation/progress" -H "Content-Type: application/json" -d '{"sessionId":"${sessionId}","type":"progress","data":{"progress":70,"message":"Strategic goals defined","phase":"generating"}}'
@@ -275,40 +263,12 @@ curl -X POST "${API_BASE_URL}/api/standup/automation/progress" -H "Content-Type:
 
 ---
 
-## PHASE 4: Create Hypotheses for Goals (Progress: 70-95%)
-
-For EACH goal (both existing open goals and newly created ones), create 2-4 testable hypotheses.
-
-Hypotheses are specific, verifiable statements that define success criteria for the goal.
-
-**To create a hypothesis:**
-\`\`\`bash
-curl -X POST "${API_BASE_URL}/api/goal-hub/hypotheses" -H "Content-Type: application/json" -d '{"goalId":"GOAL_ID","projectId":"${projectId}","title":"Short title","statement":"When X happens, Y should occur","reasoning":"Why this matters","category":"behavior","priority":8,"agentSource":"automation"}'
-\`\`\`
-
-**Categories:** behavior, performance, security, accessibility, ux, integration, edge_case, data, error
-**Priority:** 1-10 (10 = most critical)
-
-Example hypotheses for a "User Authentication" goal:
-- "Login form validates email format before submission" (category: behavior)
-- "Password is hashed using bcrypt before storage" (category: security)
-- "Failed login attempts are rate-limited" (category: security)
-- "Session expires after 24 hours of inactivity" (category: behavior)
-
-Report progress:
-\`\`\`bash
-curl -X POST "${API_BASE_URL}/api/standup/automation/progress" -H "Content-Type: application/json" -d '{"sessionId":"${sessionId}","type":"progress","data":{"progress":95,"message":"Hypotheses created","phase":"generating"}}'
-\`\`\`
-
----
-
-## PHASE 5: Report Completion (Progress: 100%)
+## PHASE 4: Report Completion (Progress: 100%)
 
 Summarize what was accomplished:
 - Goals evaluated: X
 - Goals updated: X
 - New goals created: X
-- Hypotheses created: X
 
 Then mark session complete:
 \`\`\`bash
@@ -319,11 +279,10 @@ curl -X POST "${API_BASE_URL}/api/standup/automation/progress" -H "Content-Type:
 
 ## RULES
 
-1. **NO CHILD TASKS**: Do NOT create any .claude/commands/*.md files. Do NOT call /api/goal-hub/breakdown. All work happens in THIS session.
+1. **NO CHILD TASKS**: Do NOT create any .claude/commands/*.md files. All work happens in THIS session.
 2. **USE CURL**: All database updates happen via curl API calls shown above.
 3. **ESCAPE JSON**: When using curl, ensure JSON strings are properly escaped.
-4. **BE SPECIFIC**: When creating hypotheses, make them testable and specific.
-5. **REPORT PROGRESS**: Call the progress API after each phase.
+4. **REPORT PROGRESS**: Call the progress API after each phase.
 
 ## Quick API Reference
 
@@ -331,8 +290,6 @@ curl -X POST "${API_BASE_URL}/api/standup/automation/progress" -H "Content-Type:
 |--------|--------|----------|
 | Update Goal | PUT | /api/goals |
 | Create Goal | POST | /api/goals |
-| Create Hypothesis | POST | /api/goal-hub/hypotheses |
-| Verify Hypothesis | POST | /api/goal-hub/hypotheses/verify |
 | Report Progress | POST | /api/standup/automation/progress |
 
 Begin with PHASE 1: Explore the codebase.`;

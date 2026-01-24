@@ -11,6 +11,7 @@ import {
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { analyticsAggregationService } from '@/lib/services/analyticsAggregation';
 import { withObservability } from '@/lib/observability/middleware';
+import { parseProjectIds, filterByProject } from '@/lib/api-helpers/projectFilter';
 
 /**
  * GET /api/ideas
@@ -26,7 +27,7 @@ import { withObservability } from '@/lib/observability/middleware';
 async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
+    const projectFilter = parseProjectIds(searchParams);
     const goalId = searchParams.get('goalId');
     const status = searchParams.get('status');
     const contextId = searchParams.get('contextId');
@@ -39,39 +40,36 @@ async function handleGet(request: NextRequest) {
     if (withColors) {
       // Priority order: goalId > contextId > projectId > status > limit > all
       if (goalId) {
-        // For goalId, we still need to use the regular method and filter
         ideas = ideaDb.getIdeasByGoal(goalId);
-        // If projectId is also specified, filter the results
-        if (projectId) {
-          ideas = ideas.filter(idea => idea.project_id === projectId);
+        if (projectFilter.mode !== 'all') {
+          ideas = filterByProject(ideas, projectFilter);
         }
       } else if (contextId) {
-        // For contextId, use regular method (no color needed when filtering by context)
         ideas = ideaDb.getIdeasByContext(contextId);
-      } else if (projectId) {
-        // Optimized: Get ideas by project with colors in one query
-        ideas = ideaDb.getIdeasByProjectWithColors(projectId);
+      } else if (projectFilter.mode === 'single') {
+        ideas = ideaDb.getIdeasByProjectWithColors(projectFilter.projectId!);
+      } else if (projectFilter.mode === 'multi') {
+        ideas = filterByProject(ideaDb.getAllIdeasWithColors(), projectFilter);
       } else if (status) {
-        // Optimized: Get ideas by status with colors in one query
         ideas = ideaDb.getIdeasByStatusWithColors(status as any);
       } else if (limit) {
-        // For limit, use regular method
         ideas = ideaDb.getRecentIdeas(parseInt(limit, 10));
       } else {
-        // Optimized: Get all ideas with colors in one query
         ideas = ideaDb.getAllIdeasWithColors();
       }
     } else {
-      // Legacy mode: without colors (if needed)
+      // Legacy mode: without colors
       if (goalId) {
         ideas = ideaDb.getIdeasByGoal(goalId);
-        if (projectId) {
-          ideas = ideas.filter(idea => idea.project_id === projectId);
+        if (projectFilter.mode !== 'all') {
+          ideas = filterByProject(ideas, projectFilter);
         }
       } else if (contextId) {
         ideas = ideaDb.getIdeasByContext(contextId);
-      } else if (projectId) {
-        ideas = ideaDb.getIdeasByProject(projectId);
+      } else if (projectFilter.mode === 'single') {
+        ideas = ideaDb.getIdeasByProject(projectFilter.projectId!);
+      } else if (projectFilter.mode === 'multi') {
+        ideas = filterByProject(ideaDb.getAllIdeas(), projectFilter);
       } else if (status) {
         ideas = ideaDb.getIdeasByStatus(status as any);
       } else if (limit) {

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { automationSessionDb, techDebtDb, goalHubDb, ideaDb, goalDb } from '@/app/db';
+import { automationSessionDb, techDebtDb, ideaDb, goalDb } from '@/app/db';
 import { buildUnifiedAutomationPrompt } from '@/lib/standupAutomation/unifiedAutomationPrompt';
 import { executionQueue } from '@/app/Claude/lib/claudeExecutionQueue';
 import { createRequirement } from '@/app/Claude/sub_ClaudeCodeManager/folderManager';
@@ -60,12 +60,6 @@ export async function POST(request: NextRequest) {
     const pendingIdeas = allIdeas.filter(idea => idea.status === 'pending');
     const techDebtItems = techDebtDb.getTechDebtByProject(projectId);
 
-    // Get hypotheses for each goal
-    const goalsWithHypotheses = goals.map(goal => ({
-      ...goal,
-      hypotheses: goalHubDb.hypotheses.getByGoalId(goal.id),
-    }));
-
     // Build the unified prompt
     const prompt = buildUnifiedAutomationPrompt({
       sessionId,
@@ -74,7 +68,7 @@ export async function POST(request: NextRequest) {
       projectName: projectName || 'Project',
       strategy,
       autonomyLevel,
-      goals: goalsWithHypotheses,
+      goals,
       pendingIdeas,
       techDebtItems: techDebtItems.map(td => ({
         id: td.id,

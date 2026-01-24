@@ -7,12 +7,13 @@ import {
   dependencyRelationshipDb
 } from '@/lib/dependency_database';
 import { projectDb } from '@/lib/project_database';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/dependencies/[scanId]
  * Get detailed information about a specific dependency scan
  */
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ scanId: string }> }
 ) {
@@ -99,7 +100,7 @@ export async function GET(
  * DELETE /api/dependencies/[scanId]
  * Delete a dependency scan
  */
-export async function DELETE(
+async function handleDelete(
   request: NextRequest,
   { params }: { params: Promise<{ scanId: string }> }
 ) {
@@ -125,3 +126,6 @@ export async function DELETE(
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/dependencies/[scanId]');
+export const DELETE = withObservability(handleDelete, '/api/dependencies/[scanId]');

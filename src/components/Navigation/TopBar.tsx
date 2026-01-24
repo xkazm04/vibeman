@@ -2,11 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, MoreHorizontal, BookOpen, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle } from 'lucide-react';
+import { MoreHorizontal, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle, Plug, Brain, Bot } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
-import { useMarketplaceStore } from '@/stores/marketplaceStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
-import UnifiedProjectSelector from './UnifiedProjectSelector';
+import AnnetteTopBarWidget from '@/app/features/Commander/components/AnnetteTopBarWidget';
 
 interface NavigationItem {
   module: AppModule;
@@ -22,18 +21,20 @@ const mainNavigationItems: NavigationItem[] = [
   { module: 'tinder', label: 'Tinder' },
   { module: 'tasker', label: 'Tasker' },
   { module: 'manager', label: 'Manager' },
-  { module: 'social', label: 'Social', icon: Users },
 ];
 
 // Hidden in "Other" dropdown
 const otherNavigationItems: NavigationItem[] = [
+  { module: 'commander', label: 'Annette', icon: Bot },
+  { module: 'brain', label: 'Brain', icon: Brain },
   { module: 'composer', label: 'BP Composer', icon: Wand2 },
-  { module: 'reflector', label: 'Reflector', icon: Activity },
-  { module: 'zen', label: 'Zen Mode', icon: Sunrise },
-  { module: 'docs', label: 'Docs', icon: BookOpen },
-  { module: 'refactor', label: 'Wizard', icon: Wand2 },
   { module: 'halloffame', label: 'Hall of Fame', icon: Component },
+  { module: 'integrations', label: 'Integrations', icon: Plug },
   { module: 'questions', label: 'Questions', icon: HelpCircle },
+  { module: 'reflector', label: 'Reflector', icon: Activity },
+  { module: 'social', label: 'Social', icon: Users },
+  { module: 'refactor', label: 'Wizard', icon: Wand2 },
+  { module: 'zen', label: 'Zen Mode', icon: Sunrise },
 ];
 
 // Navigation item component
@@ -64,8 +65,8 @@ function NavItem({ item, index, isActive, onClick }: NavItemProps) {
       >
         <span
           className={`relative z-10 transition-all duration-300 ${isActive
-              ? 'text-white'
-              : 'text-gray-400 group-hover:text-white'
+            ? 'text-white'
+            : 'text-gray-400 group-hover:text-white'
             }`}
         >
           {item.label}
@@ -94,8 +95,8 @@ function NavItem({ item, index, isActive, onClick }: NavItemProps) {
 
         {/* Subtle glow effect */}
         <div className={`absolute inset-0 rounded-lg transition-all duration-300 ${isActive
-            ? 'shadow-lg shadow-purple-500/20'
-            : 'group-hover:shadow-md group-hover:shadow-white/10'
+          ? 'shadow-lg shadow-purple-500/20'
+          : 'group-hover:shadow-md group-hover:shadow-white/10'
           }`} />
       </button>
     </motion.div>
@@ -151,14 +152,12 @@ function OtherDropdown({
         className={`group relative px-4 py-2 text-sm font-light tracking-wide transition-all duration-300 flex items-center gap-1.5`}
         data-testid="nav-other-dropdown"
       >
-        <span className={`relative z-10 transition-all duration-300 ${
-          isOtherActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
-        }`}>
+        <span className={`relative z-10 transition-all duration-300 ${isOtherActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
+          }`}>
           Other
         </span>
-        <MoreHorizontal className={`w-4 h-4 transition-all duration-300 ${
-          isOtherActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
-        }`} />
+        <MoreHorizontal className={`w-4 h-4 transition-all duration-300 ${isOtherActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
+          }`} />
 
         {/* Active indicator */}
         {isOtherActive && (
@@ -210,11 +209,10 @@ function OtherDropdown({
                       onSelect(item.module);
                       setIsOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                      isActive
-                        ? 'bg-purple-900/40 text-white'
-                        : 'text-gray-300 hover:bg-gray-800/60 hover:text-white'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${isActive
+                      ? 'bg-purple-900/40 text-white'
+                      : 'text-gray-300 hover:bg-gray-800/60 hover:text-white'
+                      }`}
                     data-testid={`nav-other-${item.module}`}
                   >
                     {Icon && <Icon className="w-4 h-4" />}
@@ -223,31 +221,11 @@ function OtherDropdown({
                 );
               })}
 
-              {/* Marketplace in dropdown */}
-              <div className="border-t border-gray-700/50">
-                <MarketplaceDropdownItem />
-              </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
     </motion.div>
-  );
-}
-
-// Marketplace item for dropdown
-function MarketplaceDropdownItem() {
-  const { openModal: openMarketplace } = useMarketplaceStore();
-
-  return (
-    <button
-      onClick={openMarketplace}
-      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-purple-400 hover:bg-purple-900/20 hover:text-purple-300 transition-colors"
-      data-testid="nav-other-marketplace"
-    >
-      <Store className="w-4 h-4" />
-      <span>Marketplace</span>
-    </button>
   );
 }
 
@@ -276,66 +254,50 @@ function CommandPaletteTrigger() {
 export default function TopBar() {
   const { activeModule, setActiveModule } = useOnboardingStore();
 
-  // Modules that should NOT show the project selector
-  const modulesWithoutProjectSelector: AppModule[] = ['reflector', 'social', 'zen'];
-  const showProjectSelector = !modulesWithoutProjectSelector.includes(activeModule);
-
   return (
-    <>
-      <motion.header
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-xl border-b border-white/10"
-      >
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <nav className="flex items-center justify-between">
-            {/* Left: Command Palette Trigger */}
-            <div className="flex-shrink-0 w-40">
-              <CommandPaletteTrigger />
-            </div>
+    <motion.header
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed top-7 left-0 right-0 z-50 bg-black/20 backdrop-blur-xl border-b border-white/10"
+    >
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <nav className="flex items-center justify-between">
+          {/* Left: Command Palette Trigger */}
+          <div className="flex-shrink-0 w-40">
+            <CommandPaletteTrigger />
+          </div>
 
-            {/* Center: Module Navigation */}
-            <div className="flex items-center space-x-6">
-              {mainNavigationItems.map((item, index) => (
-                <NavItem
-                  key={item.module}
-                  item={item}
-                  index={index}
-                  isActive={activeModule === item.module}
-                  onClick={() => setActiveModule(item.module)}
-                />
-              ))}
-
-              {/* Other Dropdown */}
-              <OtherDropdown
-                items={otherNavigationItems}
-                activeModule={activeModule}
-                onSelect={setActiveModule}
-                startIndex={mainNavigationItems.length}
+          {/* Center: Module Navigation */}
+          <div className="flex items-center space-x-6">
+            {mainNavigationItems.map((item, index) => (
+              <NavItem
+                key={item.module}
+                item={item}
+                index={index}
+                isActive={activeModule === item.module}
+                onClick={() => setActiveModule(item.module)}
               />
-            </div>
+            ))}
 
-            {/* Right: Placeholder for balance */}
-            <div className="flex-shrink-0 w-40" />
-          </nav>
-        </div>
+            {/* Other Dropdown */}
+            <OtherDropdown
+              items={otherNavigationItems}
+              activeModule={activeModule}
+              onSelect={setActiveModule}
+              startIndex={mainNavigationItems.length}
+            />
+          </div>
 
-        {/* Subtle gradient line at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-      </motion.header>
+          {/* Right: Annette Widget */}
+          <div className="flex-shrink-0 w-40 flex justify-end">
+            <AnnetteTopBarWidget />
+          </div>
+        </nav>
+      </div>
 
-      {/* Unified Project Selector - Conditionally rendered */}
-      {showProjectSelector && (
-        <motion.div
-          initial={{ y: -60, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed top-16 left-0 right-0 z-40 overflow-hidden"
-        >
-          <UnifiedProjectSelector />
-        </motion.div>
-      )}
-    </>
+      {/* Subtle gradient line at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+    </motion.header>
   );
 }

@@ -6,15 +6,16 @@ import {
   isValidIdeaStatus,
   createIdeasErrorResponse,
 } from '@/app/features/Ideas/lib/ideasHandlers';
+import { withObservability } from '@/lib/observability/middleware';
+import { parseProjectIds, filterByProject } from '@/lib/api-helpers/projectFilter';
 
 /**
  * GET /api/ideas/tinder
  * Fetch ideas in batches for Tinder-style evaluation
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
     const offsetParam = searchParams.get('offset') || '0';
     const limitParam = searchParams.get('limit') || '20';
     const status = searchParams.get('status') || 'pending';
@@ -36,10 +37,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get all ideas
-    let allIdeas = projectId && projectId !== 'all'
-      ? ideaDb.getIdeasByProject(projectId)
-      : ideaDb.getAllIdeas();
+    // Get ideas filtered by project(s)
+    const filter = parseProjectIds(searchParams);
+    let allIdeas = filter.mode === 'single'
+      ? ideaDb.getIdeasByProject(filter.projectId!)
+      : filterByProject(ideaDb.getAllIdeas(), filter);
 
     // Filter by status
     const filteredIdeas = allIdeas.filter(idea => idea.status === status);
@@ -62,3 +64,5 @@ export async function GET(request: NextRequest) {
     return handleIdeasApiError(error, IdeasErrorCode.DATABASE_ERROR);
   }
 }
+
+export const GET = withObservability(handleGet, '/api/ideas/tinder');

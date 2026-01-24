@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 // Ensure database is initialized
 import '@/app/db/drivers';
@@ -35,7 +36,7 @@ function createNotFoundResponse() {
   );
 }
 
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -69,7 +70,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+async function handlePatch(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -120,7 +121,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+async function handleDelete(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -153,3 +154,8 @@ export async function DELETE(
     return createErrorResponse('Failed to cancel queue item', error);
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/scan-queue/[id]');
+export const PATCH = withObservability(handlePatch, '/api/scan-queue/[id]');
+export const DELETE = withObservability(handleDelete, '/api/scan-queue/[id]');

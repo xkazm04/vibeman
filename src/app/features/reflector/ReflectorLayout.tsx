@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { DbIdea } from '@/app/db';
+import { DbIdea, DbDirection } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { SuggestionFilter } from '@/app/features/reflector/lib/unifiedTypes';
+import SuggestionTypeToggle from '@/app/features/reflector/components/SuggestionTypeToggle';
 
 // Lib imports
 import {
@@ -29,7 +31,7 @@ import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { WeeklyDashboard } from '@/app/features/reflector/sub_Weekly/components';
 import ExportButton from '@/app/features/reflector/components/ExportButton';
-import ObservabilityDashboard from '@/app/features/reflector/sub_Observability/ObservabilityDashboard';
+import ObservatoryDashboard from '@/app/features/reflector/sub_Observability/ObservatoryDashboard';
 
 // FilterBar configuration for TotalViewDashboard
 const TOTAL_VIEW_FILTER_CONFIG: FilterBarConfig = {
@@ -43,9 +45,11 @@ const TOTAL_VIEW_FILTER_CONFIG: FilterBarConfig = {
 
 const ReflectorLayout = () => {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
+  const [directions, setDirections] = useState<DbDirection[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [unifiedFilters, setUnifiedFilters] = useState<UnifiedFilterState>(getEmptyUnifiedFilterState());
+  const [suggestionType, setSuggestionType] = useState<SuggestionFilter>('ideas');
 
   const { projects, initializeProjects } = useProjectConfigStore();
   const searchParams = useSearchParams();
@@ -54,10 +58,11 @@ const ReflectorLayout = () => {
   // Convert unified filters to IdeaFilterState for backwards compatibility
   const filters: IdeaFilterState = useMemo(() => toIdeaFilterState(unifiedFilters), [unifiedFilters]);
 
-  // Initialize projects and load ideas
+  // Initialize projects and load ideas/directions
   useEffect(() => {
     initializeProjects();
     loadImplementedIdeas();
+    loadAcceptedDirections();
   }, [initializeProjects]);
 
   // Sync filters with URL parameters
@@ -79,6 +84,22 @@ const ReflectorLayout = () => {
       setLoading(false);
     }
   };
+
+  const loadAcceptedDirections = async () => {
+    try {
+      const response = await fetch('/api/directions?status=accepted');
+      if (response.ok) {
+        const data = await response.json();
+        setDirections(data.directions || []);
+      }
+    } catch (error) {
+      console.error('Error loading accepted directions:', error);
+    }
+  };
+
+  const handleSuggestionTypeChange = useCallback((type: SuggestionFilter) => {
+    setSuggestionType(type);
+  }, []);
 
   // Apply filters and view mode
   const displayedIdeas = useMemo(() => {
@@ -149,9 +170,19 @@ const ReflectorLayout = () => {
         ) : viewMode === 'ideas_stats' ? (
           <ReflectionDashboard />
         ) : viewMode === 'observability' ? (
-          <ObservabilityDashboard />
+          <ObservatoryDashboard />
         ) : (
           <div className="space-y-6">
+            {/* Suggestion Type Toggle */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <SuggestionTypeToggle
+                value={suggestionType}
+                onChange={handleSuggestionTypeChange}
+                ideasCount={ideas.length}
+                directionsCount={directions.length}
+              />
+            </div>
+
             {/* Unified FilterBar and Active Filter Display */}
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-4">
@@ -179,6 +210,8 @@ const ReflectorLayout = () => {
             {/* Dashboard */}
             <TotalViewDashboard
               ideas={displayedIdeas}
+              directions={directions}
+              suggestionType={suggestionType}
               isFiltered={hasActiveFilters}
             />
           </div>

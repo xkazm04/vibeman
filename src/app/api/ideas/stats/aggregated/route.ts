@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyticsAggregationService, CacheKey } from '@/lib/services/analyticsAggregation';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/ideas/stats/aggregated
@@ -15,7 +16,7 @@ import { logger } from '@/lib/logger';
  * - includeSnapshots: Include weekly snapshots in response (default: false)
  * - nocache: Skip cache and compute fresh stats (default: false)
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
  * - projectId: Optional project ID for targeted invalidation
  * - contextId: Optional context ID for targeted invalidation
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, projectId, contextId } = body;
@@ -136,3 +137,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/ideas/stats/aggregated');
+export const POST = withObservability(handlePost, '/api/ideas/stats/aggregated');

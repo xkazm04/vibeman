@@ -4,6 +4,7 @@ import path from 'path';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
 import { buildContextDescriptionPrompt } from '@/app/projects/ProjectAI/lib/promptBuilder';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface FileContent {
   path: string;
@@ -19,7 +20,7 @@ interface RequestBody {
   initialDescription?: string;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body: RequestBody = await request.json();
     const { filePaths, projectPath, provider, model, contextName, initialDescription } = body;
@@ -222,3 +223,5 @@ function cleanFileStructure(fileStructure: string): string {
     .replace(/\\'/g, "'")
     .trim();
 }
+
+export const POST = withObservability(handlePost, '/api/contexts/generate-description');

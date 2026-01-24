@@ -3,7 +3,16 @@
  * Handles Claude Code session management with --resume flag support
  */
 
-import type { SessionBatchId, SessionTask } from '../store/sessionBatchStore';
+import type { BatchId } from '../store/taskRunnerStore';
+
+// Session task type for execution manager
+export interface SessionTask {
+  id: string;
+  requirementName: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  claudeSessionId?: string;
+  errorMessage?: string;
+}
 import { sendSessionHeartbeat } from '../hooks/useSessionCleanup';
 
 // ============================================================================
@@ -282,7 +291,7 @@ export async function getTaskExecutionStatus(taskId: string): Promise<{
  * Handles --resume flag propagation between tasks
  */
 export class SessionExecutionManager {
-  private batchId: SessionBatchId;
+  private batchId: BatchId;
   private sessionId: string;
   private claudeSessionId: string | null = null;
   private projectPath: string;
@@ -298,7 +307,7 @@ export class SessionExecutionManager {
   private currentPollingTaskId: string | null = null;
 
   constructor(config: {
-    batchId: SessionBatchId;
+    batchId: BatchId;
     sessionId: string;
     claudeSessionId: string | null;
     projectPath: string;

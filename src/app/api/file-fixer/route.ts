@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger';
 import { createErrorResponse, handleError, notFoundResponse } from '@/lib/api-helpers';
 import { deduplicateBuildErrors } from '@/lib/deduplication';
 import { generateId } from '@/lib/idGenerator';
+import { withObservability } from '@/lib/observability/middleware';
 
 const execAsync = promisify(exec);
 
@@ -404,7 +405,7 @@ async function executeBuildCommand(command: string, projectPath?: string): Promi
   });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { action, buildCommand, projectPath } = await request.json();
     
@@ -430,7 +431,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const projectPath = url.searchParams.get('projectPath');
@@ -441,6 +442,9 @@ export async function GET(request: NextRequest) {
     return createErrorResponse('Internal server error', 500);
   }
 }
+
+export const POST = withObservability(handlePost, '/api/file-fixer');
+export const GET = withObservability(handleGet, '/api/file-fixer');
 
 // Cleanup function for running processes
 function cleanupRunningProcesses(): void {

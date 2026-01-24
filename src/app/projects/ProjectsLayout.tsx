@@ -11,6 +11,7 @@ import ProjectToolbar from './ProjectToolbar';
 import { useProjectConfigStore } from '../../stores/projectConfigStore';
 import { useProjectUpdatesStore } from '../../stores/projectUpdatesStore';
 import StructureTemplateEditor from '../Claude/sub_ClaudeStructureScan/components/StructureTemplateEditor';
+import WorkspaceManager from './sub_Workspaces/WorkspaceManager';
 
 export default function ProjectsLayout() {
   const { isActive } = useAnalysisStore();
@@ -23,10 +24,12 @@ export default function ProjectsLayout() {
     showEditProject,
     showAIReview,
     showStructure,
+    showWorkspaceManager,
     setShowAddProject,
     setShowEditProject,
     setShowAIReview,
     setShowStructure,
+    setShowWorkspaceManager,
   } = useProjectsToolbarStore();
 
   // Handle project added - refresh the project list and notify subscribers
@@ -85,6 +88,12 @@ export default function ProjectsLayout() {
           projectType={(activeProject.type as 'nextjs' | 'fastapi') || 'nextjs'}
         />
       )}
+
+      {/* Workspace Manager Modal */}
+      <WorkspaceManager
+        isOpen={showWorkspaceManager}
+        onClose={() => setShowWorkspaceManager(false)}
+      />
     </>
   );
 }

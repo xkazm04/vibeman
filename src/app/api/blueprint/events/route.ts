@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventRepository } from '@/app/db/repositories/event.repository';
 import { v4 as uuidv4 } from 'uuid';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/blueprint/events
@@ -10,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
  *   - projectId: Project ID
  *   - titles: Comma-separated list of event titles
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
  *   - message?: Additional message (optional)
  *   - context_id?: Context ID (optional)
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { project_id, title, description, type, agent, message, context_id } = body;
@@ -120,3 +121,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/blueprint/events');
+export const POST = withObservability(handlePost, '/api/blueprint/events');

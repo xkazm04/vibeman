@@ -6,8 +6,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueWorker } from '@/lib/scanQueueWorker';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const status = scanQueueWorker.getStatus();
     return NextResponse.json({ status });
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, config } = body;
@@ -63,3 +64,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/scan-queue/worker');
+export const POST = withObservability(handlePost, '/api/scan-queue/worker');

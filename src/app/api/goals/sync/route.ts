@@ -7,8 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { batchSyncGoals, isSupabaseConfigured } from '@/lib/supabase/goalSync';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId } = body;
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+async function handleGet() {
   try {
     // Return configuration status
     const configured = isSupabaseConfigured();
@@ -58,3 +59,6 @@ export async function GET() {
     return createErrorResponse('Internal server error', 500);
   }
 }
+
+export const POST = withObservability(handlePost, '/api/goals/sync');
+export const GET = withObservability(handleGet, '/api/goals/sync');

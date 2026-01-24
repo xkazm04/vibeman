@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStructureTemplateWithCustom } from '../../structure-scan/structureTemplates';
+import { withObservability } from '@/lib/observability/middleware';
 import { glob as globCallback } from 'glob';
 import { promisify } from 'util';
 import path from 'path';
@@ -42,7 +43,7 @@ interface ScriptedContext {
  *   };
  * }
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, projectPath, projectType, dryRun = false } = body;
@@ -191,3 +192,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/contexts/scripted');

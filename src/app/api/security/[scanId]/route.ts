@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { securityScanDb, securityPatchDb } from '@/app/db';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/security/[scanId]
  * Get security scan details with patches
  */
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ scanId: string }> }
 ) {
@@ -37,3 +38,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/security/[scanId]');

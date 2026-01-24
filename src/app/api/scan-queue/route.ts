@@ -9,8 +9,9 @@ import { scanQueueDb } from '@/app/db';
 import { ALL_SCAN_TYPES, isValidScanType, resolveScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateQueueId } from '@/lib/idGenerator';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -92,3 +93,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/scan-queue');
+export const POST = withObservability(handlePost, '/api/scan-queue');

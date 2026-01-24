@@ -9,6 +9,8 @@ import {
 } from '@/lib/prompts/requirement_file';
 import { createErrorResponse, createSuccessResponse } from '../utils';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 interface AcceptIdeaRequest {
   ideaId: string;
@@ -73,7 +75,7 @@ function createRequirementFile(
  * POST /api/ideas/tinder/accept
  * Accept an idea and generate requirement file
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
 
@@ -198,6 +200,22 @@ export async function POST(request: NextRequest) {
       // Just log the error and continue
     }
 
+    // Record brain signal: idea accepted
+    try {
+      signalCollector.recordImplementation(idea.project_id, {
+        requirementId: requirementName,
+        requirementName,
+        contextId: idea.context_id || null,
+        filesCreated: [],
+        filesModified: [],
+        filesDeleted: [],
+        success: true,
+        executionTimeMs: 0,
+      });
+    } catch {
+      // Signal recording must never break the main flow
+    }
+
     return createSuccessResponse({
       requirementName,
       wrapperMode,
@@ -212,3 +230,6 @@ export async function POST(request: NextRequest) {
     return createErrorResponse('Failed to accept idea', error);
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/ideas/tinder/accept');

@@ -270,7 +270,7 @@ export function triggerScreenshotCapture(contextId: string): void {
  *
  * ## How It Works
  *
- * 1. Queries `/api/ideas/by-requirement` with the requirement name
+ * 1. Queries `/api/ideas/by-requirements` batch API with a 1-element array
  * 2. The API looks up the idea that generated this requirement
  * 3. Returns the `context_id` from the idea record (if found)
  *
@@ -300,16 +300,21 @@ export function triggerScreenshotCapture(contextId: string): void {
  */
 export async function getContextIdFromRequirement(requirementName: string): Promise<string | null> {
   try {
-    const response = await fetch(`/api/ideas/by-requirement?requirementId=${encodeURIComponent(requirementName)}`);
+    const response = await fetch('/api/ideas/by-requirements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requirementIds: [requirementName] }),
+    });
 
     if (!response.ok) {
       return null;
     }
 
     const data = await response.json();
+    const idea = data.ideas?.[requirementName];
 
-    if (data.idea && data.idea.context_id) {
-      return data.idea.context_id;
+    if (idea?.context_id) {
+      return idea.context_id;
     }
 
     return null;

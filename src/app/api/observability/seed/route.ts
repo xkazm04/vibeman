@@ -10,7 +10,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { observabilityDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 
-const VIBEMAN_PROJECT_ID = 'vibeman-local';
+// Use actual Vibeman project ID from database for dashboard integration
+const VIBEMAN_PROJECT_ID = process.env.VIBEMAN_PROJECT_ID || 'c32769af-72ed-4764-bd27-550d46f14bc5';
 
 // Sample endpoints with realistic usage patterns
 // NOTE: Health/status endpoints are excluded - they spam data without business value

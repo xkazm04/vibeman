@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { projectDb, DbProject } from '@/lib/project_database';
 import { getInitializedRegistry } from '@/app/features/Onboarding/sub_Blueprint/lib/adapters';
 import { Project, ProjectType } from '@/types';
+import { withObservability } from '@/lib/observability/middleware';
 
 // Map legacy 'other' type to 'generic'
 function normalizeProjectType(type: string | null | undefined): ProjectType {
@@ -34,7 +35,7 @@ function toProject(dbProject: DbProject): Project {
   };
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, projectPath, projectType, scanOnly } = body;
@@ -84,3 +85,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/blueprint/scans/build');

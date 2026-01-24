@@ -27,11 +27,6 @@ import SessionBatchDisplay from './SessionBatchDisplay';
 import ActivityIndicator from './ActivityIndicator';
 import CheckpointProgress from './CheckpointProgress';
 import TaskMonitor from './TaskMonitor';
-import {
-  useSessionBatchStore,
-  useAllSessionBatches,
-  type SessionBatchId,
-} from '../store/sessionBatchStore';
 
 // NOTE: Remote batch delegation removed - migrating to Supabase Realtime
 
@@ -443,9 +438,9 @@ export default function DualBatchPanel({
   requirements,
   getRequirementId,
 }: DualBatchPanelProps) {
-  // Session batch state
-  const sessionBatches = useAllSessionBatches();
-  const { getActiveSessionBatches } = useSessionBatchStore();
+  // Session batch state - get batches with projectPath set (session mode)
+  const batches = useTaskRunnerStore((state) => state.batches);
+  const getSessionBatches = useTaskRunnerStore((state) => state.getSessionBatches);
 
   // NOTE: Remote batch delegation removed - will be added via Supabase in Phase 5
 
@@ -482,9 +477,9 @@ export default function DualBatchPanel({
   // Show batch4 if: any batch is running or batch4 exists
   const showBatch4 = anyBatchRunning || batch4 !== null;
 
-  // Check if there are any session batches to show
-  const hasSessionBatches = Object.values(sessionBatches).some(b => b !== null);
-  const sessionBatchIds: SessionBatchId[] = ['sessionBatch1', 'sessionBatch2', 'sessionBatch3', 'sessionBatch4'];
+  // Check if there are any session batches to show (batches with projectPath set)
+  const sessionBatchIds = getSessionBatches();
+  const hasSessionBatches = sessionBatchIds.length > 0;
 
   return (
     <div className="space-y-3 w-full">
@@ -571,18 +566,13 @@ export default function DualBatchPanel({
             </div>
           </div>
 
-          {sessionBatchIds.map(sessionBatchId => {
-            const sessionBatch = sessionBatches[sessionBatchId];
-            if (!sessionBatch) return null;
-
-            return (
-              <SessionBatchDisplay
-                key={sessionBatchId}
-                batchId={sessionBatchId}
-                selectedTaskIds={selectedTaskIds}
-              />
-            );
-          })}
+          {sessionBatchIds.map(sessionBatchId => (
+            <SessionBatchDisplay
+              key={sessionBatchId}
+              batchId={sessionBatchId}
+              selectedTaskIds={selectedTaskIds}
+            />
+          ))}
         </>
       )}
     </div>

@@ -3,7 +3,8 @@
  * Sync filters with URL search parameters
  */
 
-import { IdeaFilterState } from './filterIdeas';
+import { IdeaFilterState, UnifiedFilterState } from './filterIdeas';
+import { SuggestionFilter } from './unifiedTypes';
 
 /**
  * Parse filters from URL search params
@@ -66,6 +67,78 @@ export function buildURLFromFilters(filters: IdeaFilterState, basePath: string =
   }
   if (filters.searchQuery.trim()) {
     params.set('search', filters.searchQuery);
+  }
+
+  return params.toString() ? `${basePath}?${params.toString()}` : basePath;
+}
+
+/**
+ * Parse suggestion type from URL
+ */
+export function parseSuggestionTypeFromURL(searchParams: URLSearchParams): SuggestionFilter {
+  const type = searchParams.get('type');
+  if (type === 'ideas' || type === 'directions' || type === 'both') {
+    return type;
+  }
+  return 'both'; // Default to both
+}
+
+/**
+ * Parse unified filters from URL search params
+ */
+export function parseUnifiedFiltersFromURL(searchParams: URLSearchParams): UnifiedFilterState {
+  const baseFilters = parseFiltersFromURL(searchParams);
+  const suggestionType = parseSuggestionTypeFromURL(searchParams);
+  const weekOffset = parseInt(searchParams.get('weekOffset') || '0', 10);
+
+  return {
+    ...baseFilters,
+    suggestionType,
+    weekOffset,
+  };
+}
+
+/**
+ * Build URL params from unified filters
+ */
+export function buildURLFromUnifiedFilters(
+  filters: UnifiedFilterState,
+  basePath: string = '/reflector'
+): string {
+  const params = new URLSearchParams();
+
+  if (filters.projectIds.length > 0) {
+    params.set('projects', filters.projectIds.join(','));
+  }
+  if (filters.contextIds.length > 0) {
+    params.set('contexts', filters.contextIds.join(','));
+  }
+  if (filters.statuses.length > 0) {
+    params.set('statuses', filters.statuses.join(','));
+  }
+  if (filters.scanTypes.length > 0) {
+    params.set('scanTypes', filters.scanTypes.join(','));
+  }
+  if (filters.effortLevels.length > 0) {
+    params.set('effortLevels', filters.effortLevels.join(','));
+  }
+  if (filters.impactLevels.length > 0) {
+    params.set('impactLevels', filters.impactLevels.join(','));
+  }
+  if (filters.dateRange.start) {
+    params.set('startDate', filters.dateRange.start.toISOString());
+  }
+  if (filters.dateRange.end) {
+    params.set('endDate', filters.dateRange.end.toISOString());
+  }
+  if (filters.searchQuery.trim()) {
+    params.set('search', filters.searchQuery);
+  }
+  if (filters.suggestionType !== 'both') {
+    params.set('type', filters.suggestionType);
+  }
+  if (filters.weekOffset !== 0) {
+    params.set('weekOffset', filters.weekOffset.toString());
   }
 
   return params.toString() ? `${basePath}?${params.toString()}` : basePath;

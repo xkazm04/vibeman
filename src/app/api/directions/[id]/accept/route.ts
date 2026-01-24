@@ -6,10 +6,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb } from '@/app/db';
+import { directionDb, scanDb, ideaDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { withObservability } from '@/lib/observability/middleware';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 /**
  * Build the Claude Code requirement content from an accepted direction
@@ -46,7 +48,7 @@ Focus on implementing exactly what is described above.
 `;
 }
 
-export async function POST(
+async function handlePost(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -112,17 +114,62 @@ export async function POST(
       );
     }
 
+    // Create a scan record for tracking (required for ideas)
+    const scanId = uuidv4();
+    scanDb.createScan({
+      id: scanId,
+      project_id: direction.project_id,
+      scan_type: 'direction_accepted',
+      summary: `Direction accepted: ${direction.summary}`
+    });
+
+    // Create an idea record to link direction to the Ideas System
+    // This ensures implementations flow through the standard Ideas -> TaskRunner pipeline
+    const ideaId = uuidv4();
+    const idea = ideaDb.createIdea({
+      id: ideaId,
+      scan_id: scanId,
+      project_id: direction.project_id,
+      context_id: direction.context_id || null,
+      scan_type: 'direction_accepted',
+      category: 'direction',
+      title: direction.summary,
+      description: direction.direction,
+      reasoning: `Auto-generated from accepted direction in context: ${direction.context_map_title}`,
+      status: 'accepted',
+      requirement_id: requirementId
+    });
+
     logger.info('[API] Direction accepted and requirement created:', {
       directionId: id,
       requirementId,
-      requirementPath: result.filePath
+      requirementPath: result.filePath,
+      ideaId: idea.id
     });
+
+    // Record brain signal: direction accepted
+    try {
+      signalCollector.recordImplementation(direction.project_id, {
+        requirementId,
+        requirementName: requirementId,
+        directionId: id,
+        contextId: direction.context_id || null,
+        filesCreated: [],
+        filesModified: [],
+        filesDeleted: [],
+        success: true,
+        executionTimeMs: 0,
+      });
+    } catch {
+      // Signal recording must never break the main flow
+    }
 
     return NextResponse.json({
       success: true,
       direction: updatedDirection,
       requirementName: requirementId,
-      requirementPath: result.filePath
+      requirementPath: result.filePath,
+      ideaId: idea.id
     });
 
   } catch (error) {
@@ -133,3 +180,6 @@ export async function POST(
     );
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/directions/[id]/accept');

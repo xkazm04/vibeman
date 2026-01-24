@@ -12,7 +12,9 @@ export type IntegrationProvider =
   | 'webhook'
   | 'jira'
   | 'linear'
-  | 'notion';
+  | 'notion'
+  | 'supabase'
+  | 'postgres';
 
 // Integration status
 export type IntegrationStatus = 'active' | 'inactive' | 'error' | 'pending';
@@ -155,6 +157,48 @@ export interface WebhookConfig {
   payloadFormat?: 'json' | 'form';
   includeMetadata?: boolean;
   customFields?: Record<string, string>;
+}
+
+/**
+ * Supabase integration configuration
+ * Maps Vibeman events to Supabase table inserts
+ */
+export interface SupabaseConfig {
+  projectUrl: string; // Supabase project URL
+  tableName: string; // Target table for events
+  columnMapping?: Record<string, string>; // Map event fields to table columns
+  includeMetadata?: boolean; // Include event metadata in insert
+}
+
+/**
+ * Supabase credentials
+ */
+export interface SupabaseCredentials {
+  anonKey: string; // Public anon key
+  serviceRoleKey?: string; // Optional service role key for elevated access
+}
+
+/**
+ * PostgreSQL direct integration configuration
+ * For direct database connections
+ */
+export interface PostgresConfig {
+  host: string;
+  port: number;
+  database: string;
+  schema?: string; // Default: public
+  tableName: string;
+  columnMapping?: Record<string, string>; // Map event fields to table columns
+  sslMode?: 'disable' | 'require' | 'verify-ca' | 'verify-full';
+  includeMetadata?: boolean;
+}
+
+/**
+ * PostgreSQL credentials
+ */
+export interface PostgresCredentials {
+  username: string;
+  password: string;
 }
 
 /**

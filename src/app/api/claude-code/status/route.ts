@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isClaudeFolderInitialized } from '@/app/Claude/lib/claudeCodeManager';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/claude-code/status
  * Check the initialization status of Claude Code folder structure
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectPath } = body;
@@ -32,3 +33,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/claude-code/status');

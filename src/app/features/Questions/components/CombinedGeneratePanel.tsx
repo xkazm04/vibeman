@@ -13,8 +13,7 @@ import {
   MessageSquare,
   Globe2
 } from 'lucide-react';
-import { DbQuestion } from '@/app/db';
-import { ContextMapEntry } from '../lib/questionsApi';
+import { DbQuestion, DbContext } from '@/app/db';
 
 interface GenerateResult {
   requirementPath: string;
@@ -22,7 +21,8 @@ interface GenerateResult {
 }
 
 interface CombinedGeneratePanelProps {
-  contexts: ContextMapEntry[];
+  /** SQLite contexts */
+  contexts: DbContext[];
   selectedContextIds: string[];
   answeredQuestions: DbQuestion[];
   onGenerateQuestions: (count: number) => Promise<GenerateResult | void>;

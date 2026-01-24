@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { withObservability } from '@/lib/observability/middleware';
 
 function handleError(errorMessage: string, statusCode = 500) {
   return NextResponse.json(
@@ -8,7 +9,7 @@ function handleError(errorMessage: string, statusCode = 500) {
   );
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
 
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
   try {
     const body = await request.json();
     const { callId, ...updates } = body;
@@ -81,7 +82,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const callId = searchParams.get('callId');
@@ -100,3 +101,8 @@ export async function DELETE(request: NextRequest) {
     return handleError('Failed to delete call');
   }
 }
+
+export const GET = withObservability(handleGet, '/api/monitor/calls');
+export const POST = withObservability(handlePost, '/api/monitor/calls');
+export const PATCH = withObservability(handlePatch, '/api/monitor/calls');
+export const DELETE = withObservability(handleDelete, '/api/monitor/calls');

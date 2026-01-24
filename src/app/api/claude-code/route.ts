@@ -14,11 +14,12 @@ import {
 import { validateRequired, successResponse, errorResponse, handleOperationResult } from './helpers';
 import { getTaskStatus } from './taskStatusHandler';
 import { queueExecution, executeSync } from './executionHandlers';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET - Check Claude folder status or list requirements
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectPath = searchParams.get('projectPath');
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST - Initialize folder, create requirement, or execute requirement
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectPath, action, projectName, requirementName, content, settings } = body;
@@ -201,7 +202,7 @@ export async function POST(request: NextRequest) {
 /**
  * DELETE - Delete a requirement
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectPath, requirementName } = body;
@@ -223,7 +224,7 @@ export async function DELETE(request: NextRequest) {
 /**
  * PUT - Update requirement
  */
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectPath, action, requirementName, content } = body;
@@ -252,3 +253,9 @@ export async function PUT(request: NextRequest) {
     return errorResponse(error, 'Error in PUT /api/claude-code');
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/claude-code');
+export const POST = withObservability(handlePost, '/api/claude-code');
+export const DELETE = withObservability(handleDelete, '/api/claude-code');
+export const PUT = withObservability(handlePut, '/api/claude-code');

@@ -11,8 +11,6 @@ import ContextSection from './sub_ContextGroups/ContextSection';
 import CG_modal from './sub_ContextGroups/ContextGroupManagement/CG_modal';
 import HorizontalContextBarHeader from './sub_ContextGroups/HorizontalContextBarHeader';
 import { GroupDetailView, useContextDetail } from './sub_ContextDetail';
-import ContextTargetPopup from './sub_ContextTargetPopup/ContextTargetPopup';
-import { Context as StoreContext } from '@/stores/context/contextStoreTypes';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import { useDragDropContext, useDropZoneValidator, DEFAULT_TARGET_TRANSFORMS } from '@/hooks/dnd';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
@@ -66,42 +64,6 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     },
   });
 
-  // Context Target Popup State
-  const [targetQueue, setTargetQueue] = useState<StoreContext[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const hasCheckedTargets = useRef(false);
-
-  useEffect(() => {
-    if (!loading && contexts.length > 0 && !hasCheckedTargets.current) {
-      const missingTargets = contexts.filter(ctx => !ctx.target || !ctx.target_fulfillment);
-      if (missingTargets.length > 0) {
-        setTargetQueue(missingTargets);
-      }
-      hasCheckedTargets.current = true;
-    }
-  }, [contexts, loading]);
-
-  const handleSaveTarget = useCallback(async (id: string, target: string, fulfillment: string) => {
-    await updateContext(id, { target, target_fulfillment: fulfillment });
-    if (currentIndex < targetQueue.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    } else {
-      setTargetQueue([]);
-    }
-  }, [currentIndex, targetQueue.length, updateContext]);
-
-  const handleSkipTarget = useCallback(() => {
-    if (currentIndex < targetQueue.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    } else {
-      setTargetQueue([]);
-    }
-  }, [currentIndex, targetQueue.length]);
-
-  const handleClosePopup = useCallback(() => {
-    setTargetQueue([]);
-    setCurrentIndex(0);
-  }, []);
 
   // Memoized calculations for performance
   const ungroupedContexts = useMemo(() =>
@@ -190,22 +152,6 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* Target Popup - Positioned absolutely in upper center */}
-        <AnimatePresence>
-          {targetQueue.length > 0 && targetQueue[currentIndex] && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-[600px] px-4">
-              <ContextTargetPopup
-                context={targetQueue[currentIndex]}
-                onSave={handleSaveTarget}
-                onSkip={handleSkipTarget}
-                onClose={handleClosePopup}
-                queueLength={targetQueue.length}
-                currentIndex={currentIndex}
-              />
-            </div>
-          )}
-        </AnimatePresence>
-
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}

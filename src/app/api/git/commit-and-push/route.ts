@@ -14,6 +14,7 @@ import {
   validateBranchName,
   validateProjectName,
 } from '@/lib/command';
+import { withObservability } from '@/lib/observability/middleware';
 
 export interface GitOperationRequest {
   projectId: string;
@@ -158,7 +159,7 @@ function isNonFatalError(errorMessage: string, commandStr: string): boolean {
  * - All template variables are validated before use
  * - Arguments are passed as arrays, not interpolated into strings
  */
-export async function POST(request: NextRequest): Promise<NextResponse<GitOperationResponse>> {
+async function handlePost(request: NextRequest): Promise<NextResponse<GitOperationResponse>> {
   try {
     const { projectId, commands, commitMessage }: GitOperationRequest = await request.json();
 
@@ -387,3 +388,5 @@ export async function POST(request: NextRequest): Promise<NextResponse<GitOperat
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/git/commit-and-push');

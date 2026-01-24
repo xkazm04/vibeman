@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateWithLLM } from '@/lib/llm'
 import { logger } from '@/lib/logger'
+import { withObservability } from '@/lib/observability/middleware'
 
 interface PromptOption {
   label: string
@@ -119,7 +120,7 @@ function buildUserPrompt(request: ComposePromptRequest): string {
  * 
  * Requirements: FR-3.1, FR-3.2
  */
-export async function POST(request: NextRequest): Promise<NextResponse<ComposePromptResponse>> {
+async function handlePost(request: NextRequest): Promise<NextResponse<ComposePromptResponse>> {
   try {
     const body: ComposePromptRequest = await request.json()
     const maxLength = body.maxLength || DEFAULT_MAX_LENGTH
@@ -227,3 +228,5 @@ export async function POST(request: NextRequest): Promise<NextResponse<ComposePr
     )
   }
 }
+
+export const POST = withObservability(handlePost, '/api/ai/compose-prompt')

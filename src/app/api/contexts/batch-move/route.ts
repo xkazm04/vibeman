@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries } from '../../../../lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface BatchMoveRequest {
   moves: Array<{
@@ -11,7 +12,7 @@ interface BatchMoveRequest {
 }
 
 // POST /api/contexts/batch-move - Batch move contexts to new groups
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body: BatchMoveRequest = await request.json();
     const { moves } = body;
@@ -42,3 +43,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/contexts/batch-move');

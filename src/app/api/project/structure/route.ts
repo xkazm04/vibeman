@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { TreeNode } from '@/types';
+import { withObservability } from '@/lib/observability/middleware';
 
 // Files and directories to ignore in NextJS projects
 const IGNORED_PATTERNS = [
@@ -228,7 +229,7 @@ function createErrorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { projectPath } = await request.json();
 
@@ -262,4 +263,6 @@ export async function POST(request: NextRequest) {
       500
     );
   }
-} 
+}
+
+export const POST = withObservability(handlePost, '/api/project/structure'); 

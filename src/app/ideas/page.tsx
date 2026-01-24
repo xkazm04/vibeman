@@ -21,7 +21,6 @@ import {
   fetchContextsForProjects,
   getContextNameFromMap
 } from '@/app/features/Ideas/lib/contextLoader';
-import { ProcessingIdeaProvider } from '@/app/features/Ideas/lib/ProcessingIdeaContext';
 
 export default function IdeasPage() {
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
@@ -109,8 +108,7 @@ export default function IdeasPage() {
   }, [projects]);
 
   return (
-    <ProcessingIdeaProvider>
-      <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
+    <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
         {/* Header with Project Filter */}
         <LazyContentSection delay={0}>
           <IdeasHeaderWithFilter
@@ -160,7 +158,6 @@ export default function IdeasPage() {
             />
           )}
         </AnimatePresence>
-      </div>
-    </ProcessingIdeaProvider>
+    </div>
   );
 }

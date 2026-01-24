@@ -85,7 +85,6 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   tasker: { label: 'Tasker', description: 'Run and manage tasks', keywords: ['tasks', 'run', 'execute', 'batch'], icon: 'Play' },
   manager: { label: 'Manager', description: 'Analytics and project management', keywords: ['analytics', 'stats', 'metrics', 'management'], icon: 'BarChart3' },
   reflector: { label: 'Reflector', description: 'Reflect on past implementations', keywords: ['reflect', 'review', 'history', 'analysis'], icon: 'Activity' },
-  docs: { label: 'Docs', description: 'Documentation and guides', keywords: ['docs', 'documentation', 'help', 'guide'], icon: 'BookOpen' },
   refactor: { label: 'Refactor Wizard', description: 'Analyze and plan refactoring', keywords: ['refactor', 'wizard', 'improve', 'clean'], icon: 'Wand2' },
   halloffame: { label: 'Hall of Fame', description: 'Showcase of best implementations', keywords: ['hall', 'fame', 'best', 'showcase'], icon: 'Trophy' },
   social: { label: 'Social', description: 'Community and sharing', keywords: ['social', 'community', 'share', 'team'], icon: 'Users' },
@@ -93,6 +92,7 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   zen: { label: 'Zen Mode', description: 'Focused work mode', keywords: ['zen', 'focus', 'calm', 'work'], icon: 'Sunrise' },
   blueprint: { label: 'Blueprint', description: 'Project blueprint and setup', keywords: ['blueprint', 'setup', 'project'], icon: 'Map' },
   questions: { label: 'Questions', description: 'Generate clarifying questions for precise idea generation', keywords: ['questions', 'clarify', 'context', 'requirements'], icon: 'HelpCircle' },
+  integrations: { label: 'Integrations', description: 'Manage external integrations and connectors', keywords: ['integrations', 'connectors', 'webhooks', 'external'], icon: 'Plug' },
 };
 
 interface WorkflowState {

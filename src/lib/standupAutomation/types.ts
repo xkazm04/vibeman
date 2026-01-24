@@ -4,7 +4,6 @@
  */
 
 import { DbGoal, DbIdea, DbImplementationLog } from '@/app/db/models/types';
-import type { GoalHypothesis } from '@/app/db/models/goal-hub.types';
 import type { SupportedProvider } from '@/lib/llm/types';
 
 // ============ Configuration Types ============
@@ -59,7 +58,7 @@ export interface CodeReference {
 /**
  * Verification methods for evidence
  */
-export type VerificationMethod = 'code_exists' | 'test_passes' | 'pattern_match' | 'manual' | 'hypothesis_verified';
+export type VerificationMethod = 'code_exists' | 'test_passes' | 'pattern_match' | 'manual';
 
 /**
  * Structured evidence with file:line references for verifiable findings
@@ -76,7 +75,6 @@ export interface StructuredEvidence {
 
 export interface GoalEvaluationContext {
   goal: DbGoal;
-  hypotheses: GoalHypothesis[];
   relatedImplementations: DbImplementationLog[];
   relatedIdeas: DbIdea[];
   contextActivity: {
@@ -104,13 +102,6 @@ export interface GoalEvaluationResult {
   progress: number;                  // 0-100
   confidence: number;                // 0-100
   reasoning: string;
-
-  // Optional hypothesis verifications from this evaluation
-  hypothesisVerifications?: Array<{
-    hypothesisId: string;
-    verified: boolean;
-    evidence: StructuredEvidence;
-  }>;
 }
 
 export interface GoalStatusChange {

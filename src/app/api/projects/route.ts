@@ -3,13 +3,14 @@ import { projectServiceDb } from '@/lib/projectServiceDb';
 import { logger } from '@/lib/logger';
 import { detectProjectTypeSync } from '@/lib/projectTypeDetector';
 import type { ProjectType } from '@/types';
+import { withObservability } from '@/lib/observability/middleware';
 
 const VALID_PROJECT_TYPES: ProjectType[] = [
   'nextjs', 'react', 'express', 'fastapi', 'django', 'rails', 'generic', 'combined'
 ];
 
 // GET /api/projects - Get all projects
-export async function GET() {
+async function handleGet() {
   try {
     const projects = await projectServiceDb.getAllProjects();
     return NextResponse.json({ projects });
@@ -23,7 +24,7 @@ export async function GET() {
 }
 
 // POST /api/projects - Add a new project
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const project = await request.json();
 
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/projects - Update a project
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const { projectId, updates } = await request.json();
 
@@ -135,7 +136,7 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/projects - Remove a project
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { projectId } = await request.json();
 
@@ -159,4 +160,10 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/projects');
+export const POST = withObservability(handlePost, '/api/projects');
+export const PUT = withObservability(handlePut, '/api/projects');
+export const DELETE = withObservability(handleDelete, '/api/projects'); 

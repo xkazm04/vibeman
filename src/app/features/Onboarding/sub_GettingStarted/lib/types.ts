@@ -9,7 +9,6 @@ export type ModuleLocation =
   | 'tasker'
   | 'reflector'
   | 'contexts'
-  | 'docs'
   | 'manager'
   | 'blueprint';
 

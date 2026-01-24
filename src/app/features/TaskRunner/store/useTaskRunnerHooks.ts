@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaskRunnerStore, type BatchId, type BatchState, type TaskState, setCachedRequirements } from './taskRunnerStore';
+import { useTaskRunnerStore, type BatchId, type BatchState, type TaskState } from './taskRunnerStore';
 import type { ProjectRequirement } from '../lib/types';
 import {
   isBatchIdle,
@@ -94,9 +94,9 @@ export function useStartBatchExecution() {
   const store = useTaskRunnerStore();
 
   return useCallback((batchId: BatchId, requirements: ProjectRequirement[]) => {
-    // Cache requirements so polling callbacks can access full array
-    setCachedRequirements(requirements);
-    
+    // Cache requirements in store so polling callbacks can access full array
+    store.setRequirementsCache(requirements);
+
     store.startBatch(batchId);
     // Start execution after a short delay to ensure state updates
     setTimeout(() => {

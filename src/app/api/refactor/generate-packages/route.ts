@@ -3,12 +3,13 @@ import { generatePackages } from '@/app/features/RefactorWizard/lib/packageGener
 import { loadProjectContext } from '@/app/features/RefactorWizard/lib/contextLoader';
 import { buildDependencyGraph, topologicalSort } from '@/app/features/RefactorWizard/lib/dependencyAnalyzer';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/refactor/generate-packages
  * Generate strategic refactoring packages from opportunities
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { opportunities, projectPath, userPreferences = {} } = body;
@@ -89,3 +90,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/refactor/generate-packages');

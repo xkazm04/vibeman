@@ -19,6 +19,8 @@ import { GitHubConnector } from './connectors/github';
 import { SlackConnector } from './connectors/slack';
 import { DiscordConnector } from './connectors/discord';
 import { WebhookConnector } from './connectors/webhook';
+import { SupabaseConnector } from './connectors/supabase';
+import { PostgresConnector } from './connectors/postgres';
 
 /**
  * Connector factory - returns the appropriate connector for a provider
@@ -33,6 +35,10 @@ function getConnector(provider: IntegrationProvider) {
       return DiscordConnector;
     case 'webhook':
       return WebhookConnector;
+    case 'supabase':
+      return SupabaseConnector;
+    case 'postgres':
+      return PostgresConnector;
     default:
       return null;
   }

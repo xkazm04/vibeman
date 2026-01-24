@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { contextGroupQueries } from '../../../lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
+import { withObservability } from '@/lib/observability/middleware';
 
 // GET /api/context-groups - Get all context groups for a project
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/context-groups - Create a new context group
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, name, color, icon } = body;
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/context-groups - Update a context group
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
     const { groupId, updates } = body;
@@ -85,7 +86,7 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/context-groups - Delete a context group
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
@@ -112,3 +113,8 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/context-groups');
+export const POST = withObservability(handlePost, '/api/context-groups');
+export const PUT = withObservability(handlePut, '/api/context-groups');
+export const DELETE = withObservability(handleDelete, '/api/context-groups');

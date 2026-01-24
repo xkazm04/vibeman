@@ -1,4 +1,5 @@
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { SuggestionFilter } from '@/app/features/reflector/lib/unifiedTypes';
 
 export interface IdeaStats {
   pending: number;
@@ -7,6 +8,21 @@ export interface IdeaStats {
   implemented: number;
   total: number;
   acceptanceRatio: number; // (accepted + implemented) / total * 100
+}
+
+// Direction stats (no implemented status)
+export interface DirectionStats {
+  pending: number;
+  accepted: number;
+  rejected: number;
+  total: number;
+  acceptanceRatio: number; // accepted / total * 100
+}
+
+// Context map stats (for directions, parallel to ScanTypeStats)
+export interface ContextMapStats extends DirectionStats {
+  contextMapId: string;
+  contextMapTitle: string;
 }
 
 export interface ScanTypeStats extends IdeaStats {
@@ -30,6 +46,7 @@ export interface ComparisonFilterState extends FilterState {
   period1?: DateRange;
   period2?: DateRange;
   timeWindow?: TimeWindow;
+  suggestionType?: SuggestionFilter;
 }
 
 export interface ReflectionStats {
@@ -45,6 +62,20 @@ export interface ReflectionStats {
     name: string;
     totalIdeas: number;
   }>;
+  // Optional direction data (populated when suggestionType includes directions)
+  contextMaps?: ContextMapStats[];
+  directionsOverall?: DirectionStats;
+  // Combined totals for 'both' mode
+  combinedOverall?: {
+    pending: number;
+    accepted: number;
+    rejected: number;
+    implemented: number;
+    total: number;
+    acceptanceRatio: number;
+    ideasTotal: number;
+    directionsTotal: number;
+  };
 }
 
 export interface ComparisonStats {

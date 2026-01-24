@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, readdir } from 'fs/promises';
 import { join, extname, relative } from 'path';
+import { withObservability } from '@/lib/observability/middleware';
 
 function createErrorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -10,7 +11,7 @@ function createErrorResponse(message: string, status: number) {
  * POST /api/project/files
  * Fetch files from a project for analysis
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectPath, filePaths, limit = 20 } = body;
@@ -145,3 +146,5 @@ function getFileType(ext: string): string {
 
   return typeMap[ext] || 'text';
 }
+
+export const POST = withObservability(handlePost, '/api/project/files');

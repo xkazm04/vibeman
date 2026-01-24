@@ -21,13 +21,13 @@ const MODULE_STEPS: Record<AppModule, OnboardingStep | null> = {
   tasker: 'run-task',
   manager: 'review-impl',
   reflector: null,
-  docs: null,
   refactor: null,
   halloffame: null,
   social: null,
   composer: null,
   zen: null,
   questions: null,
+  integrations: null,
 };
 
 const STEP_LABELS: Record<OnboardingStep, string> = {

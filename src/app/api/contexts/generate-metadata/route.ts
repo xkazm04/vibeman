@@ -4,6 +4,7 @@ import path from 'path';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
 import { contextGroupQueries } from '@/lib/queries/contextQueries';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface ContextMetadata {
   title: string;
@@ -33,7 +34,7 @@ interface RequestBody {
  * - Description (detailed)
  * - Context group assignment (from existing groups)
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body: RequestBody = await request.json();
     const { projectId, projectPath, filePaths, provider, model } = body;
@@ -271,3 +272,5 @@ function parseMetadataResponse(
     };
   }
 }
+
+export const POST = withObservability(handlePost, '/api/contexts/generate-metadata');

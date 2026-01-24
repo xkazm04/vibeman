@@ -9,33 +9,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { directionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { withObservability } from '@/lib/observability/middleware';
+import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
+    const projectFilter = parseProjectIds(searchParams);
     const status = searchParams.get('status'); // 'pending', 'accepted', 'rejected', or null for all
     const contextMapId = searchParams.get('contextMapId');
+    // Support SQLite context filtering
+    const contextId = searchParams.get('contextId');
+    const contextGroupId = searchParams.get('contextGroupId');
 
-    if (!projectId) {
+    if (projectFilter.mode === 'all') {
       return NextResponse.json(
         { error: 'projectId query parameter is required' },
         { status: 400 }
       );
     }
 
-    let directions;
+    // For multi-project: query each and merge
+    const projectIds = projectFilter.mode === 'single'
+      ? [projectFilter.projectId!]
+      : projectFilter.projectIds!;
 
-    if (contextMapId) {
-      directions = directionDb.getDirectionsByContextMapId(projectId, contextMapId);
-    } else if (status === 'pending') {
-      directions = directionDb.getPendingDirections(projectId);
-    } else if (status === 'accepted') {
-      directions = directionDb.getAcceptedDirections(projectId);
-    } else if (status === 'rejected') {
-      directions = directionDb.getRejectedDirections(projectId);
-    } else {
-      directions = directionDb.getDirectionsByProject(projectId);
+    let directions: any[] = [];
+
+    for (const projectId of projectIds) {
+      let projectDirections;
+      if (contextId) {
+        projectDirections = directionDb.getDirectionsByContextId(projectId, contextId);
+      } else if (contextGroupId) {
+        projectDirections = directionDb.getDirectionsByContextGroupId(projectId, contextGroupId);
+      } else if (contextMapId) {
+        projectDirections = directionDb.getDirectionsByContextMapId(projectId, contextMapId);
+      } else if (status === 'pending') {
+        projectDirections = directionDb.getPendingDirections(projectId);
+      } else if (status === 'accepted') {
+        projectDirections = directionDb.getAcceptedDirections(projectId);
+      } else if (status === 'rejected') {
+        projectDirections = directionDb.getRejectedDirections(projectId);
+      } else {
+        projectDirections = directionDb.getDirectionsByProject(projectId);
+      }
+      directions.push(...projectDirections);
     }
 
     // Group directions by context_map_id for UI display
@@ -74,7 +92,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
 
@@ -83,7 +101,11 @@ export async function POST(request: NextRequest) {
       context_map_id,
       context_map_title,
       direction,
-      summary
+      summary,
+      // NEW: SQLite context fields
+      context_id,
+      context_name,
+      context_group_id
     } = body;
 
     // Validate required fields
@@ -106,10 +128,19 @@ export async function POST(request: NextRequest) {
       summary,
       status: body.status || 'pending',
       requirement_id: body.requirement_id || null,
-      requirement_path: body.requirement_path || null
+      requirement_path: body.requirement_path || null,
+      // NEW: SQLite context fields for unified context management
+      context_id: context_id || null,
+      context_name: context_name || null,
+      context_group_id: context_group_id || null
     });
 
-    logger.info('[API] Direction created:', { id: createdDirection.id, context_map_id });
+    logger.info('[API] Direction created:', {
+      id: createdDirection.id,
+      context_map_id,
+      context_id: context_id || 'none',
+      context_group_id: context_group_id || 'none'
+    });
 
     return NextResponse.json({
       success: true,
@@ -124,3 +155,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/directions');
+export const POST = withObservability(handlePost, '/api/directions');

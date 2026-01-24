@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { securityScanDb, securityPatchDb } from '@/app/db';
 import { runSecurityScan } from '@/app/features/Depndencies/lib/securityScanner';
 import { generatePatchProposals } from '@/app/features/Depndencies/lib/patchGenerator';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/security/scan
  * Initiates a security scan for a project
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { projectId, projectPath, projectType } = await request.json();
 
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
  * GET /api/security/scan?projectId=xxx
  * Get all security scans for a project
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -128,3 +129,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/security/scan');
+export const GET = withObservability(handleGet, '/api/security/scan');

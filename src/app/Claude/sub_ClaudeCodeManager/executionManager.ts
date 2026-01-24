@@ -3,6 +3,7 @@ import * as path from 'path';
 import { readRequirement } from './folderManager';
 import { getLogFilePath, getLogsDirectory } from './logManager';
 import { buildExecutionPrompt } from './executionPrompt';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 /**
  * Execution manager for Claude Code requirements
@@ -206,6 +207,22 @@ export async function executeRequirement(
           logMessage(`Process exited with code: ${code}`);
           logMessage('=== Claude Code Execution Finished ===');
           closeLogStream();
+
+          // Record brain signal for git-enabled executions
+          if (projectId && gitConfig?.enabled) {
+            try {
+              signalCollector.recordGitActivity(projectId, {
+                filesChanged: [],
+                commitMessage: gitConfig.commitMessage || requirementName,
+                linesAdded: 0,
+                linesRemoved: 0,
+                branch: 'current',
+                commitSha: undefined,
+              });
+            } catch {
+              // Signal recording must never break execution flow
+            }
+          }
 
           if (code === 0) {
             resolve({

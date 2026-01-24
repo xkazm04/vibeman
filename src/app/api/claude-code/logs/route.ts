@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST - Read a log file
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { logFilePath } = body;
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET - List all log files for a project
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const logsDir = searchParams.get('logsDir');
@@ -108,3 +109,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/claude-code/logs');
+export const GET = withObservability(handleGet, '/api/claude-code/logs');

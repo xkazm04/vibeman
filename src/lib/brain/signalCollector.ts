@@ -1,0 +1,232 @@
+/**
+ * Signal Collector
+ * Central service for capturing and storing behavioral signals
+ */
+
+import { behavioralSignalDb } from '@/app/db';
+import type {
+  BehavioralSignalType,
+  GitActivitySignalData,
+  ApiFocusSignalData,
+  ContextFocusSignalData,
+  ImplementationSignalData,
+} from '@/app/db/models/brain.types';
+
+/**
+ * Generate a unique signal ID
+ */
+function generateSignalId(): string {
+  return `sig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Signal Collector - captures behavioral signals from various sources
+ */
+export const signalCollector = {
+  /**
+   * Record a git activity signal (commit, file changes)
+   */
+  recordGitActivity: (
+    projectId: string,
+    data: GitActivitySignalData,
+    contextId?: string,
+    contextName?: string
+  ): void => {
+    try {
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'git_activity',
+        context_id: contextId || null,
+        context_name: contextName || null,
+        data: JSON.stringify(data),
+        weight: calculateGitWeight(data),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record git activity:', error);
+    }
+  },
+
+  /**
+   * Record an API focus signal (endpoint usage patterns)
+   */
+  recordApiFocus: (
+    projectId: string,
+    data: ApiFocusSignalData,
+    contextId?: string,
+    contextName?: string
+  ): void => {
+    try {
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'api_focus',
+        context_id: contextId || null,
+        context_name: contextName || null,
+        data: JSON.stringify(data),
+        weight: calculateApiWeight(data),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record API focus:', error);
+    }
+  },
+
+  /**
+   * Record a context focus signal (user viewing/editing context)
+   */
+  recordContextFocus: (
+    projectId: string,
+    data: ContextFocusSignalData
+  ): void => {
+    try {
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'context_focus',
+        context_id: data.contextId,
+        context_name: data.contextName,
+        data: JSON.stringify(data),
+        weight: calculateContextWeight(data),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record context focus:', error);
+    }
+  },
+
+  /**
+   * Record an implementation signal (Claude Code execution result)
+   */
+  recordImplementation: (
+    projectId: string,
+    data: ImplementationSignalData
+  ): void => {
+    try {
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'implementation',
+        context_id: data.contextId || null,
+        context_name: null,
+        data: JSON.stringify(data),
+        weight: calculateImplementationWeight(data),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record implementation:', error);
+    }
+  },
+
+  /**
+   * Batch record API focus signals from observability data
+   * Called periodically to aggregate API usage patterns
+   */
+  recordApiFocusBatch: (
+    projectId: string,
+    endpoints: Array<{
+      endpoint: string;
+      method: string;
+      callCount: number;
+      avgResponseTime: number;
+      errorRate: number;
+      contextId?: string;
+      contextName?: string;
+    }>
+  ): number => {
+    let recorded = 0;
+    for (const ep of endpoints) {
+      try {
+        behavioralSignalDb.create({
+          id: generateSignalId(),
+          project_id: projectId,
+          signal_type: 'api_focus',
+          context_id: ep.contextId || null,
+          context_name: ep.contextName || null,
+          data: JSON.stringify({
+            endpoint: ep.endpoint,
+            method: ep.method,
+            callCount: ep.callCount,
+            avgResponseTime: ep.avgResponseTime,
+            errorRate: ep.errorRate,
+          }),
+          weight: ep.callCount > 100 ? 2.0 : ep.callCount > 10 ? 1.5 : 1.0,
+          timestamp: new Date().toISOString(),
+        });
+        recorded++;
+      } catch (error) {
+        console.error('[SignalCollector] Failed to record API focus batch item:', error);
+      }
+    }
+    return recorded;
+  },
+
+  /**
+   * Apply decay to old signals (call periodically)
+   */
+  applyDecay: (projectId: string): number => {
+    return behavioralSignalDb.applyDecay(projectId, 0.9, 7);
+  },
+
+  /**
+   * Clean up old signals beyond retention
+   */
+  cleanup: (projectId: string, retentionDays: number = 30): number => {
+    return behavioralSignalDb.deleteOld(projectId, retentionDays);
+  },
+};
+
+/**
+ * Calculate weight for git activity based on impact
+ */
+function calculateGitWeight(data: GitActivitySignalData): number {
+  const filesChanged = data.filesChanged.length;
+  const totalLines = data.linesAdded + data.linesRemoved;
+
+  // More files or more lines = higher weight
+  if (filesChanged > 10 || totalLines > 500) return 2.0;
+  if (filesChanged > 5 || totalLines > 100) return 1.5;
+  return 1.0;
+}
+
+/**
+ * Calculate weight for API focus based on usage
+ */
+function calculateApiWeight(data: ApiFocusSignalData): number {
+  // High call count or high error rate = more important
+  if (data.errorRate > 10) return 2.0; // Problematic endpoint
+  if (data.callCount > 100) return 1.8; // Heavy usage
+  if (data.callCount > 50) return 1.5;
+  return 1.0;
+}
+
+/**
+ * Calculate weight for context focus based on engagement
+ */
+function calculateContextWeight(data: ContextFocusSignalData): number {
+  const durationMinutes = data.duration / 60000;
+  const hasEditActions = data.actions.some(a =>
+    a === 'edit_files' || a === 'run_scan' || a === 'accept_direction'
+  );
+
+  // Longer engagement or edit actions = higher weight
+  if (hasEditActions && durationMinutes > 5) return 2.0;
+  if (hasEditActions || durationMinutes > 10) return 1.5;
+  return 1.0;
+}
+
+/**
+ * Calculate weight for implementation based on result
+ */
+function calculateImplementationWeight(data: ImplementationSignalData): number {
+  // Successful implementations with many files = high signal
+  if (data.success) {
+    const totalFiles = data.filesCreated.length + data.filesModified.length;
+    if (totalFiles > 10) return 2.5;
+    if (totalFiles > 5) return 2.0;
+    return 1.5;
+  }
+  // Failed implementations are also informative
+  return 1.0;
+}

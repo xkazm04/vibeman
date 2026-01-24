@@ -34,16 +34,7 @@ import {
   scanPredictionRepository,
   fileChangePatternRepository,
 } from './repositories/scan-prediction.repository';
-import {
-  marketplaceUserRepository,
-  refactoringPatternRepository,
-  patternRatingRepository,
-  patternApplicationRepository,
-  badgeRepository,
-  patternFavoriteRepository,
-  patternCollectionRepository,
-  patternVersionRepository,
-} from './repositories/marketplace.repository';
+import { promptTemplateRepository } from './repositories/prompt-template.repository';
 import {
   ideaExecutionOutcomeRepository,
   scoringWeightRepository,
@@ -87,10 +78,7 @@ import {
   focusBreakRepository,
   focusStatsRepository,
 } from './repositories/focus-mode.repository';
-import {
-  goalHypothesisRepository,
-  goalHubExtensions,
-} from './repositories/goal-hub.repository';
+import { goalHubExtensions } from './repositories/goal-hub.repository';
 // Offload repository removed - migrated to Supabase
 import {
   sessionRepository,
@@ -107,6 +95,19 @@ import { questionRepository } from './repositories/question.repository';
 import { directionRepository } from './repositories/direction.repository';
 import { hallOfFameRepository } from './repositories/hall-of-fame.repository';
 import { observabilityRepository } from './repositories/observability.repository';
+import { contextApiRouteRepository } from './repositories/context-api-route.repository';
+import { xrayRepository } from './repositories/xray.repository';
+import { behavioralSignalRepository } from './repositories/behavioral-signal.repository';
+import { directionOutcomeRepository } from './repositories/direction-outcome.repository';
+import { brainReflectionRepository } from './repositories/brain-reflection.repository';
+import {
+  annetteSessionRepository,
+  annetteMessageRepository,
+  annetteMemoryTopicRepository,
+  annettePreferenceRepository,
+  annetteAudioCacheRepository,
+} from './repositories/annette.repository';
+import { workspaceRepository } from './repositories/workspace.repository';
 
 // Export types
 export * from './models/types';
@@ -115,7 +116,6 @@ export * from './models/tech-debt.types';
 export * from './models/security-patch.types';
 export * from './models/test-scenario.types';
 export * from './models/scan-prediction.types';
-export * from './models/marketplace.types';
 export * from './models/debt-prediction.types';
 // Security Intelligence types removed - feature deprecated
 // NOTE: hypothesis-testing.types removed - use goal-hub.types instead
@@ -129,6 +129,8 @@ export * from './models/automation-session.types';
 export * from './models/automation-event.types';
 export * from './models/integration.types';
 export * from './models/observability.types';
+export * from './models/brain.types';
+export * from './models/annette.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -157,10 +159,9 @@ export const goalDb = {
 
 /**
  * Goal Hub Database Operations
- * Handles goal hypotheses and extended goal features
+ * Handles extended goal features
  */
 export const goalHubDb = {
-  hypotheses: goalHypothesisRepository,
   extensions: goalHubExtensions,
   close: closeDatabase
 };
@@ -364,74 +365,11 @@ export const fileChangePatternDb = {
 };
 
 /**
- * Marketplace User Database Operations
- * Handles marketplace user profiles and reputation
+ * Prompt Template Database Operations
+ * Handles reusable prompt templates for requirement generation
  */
-export const marketplaceUserDb = {
-  ...marketplaceUserRepository,
-  close: closeDatabase
-};
-
-/**
- * Refactoring Pattern Database Operations
- * Handles community refactoring patterns
- */
-export const refactoringPatternDb = {
-  ...refactoringPatternRepository,
-  close: closeDatabase
-};
-
-/**
- * Pattern Rating Database Operations
- * Handles pattern ratings and reviews
- */
-export const patternRatingDb = {
-  ...patternRatingRepository,
-  close: closeDatabase
-};
-
-/**
- * Pattern Application Database Operations
- * Handles pattern application tracking
- */
-export const patternApplicationDb = {
-  ...patternApplicationRepository,
-  close: closeDatabase
-};
-
-/**
- * Badge Database Operations
- * Handles badges and achievements
- */
-export const badgeDb = {
-  ...badgeRepository,
-  close: closeDatabase
-};
-
-/**
- * Pattern Favorite Database Operations
- * Handles user pattern favorites
- */
-export const patternFavoriteDb = {
-  ...patternFavoriteRepository,
-  close: closeDatabase
-};
-
-/**
- * Pattern Collection Database Operations
- * Handles pattern collections
- */
-export const patternCollectionDb = {
-  ...patternCollectionRepository,
-  close: closeDatabase
-};
-
-/**
- * Pattern Version Database Operations
- * Handles pattern version history
- */
-export const patternVersionDb = {
-  ...patternVersionRepository,
+export const promptTemplateDb = {
+  ...promptTemplateRepository,
   close: closeDatabase
 };
 
@@ -815,6 +753,73 @@ export const hallOfFameDb = {
  */
 export const observabilityDb = {
   ...observabilityRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Context API Route Database Operations
+ * Maps API endpoints to contexts for X-Ray visualization and observability
+ */
+export const contextApiRouteDb = {
+  ...contextApiRouteRepository,
+  close: closeDatabase,
+};
+
+/**
+ * X-Ray Event Database Operations
+ * Persists API traffic events with context mapping for real-time visualization
+ */
+export const xrayDb = {
+  ...xrayRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Behavioral Signal Database Operations
+ * Tracks user behavior patterns (git activity, API usage, context focus)
+ */
+export const behavioralSignalDb = {
+  ...behavioralSignalRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Direction Outcome Database Operations
+ * Tracks implementation outcomes for directions (success, failure, reverts)
+ */
+export const directionOutcomeDb = {
+  ...directionOutcomeRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Brain Reflection Database Operations
+ * Manages autonomous reflection sessions for pattern learning
+ */
+export const brainReflectionDb = {
+  ...brainReflectionRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Annette 2.0 Database Operations
+ * Manages conversation sessions, messages, memory, preferences, and audio cache
+ */
+export const annetteDb = {
+  sessions: annetteSessionRepository,
+  messages: annetteMessageRepository,
+  topics: annetteMemoryTopicRepository,
+  preferences: annettePreferenceRepository,
+  audioCache: annetteAudioCacheRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Workspace Database Operations
+ * Manages workspace-based project grouping and assignment
+ */
+export const workspaceDb = {
+  ...workspaceRepository,
   close: closeDatabase,
 };
 

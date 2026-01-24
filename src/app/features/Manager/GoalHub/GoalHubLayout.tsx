@@ -22,9 +22,6 @@ import AutomationTrigger from './components/AutomationTrigger';
 // Lazy loaded components
 const GoalDetailPanel = lazy(() => import('./components/GoalDetailPanel'));
 const StandupPanel = lazy(() => import('./components/StandupPanel'));
-const HypothesisTracker = lazy(() => import('./components/HypothesisTracker'));
-const BreakdownPanel = lazy(() => import('./components/BreakdownPanel'));
-const ActivityFeed = lazy(() => import('./components/ActivityFeed'));
 const GoalReviewer = lazy(() => import('@/app/features/Onboarding/sub_GoalDrawer/GoalReviewer'));
 const GoalModal = lazy(() => import('@/app/features/Goals/sub_GoalModal/GoalModal'));
 
@@ -47,10 +44,7 @@ export default function GoalHubLayout() {
   const {
     activeGoal,
     goals,
-    hypotheses,
-    hypothesisCounts,
     isLoading,
-    isLoadingHypotheses,
     error,
     loadGoals,
     setActiveGoal,
@@ -76,14 +70,6 @@ export default function GoalHubLayout() {
       }
     }
   }, [goals.length, activeGoal, setActiveGoal]);
-
-  // Refresh callback for breakdown panel
-  const handleBreakdownCreated = useCallback(async () => {
-    // Refresh goals to pick up any changes
-    if (activeProject?.id) {
-      await loadGoals(activeProject.id);
-    }
-  }, [activeProject?.id, loadGoals]);
 
   const handleCloseModal = useCallback(() => {
     setSelectedGoalForModal(null);
@@ -181,17 +167,9 @@ export default function GoalHubLayout() {
               <Suspense fallback={<LoadingSpinner />}>
                 <GoalDetailPanel
                   goal={activeGoal}
-                  hypotheses={hypotheses}
-                  hypothesisCounts={hypothesisCounts}
-                  isLoadingHypotheses={isLoadingHypotheses}
-                  projectPath={activeProject.path}
                   projectId={activeProject.id}
                   onCompleteGoal={completeGoal}
                   onNewGoal={() => setIsGoalPanelOpen(true)}
-                  onBreakdownCreated={handleBreakdownCreated}
-                  HypothesisTracker={HypothesisTracker}
-                  BreakdownPanel={BreakdownPanel}
-                  ActivityFeed={ActivityFeed}
                 />
               </Suspense>
             </div>

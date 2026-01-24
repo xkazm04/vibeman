@@ -7,32 +7,42 @@ import { fireAndForgetSync, syncGoalToSupabase, deleteGoalFromSupabase } from '@
 import { fireAndForgetGitHubSync, syncGoalToGitHub, deleteGoalFromGitHub } from '@/lib/github';
 import { projectDb } from '@/lib/project_database';
 import { fireAndForgetGoalAnalysis } from '@/lib/goals';
+import { withObservability } from '@/lib/observability/middleware';
+import { signalCollector } from '@/lib/brain/signalCollector';
+import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
     const goalId = searchParams.get('id');
 
     // If goalId is provided, fetch single goal
     if (goalId) {
       const goal = goalDb.getGoalById(goalId);
-      
+
       if (!goal) {
         return notFoundResponse('Goal');
       }
-      
+
       return NextResponse.json({ goal });
     }
 
-    // Otherwise, fetch all goals for project
-    if (!projectId) {
-      return createErrorResponse('Project ID or Goal ID is required', 400);
+    // Parse project filter (supports single, multi, or all)
+    const projectFilter = parseProjectIds(searchParams);
+
+    if (projectFilter.mode === 'single') {
+      const goals = goalDb.getGoalsByProject(projectFilter.projectId!);
+      return NextResponse.json({ goals });
     }
 
-    const goals = goalDb.getGoalsByProject(projectId);
-    return NextResponse.json({ goals });
+    if (projectFilter.mode === 'multi') {
+      const goals = projectFilter.projectIds!.flatMap(pid => goalDb.getGoalsByProject(pid));
+      return NextResponse.json({ goals });
+    }
+
+    // 'all' mode - projectId required for goals unless multi-project
+    return createErrorResponse('Project ID or Goal ID is required', 400);
   } catch (error) {
     logger.error('Error in GET /api/goals:', { error });
     return createErrorResponse('Internal server error', 500);
@@ -40,7 +50,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/goals
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -73,6 +83,18 @@ export async function POST(request: NextRequest) {
       status,
       order_index: finalOrderIndex
     });
+
+    // Record brain signal: goal created
+    try {
+      signalCollector.recordContextFocus(projectId, {
+        contextId: contextId || projectId,
+        contextName: title,
+        duration: 0,
+        actions: ['create_goal'],
+      });
+    } catch {
+      // Signal recording must never break the main flow
+    }
 
     // Fire-and-forget sync to Supabase
     fireAndForgetSync(
@@ -149,7 +171,7 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/goals
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, title, description, status, orderIndex, contextId } = body;
@@ -197,7 +219,7 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/goals?id=xxx
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -233,4 +255,10 @@ export async function DELETE(request: NextRequest) {
     logger.error('Error in DELETE /api/goals:', { error });
     return createErrorResponse('Internal server error', 500);
   }
-} 
+}
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/goals');
+export const POST = withObservability(handlePost, '/api/goals');
+export const PUT = withObservability(handlePut, '/api/goals');
+export const DELETE = withObservability(handleDelete, '/api/goals'); 

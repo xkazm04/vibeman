@@ -19,6 +19,13 @@ function getGroupById(id: string): DbContextGroup | null {
  */
 export const contextGroupRepository = {
   /**
+   * Get a single context group by ID
+   */
+  getGroupById: (id: string): DbContextGroup | null => {
+    return getGroupById(id);
+  },
+
+  /**
    * Get all context groups for a project
    */
   getGroupsByProject: (projectId: string): DbContextGroup[] => {

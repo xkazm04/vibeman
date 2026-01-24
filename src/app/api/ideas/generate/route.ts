@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateIdeas } from '@/app/projects/ProjectAI/ScanIdeas/generateIdeas';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface GenerateIdeasRequest {
   projectId: string;
@@ -43,7 +44,7 @@ function createSuccessResponse(ideas: any[], scanId: string) {
  *
  * This is a long-running operation with no timeout restrictions
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body: GenerateIdeasRequest = await request.json();
 
@@ -85,6 +86,9 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/ideas/generate');
 
 // Increase the maximum duration for this route (Vercel)
 export const maxDuration = 500; // Vercel hobby has 300s limit

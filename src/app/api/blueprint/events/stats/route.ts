@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventRepository } from '@/app/db/repositories/event.repository';
 import { extractProjectId, createErrorResponse } from '../utils';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/blueprint/events/stats
@@ -10,7 +11,7 @@ import { extractProjectId, createErrorResponse } from '../utils';
  *   - projectId: Project ID
  *   - limit: Number of top events to return (default: 10)
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { projectId, error } = extractProjectId(request);
     if (error) return error;
@@ -31,9 +32,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-
-
-
+export const GET = withObservability(handleGet, '/api/blueprint/events/stats');
 
 
 

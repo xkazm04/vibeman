@@ -10,6 +10,7 @@ import {
   runAllProjectsCycle,
   ModesOverride,
 } from '@/lib/standupAutomation';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/standup/automation/run
@@ -23,7 +24,7 @@ import {
  *   - generateGoals?: boolean
  *   - createAnalysisTasks?: boolean
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const { projectId, modes } = body as {
@@ -92,3 +93,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/standup/automation/run');

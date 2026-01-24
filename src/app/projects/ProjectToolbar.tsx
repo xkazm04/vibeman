@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FolderOpen, Plus, Pencil, Target, Zap, Trash2, FileCode } from 'lucide-react';
+import { FolderOpen, Plus, Pencil, Target, Zap, Trash2, FileCode, Layers } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useProjectsToolbarStore } from '@/stores/projectsToolbarStore';
@@ -35,6 +35,7 @@ export default function ProjectToolbar() {
     setShowAddGoal,
     setShowAIReview,
     setShowStructure,
+    setShowWorkspaceManager,
   } = useProjectsToolbarStore();
   const { showFullScreenModal, hideModal } = useGlobalModal();
   const { getThemeColors } = useThemeStore();
@@ -209,6 +210,14 @@ export default function ProjectToolbar() {
       colorScheme: 'cyan',
       glow: isCreateProjectActive,
       testId: 'toolbar-add-project',
+    },
+    {
+      id: 'workspaces',
+      icon: Layers,
+      label: 'Workspaces',
+      onClick: () => setShowWorkspaceManager(true),
+      colorScheme: 'blue',
+      testId: 'toolbar-workspaces',
     },
     {
       id: 'edit-project',

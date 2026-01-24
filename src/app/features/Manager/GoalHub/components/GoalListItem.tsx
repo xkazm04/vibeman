@@ -5,7 +5,7 @@
 
 'use client';
 
-import { CheckCircle2, Clock, Circle, ChevronRight, FileCode, Lightbulb } from 'lucide-react';
+import { CheckCircle2, Clock, Circle, ChevronRight, FileCode } from 'lucide-react';
 import type { ExtendedGoal } from '@/app/db/models/goal-hub.types';
 
 interface GoalListItemProps {
@@ -45,8 +45,6 @@ export default function GoalListItem({
     }
   };
 
-  const hasHypotheses = (goal.hypothesesTotal || 0) > 0;
-
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     onSelect(goal);
@@ -73,11 +71,8 @@ export default function GoalListItem({
           <h4 className={`text-sm font-medium truncate ${isActive ? 'text-cyan-300' : 'text-white'}`}>
             {goal.title}
           </h4>
-          {hasHypotheses && (
+          {goal.progress > 0 && goal.progress < 100 && (
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-gray-500">
-                {goal.hypothesesVerified}/{goal.hypothesesTotal}
-              </span>
               <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden max-w-[80px]">
                 <div
                   className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
@@ -92,11 +87,6 @@ export default function GoalListItem({
           {hasBreakdown && (
             <span title="Breakdown file exists">
               <FileCode className="w-3 h-3 text-purple-400" />
-            </span>
-          )}
-          {hasHypotheses && (
-            <span title="Has hypotheses">
-              <Lightbulb className="w-3 h-3 text-amber-400" />
             </span>
           )}
           {isActive && <ChevronRight className="w-4 h-4 text-cyan-400" />}

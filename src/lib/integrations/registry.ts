@@ -324,6 +324,79 @@ export const INTEGRATION_REGISTRY: Record<IntegrationProvider, IntegrationRegist
     ],
     documentationUrl: 'https://developers.notion.com/',
   },
+
+  supabase: {
+    provider: 'supabase',
+    name: 'Supabase',
+    description: 'Store events in Supabase tables for cloud sync and analytics',
+    icon: 'database',
+    configSchema: {
+      type: 'object',
+      required: ['projectUrl', 'tableName'],
+      properties: {
+        projectUrl: { type: 'string', title: 'Project URL', description: 'Your Supabase project URL (e.g., https://xxx.supabase.co)' },
+        tableName: { type: 'string', title: 'Table Name', description: 'Table to store events in' },
+        columnMapping: {
+          type: 'object',
+          title: 'Column Mapping',
+          description: 'Map event fields to table columns',
+          additionalProperties: { type: 'string' },
+        },
+        includeMetadata: { type: 'boolean', title: 'Include Metadata', default: true },
+      },
+    },
+    credentialsSchema: {
+      type: 'object',
+      required: ['anonKey'],
+      properties: {
+        anonKey: { type: 'string', title: 'Anon Key', description: 'Supabase public anon key', format: 'password' },
+        serviceRoleKey: { type: 'string', title: 'Service Role Key', description: 'Optional service role key for elevated access', format: 'password' },
+      },
+    },
+    supportedEvents: ALL_EVENT_TYPES,
+    documentationUrl: 'https://supabase.com/docs',
+  },
+
+  postgres: {
+    provider: 'postgres',
+    name: 'PostgreSQL',
+    description: 'Store events directly in a PostgreSQL database',
+    icon: 'database',
+    configSchema: {
+      type: 'object',
+      required: ['host', 'port', 'database', 'tableName'],
+      properties: {
+        host: { type: 'string', title: 'Host', description: 'PostgreSQL server hostname or IP' },
+        port: { type: 'number', title: 'Port', description: 'PostgreSQL server port', default: 5432 },
+        database: { type: 'string', title: 'Database', description: 'Database name' },
+        schema: { type: 'string', title: 'Schema', description: 'Schema name (default: public)', default: 'public' },
+        tableName: { type: 'string', title: 'Table Name', description: 'Table to store events in' },
+        sslMode: {
+          type: 'string',
+          title: 'SSL Mode',
+          enum: ['disable', 'require', 'verify-ca', 'verify-full'],
+          default: 'require',
+        },
+        columnMapping: {
+          type: 'object',
+          title: 'Column Mapping',
+          description: 'Map event fields to table columns',
+          additionalProperties: { type: 'string' },
+        },
+        includeMetadata: { type: 'boolean', title: 'Include Metadata', default: true },
+      },
+    },
+    credentialsSchema: {
+      type: 'object',
+      required: ['username', 'password'],
+      properties: {
+        username: { type: 'string', title: 'Username', description: 'PostgreSQL username' },
+        password: { type: 'string', title: 'Password', description: 'PostgreSQL password', format: 'password' },
+      },
+    },
+    supportedEvents: ALL_EVENT_TYPES,
+    documentationUrl: 'https://www.postgresql.org/docs/',
+  },
 };
 
 /**

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Bot, Activity, Trash2, Clock } from 'lucide-react';
-import { SessionLog } from '../../features/Annette/lib/voicebotTypes';
+import { SessionLog } from '@/lib/voice/voicebotTypes';
 
 type SessionState = 'idle' | 'connecting' | 'active' | 'processing' | 'error';
 

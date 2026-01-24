@@ -6,8 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function PATCH(
+async function handlePatch(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -51,3 +52,5 @@ export async function PATCH(
     );
   }
 }
+
+export const PATCH = withObservability(handlePatch, '/api/implementation-logs/[id]');

@@ -9,12 +9,13 @@ import {
 } from '@/lib/dependency_database';
 import { scanMultipleProjects } from '@/lib/dependencyScanner';
 import { projectDb } from '@/lib/project_database';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/dependencies/scan
  * Scan multiple projects for dependencies and analyze relationships
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectIds, scanName } = body;
@@ -239,3 +240,5 @@ async function fetchRegistryVersionsForScan(
     return {};
   }
 }
+
+export const POST = withObservability(handlePost, '/api/dependencies/scan');

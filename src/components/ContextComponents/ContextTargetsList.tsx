@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crosshair, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
+import { Crosshair, ChevronDown, ChevronUp, Check, X, Target } from 'lucide-react';
 import { Context } from '@/lib/queries/contextQueries';
 
 interface ContextTargetsListProps {
@@ -138,6 +138,8 @@ export default function ContextTargetsList({
   const [expanded, setExpanded] = useState(!defaultCollapsed);
   const [editing, setEditing] = useState<EditingState | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [creatingGoal, setCreatingGoal] = useState<string | null>(null);
+  const [goalCreated, setGoalCreated] = useState<string | null>(null);
 
   const fetchContexts = useCallback(async () => {
     try {
@@ -213,6 +215,35 @@ export default function ContextTargetsList({
       updateContext(contextId, { name: value });
     } else {
       updateContext(contextId, { target: value || null });
+    }
+  };
+
+  const handleCreateGoal = async (context: Context) => {
+    if (creatingGoal || compact) return;
+
+    setCreatingGoal(context.id);
+    try {
+      const response = await fetch('/api/goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          title: context.name,
+          description: context.target || '',
+          context_id: context.id,
+          status: 'open',
+        }),
+      });
+
+      if (response.ok) {
+        setGoalCreated(context.id);
+        // Clear success indicator after 2 seconds
+        setTimeout(() => setGoalCreated(null), 2000);
+      }
+    } catch (error) {
+      // Silent error handling
+    } finally {
+      setCreatingGoal(null);
     }
   };
 
@@ -346,6 +377,34 @@ export default function ContextTargetsList({
                           {context.target || 'No target'}
                         </span>
                       )}
+                    </div>
+                  )}
+
+                  {/* Set as Goal Button - hide in compact mode */}
+                  {!compact && (
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCreateGoal(context);
+                        }}
+                        disabled={creatingGoal === context.id}
+                        className={`p-1 rounded transition-all ${
+                          goalCreated === context.id
+                            ? 'text-emerald-400'
+                            : 'text-gray-500 opacity-0 group-hover:opacity-100 hover:text-cyan-400 hover:bg-cyan-500/10'
+                        }`}
+                        title="Set as Goal"
+                        data-testid={`set-goal-${context.id}`}
+                      >
+                        {goalCreated === context.id ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : creatingGoal === context.id ? (
+                          <div className="w-3.5 h-3.5 border border-gray-500 border-t-cyan-400 rounded-full animate-spin" />
+                        ) : (
+                          <Target className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     </div>
                   )}
 

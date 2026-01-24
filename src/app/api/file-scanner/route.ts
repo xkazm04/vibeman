@@ -5,6 +5,7 @@ import { OllamaClient } from '../../../lib/llm/providers/ollama-client';
 import { createFileScannerPrompt } from '../../../prompts/file-scanner-prompt';
 import { createBuildErrorFixerPrompt, BuildErrorForFix, BuildErrorFixResult } from '../../../prompts/build-error-fixer-prompt';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface ScanResult {
   totalFiles: number;
@@ -624,7 +625,7 @@ async function writeTestScanLog(testFiles: TestFile[], results: FileScanResult[]
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { action, projectPath, projectType, filePath, fileContent, fileIndex, totalFiles } = await request.json();
 
@@ -707,7 +708,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const projectPath = searchParams.get('projectPath');
 
@@ -734,3 +735,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/file-scanner');
+export const GET = withObservability(handleGet, '/api/file-scanner');

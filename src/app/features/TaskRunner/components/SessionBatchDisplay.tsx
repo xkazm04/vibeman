@@ -17,20 +17,36 @@ import {
   Check,
 } from 'lucide-react';
 import {
-  useSessionBatchStore,
-  useSessionBatch,
-  type SessionBatchId,
-  type SessionTask,
-} from '../store/sessionBatchStore';
+  useTaskRunnerStore,
+  type BatchId,
+  type BatchState,
+  type TaskState,
+  isTaskQueued,
+  isTaskRunning,
+  isTaskCompleted,
+  isTaskFailed,
+  isBatchRunning,
+  isBatchPaused,
+  isBatchCompleted,
+} from '../store';
 import { SessionExecutionManager } from '../lib/sessionApi';
 
 interface SessionBatchDisplayProps {
-  batchId: SessionBatchId;
+  batchId: BatchId;
   selectedTaskIds: string[];  // Tasks selected in TaskColumn
   onAddTasks?: (taskIds: string[], requirementNames: string[]) => void;
 }
 
-const getStatusIcon = (status: SessionTask['status']) => {
+// Helper type for displaying tasks (maps TaskState to display format)
+interface DisplayTask {
+  id: string;
+  requirementName: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  claudeSessionId?: string;
+  errorMessage?: string;
+}
+
+const getStatusIcon = (status: DisplayTask['status']) => {
   switch (status) {
     case 'pending':
       return <Clock className="w-3 h-3 text-gray-400" />;
@@ -45,7 +61,7 @@ const getStatusIcon = (status: SessionTask['status']) => {
   }
 };
 
-const getStatusColor = (status: SessionTask['status']) => {
+const getStatusColor = (status: DisplayTask['status']) => {
   switch (status) {
     case 'running':
       return 'border-purple-500/50 bg-purple-500/10';
@@ -68,18 +84,18 @@ export default function SessionBatchDisplay({
   selectedTaskIds,
   onAddTasks,
 }: SessionBatchDisplayProps) {
-  const session = useSessionBatch(batchId);
+  const session = useTaskRunnerStore((state) => state.batches[batchId]);
+  const allTasks = useTaskRunnerStore((state) => state.tasks);
   const {
-    startSession,
-    pauseSession,
-    compactSession,
-    clearSession,
-    addTaskToSession,
-    renameSession,
-    updateTaskStatus,
-    updateSessionStatus,
-    updateSessionClaudeId,
-  } = useSessionBatchStore();
+    startBatch,
+    pauseBatch,
+    compactBatch,
+    deleteBatch,
+    addTaskToBatchWithName,
+    renameBatch,
+    updateTaskSessionStatus,
+    updateBatchClaudeSessionId,
+  } = useTaskRunnerStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(session?.name || '');
@@ -102,8 +118,20 @@ export default function SessionBatchDisplay({
     }
   }, [isEditing]);
 
+  // Get tasks for this batch and map to display format
+  const taskStates = session?.taskIds.map(id => allTasks[id]).filter(Boolean) || [];
+  const tasks: DisplayTask[] = taskStates.map(t => ({
+    id: t.id,
+    requirementName: t.requirementName || t.id.split(':').slice(1).join(':') || t.id,
+    status: isTaskRunning(t.status) ? 'running'
+      : isTaskCompleted(t.status) ? 'completed'
+      : isTaskFailed(t.status) ? 'failed'
+      : 'pending',
+    claudeSessionId: t.claudeSessionId,
+    errorMessage: t.errorMessage,
+  }));
+
   // Calculate stats
-  const tasks = session?.tasks || [];
   const stats = {
     pending: tasks.filter(t => t.status === 'pending').length,
     running: tasks.filter(t => t.status === 'running').length,
@@ -116,9 +144,9 @@ export default function SessionBatchDisplay({
     ? ((stats.completed + stats.failed) / stats.total) * 100
     : 0;
 
-  const isRunning = session?.status === 'running' || stats.running > 0;
-  const isPaused = session?.status === 'paused';
-  const isCompleted = session?.status === 'completed';
+  const isRunning = session && isBatchRunning(session.status);
+  const isPaused = session && isBatchPaused(session.status);
+  const isCompleted = session && isBatchCompleted(session.status);
 
   // Tasks that can be added (selected but not in this session)
   const tasksToAdd = selectedTaskIds.filter(id =>
@@ -132,101 +160,118 @@ export default function SessionBatchDisplay({
       // Extract requirement name from taskId (format: projectId:requirementName)
       const parts = taskId.split(':');
       const requirementName = parts.length > 1 ? parts.slice(1).join(':') : taskId;
-      addTaskToSession(batchId, taskId, requirementName);
+      addTaskToBatchWithName(batchId, taskId, requirementName);
     });
 
     onAddTasks?.(tasksToAdd, tasksToAdd.map(id => {
       const parts = id.split(':');
       return parts.length > 1 ? parts.slice(1).join(':') : id;
     }));
-  }, [session, tasksToAdd, batchId, addTaskToSession, onAddTasks]);
+  }, [session, tasksToAdd, batchId, addTaskToBatchWithName, onAddTasks]);
 
   const handleStart = useCallback(async () => {
-    if (!session || isExecuting) return;
+    if (!session || isExecuting || !session.projectPath || !session.projectId) return;
 
     console.log('🚀 Starting session execution:', session.id);
     setIsExecuting(true);
-    startSession(batchId);
+    startBatch(batchId);
 
     // Create execution manager
     executionManagerRef.current = new SessionExecutionManager({
       batchId,
       sessionId: session.id,
-      claudeSessionId: session.claudeSessionId,
+      claudeSessionId: session.claudeSessionId || null,
       projectPath: session.projectPath,
       projectId: session.projectId,
       onTaskStatusChange: (taskId, status, extras) => {
         console.log(`📋 Task status change: ${taskId} -> ${status}`);
-        updateTaskStatus(batchId, taskId, status, extras);
+        updateTaskSessionStatus(batchId, taskId, status, extras);
       },
       onSessionStatusChange: (status) => {
         console.log(`📦 Session status change: ${status}`);
-        updateSessionStatus(batchId, status);
+        // Status is auto-updated by updateTaskSessionStatus
         if (status === 'completed' || status === 'failed') {
           setIsExecuting(false);
         }
       },
       onClaudeSessionIdCaptured: (claudeSessionId) => {
         console.log(`📎 Captured Claude session ID: ${claudeSessionId}`);
-        updateSessionClaudeId(batchId, claudeSessionId);
+        updateBatchClaudeSessionId(batchId, claudeSessionId);
       },
     });
 
-    // Start execution
-    await executionManagerRef.current.start(session.tasks);
-  }, [session, batchId, isExecuting, startSession, updateTaskStatus, updateSessionStatus, updateSessionClaudeId]);
+    // Convert tasks to SessionTask format for execution manager
+    const sessionTasks = tasks.map(t => ({
+      id: t.id,
+      requirementName: t.requirementName,
+      status: t.status,
+      claudeSessionId: t.claudeSessionId,
+      errorMessage: t.errorMessage,
+    }));
+
+    await executionManagerRef.current.start(sessionTasks);
+  }, [session, batchId, isExecuting, startBatch, updateTaskSessionStatus, updateBatchClaudeSessionId, tasks]);
 
   const handlePause = useCallback(() => {
     if (executionManagerRef.current) {
       executionManagerRef.current.pause();
     }
-    pauseSession(batchId);
+    pauseBatch(batchId);
     setIsExecuting(false);
-  }, [batchId, pauseSession]);
+  }, [batchId, pauseBatch]);
 
   const handleResume = useCallback(async () => {
-    if (!session || isExecuting) return;
+    if (!session || isExecuting || !session.projectPath || !session.projectId) return;
 
     setIsExecuting(true);
 
+    // Convert tasks to SessionTask format for execution manager
+    const sessionTasks = tasks.map(t => ({
+      id: t.id,
+      requirementName: t.requirementName,
+      status: t.status,
+      claudeSessionId: t.claudeSessionId,
+      errorMessage: t.errorMessage,
+    }));
+
     if (executionManagerRef.current) {
-      await executionManagerRef.current.resume(session.tasks);
+      await executionManagerRef.current.resume(sessionTasks);
     } else {
       // Recreate execution manager if it doesn't exist
       executionManagerRef.current = new SessionExecutionManager({
         batchId,
         sessionId: session.id,
-        claudeSessionId: session.claudeSessionId,
+        claudeSessionId: session.claudeSessionId || null,
         projectPath: session.projectPath,
         projectId: session.projectId,
         onTaskStatusChange: (taskId, status, extras) => {
-          updateTaskStatus(batchId, taskId, status, extras);
+          updateTaskSessionStatus(batchId, taskId, status, extras);
         },
         onSessionStatusChange: (status) => {
-          updateSessionStatus(batchId, status);
+          // Status is auto-updated by updateTaskSessionStatus
           if (status === 'completed' || status === 'failed') {
             setIsExecuting(false);
           }
         },
         onClaudeSessionIdCaptured: (claudeSessionId) => {
-          updateSessionClaudeId(batchId, claudeSessionId);
+          updateBatchClaudeSessionId(batchId, claudeSessionId);
         },
       });
 
-      await executionManagerRef.current.resume(session.tasks);
+      await executionManagerRef.current.resume(sessionTasks);
     }
-  }, [session, batchId, isExecuting, updateTaskStatus, updateSessionStatus, updateSessionClaudeId]);
+  }, [session, batchId, isExecuting, updateTaskSessionStatus, updateBatchClaudeSessionId, tasks]);
 
   const handleCompact = useCallback(() => {
-    compactSession(batchId);
-  }, [batchId, compactSession]);
+    compactBatch(batchId);
+  }, [batchId, compactBatch]);
 
   const handleClear = useCallback(() => {
     if (executionManagerRef.current) {
       executionManagerRef.current.pause();
     }
-    clearSession(batchId);
-  }, [batchId, clearSession]);
+    deleteBatch(batchId);
+  }, [batchId, deleteBatch]);
 
   const handleStartEdit = useCallback(() => {
     setIsEditing(true);
@@ -235,7 +280,7 @@ export default function SessionBatchDisplay({
 
   const handleSaveEdit = useCallback(() => {
     if (editName.trim() && editName.trim() !== session?.name) {
-      renameSession(batchId, editName.trim());
+      renameBatch(batchId, editName.trim());
     }
     setIsEditing(false);
   }, [editName, session?.name, batchId, renameSession]);

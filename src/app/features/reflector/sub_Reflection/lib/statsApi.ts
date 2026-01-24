@@ -1,5 +1,6 @@
-import { ReflectionStats, ComparisonStats, DateRange, AggregatedStatsResponse, TimeWindow } from './types';
+import { ReflectionStats, ComparisonStats, DateRange, AggregatedStatsResponse, TimeWindow, DirectionStats, ContextMapStats } from './types';
 import { ExecutiveInsightReport, ExecutiveInsightRequest, ExecutiveInsightResponse } from './executiveInsightTypes';
+import { SuggestionFilter } from '@/app/features/reflector/lib/unifiedTypes';
 
 /**
  * Fetch reflection stats using the new aggregated endpoint with caching
@@ -13,6 +14,7 @@ export async function fetchReflectionStats(
     timeWindow?: TimeWindow;
     includeSnapshots?: boolean;
     useCache?: boolean;
+    suggestionType?: SuggestionFilter;
   }
 ): Promise<ReflectionStats> {
   const params = new URLSearchParams();
@@ -46,12 +48,90 @@ export async function fetchReflectionStats(
     params.append('nocache', 'true');
   }
 
+  const suggestionType = options?.suggestionType || 'ideas';
+
+  // Fetch ideas stats (unless directions-only mode)
+  const fetchIdeasPromise = suggestionType === 'directions'
+    ? Promise.resolve(null)
+    : fetchIdeasStats(params);
+
+  // Fetch directions stats (unless ideas-only mode)
+  const fetchDirectionsPromise = suggestionType === 'ideas' || !projectId
+    ? Promise.resolve(null)
+    : fetchDirectionsStats(projectId);
+
+  const [ideasStats, directionsStats] = await Promise.all([fetchIdeasPromise, fetchDirectionsPromise]);
+
+  // Build combined response based on suggestion type
+  if (suggestionType === 'directions' && directionsStats) {
+    // Directions-only mode - map totalDirections to totalIdeas for type compatibility
+    const mappedProjects = (directionsStats.projects || []).map(p => ({
+      projectId: p.projectId,
+      name: p.name,
+      totalIdeas: p.totalDirections, // Map for type compatibility
+    }));
+    return {
+      scanTypes: [],
+      overall: {
+        pending: directionsStats.overall.pending,
+        accepted: directionsStats.overall.accepted,
+        rejected: directionsStats.overall.rejected,
+        implemented: 0, // Directions don't have implemented status
+        total: directionsStats.overall.total,
+        acceptanceRatio: directionsStats.overall.acceptanceRatio,
+      },
+      projects: mappedProjects,
+      contexts: [],
+      contextMaps: directionsStats.contextMaps,
+      directionsOverall: directionsStats.overall,
+    };
+  }
+
+  if (suggestionType === 'both' && ideasStats && directionsStats) {
+    // Combined mode
+    const ideasOverall = ideasStats.overall;
+    const dirsOverall = directionsStats.overall;
+    const combinedTotal = ideasOverall.total + dirsOverall.total;
+    const combinedAccepted = ideasOverall.accepted + ideasOverall.implemented + dirsOverall.accepted;
+    const combinedAcceptanceRatio = combinedTotal > 0
+      ? Math.round((combinedAccepted / combinedTotal) * 100)
+      : 0;
+
+    return {
+      ...ideasStats,
+      contextMaps: directionsStats.contextMaps,
+      directionsOverall: directionsStats.overall,
+      combinedOverall: {
+        pending: ideasOverall.pending + dirsOverall.pending,
+        accepted: ideasOverall.accepted + dirsOverall.accepted,
+        rejected: ideasOverall.rejected + dirsOverall.rejected,
+        implemented: ideasOverall.implemented,
+        total: combinedTotal,
+        acceptanceRatio: combinedAcceptanceRatio,
+        ideasTotal: ideasOverall.total,
+        directionsTotal: dirsOverall.total,
+      },
+    };
+  }
+
+  // Default: ideas-only mode (or directions not available)
+  return ideasStats || {
+    scanTypes: [],
+    overall: { pending: 0, accepted: 0, rejected: 0, implemented: 0, total: 0, acceptanceRatio: 0 },
+    projects: [],
+    contexts: [],
+  };
+}
+
+/**
+ * Fetch ideas stats from API
+ */
+async function fetchIdeasStats(params: URLSearchParams): Promise<ReflectionStats | null> {
   // Try aggregated endpoint first for better performance
   const aggregatedUrl = `/api/ideas/stats/aggregated${params.toString() ? `?${params.toString()}` : ''}`;
 
   try {
     const response = await fetch(aggregatedUrl);
-
     if (response.ok) {
       return response.json();
     }
@@ -64,10 +144,37 @@ export async function fetchReflectionStats(
   const response = await fetch(legacyUrl);
 
   if (!response.ok) {
-    throw new Error('Failed to fetch reflection stats');
+    return null;
   }
 
   return response.json();
+}
+
+/**
+ * Fetch directions stats from API
+ */
+async function fetchDirectionsStats(projectId: string): Promise<{
+  overall: DirectionStats;
+  contextMaps: ContextMapStats[];
+  projects: Array<{ projectId: string; name: string; totalDirections: number }>;
+} | null> {
+  try {
+    const response = await fetch(`/api/directions/stats?projectId=${projectId}`);
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    if (!data.success) {
+      return null;
+    }
+    return {
+      overall: data.overall,
+      contextMaps: data.contextMaps,
+      projects: data.projects,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

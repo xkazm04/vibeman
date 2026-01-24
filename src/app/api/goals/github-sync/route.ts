@@ -15,11 +15,12 @@ import {
 import { goalDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST - Sync goals to GitHub Projects
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, goalId, action } = body;
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET - Check GitHub configuration status
  */
-export async function GET() {
+async function handleGet() {
   try {
     const configured = isGitHubProjectConfigured();
     const hasToken = !!process.env.GITHUB_TOKEN;
@@ -121,3 +122,6 @@ export async function GET() {
     return createErrorResponse('Internal server error', 500);
   }
 }
+
+export const POST = withObservability(handlePost, '/api/goals/github-sync');
+export const GET = withObservability(handleGet, '/api/goals/github-sync');

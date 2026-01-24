@@ -18,10 +18,7 @@ import {
   ImpactIcon,
   RiskIcon,
 } from '@/app/features/Ideas/lib/ideaConfig';
-import {
-  useSessionBatchStore,
-  useTaskSessionBatchId,
-} from './store/sessionBatchStore';
+import { useTaskRunnerStore } from './store';
 import { createSession as createSessionApi } from './lib/sessionApi';
 
 interface TaskItemProps {
@@ -53,9 +50,9 @@ export default function TaskItem({
 
   // Session management
   const taskId = `${projectId}:${requirementName}`;
-  const sessionBatchId = useTaskSessionBatchId(taskId);
+  const sessionBatchId = useTaskRunnerStore((state) => state.isTaskInAnyBatch(taskId));
   const isInSession = sessionBatchId !== null;
-  const { createSession, getNextAvailableSessionBatchId } = useSessionBatchStore();
+  const { createSessionBatch, getNextAvailableBatchId } = useTaskRunnerStore();
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -83,9 +80,9 @@ export default function TaskItem({
   };
 
   const handleCreateSession = async () => {
-    const availableBatchId = getNextAvailableSessionBatchId();
+    const availableBatchId = getNextAvailableBatchId();
     if (!availableBatchId) {
-      console.warn('No available session batch slots');
+      console.warn('No available batch slots');
       return;
     }
 
@@ -102,8 +99,8 @@ export default function TaskItem({
 
       console.log('📦 Created session in database:', result.session.id);
 
-      // Create session in local store (uses database session ID)
-      createSession(
+      // Create session batch in local store
+      createSessionBatch(
         availableBatchId,
         projectId,
         projectPath,
@@ -114,7 +111,7 @@ export default function TaskItem({
     } catch (error) {
       console.error('Failed to create session:', error);
       // Still create in local store for offline support
-      createSession(
+      createSessionBatch(
         availableBatchId,
         projectId,
         projectPath,
@@ -164,7 +161,7 @@ export default function TaskItem({
             ]
           : []),
         // Create Session (only if not in session and slot available)
-        ...(!isInSession && getNextAvailableSessionBatchId() !== null
+        ...(!isInSession && getNextAvailableBatchId() !== null
           ? [
               {
                 label: 'Create Session',

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { filePath } = await request.json();
     
@@ -75,3 +76,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/disk/read-file');

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dependencyScanDb } from '@/lib/dependency_database';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/dependencies/scans
  * Get all dependency scans
  */
-export async function GET() {
+async function handleGet() {
   try {
     const scans = dependencyScanDb.getAllScans();
 
@@ -22,3 +23,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/dependencies/scans');

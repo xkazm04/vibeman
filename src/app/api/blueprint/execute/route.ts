@@ -27,6 +27,7 @@ import {
   createExecutor,
 } from '@/lib/blueprint/components';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 // ============================================================================
 // Request Types
@@ -109,7 +110,7 @@ type RequestBody =
 // Main Handler
 // ============================================================================
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json() as RequestBody;
 
@@ -426,3 +427,6 @@ function createExecutionContext(
     getNodeOutput: () => undefined,
   };
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/blueprint/execute');

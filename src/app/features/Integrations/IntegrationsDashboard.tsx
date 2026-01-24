@@ -1,36 +1,33 @@
 'use client';
 
 /**
- * Integrations Dashboard
- * Main view for managing external integrations
+ * Integrations Dashboard - Redesigned
+ * Inline panel layout (no modals)
+ * CompactList for integrations
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IntegrationCard } from './components/IntegrationCard';
-import { IntegrationForm } from './components/IntegrationForm';
+import { Plug, Plus, Check } from 'lucide-react';
+import { IntegrationListColumn, type ParsedIntegration } from './components/IntegrationListColumn';
+import { IntegrationDetailPanel } from './components/IntegrationDetailPanel';
 import { EventsLog } from './components/EventsLog';
-import type { IntegrationProvider, DbIntegration } from '@/app/db/models/integration.types';
-
-interface ParsedIntegration extends Omit<DbIntegration, 'config' | 'enabled_events'> {
-  config: Record<string, unknown>;
-  enabled_events: string[];
-}
 
 interface IntegrationsDashboardProps {
   projectId: string;
   projectName?: string;
 }
 
-type ViewMode = 'grid' | 'events';
+type ViewMode = 'integrations' | 'events';
 
 export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDashboardProps) {
   const [integrations, setIntegrations] = useState<ParsedIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingIntegration, setEditingIntegration] = useState<ParsedIntegration | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [selectedIntegration, setSelectedIntegration] = useState<ParsedIntegration | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('integrations');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Fetch integrations
   const fetchIntegrations = useCallback(async () => {
@@ -44,7 +41,7 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
       } else {
         setError(data.error || 'Failed to load integrations');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to server');
     } finally {
       setLoading(false);
@@ -66,7 +63,6 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
       const data = await response.json();
 
       if (data.success) {
-        // Refresh integrations to show updated status
         fetchIntegrations();
         return { success: true, message: data.message };
       } else {
@@ -91,6 +87,11 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
 
       if (data.success) {
         fetchIntegrations();
+        if (selectedIntegration?.id === id) {
+          setSelectedIntegration(null);
+        }
+        setSuccessMessage('Integration deleted');
+        setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         alert(data.error || 'Failed to delete integration');
       }
@@ -99,46 +100,62 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
     }
   };
 
-  // Handle edit
-  const handleEdit = (integration: ParsedIntegration) => {
-    setEditingIntegration(integration);
-    setShowForm(true);
+  // Handlers
+  const handleSelectIntegration = (integration: ParsedIntegration) => {
+    setIsCreating(false);
+    setSelectedIntegration(integration);
   };
 
-  // Handle form close
-  const handleFormClose = () => {
-    setShowForm(false);
-    setEditingIntegration(null);
+  const handleCreateNew = () => {
+    setSelectedIntegration(null);
+    setIsCreating(true);
   };
 
-  // Handle form save
-  const handleFormSave = () => {
-    handleFormClose();
+  const handleClosePanel = () => {
+    setSelectedIntegration(null);
+    setIsCreating(false);
+  };
+
+  const handleSaveIntegration = (savedIntegration: ParsedIntegration) => {
     fetchIntegrations();
+    setSelectedIntegration(savedIntegration);
+    setIsCreating(false);
+    setSuccessMessage('Integration saved');
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  if (loading) {
+  if (loading && integrations.length === 0) {
     return (
-      <div className="flex items-center justify-center p-8" data-testid="integrations-loading">
+      <div className="flex items-center justify-center h-96" data-testid="integrations-loading">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400" data-testid="integrations-error">
-        {error}
       </div>
     );
   }
 
   return (
     <div className="space-y-6" data-testid="integrations-dashboard">
+      {/* Success Message */}
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-28 right-6 z-50 px-4 py-3 bg-green-600/20 border border-green-500/30 rounded-lg text-green-400 flex items-center gap-2"
+          >
+            <Check className="w-4 h-4" />
+            {successMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white">Integrations</h2>
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Plug className="w-5 h-5 text-purple-400" />
+            Integrations
+          </h2>
           <p className="text-sm text-gray-400 mt-1">
             Connect Vibeman to external services
           </p>
@@ -148,13 +165,13 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
           {/* View Mode Toggle */}
           <div className="flex bg-gray-800/50 rounded-lg p-1">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => setViewMode('integrations')}
               className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                viewMode === 'grid'
+                viewMode === 'integrations'
                   ? 'bg-purple-500/20 text-purple-400'
                   : 'text-gray-400 hover:text-white'
               }`}
-              data-testid="view-mode-grid-btn"
+              data-testid="view-mode-integrations-btn"
             >
               Integrations
             </button>
@@ -173,50 +190,80 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
 
           {/* Add Integration Button */}
           <button
-            onClick={() => setShowForm(true)}
+            onClick={handleCreateNew}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center gap-2"
             data-testid="add-integration-btn"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <Plus className="w-4 h-4" />
             Add Integration
           </button>
         </div>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400" data-testid="integrations-error">
+          {error}
+        </div>
+      )}
+
       {/* Content */}
       <AnimatePresence mode="wait">
-        {viewMode === 'grid' ? (
+        {viewMode === 'integrations' ? (
           <motion.div
-            key="grid"
+            key="integrations"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-            data-testid="integrations-grid"
+            className="space-y-6"
           >
-            {integrations.length === 0 ? (
-              <div className="col-span-full p-8 text-center text-gray-400 bg-gray-800/30 rounded-lg border border-gray-700/50">
-                <p className="mb-4">No integrations configured yet</p>
+            {/* Integration List */}
+            <div className="max-w-md">
+              <IntegrationListColumn
+                integrations={integrations}
+                selectedIntegrationId={selectedIntegration?.id || null}
+                onSelect={handleSelectIntegration}
+                onDelete={handleDelete}
+              />
+            </div>
+
+            {/* Detail Panel */}
+            <AnimatePresence>
+              {(selectedIntegration || isCreating) && (
+                <IntegrationDetailPanel
+                  integration={selectedIntegration}
+                  isNew={isCreating}
+                  projectId={projectId}
+                  onClose={handleClosePanel}
+                  onSave={handleSaveIntegration}
+                  onTest={handleTest}
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Empty State */}
+            {integrations.length === 0 && !isCreating && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center h-64 text-center"
+              >
+                <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mb-4">
+                  <Plug className="w-8 h-8 text-purple-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-300 mb-2">No integrations configured</h3>
+                <p className="text-gray-500 max-w-md mb-4">
+                  Connect Vibeman to external services like GitHub, Slack, Discord, Supabase, or PostgreSQL
+                </p>
                 <button
-                  onClick={() => setShowForm(true)}
-                  className="text-purple-400 hover:text-purple-300"
+                  onClick={handleCreateNew}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center gap-2"
                   data-testid="empty-state-add-btn"
                 >
+                  <Plus className="w-4 h-4" />
                   Add your first integration
                 </button>
-              </div>
-            ) : (
-              integrations.map((integration) => (
-                <IntegrationCard
-                  key={integration.id}
-                  integration={integration}
-                  onTest={handleTest}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              ))
+              </motion.div>
             )}
           </motion.div>
         ) : (
@@ -228,18 +275,6 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
           >
             <EventsLog projectId={projectId} />
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Add/Edit Form Modal */}
-      <AnimatePresence>
-        {showForm && (
-          <IntegrationForm
-            projectId={projectId}
-            integration={editingIntegration}
-            onClose={handleFormClose}
-            onSave={handleFormSave}
-          />
         )}
       </AnimatePresence>
     </div>

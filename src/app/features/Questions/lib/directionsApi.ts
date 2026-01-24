@@ -4,7 +4,6 @@
  */
 
 import { DbDirection } from '@/app/db';
-import { ContextMapEntry } from './questionsApi';
 
 export interface DirectionsResponse {
   success: boolean;
@@ -143,6 +142,7 @@ export async function deleteDirection(
 
 /**
  * Generate Claude Code requirement for direction generation
+ * @param data.selectedContextIds - SQLite context IDs to generate directions for
  * @param data.userContext - Optional user-provided focus area or dilemma
  * @param data.answeredQuestions - Optional selected answered questions to include as context
  * @param data.brainstormAll - When true, generates directions with holistic view of entire project
@@ -151,7 +151,7 @@ export async function generateDirectionRequirement(data: {
   projectId: string;
   projectName: string;
   projectPath: string;
-  selectedContexts: ContextMapEntry[];
+  selectedContextIds: string[]; // SQLite context IDs
   directionsPerContext?: number;
   userContext?: string;
   answeredQuestions?: AnsweredQuestionInput[];

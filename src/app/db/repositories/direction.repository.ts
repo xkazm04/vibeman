@@ -115,6 +115,32 @@ export const directionRepository = {
   },
 
   /**
+   * Get directions by SQLite context_id
+   */
+  getDirectionsByContextId: (projectId: string, contextId: string): DbDirection[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM directions
+      WHERE project_id = ? AND context_id = ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(projectId, contextId) as DbDirection[];
+  },
+
+  /**
+   * Get directions by SQLite context_group_id
+   */
+  getDirectionsByContextGroupId: (projectId: string, contextGroupId: string): DbDirection[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM directions
+      WHERE project_id = ? AND context_group_id = ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(projectId, contextGroupId) as DbDirection[];
+  },
+
+  /**
    * Create a new direction
    */
   createDirection: (direction: {
@@ -127,13 +153,21 @@ export const directionRepository = {
     status?: 'pending' | 'accepted' | 'rejected';
     requirement_id?: string | null;
     requirement_path?: string | null;
+    // NEW: SQLite context fields
+    context_id?: string | null;
+    context_name?: string | null;
+    context_group_id?: string | null;
   }): DbDirection => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
-      INSERT INTO directions (id, project_id, context_map_id, context_map_title, direction, summary, status, requirement_id, requirement_path, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO directions (
+        id, project_id, context_map_id, context_map_title, direction, summary, status,
+        requirement_id, requirement_path, context_id, context_name, context_group_id,
+        created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -146,6 +180,9 @@ export const directionRepository = {
       direction.status || 'pending',
       direction.requirement_id || null,
       direction.requirement_path || null,
+      direction.context_id || null,
+      direction.context_name || null,
+      direction.context_group_id || null,
       now,
       now
     );
@@ -163,6 +200,10 @@ export const directionRepository = {
     requirement_id?: string | null;
     requirement_path?: string | null;
     context_map_title?: string;
+    // NEW: SQLite context fields
+    context_id?: string | null;
+    context_name?: string | null;
+    context_group_id?: string | null;
   }): DbDirection | null => {
     const db = getDatabase();
     const { fields, values } = buildUpdateQuery(updates);

@@ -4,88 +4,6 @@
  */
 
 // ============================================================================
-// HYPOTHESIS TYPES
-// ============================================================================
-
-export type HypothesisStatus = 'unverified' | 'in_progress' | 'verified' | 'disproven' | 'completed';
-export type HypothesisCategory =
-  | 'behavior'      // Expected function/feature behavior
-  | 'performance'   // Performance characteristics
-  | 'security'      // Security requirements
-  | 'ux'            // User experience
-  | 'integration'   // Integration requirements
-  | 'edge_case'     // Edge case handling
-  | 'data'          // Data integrity/flow
-  | 'error'         // Error handling
-  | 'custom';       // User-defined
-
-export type VerificationMethod = 'manual' | 'automated' | 'test' | 'review';
-export type EvidenceType = 'pr' | 'commit' | 'test_result' | 'screenshot' | 'manual_note' | 'implementation_log';
-
-export interface DbGoalHypothesis {
-  id: string;
-  goal_id: string;
-  project_id: string;
-  title: string;
-  statement: string;
-  reasoning: string | null;
-  category: HypothesisCategory;
-  priority: number;
-  agent_source: string | null;
-  status: HypothesisStatus;
-  verification_method: VerificationMethod;
-  evidence: string | null;
-  evidence_type: EvidenceType | null;
-  verified_at: string | null;
-  order_index: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface GoalHypothesis {
-  id: string;
-  goalId: string;
-  projectId: string;
-  title: string;
-  statement: string;
-  reasoning: string | null;
-  category: HypothesisCategory;
-  priority: number;
-  agentSource: string | null;
-  status: HypothesisStatus;
-  verificationMethod: VerificationMethod;
-  evidence: string | null;
-  evidenceType: EvidenceType | null;
-  verifiedAt: Date | null;
-  orderIndex: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// ============================================================================
-// AGENT RESPONSE TYPES (for breakdown prompt output)
-// ============================================================================
-
-export interface AgentHypothesis {
-  title: string;
-  statement: string;
-  category: HypothesisCategory;
-  priority: number;
-  implementationHint?: string;
-}
-
-export interface AgentResponse {
-  agentType: string;
-  agentLabel: string;
-  agentEmoji: string;
-  perspective: string;
-  recommendations: string[];
-  hypotheses: AgentHypothesis[];
-  risks: string[];
-  considerations: string[];
-}
-
-// ============================================================================
 // EXTENDED GOAL TYPE
 // ============================================================================
 
@@ -98,8 +16,6 @@ export interface ExtendedDbGoal {
   description: string | null;
   status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
   progress: number;
-  hypotheses_total: number;
-  hypotheses_verified: number;
   target_date: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -117,8 +33,6 @@ export interface ExtendedGoal {
   description: string | null;
   status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
   progress: number;
-  hypothesesTotal: number;
-  hypothesesVerified: number;
   targetDate: Date | null;
   startedAt: Date | null;
   completedAt: Date | null;
@@ -128,57 +42,12 @@ export interface ExtendedGoal {
 }
 
 // ============================================================================
-// API REQUEST/RESPONSE TYPES
-// ============================================================================
-
-export interface CreateHypothesisInput {
-  goalId: string;
-  projectId: string;
-  title: string;
-  statement: string;
-  reasoning?: string;
-  category?: HypothesisCategory;
-  priority?: number;
-  agentSource?: string;
-}
-
-export interface UpdateHypothesisInput {
-  title?: string;
-  statement?: string;
-  reasoning?: string;
-  category?: HypothesisCategory;
-  priority?: number;
-  status?: HypothesisStatus;
-  verificationMethod?: VerificationMethod;
-  evidence?: string;
-  evidenceType?: EvidenceType;
-}
-
-export interface VerifyHypothesisInput {
-  evidence: string;
-  evidenceType: EvidenceType;
-}
-
-export interface GoalBreakdownRequest {
-  goalId: string;
-  projectId: string;
-  goalTitle: string;
-  goalDescription?: string;
-  projectPath: string;
-  contextId?: string;
-  contextName?: string;
-  contextFiles?: string[];
-}
-
-// ============================================================================
 // GOAL HUB STATE
 // ============================================================================
 
 export interface GoalHubState {
   activeGoal: ExtendedGoal | null;
   goals: ExtendedGoal[];
-  hypotheses: GoalHypothesis[];
   isLoading: boolean;
-  isGeneratingBreakdown: boolean;
   error: string | null;
 }

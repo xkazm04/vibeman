@@ -3,25 +3,19 @@
  * Client-side functions for interacting with the Questions API
  */
 
-import { DbQuestion } from '@/app/db';
+import { DbQuestion, DbContext, DbContextGroup } from '@/app/db';
 
-export interface ContextMapEntry {
-  id: string;
-  title: string;
-  summary: string;
-  filepaths: {
-    ui?: string[];
-    lib?: string[];
-    api?: string[];
-    [key: string]: string[] | undefined;
-  };
+// SQLite-based context types
+export interface SqliteContextsResponse {
+  success: boolean;
+  contexts: DbContext[];
+  groups: DbContextGroup[];
+  error?: string;
 }
 
-export interface ContextMap {
-  version: string;
-  generated: string;
-  description: string;
-  contexts: ContextMapEntry[];
+export interface GroupedContexts {
+  group: DbContextGroup;
+  contexts: DbContext[];
 }
 
 export interface QuestionsResponse {
@@ -39,16 +33,6 @@ export interface QuestionsResponse {
   };
 }
 
-export interface ContextMapResponse {
-  success: boolean;
-  exists: boolean;
-  contextMap?: ContextMap;
-  contextMapPath?: string;
-  entryCount?: number;
-  error?: string;
-  message?: string;
-}
-
 export interface GenerateQuestionsResponse {
   success: boolean;
   requirementName: string;
@@ -62,14 +46,6 @@ export interface ContextMapSetupResponse {
   skillPath: string;
   requirementPath: string;
   message: string;
-}
-
-/**
- * Fetch context map from a project
- */
-export async function fetchContextMap(projectPath: string): Promise<ContextMapResponse> {
-  const response = await fetch(`/api/context-map?projectPath=${encodeURIComponent(projectPath)}`);
-  return response.json();
 }
 
 /**
@@ -150,12 +126,13 @@ export async function deleteQuestion(questionId: string): Promise<{ success: boo
 
 /**
  * Generate Claude Code requirement for question generation
+ * Uses SQLite context IDs to fetch context details from the database
  */
 export async function generateQuestionRequirement(data: {
   projectId: string;
   projectName: string;
   projectPath: string;
-  selectedContexts: ContextMapEntry[];
+  selectedContextIds: string[]; // SQLite context IDs
   questionsPerContext?: number;
 }): Promise<GenerateQuestionsResponse> {
   const response = await fetch('/api/questions/generate', {
@@ -187,4 +164,98 @@ export async function setupContextMapGenerator(projectPath: string): Promise<Con
     throw new Error(error.error || 'Failed to setup context map generator');
   }
   return response.json();
+}
+
+/**
+ * Fetch SQLite contexts and groups for a project
+ * This replaces the JSON context map with proper database-backed contexts
+ */
+export async function fetchSqliteContexts(projectId: string): Promise<SqliteContextsResponse> {
+  // Fetch contexts and groups in parallel
+  const [contextsRes, groupsRes] = await Promise.all([
+    fetch(`/api/contexts?projectId=${encodeURIComponent(projectId)}`),
+    fetch(`/api/context-groups?projectId=${encodeURIComponent(projectId)}`)
+  ]);
+
+  if (!contextsRes.ok || !groupsRes.ok) {
+    const error = !contextsRes.ok
+      ? await contextsRes.json()
+      : await groupsRes.json();
+    return {
+      success: false,
+      contexts: [],
+      groups: [],
+      error: error.error || 'Failed to fetch contexts'
+    };
+  }
+
+  const contextsData = await contextsRes.json();
+  const groupsData = await groupsRes.json();
+
+  return {
+    success: true,
+    contexts: contextsData.contexts || [],
+    groups: groupsData.groups || []
+  };
+}
+
+/**
+ * Group contexts by their context group
+ * Returns an array of { group, contexts } for UI rendering
+ */
+export function groupContextsByGroup(
+  contexts: DbContext[],
+  groups: DbContextGroup[]
+): GroupedContexts[] {
+  // Create a map of group ID to group
+  const groupMap = new Map(groups.map(g => [g.id, g]));
+
+  // Group contexts by group_id
+  const contextsByGroup = new Map<string, DbContext[]>();
+  const ungroupedContexts: DbContext[] = [];
+
+  for (const context of contexts) {
+    if (context.group_id && groupMap.has(context.group_id)) {
+      const existing = contextsByGroup.get(context.group_id) || [];
+      existing.push(context);
+      contextsByGroup.set(context.group_id, existing);
+    } else {
+      ungroupedContexts.push(context);
+    }
+  }
+
+  // Build result array, sorted by group position
+  const result: GroupedContexts[] = [];
+
+  // Add grouped contexts
+  for (const group of groups.sort((a, b) => a.position - b.position)) {
+    const groupContexts = contextsByGroup.get(group.id);
+    if (groupContexts && groupContexts.length > 0) {
+      result.push({
+        group,
+        contexts: groupContexts
+      });
+    }
+  }
+
+  // Add ungrouped contexts as a virtual group if any exist
+  if (ungroupedContexts.length > 0) {
+    result.push({
+      group: {
+        id: 'ungrouped',
+        project_id: ungroupedContexts[0]?.project_id || '',
+        name: 'Ungrouped',
+        color: '#6B7280', // gray-500
+        accent_color: null,
+        position: 999,
+        type: null,
+        icon: null,
+        created_at: '',
+        updated_at: ''
+      },
+      contexts: ungroupedContexts
+    });
+  }
+
+  return result;
 }

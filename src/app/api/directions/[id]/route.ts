@@ -9,8 +9,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { directionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -40,7 +41,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
+async function handlePut(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -106,7 +107,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+async function handleDelete(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -137,3 +138,8 @@ export async function DELETE(
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/directions/[id]');
+export const PUT = withObservability(handlePut, '/api/directions/[id]');
+export const DELETE = withObservability(handleDelete, '/api/directions/[id]');

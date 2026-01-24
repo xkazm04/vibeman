@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { withObservability } from '@/lib/observability/middleware';
 
 function createErrorResponse(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const callId = searchParams.get('callId');
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
 
@@ -48,3 +49,6 @@ export async function POST(request: NextRequest) {
     return createErrorResponse('Failed to create message', 500);
   }
 }
+
+export const GET = withObservability(handleGet, '/api/monitor/messages');
+export const POST = withObservability(handlePost, '/api/monitor/messages');

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { DbIdea } from '@/app/db';
@@ -11,7 +12,9 @@ import {
   useBufferIdeas,
   useDeleteIdea,
   useDeleteContextIdeas,
+  useInvalidateIdeas,
 } from '@/lib/queries/ideaQueries';
+import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
 import { FullPageSpinner } from '@/components/ui/Spinner';
 
@@ -30,7 +33,9 @@ export default function BufferView({
   onIdeaClick,
   onScanComplete,
 }: BufferViewProps) {
+  const router = useRouter();
   const { getProject } = useProjectConfigStore();
+  const { getNextAvailableBatchId, createSessionBatch } = useTaskRunnerStore();
 
   // Use React Query for fetching and caching ideas
   const {
@@ -42,6 +47,7 @@ export default function BufferView({
   // Mutations with optimistic updates
   const deleteIdeaMutation = useDeleteIdea();
   const deleteContextIdeasMutation = useDeleteContextIdeas();
+  const invalidateIdeas = useInvalidateIdeas();
 
   // Refetch when scan completes
   React.useEffect(() => {
@@ -134,6 +140,121 @@ export default function BufferView({
     [filteredIdeas, getProject, deleteContextIdeasMutation]
   );
 
+  const handleIdeaConvert = React.useCallback(
+    async (ideaId: string) => {
+      // Find the idea to get its project_id
+      const idea = ideas.find((i) => i.id === ideaId);
+      if (!idea) {
+        console.error('Idea not found:', ideaId);
+        return;
+      }
+
+      const project = getProject(idea.project_id);
+      if (!project?.path) {
+        console.error('Project not found for idea:', ideaId);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/ideas/tinder/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ideaId,
+            projectPath: project.path,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to convert idea');
+        }
+
+        // Refresh the ideas list to show updated status
+        invalidateIdeas();
+      } catch (error) {
+        console.error('Failed to convert idea:', error);
+        alert(
+          error instanceof Error
+            ? error.message
+            : 'Failed to convert idea to requirement.'
+        );
+      }
+    },
+    [ideas, getProject, invalidateIdeas]
+  );
+
+  const handleIdeaQueueForExecution = React.useCallback(
+    async (ideaId: string) => {
+      // Find the idea to get its project_id
+      const idea = ideas.find((i) => i.id === ideaId);
+      if (!idea) {
+        console.error('Idea not found:', ideaId);
+        return;
+      }
+
+      const project = getProject(idea.project_id);
+      if (!project?.path) {
+        console.error('Project not found for idea:', ideaId);
+        return;
+      }
+
+      // Check if there's an available batch slot
+      const availableBatchId = getNextAvailableBatchId();
+      if (!availableBatchId) {
+        alert('All batch slots are full. Please clear a batch in Task Runner first.');
+        return;
+      }
+
+      try {
+        // Step 1: Accept the idea (creates requirement file)
+        const response = await fetch('/api/ideas/tinder/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ideaId,
+            projectPath: project.path,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to convert idea');
+        }
+
+        const data = await response.json();
+        const requirementName = data.requirementName;
+
+        // Step 2: Create a batch in TaskRunner with this requirement
+        const taskId = `${idea.project_id}:${requirementName}`;
+        const batchName = idea.title.substring(0, 30);
+
+        createSessionBatch(
+          availableBatchId,
+          idea.project_id,
+          project.path,
+          batchName,
+          taskId,
+          requirementName
+        );
+
+        // Refresh the ideas list to show updated status
+        invalidateIdeas();
+
+        // Step 3: Navigate to TaskRunner (home page)
+        router.push('/');
+      } catch (error) {
+        console.error('Failed to queue idea for execution:', error);
+        alert(
+          error instanceof Error
+            ? error.message
+            : 'Failed to queue idea for execution.'
+        );
+      }
+    },
+    [ideas, getProject, getNextAvailableBatchId, createSessionBatch, invalidateIdeas, router]
+  );
+
   if (isLoading) {
     return <FullPageSpinner label="Loading ideas..." />;
   }
@@ -201,6 +322,8 @@ export default function BufferView({
                   onIdeaClick={onIdeaClick}
                   onIdeaDelete={handleIdeaDelete}
                   onContextDelete={handleContextDelete}
+                  onIdeaConvert={handleIdeaConvert}
+                  onIdeaQueueForExecution={handleIdeaQueueForExecution}
                 />
               ))}
             </AnimatePresence>

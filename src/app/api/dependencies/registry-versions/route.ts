@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/dependencies/registry-versions
  * Fetch latest versions from npm registry for given packages
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { packages, projectType } = body;
@@ -103,3 +104,5 @@ async function fetchLatestVersion(packageName: string, registryUrl: string): Pro
 
   return null;
 }
+
+export const POST = withObservability(handlePost, '/api/dependencies/registry-versions');

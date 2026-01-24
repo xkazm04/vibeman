@@ -16,7 +16,6 @@ import TinderLayout from './features/tinder/TinderLayout';
 import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
 import ReflectorLayout from './features/reflector/ReflectorLayout';
 import ManagerLayout from './features/Manager/ManagerLayout';
-import DocsPage from './docs/page';
 import RefactorPage from './refactor/page';
 import GoalsLayout from './features/Goals/GoalsLayout';
 import HallOfFameLayout from './features/HallOfFame/HallOfFameLayout';
@@ -25,6 +24,9 @@ import SocialLayout from './features/Social/SocialLayout';
 import BlueprintComposer from './features/Composer/BlueprintComposer';
 import ZenLayout from './zen/ZenLayout';
 import QuestionsLayout from './features/Questions/QuestionsLayout';
+import IntegrationsLayout from './features/Integrations/IntegrationsLayout';
+import { BrainLayout } from './features/Brain';
+import { CommanderLayout } from './features/Commander';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -55,8 +57,6 @@ export default function Home() {
         return <TaskRunnerLayout key="tasker" />;
       case 'reflector':
         return <ReflectorLayout key="reflector" />;
-      case 'docs':
-        return <DocsPage key="docs" />;
       case 'refactor':
         return <RefactorPage key="refactor" />;
       case 'manager':
@@ -75,6 +75,12 @@ export default function Home() {
         return <ZenLayout key="zen" />;
       case 'questions':
         return <QuestionsLayout key="questions" />;
+      case 'integrations':
+        return <IntegrationsLayout key="integrations" projectId={projectId} />;
+      case 'brain':
+        return <BrainLayout key="brain" />;
+      case 'commander':
+        return <CommanderLayout key="commander" />;
       default:
         return <GoalsLayout key="coder" projectId={projectId} />;
     }

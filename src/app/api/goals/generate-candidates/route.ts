@@ -3,6 +3,7 @@ import { generateGoalCandidates } from '@/lib/goalGenerator';
 import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.repository';
 import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { randomUUID } from 'crypto';
+import { withObservability } from '@/lib/observability/middleware';
 
 function createErrorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -16,7 +17,7 @@ function validateProjectRequest(projectId: string | undefined, projectPath: stri
  * POST /api/goals/generate-candidates
  * Generate goal candidates using LLM
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
  * GET /api/goals/generate-candidates?projectId=xxx
  * Get all goal candidates for a project
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -159,7 +160,7 @@ function handleUpdateAction(candidateId: string, updates: any) {
  * PUT /api/goals/generate-candidates
  * Update a goal candidate (e.g., accept, reject, tweak)
  */
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
     const { candidateId, action, updates } = body;
@@ -207,7 +208,7 @@ function handleDeleteSingle(candidateId: string) {
  * DELETE /api/goals/generate-candidates?candidateId=xxx
  * Delete a goal candidate
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const candidateId = searchParams.get('candidateId');
@@ -225,3 +226,8 @@ export async function DELETE(request: NextRequest) {
     return createErrorResponse('Internal server error', 500);
   }
 }
+
+export const POST = withObservability(handlePost, '/api/goals/generate-candidates');
+export const GET = withObservability(handleGet, '/api/goals/generate-candidates');
+export const PUT = withObservability(handlePut, '/api/goals/generate-candidates');
+export const DELETE = withObservability(handleDelete, '/api/goals/generate-candidates');

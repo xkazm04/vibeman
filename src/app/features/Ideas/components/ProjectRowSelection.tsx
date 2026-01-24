@@ -7,17 +7,19 @@ interface ProjectRowSelectionProps {
   projects: Array<{ id: string; name: string }>;
   selectedProjectId: string;
   onSelectProject: (projectId: string) => void;
+  workspaceName?: string;
 }
 
 export default function ProjectRowSelection({
   projects,
   selectedProjectId,
   onSelectProject,
+  workspaceName,
 }: ProjectRowSelectionProps) {
   return (
     <div className="flex items-center space-x-3 overflow-x-auto">
       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">
-        Projects:
+        {workspaceName || 'Projects'}:
       </span>
       <motion.button
         data-testid="project-filter-all-button"

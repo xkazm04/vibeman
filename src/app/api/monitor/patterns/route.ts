@@ -5,8 +5,9 @@
 
 import { NextResponse } from 'next/server';
 import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function GET() {
+async function handleGet() {
   try {
     const patterns = await monitorServiceDb.getAllPatterns();
 
@@ -21,3 +22,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/monitor/patterns');

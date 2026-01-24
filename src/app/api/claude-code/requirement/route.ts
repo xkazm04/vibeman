@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteRequirement, createRequirement } from '@/app/Claude/lib/claudeCodeManager';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/claude-code/requirement
  * Create a new requirement file in the .claude/commands directory
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectPath, requirementName, content, overwrite = false } = body;
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
  * DELETE /api/claude-code/requirement
  * Delete a requirement file from the .claude/commands directory
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectPath, requirementName } = body;
@@ -85,3 +86,6 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/claude-code/requirement');
+export const DELETE = withObservability(handleDelete, '/api/claude-code/requirement');

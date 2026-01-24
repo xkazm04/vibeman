@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries } from '../../../../lib/queries/contextQueries';
+import { withObservability } from '@/lib/observability/middleware';
 
 // GET /api/contexts/detail - Get detailed information about a specific context
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const contextId = searchParams.get('contextId');
@@ -66,3 +67,5 @@ async function findContextByName(name: string, projectId: string): Promise<any |
   const contexts = await contextQueries.getContextsByProject(projectId);
   return contexts.find(c => c.name.toLowerCase() === name.toLowerCase()) || null;
 }
+
+export const GET = withObservability(handleGet, '/api/contexts/detail');

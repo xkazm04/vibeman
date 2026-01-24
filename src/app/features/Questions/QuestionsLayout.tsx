@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, Compass, RefreshCw } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
@@ -10,125 +10,77 @@ import CombinedGeneratePanel from './components/CombinedGeneratePanel';
 import UnifiedTable from './components/UnifiedTable';
 import AnswerQuestionModal from './components/AnswerQuestionModal';
 import {
-  fetchContextMap,
-  fetchQuestions,
-  answerQuestion,
-  deleteQuestion,
+  groupContextsByGroup,
   generateQuestionRequirement,
   setupContextMapGenerator,
-  ContextMapEntry,
-  QuestionsResponse
 } from './lib/questionsApi';
 import {
-  fetchDirections,
-  acceptDirection,
-  rejectDirection,
-  deleteDirection,
   generateDirectionRequirement,
-  DirectionsResponse,
   AnsweredQuestionInput
 } from './lib/directionsApi';
+import {
+  useSqliteContexts,
+  useQuestions,
+  useDirections,
+  useAnswerQuestion,
+  useDeleteQuestion,
+  useAcceptDirection,
+  useRejectDirection,
+  useDeleteDirection,
+  useInvalidateQuestionsDirections,
+} from '@/lib/queries/questionsDirectionsQueries';
 
 export default function QuestionsLayout() {
   const { activeProject } = useActiveProjectStore();
 
-  // Context map state
-  const [contexts, setContexts] = useState<ContextMapEntry[]>([]);
+  // Context selection state (local UI state)
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
-  const [contextMapLoading, setContextMapLoading] = useState(false);
-  const [contextMapError, setContextMapError] = useState<string | null>(null);
-
-  // Questions state
-  const [questionsData, setQuestionsData] = useState<QuestionsResponse | null>(null);
-  const [questionsLoading, setQuestionsLoading] = useState(false);
-
-  // Directions state
-  const [directionsData, setDirectionsData] = useState<DirectionsResponse | null>(null);
-  const [directionsLoading, setDirectionsLoading] = useState(false);
 
   // Answer modal state
   const [answerModalQuestion, setAnswerModalQuestion] = useState<DbQuestion | null>(null);
 
-  // Load context map when project changes
-  useEffect(() => {
-    if (!activeProject?.path) {
-      setContexts([]);
-      setSelectedContextIds([]);
-      setContextMapError(null);
-      return;
+  // React Query hooks for data fetching
+  const {
+    data: contextsData,
+    isLoading: contextLoading,
+    error: contextError,
+  } = useSqliteContexts(activeProject?.id);
+
+  const {
+    data: questionsData,
+    isLoading: questionsLoading,
+  } = useQuestions(activeProject?.id);
+
+  const {
+    data: directionsData,
+    isLoading: directionsLoading,
+  } = useDirections(activeProject?.id);
+
+  // Mutations
+  const answerQuestionMutation = useAnswerQuestion();
+  const deleteQuestionMutation = useDeleteQuestion();
+  const acceptDirectionMutation = useAcceptDirection();
+  const rejectDirectionMutation = useRejectDirection();
+  const deleteDirectionMutation = useDeleteDirection();
+  const invalidateAll = useInvalidateQuestionsDirections();
+
+  // Derived data
+  const contexts = contextsData?.contexts ?? [];
+  const contextGroups = contextsData?.groups ?? [];
+
+  // Derived: grouped contexts for display
+  const groupedContexts = useMemo(
+    () => groupContextsByGroup(contexts, contextGroups),
+    [contexts, contextGroups]
+  );
+
+  // Auto-select all contexts when they load
+  const contextIds = contexts.map(c => c.id).join(',');
+  useMemo(() => {
+    if (contexts.length > 0 && selectedContextIds.length === 0) {
+      setSelectedContextIds(contexts.map(c => c.id));
     }
-
-    loadContextMap();
-  }, [activeProject?.path]);
-
-  // Load questions and directions when project changes
-  useEffect(() => {
-    if (!activeProject?.id) {
-      setQuestionsData(null);
-      setDirectionsData(null);
-      return;
-    }
-
-    loadQuestions();
-    loadDirections();
-  }, [activeProject?.id]);
-
-  const loadContextMap = async () => {
-    if (!activeProject?.path) return;
-
-    setContextMapLoading(true);
-    setContextMapError(null);
-
-    try {
-      const response = await fetchContextMap(activeProject.path);
-
-      if (response.success && response.contextMap) {
-        setContexts(response.contextMap.contexts);
-        // Auto-select all contexts
-        setSelectedContextIds(response.contextMap.contexts.map(c => c.id));
-      } else {
-        setContexts([]);
-        setSelectedContextIds([]);
-        setContextMapError(response.error || 'Context map not found');
-      }
-    } catch (err) {
-      setContextMapError(err instanceof Error ? err.message : 'Failed to load context map');
-      setContexts([]);
-      setSelectedContextIds([]);
-    } finally {
-      setContextMapLoading(false);
-    }
-  };
-
-  const loadQuestions = async () => {
-    if (!activeProject?.id) return;
-
-    setQuestionsLoading(true);
-
-    try {
-      const response = await fetchQuestions(activeProject.id);
-      setQuestionsData(response);
-    } catch (err) {
-      console.error('Failed to load questions:', err);
-    } finally {
-      setQuestionsLoading(false);
-    }
-  };
-
-  const loadDirections = async () => {
-    if (!activeProject?.id) return;
-
-    setDirectionsLoading(true);
-
-    try {
-      const response = await fetchDirections(activeProject.id);
-      setDirectionsData(response);
-    } catch (err) {
-      console.error('Failed to load directions:', err);
-    } finally {
-      setDirectionsLoading(false);
-    }
-  };
+  }, [contextIds]);
 
   const handleToggleContext = (contextId: string) => {
     setSelectedContextIds(prev =>
@@ -156,13 +108,11 @@ export default function QuestionsLayout() {
   const handleGenerateQuestions = async (questionsPerContext: number) => {
     if (!activeProject) return;
 
-    const selectedContexts = contexts.filter(c => selectedContextIds.includes(c.id));
-
     const result = await generateQuestionRequirement({
       projectId: activeProject.id,
       projectName: activeProject.name,
       projectPath: activeProject.path,
-      selectedContexts,
+      selectedContextIds, // Pass SQLite context IDs directly
       questionsPerContext
     });
 
@@ -181,63 +131,12 @@ export default function QuestionsLayout() {
   }, []);
 
   const handleSaveAnswer = useCallback(async (questionId: string, answer: string) => {
-    await answerQuestion(questionId, answer);
-    // Reload questions to get updated state
-    loadQuestions();
-  }, [activeProject?.id]);
+    await answerQuestionMutation.mutateAsync({ questionId, answer });
+  }, [answerQuestionMutation]);
 
-  const handleDeleteQuestion = useCallback(async (questionId: string) => {
-    // Store deleted question for potential rollback
-    const deletedQuestion = questionsData?.questions.find(q => q.id === questionId);
-
-    // Optimistic update - remove immediately
-    setQuestionsData(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        questions: prev.questions.filter(q => q.id !== questionId),
-        grouped: prev.grouped.map(g => ({
-          ...g,
-          questions: g.questions.filter(q => q.id !== questionId)
-        })).filter(g => g.questions.length > 0),
-        counts: {
-          ...prev.counts,
-          total: prev.counts.total - 1,
-          pending: deletedQuestion?.status === 'pending'
-            ? prev.counts.pending - 1
-            : prev.counts.pending,
-          answered: deletedQuestion?.status === 'answered'
-            ? prev.counts.answered - 1
-            : prev.counts.answered
-        }
-      };
-    });
-
-    // Fire and forget - assume success
-    deleteQuestion(questionId).catch(err => {
-      console.error('Failed to delete question:', err);
-      // Rollback on error - restore question
-      if (deletedQuestion) {
-        setQuestionsData(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            questions: [...prev.questions, deletedQuestion],
-            counts: {
-              ...prev.counts,
-              total: prev.counts.total + 1,
-              pending: deletedQuestion.status === 'pending'
-                ? prev.counts.pending + 1
-                : prev.counts.pending,
-              answered: deletedQuestion.status === 'answered'
-                ? prev.counts.answered + 1
-                : prev.counts.answered
-            }
-          };
-        });
-      }
-    });
-  }, [questionsData?.questions]);
+  const handleDeleteQuestion = useCallback((questionId: string) => {
+    deleteQuestionMutation.mutate(questionId);
+  }, [deleteQuestionMutation]);
 
   // Directions handlers
   const handleGenerateDirections = async (
@@ -249,9 +148,9 @@ export default function QuestionsLayout() {
     if (!activeProject) return;
 
     // In brainstorm mode, use all contexts; otherwise use selected ones
-    const selectedContexts = brainstormAll
-      ? contexts
-      : contexts.filter(c => selectedContextIds.includes(c.id));
+    const contextIdsToUse = brainstormAll
+      ? contexts.map(c => c.id)
+      : selectedContextIds;
 
     // Build answered questions array from selected IDs
     const answeredQuestionsInput: AnsweredQuestionInput[] = answeredQuestions
@@ -266,7 +165,7 @@ export default function QuestionsLayout() {
       projectId: activeProject.id,
       projectName: activeProject.name,
       projectPath: activeProject.path,
-      selectedContexts,
+      selectedContextIds: contextIdsToUse, // Pass SQLite context IDs
       directionsPerContext,
       userContext: userContext.trim() || undefined,
       answeredQuestions: answeredQuestionsInput.length > 0 ? answeredQuestionsInput : undefined,
@@ -279,147 +178,22 @@ export default function QuestionsLayout() {
     };
   };
 
-  const handleAcceptDirection = useCallback(async (directionId: string) => {
+  const handleAcceptDirection = useCallback((directionId: string) => {
     if (!activeProject?.path) return;
+    acceptDirectionMutation.mutate({ directionId, projectPath: activeProject.path });
+  }, [activeProject?.path, acceptDirectionMutation]);
 
-    // Optimistic update - mark as accepted immediately
-    setDirectionsData(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        directions: prev.directions.map(d =>
-          d.id === directionId ? { ...d, status: 'accepted' as const } : d
-        ),
-        counts: {
-          ...prev.counts,
-          pending: prev.counts.pending - 1,
-          accepted: prev.counts.accepted + 1
-        }
-      };
-    });
+  const handleRejectDirection = useCallback((directionId: string) => {
+    rejectDirectionMutation.mutate(directionId);
+  }, [rejectDirectionMutation]);
 
-    // Fire and forget - assume success
-    acceptDirection(directionId, activeProject.path).catch(err => {
-      console.error('Failed to accept direction:', err);
-      // Rollback on error
-      setDirectionsData(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          directions: prev.directions.map(d =>
-            d.id === directionId ? { ...d, status: 'pending' as const } : d
-          ),
-          counts: {
-            ...prev.counts,
-            pending: prev.counts.pending + 1,
-            accepted: prev.counts.accepted - 1
-          }
-        };
-      });
-    });
-  }, [activeProject?.path]);
+  const handleDeleteDirection = useCallback((directionId: string) => {
+    deleteDirectionMutation.mutate(directionId);
+  }, [deleteDirectionMutation]);
 
-  const handleRejectDirection = useCallback(async (directionId: string) => {
-    // Optimistic update - mark as rejected immediately
-    setDirectionsData(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        directions: prev.directions.map(d =>
-          d.id === directionId ? { ...d, status: 'rejected' as const } : d
-        ),
-        counts: {
-          ...prev.counts,
-          pending: prev.counts.pending - 1,
-          rejected: prev.counts.rejected + 1
-        }
-      };
-    });
-
-    // Fire and forget - assume success
-    rejectDirection(directionId).catch(err => {
-      console.error('Failed to reject direction:', err);
-      // Rollback on error
-      setDirectionsData(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          directions: prev.directions.map(d =>
-            d.id === directionId ? { ...d, status: 'pending' as const } : d
-          ),
-          counts: {
-            ...prev.counts,
-            pending: prev.counts.pending + 1,
-            rejected: prev.counts.rejected - 1
-          }
-        };
-      });
-    });
-  }, []);
-
-  const handleDeleteDirection = useCallback(async (directionId: string) => {
-    // Store deleted direction for potential rollback
-    const deletedDirection = directionsData?.directions.find(d => d.id === directionId);
-
-    // Optimistic update - remove immediately
-    setDirectionsData(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        directions: prev.directions.filter(d => d.id !== directionId),
-        grouped: prev.grouped.map(g => ({
-          ...g,
-          directions: g.directions.filter(d => d.id !== directionId)
-        })).filter(g => g.directions.length > 0),
-        counts: {
-          ...prev.counts,
-          total: prev.counts.total - 1,
-          pending: deletedDirection?.status === 'pending'
-            ? prev.counts.pending - 1
-            : prev.counts.pending,
-          accepted: deletedDirection?.status === 'accepted'
-            ? prev.counts.accepted - 1
-            : prev.counts.accepted,
-          rejected: deletedDirection?.status === 'rejected'
-            ? prev.counts.rejected - 1
-            : prev.counts.rejected
-        }
-      };
-    });
-
-    // Fire and forget - assume success
-    deleteDirection(directionId).catch(err => {
-      console.error('Failed to delete direction:', err);
-      // Rollback on error - restore direction
-      if (deletedDirection) {
-        setDirectionsData(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            directions: [...prev.directions, deletedDirection],
-            counts: {
-              ...prev.counts,
-              total: prev.counts.total + 1,
-              pending: deletedDirection.status === 'pending'
-                ? prev.counts.pending + 1
-                : prev.counts.pending,
-              accepted: deletedDirection.status === 'accepted'
-                ? prev.counts.accepted + 1
-                : prev.counts.accepted,
-              rejected: deletedDirection.status === 'rejected'
-                ? prev.counts.rejected + 1
-                : prev.counts.rejected
-            }
-          };
-        });
-      }
-    });
-  }, [directionsData?.directions]);
-
-  const handleRefresh = () => {
-    loadQuestions();
-    loadDirections();
-  };
+  const handleRefresh = useCallback(() => {
+    invalidateAll();
+  }, [invalidateAll]);
 
   // Derived data
   const questions = questionsData?.questions || [];
@@ -503,13 +277,14 @@ export default function QuestionsLayout() {
           >
             {/* Context Map Selector */}
             <ContextMapSelector
-              contexts={contexts}
+              groupedContexts={groupedContexts}
+              allContexts={contexts}
               selectedContextIds={selectedContextIds}
               onToggleContext={handleToggleContext}
               onSelectAll={handleSelectAll}
               onClearAll={handleClearAll}
-              loading={contextMapLoading}
-              error={contextMapError}
+              loading={contextLoading}
+              error={contextError instanceof Error ? contextError.message : contextError ? String(contextError) : null}
               onSetupContextMap={handleSetupContextMap}
             />
 

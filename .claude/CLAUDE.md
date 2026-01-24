@@ -96,7 +96,13 @@ Each entity has a dedicated repository in `src/app/db/repositories/`:
 
 **Context Store Pattern**: `contextStore.ts` uses a custom listener-based implementation (not standard Zustand) with manual subscription system and `forceUpdate` hooks. It integrates with `contextAPI.ts` for database sync.
 
-**Persist Middleware**: Several stores use `persist()` middleware to survive page reloads.
+**Persist Middleware**: Stores use `persist()` middleware with standardized categories:
+- `user_preference`: Always persist (theme, settings, projects)
+- `session_work`: Persist wizard/queue progress, clear on project switch
+- `cache`: Persist with TTL for fetched data (5 min default)
+- `volatile`: Never persist (loading, errors, transient UI)
+
+See `src/stores/PERSISTENCE_STRATEGY.md` for complete documentation and `src/stores/utils/persistence.ts` for helper utilities.
 
 #### LLM Integration (`src/lib/llm/`)
 
@@ -252,7 +258,10 @@ Feature/API Route
 
 2. **State Management**:
    - Create Zustand store in `src/stores/xxx.ts`
-   - Use `create()` with optional `persist()` middleware
+   - Use `create()` with `persist()` middleware for appropriate state
+   - Use `createPersistConfig()` from `utils/persistence.ts` for standardized config
+   - Classify fields into persistence categories (user_preference, session_work, cache, volatile)
+   - Always exclude loading/error states from persistence via `partialize`
    - Export hooks and types for components
 
 3. **API Routes**:
@@ -348,6 +357,7 @@ Currently no formal test suite is configured (no Jest/Vitest setup found).
 4. **Token Counting**: Must record tokens on ALL LLM calls for accurate cost tracking
 5. **State Machine Transitions**: Blueprint workflow uses state machine - respect allowed transitions
 6. **Async Errors**: API routes must handle errors with proper status codes and messages
+7. **Store Persistence**: Never persist loading/error states, callback functions, or React nodes. Use `partialize` to exclude volatile fields
 
 ## Refactoring & Code Quality
 

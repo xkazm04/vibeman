@@ -9,6 +9,7 @@ import { implementationLogRepository } from '@/app/db/repositories/implementatio
 import { projectDb } from '@/lib/project_database';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 export interface EnrichedImplementationLog {
   id: string;
@@ -26,7 +27,7 @@ export interface EnrichedImplementationLog {
   created_at: string;
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const contextId = searchParams.get('contextId');
@@ -107,3 +108,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/implementation-logs/untested');

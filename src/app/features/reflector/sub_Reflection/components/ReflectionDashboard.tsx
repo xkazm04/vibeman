@@ -17,6 +17,8 @@ import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { getEmptyFilterState } from '@/app/features/reflector/lib/filterIdeas';
 import { buildURLFromFilters } from '@/app/features/reflector/lib/urlFilterSync';
+import SuggestionTypeToggle from '../../components/SuggestionTypeToggle';
+import { SuggestionFilter } from '../../lib/unifiedTypes';
 
 type ViewMode = 'analytics' | 'executive';
 
@@ -37,7 +39,8 @@ export default function ReflectionDashboard() {
     projectId: null,
     contextId: null,
     comparisonMode: false,
-    timeWindow: 'all'
+    timeWindow: 'all',
+    suggestionType: 'ideas'
   });
 
   const router = useRouter();
@@ -132,6 +135,13 @@ export default function ReflectionDashboard() {
     }
   }, [navigateToFilteredView]);
 
+  /**
+   * Handle suggestion type toggle change
+   */
+  const handleSuggestionTypeChange = useCallback((type: SuggestionFilter) => {
+    setFilters(prev => ({ ...prev, suggestionType: type }));
+  }, []);
+
   // Initialize projects
   useEffect(() => {
     initializeProjects();
@@ -171,7 +181,7 @@ export default function ReflectionDashboard() {
           filters.projectId,
           filters.contextId,
           filters.dateRange,
-          { timeWindow: filters.timeWindow }
+          { timeWindow: filters.timeWindow, suggestionType: filters.suggestionType }
         );
         setStats(data);
         setComparisonStats(null);
@@ -228,44 +238,56 @@ export default function ReflectionDashboard() {
 
   return (
     <div className="space-y-6" data-testid="reflection-dashboard">
-      {/* View Mode Toggle & Filters Row */}
-      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-        {/* View Mode Toggle */}
-        <div className="flex bg-gray-900/50 border border-gray-700/50 rounded-lg p-1 shrink-0">
-          <button
-            onClick={() => setViewMode('analytics')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              viewMode === 'analytics'
-                ? 'bg-gray-700/80 text-white'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-            data-testid="view-mode-analytics-btn"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Analytics
-          </button>
-          <button
-            onClick={() => setViewMode('executive')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              viewMode === 'executive'
-                ? 'bg-indigo-600/80 text-white'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-            data-testid="view-mode-executive-btn"
-          >
-            <FileText className="w-4 h-4" />
-            Executive Insights
-          </button>
+      {/* Type Toggle + View Mode Toggle & Filters Row */}
+      <div className="flex flex-col gap-4">
+        {/* Type Toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <SuggestionTypeToggle
+            value={filters.suggestionType || 'ideas'}
+            onChange={handleSuggestionTypeChange}
+            ideasCount={stats?.overall.total}
+            directionsCount={stats?.directionsOverall?.total}
+          />
         </div>
 
-        {/* Filters */}
-        <div className="flex-1">
-          <FilterPanel
-            filters={filters}
-            onFilterChange={setFilters}
-            projects={projects}
-            contexts={contexts}
-          />
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+          {/* View Mode Toggle */}
+          <div className="flex bg-gray-900/50 border border-gray-700/50 rounded-lg p-1 shrink-0">
+            <button
+              onClick={() => setViewMode('analytics')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'analytics'
+                  ? 'bg-gray-700/80 text-white'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+              data-testid="view-mode-analytics-btn"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Analytics
+            </button>
+            <button
+              onClick={() => setViewMode('executive')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'executive'
+                  ? 'bg-indigo-600/80 text-white'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+              data-testid="view-mode-executive-btn"
+            >
+              <FileText className="w-4 h-4" />
+              Executive Insights
+            </button>
+          </div>
+
+          {/* Filters */}
+          <div className="flex-1">
+            <FilterPanel
+              filters={filters}
+              onFilterChange={setFilters}
+              projects={projects}
+              contexts={contexts}
+            />
+          </div>
         </div>
       </div>
 
@@ -287,31 +309,71 @@ export default function ReflectionDashboard() {
                 <AcceptanceChart scanTypeStats={stats.scanTypes} />
               </div>
 
-              {/* Scan Type Cards Grid */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <h2 className="text-lg font-semibold text-gray-300 mb-4">
-                  Specialist Performance
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {[...stats.scanTypes]
-                    .sort((a, b) => b.total - a.total)
-                    .map((scanTypeStat, index) => (
-                      <ScanTypeCard
-                        key={scanTypeStat.scanType}
-                        stats={scanTypeStat}
-                        index={index}
-                        onScanTypeClick={handleScanTypeClick}
-                      />
-                    ))}
-                </div>
-              </motion.div>
+              {/* Scan Type Cards Grid (Ideas) */}
+              {filters.suggestionType !== 'directions' && stats.scanTypes.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <h2 className="text-lg font-semibold text-gray-300 mb-4">
+                    Specialist Performance
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[...stats.scanTypes]
+                      .sort((a, b) => b.total - a.total)
+                      .map((scanTypeStat, index) => (
+                        <ScanTypeCard
+                          key={scanTypeStat.scanType}
+                          stats={scanTypeStat}
+                          index={index}
+                          onScanTypeClick={handleScanTypeClick}
+                        />
+                      ))}
+                  </div>
+                </motion.div>
+              )}
 
-              {/* Effort vs Impact Matrix */}
-              <EffortImpactMatrix filters={filters} onQuadrantClick={handleQuadrantClick} />
+              {/* Context Map Cards Grid (Directions) */}
+              {filters.suggestionType !== 'ideas' && stats.contextMaps && stats.contextMaps.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <h2 className="text-lg font-semibold text-gray-300 mb-4">
+                    Direction Sources (Context Maps)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[...stats.contextMaps]
+                      .sort((a, b) => b.total - a.total)
+                      .map((contextMapStat, index) => (
+                        <div
+                          key={contextMapStat.contextMapId}
+                          className="bg-gradient-to-br from-cyan-500/5 to-cyan-600/2 border border-cyan-500/40 rounded-lg p-4 backdrop-blur-sm"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold text-gray-300 truncate">
+                              {contextMapStat.contextMapTitle}
+                            </h3>
+                            <span className="text-xs text-cyan-400 font-mono">
+                              {contextMapStat.acceptanceRatio}%
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>{contextMapStat.total} total</span>
+                            <span className="text-green-400">{contextMapStat.accepted} accepted</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Effort vs Impact Matrix (Ideas only - directions don't have scores) */}
+              {filters.suggestionType !== 'directions' && (
+                <EffortImpactMatrix filters={filters} onQuadrantClick={handleQuadrantClick} />
+              )}
             </>
           ) : null}
         </>

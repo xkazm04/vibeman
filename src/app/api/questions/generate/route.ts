@@ -9,14 +9,71 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
+import { contextDb, contextGroupDb, DbContext, DbContextGroup } from '@/app/db';
 import { ContextMapEntry } from '../../context-map/route';
 
 interface GenerateQuestionsRequest {
   projectId: string;
   projectName: string;
   projectPath: string;
-  selectedContexts: ContextMapEntry[];
+  // PRIMARY: SQLite context IDs
+  selectedContextIds?: string[];
+  // FALLBACK: JSON contexts (for backward compatibility)
+  selectedContexts?: ContextMapEntry[];
   questionsPerContext?: number;
+}
+
+/**
+ * Unified context structure for template rendering
+ */
+interface UnifiedContext {
+  id: string;
+  title: string;
+  summary: string;
+  files: string[];
+  groupName?: string;
+  groupLayer?: string;
+  category?: string;
+}
+
+/**
+ * Convert SQLite context to unified format
+ */
+function sqliteContextToUnified(ctx: DbContext, group?: DbContextGroup | null): UnifiedContext {
+  let files: string[] = [];
+  try {
+    files = JSON.parse(ctx.file_paths || '[]');
+  } catch {
+    files = [];
+  }
+
+  return {
+    id: ctx.id,
+    title: ctx.name,
+    summary: ctx.description || '',
+    files,
+    groupName: group?.name,
+    groupLayer: group?.type || undefined,
+    category: ctx.category || undefined
+  };
+}
+
+/**
+ * Convert JSON ContextMapEntry to unified format (backward compatibility)
+ */
+function jsonContextToUnified(ctx: ContextMapEntry): UnifiedContext {
+  const allFiles = [
+    ...(ctx.filepaths.ui || []),
+    ...(ctx.filepaths.lib || []),
+    ...(ctx.filepaths.api || [])
+  ];
+
+  return {
+    id: ctx.id,
+    title: ctx.title,
+    summary: ctx.summary,
+    files: allFiles
+  };
 }
 
 /**
@@ -39,26 +96,25 @@ function buildQuestionRequirement(config: {
   projectId: string;
   projectName: string;
   projectPath: string;
-  selectedContexts: ContextMapEntry[];
+  unifiedContexts: UnifiedContext[];
   questionsPerContext: number;
 }): string {
-  const { projectId, projectName, projectPath, selectedContexts, questionsPerContext } = config;
+  const { projectId, projectName, projectPath, unifiedContexts, questionsPerContext } = config;
   const apiUrl = getVibemanApiUrl();
 
   // Build context sections
-  const contextSections = selectedContexts.map(ctx => {
-    const allFiles = [
-      ...(ctx.filepaths.ui || []),
-      ...(ctx.filepaths.lib || []),
-      ...(ctx.filepaths.api || [])
-    ];
+  const contextSections = unifiedContexts.map(ctx => {
+    const groupInfo = ctx.groupName
+      ? `**Group**: ${ctx.groupName}${ctx.groupLayer ? ` (${ctx.groupLayer})` : ''}\n`
+      : '';
+    const categoryInfo = ctx.category ? `**Category**: ${ctx.category}\n` : '';
 
     return `### ${ctx.title} (${ctx.id})
 
-**Summary**: ${ctx.summary}
+${groupInfo}${categoryInfo}**Summary**: ${ctx.summary}
 
 **Files to analyze**:
-${allFiles.map(f => `- \`${f}\``).join('\n')}
+${ctx.files.map(f => `- \`${f}\``).join('\n')}
 `;
   }).join('\n---\n\n');
 
@@ -186,6 +242,7 @@ export async function POST(request: NextRequest) {
       projectId,
       projectName,
       projectPath,
+      selectedContextIds,
       selectedContexts,
       questionsPerContext = 3
     } = body;
@@ -198,9 +255,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!selectedContexts || selectedContexts.length === 0) {
+    // Must have either selectedContextIds (SQLite) or selectedContexts (JSON fallback)
+    if ((!selectedContextIds || selectedContextIds.length === 0) &&
+        (!selectedContexts || selectedContexts.length === 0)) {
       return NextResponse.json(
-        { error: 'At least one context must be selected' },
+        { error: 'At least one context must be selected (via selectedContextIds or selectedContexts)' },
         { status: 400 }
       );
     }
@@ -217,12 +276,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert to unified contexts
+    let unifiedContexts: UnifiedContext[] = [];
+
+    if (selectedContextIds && selectedContextIds.length > 0) {
+      // PRIMARY: Fetch SQLite contexts
+      logger.info('[API] Using SQLite contexts for question generation', {
+        contextIds: selectedContextIds
+      });
+
+      for (const ctxId of selectedContextIds) {
+        const ctx = contextDb.getContextById(ctxId);
+        if (ctx) {
+          const group = ctx.group_id ? contextGroupDb.getGroupById(ctx.group_id) : null;
+          unifiedContexts.push(sqliteContextToUnified(ctx, group));
+        }
+      }
+    } else if (selectedContexts && selectedContexts.length > 0) {
+      // FALLBACK: Use JSON contexts (backward compatibility)
+      logger.info('[API] Using JSON contexts for question generation (fallback)', {
+        contextCount: selectedContexts.length
+      });
+      unifiedContexts = selectedContexts.map(jsonContextToUnified);
+    }
+
+    if (unifiedContexts.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid contexts found' },
+        { status: 400 }
+      );
+    }
+
     // Build requirement content
     const requirementContent = buildQuestionRequirement({
       projectId,
       projectName,
       projectPath: normalizedProjectPath,
-      selectedContexts,
+      unifiedContexts,
       questionsPerContext
     });
 
@@ -252,7 +342,7 @@ export async function POST(request: NextRequest) {
     logger.info('[API] Question generation requirement created:', {
       requirementName,
       requirementPath,
-      contextCount: selectedContexts.length,
+      contextCount: unifiedContexts.length,
       questionsPerContext,
       fileExists,
       fileSize: fileStats?.size
@@ -269,8 +359,8 @@ export async function POST(request: NextRequest) {
       success: true,
       requirementName,
       requirementPath,
-      contextCount: selectedContexts.length,
-      expectedQuestions: selectedContexts.length * questionsPerContext
+      contextCount: unifiedContexts.length,
+      expectedQuestions: unifiedContexts.length * questionsPerContext
     });
 
   } catch (error) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { securityScanDb, securityPatchDb, securityPrDb } from '@/app/db';
 import { createSecurityPr, runTests, runBuild, mergePrIfTestsPass } from '@/app/features/Depndencies/lib/prAutomation';
 import { createPatchDocument } from '@/app/features/Depndencies/lib/patchGenerator';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * Helper to create error response
@@ -13,7 +14,9 @@ function createErrorResponse(message: string, status: number) {
 /**
  * Validate request and fetch required data
  */
-function validateAndFetchData(scanId: string, projectPath: string) {
+function validateAndFetchData(scanId: string, projectPath: string):
+  | { error: NextResponse<{ error: string }> }
+  | { scan: NonNullable<ReturnType<typeof securityScanDb.getById>>; patches: ReturnType<typeof securityPatchDb.getByScanId> } {
   if (!scanId || !projectPath) {
     return { error: createErrorResponse('Missing required fields: scanId, projectPath', 400) };
   }
@@ -63,7 +66,7 @@ function convertPatchesToVulnerabilities(patches: any[]) {
  * POST /api/security/pr
  * Create a PR with security patches
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest): Promise<NextResponse> {
   try {
     const { scanId, projectPath } = await request.json();
 
@@ -188,3 +191,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/security/pr');

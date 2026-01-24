@@ -10,11 +10,13 @@ import SpecialistBreakdown from './SpecialistBreakdown';
 import ProjectImplementationRanking from './ProjectImplementationRanking';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import FilterBar from '../../components/FilterBar';
+import SuggestionTypeToggle from '../../components/SuggestionTypeToggle';
 import {
   UnifiedFilterState,
   FilterBarConfig,
   getEmptyUnifiedFilterState
 } from '../../lib/filterIdeas';
+import { SuggestionFilter } from '../../lib/unifiedTypes';
 
 // FilterBar configuration for WeeklyDashboard
 const WEEKLY_FILTER_CONFIG: FilterBarConfig = {
@@ -37,6 +39,7 @@ export default function WeeklyDashboard() {
     projectId: unifiedFilters.projectIds[0] || null,
     contextId: unifiedFilters.contextIds[0] || null,
     weekOffset: unifiedFilters.weekOffset,
+    suggestionType: unifiedFilters.suggestionType,
   }), [unifiedFilters]);
 
   useEffect(() => {
@@ -63,6 +66,10 @@ export default function WeeklyDashboard() {
 
   const handleFilterChange = useCallback((newFilters: UnifiedFilterState) => {
     setUnifiedFilters(newFilters);
+  }, []);
+
+  const handleSuggestionTypeChange = useCallback((type: SuggestionFilter) => {
+    setUnifiedFilters(prev => ({ ...prev, suggestionType: type }));
   }, []);
 
   if (loading) {
@@ -96,14 +103,24 @@ export default function WeeklyDashboard() {
 
   return (
     <div className="space-y-6" data-testid="weekly-dashboard">
-      {/* Unified FilterBar */}
-      <FilterBar
-        projects={projects}
-        filters={unifiedFilters}
-        onChange={handleFilterChange}
-        config={WEEKLY_FILTER_CONFIG}
-        onRefresh={loadStats}
-      />
+      {/* Type Toggle + Unified FilterBar */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <SuggestionTypeToggle
+          value={unifiedFilters.suggestionType}
+          onChange={handleSuggestionTypeChange}
+          ideasCount={stats?.overall.ideasTotal}
+          directionsCount={stats?.overall.directionsTotal}
+        />
+        <div className="flex-1">
+          <FilterBar
+            projects={projects}
+            filters={unifiedFilters}
+            onChange={handleFilterChange}
+            config={WEEKLY_FILTER_CONFIG}
+            onRefresh={loadStats}
+          />
+        </div>
+      </div>
 
       {/* KPI Cards */}
       <WeeklyKPICards stats={stats} />

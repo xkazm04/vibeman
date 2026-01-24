@@ -190,15 +190,9 @@ export function buildGoalEvaluationPrompt(params: {
   const { sessionId, projectId, projectPath, goals, contexts } = params;
 
   const goalsInfo = goals.map((goal, idx) => {
-    const ctx = contexts.find(c => c.goalId === goal.id)?.context;
-    const hypothesesInfo = ctx?.hypotheses?.length
-      ? `Hypotheses: ${ctx.hypotheses.filter(h => h.status === 'verified').length}/${ctx.hypotheses.length} verified`
-      : 'No hypotheses';
-
     return `${idx + 1}. **${goal.title}**
    - ID: ${goal.id}
    - Status: ${goal.status}
-   - ${hypothesesInfo}
    - Description: ${goal.description?.slice(0, 100) || 'No description'}...`;
   }).join('\n\n');
 

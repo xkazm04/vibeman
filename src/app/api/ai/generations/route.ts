@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
+import { withObservability } from '@/lib/observability/middleware'
 
 interface DeleteResult {
   id: string
@@ -24,7 +25,7 @@ interface DeleteResult {
  * 
  * Requirements: FR-1.2
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const body = await request.json()
     const { generationIds } = body
@@ -170,3 +171,5 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
+export const DELETE = withObservability(handleDelete, '/api/ai/generations')

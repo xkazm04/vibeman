@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { implementationLogDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 /**
  * GET - Get recent implementation logs for a project
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST - Create a new implementation log
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, project_id, requirement_name, title, overview, overview_bullets, tested } = body;
@@ -60,6 +62,22 @@ export async function POST(request: NextRequest) {
       tested: tested || false,
     });
 
+    // Record brain signal: implementation logged
+    try {
+      signalCollector.recordImplementation(project_id, {
+        requirementId: id,
+        requirementName: requirement_name,
+        contextId: null,
+        filesCreated: [],
+        filesModified: [],
+        filesDeleted: [],
+        success: true,
+        executionTimeMs: 0,
+      });
+    } catch {
+      // Signal recording must never break the main flow
+    }
+
     return NextResponse.json({ log });
   } catch (error) {
     logger.error('Error creating implementation log:', { error: error });
@@ -76,7 +94,7 @@ export async function POST(request: NextRequest) {
 /**
  * PATCH - Update an implementation log (e.g., mark as tested)
  */
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, tested, overview, overview_bullets } = body;
@@ -117,7 +135,7 @@ export async function PATCH(request: NextRequest) {
 /**
  * DELETE - Delete an implementation log
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -143,3 +161,8 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/implementation-logs');
+export const POST = withObservability(handlePost, '/api/implementation-logs');
+export const PATCH = withObservability(handlePatch, '/api/implementation-logs');
+export const DELETE = withObservability(handleDelete, '/api/implementation-logs');

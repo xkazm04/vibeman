@@ -17,7 +17,6 @@ import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 // Handlers and utilities
 import { getProjectName } from '@/app/features/Ideas/lib/ideasUtils';
-import { ProcessingIdeaProvider } from '@/app/features/Ideas/lib/ProcessingIdeaContext';
 
 interface IdeasLayoutProps {
   selectedProjectId?: string;
@@ -99,8 +98,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
 
 
   return (
-    <ProcessingIdeaProvider>
-      <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
+    <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
         {/* Header with Project Filter */}
         <LazyContentSection delay={0}>
           <IdeasHeaderWithFilter
@@ -150,8 +148,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
             />
           )}
         </AnimatePresence>
-      </div>
-    </ProcessingIdeaProvider>
+    </div>
   );
 };
 

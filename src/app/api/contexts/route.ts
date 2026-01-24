@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries, contextGroupQueries } from '../../../lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
+import { withObservability } from '@/lib/observability/middleware';
+import { signalCollector } from '@/lib/brain/signalCollector';
+import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 
 // GET /api/contexts - Get all contexts (optionally filtered by project or group)
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
+    const projectFilter = parseProjectIds(searchParams);
     const groupId = searchParams.get('groupId');
 
     // If groupId is provided, get contexts for that group
@@ -20,11 +23,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // If projectId is provided, get contexts for that project
-    if (projectId) {
+    // Single project: use optimized query
+    if (projectFilter.mode === 'single') {
       const [contexts, groups] = await Promise.all([
-        contextQueries.getContextsByProject(projectId),
-        contextGroupQueries.getGroupsByProject(projectId),
+        contextQueries.getContextsByProject(projectFilter.projectId!),
+        contextGroupQueries.getGroupsByProject(projectFilter.projectId!),
       ]);
 
       return NextResponse.json({
@@ -33,7 +36,26 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Otherwise, get all contexts across all projects
+    // Multi-project: query each and merge
+    if (projectFilter.mode === 'multi') {
+      const allContexts: any[] = [];
+      const allGroups: any[] = [];
+      for (const pid of projectFilter.projectIds!) {
+        const [contexts, groups] = await Promise.all([
+          contextQueries.getContextsByProject(pid),
+          contextGroupQueries.getGroupsByProject(pid),
+        ]);
+        allContexts.push(...contexts);
+        allGroups.push(...groups);
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: { contexts: allContexts, groups: allGroups }
+      });
+    }
+
+    // All projects: get everything
     const { getDatabase } = await import('@/app/db/connection');
     const db = getDatabase();
     const allContexts = db.prepare(`
@@ -52,7 +74,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/contexts - Create a new context
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, groupId, name, description, filePaths, testScenario } = body;
@@ -70,6 +92,18 @@ export async function POST(request: NextRequest) {
       testScenario,
     });
 
+    // Record brain signal: context created
+    try {
+      signalCollector.recordContextFocus(projectId, {
+        contextId: context.id,
+        contextName: name,
+        duration: 0,
+        actions: ['create'],
+      });
+    } catch {
+      // Signal recording must never break the main flow
+    }
+
     return NextResponse.json({
       success: true,
       data: context
@@ -84,7 +118,7 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/contexts - Update a context
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
     const { contextId, updates } = body;
@@ -112,6 +146,20 @@ export async function PUT(request: NextRequest) {
       return notFoundResponse('Context');
     }
 
+    // Record brain signal: context updated
+    try {
+      if (context.project_id) {
+        signalCollector.recordContextFocus(context.project_id, {
+          contextId,
+          contextName: context.name || contextId,
+          duration: 0,
+          actions: ['update'],
+        });
+      }
+    } catch {
+      // Signal recording must never break the main flow
+    }
+
     return NextResponse.json({
       success: true,
       data: context
@@ -126,7 +174,7 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/contexts - Delete a context or all contexts for a project
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const contextId = searchParams.get('contextId');
@@ -165,3 +213,9 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/contexts');
+export const POST = withObservability(handlePost, '/api/contexts');
+export const PUT = withObservability(handlePut, '/api/contexts');
+export const DELETE = withObservability(handleDelete, '/api/contexts');

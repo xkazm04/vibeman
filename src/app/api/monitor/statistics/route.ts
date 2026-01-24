@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function GET() {
+async function handleGet() {
   try {
     const stats = await monitorServiceDb.getCallStatistics();
 
@@ -16,3 +17,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/monitor/statistics');

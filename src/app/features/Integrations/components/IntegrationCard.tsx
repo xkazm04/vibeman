@@ -30,6 +30,8 @@ const PROVIDER_ICONS: Record<IntegrationProvider, string> = {
   jira: '📋',
   linear: '📐',
   notion: '📝',
+  supabase: '⚡',
+  postgres: '🐘',
 };
 
 const PROVIDER_COLORS: Record<IntegrationProvider, string> = {
@@ -41,6 +43,8 @@ const PROVIDER_COLORS: Record<IntegrationProvider, string> = {
   jira: 'from-blue-600/20 to-blue-800/20',
   linear: 'from-violet-700/20 to-violet-900/20',
   notion: 'from-gray-600/20 to-gray-800/20',
+  supabase: 'from-emerald-700/20 to-emerald-900/20',
+  postgres: 'from-blue-800/20 to-blue-950/20',
 };
 
 const STATUS_STYLES: Record<IntegrationStatus, { bg: string; text: string; dot: string }> = {

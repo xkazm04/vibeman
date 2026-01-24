@@ -3,6 +3,7 @@ import { standupDb, implementationLogDb, ideaDb, scanDb, contextDb } from '@/app
 import { StandupSourceData, StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
 import { generateStandupSummary, getPeriodDateRange } from '@/app/features/DailyStandup/lib/standupGenerator';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * POST /api/standup/generate
@@ -14,7 +15,7 @@ import { logger } from '@/lib/logger';
  * - periodStart: string YYYY-MM-DD (optional, defaults to today/this week)
  * - forceRegenerate: boolean (optional, regenerate even if exists)
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, periodType, periodStart, forceRegenerate = false } = body;
@@ -200,3 +201,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withObservability(handlePost, '/api/standup/generate');

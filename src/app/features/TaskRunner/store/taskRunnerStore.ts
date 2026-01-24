@@ -39,32 +39,6 @@ import {
 } from '@/lib/bridge/client';
 
 // ============================================================================
-// Requirements Cache (Fix for batch continuation bug)
-// ============================================================================
-
-/**
- * Module-level requirements cache to ensure polling callbacks have access
- * to the full requirements array, not just the single completed requirement.
- * This fixes the "Requirement not found" error on subsequent tasks.
- */
-let cachedRequirements: ProjectRequirement[] = [];
-
-/**
- * Update the requirements cache. Call this when starting batch execution.
- */
-export function setCachedRequirements(requirements: ProjectRequirement[]): void {
-  cachedRequirements = [...requirements];
-  console.log(`📦 Requirements cache updated: ${cachedRequirements.length} requirements`);
-}
-
-/**
- * Get the cached requirements array.
- */
-export function getCachedRequirements(): ProjectRequirement[] {
-  return cachedRequirements;
-}
-
-// ============================================================================
 // Types
 // ============================================================================
 
@@ -107,12 +81,24 @@ export interface BatchState {
   status: BatchStatusUnion; // Now uses discriminated union
   completedCount: number;
   failedCount: number;
+  // Session mode fields (optional - for Claude Code --resume support)
+  claudeSessionId?: string | null;
+  projectId?: string;
+  projectPath?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface TaskState {
   id: string; // requirement ID
   batchId: BatchId; // Which batch owns this task
   status: TaskStatusUnion; // Now uses discriminated union
+  // Session mode fields (optional - for Claude Code --resume support)
+  requirementName?: string;
+  claudeSessionId?: string;
+  startedAt?: number;
+  completedAt?: number;
+  errorMessage?: string;
 }
 
 export interface GitConfig {
@@ -132,6 +118,10 @@ interface TaskRunnerState {
   executingTasks: Set<string>; // Currently executing task IDs
   isPaused: boolean; // Global pause state
 
+  // Requirements cache for batch continuation
+  // Ensures polling callbacks have access to full requirements array
+  requirementsCache: ProjectRequirement[];
+
   // Progress tracking for running tasks (progressLines from /api/claude-code status)
   taskProgress: Record<string, number>; // Map of taskId -> progressLines
 
@@ -146,17 +136,35 @@ interface TaskRunnerState {
 
   // Actions - Batch Management
   createBatch: (batchId: BatchId, name: string, taskIds: string[]) => void;
+  createSessionBatch: (
+    batchId: BatchId,
+    projectId: string,
+    projectPath: string,
+    name: string,
+    taskId: string,
+    requirementName: string
+  ) => string; // Returns internal batch ID
   startBatch: (batchId: BatchId) => void;
   pauseBatch: (batchId: BatchId) => void;
   resumeBatch: (batchId: BatchId) => void;
   completeBatch: (batchId: BatchId) => void;
   deleteBatch: (batchId: BatchId) => void;
+  renameBatch: (batchId: BatchId, newName: string) => void;
+  updateBatchClaudeSessionId: (batchId: BatchId, claudeSessionId: string) => void;
+  compactBatch: (batchId: BatchId) => void; // Remove completed tasks
 
   // Actions - Task Management
   addTaskToBatch: (batchId: BatchId, taskId: string) => void;
+  addTaskToBatchWithName: (batchId: BatchId, taskId: string, requirementName: string) => void;
   removeTaskFromBatch: (batchId: BatchId, taskId: string) => void;
   moveTask: (taskId: string, fromBatchId: BatchId, toBatchId: BatchId) => void;
   offloadTasks: (fromBatchId: BatchId, toBatchId: BatchId, taskIds: string[]) => void;
+  updateTaskSessionStatus: (
+    batchId: BatchId,
+    taskId: string,
+    status: 'pending' | 'running' | 'completed' | 'failed',
+    extras?: { claudeSessionId?: string; errorMessage?: string }
+  ) => void;
 
   // Actions - Task Execution
   executeNextTask: (batchId: BatchId, requirements: ProjectRequirement[]) => Promise<void>;
@@ -173,6 +181,7 @@ interface TaskRunnerState {
   // Actions - Global
   setGitConfig: (config: GitConfig | null) => void;
   setPaused: (paused: boolean) => void;
+  setRequirementsCache: (requirements: ProjectRequirement[]) => void;
 
   // Helpers
   getActiveBatches: () => BatchId[];
@@ -180,6 +189,10 @@ interface TaskRunnerState {
   getTasksForBatch: (batchId: BatchId) => TaskState[];
   getNextTaskForBatch: (batchId: BatchId) => TaskState | null;
   canStartTask: (batchId: BatchId) => boolean;
+  // Session helpers
+  getNextAvailableBatchId: () => BatchId | null;
+  getSessionBatches: () => BatchId[]; // Returns batches with claudeSessionId set
+  isTaskInAnyBatch: (taskId: string) => BatchId | null;
 
   // Recovery
   recoverFromStorage: (requirements: ProjectRequirement[]) => void;
@@ -203,6 +216,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       tasks: {},
       executingTasks: new Set(),
       isPaused: false,
+      requirementsCache: [],
       taskProgress: {},
       taskActivity: {},
       taskCheckpoints: {},
@@ -241,6 +255,42 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             tasks: newTasks,
           };
         });
+      },
+
+      createSessionBatch: (batchId, projectId, projectPath, name, taskId, requirementName) => {
+        const internalBatchId = `batch_${Date.now()}`;
+        const now = Date.now();
+
+        set((state) => ({
+          batches: {
+            ...state.batches,
+            [batchId]: {
+              id: internalBatchId,
+              name,
+              taskIds: [taskId],
+              status: createIdleBatchStatus(),
+              completedCount: 0,
+              failedCount: 0,
+              // Session fields
+              claudeSessionId: null,
+              projectId,
+              projectPath,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+          tasks: {
+            ...state.tasks,
+            [taskId]: {
+              id: taskId,
+              batchId,
+              status: createQueuedStatus(),
+              requirementName,
+            },
+          },
+        }));
+
+        return internalBatchId;
       },
 
       startBatch: (batchId) => {
@@ -352,6 +402,93 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         });
       },
 
+      renameBatch: (batchId, newName) => {
+        set((state) => {
+          const batch = state.batches[batchId];
+          if (!batch) return state;
+
+          return {
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                ...batch,
+                name: newName,
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        });
+      },
+
+      updateBatchClaudeSessionId: (batchId, claudeSessionId) => {
+        set((state) => {
+          const batch = state.batches[batchId];
+          if (!batch) return state;
+
+          return {
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                ...batch,
+                claudeSessionId,
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        });
+      },
+
+      compactBatch: (batchId) => {
+        set((state) => {
+          const batch = state.batches[batchId];
+          if (!batch) return state;
+
+          // Remove completed tasks
+          const completedTaskIds = batch.taskIds.filter(taskId => {
+            const task = state.tasks[taskId];
+            return task && isTaskCompleted(task.status);
+          });
+
+          const remainingTaskIds = batch.taskIds.filter(
+            id => !completedTaskIds.includes(id)
+          );
+
+          // If no tasks left, clear the batch
+          if (remainingTaskIds.length === 0) {
+            const newTasks = { ...state.tasks };
+            batch.taskIds.forEach(taskId => {
+              delete newTasks[taskId];
+            });
+
+            return {
+              batches: {
+                ...state.batches,
+                [batchId]: null,
+              },
+              tasks: newTasks,
+            };
+          }
+
+          // Remove completed task entries
+          const newTasks = { ...state.tasks };
+          completedTaskIds.forEach(taskId => {
+            delete newTasks[taskId];
+          });
+
+          return {
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                ...batch,
+                taskIds: remainingTaskIds,
+                updatedAt: Date.now(),
+              },
+            },
+            tasks: newTasks,
+          };
+        });
+      },
+
       // ========================================================================
       // Task Management Actions
       // ========================================================================
@@ -370,6 +507,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
               [batchId]: {
                 ...batch,
                 taskIds: [...batch.taskIds, taskId],
+                updatedAt: Date.now(),
               },
             },
             tasks: {
@@ -378,6 +516,36 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
                 id: taskId,
                 batchId,
                 status: createQueuedStatus(),
+              },
+            },
+          };
+        });
+      },
+
+      addTaskToBatchWithName: (batchId, taskId, requirementName) => {
+        set((state) => {
+          const batch = state.batches[batchId];
+          if (!batch) return state;
+
+          // Don't add if already in batch
+          if (batch.taskIds.includes(taskId)) return state;
+
+          return {
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                ...batch,
+                taskIds: [...batch.taskIds, taskId],
+                updatedAt: Date.now(),
+              },
+            },
+            tasks: {
+              ...state.tasks,
+              [taskId]: {
+                id: taskId,
+                batchId,
+                status: createQueuedStatus(),
+                requirementName,
               },
             },
           };
@@ -477,6 +645,99 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
               },
             },
             tasks: newTasks,
+          };
+        });
+      },
+
+      updateTaskSessionStatus: (batchId, taskId, status, extras) => {
+        set((state) => {
+          const batch = state.batches[batchId];
+          if (!batch) return state;
+
+          const task = state.tasks[taskId];
+          if (!task) return state;
+
+          // Map session status to discriminated union status
+          let taskStatus: TaskStatusUnion;
+          switch (status) {
+            case 'pending':
+              taskStatus = createQueuedStatus();
+              break;
+            case 'running':
+              taskStatus = createRunningStatus();
+              break;
+            case 'completed':
+              taskStatus = createCompletedStatus();
+              break;
+            case 'failed':
+              taskStatus = createFailedStatus(extras?.errorMessage || 'Task failed');
+              break;
+          }
+
+          const updatedTask: TaskState = {
+            ...task,
+            status: taskStatus,
+            claudeSessionId: extras?.claudeSessionId ?? task.claudeSessionId,
+            errorMessage: extras?.errorMessage,
+            startedAt: status === 'running' ? Date.now() : task.startedAt,
+            completedAt: (status === 'completed' || status === 'failed') ? Date.now() : task.completedAt,
+          };
+
+          // Auto-update batch status based on task statuses
+          const allTaskIds = batch.taskIds;
+          const updatedTasks = { ...state.tasks, [taskId]: updatedTask };
+
+          const hasRunning = allTaskIds.some(id => {
+            const t = id === taskId ? updatedTask : updatedTasks[id];
+            return t && isTaskRunning(t.status);
+          });
+          const allCompleted = allTaskIds.every(id => {
+            const t = id === taskId ? updatedTask : updatedTasks[id];
+            return t && isTaskCompleted(t.status);
+          });
+          const hasFailed = allTaskIds.some(id => {
+            const t = id === taskId ? updatedTask : updatedTasks[id];
+            return t && isTaskFailed(t.status);
+          });
+          const hasPending = allTaskIds.some(id => {
+            const t = id === taskId ? updatedTask : updatedTasks[id];
+            return t && isTaskQueued(t.status);
+          });
+
+          let batchStatus = batch.status;
+          if (hasRunning) {
+            const startedAt = isBatchRunning(batch.status)
+              ? batch.status.startedAt
+              : isBatchPaused(batch.status)
+              ? batch.status.startedAt
+              : Date.now();
+            batchStatus = createRunningBatchStatus(startedAt);
+          } else if (allCompleted) {
+            const startedAt = isBatchRunning(batch.status)
+              ? batch.status.startedAt
+              : isBatchPaused(batch.status)
+              ? batch.status.startedAt
+              : Date.now();
+            batchStatus = createCompletedBatchStatus(startedAt);
+          } else if (hasFailed && !hasPending) {
+            const startedAt = isBatchRunning(batch.status)
+              ? batch.status.startedAt
+              : isBatchPaused(batch.status)
+              ? batch.status.startedAt
+              : Date.now();
+            batchStatus = createCompletedBatchStatus(startedAt); // Mark as completed even with failures
+          }
+
+          return {
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                ...batch,
+                status: batchStatus,
+                updatedAt: Date.now(),
+              },
+            },
+            tasks: updatedTasks,
           };
         });
       },
@@ -750,6 +1011,11 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         set({ isPaused: paused });
       },
 
+      setRequirementsCache: (requirements) => {
+        set({ requirementsCache: [...requirements] });
+        console.log(`📦 Requirements cache updated: ${requirements.length} requirements`);
+      },
+
       // ========================================================================
       // Helper Methods
       // ========================================================================
@@ -812,6 +1078,43 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         return !hasRunningTask;
       },
 
+      // Session helpers
+      getNextAvailableBatchId: () => {
+        const state = get();
+        const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
+
+        for (const id of batchIds) {
+          if (!state.batches[id]) {
+            return id;
+          }
+        }
+        return null;
+      },
+
+      getSessionBatches: () => {
+        const state = get();
+        const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
+
+        return batchIds.filter(id => {
+          const batch = state.batches[id];
+          // A session batch has projectPath set (indicating it's for session mode)
+          return batch !== null && batch.projectPath !== undefined;
+        });
+      },
+
+      isTaskInAnyBatch: (taskId) => {
+        const state = get();
+        const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
+
+        for (const batchId of batchIds) {
+          const batch = state.batches[batchId];
+          if (batch?.taskIds.includes(taskId)) {
+            return batchId;
+          }
+        }
+        return null;
+      },
+
       // ========================================================================
       // Recovery & Cleanup
       // ========================================================================
@@ -820,7 +1123,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         const state = get();
 
         // Cache requirements for polling callbacks to access
-        setCachedRequirements(requirements);
+        state.setRequirementsCache(requirements);
 
         // For each batch, verify that tasks still exist in requirements
         const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
@@ -1105,8 +1408,8 @@ function createPollingCallback(
           console.warn('Failed to delete requirement file:', err);
         }
 
-        // Continue with next task using cached requirements
-        const allRequirements = getCachedRequirements();
+        // Continue with next task using cached requirements from store
+        const allRequirements = useTaskRunnerStore.getState().requirementsCache;
         setTimeout(() => state.executeNextTask(batchId, allRequirements), 500);
 
         return { done: true, success: true };
@@ -1167,8 +1470,8 @@ function createPollingCallback(
           requirement.projectId
         );
 
-        // Continue with next task using cached requirements
-        const allRequirements = getCachedRequirements();
+        // Continue with next task using cached requirements from store
+        const allRequirements = useTaskRunnerStore.getState().requirementsCache;
         setTimeout(() => state.executeNextTask(batchId, allRequirements), 1000);
 
         return { done: true, success: false, error: taskStatus.error || 'Task failed' };

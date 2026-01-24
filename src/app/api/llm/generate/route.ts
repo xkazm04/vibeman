@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface GenerateResponseData {
   response?: string;
@@ -43,7 +44,7 @@ function createSuccessResponse(data: GenerateResponseData) {
   });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -83,3 +84,6 @@ export async function POST(request: NextRequest) {
     return createErrorResponse(error);
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/llm/generate');

@@ -4,8 +4,9 @@ import { generateWizardPlan } from '@/app/features/RefactorWizard/lib/wizardOpti
 import { createErrorResponse } from '@/lib/api-helpers';
 import type { ProjectType } from '@/lib/scan';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const {
       projectId,
@@ -86,3 +87,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const POST = withObservability(handlePost, '/api/refactor/analyze');

@@ -9,8 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
 
@@ -120,3 +121,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/questions');
+export const POST = withObservability(handlePost, '/api/questions');

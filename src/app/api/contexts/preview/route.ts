@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextDb } from '@/app/db';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * PATCH /api/contexts/preview - Update context preview image and test scenario
  */
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
   try {
     const body = await request.json();
     const { contextId, preview, testScenario } = body;
@@ -63,3 +64,5 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+export const PATCH = withObservability(handlePatch, '/api/contexts/preview');

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { standupDb } from '@/app/db';
 import { StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface RouteParams {
   params: Promise<{
@@ -13,7 +14,7 @@ interface RouteParams {
  * GET /api/standup/[id]
  * Fetch a specific standup summary by ID
  */
-export async function GET(request: NextRequest, context: RouteParams) {
+async function handleGet(request: NextRequest, context: RouteParams) {
   try {
     const { id } = await context.params;
 
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
  * DELETE /api/standup/[id]
  * Delete a standup summary
  */
-export async function DELETE(request: NextRequest, context: RouteParams) {
+async function handleDelete(request: NextRequest, context: RouteParams) {
   try {
     const { id } = await context.params;
 
@@ -104,3 +105,6 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/standup/[id]');
+export const DELETE = withObservability(handleDelete, '/api/standup/[id]');

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { standupDb } from '@/app/db';
 import { StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/standup
@@ -12,7 +13,7 @@ import { logger } from '@/lib/logger';
  * - periodType: 'daily' | 'weekly' (required)
  * - periodStart: string YYYY-MM-DD (required)
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -93,3 +94,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/standup');

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { standupDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 // Inline type since the original types file was removed
 interface StandupHistoryItem {
@@ -23,7 +24,7 @@ interface StandupHistoryItem {
  * - periodType: 'daily' | 'weekly' (optional, filter by type)
  * - limit: number (optional, default 14)
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -74,3 +75,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/standup/history');

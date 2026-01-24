@@ -4,8 +4,6 @@ import { useMemo, useState } from 'react';
 import { Info, CheckSquare, FolderTree, Package, Network, Eye } from 'lucide-react';
 import { StepContainer, CyberCard, StepHeader } from '@/components/ui/wizard';
 import { VirtualizedOpportunityList } from '../../components/VirtualizedOpportunityList';
-import CommunityPatternRecommendations from '@/app/features/Marketplace/components/CommunityPatternRecommendations';
-import type { PatternCategory } from '@/app/db/models/marketplace.types';
 import { ReviewStatsGrid } from './sub_ReviewStep/ReviewStatsGrid';
 import { ReviewFilters } from './sub_ReviewStep/ReviewFilters';
 import { ReviewActionBar, ReviewBottomBar } from './sub_ReviewStep/ReviewActionBar';
@@ -52,7 +50,6 @@ export default function ReviewStep() {
   const handleSelectByCategory = (category: string) => displayOpportunities.filter(o => o.category === category).forEach(opp => { if (!selectedOpportunities.has(opp.id)) toggleOpportunity(opp.id); });
   const hasPackageContext = packages.length > 0 && selectedPackages.size > 0;
   const selectedPkgs = packages.filter(p => selectedPackages.has(p.id));
-  const categoryMap: Record<string, PatternCategory> = { 'performance': 'performance', 'maintainability': 'cleanup', 'security': 'security', 'code-quality': 'best-practices', 'duplication': 'cleanup', 'architecture': 'architecture' };
 
   return (
     <StepContainer isLoading={false} data-testid="review-step-container">
@@ -85,10 +82,6 @@ export default function ReviewStep() {
         filteredCount={filteredOpportunities.length} byCategory={stats.byCategory}
         onSelectByCategory={handleSelectByCategory} onSelectAll={handleSelectAll} onClearSelection={clearSelection} />
       <ReviewToolbar selectedCount={selectedOpportunities.size} filteredCount={filteredOpportunities.length} onSelectAll={handleSelectAll} onClearSelection={clearSelection} onSearchChange={setSearchTerm} />
-      <div className="mb-6">
-        <CommunityPatternRecommendations categories={Object.keys(stats.byCategory).map(cat => categoryMap[cat] || 'best-practices') as PatternCategory[]}
-          language="typescript" framework="nextjs" maxRecommendations={3} />
-      </div>
       <div data-testid="opportunities-list" className="border border-white/10 rounded-xl overflow-hidden">
         {filteredOpportunities.length > 0 ? (
           <VirtualizedOpportunityList opportunities={filteredOpportunities} selectedOpportunities={selectedOpportunities}

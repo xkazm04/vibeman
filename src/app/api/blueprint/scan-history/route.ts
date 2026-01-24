@@ -13,12 +13,13 @@ import {
   ScanExecutionResult,
 } from '@/app/features/Onboarding/sub_Blueprint/lib/scanHistoryService';
 import { logger } from '@/lib/logger';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/blueprint/scan-history
  * Retrieve scan execution history
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
  * POST /api/blueprint/scan-history
  * Record a new scan execution
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { context, result } = body as {
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
  * DELETE /api/blueprint/scan-history
  * Cleanup old scan history entries
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -128,3 +129,7 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/blueprint/scan-history');
+export const POST = withObservability(handlePost, '/api/blueprint/scan-history');
+export const DELETE = withObservability(handleDelete, '/api/blueprint/scan-history');

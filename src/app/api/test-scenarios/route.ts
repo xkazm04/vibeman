@@ -20,6 +20,7 @@ import { testCaseScenarioRepository } from '@/app/db/repositories/test-case-scen
 import { testCaseStepRepository } from '@/app/db/repositories/test-case-step.repository';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * Unified scenario type for API responses
@@ -70,7 +71,7 @@ interface UnifiedScenario {
  * - type: Filter by type ('ai' | 'manual' | 'all', default: 'all')
  * - includeSteps: Include embedded steps for manual scenarios (default: true)
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -199,7 +200,7 @@ export async function GET(request: NextRequest) {
  * For manual scenarios:
  * - context_id, name, description, steps (optional array)
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { type = 'ai' } = body;
@@ -298,7 +299,7 @@ export async function POST(request: NextRequest) {
  * - addSteps: Array of steps to add
  * - removeStepIds: Array of step IDs to remove
  */
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, type, steps, addSteps, removeStepIds, ...updates } = body;
@@ -427,7 +428,7 @@ export async function PUT(request: NextRequest) {
  * - id: Scenario ID (required)
  * - type: 'ai' | 'manual' (optional, auto-detected if not provided)
  */
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -485,3 +486,9 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/test-scenarios');
+export const POST = withObservability(handlePost, '/api/test-scenarios');
+export const PUT = withObservability(handlePut, '/api/test-scenarios');
+export const DELETE = withObservability(handleDelete, '/api/test-scenarios');

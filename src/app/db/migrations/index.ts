@@ -182,6 +182,22 @@ export function runMigrations() {
     migrateHallOfFameStars();
     // Migration 62: Create API Observability tables
     migrateApiObservability();
+    // Migration 63: Create context_api_routes table and enhance contexts table
+    migrateContextApiRoutes();
+    // Migration 64: Create obs_xray_events table for persisted X-Ray traffic
+    migrateObsXRayEvents();
+    // Migration 65: Add SQLite context references to directions table
+    migrateDirectionsContextLink();
+    // Migration 66: Create prompt_templates table for reusable prompt composition
+    migratePromptTemplates();
+    // Migration 67: Create Brain 2.0 tables for behavioral learning and reflection
+    migrateBrainV2();
+    // Migration 68: Add scope column to brain_reflections for global reflection support
+    migrateBrainGlobalReflection();
+    // Migration 69: Create Annette 2.0 conversation + memory tables
+    migrateAnnetteV2();
+    // Migration 70: Create workspaces tables for project grouping
+    migrateWorkspaces();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4335,5 +4351,101 @@ function migrateApiObservability() {
     const db = getConnection();
     const { migrate049ApiObservability } = require('./049_api_observability');
     migrate049ApiObservability(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 63: Create context_api_routes table
+ * Maps API endpoints to contexts for X-Ray visualization
+ */
+function migrateContextApiRoutes() {
+  safeMigration('context_api_routes', () => {
+    const db = getConnection();
+    const { migrate050ContextApiRoutes } = require('./050_context_api_routes');
+    migrate050ContextApiRoutes(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 64: Create obs_xray_events table
+ * Persists X-Ray traffic events with context mapping
+ */
+function migrateObsXRayEvents() {
+  safeMigration('obs_xray_events', () => {
+    const db = getConnection();
+    const { migrate051ObsXRayEvents } = require('./051_obs_xray_events');
+    migrate051ObsXRayEvents(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 65: Add SQLite context references to directions table
+ * Links directions to contexts and context groups
+ */
+function migrateDirectionsContextLink() {
+  safeMigration('directions_context_link', () => {
+    const db = getConnection();
+    const { migrate052DirectionsContextLink } = require('./052_directions_context_link');
+    migrate052DirectionsContextLink(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 66: Prompt Templates
+ * Creates prompt_templates table for reusable prompt composition
+ */
+function migratePromptTemplates() {
+  safeMigration('prompt_templates', () => {
+    const db = getConnection();
+    const { migrate053PromptTemplates } = require('./053_prompt_templates');
+    migrate053PromptTemplates(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 67: Brain 2.0 - Behavioral Learning + Autonomous Reflection
+ * Creates tables for behavioral signals, direction outcomes, and brain reflections
+ */
+function migrateBrainV2() {
+  safeMigration('brain_v2', () => {
+    const db = getConnection();
+    const { migrate054BrainV2 } = require('./054_brain_v2');
+    migrate054BrainV2(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 68: Brain Global Reflection - Add scope column
+ * Adds scope column to brain_reflections for global vs per-project distinction
+ */
+function migrateBrainGlobalReflection() {
+  safeMigration('brain_global_reflection', () => {
+    const db = getConnection();
+    const { migrate055BrainGlobalReflection } = require('./055_brain_global_reflection');
+    migrate055BrainGlobalReflection(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 69: Annette 2.0 - Conversational AI with Deep Memory
+ * Creates tables for sessions, messages, memory topics, preferences, and audio cache
+ */
+function migrateAnnetteV2() {
+  safeMigration('annette_v2', () => {
+    const db = getConnection();
+    const { migrate056AnnetteV2 } = require('./056_annette_v2');
+    migrate056AnnetteV2(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 70: Workspaces - Project Grouping
+ * Creates tables for organizing projects into workspaces
+ */
+function migrateWorkspaces() {
+  safeMigration('workspaces', () => {
+    const db = getConnection();
+    const { migrate057Workspaces } = require('./057_workspaces');
+    migrate057Workspaces(db);
   }, migrationLogger);
 }

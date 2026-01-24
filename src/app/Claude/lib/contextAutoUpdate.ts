@@ -5,6 +5,7 @@ import { contextQueries } from '@/lib/queries/contextQueries';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
 import { logger } from '@/lib/logger';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 export interface FileChange {
   path: string;
@@ -478,6 +479,23 @@ export async function autoUpdateContexts(
       projectId,
       changeCount: changes.length,
     });
+
+    // Record brain signal: file changes detected
+    try {
+      const created = changes.filter(c => c.status === 'created').map(c => c.relativePath);
+      const modified = changes.filter(c => c.status === 'modified').map(c => c.relativePath);
+      const deleted = changes.filter(c => c.status === 'deleted').map(c => c.relativePath);
+
+      signalCollector.recordGitActivity(projectId, {
+        filesChanged: [...created, ...modified, ...deleted],
+        commitMessage: `Auto-detected: ${created.length} created, ${modified.length} modified, ${deleted.length} deleted`,
+        linesAdded: created.length * 50, // Rough estimate
+        linesRemoved: deleted.length * 50,
+        branch: 'current',
+      });
+    } catch {
+      // Signal recording must never break the main flow
+    }
 
     // 2. Analyze changes to determine if new feature or existing feature update
     const analysis = await analyzeChanges(changes, projectId, projectPath);

@@ -14,12 +14,13 @@ import {
   getAutomationHistory,
   StandupAutomationConfig,
 } from '@/lib/standupAutomation';
+import { withObservability } from '@/lib/observability/middleware';
 
 /**
  * GET /api/standup/automation
  * Get current automation status and config
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const includeHistory = searchParams.get('includeHistory') === 'true';
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
  * POST /api/standup/automation
  * Start the automation scheduler
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const config = body.config as Partial<StandupAutomationConfig> | undefined;
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
  * DELETE /api/standup/automation
  * Stop the automation scheduler
  */
-export async function DELETE() {
+async function handleDelete() {
   try {
     const stopped = stopAutomation();
 
@@ -133,7 +134,7 @@ export async function DELETE() {
  * PUT /api/standup/automation
  * Update automation configuration
  */
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
     const updates = body as Partial<StandupAutomationConfig>;
@@ -157,3 +158,8 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export const GET = withObservability(handleGet, '/api/standup/automation');
+export const POST = withObservability(handlePost, '/api/standup/automation');
+export const DELETE = withObservability(handleDelete, '/api/standup/automation');
+export const PUT = withObservability(handlePut, '/api/standup/automation');

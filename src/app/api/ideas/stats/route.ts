@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
 import { SCAN_TYPES } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
+import { withObservability } from '@/lib/observability/middleware';
 
 interface Idea {
   project_id: string;
@@ -85,7 +86,7 @@ function groupByField<T extends string>(
  * - projectId: Filter by project
  * - contextId: Filter by context
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -124,3 +125,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/ideas/stats');
