@@ -1,17 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Context, ContextGroup } from '../../../../stores/contextStore';
+import { ContextSectionContentProps } from './types';
 import ContextCards from './ContextCards';
-
-interface ContextSectionContentProps {
-  group?: ContextGroup;
-  contexts: Context[];
-  availableGroups: ContextGroup[];
-  selectedFilePaths: string[];
-  showFullScreenModal: (title: string, content: React.ReactNode, options?: any) => void;
-  isExpanded: boolean;
-  onMoveContext?: (contextId: string, groupId: string | null) => void;
-}
 
 const ContextSectionContent = React.memo(({
   group,

@@ -5,6 +5,7 @@ import { Copy, Edit, Trash2, FolderOpen, MousePointer, FileText, CheckSquare, Sq
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useStore } from '../../../../stores/nodeStore';
 import { MultiFileEditor } from '../../../../components/editor';
+import { saveFileContent } from '../../../../components/editor/fileApi';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import ContextEditModal from '../sub_ContextGen/ContextEditModal';
 import ContextFileModal from '../sub_ContextFile/ContextFileModal';
@@ -129,20 +130,7 @@ export default function ContextMenu({ context, isVisible, position, onClose, ava
   };
 
   const handleFileSave = async (filePath: string, content: string) => {
-    // TODO: Implement actual file saving logic
-    // This would typically make an API call to save the file
-
-    // Mock API call
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        // Simulate success/failure
-        if (Math.random() > 0.1) { // 90% success rate for demo
-          resolve();
-        } else {
-          reject(new Error('Failed to save file'));
-        }
-      }, 1000);
-    });
+    await saveFileContent(filePath, content);
   };
 
   // Don't render on server side

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextGroupQueries } from '../../../lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
-import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
+import { createErrorResponse, notFoundResponse, validateRequiredFields } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
 
 // GET /api/context-groups - Get all context groups for a project
@@ -32,9 +32,8 @@ async function handlePost(request: NextRequest) {
     const body = await request.json();
     const { projectId, name, color, icon } = body;
 
-    if (!projectId || !name) {
-      return createErrorResponse('Project ID and name are required', 400);
-    }
+    const validationError = validateRequiredFields({ projectId, name }, ['projectId', 'name']);
+    if (validationError) return validationError;
 
     const group = await contextGroupQueries.createGroup({
       projectId,

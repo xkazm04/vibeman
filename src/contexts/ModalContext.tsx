@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { UniversalModal } from '@/components/UniversalModal';
 
-interface ModalConfig {
+export interface GlobalModalOptions {
   title: string;
   subtitle?: string;
   icon?: LucideIcon;
@@ -15,8 +15,10 @@ interface ModalConfig {
   backdropBlur?: boolean;
 }
 
+export type ShowFullScreenModalFn = (title: string, content: ReactNode, options?: Partial<GlobalModalOptions>) => void;
+
 interface ModalContextType {
-  showModal: (config: ModalConfig, content: ReactNode) => void;
+  showModal: (config: GlobalModalOptions, content: ReactNode) => void;
   hideModal: () => void;
   isModalOpen: boolean;
 }
@@ -37,10 +39,10 @@ interface ModalProviderProps {
 
 export const ModalProvider: React.FC<ModalProviderProps> = ({ children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalConfig, setModalConfig] = useState<ModalConfig | null>(null);
+  const [modalConfig, setModalConfig] = useState<GlobalModalOptions | null>(null);
   const [modalContent, setModalContent] = useState<ReactNode>(null);
 
-  const showModal = (config: ModalConfig, content: ReactNode) => {
+  const showModal = (config: GlobalModalOptions, content: ReactNode) => {
     setModalConfig(config);
     setModalContent(content);
     setIsModalOpen(true);

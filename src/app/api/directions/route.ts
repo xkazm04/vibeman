@@ -74,7 +74,7 @@ async function handleGet(request: NextRequest) {
       grouped[d.context_map_id].directions.push(d);
     }
 
-    const counts = directionDb.getDirectionCounts(projectId);
+    const counts = directionDb.getDirectionCounts(projectIds[0]);
 
     return NextResponse.json({
       success: true,

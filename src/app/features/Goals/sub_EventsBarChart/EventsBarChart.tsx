@@ -163,12 +163,12 @@ export default function EventsBarChart({
               <motion.div
                 key={stat.title}
                 initial={{ opacity: 0, x: -20 }}
-                animate={{ 
-                  opacity: 1, 
+                animate={{
+                  opacity: 1,
                   x: 0,
-                  transition: { 
+                  transition: {
                     delay: index * 0.05,
-                    duration: 0.3 
+                    duration: 0.3
                   }
                 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -184,9 +184,9 @@ export default function EventsBarChart({
                 <div className="relative h-2 bg-gray-800/50 rounded-full overflow-hidden border border-gray-700/30">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ 
+                    animate={{
                       width: `${percentage}%`,
-                      transition: { 
+                      transition: {
                         delay: index * 0.05 + 0.2,
                         duration: 0.6,
                         ease: 'easeOut'
@@ -203,24 +203,3 @@ export default function EventsBarChart({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

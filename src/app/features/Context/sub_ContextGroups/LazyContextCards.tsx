@@ -1,16 +1,9 @@
 import React, { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
+import { LazyContextCardsProps } from './types';
 
 // Lazy load the ContextCards component
 const ContextCards = lazy(() => import('./ContextCards'));
-
-interface LazyContextCardsProps {
-  contexts: any[];
-  group?: any;
-  availableGroups: any[];
-  selectedFilePaths: string[];
-  showFullScreenModal: (title: string, content: React.ReactNode, options?: any) => void;
-}
 
 const LoadingSpinner = () => (
   <motion.div

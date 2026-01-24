@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Trash2, Edit2, Zap, Play } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
-import { getCategoryConfig, EffortIcon, ImpactIcon } from '../lib/ideaConfig';
+import { getCategoryConfig, EffortIcon, ImpactIcon, effortConfig, impactConfig } from '../lib/ideaConfig';
 
 interface BufferItemProps {
   idea: DbIdea;

@@ -4,6 +4,7 @@
  */
 
 import type { PromptTemplateCategory, PromptTemplateVariable } from '@/app/db/models/types';
+import type { SupportedProvider } from '@/lib/llm/types';
 
 export interface ParsedTemplate {
   id: string;
@@ -133,4 +134,35 @@ export async function generateRequirement(
   }
 
   return { success: true, filePath: result.filePath };
+}
+
+/**
+ * Batch randomize variable values for multiple items
+ */
+export interface BatchRandomizeData {
+  templateId: string;
+  provider?: SupportedProvider;
+  count: number;
+}
+
+export async function batchRandomize(
+  data: BatchRandomizeData
+): Promise<{ variableSets: Record<string, string>[] }> {
+  const response = await fetch('/api/prompt-templates/ai-randomize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to randomize');
+  }
+
+  const result = await response.json();
+
+  // Normalize response shape
+  if (result.variableSets) return { variableSets: result.variableSets };
+  if (result.variables) return { variableSets: [result.variables] };
+  throw new Error('Unexpected response format');
 }

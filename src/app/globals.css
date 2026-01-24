@@ -299,3 +299,22 @@ body {
   animation: progress-indeterminate 1.2s ease-in-out infinite;
   will-change: transform;
 }
+
+@keyframes gradient-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-gradient-sweep {
+  animation: gradient-sweep 2s linear infinite;
+  will-change: transform;
+}
+
+.animate-gradient-sweep-fast {
+  animation: gradient-sweep 1.5s linear infinite;
+  will-change: transform;
+}

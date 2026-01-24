@@ -194,8 +194,8 @@ export async function fetchSqliteContexts(projectId: string): Promise<SqliteCont
 
   return {
     success: true,
-    contexts: contextsData.contexts || [],
-    groups: groupsData.groups || []
+    contexts: contextsData.data?.contexts || contextsData.contexts || [],
+    groups: groupsData.data || groupsData.groups || []
   };
 }
 
@@ -210,15 +210,17 @@ export function groupContextsByGroup(
   // Create a map of group ID to group
   const groupMap = new Map(groups.map(g => [g.id, g]));
 
-  // Group contexts by group_id
+  // Group contexts by group_id (handle both snake_case DB and camelCase API response)
   const contextsByGroup = new Map<string, DbContext[]>();
   const ungroupedContexts: DbContext[] = [];
 
   for (const context of contexts) {
-    if (context.group_id && groupMap.has(context.group_id)) {
-      const existing = contextsByGroup.get(context.group_id) || [];
+    // Support both snake_case (direct DB) and camelCase (API response) property names
+    const groupId = context.group_id || (context as unknown as { groupId?: string }).groupId;
+    if (groupId && groupMap.has(groupId)) {
+      const existing = contextsByGroup.get(groupId) || [];
       existing.push(context);
-      contextsByGroup.set(context.group_id, existing);
+      contextsByGroup.set(groupId, existing);
     } else {
       ungroupedContexts.push(context);
     }

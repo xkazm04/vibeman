@@ -45,6 +45,8 @@ export interface PollingState {
   startedAt: number;
   /** Polling interval in milliseconds */
   intervalMs: number;
+  /** Whether the async callback is currently executing */
+  isRunning: boolean;
 }
 
 /**
@@ -136,6 +138,12 @@ export function startPolling(
   const startedAt = Date.now();
 
   const intervalRef = setInterval(async () => {
+    // Skip this tick if the previous callback is still executing
+    const currentState = activePollingIntervals.get(taskId);
+    if (currentState?.isRunning) {
+      return;
+    }
+
     attempts++;
     fullConfig.onAttempt(attempts);
 
@@ -144,6 +152,11 @@ export function startPolling(
       console.error(`⏰ Polling timeout for task: ${taskId} after ${attempts} attempts`);
       stopPolling(taskId);
       return;
+    }
+
+    // Set the running flag before executing the callback
+    if (currentState) {
+      currentState.isRunning = true;
     }
 
     try {
@@ -160,6 +173,12 @@ export function startPolling(
     } catch (error) {
       console.error(`Error in polling callback for task ${taskId}:`, error);
       // Continue polling despite error - will retry on next interval
+    } finally {
+      // Clear the running flag so the next tick can execute
+      const stateAfter = activePollingIntervals.get(taskId);
+      if (stateAfter) {
+        stateAfter.isRunning = false;
+      }
     }
   }, fullConfig.intervalMs);
 
@@ -171,6 +190,7 @@ export function startPolling(
     maxAttempts: fullConfig.maxAttempts,
     startedAt,
     intervalMs: fullConfig.intervalMs,
+    isRunning: false,
   };
   activePollingIntervals.set(taskId, state);
 }
@@ -315,6 +335,7 @@ export function getPollingState(taskId: string): Readonly<Omit<PollingState, 'in
     maxAttempts: state.maxAttempts,
     startedAt: state.startedAt,
     intervalMs: state.intervalMs,
+    isRunning: state.isRunning,
   };
 }
 

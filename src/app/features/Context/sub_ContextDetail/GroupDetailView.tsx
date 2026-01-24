@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Edit3, Trash2, Code, Database, Layers, Grid, Activity, Cpu } from 'lucide-react';
+import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Trash2, Code, Database, Layers, Grid, Activity, Cpu } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { normalizePath } from '../../../../utils/pathUtils';
@@ -159,12 +159,6 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
 
           {/* Right Section - Actions */}
           <div className="flex items-center space-x-3 relative z-[111]">
-            <ActionButton
-              onClick={() => {/* TODO: Implement edit */}}
-              icon={Edit3}
-              variant="primary"
-            />
-
             <ActionButton
               onClick={handleDeleteGroup}
               icon={Trash2}

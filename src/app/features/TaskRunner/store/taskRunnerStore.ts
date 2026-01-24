@@ -12,7 +12,7 @@
  */
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import type { ProjectRequirement } from '../lib/types';
 import type { TaskActivity, ActivityEvent } from '../lib/activityClassifier.types';
 import type { TaskCheckpointState, Checkpoint } from '../lib/checkpoint.types';
@@ -198,6 +198,54 @@ interface TaskRunnerState {
   recoverFromStorage: (requirements: ProjectRequirement[]) => void;
   clearAll: () => void;
 }
+
+// ============================================================================
+// Debounced Storage
+// ============================================================================
+
+const DEBOUNCE_MS = 2000;
+
+function createDebouncedStorage(): StateStorage {
+  let pendingValue: string | null = null;
+  let timerId: ReturnType<typeof setTimeout> | null = null;
+  const STORAGE_KEY = 'task-runner-storage';
+
+  return {
+    getItem(name: string): string | null {
+      // If there's a pending write for this key, return that value
+      // so the store sees the most recent state
+      if (name === STORAGE_KEY && pendingValue !== null) {
+        return pendingValue;
+      }
+      return localStorage.getItem(name);
+    },
+    setItem(name: string, value: string): void {
+      if (name === STORAGE_KEY) {
+        pendingValue = value;
+        if (timerId !== null) {
+          clearTimeout(timerId);
+        }
+        timerId = setTimeout(() => {
+          localStorage.setItem(name, value);
+          pendingValue = null;
+          timerId = null;
+        }, DEBOUNCE_MS);
+      } else {
+        localStorage.setItem(name, value);
+      }
+    },
+    removeItem(name: string): void {
+      if (name === STORAGE_KEY && timerId !== null) {
+        clearTimeout(timerId);
+        timerId = null;
+        pendingValue = null;
+      }
+      localStorage.removeItem(name);
+    },
+  };
+}
+
+const debouncedStorage = createDebouncedStorage();
 
 // ============================================================================
 // Store Implementation
@@ -1241,7 +1289,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
     }),
     {
       name: 'task-runner-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => debouncedStorage),
       partialize: (state) => ({
         batches: state.batches,
         tasks: state.tasks,
@@ -1285,24 +1333,12 @@ function createPollingCallback(
         return { done: false };
       }
 
-      // Update progressLines for running tasks
-      // API returns task.progress as array of strings, we need the count
+      // Batch all progress/activity/checkpoint state updates into a single setState call
+      // to avoid 2-3 separate renders per polling tick
       const progressLines = taskStatus.progress?.length || 0;
-      if (progressLines > 0) {
-        useTaskRunnerStore.setState((state) => ({
-          taskProgress: {
-            ...state.taskProgress,
-            [requirementId]: progressLines,
-          },
-        }));
-      }
+      let mappedActivity: TaskActivity | null = null;
 
-      // Update activity for running tasks
-      // API returns activity with { current, history, toolCounts, phase }
-      // We need to map to { currentActivity, activityHistory, toolCounts, phase }
-      // Also need to convert timestamp strings to Date objects
       if (taskStatus.activity) {
-        // Helper to convert timestamp string to Date
         const parseEvent = (event: any): ActivityEvent | null => {
           if (!event) return null;
           return {
@@ -1311,29 +1347,56 @@ function createPollingCallback(
           };
         };
 
-        const mappedActivity: TaskActivity = {
+        mappedActivity = {
           currentActivity: parseEvent(taskStatus.activity.current),
           activityHistory: (taskStatus.activity.history || []).map(parseEvent).filter(Boolean) as ActivityEvent[],
           toolCounts: taskStatus.activity.toolCounts || {},
           phase: taskStatus.activity.phase || 'idle',
         };
+      }
 
-        useTaskRunnerStore.setState((state) => ({
-          taskActivity: {
-            ...state.taskActivity,
-            [requirementId]: mappedActivity,
-          },
-        }));
+      if (progressLines > 0 || mappedActivity) {
+        useTaskRunnerStore.setState((state) => {
+          const updates: Partial<TaskRunnerState> = {};
 
-        // Update checkpoints based on current activity
-        const currentState = useTaskRunnerStore.getState();
-        if (currentState.taskCheckpoints[requirementId]) {
-          currentState.updateCheckpoints(
-            requirementId,
-            mappedActivity,
-            mappedActivity.activityHistory
-          );
-        }
+          if (progressLines > 0) {
+            updates.taskProgress = {
+              ...state.taskProgress,
+              [requirementId]: progressLines,
+            };
+          }
+
+          if (mappedActivity) {
+            updates.taskActivity = {
+              ...state.taskActivity,
+              [requirementId]: mappedActivity,
+            };
+
+            // Compute checkpoint updates inline instead of a separate setState
+            const checkpointState = state.taskCheckpoints[requirementId];
+            if (checkpointState) {
+              let updatedCheckpoints = updateCheckpointStates(
+                checkpointState.checkpoints,
+                mappedActivity,
+                mappedActivity.activityHistory
+              );
+              updatedCheckpoints = autoAdvanceCheckpoints(updatedCheckpoints);
+              const currentCheckpoint = updatedCheckpoints.find(
+                (c) => c.status === 'in_progress'
+              );
+              updates.taskCheckpoints = {
+                ...state.taskCheckpoints,
+                [requirementId]: {
+                  ...checkpointState,
+                  checkpoints: updatedCheckpoints,
+                  currentCheckpointId: currentCheckpoint?.id || null,
+                },
+              };
+            }
+          }
+
+          return updates;
+        });
       }
 
       if (taskStatus.status === 'completed') {

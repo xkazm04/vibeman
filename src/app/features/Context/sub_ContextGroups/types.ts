@@ -1,5 +1,5 @@
 import { Context, ContextGroup } from '@/stores/contextStore';
-import React from 'react';
+import { ShowFullScreenModalFn } from '@/contexts/ModalContext';
 
 export interface BaseContextProps {
   context: Context;
@@ -10,7 +10,7 @@ export interface ContextCardsProps {
   contexts: Context[];
   group?: ContextGroup;
   availableGroups: ContextGroup[];
-  showFullScreenModal: (title: string, content: React.ReactNode, options?: Record<string, unknown>) => void;
+  showFullScreenModal: ShowFullScreenModalFn;
 }
 
 export interface LazyContextCardsProps extends ContextCardsProps {
@@ -20,7 +20,7 @@ export interface LazyContextCardsProps extends ContextCardsProps {
 export interface ContextCardsEmptyProps {
   group?: ContextGroup;
   availableGroups: ContextGroup[];
-  showFullScreenModal: (title: string, content: React.ReactNode, options?: Record<string, unknown>) => void;
+  showFullScreenModal: ShowFullScreenModalFn;
 }
 
 export interface ContextJailCardProps {
@@ -36,6 +36,7 @@ export interface ContextSectionContentProps {
   contexts: Context[];
   availableGroups: ContextGroup[];
   selectedFilePaths: string[];
-  showFullScreenModal: (title: string, content: React.ReactNode, options?: Record<string, unknown>) => void;
+  showFullScreenModal: ShowFullScreenModalFn;
   isExpanded: boolean;
+  onMoveContext?: (contextId: string, groupId: string | null) => void;
 }

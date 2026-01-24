@@ -18,6 +18,7 @@ import {
 } from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
+import { useShallow } from 'zustand/react/shallow';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import ClaudeLogViewer from '@/app/Claude/ClaudeLogViewer';
 
@@ -33,8 +34,8 @@ const TaskRunnerLayout = () => {
   const [error, setError] = useState<string | undefined>();
   const { showFullScreenModal } = useGlobalModal();
 
-  // Get store tasks to sync status
-  const storeTasks = useTaskRunnerStore((state) => state.tasks);
+  // Get store tasks to sync status (useShallow prevents re-renders when unrelated task properties change)
+  const storeTasks = useTaskRunnerStore(useShallow((state) => state.tasks));
 
   const actions: TaskRunnerActions = {
     setRequirements,

@@ -32,7 +32,7 @@ interface TaskItemProps {
   idea?: DbIdea | null; // Pre-fetched idea from parent (batch loaded)
 }
 
-export default function TaskItem({
+const TaskItem = React.memo(function TaskItem({
   requirement,
   isSelected,
   onToggleSelect,
@@ -343,4 +343,6 @@ export default function TaskItem({
       />
     </>
   );
-}
+});
+
+export default TaskItem;

@@ -1,19 +1,6 @@
 'use client';
-import { useModal } from '@/contexts/ModalContext';
-import { LucideIcon } from 'lucide-react';
+import { useModal, GlobalModalOptions } from '@/contexts/ModalContext';
 import { ReactNode } from 'react';
-
-interface ModalOptions {
-  title: string;
-  subtitle?: string;
-  icon?: LucideIcon;
-  iconBgColor?: string;
-  iconColor?: string;
-  maxWidth?: string;
-  maxHeight?: string;
-  showBackdrop?: boolean;
-  backdropBlur?: boolean;
-}
 
 interface ModalShellSectionConfig {
   enabled: boolean;
@@ -73,7 +60,7 @@ export const useGlobalModal = () => {
     }, content);
   };
 
-  const showInfoModal = (title: string, content: ReactNode, options?: Partial<ModalOptions>) => {
+  const showInfoModal = (title: string, content: ReactNode, options?: Partial<GlobalModalOptions>) => {
     showModal({
       title,
       maxWidth: "max-w-2xl",
@@ -82,7 +69,7 @@ export const useGlobalModal = () => {
     }, content);
   };
 
-  const showFullScreenModal = (title: string, content: ReactNode, options?: Partial<ModalOptions>) => {
+  const showFullScreenModal = (title: string, content: ReactNode, options?: Partial<GlobalModalOptions>) => {
     showModal({
       title,
       maxWidth: "max-w-6xl",
@@ -96,7 +83,7 @@ export const useGlobalModal = () => {
   const showMarkdownModal = (
     title: string,
     markdown: string,
-    options?: Partial<ModalOptions> & { previewMode?: 'edit' | 'preview' }
+    options?: Partial<GlobalModalOptions> & { previewMode?: 'edit' | 'preview' }
   ) => {
     const DynamicModalShell = require("@/components/ui/modal/DynamicModalShell").default as React.ComponentType<DynamicModalShellProps>;
     const content = (

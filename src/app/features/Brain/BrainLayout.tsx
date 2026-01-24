@@ -15,8 +15,8 @@ import OutcomesSummary from './components/OutcomesSummary';
 import ReflectionStatus from './components/ReflectionStatus';
 import InsightsPanel from './components/InsightsPanel';
 
-const EventCanvasD3 = lazy(() => import('./components/EventCanvasD3'));
-const EventCanvasTimeline = lazy(() => import('./components/EventCanvasTimeline'));
+const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
+const EventCanvasTimeline = lazy(() => import('./sub_Timeline/EventCanvasTimeline'));
 
 type BrainTab = 'dashboard' | 'canvas' | 'timeline';
 
@@ -91,11 +91,10 @@ export default function BrainLayout() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isActive
                     ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                }`}
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>

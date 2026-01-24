@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contextQueries, contextGroupQueries } from '../../../lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
-import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
+import { createErrorResponse, notFoundResponse, validateRequiredFields } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
@@ -79,9 +79,8 @@ async function handlePost(request: NextRequest) {
     const body = await request.json();
     const { projectId, groupId, name, description, filePaths, testScenario } = body;
 
-    if (!projectId || !name || !filePaths) {
-      return createErrorResponse('Missing required fields', 400);
-    }
+    const validationError = validateRequiredFields({ projectId, name, filePaths }, ['projectId', 'name', 'filePaths']);
+    if (validationError) return validationError;
 
     const context = await contextQueries.createContext({
       projectId,

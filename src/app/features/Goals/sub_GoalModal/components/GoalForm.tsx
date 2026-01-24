@@ -153,18 +153,10 @@ export default function GoalForm({
               >
                 {/* Subtle animated gradient for selected */}
                 {isSelected && (
-                  <motion.div
-                    className="absolute inset-0 opacity-30"
+                  <div
+                    className="absolute inset-0 opacity-30 animate-gradient-sweep"
                     style={{
                       background: 'linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.3), transparent)'
-                    }}
-                    animate={{
-                      x: ['-100%', '100%']
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: 'linear'
                     }}
                   />
                 )}
@@ -199,18 +191,10 @@ export default function GoalForm({
                    transition-all duration-200 shadow-lg shadow-cyan-500/20 overflow-hidden group"
           data-testid="goal-submit-btn"
         >
-          <motion.div
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-gradient-sweep-fast"
             style={{
               background: 'linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.2), transparent)'
-            }}
-            animate={{
-              x: ['-100%', '100%']
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: 'linear'
             }}
           />
           <span className="relative z-10">Add Goal</span>

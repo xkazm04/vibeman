@@ -10,7 +10,7 @@
  * - Darker theme with no focus outlines
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -22,13 +22,14 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  FileText,
 } from 'lucide-react';
 import type { PromptTemplateCategory, PromptTemplateVariable } from '@/app/db/models/types';
 import { TemplateVariableEditor } from './TemplateVariableEditor';
 import { SystemVariableSelector } from './SystemVariableSelector';
-import { AIRandomizerButton } from './AIRandomizerButton';
 import { LLMReviewPanel } from './LLMReviewPanel';
 import { MarkdownEditor } from './MarkdownEditor';
+import { GeneratorPanel } from './GeneratorPanel';
 import { CATEGORY_THEMES, CATEGORY_LABELS, type PromptTemplate } from './TemplateCategoryColumn';
 
 // Shared input class (no focus outline)
@@ -64,6 +65,10 @@ export function TemplateDetailPanel({
   onSave,
   onDelete,
 }: TemplateDetailPanelProps) {
+  // Tab state
+  type DetailTab = 'template' | 'generator';
+  const [activeTab, setActiveTab] = useState<DetailTab>('template');
+
   // Form state
   const [isEditing, setIsEditing] = useState(isNew);
   const [name, setName] = useState(template?.name || '');
@@ -73,10 +78,6 @@ export function TemplateDetailPanel({
   const [variables, setVariables] = useState<PromptTemplateVariable[]>(template?.variables || []);
   const [systemVariables, setSystemVariables] = useState<Record<string, string>>({});
 
-  // Generate requirement state
-  const [variableValues, setVariableValues] = useState<Record<string, string>>({});
-  const [requirementName, setRequirementName] = useState('');
-  const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -90,13 +91,6 @@ export function TemplateDetailPanel({
       setCategory(template.category);
       setTemplateContent(template.template_content);
       setVariables(template.variables || []);
-      setRequirementName(`${template.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`);
-      // Initialize variable values with defaults
-      const values: Record<string, string> = {};
-      for (const v of template.variables || []) {
-        values[v.name] = v.default_value || '';
-      }
-      setVariableValues(values);
       // Check for system variables in content
       if (template.template_content.includes('${contextSection}')) {
         setSystemVariables({ contextSection: '' });
@@ -110,32 +104,13 @@ export function TemplateDetailPanel({
       setCategory('custom');
       setTemplateContent('');
       setVariables([]);
-      setVariableValues({});
       setSystemVariables({});
-      setRequirementName('');
     }
     setIsEditing(isNew);
+    setActiveTab('template');
     setError(null);
     setSuccess(null);
   }, [template, isNew]);
-
-  // Check for missing required variables
-  const missingRequired = useMemo(() => {
-    const missing: string[] = [];
-    // Check custom variables
-    for (const v of variables) {
-      if (v.required && !variableValues[v.name]?.trim()) {
-        missing.push(v.name);
-      }
-    }
-    // Check system variables
-    for (const [key, value] of Object.entries(systemVariables)) {
-      if (!value) {
-        missing.push(key);
-      }
-    }
-    return missing;
-  }, [variables, variableValues, systemVariables]);
 
   // Darker gradient based on category
   const theme = CATEGORY_THEMES[category];
@@ -185,45 +160,6 @@ export function TemplateDetailPanel({
     }
   };
 
-  // Handle generate requirement
-  const handleGenerate = async () => {
-    if (!template?.id || !projectPath || missingRequired.length > 0) return;
-
-    setGenerating(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/prompt-templates/generate-requirement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateId: template.id,
-          projectPath,
-          variables: { ...variableValues, ...systemVariables },
-          requirementName: requirementName.trim() || undefined,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(`Created: ${data.filePath}`);
-        setTimeout(() => setSuccess(null), 5000);
-      } else {
-        setError(data.error || 'Failed to generate');
-      }
-    } catch {
-      setError('Failed to generate requirement');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  // Handle AI randomize
-  const handleRandomize = (values: Record<string, string>) => {
-    setVariableValues({ ...variableValues, ...values });
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -248,13 +184,40 @@ export function TemplateDetailPanel({
               {CATEGORY_LABELS[category]}
             </span>
           )}
+          {/* Tab navigation - visible only when viewing a saved template */}
+          {!isNew && !isEditing && (
+            <div className="flex gap-1 ml-2">
+              <button
+                onClick={() => setActiveTab('template')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === 'template'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                }`}
+              >
+                <FileText className="w-3 h-3" />
+                Template
+              </button>
+              <button
+                onClick={() => setActiveTab('generator')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === 'generator'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                }`}
+              >
+                <Play className="w-3 h-3" />
+                Generator
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {!isNew && !isEditing && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setIsEditing(true)}
+              onClick={() => { setIsEditing(true); setActiveTab('template'); }}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-gray-800/60 text-gray-300 hover:bg-gray-800 transition-colors"
             >
               <Edit3 className="w-3 h-3" />
@@ -352,9 +315,9 @@ export function TemplateDetailPanel({
           )}
         </AnimatePresence>
 
-        {/* Description */}
+        {/* Edit Mode: Description */}
         <AnimatePresence>
-          {isEditing ? (
+          {isEditing && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -369,34 +332,22 @@ export function TemplateDetailPanel({
                 className={inputClass}
               />
             </motion.div>
-          ) : template?.description ? (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sm text-gray-400"
-            >
-              {template.description}
-            </motion.p>
-          ) : null}
+          )}
         </AnimatePresence>
 
-        {/* Markdown Editor */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-gray-400">
-              {isEditing ? 'Template Content' : 'Template'}
-            </label>
-            {isEditing && (
+        {/* Edit Mode: Markdown Editor */}
+        {isEditing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-gray-400">Template Content</label>
               <span className="text-xs text-gray-500">
                 Use {'{{VAR}}'} for custom, {'${var}'} for system variables
               </span>
-            )}
-          </div>
-          {isEditing ? (
+            </div>
             <MarkdownEditor
               value={templateContent}
               onChange={setTemplateContent}
@@ -404,46 +355,39 @@ export function TemplateDetailPanel({
               height={250}
               previewMode="live"
             />
-          ) : (
-            <div className="min-h-[200px] px-3 py-2 bg-gray-900/60 border border-gray-700/30 rounded-lg overflow-y-auto">
-              <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
-                {templateContent}
-              </pre>
-            </div>
-          )}
-        </motion.div>
+          </motion.div>
+        )}
 
-        {/* Variables Section - Split Layout */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
-          className="border-t border-gray-800/80 pt-4"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            {/* Custom Variables */}
-            <div>
-              <TemplateVariableEditor
-                variables={variables}
-                templateContent={templateContent}
-                onChange={setVariables}
-                disabled={!isEditing}
-              />
+        {/* Edit Mode: Variables Section */}
+        {isEditing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            className="border-t border-gray-800/80 pt-4"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <TemplateVariableEditor
+                  variables={variables}
+                  templateContent={templateContent}
+                  onChange={setVariables}
+                  disabled={false}
+                />
+              </div>
+              <div>
+                <SystemVariableSelector
+                  projectId={projectId}
+                  selectedVariables={systemVariables}
+                  onChange={setSystemVariables}
+                  disabled={false}
+                />
+              </div>
             </div>
+          </motion.div>
+        )}
 
-            {/* System Variables */}
-            <div>
-              <SystemVariableSelector
-                projectId={projectId}
-                selectedVariables={systemVariables}
-                onChange={setSystemVariables}
-                disabled={!isEditing}
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Save Button (Edit Mode) */}
+        {/* Edit Mode: Save Button */}
         <AnimatePresence>
           {isEditing && (
             <motion.div
@@ -480,118 +424,62 @@ export function TemplateDetailPanel({
           )}
         </AnimatePresence>
 
-        {/* Generate Requirement Section (View Mode) */}
-        <AnimatePresence>
-          {!isEditing && template && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="border-t border-gray-800/80 pt-4 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-300">Generate Requirement</h4>
-                <AIRandomizerButton
-                  template={template}
-                  onRandomize={handleRandomize}
-                />
+        {/* View Mode: Template Tab */}
+        {!isEditing && activeTab === 'template' && (
+          <motion.div
+            key="template-tab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-4"
+          >
+            {template?.description && (
+              <p className="text-sm text-gray-400">{template.description}</p>
+            )}
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Template</label>
+              <div className="min-h-[200px] px-3 py-2 bg-gray-900/60 border border-gray-700/30 rounded-lg overflow-y-auto">
+                <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+                  {templateContent}
+                </pre>
               </div>
-
-              {/* Variable Inputs */}
-              {variables.length > 0 && (
-                <div className="grid grid-cols-2 gap-2">
-                  {variables.map((v) => (
-                    <div key={v.name}>
-                      <label className="flex items-center gap-1 text-xs text-gray-400 mb-1">
-                        <code className="text-purple-400">{v.name}</code>
-                        {v.required && <span className="text-red-400">*</span>}
-                      </label>
-                      {v.type === 'text' ? (
-                        <textarea
-                          value={variableValues[v.name] || ''}
-                          onChange={(e) => setVariableValues({ ...variableValues, [v.name]: e.target.value })}
-                          placeholder={v.default_value || v.name}
-                          rows={2}
-                          className={`${inputClass} resize-none`}
-                        />
-                      ) : v.type === 'boolean' ? (
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={variableValues[v.name] === 'true'}
-                            onChange={(e) => setVariableValues({
-                              ...variableValues,
-                              [v.name]: e.target.checked ? 'true' : 'false',
-                            })}
-                            className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-0 focus:ring-offset-0"
-                          />
-                          <span className="text-sm text-gray-300">
-                            {variableValues[v.name] === 'true' ? 'Yes' : 'No'}
-                          </span>
-                        </label>
-                      ) : (
-                        <input
-                          type={v.type === 'number' ? 'number' : 'text'}
-                          value={variableValues[v.name] || ''}
-                          onChange={(e) => setVariableValues({ ...variableValues, [v.name]: e.target.value })}
-                          placeholder={v.default_value || v.name}
-                          className={inputClass}
-                        />
-                      )}
-                    </div>
-                  ))}
+            </div>
+            <div className="border-t border-gray-800/80 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <TemplateVariableEditor
+                    variables={variables}
+                    templateContent={templateContent}
+                    onChange={setVariables}
+                    disabled={true}
+                  />
                 </div>
-              )}
-
-              {/* System Variable Values (Context) */}
-              {Object.keys(systemVariables).length > 0 && (
-                <div className="p-2 bg-gray-900/40 rounded-lg border border-gray-800/50">
+                <div>
                   <SystemVariableSelector
                     projectId={projectId}
                     selectedVariables={systemVariables}
                     onChange={setSystemVariables}
-                    disabled={false}
+                    disabled={true}
                   />
                 </div>
-              )}
-
-              {/* Filename & Generate */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={requirementName}
-                  onChange={(e) => setRequirementName(e.target.value)}
-                  placeholder="requirement-name"
-                  className={`flex-1 ${inputClass}`}
-                />
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleGenerate}
-                  disabled={generating || missingRequired.length > 0 || !projectPath}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-colors"
-                >
-                  {generating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  Generate
-                </motion.button>
               </div>
+            </div>
+          </motion.div>
+        )}
 
-              {missingRequired.length > 0 && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-xs text-amber-400"
-                >
-                  Missing required: {missingRequired.join(', ')}
-                </motion.p>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* View Mode: Generator Tab */}
+        {!isEditing && activeTab === 'generator' && template && (
+          <motion.div
+            key="generator-tab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <GeneratorPanel
+              template={template}
+              projectId={projectId}
+              projectPath={projectPath}
+            />
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );
