@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Code, Database, Layers, Grid, Activity, Cpu } from 'lucide-react';
 import { ContextGroup, Context } from '../../../../stores/contextStore';
+import { SYNTHETIC_GROUP_ID } from '../lib/constants';
 
 interface ContextSectionHeaderProps {
   group?: ContextGroup;
@@ -29,15 +30,15 @@ const ContextSectionHeader = React.memo(({ group, contexts, openGroupDetail }: C
         <div className="flex items-center space-x-4">
           <button
             onClick={() => {
-              if (group && group.id !== 'synthetic-to-group') {
+              if (group && group.id !== SYNTHETIC_GROUP_ID) {
                 openGroupDetail(group.id);
               }
             }}
-            className={`text-left absolute left-5 top-2 flex flex-row gap-3 transition-all duration-300 ${group && group.id !== 'synthetic-to-group'
+            className={`text-left absolute left-5 top-2 flex flex-row gap-3 transition-all duration-300 ${group && group.id !== SYNTHETIC_GROUP_ID
               ? 'hover:opacity-80 cursor-pointer group'
               : 'cursor-default'
               }`}
-            disabled={!group || group.id === 'synthetic-to-group'}
+            disabled={!group || group.id === SYNTHETIC_GROUP_ID}
           >
             <motion.div
               className="w-8 h-8 rounded-xl flex items-center justify-center backdrop-blur-sm transition-all duration-300 border"

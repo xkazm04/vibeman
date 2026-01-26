@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle, Plug, Brain, Bot } from 'lucide-react';
+import { MoreHorizontal, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle, Plug, Brain, Bot, Compass } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import AnnetteTopBarWidget from '@/app/features/Commander/components/AnnetteTopBarWidget';
+import NotificationBell from './NotificationBell';
 
 interface NavigationItem {
   module: AppModule;
@@ -15,6 +16,7 @@ interface NavigationItem {
 
 // Main navigation items (visible in top bar)
 const mainNavigationItems: NavigationItem[] = [
+  { module: 'overview', label: 'Overview' },
   { module: 'coder', label: 'Project' },
   { module: 'contexts', label: 'Contexts' },
   { module: 'ideas', label: 'Ideas' },
@@ -289,8 +291,9 @@ export default function TopBar() {
             />
           </div>
 
-          {/* Right: Annette Widget */}
-          <div className="flex-shrink-0 w-40 flex justify-end">
+          {/* Right: Notifications + Annette Widget */}
+          <div className="flex-shrink-0 w-40 flex items-center justify-end gap-2">
+            <NotificationBell />
             <AnnetteTopBarWidget />
           </div>
         </nav>

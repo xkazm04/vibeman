@@ -7,8 +7,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, User, Loader2 } from 'lucide-react';
+import { Bot, User, Loader2, Terminal } from 'lucide-react';
 import { useAnnetteStore, ChatMessage, QuickOption } from '@/stores/annetteStore';
+import ToolExecutionInline from './ToolExecutionInline';
 
 function MiniBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
@@ -40,6 +41,14 @@ function MiniBubble({ message }: { message: ChatMessage }) {
           <p className="text-[9px] text-slate-600 mt-0.5 ml-1">
             [used {message.toolCalls.length} tool{message.toolCalls.length > 1 ? 's' : ''}]
           </p>
+        )}
+
+        {/* Inline CLI executions - compact view */}
+        {!isUser && message.cliExecutions && message.cliExecutions.length > 0 && (
+          <ToolExecutionInline
+            executions={message.cliExecutions}
+            messageId={message.id}
+          />
         )}
       </div>
 

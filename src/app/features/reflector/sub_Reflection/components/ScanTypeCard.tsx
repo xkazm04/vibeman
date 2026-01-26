@@ -46,59 +46,44 @@ export default function ScanTypeCard({ stats, index, onScanTypeClick }: ScanType
 
   return (
     <motion.div
-      initial={{ scale: 0.9, opacity: 0 }}
+      initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
-      whileHover={{ scale: 1.02, y: -4 }}
+      transition={{ delay: index * 0.03, duration: 0.2 }}
+      whileHover={{ scale: 1.02 }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      className={`relative bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} rounded-lg p-4 backdrop-blur-sm overflow-hidden group ${onScanTypeClick ? 'cursor-pointer' : ''}`}
+      className={`relative bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} rounded-md p-2 backdrop-blur-sm overflow-hidden group ${onScanTypeClick ? 'cursor-pointer' : ''}`}
       data-testid={`scan-type-card-${stats.scanType}`}
       role={onScanTypeClick ? 'button' : undefined}
       tabIndex={onScanTypeClick ? 0 : undefined}
     >
-      {/* Background decoration */}
-      <div className={`absolute -top-10 -right-10 w-32 h-32 ${config.color} opacity-5 rounded-full blur-2xl group-hover:opacity-10 transition-opacity`} />
-
-      {/* Total Ideas - Top Right Corner */}
-      <div className="absolute top-3 right-3">
-        <div className={`text-4xl font-bold ${config.color} opacity-20 font-mono leading-none`}>
+      {/* Header Row - Icon, Name, Total */}
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <div className={`p-1 bg-gray-900/60 rounded border ${config.borderColor} flex-shrink-0`}>
+          <Icon className={`w-3 h-3 ${config.color}`} />
+        </div>
+        <h3 className={`text-xs font-semibold ${config.color} truncate flex-1`}>
+          {config.label}
+        </h3>
+        <span className={`text-xs font-mono ${config.color} opacity-50`}>
           {stats.total}
-        </div>
+        </span>
       </div>
 
-      {/* Header */}
-      <div className="flex items-start gap-2 mb-4 pr-12">
-        <div className={`p-2 bg-gray-900/60 rounded-lg border ${config.borderColor} flex-shrink-0`}>
-          <Icon className={`w-4 h-4 ${config.color}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className={`text-sm font-semibold ${config.color} truncate`}>
-            {config.label}
-          </h3>
-          <p className="text-xs text-gray-500 truncate">{config.description}</p>
-        </div>
+      {/* Acceptance Rate - Centered */}
+      <div className="flex items-center justify-center gap-1 mb-1.5">
+        <AcceptanceIcon className={`w-3 h-3 ${acceptanceColor}`} />
+        <span className={`text-lg font-bold ${acceptanceColor} font-mono`}>
+          {stats.acceptanceRatio}%
+        </span>
       </div>
 
-      {/* Acceptance Ratio - Large Display */}
-      <div className="mb-4">
-        <div className="flex items-center justify-center gap-2">
-          <AcceptanceIcon className={`w-5 h-5 ${acceptanceColor}`} />
-          <div className={`text-4xl font-bold ${acceptanceColor} font-mono`}>
-            {stats.acceptanceRatio}%
-          </div>
-        </div>
-      </div>
-
-      {/* Status Numbers - Inline with Dividers */}
-      <div className="flex items-center justify-center gap-3 text-lg font-thin font-mono">
-        <span className={STATUS_CONFIG.pending.color}>{stats.pending}</span>
-        <span className="h-2 border border-l-gray-700"></span>
-        <span className={STATUS_CONFIG.rejected.color}>{stats.rejected}</span>
-        <span className="h-2 border border-l-gray-700"></span>
-        <span className={STATUS_CONFIG.accepted.color}>{stats.accepted}</span>
-        <span className="h-2 border border-l-gray-700"></span>
-        <span className={STATUS_CONFIG.implemented.color}>{stats.implemented}</span>
+      {/* Status Numbers - Compact Row */}
+      <div className="flex items-center justify-between text-[10px] font-mono px-0.5">
+        <span className={STATUS_CONFIG.pending.color} title="Pending">{stats.pending}p</span>
+        <span className={STATUS_CONFIG.rejected.color} title="Rejected">{stats.rejected}r</span>
+        <span className={STATUS_CONFIG.accepted.color} title="Accepted">{stats.accepted}a</span>
+        <span className={STATUS_CONFIG.implemented.color} title="Implemented">{stats.implemented}i</span>
       </div>
     </motion.div>
   );

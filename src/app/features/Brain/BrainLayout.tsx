@@ -7,21 +7,24 @@
 
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, Activity, AlertCircle, Layers, Clock } from 'lucide-react';
+import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
 import BehavioralFocusPanel from './components/BehavioralFocusPanel';
 import OutcomesSummary from './components/OutcomesSummary';
 import ReflectionStatus from './components/ReflectionStatus';
+import ReflectionHistoryPanel from './components/ReflectionHistoryPanel';
+import BrainEffectivenessWidget from './components/BrainEffectivenessWidget';
 import InsightsPanel from './components/InsightsPanel';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
 const EventCanvasTimeline = lazy(() => import('./sub_Timeline/EventCanvasTimeline'));
 
-type BrainTab = 'dashboard' | 'canvas' | 'timeline';
+type BrainTab = 'dashboard' | 'reflection' | 'canvas' | 'timeline';
 
 const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<{ className?: string }>; description: string }> = [
   { id: 'dashboard', label: 'Dashboard', icon: Activity, description: 'Overview & Insights' },
+  { id: 'reflection', label: 'Reflection', icon: Sparkles, description: 'Agent & History' },
   { id: 'canvas', label: 'Memory Canvas', icon: Layers, description: 'Grouped Clusters' },
   { id: 'timeline', label: 'Timeline', icon: Clock, description: 'Lane View' },
 ];
@@ -104,25 +107,27 @@ export default function BrainLayout() {
         </div>
       </div>
 
-      {/* Tab content */}
+      {/* Dashboard Tab - Brain Effectiveness, Learning Insights, Cross-Project Focus, Implementation Outcomes */}
       {activeTab === 'dashboard' && (
         <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Top Row: KPI Cards */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <BehavioralFocusPanel isLoading={isLoadingContext} scope={scope} />
+              <OutcomesSummary isLoading={isLoadingOutcomes} />
             </motion.div>
 
-            <div className="flex flex-col gap-6">
+            {/* Second Row: Effectiveness + Focus */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                <OutcomesSummary isLoading={isLoadingOutcomes} />
+                <BrainEffectivenessWidget scope={scope} />
               </motion.div>
 
               <motion.div
@@ -130,15 +135,15 @@ export default function BrainLayout() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <ReflectionStatus isLoading={isLoading} scope={scope} />
+                <BehavioralFocusPanel isLoading={isLoadingContext} scope={scope} />
               </motion.div>
             </div>
 
+            {/* Third Row: Learning Insights (full width) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="lg:col-span-2"
             >
               <InsightsPanel scope={scope} />
             </motion.div>
@@ -146,6 +151,42 @@ export default function BrainLayout() {
         </div>
       )}
 
+      {/* Reflection Tab - Global Reflection + Reflection History */}
+      {activeTab === 'reflection' && (
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Reflection Status (both project and global) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <ReflectionStatus isLoading={isLoading} scope="project" />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <ReflectionStatus isLoading={isLoading} scope="global" />
+              </motion.div>
+            </div>
+
+            {/* Reflection History (full width) */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <ReflectionHistoryPanel scope={scope} />
+            </motion.div>
+          </div>
+        </div>
+      )}
+
+      {/* Canvas & Timeline Tabs */}
       {(activeTab === 'canvas' || activeTab === 'timeline') && (
         <div className="flex-1 relative overflow-hidden" style={{ background: '#0f0f11' }}>
           <Suspense

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Loader2, Bot, User, AlertCircle } from 'lucide-react';
 import { useAnnetteStore, ChatMessage, QuickOption } from '@/stores/annetteStore';
 import ToolCallDisplay from './ToolCallDisplay';
+import ToolExecutionInline from './ToolExecutionInline';
 import VoiceButton from './VoiceButton';
 
 function MessageBubble({ message }: { message: ChatMessage }) {
@@ -40,6 +41,14 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
         {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
           <ToolCallDisplay toolCalls={message.toolCalls} />
+        )}
+
+        {/* Inline CLI executions */}
+        {!isUser && message.cliExecutions && message.cliExecutions.length > 0 && (
+          <ToolExecutionInline
+            executions={message.cliExecutions}
+            messageId={message.id}
+          />
         )}
 
         {!isUser && message.tokensUsed && (

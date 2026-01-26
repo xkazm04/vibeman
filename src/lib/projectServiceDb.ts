@@ -20,11 +20,12 @@ function dbProjectToProject(dbProject: DbProject): Project {
     id: dbProject.id,
     name: dbProject.name,
     path: dbProject.path,
-    port: dbProject.port,
+    port: dbProject.port ?? undefined,
+    workspaceId: dbProject.workspace_id || undefined,
     type: normalizeProjectType(dbProject.type),
     relatedProjectId: dbProject.related_project_id || undefined,
     allowMultipleInstances: dbProject.allow_multiple_instances === 1,
-    basePort: dbProject.base_port || dbProject.port,
+    basePort: dbProject.base_port || dbProject.port || undefined,
     instanceOf: dbProject.instance_of || undefined,
     runScript: dbProject.run_script,
     git: dbProject.git_repository ? {
@@ -75,18 +76,26 @@ class ProjectServiceDb {
       if (existingByPath) {
         throw new Error(`A project with the same path already exists: ${existingByPath.name}`);
       }
-      
-      const existingByPort = projectDb.getProjectByPort(project.port);
-      if (existingByPort) {
-        throw new Error(`Port ${project.port} is already in use by: ${existingByPort.name}`);
+
+      // Port validation: only check if port is provided
+      // Port uniqueness is now scoped to workspace
+      if (project.port != null) {
+        const isPortAvailable = projectDb.isPortAvailableInWorkspace(
+          project.port,
+          project.workspaceId || null
+        );
+        if (!isPortAvailable) {
+          throw new Error(`Port ${project.port} is already in use by another project in this workspace`);
+        }
       }
-      
+
       // Create the project
       projectDb.createProject({
         id: project.id,
         name: project.name,
         path: project.path,
-        port: project.port,
+        port: project.port ?? null,
+        workspace_id: project.workspaceId || null,
         type: project.type,
         related_project_id: project.relatedProjectId,
         git_repository: project.git?.repository,
@@ -104,26 +113,44 @@ class ProjectServiceDb {
   
   async updateProject(projectId: string, updates: Partial<Project>): Promise<void> {
     try {
-      // Validate unique constraints if path or port are being updated
+      // Get existing project to check workspace
+      const existingProject = projectDb.getProject(projectId);
+      if (!existingProject) {
+        throw new Error('Project not found');
+      }
+
+      // Validate unique constraints if path is being updated
       if (updates.path) {
         const existingByPath = projectDb.getProjectByPath(updates.path);
         if (existingByPath && existingByPath.id !== projectId) {
           throw new Error(`A project with the same path already exists: ${existingByPath.name}`);
         }
       }
-      
-      if (updates.port) {
-        const existingByPort = projectDb.getProjectByPort(updates.port);
-        if (existingByPort && existingByPort.id !== projectId) {
-          throw new Error(`Port ${updates.port} is already in use by: ${existingByPort.name}`);
+
+      // Port validation: only check if port is provided and different
+      // Port uniqueness is now scoped to workspace
+      if (updates.port !== undefined && updates.port !== existingProject.port) {
+        if (updates.port != null) {
+          const workspaceId = updates.workspaceId !== undefined
+            ? updates.workspaceId
+            : existingProject.workspace_id;
+          const isPortAvailable = projectDb.isPortAvailableInWorkspace(
+            updates.port,
+            workspaceId || null,
+            projectId
+          );
+          if (!isPortAvailable) {
+            throw new Error(`Port ${updates.port} is already in use by another project in this workspace`);
+          }
         }
       }
-      
-      // Prepare update data - type matches projectDb.updateProject expected params
+
+      // Prepare update data
       const updateData: {
         name?: string;
         path?: string;
-        port?: number;
+        port?: number | null;
+        workspace_id?: string | null;
         type?: string;
         related_project_id?: string;
         git_repository?: string;
@@ -136,6 +163,7 @@ class ProjectServiceDb {
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.path !== undefined) updateData.path = updates.path;
       if (updates.port !== undefined) updateData.port = updates.port;
+      if (updates.workspaceId !== undefined) updateData.workspace_id = updates.workspaceId;
       if (updates.type !== undefined) updateData.type = updates.type;
       if (updates.relatedProjectId !== undefined && updates.relatedProjectId) updateData.related_project_id = updates.relatedProjectId;
       if (updates.runScript !== undefined) updateData.run_script = updates.runScript;
@@ -188,10 +216,11 @@ class ProjectServiceDb {
       if (!baseProject || !baseProject.allowMultipleInstances) {
         return null;
       }
-      
-      // Find next available port
-      const port = customPort || projectDb.getNextAvailablePort(baseProject.basePort || baseProject.port);
-      
+
+      // Find next available port within the workspace
+      const basePort = baseProject.basePort || baseProject.port || 3000;
+      const port = customPort || projectDb.getNextAvailablePortInWorkspace(basePort, baseProject.workspaceId || null);
+
       const instanceId = `${baseProject.id}-instance-${Date.now()}`;
       const newInstance: Project = {
         ...baseProject,
@@ -200,7 +229,7 @@ class ProjectServiceDb {
         port: port,
         instanceOf: baseProject.id
       };
-      
+
       await this.addProject(newInstance);
       return newInstance;
     } catch (error) {
@@ -228,11 +257,38 @@ class ProjectServiceDb {
     }
   }
 
+  async isPortAvailableInWorkspace(port: number, workspaceId: string | null, excludeProjectId?: string): Promise<boolean> {
+    try {
+      return projectDb.isPortAvailableInWorkspace(port, workspaceId, excludeProjectId);
+    } catch (error) {
+      handleError(`Error checking port availability for ${port} in workspace`, error);
+      return false;
+    }
+  }
+
   async isPathAvailable(path: string, excludeProjectId?: string): Promise<boolean> {
     try {
       return projectDb.isPathAvailable(path, excludeProjectId);
     } catch (error) {
       handleError(`Error checking path availability for ${path}`, error);
+      return false;
+    }
+  }
+
+  async getNextAvailablePortInWorkspace(basePort: number, workspaceId: string | null): Promise<number> {
+    try {
+      return projectDb.getNextAvailablePortInWorkspace(basePort, workspaceId);
+    } catch (error) {
+      handleError(`Error getting next available port in workspace`, error);
+      return basePort;
+    }
+  }
+
+  async setProjectWorkspace(projectId: string, workspaceId: string | null): Promise<boolean> {
+    try {
+      return projectDb.setProjectWorkspace(projectId, workspaceId);
+    } catch (error) {
+      handleError(`Error setting workspace for project ${projectId}`, error);
       return false;
     }
   }

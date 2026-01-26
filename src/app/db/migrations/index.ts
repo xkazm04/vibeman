@@ -198,6 +198,14 @@ export function runMigrations() {
     migrateAnnetteV2();
     // Migration 70: Create workspaces tables for project grouping
     migrateWorkspaces();
+    // Migration 71: Create Annette Memory System tables for persistent memory and knowledge graph
+    migrateAnnetteMemorySystem();
+    // Migration 72: Create Executive Analysis table for AI-driven insights
+    migrateExecutiveAnalysis();
+    // Migration 73: Create Cross-Project Architecture tables for workspace-level visualization
+    migrateCrossProjectArchitecture();
+    // Migration 74: Workspace & Project Enhancements - base_path for workspaces
+    migrateWorkspaceProjectEnhancements();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4447,5 +4455,53 @@ function migrateWorkspaces() {
     const db = getConnection();
     const { migrate057Workspaces } = require('./057_workspaces');
     migrate057Workspaces(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 71: Annette Memory System - Persistent Memory & Knowledge Graph
+ * Creates tables for memories, knowledge graph nodes, edges, and consolidation history
+ */
+function migrateAnnetteMemorySystem() {
+  safeMigration('annette_memory_system', () => {
+    const db = getConnection();
+    const { migrate058AnnetteMemorySystem } = require('./058_annette_memory_system');
+    migrate058AnnetteMemorySystem(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 72: Executive Analysis - AI-driven executive insights
+ * Creates table for executive analysis sessions
+ */
+function migrateExecutiveAnalysis() {
+  safeMigration('executive_analysis', () => {
+    const db = getConnection();
+    const { migrate059ExecutiveAnalysis } = require('./059_executive_analysis');
+    migrate059ExecutiveAnalysis(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 73: Cross-Project Architecture - workspace-level visualization
+ * Creates tables for cross-project relationships, analysis sessions, and project metadata
+ */
+function migrateCrossProjectArchitecture() {
+  safeMigration('cross_project_architecture', () => {
+    const db = getConnection();
+    const { migrate060CrossProjectArchitecture } = require('./060_cross_project_architecture');
+    migrate060CrossProjectArchitecture(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 74: Workspace & Project Enhancements
+ * Adds base_path column to workspaces table for workspace-specific root directories
+ */
+function migrateWorkspaceProjectEnhancements() {
+  safeMigration('workspace_project_enhancements', () => {
+    const db = getConnection();
+    const { migrate061WorkspaceProjectEnhancements } = require('./061_workspace_project_enhancements');
+    migrate061WorkspaceProjectEnhancements(db);
   }, migrationLogger);
 }

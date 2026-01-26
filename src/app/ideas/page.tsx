@@ -117,8 +117,6 @@ export default function IdeasPage() {
             onSelectProject={handleProjectSelect}
             selectedContextIds={filterContextIds}
             onSelectContexts={setFilterContextIds}
-            selectedProjectPath={selectedProject?.path}
-            onIdeaImplemented={handleScanComplete}
           />
         </LazyContentSection>
 
@@ -142,7 +140,6 @@ export default function IdeasPage() {
               getProjectName={getProjectNameCallback}
               getContextName={getContextName}
               onIdeaClick={setSelectedIdea}
-              onScanComplete={handleScanComplete}
             />
           </div>
         </LazyContentSection>

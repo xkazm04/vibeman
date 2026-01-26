@@ -17,7 +17,8 @@ export interface ProjectFormData {
   id?: string;
   name: string;
   path: string;
-  port?: number; // Optional for 'combined' type
+  port?: number | null; // Optional - not needed for all project types
+  workspaceId?: string | null; // Workspace this project belongs to
   type: GlobalProjectType;
   relatedProjectId?: string;
   git_repository?: string;
@@ -32,6 +33,9 @@ export interface ProjectFormProps {
   loading: boolean;
   error: string;
   isEdit?: boolean;
+  // Workspace context for new projects
+  workspaceId?: string | null;
+  workspaceBasePath?: string | null;
 }
 
 // Re-export GlobalProjectType as ProjectType for backward compatibility

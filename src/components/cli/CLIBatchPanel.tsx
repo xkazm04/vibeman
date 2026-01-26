@@ -15,6 +15,7 @@ import {
 import type { SkillId } from './skills';
 import {
   useTaskRunnerStore,
+  createQueuedStatus,
   createRunningStatus,
   createCompletedStatus,
   createFailedStatus,
@@ -106,8 +107,14 @@ export function CLIBatchPanel({
     );
 
     addTasksToSession(sessionId, newTasks);
+
+    // Sync queued status to TaskRunner store so TaskColumn shows correct status
+    newTasks.forEach(task => {
+      updateTaskRunnerStatus(task.id, createQueuedStatus());
+    });
+
     onClearSelection?.();
-  }, [selectedRequirements, getRequirementId, addTasksToSession, onClearSelection]);
+  }, [selectedRequirements, getRequirementId, addTasksToSession, updateTaskRunnerStatus, onClearSelection]);
 
   // Delete a session (abort execution if running, clear all state)
   const handleDeleteSession = useCallback(async (sessionId: CLISessionId) => {

@@ -412,11 +412,20 @@ export function CompactTerminal({
       ? buildSkillsPrompt(enabledSkills)
       : '';
 
+    // Determine prompt: use direct prompt if available, otherwise execute requirement file
+    const taskPrompt = task.directPrompt
+      ? `${skillsPrefix}${task.directPrompt}`
+      : `${skillsPrefix}Execute the requirement file: ${task.requirementName}`;
+
+    const taskLabel = task.directPrompt
+      ? `Direct prompt (${task.requirementName})`
+      : task.requirementName;
+
     // Add system log
     addLog({
       id: `task-${Date.now()}`,
       type: 'system',
-      content: `Starting: ${task.requirementName}${enabledSkills.length > 0 && !resumeSession ? ` [${enabledSkills.join(', ')}]` : ''}`,
+      content: `Starting: ${taskLabel}${enabledSkills.length > 0 && !resumeSession ? ` [${enabledSkills.join(', ')}]` : ''}`,
       timestamp: Date.now(),
     });
 
@@ -426,7 +435,7 @@ export function CompactTerminal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectPath: task.projectPath,
-          prompt: `${skillsPrefix}Execute the requirement file: ${task.requirementName}`,
+          prompt: taskPrompt,
           resumeSessionId: resumeSession ? sessionId : undefined,
         }),
       });

@@ -23,8 +23,8 @@ export const contextAPI = {
   /**
    * Get all contexts and groups for a project
    */
-  getProjectData: async (projectId: string): Promise<{ contexts: Context[]; groups: ContextGroup[] }> => {
-    const response = await fetch(`/api/contexts?projectId=${projectId}`);
+  getProjectData: async (projectId: string, signal?: AbortSignal): Promise<{ contexts: Context[]; groups: ContextGroup[] }> => {
+    const response = await fetch(`/api/contexts?projectId=${projectId}`, { signal });
     if (!response.ok) {
       throw new Error('Failed to fetch project data');
     }

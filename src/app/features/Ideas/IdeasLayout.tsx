@@ -17,6 +17,7 @@ import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 // Handlers and utilities
 import { getProjectName } from '@/app/features/Ideas/lib/ideasUtils';
+import { getContextName } from '@/app/features/Ideas/lib/contextLoader';
 
 interface IdeasLayoutProps {
   selectedProjectId?: string;
@@ -81,14 +82,8 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
   const selectedProject = selectedProjectId !== 'all' ? getProject(selectedProjectId) : null;
 
   // Helper function to get context name using React Query cached data
-  const getContextName = React.useCallback((contextId: string) => {
-    const contexts = contextsData?.contexts || [];
-    const context = contexts.find(c => c.id === contextId);
-    if (context) {
-      return context.name;
-    }
-    // Fallback: return shortened ID
-    return contextId.substring(0, 8);
+  const getContextNameCallback = React.useCallback((contextId: string) => {
+    return getContextName(contextId, contextsData?.contexts || []);
   }, [contextsData?.contexts]);
 
   // Memoize getProjectName callback to prevent re-creating on every render
@@ -107,8 +102,6 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
             onSelectProject={handleProjectSelect}
             selectedContextIds={filterContextIds}
             onSelectContexts={setFilterContextIds}
-            selectedProjectPath={selectedProject?.path}
-            onIdeaImplemented={handleScanComplete}
           />
         </LazyContentSection>
 
@@ -130,9 +123,8 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
             <BufferView
               filterProject={selectedProjectId}
               getProjectName={getProjectNameCallback}
-              getContextName={getContextName}
+              getContextName={getContextNameCallback}
               onIdeaClick={setSelectedIdea}
-              onScanComplete={handleScanComplete}
             />
           </div>
         </LazyContentSection>

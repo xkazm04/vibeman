@@ -16,6 +16,9 @@ import {
   ArrowRight,
   Loader2,
   RefreshCw,
+  Bot,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { ComparisonFilterState } from '../lib/types';
 import { fetchExecutiveInsights } from '../lib/statsApi';
@@ -28,12 +31,16 @@ import {
   InsightCategory,
 } from '../lib/executiveInsightTypes';
 import { SCAN_TYPE_CONFIG } from '../lib/config';
+import { useReflectorStore } from '@/stores/reflectorStore';
+import { ExecutiveAnalysisTrigger } from './ExecutiveAnalysisTrigger';
+import { ExecutiveAnalysisTerminal } from './ExecutiveAnalysisTerminal';
+import type { ExecutiveAIInsight } from '@/app/db/models/reflector.types';
 
 interface ExecutiveSummaryProps {
   filters: ComparisonFilterState;
 }
 
-type TabId = 'narrative' | 'insights' | 'rankings' | 'recommendations';
+type TabId = 'narrative' | 'insights' | 'rankings' | 'recommendations' | 'ai_analysis';
 
 interface TabConfig {
   id: TabId;
@@ -206,6 +213,7 @@ const TAB_CONFIG: TabConfig[] = [
   { id: 'insights', label: 'Insights', icon: Lightbulb, color: 'text-amber-400', borderColor: 'border-amber-500/40' },
   { id: 'rankings', label: 'Rankings', icon: BarChart3, color: 'text-cyan-400', borderColor: 'border-cyan-500/40' },
   { id: 'recommendations', label: 'Actions', icon: Target, color: 'text-purple-400', borderColor: 'border-purple-500/40' },
+  { id: 'ai_analysis', label: 'AI Analysis', icon: Bot, color: 'text-emerald-400', borderColor: 'border-emerald-500/40' },
 ];
 
 function NarrativeContent({ report }: { report: ExecutiveInsightReport }) {
@@ -277,12 +285,161 @@ function RecommendationsContent({ report }: { report: ExecutiveInsightReport }) 
   );
 }
 
+// AI Insight type colors
+const aiInsightTypeColors: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+  pattern: { bg: 'bg-blue-500/10', border: 'border-blue-500/40', text: 'text-blue-400', icon: 'text-blue-500' },
+  anomaly: { bg: 'bg-red-500/10', border: 'border-red-500/40', text: 'text-red-400', icon: 'text-red-500' },
+  opportunity: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/40', text: 'text-emerald-400', icon: 'text-emerald-500' },
+  warning: { bg: 'bg-orange-500/10', border: 'border-orange-500/40', text: 'text-orange-400', icon: 'text-orange-500' },
+  recommendation: { bg: 'bg-purple-500/10', border: 'border-purple-500/40', text: 'text-purple-400', icon: 'text-purple-500' },
+};
+
+function AIInsightCard({ insight, index }: { insight: ExecutiveAIInsight; index: number }) {
+  const colors = aiInsightTypeColors[insight.type] || aiInsightTypeColors.pattern;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className={`${colors.bg} border ${colors.border} rounded-lg p-4 backdrop-blur-sm`}
+    >
+      <div className="flex items-start gap-3">
+        <div className={`p-2 bg-gray-900/60 rounded-lg border ${colors.border} flex-shrink-0`}>
+          {insight.actionable ? (
+            <CheckCircle2 className={`w-4 h-4 ${colors.icon}`} />
+          ) : (
+            <Lightbulb className={`w-4 h-4 ${colors.icon}`} />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className={`text-sm font-semibold ${colors.text}`}>{insight.title}</h4>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${colors.bg} border ${colors.border} ${colors.text}`}>
+              {insight.type}
+            </span>
+            <span className="text-xs text-gray-500 ml-auto">
+              {insight.confidence}% confidence
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 leading-relaxed mb-2">{insight.description}</p>
+
+          {insight.evidence.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-700/50">
+              <p className="text-xs text-gray-500 mb-1">Evidence:</p>
+              <ul className="space-y-0.5">
+                {insight.evidence.slice(0, 3).map((ev, idx) => (
+                  <li key={idx} className="text-xs text-gray-500 flex items-start gap-1">
+                    <span className={colors.text}>•</span>
+                    <span>{ev}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {insight.suggestedAction && (
+            <div className="mt-2 pt-2 border-t border-gray-700/50">
+              <p className="text-xs text-gray-400">
+                <ArrowRight className="w-3 h-3 inline mr-1 text-emerald-400" />
+                {insight.suggestedAction}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+interface AIAnalysisContentProps {
+  aiInsights: ExecutiveAIInsight[];
+  aiNarrative: string | null;
+  aiRecommendations: string[];
+  lastAnalysisDate: string | null;
+}
+
+function AIAnalysisContent({ aiInsights, aiNarrative, aiRecommendations, lastAnalysisDate }: AIAnalysisContentProps) {
+  const hasContent = aiInsights.length > 0 || aiNarrative || aiRecommendations.length > 0;
+
+  if (!hasContent) {
+    return (
+      <div className="text-center py-8">
+        <Bot className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+        <p className="text-sm text-gray-500 mb-2">No AI analysis results yet</p>
+        <p className="text-xs text-gray-600">
+          Click "AI Deep Analysis" to run Claude Code analysis on your ideas and directions data.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4" data-testid="ai-analysis-content">
+      {lastAnalysisDate && (
+        <div className="text-xs text-gray-500 mb-2">
+          Last analysis: {new Date(lastAnalysisDate).toLocaleString()}
+        </div>
+      )}
+
+      {aiNarrative && (
+        <div className="bg-emerald-500/5 border border-emerald-500/30 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-emerald-400 mb-2 flex items-center gap-2">
+            <Bot className="w-4 h-4" />
+            AI Analysis Summary
+          </h4>
+          <p className="text-sm text-gray-300 leading-relaxed">{aiNarrative}</p>
+        </div>
+      )}
+
+      {aiInsights.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-gray-400 mb-3">
+            AI-Generated Insights ({aiInsights.length})
+          </h4>
+          <div className="space-y-3">
+            {aiInsights.map((insight, idx) => (
+              <AIInsightCard key={`${insight.type}-${idx}`} insight={insight} index={idx} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {aiRecommendations.length > 0 && (
+        <div className="bg-purple-500/5 border border-purple-500/30 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-purple-400 mb-2">AI Recommendations</h4>
+          <ul className="space-y-2">
+            {aiRecommendations.map((rec, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-sm text-gray-400">
+                <ArrowRight className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                <span>{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
   const [report, setReport] = useState<ExecutiveInsightReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('narrative');
+
+  // AI Analysis state from store
+  const {
+    analysisStatus,
+    runningAnalysisId,
+    promptContent,
+    lastAnalysis,
+    aiInsights,
+    aiNarrative,
+    aiRecommendations,
+    fetchAnalysisStatus,
+  } = useReflectorStore();
 
   const loadInsights = useCallback(async () => {
     setLoading(true);
@@ -307,6 +464,27 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
   useEffect(() => {
     loadInsights();
   }, [loadInsights]);
+
+  // Fetch AI analysis status on mount and when filters change
+  useEffect(() => {
+    fetchAnalysisStatus(filters.projectId);
+  }, [filters.projectId, fetchAnalysisStatus]);
+
+  // Poll for status when analysis is running
+  useEffect(() => {
+    if (analysisStatus !== 'running') return;
+
+    const interval = setInterval(() => {
+      fetchAnalysisStatus(filters.projectId);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [analysisStatus, filters.projectId, fetchAnalysisStatus]);
+
+  // Refresh status callback for terminal
+  const handleStatusRefresh = useCallback(() => {
+    fetchAnalysisStatus(filters.projectId);
+  }, [filters.projectId, fetchAnalysisStatus]);
 
   if (loading) {
     return (
@@ -353,6 +531,15 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
         return <RankingsContent report={report} />;
       case 'recommendations':
         return <RecommendationsContent report={report} />;
+      case 'ai_analysis':
+        return (
+          <AIAnalysisContent
+            aiInsights={aiInsights}
+            aiNarrative={aiNarrative}
+            aiRecommendations={aiRecommendations}
+            lastAnalysisDate={lastAnalysis?.completed_at || null}
+          />
+        );
       default:
         return null;
     }
@@ -366,12 +553,12 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
         className="bg-gradient-to-br from-indigo-500/5 to-purple-600/5 border border-indigo-500/30 rounded-lg overflow-hidden"
       >
         {/* Header with expand/collapse */}
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors"
-          data-testid="executive-summary-toggle"
-        >
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between p-4">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-3 hover:bg-gray-800/30 transition-colors rounded-lg -m-2 p-2 flex-1"
+            data-testid="executive-summary-toggle"
+          >
             <div className="p-2 bg-gray-900/60 rounded-lg border border-indigo-500/40">
               <FileText className="w-4 h-4 text-indigo-400" />
             </div>
@@ -379,13 +566,36 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
               <h3 className="text-lg font-semibold text-indigo-300">Executive Summary</h3>
               <p className="text-sm text-indigo-400/70">{report.narrative.headline}</p>
             </div>
+            {isExpanded ? (
+              <ChevronUp className="w-5 h-5 text-gray-400 ml-auto" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-400 ml-auto" />
+            )}
+          </button>
+
+          {/* AI Analysis Trigger */}
+          <div className="ml-4">
+            <ExecutiveAnalysisTrigger
+              filters={filters}
+              projectName={report.filterContext.projectName}
+              projectPath={undefined}
+              onAnalysisStart={() => setActiveTab('ai_analysis')}
+            />
           </div>
-          {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
-        </button>
+        </div>
+
+        {/* Analysis Terminal */}
+        {analysisStatus === 'running' && promptContent && (
+          <ExecutiveAnalysisTerminal
+            analysisStatus={analysisStatus}
+            promptContent={promptContent}
+            runningAnalysisId={runningAnalysisId}
+            projectPath={process.cwd()}
+            projectId={filters.projectId || 'reflector'}
+            projectName={report.filterContext.projectName || 'Reflector'}
+            onStatusRefresh={handleStatusRefresh}
+          />
+        )}
 
         <AnimatePresence>
           {isExpanded && (
@@ -423,6 +633,17 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
                           <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-cyan-500/20' : 'bg-gray-700/50'}`}>
                             {report.specialistRankings.length}
                           </span>
+                        )}
+                        {tab.id === 'ai_analysis' && (
+                          <>
+                            {analysisStatus === 'running' ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
+                            ) : aiInsights.length > 0 ? (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-emerald-500/20' : 'bg-gray-700/50'}`}>
+                                {aiInsights.length}
+                              </span>
+                            ) : null}
+                          </>
                         )}
                       </button>
                     );

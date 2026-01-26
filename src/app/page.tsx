@@ -27,6 +27,7 @@ import QuestionsLayout from './features/Questions/QuestionsLayout';
 import IntegrationsLayout from './features/Integrations/IntegrationsLayout';
 import { BrainLayout } from './features/Brain';
 import { CommanderLayout } from './features/Commander';
+import { OverviewLayout } from './features/Overview';
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -45,6 +46,8 @@ export default function Home() {
     const projectId = activeProject?.id || null;
 
     switch (activeModule) {
+      case 'overview':
+        return <OverviewLayout key="overview" />;
       case 'coder':
         return <GoalsLayout key="coder" projectId={projectId} />;
       case 'contexts':
@@ -82,7 +85,7 @@ export default function Home() {
       case 'commander':
         return <CommanderLayout key="commander" />;
       default:
-        return <GoalsLayout key="coder" projectId={projectId} />;
+        return <OverviewLayout key="overview" />;
     }
   };
 

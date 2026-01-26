@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileCode, CheckCircle2, ChevronRight, Github } from 'lucide-react';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 export interface ImplementationLog {
   id: string;
@@ -25,23 +26,6 @@ export default function ImplementationLogItem({
 }: ImplementationLogItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isTested = log.tested === 1;
-
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-      if (diffInSeconds < 60) return 'just now';
-      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-      if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } catch {
-      return dateString;
-    }
-  };
 
   const handleToggleTested = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -135,7 +119,7 @@ export default function ImplementationLogItem({
                 <span className="font-mono truncate" title={log.requirement_name}>
                   {log.requirement_name}
                 </span>
-                <span>{formatDate(log.created_at)}</span>
+                <span>{formatRelativeTime(log.created_at)}</span>
               </div>
             </div>
           </motion.div>

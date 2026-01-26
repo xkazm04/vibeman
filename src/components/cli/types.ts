@@ -19,6 +19,8 @@ export interface QueuedTask {
   addedAt: number;
   startedAt?: number;
   completedAt?: number;
+  /** Direct prompt content - if provided, executes this instead of a requirement file */
+  directPrompt?: string;
 }
 
 /**

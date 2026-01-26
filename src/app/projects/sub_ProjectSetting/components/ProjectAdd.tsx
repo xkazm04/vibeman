@@ -8,9 +8,18 @@ interface ProjectAddProps {
   isOpen: boolean;
   onClose: () => void;
   onProjectAdded: () => void;
+  // Workspace context for new projects
+  workspaceId?: string | null;
+  workspaceBasePath?: string | null;
 }
 
-export default function ProjectAdd({ isOpen, onClose, onProjectAdded }: ProjectAddProps) {
+export default function ProjectAdd({
+  isOpen,
+  onClose,
+  onProjectAdded,
+  workspaceId,
+  workspaceBasePath
+}: ProjectAddProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
@@ -139,6 +148,8 @@ export default function ProjectAdd({ isOpen, onClose, onProjectAdded }: ProjectA
                 loading={loading}
                 error={error}
                 isEdit={false}
+                workspaceId={workspaceId}
+                workspaceBasePath={workspaceBasePath}
               />
             </div>
           </div>

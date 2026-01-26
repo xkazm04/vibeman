@@ -3,7 +3,7 @@
 import React from 'react';
 import { BarChart3, Network, Activity } from 'lucide-react';
 
-export type ViewMode = 'weekly' | 'total' | 'ideas_stats' | 'dependencies' | 'observability';
+export type ViewMode = 'weekly' | 'ideas_stats' | 'dependencies' | 'observability';
 
 interface ReflectorViewTabsProps {
   viewMode: ViewMode;
@@ -18,7 +18,6 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { id: 'weekly', label: 'Weekly' },
-  { id: 'total', label: 'Implemented' },
   { id: 'ideas_stats', label: 'Ideas Stats', icon: BarChart3 },
   { id: 'dependencies', label: 'Dependencies', icon: Network },
   { id: 'observability', label: 'Observability', icon: Activity },

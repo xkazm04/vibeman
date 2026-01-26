@@ -54,6 +54,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { SYNTHETIC_GROUP_ID } from '@/app/features/Context/lib/constants';
 
 /**
  * Context passed to custom validators
@@ -295,5 +296,5 @@ export function useDropZoneValidator(
  */
 export const DEFAULT_TARGET_TRANSFORMS = {
   /** Transform synthetic ungrouped target to null (remove from group) */
-  UNGROUPED: { 'synthetic-to-group': null },
+  UNGROUPED: { [SYNTHETIC_GROUP_ID]: null },
 } as const;

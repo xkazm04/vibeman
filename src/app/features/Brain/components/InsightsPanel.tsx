@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Lightbulb, Filter, RefreshCw } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
@@ -10,6 +11,9 @@ import type { InsightWithMeta, InsightType, SortField, SortDir } from './Insight
 interface Props {
   scope?: 'project' | 'global';
 }
+
+const ACCENT_COLOR = '#f59e0b'; // Amber
+const GLOW_COLOR = 'rgba(245, 158, 11, 0.15)';
 
 export default function InsightsPanel({ scope = 'project' }: Props) {
   const [insights, setInsights] = useState<InsightWithMeta[]>([]);
@@ -95,68 +99,142 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     return list;
   }, [insights, typeFilter, sortField, sortDir]);
 
-  return (
-    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Lightbulb className="w-5 h-5 text-amber-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Learning Insights</h2>
-          <span className="text-xs text-zinc-500 ml-1">
-            {displayed.length}{typeFilter !== 'all' ? ` / ${insights.length}` : ''}
-          </span>
-        </div>
+  const baseCardStyle = {
+    background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
+    boxShadow: `0 0 40px ${GLOW_COLOR}, inset 0 1px 0 rgba(255,255,255,0.05)`
+  };
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5 text-zinc-500" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as InsightType | 'all')}
-              className="bg-zinc-800/80 border border-zinc-700/50 rounded text-xs text-zinc-300 px-2 py-1 outline-none focus:border-purple-500/50"
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden rounded-2xl border border-amber-500/20 backdrop-blur-xl"
+      style={baseCardStyle}
+    >
+      {/* Grid pattern overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: `linear-gradient(${ACCENT_COLOR} 1px, transparent 1px), linear-gradient(90deg, ${ACCENT_COLOR} 1px, transparent 1px)`,
+          backgroundSize: '20px 20px'
+        }}
+      />
+
+      {/* Ambient glow */}
+      <div
+        className="absolute -top-1/2 -right-1/2 w-full h-full blur-3xl pointer-events-none opacity-20"
+        style={{ background: `radial-gradient(circle, ${ACCENT_COLOR} 0%, transparent 70%)` }}
+      />
+
+      {/* Corner markers */}
+      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: ACCENT_COLOR }} />
+      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg" style={{ borderColor: ACCENT_COLOR }} />
+      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg" style={{ borderColor: ACCENT_COLOR }} />
+      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: ACCENT_COLOR }} />
+
+      <div className="relative z-10 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <motion.div
+              className="p-2 rounded-xl border"
+              style={{
+                backgroundColor: `${ACCENT_COLOR}15`,
+                borderColor: `${ACCENT_COLOR}40`,
+                boxShadow: `0 0 20px ${GLOW_COLOR}`
+              }}
+              whileHover={{ scale: 1.05 }}
             >
-              <option value="all">All Types</option>
-              <option value="preference_learned">Preferences</option>
-              <option value="pattern_detected">Patterns</option>
-              <option value="warning">Warnings</option>
-              <option value="recommendation">Recommendations</option>
-            </select>
+              <Lightbulb className="w-5 h-5" style={{ color: ACCENT_COLOR }} />
+            </motion.div>
+            <h2 className="text-lg font-semibold text-zinc-200">Learning Insights</h2>
+            <span
+              className="text-sm font-mono px-2 py-0.5 rounded"
+              style={{
+                color: ACCENT_COLOR,
+                background: `${ACCENT_COLOR}15`,
+                textShadow: `0 0 10px ${GLOW_COLOR}`
+              }}
+            >
+              {displayed.length}{typeFilter !== 'all' ? ` / ${insights.length}` : ''}
+            </span>
           </div>
 
-          <button
-            onClick={fetchInsights}
-            disabled={isLoading}
-            className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
-            title="Refresh insights"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Filter className="w-3.5 h-3.5 text-zinc-500" />
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as InsightType | 'all')}
+                className="rounded-lg text-xs text-zinc-300 px-3 py-1.5 outline-none font-mono"
+                style={{
+                  background: 'rgba(39, 39, 42, 0.8)',
+                  border: '1px solid rgba(63, 63, 70, 0.5)'
+                }}
+              >
+                <option value="all">ALL_TYPES</option>
+                <option value="preference_learned">PREFERENCES</option>
+                <option value="pattern_detected">PATTERNS</option>
+                <option value="warning">WARNINGS</option>
+                <option value="recommendation">RECOMMENDATIONS</option>
+              </select>
+            </div>
+
+            <button
+              onClick={fetchInsights}
+              disabled={isLoading}
+              className="p-2 rounded-lg transition-all"
+              style={{
+                background: 'rgba(39, 39, 42, 0.5)',
+                border: '1px solid rgba(63, 63, 70, 0.5)'
+              }}
+              title="Refresh insights"
+            >
+              <RefreshCw className={`w-4 h-4 text-zinc-400 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
+
+        {isLoading && insights.length === 0 ? (
+          <div className="py-12 text-center">
+            <RefreshCw className="w-6 h-6 text-amber-400 mx-auto mb-3 animate-spin" />
+            <p className="text-xs text-zinc-500 font-mono">LOADING_INSIGHTS...</p>
+          </div>
+        ) : insights.length === 0 ? (
+          <div className="text-center py-12">
+            <motion.div
+              className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+              style={{
+                background: `${ACCENT_COLOR}10`,
+                border: `1px solid ${ACCENT_COLOR}20`
+              }}
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Lightbulb className="w-8 h-8" style={{ color: `${ACCENT_COLOR}60` }} />
+            </motion.div>
+            <p className="text-zinc-500 text-sm">No insights yet.</p>
+            <p className="text-zinc-600 text-xs mt-1 font-mono">
+              Trigger a reflection to generate learning insights.
+            </p>
+          </div>
+        ) : (
+          <InsightsTable
+            insights={displayed}
+            scope={scope}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSort}
+            onDelete={handleDelete}
+            projectNameMap={projectNameMap}
+          />
+        )}
       </div>
 
-      {isLoading && insights.length === 0 ? (
-        <div className="py-6 text-center">
-          <RefreshCw className="w-5 h-5 text-zinc-600 mx-auto mb-2 animate-spin" />
-          <p className="text-xs text-zinc-500">Loading insights...</p>
-        </div>
-      ) : insights.length === 0 ? (
-        <div className="text-center py-8">
-          <Lightbulb className="w-10 h-10 text-zinc-700 mx-auto mb-2" />
-          <p className="text-zinc-500 text-sm">No insights yet.</p>
-          <p className="text-zinc-600 text-xs mt-1">
-            Trigger a reflection to generate learning insights.
-          </p>
-        </div>
-      ) : (
-        <InsightsTable
-          insights={displayed}
-          scope={scope}
-          sortField={sortField}
-          sortDir={sortDir}
-          onSort={handleSort}
-          onDelete={handleDelete}
-          projectNameMap={projectNameMap}
-        />
-      )}
-    </div>
+      {/* Bottom accent line */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-0.5"
+        style={{ background: `linear-gradient(90deg, transparent, ${ACCENT_COLOR}, transparent)` }}
+      />
+    </motion.div>
   );
 }

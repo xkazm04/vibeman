@@ -98,7 +98,7 @@ export interface ContextStore extends ContextState {
   selectAllContexts: () => void;
 
   // Data loading
-  loadProjectData: (projectId: string) => Promise<void>;
+  loadProjectData: (projectId: string, signal?: AbortSignal) => Promise<void>;
   clearAllContexts: () => void;
   getContext: (contextId: string) => Context | undefined;
   getGroup: (groupId: string) => ContextGroup | undefined;

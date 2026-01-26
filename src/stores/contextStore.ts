@@ -76,7 +76,7 @@ interface ContextStoreState extends ContextState {
   selectAllContexts: () => void;
 
   // Data loading
-  loadProjectData: (projectId: string) => Promise<void>;
+  loadProjectData: (projectId: string, signal?: AbortSignal) => Promise<void>;
   clearAllContexts: () => void;
   deleteAllContexts: (projectId: string) => Promise<number>;
   getContext: (contextId: string) => Context | undefined;
@@ -94,13 +94,19 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
   selectedContextIds: new Set<string>(),
 
   // Load all project data (groups and contexts)
-  loadProjectData: async (projectId: string) => {
+  loadProjectData: async (projectId: string, signal?: AbortSignal) => {
     if (!projectId) return;
 
     set(createLoadingState());
 
     try {
-      const { groups, contexts } = await contextAPI.getProjectData(projectId);
+      const { groups, contexts } = await contextAPI.getProjectData(projectId, signal);
+
+      if (signal?.aborted) {
+        // Reset loading state even when aborted to prevent stuck "Syncing..." indicator
+        set(createSuccessState());
+        return;
+      }
 
       set({
         groups,
@@ -109,6 +115,11 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
         initialized: true,
       });
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        // Reset loading state on abort to prevent stuck "Syncing..." indicator
+        set(createSuccessState());
+        return;
+      }
       set(createErrorState(error, 'Failed to load contexts'));
     }
   },
@@ -250,7 +261,9 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
       if (success) {
         set(state => ({
           groups: removeArrayItem(state.groups, groupId),
-          contexts: state.contexts.filter(ctx => ctx.groupId !== groupId),
+          contexts: state.contexts.map(ctx =>
+            ctx.groupId === groupId ? { ...ctx, groupId: null } : ctx
+          ),
           ...createSuccessState(),
         }));
       } else {

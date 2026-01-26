@@ -42,6 +42,8 @@ function addColumnIfNotExists(columnDef: string): void {
 
 /**
  * Create the projects table schema
+ * Note: port is no longer UNIQUE at DB level - uniqueness is enforced per-workspace in validation
+ * Note: port is now nullable for projects that don't need a dev server
  */
 function createProjectsTable(): void {
   if (!db) return;
@@ -51,7 +53,8 @@ function createProjectsTable(): void {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       path TEXT NOT NULL UNIQUE,
-      port INTEGER NOT NULL UNIQUE,
+      port INTEGER,
+      workspace_id TEXT,
       type TEXT DEFAULT 'other',
       related_project_id TEXT,
       git_repository TEXT,
@@ -78,7 +81,8 @@ const MIGRATION_COLUMNS = [
   `run_script TEXT DEFAULT 'npm run dev'`,
   `allow_multiple_instances INTEGER DEFAULT 0`,
   `base_port INTEGER`,
-  `instance_of TEXT`
+  `instance_of TEXT`,
+  `workspace_id TEXT`
 ] as const;
 
 /**
@@ -235,7 +239,8 @@ function addUpdateField(
 function buildUpdateQuery(updates: {
   name?: string;
   path?: string;
-  port?: number;
+  port?: number | null;
+  workspace_id?: string | null;
   type?: string;
   related_project_id?: string;
   git_repository?: string;
@@ -243,13 +248,18 @@ function buildUpdateQuery(updates: {
   run_script?: string;
   allow_multiple_instances?: boolean;
   base_port?: number;
-}): { updateFields: string[]; values: (string | number)[] } {
+}): { updateFields: string[]; values: (string | number | null)[] } {
   const updateFields: string[] = [];
-  const values: (string | number)[] = [];
+  const values: (string | number | null)[] = [];
 
   addUpdateField('name', updates.name, updateFields, values);
   addUpdateField('path', updates.path, updateFields, values);
-  addUpdateField('port', updates.port, updateFields, values);
+  // Handle port specially to allow null
+  if (updates.port !== undefined) {
+    updateFields.push('port = ?');
+    values.push(updates.port);
+  }
+  addUpdateField('workspace_id', updates.workspace_id, updateFields, values);
   addUpdateField('type', updates.type, updateFields, values);
   addUpdateField('related_project_id', updates.related_project_id, updateFields, values);
   addUpdateField('git_repository', updates.git_repository, updateFields, values);
@@ -289,7 +299,8 @@ export interface DbProject {
   id: string;
   name: string;
   path: string;
-  port: number;
+  port: number | null;
+  workspace_id: string | null;
   type: string;
   related_project_id: string | null;
   git_repository: string | null;
@@ -339,7 +350,8 @@ export const projectDb = {
     id: string;
     name: string;
     path: string;
-    port: number;
+    port?: number | null;
+    workspace_id?: string | null;
     type?: string;
     related_project_id?: string;
     git_repository?: string;
@@ -351,20 +363,21 @@ export const projectDb = {
   }): DbProject => {
     const db = getProjectDatabase();
     const now = new Date().toISOString();
-    
+
     const stmt = db.prepare(`
       INSERT INTO projects (
-        id, name, path, port, type, related_project_id, git_repository, git_branch, run_script,
+        id, name, path, port, workspace_id, type, related_project_id, git_repository, git_branch, run_script,
         allow_multiple_instances, base_port, instance_of, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       project.id,
       project.name,
       project.path,
-      project.port,
+      project.port ?? null,
+      project.workspace_id || null,
       project.type || 'other',
       project.related_project_id || null,
       project.git_repository || null,
@@ -376,7 +389,7 @@ export const projectDb = {
       now,
       now
     );
-    
+
     // Return the created project
     const selectStmt = db.prepare('SELECT * FROM projects WHERE id = ?');
     return selectStmt.get(project.id) as DbProject;
@@ -386,7 +399,8 @@ export const projectDb = {
   updateProject: (id: string, updates: {
     name?: string;
     path?: string;
-    port?: number;
+    port?: number | null;
+    workspace_id?: string | null;
     type?: string;
     related_project_id?: string;
     git_repository?: string;
@@ -474,8 +488,72 @@ export const projectDb = {
   // Get all used ports
   getUsedPorts: (): number[] => {
     const db = getProjectDatabase();
-    const stmt = db.prepare('SELECT port FROM projects ORDER BY port ASC');
+    const stmt = db.prepare('SELECT port FROM projects WHERE port IS NOT NULL ORDER BY port ASC');
     return (stmt.all() as { port: number }[]).map(p => p.port);
+  },
+
+  // Get projects by workspace
+  getProjectsByWorkspace: (workspaceId: string | null): DbProject[] => {
+    const db = getProjectDatabase();
+    const stmt = workspaceId
+      ? db.prepare('SELECT * FROM projects WHERE workspace_id = ? ORDER BY created_at DESC')
+      : db.prepare('SELECT * FROM projects WHERE workspace_id IS NULL ORDER BY created_at DESC');
+    return (workspaceId ? stmt.all(workspaceId) : stmt.all()) as DbProject[];
+  },
+
+  // Check if port is available within a workspace (null workspace = check all unassigned projects)
+  isPortAvailableInWorkspace: (port: number, workspaceId: string | null, excludeProjectId?: string): boolean => {
+    const db = getProjectDatabase();
+    let stmt;
+    let result;
+
+    if (workspaceId) {
+      if (excludeProjectId) {
+        stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE port = ? AND workspace_id = ? AND id != ?');
+        result = stmt.get(port, workspaceId, excludeProjectId) as { count: number };
+      } else {
+        stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE port = ? AND workspace_id = ?');
+        result = stmt.get(port, workspaceId) as { count: number };
+      }
+    } else {
+      // For unassigned projects, check globally (backward compatible)
+      if (excludeProjectId) {
+        stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE port = ? AND id != ?');
+        result = stmt.get(port, excludeProjectId) as { count: number };
+      } else {
+        stmt = db.prepare('SELECT COUNT(*) as count FROM projects WHERE port = ?');
+        result = stmt.get(port) as { count: number };
+      }
+    }
+
+    return result.count === 0;
+  },
+
+  // Get next available port within a workspace
+  getNextAvailablePortInWorkspace: (basePort: number, workspaceId: string | null): number => {
+    const db = getProjectDatabase();
+    const stmt = workspaceId
+      ? db.prepare('SELECT port FROM projects WHERE workspace_id = ? AND port IS NOT NULL ORDER BY port ASC')
+      : db.prepare('SELECT port FROM projects WHERE port IS NOT NULL ORDER BY port ASC');
+
+    const rows = workspaceId ? stmt.all(workspaceId) : stmt.all();
+    const usedPorts = new Set((rows as { port: number }[]).map(p => p.port));
+
+    let port = basePort;
+    while (usedPorts.has(port)) {
+      port++;
+    }
+
+    return port;
+  },
+
+  // Update project's workspace assignment
+  setProjectWorkspace: (projectId: string, workspaceId: string | null): boolean => {
+    const db = getProjectDatabase();
+    const now = new Date().toISOString();
+    const stmt = db.prepare('UPDATE projects SET workspace_id = ?, updated_at = ? WHERE id = ?');
+    const result = stmt.run(workspaceId, now, projectId);
+    return result.changes > 0;
   },
 
   // Close database connection (for cleanup)

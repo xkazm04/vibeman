@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, stat } from 'fs/promises';
+import { readdir, stat, access } from 'fs/promises';
 import { join } from 'path';
 
 // Force dynamic rendering to prevent static analysis of file paths
@@ -7,8 +7,30 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const customBasePath = searchParams.get('basePath');
+
     const currentAppPath = process.cwd();
-    const parentPath = join(currentAppPath, '..');
+    let parentPath: string;
+
+    // Use custom base path if provided and valid
+    if (customBasePath) {
+      try {
+        await access(customBasePath);
+        const stats = await stat(customBasePath);
+        if (stats.isDirectory()) {
+          parentPath = customBasePath;
+        } else {
+          // If provided path is not a directory, fall back to default
+          parentPath = join(currentAppPath, '..');
+        }
+      } catch {
+        // If provided path doesn't exist or can't be accessed, fall back to default
+        parentPath = join(currentAppPath, '..');
+      }
+    } else {
+      parentPath = join(currentAppPath, '..');
+    }
 
     const entries = await readdir(parentPath);
     const directories = [];

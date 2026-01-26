@@ -649,29 +649,5 @@ curl -X POST ${apiUrl}/api/brain/reflection/${reflectionId}/complete \\
 `;
 }
 
-// ============================================================================
-// SHARED UTILITIES
-// ============================================================================
-
-/**
- * Write reflection requirement to file
- */
-export function writeReflectionRequirement(
-  projectPath: string,
-  reflectionId: string,
-  content: string
-): string {
-  const commandsDir = path.join(projectPath, '.claude', 'commands');
-
-  // Ensure directory exists
-  if (!fs.existsSync(commandsDir)) {
-    fs.mkdirSync(commandsDir, { recursive: true });
-  }
-
-  const filename = `brain-reflection-${reflectionId}.md`;
-  const filePath = path.join(commandsDir, filename);
-
-  fs.writeFileSync(filePath, content, 'utf-8');
-
-  return filePath;
-}
+// Note: writeReflectionRequirement was removed in favor of direct prompt execution
+// The prompt content is now sent directly to Claude Code CLI without writing to disk

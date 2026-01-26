@@ -22,17 +22,6 @@ export function getProjectName(
 }
 
 /**
- * Get context name from context ID
- */
-export function getContextName(
-  contextId: string,
-  contexts: Array<{ id: string; name: string }>
-): string {
-  const context = contexts.find(c => c.id === contextId);
-  return context?.name || contextId;
-}
-
-/**
  * Group ideas by project and context
  */
 export function groupIdeasByProjectAndContext(
@@ -69,16 +58,4 @@ export function groupIdeasByProjectAndContext(
   });
 
   return groups;
-}
-
-/**
- * Calculate idea statistics
- */
-export function calculateIdeaStats(ideas: DbIdea[]) {
-  return {
-    total: ideas.length,
-    pending: ideas.filter(i => i.status === 'pending').length,
-    accepted: ideas.filter(i => i.status === 'accepted').length,
-    implemented: ideas.filter(i => i.status === 'implemented').length,
-  };
 }

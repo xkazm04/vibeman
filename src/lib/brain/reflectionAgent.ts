@@ -11,7 +11,6 @@ import {
   gatherGlobalReflectionData,
   buildReflectionRequirement,
   buildGlobalReflectionRequirement,
-  writeReflectionRequirement,
 } from './reflectionPromptBuilder';
 
 /**
@@ -161,7 +160,7 @@ export const reflectionAgent = {
 
   /**
    * Start a new per-project reflection session
-   * Returns the requirement file path for Claude Code execution
+   * Returns the prompt content for direct Claude Code execution (no file written)
    */
   startReflection: async (
     projectId: string,
@@ -172,7 +171,7 @@ export const reflectionAgent = {
   ): Promise<{
     success: boolean;
     reflectionId?: string;
-    requirementPath?: string;
+    promptContent?: string;
     error?: string;
   }> => {
     try {
@@ -215,8 +214,8 @@ export const reflectionAgent = {
         gitRepoUrl
       );
 
-      // Build requirement content
-      const requirementContent = buildReflectionRequirement({
+      // Build prompt content (no file written - sent directly to CLI)
+      const promptContent = buildReflectionRequirement({
         projectId,
         projectName,
         projectPath,
@@ -224,20 +223,13 @@ export const reflectionAgent = {
         data,
       });
 
-      // Write requirement file
-      const requirementPath = writeReflectionRequirement(
-        projectPath,
-        reflectionId,
-        requirementContent
-      );
-
       // Mark as running
       brainReflectionDb.startReflection(reflectionId);
 
       return {
         success: true,
         reflectionId,
-        requirementPath,
+        promptContent,
       };
     } catch (error) {
       console.error('[ReflectionAgent] Failed to start reflection:', error);
@@ -328,6 +320,7 @@ export const reflectionAgent = {
 
   /**
    * Start a global (cross-project) reflection session
+   * Returns the prompt content for direct Claude Code execution (no file written)
    */
   startGlobalReflection: async (
     projects: Array<{ id: string; name: string; path: string }>,
@@ -335,7 +328,7 @@ export const reflectionAgent = {
   ): Promise<{
     success: boolean;
     reflectionId?: string;
-    requirementPath?: string;
+    promptContent?: string;
     error?: string;
   }> => {
     try {
@@ -364,26 +357,19 @@ export const reflectionAgent = {
         DEFAULT_GLOBAL_REFLECTION_CONFIG.maxDirectionsPerProject
       );
 
-      // Build global requirement
-      const requirementContent = buildGlobalReflectionRequirement({
+      // Build prompt content (no file written - sent directly to CLI)
+      const promptContent = buildGlobalReflectionRequirement({
         reflectionId,
         data,
         workspacePath,
       });
-
-      // Write requirement file at workspace level
-      const requirementPath = writeReflectionRequirement(
-        workspacePath,
-        reflectionId,
-        requirementContent
-      );
 
       brainReflectionDb.startReflection(reflectionId);
 
       return {
         success: true,
         reflectionId,
-        requirementPath,
+        promptContent,
       };
     } catch (error) {
       console.error('[ReflectionAgent] Failed to start global reflection:', error);

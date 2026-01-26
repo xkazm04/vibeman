@@ -1,18 +1,20 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   Sparkles,
   Loader2,
   Clock,
   CheckCircle,
   XCircle,
+  Play,
+  Square,
 } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { ReflectionTerminal } from './ReflectionTerminal';
-import { ReflectionActions } from './ReflectionActions';
 
 interface Props {
   isLoading: boolean;
@@ -21,16 +23,32 @@ interface Props {
 
 const POLL_INTERVAL_MS = 8000;
 
+const ACCENT_COLOR = '#a855f7'; // Purple
+const GLOW_COLOR = 'rgba(168, 85, 247, 0.15)';
+
 function StatusBadge({ status }: { status: string }) {
-  const cls = status === 'running' ? 'bg-blue-500/20 text-blue-400'
-    : status === 'completed' ? 'bg-green-500/20 text-green-400'
-    : status === 'failed' ? 'bg-red-500/20 text-red-400' : 'bg-zinc-700/50 text-zinc-400';
+  const config = status === 'running'
+    ? { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.3)', color: '#60a5fa', icon: Loader2, spin: true, text: 'Running' }
+    : status === 'completed'
+    ? { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)', color: '#34d399', icon: CheckCircle, spin: false, text: 'Idle' }
+    : status === 'failed'
+    ? { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', color: '#f87171', icon: XCircle, spin: false, text: 'Failed' }
+    : { bg: 'rgba(113, 113, 122, 0.15)', border: 'rgba(113, 113, 122, 0.3)', color: '#a1a1aa', icon: Clock, spin: false, text: 'Idle' };
+
+  const Icon = config.icon;
+
   return (
-    <div className={`px-2 py-1 rounded-full text-xs font-medium ${cls}`}>
-      {status === 'running' ? <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Running</span>
-        : status === 'completed' ? <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3" />Idle</span>
-        : status === 'failed' ? <span className="flex items-center gap-1"><XCircle className="w-3 h-3" />Failed</span>
-        : 'Idle'}
+    <div
+      className="px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5"
+      style={{
+        background: config.bg,
+        border: `1px solid ${config.border}`,
+        color: config.color,
+        boxShadow: status === 'running' ? `0 0 15px ${config.border}` : undefined
+      }}
+    >
+      <Icon className={`w-3.5 h-3.5 ${config.spin ? 'animate-spin' : ''}`} />
+      {config.text}
     </div>
   );
 }
@@ -51,11 +69,11 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
     shouldTrigger,
     triggerReason,
     runningReflectionId: projectRunningId,
-    requirementName: projectRequirementName,
+    promptContent: projectPromptContent,
     globalReflectionStatus,
     lastGlobalReflection,
     globalRunningReflectionId,
-    globalRequirementName,
+    globalPromptContent,
     triggerReflection,
     triggerGlobalReflection,
     cancelReflection,
@@ -65,7 +83,7 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
 
   const reflectionStatus = scope === 'global' ? globalReflectionStatus : projectStatus;
   const runningReflectionId = scope === 'global' ? globalRunningReflectionId : projectRunningId;
-  const requirementName = scope === 'global' ? globalRequirementName : projectRequirementName;
+  const promptContent = scope === 'global' ? globalPromptContent : projectPromptContent;
   const lastReflectionForDisplay = scope === 'global' ? lastGlobalReflection : lastReflection;
 
   const refreshStatus = () => {
@@ -115,12 +133,22 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
     await cancelReflection(scope === 'global' ? '__global__' : activeProject!.id);
   };
 
+  const baseCardStyle = {
+    background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
+    boxShadow: `0 0 40px ${GLOW_COLOR}, inset 0 1px 0 rgba(255,255,255,0.05)`
+  };
+
   if (isLoading) {
     return (
-      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-purple-500/20 p-6"
+        style={baseCardStyle}
+      >
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Reflection Agent</h2>
+          <h2 className="text-lg font-semibold text-zinc-200">
+            {scope === 'global' ? 'Global Reflection' : 'Project Reflection'}
+          </h2>
         </div>
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-zinc-800 rounded w-3/4" />
@@ -139,58 +167,184 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
   })();
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">
-            {scope === 'global' ? 'Global Reflection' : 'Reflection Agent'}
-          </h2>
-        </div>
-        <StatusBadge status={reflectionStatus} />
-      </div>
-
-      {completionMessage && (
-        <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
-          completionMessage.type === 'success' ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'
-        }`}>
-          {completionMessage.type === 'success'
-            ? <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-            : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
-          <span className={`text-sm ${completionMessage.type === 'success' ? 'text-green-300' : 'text-red-300'}`}>
-            {completionMessage.text}
-          </span>
-          <button onClick={() => setCompletionMessage(null)} className="ml-auto text-xs text-zinc-500 hover:text-zinc-300">Dismiss</button>
-        </div>
-      )}
-
-      <div className="flex items-center gap-2 text-sm text-zinc-400 mb-4">
-        <Clock className="w-4 h-4" />
-        <span>Last {scope === 'global' ? 'global ' : ''}reflection: {formattedDate}</span>
-      </div>
-
-      <ReflectionTerminal
-        scope={scope}
-        reflectionStatus={reflectionStatus}
-        requirementName={requirementName}
-        runningReflectionId={runningReflectionId}
-        activeProject={activeProject}
-        allProjects={allProjects}
-        onStatusRefresh={refreshStatus}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden rounded-2xl border border-purple-500/20 backdrop-blur-xl"
+      style={baseCardStyle}
+    >
+      {/* Grid pattern overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: `linear-gradient(${ACCENT_COLOR} 1px, transparent 1px), linear-gradient(90deg, ${ACCENT_COLOR} 1px, transparent 1px)`,
+          backgroundSize: '20px 20px'
+        }}
       />
 
-      <ReflectionActions
-        isRunning={isRunning}
-        isTriggering={isTriggering}
-        shouldTrigger={shouldTrigger}
-        scope={scope}
-        progress={progress}
-        decisionsSinceReflection={decisionsSinceReflection}
-        nextThreshold={nextThreshold}
-        triggerReason={triggerReason}
-        onTrigger={handleTrigger}
-        onCancel={handleCancel}
+      {/* Ambient glow */}
+      <div
+        className="absolute -top-1/2 -right-1/2 w-full h-full blur-3xl pointer-events-none opacity-20"
+        style={{ background: `radial-gradient(circle, ${ACCENT_COLOR} 0%, transparent 70%)` }}
       />
-    </div>
+
+      {/* Corner markers */}
+      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: ACCENT_COLOR }} />
+      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg" style={{ borderColor: ACCENT_COLOR }} />
+      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg" style={{ borderColor: ACCENT_COLOR }} />
+      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: ACCENT_COLOR }} />
+
+      <div className="relative z-10 p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <motion.div
+              className="p-2 rounded-xl border"
+              style={{
+                backgroundColor: `${ACCENT_COLOR}15`,
+                borderColor: `${ACCENT_COLOR}40`,
+                boxShadow: `0 0 20px ${GLOW_COLOR}`
+              }}
+              whileHover={{ scale: 1.05 }}
+            >
+              <Sparkles className="w-5 h-5" style={{ color: ACCENT_COLOR }} />
+            </motion.div>
+            <h2 className="text-lg font-semibold text-zinc-200">
+              {scope === 'global' ? 'Global Reflection' : 'Project Reflection'}
+            </h2>
+          </div>
+          <StatusBadge status={reflectionStatus} />
+        </div>
+
+        {/* Completion Message */}
+        {completionMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-3 rounded-lg flex items-center gap-2"
+            style={{
+              background: completionMessage.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${completionMessage.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+            }}
+          >
+            {completionMessage.type === 'success'
+              ? <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
+            <span className={`text-sm ${completionMessage.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+              {completionMessage.text}
+            </span>
+            <button onClick={() => setCompletionMessage(null)} className="ml-auto text-xs text-zinc-500 hover:text-zinc-300 font-mono">
+              [×]
+            </button>
+          </motion.div>
+        )}
+
+        {/* Last Reflection */}
+        <div className="flex items-center gap-2 text-sm text-zinc-400 mb-4">
+          <Clock className="w-4 h-4" />
+          <span>Last reflection: <span className="font-mono text-zinc-300">{formattedDate}</span></span>
+        </div>
+
+        {/* Progress Bar (only for project scope) */}
+        {scope === 'project' && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-zinc-500 font-mono">DECISIONS_THRESHOLD</span>
+              <span className="text-sm font-mono" style={{ color: ACCENT_COLOR }}>
+                {decisionsSinceReflection} / {nextThreshold}
+              </span>
+            </div>
+            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                style={{ boxShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Trigger Reason Alert */}
+        {shouldTrigger && triggerReason && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-4 p-3 rounded-lg"
+            style={{
+              background: 'rgba(168, 85, 247, 0.1)',
+              border: '1px solid rgba(168, 85, 247, 0.2)'
+            }}
+          >
+            <p className="text-xs text-purple-300">{triggerReason}</p>
+          </motion.div>
+        )}
+
+        {/* Terminal (only when running with prompt content) */}
+        <ReflectionTerminal
+          scope={scope}
+          reflectionStatus={reflectionStatus}
+          promptContent={promptContent}
+          runningReflectionId={runningReflectionId}
+          activeProject={activeProject}
+          allProjects={allProjects}
+          onStatusRefresh={refreshStatus}
+        />
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3 mt-4">
+          {!isRunning ? (
+            <motion.button
+              onClick={handleTrigger}
+              disabled={isTriggering}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-50"
+              style={{
+                background: `linear-gradient(135deg, ${ACCENT_COLOR}30 0%, ${ACCENT_COLOR}15 100%)`,
+                border: `1px solid ${ACCENT_COLOR}40`,
+                color: '#e9d5ff',
+                boxShadow: `0 0 20px ${GLOW_COLOR}`
+              }}
+            >
+              {isTriggering ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+              {isTriggering ? 'Starting...' : 'Trigger Reflection'}
+            </motion.button>
+          ) : (
+            <motion.button
+              onClick={handleCancel}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all"
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#fca5a5'
+              }}
+            >
+              <Square className="w-4 h-4" />
+              Cancel
+            </motion.button>
+          )}
+        </div>
+
+        {/* Info Text */}
+        <p className="text-xs text-zinc-600 mt-3 font-mono">
+          {scope === 'global'
+            ? 'Analyzes patterns across all projects.'
+            : 'Analyzes accepted/rejected directions to learn preferences.'}
+        </p>
+      </div>
+
+      {/* Bottom accent line */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-0.5"
+        style={{ background: `linear-gradient(90deg, transparent, ${ACCENT_COLOR}, transparent)` }}
+      />
+    </motion.div>
   );
 }

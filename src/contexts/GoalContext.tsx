@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useCallback, useState, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Goal } from '@/types';
 import { goalApi, goalKeys } from '@/lib/queries/goalQueries';
@@ -11,6 +11,7 @@ import { goalApi, goalKeys } from '@/lib/queries/goalQueries';
 interface GoalContextState {
   // Data
   goals: Goal[];
+  activeGoal: Goal | null;
   loading: boolean;
   error: string | null;
 
@@ -25,6 +26,8 @@ interface GoalContextState {
   createGoal: (goalData: Omit<Goal, 'id' | 'order'>) => Promise<Goal | null>;
   updateGoal: (goalId: string, updates: Partial<Goal>) => Promise<Goal | null>;
   deleteGoal: (goalId: string) => Promise<boolean>;
+  completeGoal: (goalId: string) => Promise<Goal | null>;
+  setActiveGoal: (goal: Goal | null) => void;
   reorderGoals: (reorderedGoals: Goal[]) => Promise<void>;
   clearError: () => void;
 }
@@ -34,6 +37,7 @@ interface GoalContextState {
  */
 const defaultContextValue: GoalContextState = {
   goals: [],
+  activeGoal: null,
   loading: false,
   error: null,
   isCreating: false,
@@ -44,6 +48,8 @@ const defaultContextValue: GoalContextState = {
   createGoal: async () => null,
   updateGoal: async () => null,
   deleteGoal: async () => false,
+  completeGoal: async () => null,
+  setActiveGoal: () => {},
   reorderGoals: async () => {},
   clearError: () => {},
 };
@@ -69,6 +75,7 @@ interface GoalProviderProps {
  */
 export function GoalProvider({ projectId, children }: GoalProviderProps) {
   const queryClient = useQueryClient();
+  const [activeGoal, setActiveGoalState] = useState<Goal | null>(null);
 
   // Query for fetching goals
   const {
@@ -83,6 +90,14 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
     staleTime: 30 * 60 * 1000, // 30 minutes
     gcTime: 35 * 60 * 1000, // 35 minutes
   });
+
+  // Set active goal with dedup
+  const setActiveGoal = useCallback((goal: Goal | null) => {
+    setActiveGoalState(prev => {
+      if (goal?.id === prev?.id) return prev;
+      return goal;
+    });
+  }, []);
 
   // Mutation for creating goals
   const createGoalMutation = useMutation({
@@ -163,11 +178,30 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
   const deleteGoal = useCallback(async (goalId: string): Promise<boolean> => {
     try {
       await deleteGoalMutation.mutateAsync(goalId);
+      if (activeGoal?.id === goalId) {
+        setActiveGoalState(null);
+      }
       return true;
     } catch (error) {
       return false;
     }
-  }, [deleteGoalMutation]);
+  }, [deleteGoalMutation, activeGoal?.id]);
+
+  // Action: Complete a goal
+  const completeGoal = useCallback(async (goalId: string): Promise<Goal | null> => {
+    try {
+      const result = await updateGoalMutation.mutateAsync({
+        id: goalId,
+        status: 'done',
+      });
+      if (activeGoal?.id === goalId) {
+        setActiveGoalState(prev => prev ? { ...prev, status: 'done', progress: 100 } : null);
+      }
+      return result;
+    } catch (error) {
+      return null;
+    }
+  }, [updateGoalMutation, activeGoal?.id]);
 
   // Action: Reorder goals
   const reorderGoals = useCallback(async (reorderedGoals: Goal[]): Promise<void> => {
@@ -198,6 +232,7 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
   // Context value
   const contextValue: GoalContextState = {
     goals,
+    activeGoal,
     loading,
     error,
     isCreating: createGoalMutation.isPending,
@@ -208,6 +243,8 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
     createGoal,
     updateGoal,
     deleteGoal,
+    completeGoal,
+    setActiveGoal,
     reorderGoals,
     clearError,
   };

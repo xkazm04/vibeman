@@ -16,13 +16,27 @@ export interface QuickOption {
   message: string;
 }
 
+/**
+ * CLI Execution info for inline terminal display
+ */
+export interface CLIExecutionInfo {
+  showCLI: boolean;
+  requirementName: string;
+  projectPath: string;
+  projectId: string;
+  executionId?: string;
+  autoStart: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  toolCalls?: Array<{ name: string; input: Record<string, unknown> }>;
+  toolCalls?: Array<{ name: string; input: Record<string, unknown>; result?: string }>;
   tokensUsed?: { input: number; output: number; total: number };
   quickOptions?: QuickOption[];
+  /** CLI executions to display inline (parsed from tool results) */
+  cliExecutions?: CLIExecutionInfo[];
   timestamp: string;
   isStreaming?: boolean;
 }
@@ -207,6 +221,23 @@ export const useAnnetteStore = create<AnnetteStore>()(
 
           const data = await response.json();
 
+          // Parse tool results for CLI execution info
+          const cliExecutions: CLIExecutionInfo[] = [];
+          if (data.toolsUsed && Array.isArray(data.toolsUsed)) {
+            for (const tool of data.toolsUsed) {
+              if (tool.result) {
+                try {
+                  const parsed = JSON.parse(tool.result);
+                  if (parsed.cliExecution?.showCLI) {
+                    cliExecutions.push(parsed.cliExecution);
+                  }
+                } catch {
+                  // Not JSON, ignore
+                }
+              }
+            }
+          }
+
           const assistantMsg: ChatMessage = {
             id: `assistant-${Date.now()}`,
             role: 'assistant',
@@ -214,6 +245,7 @@ export const useAnnetteStore = create<AnnetteStore>()(
             toolCalls: data.toolsUsed,
             tokensUsed: data.tokensUsed,
             quickOptions: data.quickOptions,
+            cliExecutions: cliExecutions.length > 0 ? cliExecutions : undefined,
             timestamp: new Date().toISOString(),
           };
 

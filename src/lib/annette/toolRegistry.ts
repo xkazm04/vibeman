@@ -73,7 +73,8 @@ export async function executeTool(
                name.startsWith('scan_contexts') || name.startsWith('generate_description')) {
       result = await executeContextTools(name, input, projectId);
     } else if (name.startsWith('get_queue') || name.startsWith('queue_requirement') ||
-               name.startsWith('get_execution') || name.startsWith('get_implementation')) {
+               name.startsWith('get_execution') || name.startsWith('get_implementation') ||
+               name.startsWith('execute_now') || name.startsWith('execute_requirement')) {
       result = await executeTaskTools(name, input, projectId, projectPath);
     } else if (name.startsWith('get_project') || name.startsWith('list_projects')) {
       result = await executeProjectTools(name, input, projectId);
@@ -391,6 +392,29 @@ export function getToolDefinitions(): ToolDefinition[] {
         properties: {
           limit: { type: 'string', description: 'Max logs to return (default: 5)' },
         },
+      },
+    },
+    {
+      name: 'execute_now',
+      description: 'Create and immediately execute a requirement with Claude Code. The execution progress will be shown inline in the chat. Use this when the user wants to see something implemented right away.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          requirement_name: { type: 'string', description: 'Name/title for the requirement' },
+          requirement_content: { type: 'string', description: 'Detailed instructions for Claude Code to implement' },
+        },
+        required: ['requirement_name', 'requirement_content'],
+      },
+    },
+    {
+      name: 'execute_requirement',
+      description: 'Execute an existing requirement file with Claude Code. The execution progress will be shown inline in the chat.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          requirement_name: { type: 'string', description: 'Name of the existing requirement file to execute' },
+        },
+        required: ['requirement_name'],
       },
     },
 

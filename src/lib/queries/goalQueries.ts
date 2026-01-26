@@ -15,6 +15,11 @@ interface DbGoal {
   title: string;
   description: string | null;
   status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+  progress?: number;
+  target_date?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  github_item_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +35,11 @@ const convertDbGoalToGoal = (dbGoal: DbGoal): Goal => ({
   title: dbGoal.title,
   description: dbGoal.description || undefined,
   status: dbGoal.status,
+  progress: dbGoal.progress ?? 0,
+  targetDate: dbGoal.target_date ?? null,
+  startedAt: dbGoal.started_at ?? null,
+  completedAt: dbGoal.completed_at ?? null,
+  githubItemId: dbGoal.github_item_id ?? null,
   created_at: dbGoal.created_at,
   updated_at: dbGoal.updated_at,
 });

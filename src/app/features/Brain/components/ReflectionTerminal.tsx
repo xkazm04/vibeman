@@ -7,7 +7,8 @@ import type { QueuedTask } from '@/components/cli/types';
 interface ReflectionTerminalProps {
   scope: 'project' | 'global';
   reflectionStatus: string;
-  requirementName: string | null;
+  /** Direct prompt content for CLI execution (no file) */
+  promptContent: string | null;
   runningReflectionId: string | null;
   activeProject: { id: string; name: string; path: string } | null;
   allProjects: { id: string; name: string; path: string }[];
@@ -17,7 +18,7 @@ interface ReflectionTerminalProps {
 export function ReflectionTerminal({
   scope,
   reflectionStatus,
-  requirementName,
+  promptContent,
   runningReflectionId,
   activeProject,
   allProjects,
@@ -28,9 +29,9 @@ export function ReflectionTerminal({
   const [executionId, setExecutionId] = useState<string | null>(null);
   const [storedTaskId, setStoredTaskId] = useState<string | null>(null);
 
-  // When a running reflection is detected, create terminal task
+  // When a running reflection is detected with prompt content, create terminal task
   useEffect(() => {
-    if (reflectionStatus === 'running' && requirementName) {
+    if (reflectionStatus === 'running' && promptContent && runningReflectionId) {
       const projectPath = scope === 'global'
         ? (allProjects[0]?.path?.replace(/[/\\][^/\\]+$/, '') || '.')
         : activeProject?.path;
@@ -39,21 +40,25 @@ export function ReflectionTerminal({
 
       if (!projectPath || !projectId) return;
 
-      if (!terminalTask || terminalTask.requirementName !== requirementName) {
+      // Use reflection ID as the task identifier
+      const taskId = `brain-reflection-${runningReflectionId}`;
+
+      if (!terminalTask || terminalTask.id !== taskId) {
         const task: QueuedTask = {
-          id: `brain-reflection-${runningReflectionId || Date.now()}`,
+          id: taskId,
           projectId,
           projectPath,
           projectName: projectName || 'Unknown',
-          requirementName,
+          requirementName: `Reflection ${runningReflectionId.slice(0, 12)}`, // Display name only
           status: 'pending',
           addedAt: Date.now(),
+          directPrompt: promptContent, // Use direct prompt instead of file
         };
         setTerminalTask(task);
         setAutoStart(true);
       }
     }
-  }, [reflectionStatus, requirementName, runningReflectionId, scope, activeProject, allProjects, terminalTask]);
+  }, [reflectionStatus, promptContent, runningReflectionId, scope, activeProject, allProjects, terminalTask]);
 
   // Clean up terminal state when reflection completes/fails
   useEffect(() => {
@@ -90,9 +95,12 @@ export function ReflectionTerminal({
   }, []);
 
   const isRunning = reflectionStatus === 'running';
+  const hasPrompt = !!promptContent;
   const taskQueue = terminalTask ? [terminalTask] : [];
 
-  if (!isRunning || !terminalTask || (!activeProject && scope !== 'global')) {
+  // Only show terminal if running AND we have the prompt content
+  // (prompt content is only available right after triggering, not on page refresh)
+  if (!isRunning || !hasPrompt || !terminalTask || (!activeProject && scope !== 'global')) {
     return null;
   }
 

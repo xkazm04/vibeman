@@ -31,14 +31,14 @@ export default function WorkspaceManager({ isOpen, onClose }: WorkspaceManagerPr
 
   if (!isOpen) return null;
 
-  const handleCreate = async (data: { name: string; description?: string; color: string }) => {
+  const handleCreate = async (data: { name: string; description?: string; color: string; basePath?: string }) => {
     await createWorkspace(data);
     setView('list');
   };
 
-  const handleEdit = async (data: { name: string; description?: string; color: string }) => {
+  const handleEdit = async (data: { name: string; description?: string; color: string; basePath?: string }) => {
     if (editingWorkspace) {
-      await updateWorkspace(editingWorkspace.id, data);
+      await updateWorkspace(editingWorkspace.id, { ...data, base_path: data.basePath });
       setEditingWorkspace(null);
       setView('list');
     }

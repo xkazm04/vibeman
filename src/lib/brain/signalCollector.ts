@@ -163,6 +163,45 @@ export const signalCollector = {
   },
 
   /**
+   * Batch record multiple signals of any type.
+   * Useful for bulk-ingesting signals from automated hooks.
+   * Returns the number of signals successfully recorded.
+   */
+  recordBatch: (
+    projectId: string,
+    signals: Array<{
+      type: BehavioralSignalType;
+      data: GitActivitySignalData | ApiFocusSignalData | ContextFocusSignalData | ImplementationSignalData;
+      contextId?: string;
+      contextName?: string;
+    }>
+  ): number => {
+    let recorded = 0;
+    for (const signal of signals) {
+      try {
+        switch (signal.type) {
+          case 'git_activity':
+            signalCollector.recordGitActivity(projectId, signal.data as GitActivitySignalData, signal.contextId, signal.contextName);
+            break;
+          case 'api_focus':
+            signalCollector.recordApiFocus(projectId, signal.data as ApiFocusSignalData, signal.contextId, signal.contextName);
+            break;
+          case 'context_focus':
+            signalCollector.recordContextFocus(projectId, signal.data as ContextFocusSignalData);
+            break;
+          case 'implementation':
+            signalCollector.recordImplementation(projectId, signal.data as ImplementationSignalData);
+            break;
+        }
+        recorded++;
+      } catch (error) {
+        console.error('[SignalCollector] Failed to record batch signal:', error);
+      }
+    }
+    return recorded;
+  },
+
+  /**
    * Apply decay to old signals (call periodically)
    */
   applyDecay: (projectId: string): number => {

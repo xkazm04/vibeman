@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { directionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 async function handleGet(
   request: NextRequest,
@@ -71,6 +72,18 @@ async function handlePut(
       }
 
       logger.info('[API] Direction rejected:', { id });
+
+      // Record brain signal: direction rejected
+      try {
+        signalCollector.recordContextFocus(existingDirection.project_id, {
+          contextId: existingDirection.context_id || id,
+          contextName: existingDirection.context_name || existingDirection.context_map_title,
+          duration: 0,
+          actions: ['reject_direction'],
+        });
+      } catch {
+        // Signal recording must never break the main flow
+      }
 
       return NextResponse.json({
         success: true,

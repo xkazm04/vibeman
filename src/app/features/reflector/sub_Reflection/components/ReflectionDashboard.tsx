@@ -309,17 +309,17 @@ export default function ReflectionDashboard() {
                 <AcceptanceChart scanTypeStats={stats.scanTypes} />
               </div>
 
-              {/* Scan Type Cards Grid (Ideas) */}
+              {/* Scan Type Cards Grid (Ideas) - Compact 6-column matrix */}
               {filters.suggestionType !== 'directions' && stats.scanTypes.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <h2 className="text-lg font-semibold text-gray-300 mb-4">
+                  <h2 className="text-sm font-semibold text-gray-400 mb-2">
                     Specialist Performance
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                     {[...stats.scanTypes]
                       .sort((a, b) => b.total - a.total)
                       .map((scanTypeStat, index) => (
@@ -334,37 +334,47 @@ export default function ReflectionDashboard() {
                 </motion.div>
               )}
 
-              {/* Context Map Cards Grid (Directions) */}
+              {/* Context Map Cards Grid (Directions) - Compact 6-column matrix */}
               {filters.suggestionType !== 'ideas' && stats.contextMaps && stats.contextMaps.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <h2 className="text-lg font-semibold text-gray-300 mb-4">
+                  <h2 className="text-sm font-semibold text-gray-400 mb-2">
                     Direction Sources (Context Maps)
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                     {[...stats.contextMaps]
                       .sort((a, b) => b.total - a.total)
                       .map((contextMapStat, index) => (
-                        <div
+                        <motion.div
                           key={contextMapStat.contextMapId}
-                          className="bg-gradient-to-br from-cyan-500/5 to-cyan-600/2 border border-cyan-500/40 rounded-lg p-4 backdrop-blur-sm"
+                          initial={{ scale: 0.95, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: index * 0.03, duration: 0.2 }}
+                          whileHover={{ scale: 1.02 }}
+                          className="bg-gradient-to-br from-cyan-500/5 to-cyan-600/2 border border-cyan-500/40 rounded-md p-2 backdrop-blur-sm"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-semibold text-gray-300 truncate">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <h3 className="text-xs font-semibold text-gray-300 truncate flex-1">
                               {contextMapStat.contextMapTitle}
                             </h3>
-                            <span className="text-xs text-cyan-400 font-mono">
+                            <span className="text-xs text-cyan-400 opacity-50 font-mono">
+                              {contextMapStat.total}
+                            </span>
+                          </div>
+                          <div className="text-center mb-1">
+                            <span className="text-lg font-bold text-cyan-400 font-mono">
                               {contextMapStat.acceptanceRatio}%
                             </span>
                           </div>
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>{contextMapStat.total} total</span>
-                            <span className="text-green-400">{contextMapStat.accepted} accepted</span>
+                          <div className="flex justify-between text-[10px] font-mono text-gray-500">
+                            <span className="text-yellow-400">{contextMapStat.pending}p</span>
+                            <span className="text-green-400">{contextMapStat.accepted}a</span>
+                            <span className="text-red-400">{contextMapStat.rejected}r</span>
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                   </div>
                 </motion.div>

@@ -14,8 +14,8 @@ interface WorkspaceState {
   // === Actions ===
   syncWithServer: () => Promise<void>;
   setActiveWorkspace: (id: string | null) => void;
-  createWorkspace: (data: { name: string; description?: string; color?: string; icon?: string; projectIds?: string[] }) => Promise<DbWorkspace | null>;
-  updateWorkspace: (id: string, updates: { name?: string; description?: string; color?: string; icon?: string }) => Promise<void>;
+  createWorkspace: (data: { name: string; description?: string; color?: string; icon?: string; basePath?: string; projectIds?: string[] }) => Promise<DbWorkspace | null>;
+  updateWorkspace: (id: string, updates: { name?: string; description?: string; color?: string; icon?: string; base_path?: string }) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
   setWorkspaceProjects: (workspaceId: string, projectIds: string[]) => Promise<void>;
   addProjectToWorkspace: (workspaceId: string, projectId: string) => Promise<void>;

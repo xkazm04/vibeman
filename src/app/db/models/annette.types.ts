@@ -62,3 +62,78 @@ export interface DbAnnetteAudioCache {
   access_count: number;
   created_at: string;
 }
+
+// ─── Memory System Types ───
+
+export type AnnetteMemoryType = 'conversation' | 'decision' | 'fact' | 'preference' | 'event' | 'insight';
+
+export interface DbAnnetteMemory {
+  id: string;
+  project_id: string;
+  session_id: string | null;
+  memory_type: AnnetteMemoryType;
+  content: string;
+  summary: string | null;
+  embedding: string | null; // JSON array of floats
+  importance_score: number;
+  decay_factor: number;
+  access_count: number;
+  last_accessed_at: string | null;
+  consolidated_into: string | null;
+  source_message_ids: string | null; // JSON array of message IDs
+  metadata: string | null; // JSON object
+  created_at: string;
+  updated_at: string;
+}
+
+export type KnowledgeNodeType =
+  | 'entity'
+  | 'concept'
+  | 'file'
+  | 'function'
+  | 'component'
+  | 'api'
+  | 'decision'
+  | 'person'
+  | 'technology';
+
+export interface DbAnnetteKnowledgeNode {
+  id: string;
+  project_id: string;
+  node_type: KnowledgeNodeType;
+  name: string;
+  description: string | null;
+  properties: string | null; // JSON object
+  embedding: string | null; // JSON array of floats
+  mention_count: number;
+  importance_score: number;
+  last_mentioned_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbAnnetteKnowledgeEdge {
+  id: string;
+  project_id: string;
+  source_node_id: string;
+  target_node_id: string;
+  relationship_type: string;
+  weight: number;
+  properties: string | null; // JSON object
+  evidence_count: number;
+  last_observed_at: string;
+  created_at: string;
+}
+
+export type ConsolidationType = 'merge' | 'summarize' | 'compress' | 'archive';
+
+export interface DbAnnetteMemoryConsolidation {
+  id: string;
+  project_id: string;
+  source_memory_ids: string; // JSON array of memory IDs
+  result_memory_id: string;
+  consolidation_type: ConsolidationType;
+  tokens_before: number | null;
+  tokens_after: number | null;
+  created_at: string;
+}

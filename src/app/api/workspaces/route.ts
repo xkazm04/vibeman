@@ -33,7 +33,7 @@ async function handleGet() {
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, color, icon, projectIds } = body;
+    const { name, description, color, icon, basePath, projectIds } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json(
@@ -51,6 +51,7 @@ async function handlePost(request: NextRequest) {
       description: description || null,
       color: color || '#6366f1',
       icon: icon || 'folder',
+      base_path: basePath || null,
       position: maxPosition,
     });
 

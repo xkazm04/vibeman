@@ -38,21 +38,31 @@ export async function fetchContextsForProjects(projectIds: string[]): Promise<Re
 }
 
 /**
- * Get context name from a map of contexts
+ * Get context name from a flat array of contexts
+ */
+export function getContextName(
+  contextId: string,
+  contexts: Array<{ id: string; name: string }>
+): string {
+  const context = contexts.find(c => c.id === contextId);
+  if (context) {
+    return context.name;
+  }
+  return contextId.substring(0, 8);
+}
+
+/**
+ * Get context name from a map of contexts (keyed by project ID)
  */
 export function getContextNameFromMap(
   contextId: string,
   contextsMap: Record<string, Context[]>
 ): string {
-  // Search through all projects' contexts
   for (const contexts of Object.values(contextsMap)) {
     const context = contexts.find(c => c.id === contextId);
     if (context) {
       return context.name;
     }
   }
-
-  // Fallback: try to extract a readable name from the context ID
-  // Context IDs are typically UUIDs, so just return a short version
   return contextId.substring(0, 8);
 }

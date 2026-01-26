@@ -10,7 +10,7 @@ export type OnboardingStep =
   | 'run-task'
   | 'review-impl';
 
-export type AppModule = 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'refactor' | 'manager' | 'halloffame' | 'social' | 'composer' | 'zen' | 'blueprint' | 'questions' | 'integrations' | 'brain' | 'commander';
+export type AppModule = 'overview' | 'coder' | 'contexts' | 'ideas' | 'tinder' | 'tasker' | 'reflector' | 'refactor' | 'manager' | 'halloffame' | 'social' | 'composer' | 'zen' | 'blueprint' | 'questions' | 'integrations' | 'brain' | 'commander';
 
 interface OnboardingState {
   // Project-specific completed steps: { projectId: [steps] }
@@ -63,7 +63,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       activeProjectId: null,
 
       // Navigation state
-      activeModule: 'coder',
+      activeModule: 'overview',
       isControlPanelOpen: false,
       isBlueprintOpen: false,
 

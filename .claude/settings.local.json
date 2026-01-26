@@ -136,7 +136,9 @@
       "Bash(__NEW_LINE_d891ae7cb45a9fc7__ echo \"=== VERIFICATION SUMMARY ===\")",
       "Bash(cd:*)",
       "WebFetch(domain:reactflow.dev)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(powershell.exe -Command \"Start-Process -FilePath ''npm'' -ArgumentList ''run'',''dev'' -WorkingDirectory ''C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman'' -NoNewWindow\")",
+      "Bash(cmd.exe /c \"start /B npm run dev\")"
     ],
     "deny": [],
     "ask": []

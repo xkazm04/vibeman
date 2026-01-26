@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, CheckCircle2, Circle, Clock, XCircle, HelpCircle, LayoutDashboard, Plus, ChevronRight, Crosshair } from 'lucide-react';
+import { LayoutDashboard, Plus, ChevronRight } from 'lucide-react';
 import { Caveat } from 'next/font/google';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
@@ -11,6 +11,7 @@ import { GoalProvider, useGoalContext } from '@/contexts/GoalContext';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
 import { getNextOrder } from './sub_GoalModal/lib';
+import { getStatusConfig } from './sub_GoalModal/lib/goalConstants';
 import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList';
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
@@ -28,21 +29,50 @@ interface GoalsLayoutProps {
   projectId: string | null;
 }
 
-const STATUS_ICONS = {
-  open: Circle,
-  in_progress: Clock,
-  done: CheckCircle2,
-  rejected: XCircle,
-  undecided: HelpCircle,
-};
+interface GoalListItemProps {
+  goal: Goal;
+  isSelected: boolean;
+  onClick: (goal: Goal) => void;
+}
 
-const STATUS_COLORS = {
-  open: 'text-blue-400',
-  in_progress: 'text-primary',
-  done: 'text-green-400',
-  rejected: 'text-red-400',
-  undecided: 'text-muted-foreground',
-};
+const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, onClick }: GoalListItemProps) {
+  const statusConfig = getStatusConfig(goal.status);
+  const StatusIcon = statusConfig.icon;
+  const statusColor = statusConfig.color;
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      onClick={() => onClick(goal)}
+      className={
+        'w-full text-left px-4 py-3 rounded-xl border transition-all group relative overflow-hidden ' +
+        (isSelected
+          ? 'bg-primary/10 border-primary/30'
+          : 'bg-transparent border-transparent hover:bg-primary/5 hover:border-primary/10')
+      }
+    >
+      {isSelected && (
+        <motion.div
+          layoutId="activeGoalGlow"
+          className="absolute inset-0 bg-primary/5"
+        />
+      )}
+      <div className="relative flex items-start gap-3">
+        <StatusIcon className={'w-4 h-4 ' + statusColor + ' mt-0.5'} />
+        <div className="flex-1 min-w-0">
+          <p className={'text-sm font-medium truncate ' + (isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-primary')}>
+            {goal.title}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] font-mono text-muted-foreground/60 uppercase">ID-{goal.id.slice(0, 4)}</span>
+          </div>
+        </div>
+        <ChevronRight className={'w-4 h-4 text-muted-foreground/60 transition-transform ' + (isSelected ? 'text-primary translate-x-1' : 'group-hover:text-muted-foreground')} />
+      </div>
+    </motion.button>
+  );
+});
 
 function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
   const { activeProject } = useActiveProjectStore();
@@ -56,13 +86,12 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
   const projectGoals = goals;
 
   // Calculate goal statistics for progress display
-  const completedGoals = projectGoals.filter(g => g.status === 'done').length;
-  const inProgressGoals = projectGoals.filter(g => g.status === 'in_progress').length;
+  const completedGoals = useMemo(() => projectGoals.filter(g => g.status === 'done').length, [projectGoals]);
 
-  const handleGoalClick = (goal: Goal) => {
+  const handleGoalClick = useCallback((goal: Goal) => {
     setSelectedGoal(goal);
     setShowDetailModal(true);
-  };
+  }, []);
 
   const handleAddNewGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
     if (!activeProject) return;
@@ -135,44 +164,14 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
               
               <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                 <AnimatePresence>
-                  {projectGoals.map((goal) => {
-                    const StatusIcon = STATUS_ICONS[goal.status];
-                    const statusColor = STATUS_COLORS[goal.status];
-
-                    return (
-                      <motion.button
-                        key={goal.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        onClick={() => handleGoalClick(goal)}
-                        className={
-                          'w-full text-left px-4 py-3 rounded-xl border transition-all group relative overflow-hidden ' +
-                          (selectedGoal?.id === goal.id
-                            ? 'bg-primary/10 border-primary/30'
-                            : 'bg-transparent border-transparent hover:bg-primary/5 hover:border-primary/10')
-                        }
-                      >
-                        {selectedGoal?.id === goal.id && (
-                          <motion.div 
-                            layoutId="activeGoalGlow"
-                            className="absolute inset-0 bg-primary/5"
-                          />
-                        )}
-                        <div className="relative flex items-start gap-3">
-                          <StatusIcon className={'w-4 h-4 ' + statusColor + ' mt-0.5'} />
-                          <div className="flex-1 min-w-0">
-                            <p className={'text-sm font-medium truncate ' + (selectedGoal?.id === goal.id ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-primary')}>
-                              {goal.title}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] font-mono text-muted-foreground/60 uppercase">ID-{goal.id.slice(0,4)}</span>
-                            </div>
-                          </div>
-                          <ChevronRight className={'w-4 h-4 text-muted-foreground/60 transition-transform ' + (selectedGoal?.id === goal.id ? 'text-primary translate-x-1' : 'group-hover:text-muted-foreground')} />
-                        </div>
-                      </motion.button>
-                    );
-                  })}
+                  {projectGoals.map((goal) => (
+                    <GoalListItem
+                      key={goal.id}
+                      goal={goal}
+                      isSelected={selectedGoal?.id === goal.id}
+                      onClick={handleGoalClick}
+                    />
+                  ))}
                 </AnimatePresence>
                 
                 {projectGoals.length === 0 && (

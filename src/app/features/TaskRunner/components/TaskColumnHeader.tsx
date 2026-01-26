@@ -1,0 +1,121 @@
+'use client';
+
+import React from 'react';
+import { CheckSquare, Square, Trash2, XCircle, Layers } from 'lucide-react';
+import type { AggregationCheckResult } from '../lib/ideaAggregator';
+
+interface TaskColumnHeaderProps {
+  projectId: string;
+  projectName: string;
+  allSelected: boolean;
+  someSelected: boolean;
+  selectedCount: number;
+  selectableCount: number;
+  selectedInColumnCount: number;
+  clearableCount: number;
+  requirementsCount: number;
+  aggregationCheck: AggregationCheckResult | null;
+  isAggregating: boolean;
+  onToggleProjectSelection: () => void;
+  onAggregate: () => void;
+  onBulkDeleteSelected: () => void;
+  onClearCompleted: () => void;
+  canBulkDelete: boolean;
+}
+
+export default function TaskColumnHeader({
+  projectId,
+  projectName,
+  allSelected,
+  someSelected,
+  selectedCount,
+  selectableCount,
+  selectedInColumnCount,
+  clearableCount,
+  requirementsCount,
+  aggregationCheck,
+  isAggregating,
+  onToggleProjectSelection,
+  onAggregate,
+  onBulkDeleteSelected,
+  onClearCompleted,
+  canBulkDelete,
+}: TaskColumnHeaderProps) {
+  return (
+    <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
+      <div className="flex items-center justify-between gap-2">
+        {/* Project name and selection toggle */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <button
+            onClick={onToggleProjectSelection}
+            className="flex-shrink-0 text-gray-400 hover:text-emerald-400 transition-colors"
+            title={allSelected ? 'Deselect all' : 'Select all'}
+            disabled={selectableCount === 0}
+            data-testid={`select-all-btn-${projectId}`}
+          >
+            {allSelected ? (
+              <CheckSquare className="w-4 h-4 text-emerald-400" />
+            ) : someSelected ? (
+              <Square className="w-4 h-4 text-emerald-400/60" />
+            ) : (
+              <Square className="w-4 h-4" />
+            )}
+          </button>
+          <h3 className="text-sm font-semibold text-gray-300 truncate" title={projectName}>
+            {projectName}
+          </h3>
+        </div>
+
+        {/* Action buttons and count badge */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Aggregate button */}
+          {aggregationCheck?.canAggregate && (
+            <button
+              onClick={onAggregate}
+              disabled={isAggregating}
+              className="text-violet-400 hover:text-violet-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-violet-500/10 hover:bg-violet-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={`Aggregate ${aggregationCheck.aggregatableFiles} idea files`}
+              data-testid={`aggregate-btn-${projectId}`}
+            >
+              <Layers className="w-3 h-3" />
+              <span>{aggregationCheck.aggregatableFiles}</span>
+            </button>
+          )}
+
+          {/* Delete selected button */}
+          {selectedInColumnCount > 0 && canBulkDelete && (
+            <button
+              onClick={onBulkDeleteSelected}
+              className="text-red-400 hover:text-red-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
+              title={`Delete ${selectedInColumnCount} selected`}
+              data-testid={`bulk-delete-selected-btn-${projectId}`}
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>{selectedInColumnCount}</span>
+            </button>
+          )}
+
+          {/* Clear completed/failed button */}
+          {clearableCount > 0 && canBulkDelete && (
+            <button
+              onClick={onClearCompleted}
+              className="text-gray-400 hover:text-gray-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-gray-500/20 transition-colors"
+              title="Clear completed and failed tasks"
+              data-testid={`clear-completed-btn-${projectId}`}
+            >
+              <XCircle className="w-3 h-3" />
+              <span>{clearableCount}</span>
+            </button>
+          )}
+
+          {selectedCount > 0 && (
+            <span className="text-[10px] text-emerald-400 font-mono">
+              {selectedCount}/{selectableCount}
+            </span>
+          )}
+          <span className="text-[10px] text-gray-500 font-mono">{requirementsCount}</span>
+        </div>
+      </div>
+    </div>
+  );
+}

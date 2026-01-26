@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Target, Calendar } from 'lucide-react';
-import { useGoalHubStore } from '@/stores/goalHubStore';
+import { useGoalContext } from '@/contexts/GoalContext';
 
 interface NewGoalModalProps {
   onClose: () => void;
@@ -20,18 +20,19 @@ export default function NewGoalModal({ onClose }: NewGoalModalProps) {
   const [targetDate, setTargetDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { createGoal, setActiveGoal } = useGoalHubStore();
+  const { createGoal, setActiveGoal } = useGoalContext();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setIsSubmitting(true);
-    const goal = await createGoal(
-      title.trim(),
-      description.trim() || undefined,
-      targetDate ? new Date(targetDate) : undefined
-    );
+    const goal = await createGoal({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      status: 'open',
+      projectId: '',  // Provided by GoalContext's createGoal
+    });
     setIsSubmitting(false);
 
     if (goal) {

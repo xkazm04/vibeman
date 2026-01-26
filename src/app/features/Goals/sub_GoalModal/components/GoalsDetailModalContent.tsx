@@ -3,8 +3,7 @@ import { useState, useEffect } from 'react';
 import {  Save, Edit3, Trash2 } from 'lucide-react';
 import { Goal } from '../../../../../types';
 import { useGoals } from '../../../../../hooks/useGoals';
-import { getStatusConfig, validateGoalData } from '../lib';
-import { UniversalSelect } from '@/components/ui/UniversalSelect';
+import { validateGoalData } from '../lib';
 
 interface GoalsDetailModalContentProps {
   goal: Goal;
@@ -23,27 +22,8 @@ export default function GoalsDetailModalContent({
   const [editedGoal, setEditedGoal] = useState<Goal>(goal);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  const { deleteGoal, fetchGoalById } = useGoals(projectId);
 
-  // Fetch fresh goal data on mount
-  useEffect(() => {
-    const loadGoalDetails = async () => {
-      setIsLoading(true);
-      const freshGoal = await fetchGoalById(goal.id);
-      if (freshGoal) {
-        setEditedGoal(freshGoal);
-      } else {
-        // Fallback to prop if fetch fails
-        setEditedGoal(goal);
-      }
-      setIsLoading(false);
-    };
-
-    loadGoalDetails();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goal.id]);
+  const { deleteGoal } = useGoals(projectId);
 
   // Update editedGoal when goal prop changes
   useEffect(() => {
@@ -51,9 +31,6 @@ export default function GoalsDetailModalContent({
     setIsEditing(false);
     setSaveError(null);
   }, [goal]);
-
-  const statusConfig = getStatusConfig(editedGoal.status);
-  const StatusIcon = statusConfig.icon;
 
   const handleSave = async () => {
     if (!onSave || !validateGoalData(editedGoal)) return;
@@ -93,18 +70,6 @@ export default function GoalsDetailModalContent({
     setEditedGoal(goal);
     setSaveError(null);
   };
-
-  // Show loading state while fetching fresh data
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mx-auto"></div>
-          <p className="text-white/60">Loading goal details...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

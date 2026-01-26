@@ -14,6 +14,7 @@ import { GroupDetailView, useContextDetail } from './sub_ContextDetail';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import { useDragDropContext, useDropZoneValidator, DEFAULT_TARGET_TRANSFORMS } from '@/hooks/dnd';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
+import { SYNTHETIC_GROUP_ID } from './lib/constants';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -50,7 +51,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
   } = useDragDropContext({
     onDrop: async (contextId, groupId) => {
       if (!groupId) return;
-      // Transform synthetic-to-group to null for ungrouped
+      // Transform synthetic group ID to null for ungrouped
       const targetGroupId = transformTarget(groupId);
       try {
         await moveContext(contextId, targetGroupId);
@@ -72,13 +73,13 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
   );
 
   const syntheticToGroup = useMemo(() => ({
-    id: 'synthetic-to-group',
+    id: SYNTHETIC_GROUP_ID,
     projectId: activeProject?.id || '',
     name: 'Unsorted',
     color: '#71717a', // Zinc-500
     position: -1, // Always first
-    createdAt: new Date(),
-    updatedAt: new Date()
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
   }), [activeProject?.id]);
 
   const allGroups = useMemo(() =>
@@ -130,11 +131,28 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     await deleteAllContexts(activeProject.id);
   }, [activeProject?.id, deleteAllContexts]);
 
+  const handleExportClick = useCallback(async () => {
+    if (!activeProject?.id) return;
+    try {
+      const response = await fetch(`/api/contexts/export?projectId=${activeProject.id}&write=true`);
+      const result = await response.json();
+      if (!result.success) {
+        console.error('Export failed:', result.error);
+        return;
+      }
+      console.log('Context map exported to:', result.exportedTo || 'response only');
+    } catch (error) {
+      console.error('Failed to export context map:', error);
+    }
+  }, [activeProject?.id]);
+
   // Load project data when active project changes
   useEffect(() => {
     if (activeProject?.id && activeProject.id !== lastProjectIdRef.current) {
       lastProjectIdRef.current = activeProject.id;
-      loadProjectData(activeProject.id);
+      const controller = new AbortController();
+      loadProjectData(activeProject.id, controller.signal);
+      return () => controller.abort();
     }
   }, [activeProject?.id, loadProjectData]);
 
@@ -184,6 +202,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                 onAddContextClick={handleAddContextClick}
                 onToggleExpanded={handleToggleExpanded}
                 onDeleteAllClick={handleDeleteAllClick}
+                onExportClick={handleExportClick}
               />
             </div>
 
@@ -218,7 +237,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                       }}>
                         {/* Render all groups */}
                         {allGroups.map((group, index) => {
-                          const isSyntheticGroup = group.id === 'synthetic-to-group';
+                          const isSyntheticGroup = group.id === SYNTHETIC_GROUP_ID;
                           const groupContexts = isSyntheticGroup ?
                             ungroupedContexts :
                             contexts.filter(ctx => ctx.groupId === group.id);

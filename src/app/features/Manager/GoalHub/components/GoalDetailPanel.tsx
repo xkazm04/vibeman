@@ -7,11 +7,11 @@
 
 import { motion } from 'framer-motion';
 import { Target, Plus, CheckCircle2 } from 'lucide-react';
-import type { ExtendedGoal } from '@/app/db/models/goal-hub.types';
+import type { Goal } from '@/types';
 import ContextTargetsList from '@/components/ContextComponents/ContextTargetsList';
 
 interface GoalDetailPanelProps {
-  goal: ExtendedGoal | null;
+  goal: Goal | null;
   projectId: string;
   onCompleteGoal: (goalId: string) => void;
   onNewGoal: () => void;

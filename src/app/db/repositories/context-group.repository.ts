@@ -168,6 +168,9 @@ export const contextGroupRepository = {
    */
   deleteGroup: (id: string): boolean => {
     const db = getDatabase();
+    // Ungroup associated contexts before deleting the group
+    const ungroupStmt = db.prepare('UPDATE contexts SET group_id = NULL, updated_at = ? WHERE group_id = ?');
+    ungroupStmt.run(new Date().toISOString(), id);
     const stmt = db.prepare('DELETE FROM context_groups WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;

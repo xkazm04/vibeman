@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import type { DbWorkspace } from '@/app/db/models/types';
+import { useUserConfigStore } from '@/stores/userConfigStore';
+import FolderBrowserInput from './FolderBrowserInput';
 
 const COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
@@ -12,19 +14,27 @@ const COLORS = [
 
 interface WorkspaceFormProps {
   workspace?: DbWorkspace | null;
-  onSubmit: (data: { name: string; description?: string; color: string }) => void;
+  onSubmit: (data: { name: string; description?: string; color: string; basePath?: string }) => void;
   onCancel: () => void;
 }
 
 export default function WorkspaceForm({ workspace, onSubmit, onCancel }: WorkspaceFormProps) {
+  const { basePath: defaultBasePath } = useUserConfigStore();
   const [name, setName] = useState(workspace?.name || '');
   const [description, setDescription] = useState(workspace?.description || '');
   const [color, setColor] = useState(workspace?.color || COLORS[0]);
+  const [basePath, setBasePath] = useState(workspace?.base_path || '');
+  const [showAdvanced, setShowAdvanced] = useState(!!workspace?.base_path);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSubmit({ name: name.trim(), description: description.trim() || undefined, color });
+    onSubmit({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      color,
+      basePath: basePath.trim() || undefined,
+    });
   };
 
   return (
@@ -75,6 +85,44 @@ export default function WorkspaceForm({ workspace, onSubmit, onCancel }: Workspa
           />
         ))}
       </div>
+
+      {/* Advanced Settings Toggle */}
+      <button
+        type="button"
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+      >
+        {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        Advanced settings
+      </button>
+
+      {/* Base Path (Advanced) */}
+      {showAdvanced && (
+        <div className="space-y-2 pt-1 border-t border-gray-700/40">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="w-3.5 h-3.5 text-gray-500" />
+            <span className="text-xs text-gray-400">Projects Root Path</span>
+          </div>
+          <FolderBrowserInput
+            value={basePath}
+            onChange={setBasePath}
+            placeholder={defaultBasePath || 'e.g., C:\\Projects\\ClientA'}
+            defaultPaths={defaultBasePath ? [defaultBasePath] : []}
+          />
+          <p className="text-[10px] text-gray-600">
+            Optional. Set a root directory for projects in this workspace.
+            {defaultBasePath && (
+              <button
+                type="button"
+                onClick={() => setBasePath(defaultBasePath)}
+                className="ml-1 text-blue-400 hover:text-blue-300"
+              >
+                Use default ({defaultBasePath})
+              </button>
+            )}
+          </p>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-1">
         <button

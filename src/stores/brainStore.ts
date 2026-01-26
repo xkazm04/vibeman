@@ -24,7 +24,15 @@ interface OutcomeStats {
   pending: number;
 }
 
+export interface DecaySettings {
+  decayFactor: number;      // 0.8 - 0.99
+  retentionDays: number;    // 7 - 90
+}
+
 interface BrainState {
+  // Decay settings
+  decaySettings: DecaySettings;
+
   // Behavioral context
   behavioralContext: BehavioralContext | null;
   isLoadingContext: boolean;
@@ -44,13 +52,15 @@ interface BrainState {
 
   // Running reflection CLI state
   runningReflectionId: string | null;
-  requirementName: string | null;
+  /** Direct prompt content for CLI execution (no file) */
+  promptContent: string | null;
 
   // Global reflection
   globalReflectionStatus: ReflectionStatus | 'idle';
   lastGlobalReflection: DbBrainReflection | null;
   globalRunningReflectionId: string | null;
-  globalRequirementName: string | null;
+  /** Direct prompt content for global reflection CLI execution */
+  globalPromptContent: string | null;
 
   // Loading states
   isLoading: boolean;
@@ -61,6 +71,10 @@ interface BrainState {
 }
 
 interface BrainActions {
+  // Decay settings
+  setDecaySettings: (settings: Partial<DecaySettings>) => void;
+  applyDecay: (projectId: string) => Promise<{ affected: number }>;
+
   // Data loading
   setProjectId: (projectId: string) => void;
   loadBrainData: (projectId: string, projectName: string, projectPath: string) => Promise<void>;
@@ -91,6 +105,10 @@ type BrainStore = BrainState & BrainActions;
 // ============================================================================
 
 const initialState: BrainState = {
+  decaySettings: {
+    decayFactor: 0.9,
+    retentionDays: 30,
+  },
   behavioralContext: null,
   isLoadingContext: false,
   recentOutcomes: [],
@@ -109,11 +127,11 @@ const initialState: BrainState = {
   shouldTrigger: false,
   triggerReason: null,
   runningReflectionId: null,
-  requirementName: null,
+  promptContent: null,
   globalReflectionStatus: 'idle',
   lastGlobalReflection: null,
   globalRunningReflectionId: null,
-  globalRequirementName: null,
+  globalPromptContent: null,
   isLoading: false,
   error: null,
   projectId: null,
@@ -127,6 +145,41 @@ export const useBrainStore = create<BrainStore>()(
   devtools(
     (set, get) => ({
       ...initialState,
+
+      // ========================================
+      // DECAY SETTINGS
+      // ========================================
+
+      setDecaySettings: (settings) => {
+        set(state => ({
+          decaySettings: { ...state.decaySettings, ...settings },
+        }));
+      },
+
+      applyDecay: async (projectId) => {
+        const { decaySettings } = get();
+        try {
+          const response = await fetch('/api/brain/signals/decay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId,
+              decayFactor: decaySettings.decayFactor,
+              retentionDays: decaySettings.retentionDays,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to apply decay');
+          }
+
+          const data = await response.json();
+          return { affected: data.affected || 0 };
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to apply decay' });
+          return { affected: 0 };
+        }
+      },
 
       // ========================================
       // DATA LOADING
@@ -221,7 +274,7 @@ export const useBrainStore = create<BrainStore>()(
                 shouldTrigger: false,
                 triggerReason: null,
                 runningReflectionId: null,
-                requirementName: null,
+                promptContent: null,
               });
               return;
             }
@@ -230,6 +283,9 @@ export const useBrainStore = create<BrainStore>()(
 
           const data = await response.json();
           const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
+
+          // Note: promptContent is only available right after triggering, not on refresh
+          // If running but no promptContent, the CLI terminal won't show (reflection continues in background)
           set({
             reflectionStatus: status,
             lastReflection: data.lastCompleted || null,
@@ -238,11 +294,11 @@ export const useBrainStore = create<BrainStore>()(
             shouldTrigger: data.shouldTrigger || false,
             triggerReason: data.triggerReason || null,
             runningReflectionId: data.runningReflection?.id || null,
-            requirementName: data.requirementName || null,
+            // Don't overwrite promptContent from GET - it's only set by triggerReflection
           });
         } catch (error) {
           console.error('Failed to fetch reflection status:', error);
-          set({ reflectionStatus: 'idle', lastReflection: null, runningReflectionId: null, requirementName: null });
+          set({ reflectionStatus: 'idle', lastReflection: null, runningReflectionId: null, promptContent: null });
         }
       },
 
@@ -268,12 +324,12 @@ export const useBrainStore = create<BrainStore>()(
             const errorData = await response.json();
 
             // Handle 409 (already running) - update state to reflect running, not failed
+            // Note: no promptContent available for already-running reflections
             if (response.status === 409 && errorData.reflectionId) {
-              const reqName = `brain-reflection-${errorData.reflectionId}.md`;
               set({
                 reflectionStatus: 'running',
                 runningReflectionId: errorData.reflectionId,
-                requirementName: reqName,
+                promptContent: null, // Can't get prompt for already-running reflection
                 error: null,
               });
               return;
@@ -283,12 +339,11 @@ export const useBrainStore = create<BrainStore>()(
           }
 
           const data = await response.json();
-          const reqName = data.reflectionId ? `brain-reflection-${data.reflectionId}.md` : null;
 
           set({
             reflectionStatus: 'running',
             runningReflectionId: data.reflectionId || null,
-            requirementName: reqName,
+            promptContent: data.promptContent || null,
             decisionsSinceReflection: 0,
             shouldTrigger: false,
             triggerReason: null,
@@ -298,7 +353,7 @@ export const useBrainStore = create<BrainStore>()(
             reflectionStatus: 'failed',
             error: error instanceof Error ? error.message : 'Failed to trigger reflection',
             runningReflectionId: null,
-            requirementName: null,
+            promptContent: null,
           });
         }
       },
@@ -319,7 +374,7 @@ export const useBrainStore = create<BrainStore>()(
           set({
             reflectionStatus: 'idle',
             runningReflectionId: null,
-            requirementName: null,
+            promptContent: null,
             error: null,
           });
         } catch (error) {
@@ -341,7 +396,7 @@ export const useBrainStore = create<BrainStore>()(
               globalReflectionStatus: 'idle',
               lastGlobalReflection: null,
               globalRunningReflectionId: null,
-              globalRequirementName: null,
+              globalPromptContent: null,
             });
             return;
           }
@@ -352,7 +407,7 @@ export const useBrainStore = create<BrainStore>()(
             globalReflectionStatus: status,
             lastGlobalReflection: data.lastCompleted || null,
             globalRunningReflectionId: data.runningReflection?.id || null,
-            globalRequirementName: data.requirementName || null,
+            // Don't overwrite globalPromptContent from GET
           });
         } catch (error) {
           console.error('Failed to fetch global reflection status:', error);
@@ -377,11 +432,10 @@ export const useBrainStore = create<BrainStore>()(
             const errorData = await response.json();
 
             if (response.status === 409 && errorData.reflectionId) {
-              const reqName = `brain-reflection-${errorData.reflectionId}.md`;
               set({
                 globalReflectionStatus: 'running',
                 globalRunningReflectionId: errorData.reflectionId,
-                globalRequirementName: reqName,
+                globalPromptContent: null, // Can't get prompt for already-running reflection
                 error: null,
               });
               return;
@@ -391,19 +445,18 @@ export const useBrainStore = create<BrainStore>()(
           }
 
           const data = await response.json();
-          const reqName = data.reflectionId ? `brain-reflection-${data.reflectionId}.md` : null;
 
           set({
             globalReflectionStatus: 'running',
             globalRunningReflectionId: data.reflectionId || null,
-            globalRequirementName: reqName,
+            globalPromptContent: data.promptContent || null,
           });
         } catch (error) {
           set({
             globalReflectionStatus: 'failed',
             error: error instanceof Error ? error.message : 'Failed to trigger global reflection',
             globalRunningReflectionId: null,
-            globalRequirementName: null,
+            globalPromptContent: null,
           });
         }
       },

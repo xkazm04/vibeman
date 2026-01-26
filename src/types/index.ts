@@ -17,7 +17,8 @@ export interface Project {
   id: string;
   name: string;
   path: string;
-  port: number;
+  port?: number | null; // Optional - not needed for all project types
+  workspaceId?: string | null; // Workspace this project belongs to
   description?: string;
   type?: ProjectType;
   relatedProjectId?: string; // For FastAPI projects connected to NextJS
@@ -121,6 +122,12 @@ export interface Goal {
   title: string;
   description?: string;
   status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+  // Extended fields
+  progress?: number;
+  targetDate?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  githubItemId?: string | null;
   // Database fields (optional for compatibility)
   created_at?: string;
   updated_at?: string;

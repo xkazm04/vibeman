@@ -107,7 +107,19 @@ import {
   annettePreferenceRepository,
   annetteAudioCacheRepository,
 } from './repositories/annette.repository';
+import {
+  annetteMemoryRepository,
+  annetteKnowledgeNodeRepository,
+  annetteKnowledgeEdgeRepository,
+  annetteMemoryConsolidationRepository,
+} from './repositories/annette-memory.repository';
 import { workspaceRepository } from './repositories/workspace.repository';
+import { executiveAnalysisRepository } from './repositories/executive-analysis.repository';
+import {
+  crossProjectRelationshipRepository,
+  architectureAnalysisRepository,
+  projectArchitectureMetadataRepository,
+} from './repositories/cross-project-architecture.repository';
 
 // Export types
 export * from './models/types';
@@ -131,6 +143,8 @@ export * from './models/integration.types';
 export * from './models/observability.types';
 export * from './models/brain.types';
 export * from './models/annette.types';
+export * from './models/reflector.types';
+export * from './models/cross-project-architecture.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -811,6 +825,11 @@ export const annetteDb = {
   topics: annetteMemoryTopicRepository,
   preferences: annettePreferenceRepository,
   audioCache: annetteAudioCacheRepository,
+  // Memory System
+  memories: annetteMemoryRepository,
+  knowledgeNodes: annetteKnowledgeNodeRepository,
+  knowledgeEdges: annetteKnowledgeEdgeRepository,
+  consolidations: annetteMemoryConsolidationRepository,
   close: closeDatabase,
 };
 
@@ -820,6 +839,42 @@ export const annetteDb = {
  */
 export const workspaceDb = {
   ...workspaceRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Executive Analysis Database Operations
+ * Manages AI-driven executive insight analysis sessions
+ */
+export const executiveAnalysisDb = {
+  ...executiveAnalysisRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Cross-Project Relationship Database Operations
+ * Manages workspace-level cross-project relationships for architecture visualization
+ */
+export const crossProjectRelationshipDb = {
+  ...crossProjectRelationshipRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Architecture Analysis Database Operations
+ * Manages AI-driven architecture analysis sessions
+ */
+export const architectureAnalysisDb = {
+  ...architectureAnalysisRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Project Architecture Metadata Database Operations
+ * Manages project tier, framework, and visualization metadata
+ */
+export const projectArchitectureMetadataDb = {
+  ...projectArchitectureMetadataRepository,
   close: closeDatabase,
 };
 

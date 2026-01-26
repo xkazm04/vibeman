@@ -19,6 +19,7 @@ function ensureTables(): void {
       description TEXT,
       color TEXT NOT NULL DEFAULT '#6366f1',
       icon TEXT NOT NULL DEFAULT 'folder',
+      base_path TEXT,
       position INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -72,11 +73,11 @@ export const workspaceRepository = {
     const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
-      INSERT INTO workspaces (id, name, description, color, icon, position, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO workspaces (id, name, description, color, icon, base_path, position, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, data.name, data.description, data.color, data.icon, data.position, now, now);
+    stmt.run(id, data.name, data.description, data.color, data.icon, data.base_path || null, data.position, now, now);
     return workspaceRepository.getById(id)!;
   },
 
@@ -108,6 +109,10 @@ export const workspaceRepository = {
     if (updates.icon !== undefined) {
       updateFields.push('icon = ?');
       values.push(updates.icon);
+    }
+    if (updates.base_path !== undefined) {
+      updateFields.push('base_path = ?');
+      values.push(updates.base_path);
     }
     if (updates.position !== undefined) {
       updateFields.push('position = ?');

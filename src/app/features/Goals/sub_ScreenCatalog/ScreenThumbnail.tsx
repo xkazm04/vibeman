@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
@@ -21,24 +21,42 @@ interface ScreenThumbnailProps {
 
 export default function ScreenThumbnail({ context, onClick, index = 0 }: ScreenThumbnailProps) {
   const [imageError, setImageError] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafId = useRef<number>(0);
 
   const imagePath = context.preview.startsWith('/') ? context.preview : `/${context.preview}`;
   const groupColor = context.groupColor || '#06b6d4'; // cyan-500 default
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left - rect.width / 2) / rect.width;
-    const y = (e.clientY - rect.top - rect.height / 2) / rect.height;
-    setMousePosition({ x: x * -5, y: y * -5 }); // Opposite direction for parallax
+    if (rafId.current) return;
+    rafId.current = requestAnimationFrame(() => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left - rect.width / 2) / rect.width;
+      const y = (e.clientY - rect.top - rect.height / 2) / rect.height;
+      const el = containerRef.current;
+      if (el) {
+        el.style.setProperty('--parallax-x', `${x * -5}px`);
+        el.style.setProperty('--parallax-y', `${y * -5}px`);
+      }
+      rafId.current = 0;
+    });
   }, []);
 
   const handleMouseLeave = useCallback(() => {
-    setMousePosition({ x: 0, y: 0 });
+    if (rafId.current) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = 0;
+    }
+    const el = containerRef.current;
+    if (el) {
+      el.style.setProperty('--parallax-x', '0px');
+      el.style.setProperty('--parallax-y', '0px');
+    }
   }, []);
 
   return (
     <motion.div
+      ref={containerRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -46,6 +64,7 @@ export default function ScreenThumbnail({ context, onClick, index = 0 }: ScreenT
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className="group relative cursor-pointer"
+      style={{ '--parallax-x': '0px', '--parallax-y': '0px' } as React.CSSProperties}
       data-testid={`screen-thumbnail-${context.id}`}
     >
       {/* Container with aspect ratio */}
@@ -56,16 +75,13 @@ export default function ScreenThumbnail({ context, onClick, index = 0 }: ScreenT
           borderLeftWidth: '4px',
         }}
       >
-        {/* Image with parallax effect */}
+        {/* Image with parallax effect via CSS custom properties */}
         {!imageError ? (
-          <motion.div
-            className="absolute inset-0"
-            animate={{
-              x: mousePosition.x,
-              y: mousePosition.y,
-              scale: 1.02,
+          <div
+            className="absolute inset-0 transition-transform duration-200 ease-out"
+            style={{
+              transform: 'translate(var(--parallax-x), var(--parallax-y)) scale(1.02)',
             }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
             <Image
               src={imagePath}
@@ -74,7 +90,7 @@ export default function ScreenThumbnail({ context, onClick, index = 0 }: ScreenT
               className="object-cover"
               onError={() => setImageError(true)}
             />
-          </motion.div>
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <ImageIcon className="w-8 h-8 text-gray-600" />

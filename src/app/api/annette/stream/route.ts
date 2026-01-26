@@ -7,6 +7,7 @@
  * - Implementation outcomes (success/failure/revert)
  * - Decision threshold approaching
  * - Pattern-based suggestions
+ * - Task execution lifecycle (start/complete/fail/session-limit)
  */
 
 import { NextRequest } from 'next/server';
@@ -37,8 +38,12 @@ export async function GET(request: NextRequest) {
 
           for (const notification of notifications) {
             const data = JSON.stringify(notification);
+            // Use distinct event name for task notifications
+            const eventName = notification.type === 'task_execution'
+              ? 'task_notification'
+              : 'notification';
             controller.enqueue(
-              encoder.encode(`event: notification\ndata: ${data}\n\n`)
+              encoder.encode(`event: ${eventName}\ndata: ${data}\n\n`)
             );
           }
 

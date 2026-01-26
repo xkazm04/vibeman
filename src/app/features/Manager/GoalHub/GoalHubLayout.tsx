@@ -8,9 +8,8 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Loader2 } from 'lucide-react';
-import { useGoalHubStore } from '@/stores/goalHubStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { GoalProvider } from '@/contexts/GoalContext';
+import { GoalProvider, useGoalContext } from '@/contexts/GoalContext';
 
 // Eagerly loaded components
 import GoalHubHeader from './components/GoalHubHeader';
@@ -35,29 +34,21 @@ function LoadingSpinner() {
   );
 }
 
-export default function GoalHubLayout() {
+function GoalHubContent({ projectId, projectName, projectPath }: { projectId: string; projectName: string; projectPath: string }) {
   const [viewMode, setViewMode] = useState<ViewMode>('goals');
   const [isGoalPanelOpen, setIsGoalPanelOpen] = useState(false);
   const [selectedGoalForModal, setSelectedGoalForModal] = useState<string | null>(null);
 
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
   const {
     activeGoal,
     goals,
-    isLoading,
+    loading: isLoading,
     error,
-    loadGoals,
+    fetchGoals,
     setActiveGoal,
     completeGoal,
     clearError,
-  } = useGoalHubStore();
-
-  // Load goals when project changes
-  useEffect(() => {
-    if (activeProject?.id) {
-      loadGoals(activeProject.id);
-    }
-  }, [activeProject?.id, loadGoals]);
+  } = useGoalContext();
 
   // Auto-select first goal if none selected
   useEffect(() => {
@@ -69,32 +60,32 @@ export default function GoalHubLayout() {
         setActiveGoal(activeOrOpen);
       }
     }
-  }, [goals.length, activeGoal, setActiveGoal]);
+  }, [goals.length, activeGoal, setActiveGoal, goals]);
 
   const handleCloseModal = useCallback(() => {
     setSelectedGoalForModal(null);
   }, []);
 
-  if (!activeProject) {
-    return <EmptyProjectState />;
-  }
+  const handleCompleteGoal = useCallback(async (goalId: string) => {
+    await completeGoal(goalId);
+  }, [completeGoal]);
 
   const selectedGoal = goals.find((g) => g.id === selectedGoalForModal);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <GoalHubHeader
-        projectName={activeProject.name}
+        projectName={projectName}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       >
         <AutomationTrigger
-          projectId={activeProject.id}
-          projectPath={activeProject.path}
-          projectName={activeProject.name}
-          onAutomationComplete={() => loadGoals(activeProject.id)}
+          projectId={projectId}
+          projectPath={projectPath}
+          projectName={projectName}
+          onAutomationComplete={() => fetchGoals()}
         />
-        <SyncButtons projectId={activeProject.id} />
+        <SyncButtons projectId={projectId} />
         <button
           onClick={() => setIsGoalPanelOpen(true)}
           className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 rounded-lg font-medium transition-all"
@@ -130,10 +121,10 @@ export default function GoalHubLayout() {
         ) : viewMode === 'standup' ? (
           <Suspense fallback={<LoadingSpinner />}>
             <StandupPanel
-              projectId={activeProject.id}
-              projectName={activeProject.name}
-              projectPath={activeProject.path}
-              onGoalCreated={() => loadGoals(activeProject.id)}
+              projectId={projectId}
+              projectName={projectName}
+              projectPath={projectPath}
+              onGoalCreated={() => fetchGoals()}
             />
           </Suspense>
         ) : (
@@ -142,22 +133,19 @@ export default function GoalHubLayout() {
             <div className="col-span-3">
               <div className="bg-gray-900/60 backdrop-blur-sm border border-gray-800/80 rounded-2xl p-4 shadow-xl">
                 <Suspense fallback={<LoadingSpinner />}>
-                  <GoalProvider projectId={activeProject.id}>
-                    <GoalReviewer
-                      projectId={activeProject.id}
-                      onGoalSelect={(goal) => {
-                        if (goal !== 'add') {
-                          // Find the extended goal from the store
-                          const extendedGoal = goals.find((g) => g.id === goal.id);
-                          if (extendedGoal) {
-                            setActiveGoal(extendedGoal);
-                          }
-                        } else {
-                          setIsGoalPanelOpen(true);
+                  <GoalReviewer
+                    projectId={projectId}
+                    onGoalSelect={(goal) => {
+                      if (goal !== 'add') {
+                        const foundGoal = goals.find((g) => g.id === goal.id);
+                        if (foundGoal) {
+                          setActiveGoal(foundGoal);
                         }
-                      }}
-                    />
-                  </GoalProvider>
+                      } else {
+                        setIsGoalPanelOpen(true);
+                      }
+                    }}
+                  />
                 </Suspense>
               </div>
             </div>
@@ -167,8 +155,8 @@ export default function GoalHubLayout() {
               <Suspense fallback={<LoadingSpinner />}>
                 <GoalDetailPanel
                   goal={activeGoal}
-                  projectId={activeProject.id}
-                  onCompleteGoal={completeGoal}
+                  projectId={projectId}
+                  onCompleteGoal={handleCompleteGoal}
                   onNewGoal={() => setIsGoalPanelOpen(true)}
                 />
               </Suspense>
@@ -180,12 +168,11 @@ export default function GoalHubLayout() {
       {/* Goal Add Drawer */}
       <GoalAddDrawer
         isOpen={isGoalPanelOpen}
-        projectId={activeProject.id}
-        projectPath={activeProject.path}
+        projectId={projectId}
+        projectPath={projectPath}
         onClose={() => setIsGoalPanelOpen(false)}
-        onGoalCreated={async (goal) => {
-          await loadGoals(activeProject.id);
-          setActiveGoal(goal);
+        onGoalCreated={async () => {
+          await fetchGoals();
           setIsGoalPanelOpen(false);
         }}
       />
@@ -200,7 +187,7 @@ export default function GoalHubLayout() {
               title: selectedGoal.title,
               description: selectedGoal.description || '',
               status: selectedGoal.status,
-              projectId: activeProject.id,
+              projectId: projectId,
               order: 0,
             }}
             isOpen={!!selectedGoalForModal}
@@ -214,7 +201,7 @@ export default function GoalHubLayout() {
                 });
                 if (response.ok) {
                   const data = await response.json();
-                  await loadGoals(activeProject.id);
+                  await fetchGoals();
                   return data.goal || null;
                 }
                 return null;
@@ -222,10 +209,28 @@ export default function GoalHubLayout() {
                 return null;
               }
             }}
-            projectId={activeProject.id}
+            projectId={projectId}
           />
         </Suspense>
       )}
     </div>
+  );
+}
+
+export default function GoalHubLayout() {
+  const activeProject = useActiveProjectStore((state) => state.activeProject);
+
+  if (!activeProject) {
+    return <EmptyProjectState />;
+  }
+
+  return (
+    <GoalProvider projectId={activeProject.id}>
+      <GoalHubContent
+        projectId={activeProject.id}
+        projectName={activeProject.name}
+        projectPath={activeProject.path}
+      />
+    </GoalProvider>
   );
 }

@@ -11,6 +11,7 @@ import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -141,6 +142,24 @@ async function handlePost(request: NextRequest) {
       context_id: context_id || 'none',
       context_group_id: context_group_id || 'none'
     });
+
+    // Auto-record api_focus signal for direction generation
+    try {
+      signalCollector.recordApiFocus(
+        project_id,
+        {
+          endpoint: '/api/directions',
+          method: 'POST',
+          callCount: 1,
+          avgResponseTime: 0,
+          errorRate: 0,
+        },
+        context_id || undefined,
+        context_name || context_map_title
+      );
+    } catch {
+      // Signal recording must never break the main flow
+    }
 
     return NextResponse.json({
       success: true,

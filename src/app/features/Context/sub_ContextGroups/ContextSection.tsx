@@ -7,6 +7,7 @@ import ContextSectionHeader from './ContextSectionHeader';
 import ContextSectionContent from './ContextSectionContent';
 import { generateGlassGradient } from './lib/gradientUtils';
 import { useDroppableZone } from '@/hooks/dnd';
+import { SYNTHETIC_GROUP_ID } from '../lib/constants';
 
 interface ContextSectionProps {
   group?: ContextGroup;
@@ -39,7 +40,7 @@ const ContextSection = React.memo(({
 
   // DnD Droppable - using reusable hook
   const { ref: setNodeRef, isOver, zoneState, testId } = useDroppableZone({
-    id: group?.id || 'synthetic-to-group',
+    id: group?.id || SYNTHETIC_GROUP_ID,
     data: { group },
     isDragActive,
     applyStyles: false, // We use custom styling

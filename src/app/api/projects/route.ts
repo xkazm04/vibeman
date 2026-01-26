@@ -61,12 +61,13 @@ async function handlePost(request: NextRequest) {
       id: project.id,
       name: project.name,
       path: project.path,
-      port: project.port,
+      port: project.port ?? null, // Port is now optional
+      workspaceId: project.workspaceId || null,
       type: project.type || detectedType,
       relatedProjectId: project.relatedProjectId,
       runScript: project.run_script,
       allowMultipleInstances: project.allowMultipleInstances || false,
-      basePort: project.basePort || project.port,
+      basePort: project.basePort || project.port || undefined,
       instanceOf: project.instanceOf,
       git: project.git_repository ? {
         repository: project.git_repository,
@@ -113,6 +114,8 @@ async function handlePut(request: NextRequest) {
     // Convert form data format to Project type format if needed
     const projectUpdates = {
       ...updates,
+      // Handle workspaceId if provided
+      workspaceId: updates.workspaceId !== undefined ? updates.workspaceId : undefined,
       git: updates.git_repository ? {
         repository: updates.git_repository,
         branch: updates.git_branch || 'main',

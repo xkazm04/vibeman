@@ -14,6 +14,20 @@ import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
 
 /**
+ * Create a slug from the first 5 words of a title
+ */
+function createTitleSlug(title: string): string {
+  return title
+    .split(/\s+/)
+    .slice(0, 5)
+    .join('-')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
  * Build the Claude Code requirement content from an accepted direction
  */
 function buildImplementationRequirement(direction: {
@@ -83,7 +97,8 @@ async function handlePost(
 
     // Generate requirement name and content
     const timestamp = Date.now();
-    const requirementId = `direction-impl-${timestamp}`;
+    const titleSlug = createTitleSlug(direction.summary);
+    const requirementId = `dir-${timestamp}-${titleSlug}`;
     const requirementContent = buildImplementationRequirement({
       direction: direction.direction,
       summary: direction.summary,

@@ -5,8 +5,8 @@ import * as d3 from 'd3';
 import { ArrowLeft } from 'lucide-react';
 import type { BrainEvent, Group, UndoEntry } from './lib/types';
 import { BG } from './lib/constants';
-import { generateEvents } from './lib/mockData';
 import { formGroups, runForceLayout, packEventsInGroup } from './lib/layout';
+import { useCanvasData } from './lib/useCanvasData';
 import { renderFocused } from './lib/renderFocused';
 import { renderOverview } from './lib/renderOverview';
 import { useCanvasInteraction } from './lib/useCanvasInteraction';
@@ -32,9 +32,17 @@ export default function EventCanvasD3() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<BrainEvent | null>(null);
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
-  const [events, setEvents] = useState<BrainEvent[]>(() => generateEvents());
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+
+  // Fetch real behavioral signals (falls back to mock data if none exist)
+  const { events: fetchedEvents, isEmpty, isLoading } = useCanvasData();
+  const [events, setEvents] = useState<BrainEvent[]>([]);
+
+  // Sync fetched events into local state (allows deletion/undo to work)
+  useEffect(() => {
+    setEvents(fetchedEvents);
+  }, [fetchedEvents]);
 
   const groups = useMemo(() => {
     const g = formGroups(events);
@@ -153,6 +161,15 @@ export default function EventCanvasD3() {
     <div className="flex flex-col h-full w-full overflow-hidden" style={{ background: BG }}>
       <div ref={containerRef} className="relative flex-1" style={{ minHeight: 300 }}>
         <canvas ref={canvasRef} className="absolute inset-0" />
+
+        {/* Empty state overlay */}
+        {isEmpty && !isLoading && (
+          <div className="absolute top-4 left-4 z-40 px-3 py-2 rounded-lg bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/30">
+            <p className="text-xs text-zinc-400">
+              Showing sample data. Real signals will appear as you work on the project.
+            </p>
+          </div>
+        )}
 
         {focusedGroupId && (
           <button

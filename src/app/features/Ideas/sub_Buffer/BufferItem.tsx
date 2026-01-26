@@ -69,32 +69,8 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
     }
   };
 
-  const getEffortConfig = (effort: number | null) => {
-    if (!effort) return null;
-    const configs: Record<number, { label: string; color: string }> = {
-      1: { label: 'XS', color: 'text-green-400' },
-      2: { label: 'S', color: 'text-blue-400' },
-      3: { label: 'M', color: 'text-yellow-400' },
-      4: { label: 'L', color: 'text-orange-400' },
-      5: { label: 'XL', color: 'text-red-400' },
-    };
-    return configs[effort] || null;
-  };
-
-  const getImpactConfig = (impact: number | null) => {
-    if (!impact) return null;
-    const configs: Record<number, { label: string; color: string }> = {
-      1: { label: 'MIN', color: 'text-gray-400' },
-      2: { label: 'LOW', color: 'text-blue-400' },
-      3: { label: 'MED', color: 'text-yellow-400' },
-      4: { label: 'HIGH', color: 'text-orange-400' },
-      5: { label: 'MAX', color: 'text-red-400' },
-    };
-    return configs[impact] || null;
-  };
-
-  const effortConfig = getEffortConfig(idea.effort);
-  const impactConfig = getImpactConfig(idea.impact);
+  const effortCfg = idea.effort ? effortConfig[idea.effort] || null : null;
+  const impactCfg = idea.impact ? impactConfig[idea.impact] || null : null;
 
   // Handle keyboard navigation for accessibility
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -133,16 +109,16 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
           <span className="text-sm">{categoryConfig.emoji}</span>
 
           {/* Impact Badge */}
-          {impactConfig && (
-            <div className="flex items-center gap-0.5" title={`Impact: ${impactConfig.label}`}>
-              <ImpactIcon className={`w-3 h-3 ${impactConfig.color}`} />
+          {impactCfg && (
+            <div className="flex items-center gap-0.5" title={`Impact: ${impactCfg.label}`}>
+              <ImpactIcon className={`w-3 h-3 ${impactCfg.color}`} />
             </div>
           )}
 
           {/* Effort Badge */}
-          {effortConfig && (
-            <div className="flex items-center gap-0.5" title={`Effort: ${effortConfig.label}`}>
-              <EffortIcon className={`w-3 h-3 ${effortConfig.color}`} />
+          {effortCfg && (
+            <div className="flex items-center gap-0.5" title={`Effort: ${effortCfg.label}`}>
+              <EffortIcon className={`w-3 h-3 ${effortCfg.color}`} />
             </div>
           )}
         </div>

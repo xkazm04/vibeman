@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Plus, Grid3X3, ChevronUp, Trash2 } from 'lucide-react';
+import { Save, Plus, Grid3X3, ChevronUp, Trash2, Download, Check, Loader2 } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 
@@ -15,6 +15,7 @@ interface HorizontalContextBarHeaderProps {
   onAddContextClick: () => void;
   onToggleExpanded: () => void;
   onDeleteAllClick: () => Promise<void>;
+  onExportClick?: () => Promise<void>;
 }
 
 const HorizontalContextBarHeader = React.memo(({
@@ -27,12 +28,28 @@ const HorizontalContextBarHeader = React.memo(({
   onSaveClick,
   onAddContextClick,
   onToggleExpanded,
-  onDeleteAllClick
+  onDeleteAllClick,
+  onExportClick
 }: HorizontalContextBarHeaderProps) => {
   // Onboarding
   const { isReviewContextsActive } = useActiveOnboardingStep();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
+
+  const handleExport = async () => {
+    if (!onExportClick || isExporting) return;
+    setIsExporting(true);
+    setExportSuccess(false);
+    try {
+      await onExportClick();
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 2000);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleDeleteAll = async () => {
     setIsDeleting(true);
@@ -159,6 +176,31 @@ const HorizontalContextBarHeader = React.memo(({
                 >
                   <Plus className="w-5 h-5" />
                 </motion.button>
+
+                {/* Export Context Map Button */}
+                {contextsCount > 0 && onExportClick && (
+                  <motion.button
+                    onClick={handleExport}
+                    disabled={isExporting}
+                    className={`p-3 rounded-xl transition-all border ${
+                      exportSuccess
+                        ? 'bg-gradient-to-r from-green-500/30 to-emerald-500/30 text-green-400 border-green-500/30'
+                        : 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-400 hover:from-purple-500/30 hover:to-indigo-500/30 border-purple-500/30'
+                    }`}
+                    title="Export context map for Claude Code"
+                    data-testid="export-context-map-btn"
+                    whileHover={{ scale: isExporting ? 1 : 1.05 }}
+                    whileTap={{ scale: isExporting ? 1 : 0.95 }}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : exportSuccess ? (
+                      <Check className="w-5 h-5" />
+                    ) : (
+                      <Download className="w-5 h-5" />
+                    )}
+                  </motion.button>
+                )}
 
                 {/* Delete All Contexts Button */}
                 {contextsCount > 0 && (

@@ -5,6 +5,13 @@
 
 import { executeRequirement } from './claudeCodeManager';
 import { logger } from '@/lib/logger';
+import {
+  emitTaskStarted,
+  emitTaskCompleted,
+  emitTaskFailed,
+  emitTaskSessionLimit,
+} from '@/lib/brain/taskNotificationEmitter';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 export interface GitExecutionConfig {
   enabled: boolean;
@@ -139,6 +146,28 @@ class ClaudeExecutionQueue {
     task.endTime = new Date();
     task.progress.push(this.createProgressEntry('✓ Execution completed successfully'));
     logger.info('Task completed successfully', { taskId: task.id });
+
+    // Emit task completed notification
+    if (task.projectId) {
+      const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
+      emitTaskCompleted(task.id, task.requirementName, task.projectId, undefined, duration);
+
+      // Auto-record implementation signal
+      try {
+        signalCollector.recordImplementation(task.projectId, {
+          requirementId: task.id,
+          requirementName: task.requirementName,
+          contextId: null,
+          filesCreated: [],
+          filesModified: [],
+          filesDeleted: [],
+          success: true,
+          executionTimeMs: duration || 0,
+        });
+      } catch {
+        // Signal recording must never break the main flow
+      }
+    }
   }
 
   /**
@@ -152,6 +181,12 @@ class ClaudeExecutionQueue {
     task.endTime = new Date();
     task.progress.push(this.createProgressEntry('✗ Session limit reached'));
     logger.warn('Task hit session limit', { taskId: task.id });
+
+    // Emit session limit notification
+    if (task.projectId) {
+      const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
+      emitTaskSessionLimit(task.id, task.requirementName, task.projectId, duration);
+    }
   }
 
   /**
@@ -164,6 +199,29 @@ class ClaudeExecutionQueue {
     task.endTime = new Date();
     task.progress.push(this.createProgressEntry('✗ Execution failed'));
     logger.error('Task failed', { taskId: task.id, error });
+
+    // Emit task failed notification
+    if (task.projectId) {
+      const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
+      emitTaskFailed(task.id, task.requirementName, task.projectId, error, duration);
+
+      // Auto-record implementation signal (failure)
+      try {
+        signalCollector.recordImplementation(task.projectId, {
+          requirementId: task.id,
+          requirementName: task.requirementName,
+          contextId: null,
+          filesCreated: [],
+          filesModified: [],
+          filesDeleted: [],
+          success: false,
+          executionTimeMs: duration || 0,
+          error,
+        });
+      } catch {
+        // Signal recording must never break the main flow
+      }
+    }
   }
 
   /**
@@ -197,6 +255,11 @@ class ClaudeExecutionQueue {
     task.status = 'running';
     task.startTime = new Date();
     task.progress.push(this.createProgressEntry('Execution started'));
+
+    // Emit task started notification
+    if (task.projectId) {
+      emitTaskStarted(task.id, task.requirementName, task.projectId);
+    }
 
     try {
       logger.debug('Calling executeRequirement...', {

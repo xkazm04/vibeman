@@ -78,6 +78,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 
 // Module metadata for quick navigation
 export const MODULE_METADATA: Record<AppModule, { label: string; description: string; keywords: string[]; icon: string }> = {
+  overview: { label: 'Overview', description: 'Architecture and system overview', keywords: ['overview', 'architecture', 'dashboard', 'system', 'map'], icon: 'Compass' },
   coder: { label: 'Project / Goals', description: 'View project goals and progress', keywords: ['project', 'goals', 'objectives', 'progress'], icon: 'Target' },
   contexts: { label: 'Contexts', description: 'Manage code contexts and domains', keywords: ['context', 'domain', 'code', 'files'], icon: 'FolderTree' },
   ideas: { label: 'Ideas', description: 'Generate and browse AI ideas', keywords: ['ideas', 'suggestions', 'ai', 'generate'], icon: 'Lightbulb' },
@@ -93,6 +94,8 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   blueprint: { label: 'Blueprint', description: 'Project blueprint and setup', keywords: ['blueprint', 'setup', 'project'], icon: 'Map' },
   questions: { label: 'Questions', description: 'Generate clarifying questions for precise idea generation', keywords: ['questions', 'clarify', 'context', 'requirements'], icon: 'HelpCircle' },
   integrations: { label: 'Integrations', description: 'Manage external integrations and connectors', keywords: ['integrations', 'connectors', 'webhooks', 'external'], icon: 'Plug' },
+  brain: { label: 'Brain', description: 'AI learning and memory system', keywords: ['brain', 'ai', 'learning', 'memory', 'signals'], icon: 'Brain' },
+  commander: { label: 'Annette', description: 'Voice assistant and commander', keywords: ['annette', 'assistant', 'voice', 'commander'], icon: 'Bot' },
 };
 
 interface WorkflowState {

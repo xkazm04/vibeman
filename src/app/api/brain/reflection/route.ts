@@ -7,8 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { reflectionAgent } from '@/lib/brain/reflectionAgent';
+import { brainReflectionDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
-import type { ReflectionTriggerType } from '@/app/db/models/brain.types';
+import type { ReflectionTriggerType, LearningInsight } from '@/app/db/models/brain.types';
 
 /**
  * GET /api/brain/reflection
@@ -21,21 +22,86 @@ async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get('scope') || 'project';
+    const mode = searchParams.get('mode');
+
+    // History mode: return past reflections with stats
+    if (mode === 'history') {
+      const projectId = searchParams.get('projectId');
+      const limit = parseInt(searchParams.get('limit') || '20', 10);
+
+      if (!projectId) {
+        return NextResponse.json(
+          { success: false, error: 'projectId is required for history mode' },
+          { status: 400 }
+        );
+      }
+
+      const reflections = brainReflectionDb.getByProject(projectId, limit);
+
+      // Compute stats for each reflection
+      const history = reflections.map((r) => {
+        let insights: LearningInsight[] = [];
+        try {
+          insights = r.insights_generated ? JSON.parse(r.insights_generated) : [];
+        } catch { /* malformed JSON */ }
+
+        let sectionsUpdated: string[] = [];
+        try {
+          sectionsUpdated = r.guide_sections_updated ? JSON.parse(r.guide_sections_updated) : [];
+        } catch { /* malformed JSON */ }
+
+        const durationMs = r.started_at && r.completed_at
+          ? new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()
+          : null;
+
+        return {
+          id: r.id,
+          status: r.status,
+          triggerType: r.trigger_type,
+          directionsAnalyzed: r.directions_analyzed,
+          outcomesAnalyzed: r.outcomes_analyzed,
+          signalsAnalyzed: r.signals_analyzed,
+          insightCount: insights.length,
+          insights,
+          sectionsUpdated,
+          durationMs,
+          errorMessage: r.error_message,
+          startedAt: r.started_at,
+          completedAt: r.completed_at,
+          createdAt: r.created_at,
+        };
+      });
+
+      // Aggregate stats
+      const completed = history.filter(h => h.status === 'completed');
+      const totalInsights = completed.reduce((sum, h) => sum + h.insightCount, 0);
+      const totalDuration = completed.reduce((sum, h) => sum + (h.durationMs || 0), 0);
+      const avgInsights = completed.length > 0 ? totalInsights / completed.length : 0;
+      const avgDuration = completed.length > 0 ? totalDuration / completed.length : 0;
+
+      return NextResponse.json({
+        success: true,
+        history,
+        aggregates: {
+          totalReflections: history.length,
+          completedReflections: completed.length,
+          failedReflections: history.filter(h => h.status === 'failed').length,
+          totalInsights,
+          avgInsightsPerReflection: Math.round(avgInsights * 10) / 10,
+          totalDurationMs: totalDuration,
+          avgDurationMs: Math.round(avgDuration),
+        },
+      });
+    }
 
     // Global reflection status
     if (scope === 'global') {
       const globalStatus = reflectionAgent.getGlobalStatus();
 
-      let requirementName: string | null = null;
-      if (globalStatus.runningReflection) {
-        requirementName = `brain-reflection-${globalStatus.runningReflection.id}.md`;
-      }
-
       return NextResponse.json({
         success: true,
         scope: 'global',
         ...globalStatus,
-        requirementName,
       });
     }
 
@@ -52,17 +118,10 @@ async function handleGet(request: NextRequest) {
     const status = reflectionAgent.getStatus(projectId);
     const shouldTrigger = reflectionAgent.shouldTrigger(projectId);
 
-    // Include requirement filename for running reflections so UI can connect CLI
-    let requirementName: string | null = null;
-    if (status.runningReflection) {
-      requirementName = `brain-reflection-${status.runningReflection.id}.md`;
-    }
-
     return NextResponse.json({
       success: true,
       scope: 'project',
       ...status,
-      requirementName,
       shouldTrigger: shouldTrigger.shouldTrigger,
       triggerReason: shouldTrigger.reason,
     });
@@ -117,7 +176,7 @@ async function handlePost(request: NextRequest) {
         success: true,
         message: 'Global reflection started',
         reflectionId: result.reflectionId,
-        requirementPath: result.requirementPath,
+        promptContent: result.promptContent,
         scope: 'global',
       });
     }
@@ -161,7 +220,7 @@ async function handlePost(request: NextRequest) {
       success: true,
       message: 'Reflection started',
       reflectionId: result.reflectionId,
-      requirementPath: result.requirementPath,
+      promptContent: result.promptContent,
       scope: 'project',
     });
   } catch (error) {

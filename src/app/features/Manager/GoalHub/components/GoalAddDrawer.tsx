@@ -8,14 +8,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import GoalAddPanel from '@/app/features/Onboarding/sub_GoalDrawer/GoalAddPanel';
-import type { ExtendedGoal } from '@/app/db/models/goal-hub.types';
 
 interface GoalAddDrawerProps {
   isOpen: boolean;
   projectId: string;
   projectPath: string;
   onClose: () => void;
-  onGoalCreated: (goal: ExtendedGoal) => void;
+  onGoalCreated: () => void;
 }
 
 export default function GoalAddDrawer({
@@ -37,10 +36,7 @@ export default function GoalAddDrawer({
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.goal) {
-          onGoalCreated(data.goal);
-        }
+        onGoalCreated();
       }
     } catch (err) {
       console.error('Failed to create goal:', err);

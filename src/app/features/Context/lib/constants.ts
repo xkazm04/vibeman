@@ -131,3 +131,8 @@ export const CONTEXT_MENU_ACTIONS = {
 } as const;
 
 export type ContextMenuAction = typeof CONTEXT_MENU_ACTIONS[keyof typeof CONTEXT_MENU_ACTIONS];
+
+/**
+ * ID for the synthetic "Unsorted" group used to display ungrouped contexts
+ */
+export const SYNTHETIC_GROUP_ID = 'synthetic-to-group';

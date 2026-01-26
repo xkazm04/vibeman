@@ -12,20 +12,12 @@ interface IdeasHeaderWithFilterProps {
   onSelectProject: (projectId: string) => void;
   selectedContextIds: string[];
   onSelectContexts: (contextIds: string[]) => void;
-  onBatchScanAllContexts?: () => void;
-  selectedProjectPath?: string;
-  onIdeaImplemented?: () => void;
 }
 
 export default function IdeasHeaderWithFilter({
-  projects,
   selectedProjectId,
-  onSelectProject,
   selectedContextIds,
   onSelectContexts,
-  onBatchScanAllContexts,
-  selectedProjectPath,
-  onIdeaImplemented,
 }: IdeasHeaderWithFilterProps) {
   // Use React Query hook for automatic caching and deduplication
   const projectId = selectedProjectId !== 'all' ? selectedProjectId : null;

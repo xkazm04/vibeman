@@ -698,6 +698,7 @@ export interface DbWorkspace {
   description: string | null;
   color: string;
   icon: string;
+  base_path: string | null; // Root directory for projects in this workspace
   position: number;
   created_at: string;
   updated_at: string;

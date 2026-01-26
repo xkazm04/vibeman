@@ -23,7 +23,6 @@ interface BufferViewProps {
   getProjectName: (projectId: string) => string;
   getContextName: (contextId: string) => string;
   onIdeaClick: (idea: DbIdea) => void;
-  onScanComplete?: () => void;
 }
 
 export default function BufferView({
@@ -31,7 +30,6 @@ export default function BufferView({
   getProjectName,
   getContextName,
   onIdeaClick,
-  onScanComplete,
 }: BufferViewProps) {
   const router = useRouter();
   const { getProject } = useProjectConfigStore();
@@ -48,13 +46,6 @@ export default function BufferView({
   const deleteIdeaMutation = useDeleteIdea();
   const deleteContextIdeasMutation = useDeleteContextIdeas();
   const invalidateIdeas = useInvalidateIdeas();
-
-  // Refetch when scan completes
-  React.useEffect(() => {
-    if (onScanComplete) {
-      // The parent can call refetch after scan completion
-    }
-  }, [onScanComplete]);
 
   // Filter ideas by project if needed
   const filteredIdeas = React.useMemo(() => {

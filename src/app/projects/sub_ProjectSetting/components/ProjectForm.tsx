@@ -64,12 +64,14 @@ export default function ProjectForm({
   onTypeChange,
   loading,
   error,
-  isEdit = false
+  isEdit = false,
+  workspaceId,
+  workspaceBasePath
 }: ProjectFormProps) {
   const { projects } = useProjectConfigStore();
   const [loadingDirectories, setLoadingDirectories] = useState(false);
   const [directories, setDirectories] = useState<Directory[]>([]);
-  const [parentPath, setParentPath] = useState('');
+  const [parentPath, setParentPath] = useState(workspaceBasePath || '');
 
   // Form state
   const [selectedPath, setSelectedPath] = useState(initialData?.path || '');
@@ -116,10 +118,16 @@ export default function ProjectForm({
     }
   }, [projectType, isEdit, initialData]);
 
-  const loadDirectories = async () => {
+  const loadDirectories = async (customBasePath?: string) => {
     setLoadingDirectories(true);
     try {
-      const response = await fetch('/api/projects/directories');
+      // Use workspace base path if provided, otherwise use default
+      const basePath = customBasePath || workspaceBasePath;
+      const url = basePath
+        ? `/api/projects/directories?basePath=${encodeURIComponent(basePath)}`
+        : '/api/projects/directories';
+
+      const response = await fetch(url);
       const data: DirectoriesResponse = await response.json();
 
       if (data.success) {
@@ -155,6 +163,7 @@ export default function ProjectForm({
       name: projectName.trim(),
       path: selectedPath,
       port: isCombined ? undefined : port,
+      workspaceId: workspaceId || undefined,
       type: projectType,
       relatedProjectId: projectType === 'fastapi' && relatedProjectId ? relatedProjectId : undefined,
       git_repository: gitRepository.trim() || undefined,

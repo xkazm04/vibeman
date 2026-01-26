@@ -11,11 +11,12 @@
  */
 
 import { brainReflectionDb, directionOutcomeDb, behavioralSignalDb, directionDb } from '@/app/db';
+import { consumeTaskEvents, TaskNotificationEvent } from '@/lib/brain/taskNotificationEmitter';
 import { logger } from '@/lib/logger';
 
 export interface AnnetteNotification {
   id: string;
-  type: 'insight' | 'outcome' | 'warning' | 'suggestion' | 'status';
+  type: 'insight' | 'outcome' | 'warning' | 'suggestion' | 'status' | 'task_execution';
   priority: 'low' | 'medium' | 'high';
   title: string;
   message: string;
@@ -55,6 +56,10 @@ export function checkForNotifications(projectId: string): AnnetteNotification[] 
     // Check decision threshold
     const thresholdNotif = checkDecisionThreshold(projectId);
     if (thresholdNotif) notifications.push(thresholdNotif);
+
+    // Check task execution events
+    const taskNotifs = checkTaskExecutionEvents(projectId);
+    notifications.push(...taskNotifs);
   } catch (error) {
     logger.error('Notification check failed', { projectId, error });
   }
@@ -212,6 +217,100 @@ function checkDecisionThreshold(projectId: string): AnnetteNotification | null {
   }
 
   return null;
+}
+
+/**
+ * Convert task execution events into notifications
+ */
+function checkTaskExecutionEvents(projectId: string): AnnetteNotification[] {
+  const events = consumeTaskEvents(projectId);
+  return events.map(event => taskEventToNotification(event));
+}
+
+/**
+ * Convert a single task event to an AnnetteNotification
+ */
+function taskEventToNotification(event: TaskNotificationEvent): AnnetteNotification {
+  switch (event.status) {
+    case 'started':
+      return {
+        id: event.id,
+        type: 'task_execution',
+        priority: 'low',
+        title: 'Task Started',
+        message: `Executing: ${event.taskName}`,
+        actionable: false,
+        timestamp: event.timestamp,
+      };
+
+    case 'completed': {
+      const durationStr = event.duration
+        ? formatDuration(event.duration)
+        : 'unknown duration';
+      const filesStr = event.filesChanged !== undefined
+        ? `${event.filesChanged} files changed`
+        : 'changes applied';
+      return {
+        id: event.id,
+        type: 'task_execution',
+        priority: 'medium',
+        title: 'Task Completed',
+        message: `${event.taskName} finished (${durationStr}, ${filesStr})`,
+        actionable: true,
+        suggestedAction: {
+          tool: 'review_changes',
+          description: 'Review the implementation changes',
+        },
+        timestamp: event.timestamp,
+      };
+    }
+
+    case 'failed':
+      return {
+        id: event.id,
+        type: 'task_execution',
+        priority: 'high',
+        title: 'Task Failed',
+        message: event.errorMessage
+          ? `${event.taskName} failed: ${event.errorMessage}`
+          : `${event.taskName} failed. Check execution logs for details.`,
+        actionable: true,
+        suggestedAction: {
+          tool: 'retry_task',
+          description: 'Retry the failed task',
+        },
+        timestamp: event.timestamp,
+      };
+
+    case 'session-limit':
+      return {
+        id: event.id,
+        type: 'task_execution',
+        priority: 'high',
+        title: 'Session Limit Reached',
+        message: `${event.taskName} stopped due to session/rate limits. Try again later.`,
+        actionable: true,
+        suggestedAction: {
+          tool: 'retry_task',
+          description: 'Retry when limits reset',
+        },
+        timestamp: event.timestamp,
+      };
+  }
+}
+
+/**
+ * Format milliseconds into a human-readable duration string
+ */
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
 }
 
 /**

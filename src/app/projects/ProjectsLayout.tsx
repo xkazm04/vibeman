@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../stores/projectsToolbarStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 import HighLevelDocsModalWrapper from './HighLevelDocsModalWrapper';
 import ProjectAdd from './sub_ProjectSetting/components/ProjectAdd';
 import ProjectEdit from './sub_ProjectSetting/components/ProjectEdit';
@@ -18,6 +19,7 @@ export default function ProjectsLayout() {
   const { activeProject } = useActiveProjectStore();
   const { syncWithServer } = useProjectConfigStore();
   const { notifyProjectAdded, notifyProjectUpdated } = useProjectUpdatesStore();
+  const { activeWorkspaceId, workspaces } = useWorkspaceStore();
 
   const {
     showAddProject,
@@ -31,6 +33,12 @@ export default function ProjectsLayout() {
     setShowStructure,
     setShowWorkspaceManager,
   } = useProjectsToolbarStore();
+
+  // Get active workspace base path for new projects
+  const activeWorkspace = activeWorkspaceId && activeWorkspaceId !== 'default'
+    ? workspaces.find(ws => ws.id === activeWorkspaceId)
+    : null;
+  const workspaceBasePath = activeWorkspace?.base_path || null;
 
   // Handle project added - refresh the project list and notify subscribers
   const handleProjectAdded = async (projectId?: string) => {
@@ -70,6 +78,8 @@ export default function ProjectsLayout() {
         isOpen={showAddProject}
         onClose={() => setShowAddProject(false)}
         onProjectAdded={handleProjectAdded}
+        workspaceId={activeWorkspaceId !== 'default' ? activeWorkspaceId : null}
+        workspaceBasePath={workspaceBasePath}
       />
 
       {/* Edit Project Modal */}

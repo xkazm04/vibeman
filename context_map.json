@@ -332,8 +332,7 @@
           "src/app/features/Context/sub_ContextOverview/TestingTab.tsx",
           "src/app/features/Context/sub_ContextOverview/TestScenarioEditor.tsx",
           "src/app/features/Context/sub_ContextPreview/ContextPreviewManager.tsx",
-          "src/app/features/Context/sub_ContextPreview/ImagePathInput.tsx",
-          "src/app/features/Context/sub_ContextTargetPopup/ContextTargetPopup.tsx"
+          "src/app/features/Context/sub_ContextPreview/ImagePathInput.tsx"
         ],
         "logic": [
           "src/app/features/Context/sub_ContextPreview/selectorsApi.ts"
