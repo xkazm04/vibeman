@@ -48,3 +48,6 @@ next-env.d.ts
 /database/*.db-shm
 /database/*.db-wal
 
+# GSD planning docs (local only)
+/.planning/
+
