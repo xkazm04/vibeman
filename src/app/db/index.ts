@@ -16,7 +16,6 @@ import { scanRepository } from './repositories/scan.repository';
 import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
 import { conversationRepository } from './repositories/conversation.repository';
-import { techDebtRepository } from './repositories/tech-debt.repository';
 import { scanQueueRepository } from './repositories/scanQueue.repository';
 import { testSelectorRepository } from './repositories/test-selector.repository';
 import {
@@ -120,11 +119,12 @@ import {
   architectureAnalysisRepository,
   projectArchitectureMetadataRepository,
 } from './repositories/cross-project-architecture.repository';
+import { crossTaskPlanRepository } from './repositories/cross-task.repository';
+import { groupHealthRepository } from './repositories/group-health.repository';
 
 // Export types
 export * from './models/types';
 export * from './models/conversation.types';
-export * from './models/tech-debt.types';
 export * from './models/security-patch.types';
 export * from './models/test-scenario.types';
 export * from './models/scan-prediction.types';
@@ -145,6 +145,8 @@ export * from './models/brain.types';
 export * from './models/annette.types';
 export * from './models/reflector.types';
 export * from './models/cross-project-architecture.types';
+export * from './models/cross-task.types';
+export * from './models/group-health.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -267,15 +269,6 @@ export const implementationLogDb = {
  */
 export const conversationDb = {
   ...conversationRepository,
-  close: closeDatabase
-};
-
-/**
- * Technical Debt Database Operations
- * Handles technical debt tracking and remediation
- */
-export const techDebtDb = {
-  ...techDebtRepository,
   close: closeDatabase
 };
 
@@ -875,6 +868,24 @@ export const architectureAnalysisDb = {
  */
 export const projectArchitectureMetadataDb = {
   ...projectArchitectureMetadataRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Cross Task Plan Database Operations
+ * Manages cross-project requirement analysis and implementation planning
+ */
+export const crossTaskPlanDb = {
+  ...crossTaskPlanRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Group Health Database Operations
+ * Manages code health scans for context groups
+ */
+export const groupHealthDb = {
+  ...groupHealthRepository,
   close: closeDatabase,
 };
 

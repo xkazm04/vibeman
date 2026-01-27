@@ -8,13 +8,11 @@ import type { QueuedTask } from '@/components/cli/types';
 interface ArchitectureAnalysisPanelProps {
   workspaceId: string | null;
   projects: Array<{ id: string; name: string; path: string }>;
-  onAnalysisPrompt: (prompt: string, analysisId: string) => void;
 }
 
 export default function ArchitectureAnalysisPanel({
   workspaceId,
   projects,
-  onAnalysisPrompt,
 }: ArchitectureAnalysisPanelProps) {
   const [analysisTask, setAnalysisTask] = useState<QueuedTask | null>(null);
   const [autoStart, setAutoStart] = useState(false);
@@ -26,41 +24,30 @@ export default function ArchitectureAnalysisPanel({
     setIsLoading(true);
 
     try {
-      // Generate analysis ID
-      const analysisId = `arch-${Date.now()}`;
+      // Call the API to create an analysis session with proper callback URL
+      const response = await fetch('/api/architecture/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scope: 'workspace',
+          workspaceId,
+          projects: projects.map(p => ({
+            id: p.id,
+            name: p.name,
+            path: p.path,
+          })),
+          triggerType: 'manual',
+        }),
+      });
 
-      // Build analysis prompt
-      const projectList = projects
-        .map((p, i) => `${i + 1}. ${p.name} (${p.path})`)
-        .join('\n');
+      const result = await response.json();
 
-      const promptContent = `# Architecture Analysis Task
+      if (!response.ok || !result.success) {
+        console.error('Failed to start analysis:', result.error);
+        return;
+      }
 
-Analyze the architecture of the following ${projects.length} project(s) in workspace "${workspaceId || 'default'}":
-
-${projectList}
-
-## Analysis Steps
-
-1. **For each project**, examine:
-   - Project structure and file organization
-   - Key dependencies (package.json, requirements.txt, etc.)
-   - API endpoints and routes
-   - Database schemas if present
-   - Configuration files
-
-2. **Cross-Project Analysis**:
-   - Identify shared dependencies
-   - Detect API consumer/provider relationships
-   - Find data flow patterns between projects
-   - Note common patterns and architectures
-
-3. **Output Requirements**:
-   - Summarize each project's architecture
-   - List discovered cross-project relationships
-   - Provide recommendations for architectural improvements
-
-Start with the first project and work through each one systematically.`;
+      const { analysisId, promptContent } = result;
 
       const task: QueuedTask = {
         id: analysisId,
@@ -75,15 +62,12 @@ Start with the first project and work through each one systematically.`;
 
       setAnalysisTask(task);
       setAutoStart(true);
-
-      // Notify parent
-      onAnalysisPrompt(promptContent, analysisId);
     } catch (error) {
       console.error('Error triggering analysis:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [workspaceId, projects, onAnalysisPrompt]);
+  }, [workspaceId, projects]);
 
   const handleTaskComplete = useCallback((taskId: string, success: boolean) => {
     setAutoStart(false);

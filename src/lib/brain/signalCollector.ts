@@ -10,6 +10,8 @@ import type {
   ApiFocusSignalData,
   ContextFocusSignalData,
   ImplementationSignalData,
+  CrossTaskAnalysisSignalData,
+  CrossTaskSelectionSignalData,
 } from '@/app/db/models/brain.types';
 
 /**
@@ -116,6 +118,52 @@ export const signalCollector = {
       });
     } catch (error) {
       console.error('[SignalCollector] Failed to record implementation:', error);
+    }
+  },
+
+  /**
+   * Record a cross-task analysis signal (cross-project requirement analysis completed)
+   */
+  recordCrossTaskAnalysis: (
+    projectId: string,
+    data: CrossTaskAnalysisSignalData
+  ): void => {
+    try {
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'cross_task_analysis',
+        context_id: null,
+        context_name: null,
+        data: JSON.stringify(data),
+        weight: data.success ? 2.0 : 1.0, // Successful analysis is high signal
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record cross-task analysis:', error);
+    }
+  },
+
+  /**
+   * Record a cross-task selection signal (user selected an implementation plan)
+   */
+  recordCrossTaskSelection: (
+    projectId: string,
+    data: CrossTaskSelectionSignalData
+  ): void => {
+    try {
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'cross_task_selection',
+        context_id: null,
+        context_name: null,
+        data: JSON.stringify(data),
+        weight: 1.5, // Plan selection is a high-signal user decision
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record cross-task selection:', error);
     }
   },
 

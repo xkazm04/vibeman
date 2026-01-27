@@ -13,6 +13,8 @@ export interface ContextGroup {
   position: number;
   type?: 'pages' | 'client' | 'server' | 'external' | null; // Architecture layer type
   icon?: string | null; // Icon name for visual representation
+  healthScore?: number | null; // Code health score (0-100) from last scan
+  lastScanAt?: Date | null; // Timestamp of last health scan
   createdAt: Date;
   updatedAt: Date;
 }

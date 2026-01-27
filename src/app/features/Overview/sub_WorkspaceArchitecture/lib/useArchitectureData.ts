@@ -111,6 +111,7 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
     latestAnalysis: null,
     history: [],
   });
+  const [branchInfo, setBranchInfo] = useState<Map<string, { branch: string | null; dirty: boolean }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [initAttempted, setInitAttempted] = useState(false);
@@ -130,6 +131,7 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
   const projectNodes: WorkspaceProjectNode[] = workspaceProjects.map(project => {
     const tier = getProjectTier(project);
     const frameworkCategory = getFrameworkCategory(project);
+    const gitInfo = branchInfo.get(project.id);
 
     return {
       id: project.id,
@@ -139,6 +141,8 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
       framework: project.type,
       frameworkCategory,
       description: project.description,
+      branch: gitInfo?.branch || undefined,
+      branchDirty: gitInfo?.dirty || false,
       x: 0,
       y: 0,
       width: 160,
@@ -203,16 +207,50 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
     }
   }, [workspaceId]);
 
+  // Fetch git branches for all projects
+  const fetchBranches = useCallback(async () => {
+    if (workspaceProjects.length === 0) return;
+
+    try {
+      const response = await fetch('/api/git/branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projects: workspaceProjects.map(p => ({
+            id: p.id,
+            path: p.path,
+          })),
+        }),
+      });
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const newBranchInfo = new Map<string, { branch: string | null; dirty: boolean }>();
+
+      for (const item of data.branches || []) {
+        newBranchInfo.set(item.projectId, {
+          branch: item.branch,
+          dirty: item.dirty,
+        });
+      }
+
+      setBranchInfo(newBranchInfo);
+    } catch (err) {
+      console.error('Error fetching git branches:', err);
+    }
+  }, [workspaceProjects]);
+
   // Combined refresh function
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([fetchRelationships(), fetchAnalysisStatus()]);
+      await Promise.all([fetchRelationships(), fetchAnalysisStatus(), fetchBranches()]);
     } finally {
       setLoading(false);
     }
-  }, [fetchRelationships, fetchAnalysisStatus]);
+  }, [fetchRelationships, fetchAnalysisStatus, fetchBranches]);
 
   // Trigger architecture analysis
   const triggerAnalysis = useCallback(async () => {

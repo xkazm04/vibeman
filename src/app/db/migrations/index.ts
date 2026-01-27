@@ -206,6 +206,10 @@ export function runMigrations() {
     migrateCrossProjectArchitecture();
     // Migration 74: Workspace & Project Enhancements - base_path for workspaces
     migrateWorkspaceProjectEnhancements();
+    // Migration 75: Group Health Scans - health tracking for context groups
+    migrateGroupHealth();
+    // Migration 76: Remote Message Broker Config - Supabase credentials storage
+    migrateRemoteConfig();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4503,5 +4507,29 @@ function migrateWorkspaceProjectEnhancements() {
     const db = getConnection();
     const { migrate061WorkspaceProjectEnhancements } = require('./061_workspace_project_enhancements');
     migrate061WorkspaceProjectEnhancements(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 75: Group Health Scans
+ * Creates table for tracking code health scans per context group
+ */
+function migrateGroupHealth() {
+  safeMigration('group_health', () => {
+    const db = getConnection();
+    const { migrate062GroupHealth } = require('./062_group_health');
+    migrate062GroupHealth(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 76: Remote Message Broker Config
+ * Creates table for storing Supabase credentials for remote integration
+ */
+function migrateRemoteConfig() {
+  safeMigration('remote_config', () => {
+    const db = getConnection();
+    const { migrate063RemoteConfig } = require('./063_remote_config');
+    migrate063RemoteConfig(db);
   }, migrationLogger);
 }

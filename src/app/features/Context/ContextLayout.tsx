@@ -146,15 +146,20 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     }
   }, [activeProject?.id]);
 
-  // Load project data when active project changes
+  // Load project data when active project changes or on initial mount
   useEffect(() => {
-    if (activeProject?.id && activeProject.id !== lastProjectIdRef.current) {
-      lastProjectIdRef.current = activeProject.id;
-      const controller = new AbortController();
-      loadProjectData(activeProject.id, controller.signal);
-      return () => controller.abort();
+    if (!activeProject?.id) return;
+
+    // Skip if already loaded for this project
+    if (activeProject.id === lastProjectIdRef.current && contexts.length > 0) {
+      return;
     }
-  }, [activeProject?.id, loadProjectData]);
+
+    lastProjectIdRef.current = activeProject.id;
+    const controller = new AbortController();
+    loadProjectData(activeProject.id, controller.signal);
+    return () => controller.abort();
+  }, [activeProject?.id, loadProjectData, contexts.length]);
 
   // Don't render if no active project
   if (!activeProject) {
@@ -231,9 +236,9 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                     />
                   ) : (
                     <div className="p-8">
-                      {/* Flexible Grid Layout */}
+                      {/* Responsive 2-Column Layout */}
                       <div className="grid gap-6" style={{
-                        gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))`
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 480px), 1fr))'
                       }}>
                         {/* Render all groups */}
                         {allGroups.map((group, index) => {

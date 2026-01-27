@@ -31,12 +31,7 @@ import {
   isPollingActive,
   type PollingCallback,
 } from '../lib/pollingManager';
-import {
-  emitTaskStarted,
-  emitTaskCompleted,
-  emitTaskFailed,
-  emitBatchProgress,
-} from '@/lib/bridge/client';
+import { remoteEvents } from '@/lib/remote';
 
 // ============================================================================
 // Types
@@ -896,13 +891,12 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         state.initializeCheckpoints(nextTask.id, builtRules);
         console.log(`📋 Initialized ${builtRules.includedRuleIds.length} checkpoints for task: ${nextTask.id}`);
 
-        // Emit bridge event for task started
-        emitTaskStarted(
-          nextTask.id,
+        // Publish task started event to remote
+        remoteEvents.taskStarted(requirement.projectId, {
+          taskId: nextTask.id,
           batchId,
-          requirement.requirementName,
-          requirement.projectId
-        );
+          title: requirement.requirementName,
+        });
 
         try {
           // Execute the task
@@ -1435,23 +1429,21 @@ function createPollingCallback(
           };
         });
 
-        // Emit bridge event for task completed
-        emitTaskCompleted(
-          requirementId,
+        // Publish task completed event to remote
+        remoteEvents.taskCompleted(requirement.projectId, {
+          taskId: requirementId,
           batchId,
-          requirement.requirementName,
-          requirement.projectId
-        );
+          title: requirement.requirementName,
+        });
 
-        // Emit batch progress update
+        // Publish batch progress update
         const currentState = useTaskRunnerStore.getState();
         const batchProgress = currentState.getBatchProgress(batchId);
-        emitBatchProgress(
+        remoteEvents.batchProgress(requirement.projectId, {
           batchId,
-          batchProgress.completed,
-          batchProgress.total,
-          requirement.projectId
-        );
+          completed: batchProgress.completed,
+          total: batchProgress.total,
+        });
 
         // Update idea status to 'implemented' and increment context counter
         try {
@@ -1514,24 +1506,22 @@ function createPollingCallback(
           };
         });
 
-        // Emit bridge event for task failed
-        emitTaskFailed(
-          requirementId,
+        // Publish task failed event to remote
+        remoteEvents.taskFailed(requirement.projectId, {
+          taskId: requirementId,
           batchId,
-          requirement.requirementName,
-          requirement.projectId,
-          taskStatus.error
-        );
+          title: requirement.requirementName,
+          error: taskStatus.error || 'Task failed',
+        });
 
-        // Emit batch progress update
+        // Publish batch progress update
         const failedState = useTaskRunnerStore.getState();
         const failedBatchProgress = failedState.getBatchProgress(batchId);
-        emitBatchProgress(
+        remoteEvents.batchProgress(requirement.projectId, {
           batchId,
-          failedBatchProgress.completed,
-          failedBatchProgress.total,
-          requirement.projectId
-        );
+          completed: failedBatchProgress.completed,
+          total: failedBatchProgress.total,
+        });
 
         // Continue with next task using cached requirements from store
         const allRequirements = useTaskRunnerStore.getState().requirementsCache;

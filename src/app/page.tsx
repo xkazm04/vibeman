@@ -16,12 +16,10 @@ import TinderLayout from './features/tinder/TinderLayout';
 import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
 import ReflectorLayout from './features/reflector/ReflectorLayout';
 import ManagerLayout from './features/Manager/ManagerLayout';
-import RefactorPage from './refactor/page';
 import GoalsLayout from './features/Goals/GoalsLayout';
 import HallOfFameLayout from './features/HallOfFame/HallOfFameLayout';
 import ContextLayout from './features/Context/ContextLayout';
 import SocialLayout from './features/Social/SocialLayout';
-import BlueprintComposer from './features/Composer/BlueprintComposer';
 import ZenLayout from './zen/ZenLayout';
 import QuestionsLayout from './features/Questions/QuestionsLayout';
 import IntegrationsLayout from './features/Integrations/IntegrationsLayout';
@@ -60,20 +58,12 @@ export default function Home() {
         return <TaskRunnerLayout key="tasker" />;
       case 'reflector':
         return <ReflectorLayout key="reflector" />;
-      case 'refactor':
-        return <RefactorPage key="refactor" />;
       case 'manager':
         return <ManagerLayout key="manager" projectId={projectId} />;
       case 'halloffame':
         return <HallOfFameLayout key="halloffame" />;
       case 'social':
         return <SocialLayout key="social" />;
-      case 'composer':
-        return (
-          <div key="composer" className="h-full">
-            <BlueprintComposer />
-          </div>
-        );
       case 'zen':
         return <ZenLayout key="zen" />;
       case 'questions':
@@ -96,7 +86,7 @@ export default function Home() {
         <FrozenComponent shouldFreeze={shouldFreezeComponents}>
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${activeModule}-${selectedProjectId}`}
+              key={activeModule}
               variants={moduleVariants}
               initial="initial"
               animate="animate"

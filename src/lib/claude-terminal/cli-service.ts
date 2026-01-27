@@ -91,8 +91,16 @@ export interface CLIExecution {
   logFilePath?: string;
 }
 
-// Active executions map
-const activeExecutions = new Map<string, CLIExecution>();
+// Active executions map - use globalThis to persist across Next.js module reloads in dev mode
+const globalForExecutions = globalThis as unknown as {
+  cliActiveExecutions: Map<string, CLIExecution> | undefined;
+};
+
+const activeExecutions = globalForExecutions.cliActiveExecutions ?? new Map<string, CLIExecution>();
+
+if (!globalForExecutions.cliActiveExecutions) {
+  globalForExecutions.cliActiveExecutions = activeExecutions;
+}
 
 /**
  * Get logs directory for a project
@@ -189,6 +197,7 @@ export function startExecution(
   };
 
   activeExecutions.set(executionId, execution);
+  console.log(`[CLI] Registered execution: ${executionId}. Total active: ${activeExecutions.size}`);
 
   // Create log file stream
   const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
@@ -482,7 +491,12 @@ export function startExecution(
  * Get execution by ID
  */
 export function getExecution(executionId: string): CLIExecution | undefined {
-  return activeExecutions.get(executionId);
+  const execution = activeExecutions.get(executionId);
+  if (!execution) {
+    // Log for debugging - helps identify if Map was cleared
+    console.debug(`[CLI] getExecution: ${executionId} not found. Active executions: ${activeExecutions.size}`);
+  }
+  return execution;
 }
 
 /**

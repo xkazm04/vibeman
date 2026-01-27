@@ -57,9 +57,9 @@ const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScr
                     showFullScreenModal={showFullScreenModal}
                 />
             ) : (
-                // Jail-Door Structure with dynamic height
+                // Jail-Door Structure with compact stacking
                 <div className="p-4">
-                    <div className={`grid gap-0 ${layout.gridCols} relative`} style={{ gridAutoRows: `minmax(${layout.cellHeight === 'h-64' ? '16rem' : layout.cellHeight === 'h-32' ? '8rem' : '7rem'}, auto)` }}>
+                    <div className={`grid gap-0 ${layout.gridCols} relative`}>
                         {contexts.map((context, index) => {
                             const colCount = layout.gridCols === 'grid-cols-2' ? 2 : layout.gridCols === 'grid-cols-3' ? 3 : 1;
                             const showVerticalDivider = layout.showDividers && (index % colCount !== colCount - 1);

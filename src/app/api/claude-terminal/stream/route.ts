@@ -151,6 +151,10 @@ export async function GET(request: NextRequest) {
         }
       };
 
+      // Track retry attempts for execution not found
+      let executionNotFoundCount = 0;
+      const maxNotFoundRetries = 30; // Wait up to 3 seconds for execution to appear
+
       // Poll for new events
       const pollInterval = setInterval(() => {
         if (isStreamClosed) {
@@ -160,6 +164,14 @@ export async function GET(request: NextRequest) {
 
         const execution = getExecution(activeExecutionId!);
         if (!execution) {
+          executionNotFoundCount++;
+
+          // Retry for a bit before giving up (handles race conditions and module reloads)
+          if (executionNotFoundCount < maxNotFoundRetries) {
+            // Just wait and try again
+            return;
+          }
+
           clearInterval(pollInterval);
           sendEvent({
             type: 'error',
@@ -169,6 +181,9 @@ export async function GET(request: NextRequest) {
           controller.close();
           return;
         }
+
+        // Reset counter once execution is found
+        executionNotFoundCount = 0;
 
         // Send new events
         const newEvents = execution.events.slice(lastEventIndex);

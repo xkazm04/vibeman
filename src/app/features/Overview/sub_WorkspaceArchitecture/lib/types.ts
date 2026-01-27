@@ -34,6 +34,10 @@ export interface WorkspaceProjectNode {
   frameworkCategory: FrameworkCategory;
   description?: string;
 
+  // Git info (like IDE status bar)
+  branch?: string;         // Current git branch name
+  branchDirty?: boolean;   // Has uncommitted changes
+
   // Position (calculated by layout)
   x: number;
   y: number;

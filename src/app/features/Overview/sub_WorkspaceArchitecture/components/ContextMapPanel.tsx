@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Map, Check, X, Loader2, Play, Square } from 'lucide-react';
 import { useOrchestratorStore } from '@/stores/orchestratorStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
 
@@ -23,20 +24,38 @@ export default function ContextMapPanel({ projects }: ContextMapPanelProps) {
     getProgress,
   } = useOrchestratorStore();
 
+  // Get selected project from global store
+  const { selectedProjectId } = useClientProjectStore();
+
+  // Filter projects based on selection
+  const filteredProjects = useMemo(() => {
+    if (selectedProjectId === 'all') {
+      return projects;
+    }
+    return projects.filter(p => p.id === selectedProjectId);
+  }, [projects, selectedProjectId]);
+
+  // Get selected project name for header
+  const selectedProjectName = useMemo(() => {
+    if (selectedProjectId === 'all') return null;
+    const project = projects.find(p => p.id === selectedProjectId);
+    return project?.name || null;
+  }, [selectedProjectId, projects]);
+
   const [currentTask, setCurrentTask] = useState<QueuedTask | null>(null);
   const [autoStart, setAutoStart] = useState(false);
   const processingRef = useRef(false);
 
   // Start batch context map generation
   const handleStartAll = useCallback(async () => {
-    if (projects.length === 0) return;
+    if (filteredProjects.length === 0) return;
 
-    startBatch('context-map', projects);
+    startBatch('context-map', filteredProjects);
     processingRef.current = true;
 
     // Start first project
-    await startProject(projects[0], 0);
-  }, [projects, startBatch]);
+    await startProject(filteredProjects[0], 0);
+  }, [filteredProjects, startBatch]);
 
   // Start processing for a specific project
   const startProject = useCallback(
@@ -133,7 +152,8 @@ Execute the context map generation workflow as described in the skill file.`,
   }, [reset]);
 
   const progress = getProgress();
-  const hasProjects = projects.length > 0;
+  const hasProjects = filteredProjects.length > 0;
+  const isSingleProject = filteredProjects.length === 1;
 
   return (
     <div className="flex flex-col h-full bg-zinc-900/80 backdrop-blur-sm">
@@ -143,7 +163,12 @@ Execute the context map generation workflow as described in the skill file.`,
           <div className="p-1 rounded bg-cyan-500/10">
             <Map className="w-3.5 h-3.5 text-cyan-400" />
           </div>
-          <span className="text-sm font-medium text-zinc-200">Context Map</span>
+          <span className="text-sm font-medium text-zinc-200">
+            Context Map
+            {selectedProjectName && (
+              <span className="text-cyan-400 ml-1">· {selectedProjectName}</span>
+            )}
+          </span>
         </div>
 
         {isRunning ? (
@@ -166,7 +191,7 @@ Execute the context map generation workflow as described in the skill file.`,
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-cyan-500/20 text-cyan-400 rounded-lg border border-cyan-500/30 hover:bg-cyan-500/30 hover:border-cyan-500/50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <Play className="w-3 h-3" />
-            Generate All ({projects.length})
+            {isSingleProject ? 'Generate (1)' : `Generate All (${filteredProjects.length})`}
           </button>
         )}
       </div>
@@ -249,7 +274,12 @@ Execute the context map generation workflow as described in the skill file.`,
                 <div className="p-2 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
                   <Map className="w-5 h-5 text-cyan-400/50" />
                 </div>
-                <span>Click "Generate All" to create context maps</span>
+                <span>
+                  {isSingleProject
+                    ? `Click "Generate" to create context map for ${selectedProjectName}`
+                    : `Click "Generate All" to create ${filteredProjects.length} context maps`
+                  }
+                </span>
               </>
             ) : (
               <>

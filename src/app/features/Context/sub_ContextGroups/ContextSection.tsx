@@ -2,9 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context, ContextGroup } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
+import { useGroupHealthStore } from '../../../../stores/groupHealthStore';
 import ContextSectionEmpty from './ContextSectionEmpty';
 import ContextSectionHeader from './ContextSectionHeader';
 import ContextSectionContent from './ContextSectionContent';
+import { InlineScanOverlay } from './components/InlineScanOverlay';
 import { generateGlassGradient } from './lib/gradientUtils';
 import { useDroppableZone } from '@/hooks/dnd';
 import { SYNTHETIC_GROUP_ID } from '../lib/constants';
@@ -35,8 +37,13 @@ const ContextSection = React.memo(({
   onMoveContext,
 }: ContextSectionProps) => {
   const { showFullScreenModal } = useGlobalModal();
+  const { getActiveScan } = useGroupHealthStore();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Check for active scan on this group
+  const activeScan = group ? getActiveScan(group.id) : null;
+  const hasActiveScan = activeScan !== null;
 
   // DnD Droppable - using reusable hook
   const { ref: setNodeRef, isOver, zoneState, testId } = useDroppableZone({
@@ -138,6 +145,7 @@ const ContextSection = React.memo(({
       <ContextSectionHeader
         group={group}
         contexts={contexts}
+        projectId={projectId}
         openGroupDetail={openGroupDetail}
       />
 
@@ -161,6 +169,17 @@ const ContextSection = React.memo(({
         animate={{ scaleX: isHovered ? 1 : 0, opacity: isHovered ? 1 : 0 }}
         transition={{ duration: 0.4 }}
       />
+
+      {/* Inline Scan Overlay - shows when scan is active */}
+      <AnimatePresence>
+        {hasActiveScan && group && (
+          <InlineScanOverlay
+            groupId={group.id}
+            groupName={group.name}
+            color={group.color}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 });

@@ -4,7 +4,13 @@
  */
 
 // Signal types for behavioral tracking
-export type BehavioralSignalType = 'git_activity' | 'api_focus' | 'context_focus' | 'implementation';
+export type BehavioralSignalType =
+  | 'git_activity'
+  | 'api_focus'
+  | 'context_focus'
+  | 'implementation'
+  | 'cross_task_analysis'
+  | 'cross_task_selection';
 
 // Reflection trigger types
 export type ReflectionTriggerType = 'threshold' | 'scheduled' | 'manual';
@@ -68,6 +74,25 @@ export interface ImplementationSignalData {
   success: boolean;
   executionTimeMs: number;
   error?: string;
+}
+
+export interface CrossTaskAnalysisSignalData {
+  planId: string;
+  workspaceId: string | null;
+  projectIds: string[];
+  requirement: string;
+  requirementSummary: string;
+  plansGenerated: number;
+  success: boolean;
+  executionTimeMs: number;
+}
+
+export interface CrossTaskSelectionSignalData {
+  planId: string;
+  selectedPlan: 1 | 2 | 3;
+  planTitle: string;
+  userNotes: string | null;
+  projectIds: string[];
 }
 
 /**

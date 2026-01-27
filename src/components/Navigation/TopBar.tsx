@@ -29,13 +29,11 @@ const mainNavigationItems: NavigationItem[] = [
 const otherNavigationItems: NavigationItem[] = [
   { module: 'commander', label: 'Annette', icon: Bot },
   { module: 'brain', label: 'Brain', icon: Brain },
-  { module: 'composer', label: 'BP Composer', icon: Wand2 },
   { module: 'halloffame', label: 'Hall of Fame', icon: Component },
   { module: 'integrations', label: 'Integrations', icon: Plug },
   { module: 'questions', label: 'Questions', icon: HelpCircle },
   { module: 'reflector', label: 'Reflector', icon: Activity },
   { module: 'social', label: 'Social', icon: Users },
-  { module: 'refactor', label: 'Wizard', icon: Wand2 },
   { module: 'zen', label: 'Zen Mode', icon: Sunrise },
 ];
 
