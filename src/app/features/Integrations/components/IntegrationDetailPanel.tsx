@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Zap,
   ExternalLink,
+  Cloud,
 } from 'lucide-react';
+import { SyncButton } from './SyncButton';
 import type {
   IntegrationProvider,
   IntegrationEventType,
@@ -638,6 +640,25 @@ export function IntegrationDetailPanel({
             ))}
           </div>
         </div>
+
+        {/* Supabase Actions - Show sync button when Supabase is connected */}
+        {!isNew && !isEditing && provider === 'supabase' && integration?.status === 'active' && (
+          <div className="border-t border-gray-700/50 pt-4">
+            <h4 className="text-xs font-medium text-gray-400 mb-3 flex items-center gap-2">
+              <Cloud className="w-3 h-3" />
+              Remote Sync Actions
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              <SyncButton
+                projectId={projectId}
+                disabled={false}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Push pending directions and requirements to Butler for mobile triage
+            </p>
+          </div>
+        )}
 
         {/* Save Button (Edit Mode) */}
         {isEditing && (
