@@ -223,7 +223,7 @@ export interface IntegrationEventPayload {
 export interface IntegrationConnector {
   provider: IntegrationProvider;
   validate(config: Record<string, unknown>, credentials: Record<string, unknown>): Promise<{ valid: boolean; error?: string }>;
-  testConnection(config: Record<string, unknown>, credentials: Record<string, unknown>): Promise<{ success: boolean; message: string }>;
+  testConnection(config: Record<string, unknown>, credentials: Record<string, unknown>): Promise<{ success: boolean; message: string; schemaRequired?: boolean }>;
   sendEvent(
     event: IntegrationEventPayload,
     config: Record<string, unknown>,

@@ -15,6 +15,7 @@ import {
   Check,
   AlertCircle,
   Zap,
+  ExternalLink,
 } from 'lucide-react';
 import type {
   IntegrationProvider,
@@ -326,16 +327,29 @@ export function IntegrationDetailPanel({
               />
             </div>
             {isEditing && (
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Anon Key</label>
-                <input
-                  type="password"
-                  value={(credentials.anonKey as string) || ''}
-                  onChange={(e) => setCredentials({ ...credentials, anonKey: e.target.value })}
-                  placeholder="eyJ..."
-                  className={inputClass}
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Anon Key</label>
+                  <input
+                    type="password"
+                    value={(credentials.anonKey as string) || ''}
+                    onChange={(e) => setCredentials({ ...credentials, anonKey: e.target.value })}
+                    placeholder="eyJ..."
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Service Role Key (optional)</label>
+                  <input
+                    type="password"
+                    value={(credentials.serviceRoleKey as string) || ''}
+                    onChange={(e) => setCredentials({ ...credentials, serviceRoleKey: e.target.value })}
+                    placeholder="eyJ..."
+                    className={inputClass}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Required to validate that remote message broker tables exist</p>
+                </div>
+              </>
             )}
           </>
         );
@@ -482,12 +496,31 @@ export function IntegrationDetailPanel({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className={`px-4 py-2 text-sm flex items-center gap-2 ${
+            className={`px-4 py-2 text-sm ${
               error ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'
             }`}
           >
-            {error ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-            {error || success}
+            <div className="flex items-center gap-2">
+              {error ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
+              <span>{error || success}</span>
+            </div>
+            {/* Show schema link when tables are missing */}
+            {error?.includes('Missing required tables') && (
+              <div className="mt-2 ml-6">
+                <a
+                  href="https://github.com/your-repo/vibeman/blob/main/docs/REMOTE_MESSAGE_BROKER.md#step-2-run-sql-schema"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-md transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  View Schema (copy SQL to Supabase)
+                </a>
+                <p className="text-xs text-gray-500 mt-1">
+                  Run the SQL in your Supabase SQL Editor to create the required tables
+                </p>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
