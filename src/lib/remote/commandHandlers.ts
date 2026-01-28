@@ -12,7 +12,9 @@ import type {
   IdeaActionPayload,
   BatchControlPayload,
   TriggerScanPayload,
+  StartBatchPayload,
 } from './types';
+import { remoteEvents } from './eventPublisher';
 
 /**
  * Register all command handlers
@@ -201,26 +203,161 @@ async function handleSkipIdea(command: RemoteCommand): Promise<CommandHandlerRes
 }
 
 // ============================================================================
-// Batch Handlers (Placeholders - require TaskRunner integration)
+// Batch Handlers
 // ============================================================================
 
 async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerResult> {
-  const payload = command.payload as BatchControlPayload;
+  const payload = command.payload as StartBatchPayload;
 
-  if (!payload.batchId) {
-    return { success: false, error: 'Missing required field: batchId' };
+  // Validate payload
+  if (!payload.requirement_names || payload.requirement_names.length === 0) {
+    return { success: false, error: 'No requirements specified in start_batch command' };
   }
 
-  // TODO: Integrate with TaskRunner store to start batch
-  // For now, return a placeholder response
-  return {
-    success: true,
-    result: {
-      batchId: payload.batchId,
-      action: 'start',
-      message: 'Batch start command received. TaskRunner integration pending.',
-    },
-  };
+  if (!payload.project_id) {
+    return { success: false, error: 'project_id is required' };
+  }
+
+  try {
+    // Dynamic imports to avoid circular dependencies and server-side issues
+    const { useZenStore } = await import('@/app/zen/lib/zenStore');
+    const { useCLISessionStore } = await import('@/components/cli/store');
+    const { executeNextTask } = await import('@/components/cli/store/cliExecutionManager');
+    const { projectDb } = await import('@/app/db');
+    const path = await import('path');
+    const fs = await import('fs');
+
+    // Type for session IDs
+    type CLISessionId = 'cliSession1' | 'cliSession2' | 'cliSession3' | 'cliSession4';
+
+    // Check zen mode - must be 'online' to accept commands
+    const zenState = useZenStore.getState();
+    if (zenState.mode !== 'online') {
+      return {
+        success: false,
+        error: 'Vibeman is not in Zen mode. Cannot accept remote batch commands.',
+      };
+    }
+
+    // Get project details
+    const project = projectDb.getProject(payload.project_id);
+    if (!project) {
+      return {
+        success: false,
+        error: `Project not found: ${payload.project_id}`,
+      };
+    }
+
+    const projectPath = payload.project_path || project.path;
+    const projectName = project.name;
+
+    // Find available session slot
+    const sessionStore = useCLISessionStore.getState();
+    const sessions = sessionStore.sessions;
+    const sessionIds: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
+
+    let targetSessionId: CLISessionId | null = null;
+
+    // Check preference first
+    if (payload.session_preference && sessionIds.includes(payload.session_preference as CLISessionId)) {
+      const prefSession = sessions[payload.session_preference as CLISessionId];
+      if (!prefSession.isRunning && prefSession.queue.filter(t => t.status === 'pending').length === 0) {
+        targetSessionId = payload.session_preference as CLISessionId;
+      }
+    }
+
+    // Auto-assign to first available if no preference or preference unavailable
+    if (!targetSessionId) {
+      for (const sessionId of sessionIds) {
+        const session = sessions[sessionId];
+        if (!session.isRunning && session.queue.filter(t => t.status === 'pending').length === 0) {
+          targetSessionId = sessionId;
+          break;
+        }
+      }
+    }
+
+    if (!targetSessionId) {
+      const activeSessions = sessionIds.filter(id => sessions[id].isRunning).length;
+      return {
+        success: false,
+        error: `No available CLI session slots (${activeSessions}/4 busy)`,
+      };
+    }
+
+    // Load requirements from filesystem
+    const requirementsDir = path.join(projectPath, '.claude', 'requirements');
+    const tasks: Array<{
+      id: string;
+      requirementName: string;
+      projectPath: string;
+      projectId: string;
+      projectName: string;
+      status: 'pending';
+      addedAt: number;
+    }> = [];
+
+    for (const reqName of payload.requirement_names) {
+      const reqFile = path.join(requirementsDir, `${reqName}.md`);
+      if (fs.existsSync(reqFile)) {
+        tasks.push({
+          id: `${payload.project_id}-${reqName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          requirementName: reqName,
+          projectPath,
+          projectId: payload.project_id,
+          projectName,
+          status: 'pending',
+          addedAt: Date.now(),
+        });
+      } else {
+        console.warn(`[start_batch] Requirement not found: ${reqFile}`);
+      }
+    }
+
+    if (tasks.length === 0) {
+      return {
+        success: false,
+        error: 'No valid requirements found. Check that requirement files exist in .claude/requirements/',
+      };
+    }
+
+    // Generate batch ID for event tracking
+    const batchId = `batch-${Date.now()}`;
+
+    // Add tasks to session queue
+    sessionStore.addTasksToSession(targetSessionId, tasks);
+    sessionStore.setAutoStart(targetSessionId, true);
+    sessionStore.setRunning(targetSessionId, true);
+
+    // Publish batch start event
+    remoteEvents.publish('task_started', {
+      taskId: tasks[0].id,
+      title: tasks[0].requirementName,
+      batchId,
+      sessionId: targetSessionId,
+      totalTasks: tasks.length,
+    }, payload.project_id);
+
+    // Start execution
+    executeNextTask(targetSessionId);
+
+    return {
+      success: true,
+      result: {
+        session_id: targetSessionId,
+        task_count: tasks.length,
+        tasks_queued: tasks.map(t => t.requirementName),
+        batch_id: batchId,
+        message: `Started batch with ${tasks.length} tasks in session ${targetSessionId}`,
+      },
+    };
+  } catch (error) {
+    console.error('[start_batch] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error executing start_batch',
+    };
+  }
 }
 
 async function handlePauseBatch(command: RemoteCommand): Promise<CommandHandlerResult> {
