@@ -7,6 +7,7 @@
 
 import { useCLISessionStore, type CLISessionId } from './cliSessionStore';
 import type { QueuedTask } from '../types';
+import { remoteEvents } from '@/lib/remote';
 
 // Polling state per session
 interface PollingState {
@@ -217,6 +218,24 @@ async function handleTaskComplete(
 
   // Update task status
   store.updateTaskStatus(sessionId, task.id, success ? 'completed' : 'failed');
+
+  // Publish completion/failure event to Supabase for Butler
+  if (task.projectId) {
+    if (success) {
+      remoteEvents.taskCompleted(task.projectId, {
+        taskId: task.id,
+        title: task.requirementName,
+        batchId: sessionId, // Use session ID as batch identifier
+      });
+    } else {
+      remoteEvents.taskFailed(task.projectId, {
+        taskId: task.id,
+        title: task.requirementName,
+        batchId: sessionId,
+        error: 'Task execution failed',
+      });
+    }
+  }
 
   if (success) {
     // Delete requirement file
