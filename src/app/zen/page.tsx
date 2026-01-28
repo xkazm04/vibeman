@@ -1,16 +1,20 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import { useZenStore } from './lib/zenStore';
-import ZenHeader from './components/ZenHeader';
-import ZenBatchSelector from './components/ZenBatchSelector';
-import ZenStats from './components/ZenStats';
-import ZenTaskFeed from './components/ZenTaskFeed';
+import { ZenCommandCenter } from './components/ZenCommandCenter';
 
+/**
+ * Zen Page
+ *
+ * Command center for monitoring remote batch execution.
+ * Features 2x2 CLI session grid, event sidebar, and status bar.
+ *
+ * SSE connection is established when zen mode is 'online'.
+ */
 export default function ZenPage() {
   const {
-    selectedBatchId,
+    mode,
     setConnected,
     setCurrentTask,
     addActivity,
@@ -19,14 +23,15 @@ export default function ZenPage() {
     decrementPending,
   } = useZenStore();
 
-  // Connect to SSE stream when batch is selected
+  // Connect to SSE stream when in online mode
   React.useEffect(() => {
-    if (!selectedBatchId) {
+    if (mode !== 'online') {
       setConnected(false);
       return;
     }
 
     let eventSource: EventSource | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
 
     const connect = () => {
       // Connect to SSE stream with all projects
@@ -40,62 +45,59 @@ export default function ZenPage() {
       eventSource.onerror = () => {
         console.log('[Zen] SSE connection error, reconnecting...');
         setConnected(false);
+        // Close the errored connection
+        eventSource?.close();
+        eventSource = null;
         // Reconnect after 5 seconds
-        setTimeout(connect, 5000);
+        reconnectTimeout = setTimeout(connect, 5000);
       };
 
       // Listen for task events
       eventSource.addEventListener('task_started', (event) => {
         const data = JSON.parse(event.data);
-        if (data.payload.batchId === selectedBatchId) {
-          setCurrentTask({
-            id: data.payload.taskId,
-            title: data.payload.title,
-            progress: 0,
-          });
-          addActivity({
-            timestamp: new Date(data.timestamp),
-            title: data.payload.title,
-            status: 'running',
-            batchId: data.payload.batchId,
-          });
-        }
+        setCurrentTask({
+          id: data.payload.taskId,
+          title: data.payload.title,
+          progress: 0,
+        });
+        addActivity({
+          timestamp: new Date(data.timestamp),
+          title: data.payload.title,
+          status: 'running',
+          batchId: data.payload.batchId || 'unknown',
+        });
       });
 
       eventSource.addEventListener('task_completed', (event) => {
         const data = JSON.parse(event.data);
-        if (data.payload.batchId === selectedBatchId) {
-          setCurrentTask(null);
-          incrementCompleted();
-          decrementPending();
-          addActivity({
-            timestamp: new Date(data.timestamp),
-            title: data.payload.title,
-            status: 'completed',
-            batchId: data.payload.batchId,
-          });
-        }
+        setCurrentTask(null);
+        incrementCompleted();
+        decrementPending();
+        addActivity({
+          timestamp: new Date(data.timestamp),
+          title: data.payload.title,
+          status: 'completed',
+          batchId: data.payload.batchId || 'unknown',
+        });
       });
 
       eventSource.addEventListener('task_failed', (event) => {
         const data = JSON.parse(event.data);
-        if (data.payload.batchId === selectedBatchId) {
-          setCurrentTask(null);
-          incrementFailed();
-          decrementPending();
-          addActivity({
-            timestamp: new Date(data.timestamp),
-            title: data.payload.title,
-            status: 'failed',
-            batchId: data.payload.batchId,
-            error: data.payload.error,
-          });
-        }
+        setCurrentTask(null);
+        incrementFailed();
+        decrementPending();
+        addActivity({
+          timestamp: new Date(data.timestamp),
+          title: data.payload.title,
+          status: 'failed',
+          batchId: data.payload.batchId || 'unknown',
+          error: data.payload.error,
+        });
       });
 
       eventSource.addEventListener('batch_progress', (event) => {
         const data = JSON.parse(event.data);
-        if (data.payload.batchId === selectedBatchId && data.payload.currentTaskTitle) {
+        if (data.payload.currentTaskTitle) {
           setCurrentTask({
             id: data.payload.currentTaskId || 'unknown',
             title: data.payload.currentTaskTitle,
@@ -108,13 +110,16 @@ export default function ZenPage() {
     connect();
 
     return () => {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
       if (eventSource) {
         eventSource.close();
       }
       setConnected(false);
     };
   }, [
-    selectedBatchId,
+    mode,
     setConnected,
     setCurrentTask,
     addActivity,
@@ -123,47 +128,5 @@ export default function ZenPage() {
     decrementPending,
   ]);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 text-white">
-      {/* Header */}
-      <ZenHeader />
-
-      {/* Main Content */}
-      <main className="container mx-auto px-8 py-12 max-w-4xl">
-        {/* Batch Selector */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center mb-12"
-        >
-          <ZenBatchSelector />
-        </motion.div>
-
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="flex justify-center mb-12"
-        >
-          <ZenStats />
-        </motion.div>
-
-        {/* Task Feed */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="min-h-[400px]"
-        >
-          <ZenTaskFeed />
-        </motion.div>
-      </main>
-
-      {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 py-4 text-center text-xs text-gray-600">
-        Press <kbd className="px-1.5 py-0.5 bg-gray-800 rounded">Esc</kbd> to exit Zen Mode
-      </footer>
-    </div>
-  );
+  return <ZenCommandCenter />;
 }
