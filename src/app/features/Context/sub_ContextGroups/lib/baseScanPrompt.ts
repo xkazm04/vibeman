@@ -5,7 +5,7 @@
  * Provides consistent structure, Direction generation, and API integration.
  */
 
-export type ScanType = 'refactor' | 'beautify' | 'performance';
+export type ScanType = 'refactor' | 'beautify' | 'performance' | 'production';
 
 /**
  * Context information for providing codebase awareness

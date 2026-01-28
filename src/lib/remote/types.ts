@@ -63,6 +63,8 @@ export interface RemoteCommand<T = Record<string, unknown>> {
   result?: Record<string, unknown>;
   processed_at?: string;
   created_at?: string;
+  /** Target device ID for mesh network routing. Null means any device can process. */
+  target_device_id?: string | null;
 }
 
 // ============================================================================
@@ -236,6 +238,8 @@ export interface SubmitCommandRequest {
   command_type: RemoteCommandType;
   payload: Record<string, unknown>;
   api_key: string;
+  /** Target device ID for mesh network routing. Null/omitted means any device can process. */
+  target_device_id?: string | null;
 }
 
 export interface CreateClientRequest {

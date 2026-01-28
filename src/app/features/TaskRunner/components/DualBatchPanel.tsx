@@ -22,7 +22,6 @@ import {
 } from '../store';
 import type { ProjectRequirement } from '../lib/types';
 import { TaskOffloadButton } from './TaskOffloadPanel';
-import RemoteOffloadButton from './RemoteOffloadButton';
 import SessionBatchDisplay from './SessionBatchDisplay';
 import ActivityIndicator from './ActivityIndicator';
 import CheckpointProgress from './CheckpointProgress';
@@ -229,18 +228,6 @@ function BatchDisplay({
               <div className="flex items-center gap-1">
                 {/* Task Offload Button - Move to local batch */}
                 <TaskOffloadButton sourceBatchId={batchId} />
-                {/* Remote Offload Button - Delegate to paired device via Supabase */}
-                <RemoteOffloadButton
-                  taskIds={batch?.taskIds.filter(id => {
-                    const req = requirements.find(r => getRequirementId(r) === id);
-                    return req && isRequirementQueued(req.status);
-                  }) || []}
-                  requirements={requirements.map(r => ({
-                    projectId: r.projectId,
-                    projectPath: r.projectPath,
-                    requirementName: r.requirementName,
-                  }))}
-                />
                 <button
                   onClick={() => onClearBatch(batchId)}
                   className="p-1 hover:bg-red-500/10 rounded transition-colors text-gray-400 hover:text-red-400"

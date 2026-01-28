@@ -1,22 +1,23 @@
 /**
- * PerformanceScanButton
+ * ProductionScanButton
  *
- * Icon-only button to trigger performance optimization scan for a context group.
- * Available for all project types.
+ * Icon-only button to trigger production quality scan for a context group.
+ * Checks for hardcoded URLs, exposed secrets, unhandled errors, XSS vulnerabilities,
+ * missing validation, resource leaks, and other production readiness issues.
  */
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Loader2 } from 'lucide-react';
+import { ShieldCheck, Loader2 } from 'lucide-react';
 import { useGroupHealthStore } from '@/stores/groupHealthStore';
 
-interface PerformanceScanButtonProps {
+interface ProductionScanButtonProps {
   groupId: string;
   projectId: string;
   color: string;
 }
 
-export const PerformanceScanButton: React.FC<PerformanceScanButtonProps> = ({
+export const ProductionScanButton: React.FC<ProductionScanButtonProps> = ({
   groupId,
   projectId,
   color,
@@ -28,9 +29,9 @@ export const PerformanceScanButton: React.FC<PerformanceScanButtonProps> = ({
   const handleClick = async () => {
     if (scanning) return;
 
-    const result = await startScan(groupId, projectId, 'performance');
+    const result = await startScan(groupId, projectId, 'production');
     if (!result.success) {
-      console.error('[PerformanceScan] Failed to start:', result.error);
+      console.error('[ProductionScan] Failed to start:', result.error);
     }
     // Overlay is now automatically shown via ContextSection when scan starts
   };
@@ -47,7 +48,7 @@ export const PerformanceScanButton: React.FC<PerformanceScanButtonProps> = ({
       }}
       whileHover={{ scale: scanning ? 1 : 1.1 }}
       whileTap={{ scale: scanning ? 1 : 0.95 }}
-      title={scanning ? `Optimizing... ${activeScan?.progress || 0}%` : 'Performance Upgrade'}
+      title={scanning ? `Checking production quality... ${activeScan?.progress || 0}%` : 'Production Quality Check'}
     >
       {scanning ? (
         <Loader2
@@ -55,7 +56,7 @@ export const PerformanceScanButton: React.FC<PerformanceScanButtonProps> = ({
           style={{ color }}
         />
       ) : (
-        <Zap
+        <ShieldCheck
           className="w-4 h-4"
           style={{ color }}
         />
@@ -64,4 +65,4 @@ export const PerformanceScanButton: React.FC<PerformanceScanButtonProps> = ({
   );
 };
 
-export default PerformanceScanButton;
+export default ProductionScanButton;

@@ -32,22 +32,3 @@ export {
   type GoalSyncResult,
   type BatchSyncResult
 } from './goalSync';
-
-// Realtime module for cross-device Zen mode
-export {
-  vibemanRealtime,
-  getVibemanRealtime,
-  VibemanRealtime,
-  getOrCreateDeviceId,
-  getDeviceName,
-  setDeviceName,
-  generatePairingCode,
-  isSupabaseRealtimeConfigured,
-  type RealtimeConfig,
-  type PresenceCallback,
-  type TaskCallback,
-  type EventCallback,
-  type ConnectionCallback,
-} from './realtime';
-
-export * from './realtimeTypes';

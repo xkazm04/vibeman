@@ -28,8 +28,7 @@ export const BeautifyScanButton: React.FC<BeautifyScanButtonProps> = ({
   const handleClick = async () => {
     if (scanning) return;
 
-    // TODO: Add scanType parameter to startScan when backend supports it
-    const result = await startScan(groupId, projectId);
+    const result = await startScan(groupId, projectId, 'beautify');
     if (!result.success) {
       console.error('[BeautifyScan] Failed to start:', result.error);
     }

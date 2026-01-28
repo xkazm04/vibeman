@@ -32,7 +32,7 @@ interface InlineScanOverlayProps {
   groupId: string;
   groupName: string;
   color: string;
-  scanType?: 'refactor' | 'beautify' | 'performance';
+  scanType?: 'refactor' | 'beautify' | 'performance' | 'production';
 }
 
 /**
@@ -179,8 +179,13 @@ ${'='.repeat(40)}
   const isFailed = status === 'failed';
   const isRunning = status === 'running' || status === 'pending';
 
+  // Get scan type from active scan or fallback to prop
+  const effectiveScanType = activeScan.scanType || scanType;
+
   // Get scan type label
-  const scanLabel = scanType === 'beautify' ? 'Beautify' : scanType === 'performance' ? 'Performance' : 'Refactor';
+  const scanLabel = effectiveScanType === 'beautify' ? 'Beautify' :
+                    effectiveScanType === 'performance' ? 'Performance' :
+                    effectiveScanType === 'production' ? 'Production' : 'Refactor';
 
   // Count tool uses for stats
   const toolUseCount = messages.filter(m => m.content.includes('Using tool:')).length;

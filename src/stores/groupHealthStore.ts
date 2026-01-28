@@ -20,6 +20,11 @@ export interface TerminalMessage {
 }
 
 /**
+ * Scan type
+ */
+export type ScanType = 'refactor' | 'beautify' | 'performance' | 'production';
+
+/**
  * Active scan state
  */
 export interface ActiveScan {
@@ -27,6 +32,7 @@ export interface ActiveScan {
   executionId: string | null;
   groupId: string;
   projectId: string;
+  scanType: ScanType;
   status: 'pending' | 'running' | 'completed' | 'failed';
   progress: number;
   messages: TerminalMessage[];
@@ -40,7 +46,7 @@ interface GroupHealthStore {
   activeScans: Record<string, ActiveScan>;
 
   // Actions
-  startScan: (groupId: string, projectId: string) => Promise<{ success: boolean; error?: string }>;
+  startScan: (groupId: string, projectId: string, scanType?: ScanType) => Promise<{ success: boolean; error?: string }>;
   cancelScan: (groupId: string) => Promise<void>;
   forceClearScan: (groupId: string) => Promise<void>;
   completeScanWithCommit: (
@@ -66,7 +72,7 @@ interface GroupHealthStore {
 export const useGroupHealthStore = create<GroupHealthStore>()((set, get) => ({
   activeScans: {},
 
-  startScan: async (groupId: string, projectId: string) => {
+  startScan: async (groupId: string, projectId: string, scanType: ScanType = 'refactor') => {
     try {
       // Check if scan already running
       if (get().isScanning(groupId)) {
@@ -84,7 +90,7 @@ export const useGroupHealthStore = create<GroupHealthStore>()((set, get) => ({
       const response = await fetch('/api/group-health-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId, projectId }),
+        body: JSON.stringify({ groupId, projectId, scanType }),
       });
 
       if (!response.ok) {
@@ -94,18 +100,24 @@ export const useGroupHealthStore = create<GroupHealthStore>()((set, get) => ({
 
       const { scan, fileCount } = await response.json();
 
+      // Get scan type label for display
+      const scanTypeLabel = scanType === 'production' ? 'production quality' :
+                           scanType === 'beautify' ? 'beautify' :
+                           scanType === 'performance' ? 'performance' : 'refactor';
+
       // Initialize active scan state
       const activeScan: ActiveScan = {
         scanId: scan.id,
         executionId: null,
         groupId,
         projectId,
+        scanType,
         status: 'pending',
         progress: 0,
         messages: [{
           id: `msg-${Date.now()}`,
           type: 'system',
-          content: `Initializing health scan for ${fileCount} files...`,
+          content: `Initializing ${scanTypeLabel} scan for ${fileCount} files...`,
           timestamp: Date.now(),
         }],
         summary: null,
@@ -124,7 +136,7 @@ export const useGroupHealthStore = create<GroupHealthStore>()((set, get) => ({
       const executeResponse = await fetch(`/api/group-health-scan/${scan.id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectPath }),
+        body: JSON.stringify({ projectPath, scanType }),
       });
 
       if (!executeResponse.ok) {

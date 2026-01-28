@@ -8,6 +8,7 @@ import { SYNTHETIC_GROUP_ID } from '../lib/constants';
 import { GroupHealthScanButton } from './components/GroupHealthScanButton';
 import { BeautifyScanButton } from './components/BeautifyScanButton';
 import { PerformanceScanButton } from './components/PerformanceScanButton';
+import { ProductionScanButton } from './components/ProductionScanButton';
 
 interface ContextSectionHeaderProps {
   group?: ContextGroup;
@@ -105,6 +106,13 @@ const ContextSectionHeader = React.memo(({ group, contexts, projectId, openGroup
 
               {/* Performance Button - all projects */}
               <PerformanceScanButton
+                groupId={group.id}
+                projectId={projectId}
+                color={group.color}
+              />
+
+              {/* Production Quality Button - all projects */}
+              <ProductionScanButton
                 groupId={group.id}
                 projectId={projectId}
                 color={group.color}

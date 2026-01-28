@@ -9,11 +9,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { groupHealthDb, contextDb, contextGroupDb } from '@/app/db';
 import { startExecution } from '@/lib/claude-terminal/cli-service';
 import { buildRefactorScanPrompt } from '@/app/features/Context/sub_ContextGroups/lib/healthScanPrompt';
+import { buildBeautifyScanPrompt } from '@/app/features/Context/sub_ContextGroups/lib/beautifyScanPrompt';
+import { buildPerformanceScanPrompt } from '@/app/features/Context/sub_ContextGroups/lib/performanceScanPrompt';
+import { buildProductionScanPrompt } from '@/app/features/Context/sub_ContextGroups/lib/productionScanPrompt';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
+type ScanType = 'refactor' | 'beautify' | 'performance' | 'production';
+
 interface ExecuteRequestBody {
   projectPath: string;
+  scanType?: ScanType;
 }
 
 async function handlePost(
@@ -26,7 +32,7 @@ async function handlePost(
     const { id } = await params;
     scanId = id;
     const body = await request.json() as ExecuteRequestBody;
-    const { projectPath } = body;
+    const { projectPath, scanType = 'refactor' } = body;
 
     if (!projectPath) {
       return NextResponse.json(
@@ -84,19 +90,39 @@ async function handlePost(
       );
     }
 
-    // Build the refactor scan prompt
-    const prompt = buildRefactorScanPrompt({
+    // Build the scan prompt based on scan type
+    const promptOptions = {
       groupName: group.name,
       groupId: group.id,
       projectId: scan.project_id,
       projectPath,
       filePaths,
       autoFix: true,
-      includeComplexityAnalysis: true,
-    });
+    };
+
+    let prompt: string;
+    switch (scanType) {
+      case 'beautify':
+        prompt = buildBeautifyScanPrompt(promptOptions);
+        break;
+      case 'performance':
+        prompt = buildPerformanceScanPrompt(promptOptions);
+        break;
+      case 'production':
+        prompt = buildProductionScanPrompt(promptOptions);
+        break;
+      case 'refactor':
+      default:
+        prompt = buildRefactorScanPrompt({
+          ...promptOptions,
+          includeComplexityAnalysis: true,
+        });
+        break;
+    }
 
     logger.info('[API] Starting health scan CLI execution:', {
       scanId: id,
+      scanType,
       groupId: group.id,
       groupName: group.name,
       fileCount: filePaths.length,

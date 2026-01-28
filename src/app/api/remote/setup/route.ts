@@ -66,18 +66,43 @@ export async function POST(request: NextRequest) {
     const tables = ['vibeman_clients', 'vibeman_events', 'vibeman_commands'] as const;
 
     for (const table of tables) {
-      const { error } = await supabase.from(table).select('id').limit(1);
+      // Use count query which works even with RLS (returns 0 if no access)
+      const { count, error } = await supabase
+        .from(table)
+        .select('*', { count: 'exact', head: true });
+
+      console.log(`[Remote/Setup] Table ${table}: count=${count}, error=`, error);
 
       if (!error) {
+        // No error means table exists (count may be 0 due to RLS or empty table)
         tablesStatus[table] = true;
-      } else if (error.code === '42P01') {
-        // Table doesn't exist - that's ok, we'll report it
+      } else if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        // Table doesn't exist
         tablesStatus[table] = false;
+      } else if (error.code === '42501' || error.message?.includes('permission denied')) {
+        // RLS blocking - but table exists! Service role should bypass this.
+        // If we get here with service role key, there's a config issue.
+        console.warn(`[Remote/Setup] RLS blocking ${table} even with service role key`);
+        // Table exists, just can't access - treat as existing for now
+        tablesStatus[table] = true;
       } else if (error.message?.includes('Invalid API key') || error.code === 'PGRST301') {
         return NextResponse.json(
           { success: false, error: 'Invalid Supabase credentials' },
           { status: 401 }
         );
+      } else if (error.code === 'PGRST200' || error.message?.includes('Could not find')) {
+        // PostgREST can't find the table in the schema
+        tablesStatus[table] = false;
+      } else {
+        // Unknown error - log it but assume table might exist
+        console.warn(`[Remote/Setup] Unknown error for ${table}:`, error.code, error.message);
+        // For unknown errors, check if it's a "relation does not exist" variant
+        if (error.message?.toLowerCase().includes('relation') && error.message?.toLowerCase().includes('not exist')) {
+          tablesStatus[table] = false;
+        } else {
+          // Assume table exists but has access issues
+          tablesStatus[table] = true;
+        }
       }
     }
 

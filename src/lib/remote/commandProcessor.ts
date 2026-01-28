@@ -18,6 +18,7 @@ class RemoteCommandProcessor {
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private isProcessing = false;
   private isConfigured = false;
+  private localDeviceId: string | null = null;
 
   /**
    * Configure with Supabase credentials
@@ -38,6 +39,22 @@ class RemoteCommandProcessor {
    */
   isReady(): boolean {
     return this.isConfigured && this.supabase !== null;
+  }
+
+  /**
+   * Set the local device ID for filtering commands
+   * Only processes commands targeted at this device (or with null target)
+   */
+  setLocalDeviceId(deviceId: string): void {
+    this.localDeviceId = deviceId;
+    console.log(`[RemoteCommandProcessor] Local device ID set: ${deviceId}`);
+  }
+
+  /**
+   * Get the local device ID
+   */
+  getLocalDeviceId(): string | null {
+    return this.localDeviceId;
   }
 
   /**
@@ -106,6 +123,9 @@ class RemoteCommandProcessor {
 
   /**
    * Process all pending commands (can be called manually)
+   * Filters by target_device_id:
+   * - null/undefined: any device can process
+   * - specific ID: only that device processes
    */
   async processPendingCommands(): Promise<number> {
     if (!this.supabase || this.isProcessing) {
@@ -116,13 +136,24 @@ class RemoteCommandProcessor {
     let processedCount = 0;
 
     try {
-      // Fetch pending commands, oldest first
-      const { data: commands, error } = await this.supabase
+      // Build query for pending commands
+      let query = this.supabase
         .from('vibeman_commands')
         .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
         .limit(10);
+
+      // Filter by target device if local device ID is set
+      // Process commands that either:
+      // 1. Have no target (null) - any device can process
+      // 2. Are specifically targeted at this device
+      if (this.localDeviceId) {
+        // Use OR filter: target_device_id is null OR equals localDeviceId
+        query = query.or(`target_device_id.is.null,target_device_id.eq.${this.localDeviceId}`);
+      }
+
+      const { data: commands, error } = await query;
 
       if (error) {
         console.warn('[RemoteCommandProcessor] Failed to fetch commands:', error.message);
