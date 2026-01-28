@@ -188,6 +188,16 @@ export interface TriggerScanPayload {
   contextIds?: string[];
 }
 
+/**
+ * Payload for start_batch command from Butler
+ */
+export interface StartBatchPayload {
+  requirement_names: string[];      // List of requirement filenames (without .md)
+  project_id: string;               // Project ID for loading requirements
+  project_path?: string;            // Optional project path (fallback to lookup)
+  session_preference?: string;      // Optional preferred session (auto-assign if not specified)
+}
+
 // ============================================================================
 // API Response Types
 // ============================================================================
