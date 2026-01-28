@@ -21,7 +21,8 @@ export type RemoteEventType =
   | 'task_failed'
   | 'batch_progress'
   | 'scan_completed'
-  | 'implementation_completed';
+  | 'implementation_completed'
+  | 'healthcheck';
 
 export interface RemoteEvent<T = Record<string, unknown>> {
   id?: string;
@@ -142,6 +143,17 @@ export interface ScanEventPayload {
   scanType: string;
   contextId?: string;
   ideasGenerated?: number;
+}
+
+// ============================================================================
+// Healthcheck Payload
+// ============================================================================
+
+export interface HealthcheckPayload {
+  zen_mode: boolean;
+  active_sessions: number;  // 0-4
+  available_slots: number;  // 4 - active_sessions
+  timestamp: string;        // ISO string
 }
 
 // ============================================================================

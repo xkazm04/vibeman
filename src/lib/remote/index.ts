@@ -17,3 +17,12 @@ export { remoteEvents, getRemoteEventPublisher } from './eventPublisher';
 
 // Client-safe config utilities
 export { initializeRemoteServices, isRemoteReady } from './config';
+
+// Healthcheck publisher (client-safe)
+export {
+  startHealthcheckPublishing,
+  stopHealthcheckPublishing,
+  publishHealthcheckNow,
+  isHealthcheckPublishing,
+  getHealthcheckPublisher,
+} from './healthcheckPublisher';
