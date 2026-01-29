@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, FolderTree, Sparkles, Loader2 } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '../../../../types';
 import { useStore } from '../../../../stores/nodeStore';
-import TreeView from '../../CodeTree/TreeView';
+import TreeView from '../components/tree/TreeView';
 import { normalizePath } from '../../../../utils/pathUtils';
 import { DependencyAnalysisResponse } from '../../../api/file-dependencies/route';
 
