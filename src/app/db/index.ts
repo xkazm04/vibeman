@@ -34,11 +34,7 @@ import {
   fileChangePatternRepository,
 } from './repositories/scan-prediction.repository';
 import { promptTemplateRepository } from './repositories/prompt-template.repository';
-import {
-  ideaExecutionOutcomeRepository,
-  scoringWeightRepository,
-  scoringThresholdRepository,
-} from './repositories/adaptive-learning.repository';
+// Adaptive learning repositories removed - feature deprecated
 import {
   debtPatternRepository,
   debtPredictionRepository,
@@ -48,35 +44,11 @@ import {
   codeChangeEventRepository,
 } from './repositories/debt-prediction.repository';
 // Security Intelligence repositories removed - feature deprecated
-import {
-  developerProfileRepository,
-  developerDecisionRepository,
-  learningInsightRepository,
-  codePatternUsageRepository,
-  consistencyRuleRepository,
-  skillTrackingRepository,
-} from './repositories/developer-mind-meld.repository';
-import {
-  hypothesisRepository,
-  invariantRepository,
-  fuzzSessionRepository,
-  propertyTestRepository,
-  testKnowledgeRepository,
-  hypothesisTestingSummaryRepository,
-} from './repositories/hypothesis-testing.repository';
+// Developer Mind-Meld repositories removed - feature deprecated
+// Hypothesis Testing repositories removed - feature deprecated
 import { standupRepository } from './repositories/standup.repository';
-import {
-  redTeamSessionRepository,
-  redTeamAttackRepository,
-  redTeamVulnerabilityRepository,
-  vulnerabilityDebateRepository,
-  redTeamSummaryRepository,
-} from './repositories/red-team.repository';
-import {
-  focusSessionRepository,
-  focusBreakRepository,
-  focusStatsRepository,
-} from './repositories/focus-mode.repository';
+// Red Team repositories removed - feature deprecated
+// Focus Mode repositories removed - feature deprecated
 import { goalHubExtensions } from './repositories/goal-hub.repository';
 // Offload repository removed - migrated to Supabase
 import {
@@ -132,8 +104,8 @@ export * from './models/debt-prediction.types';
 // Security Intelligence types removed - feature deprecated
 // NOTE: hypothesis-testing.types removed - use goal-hub.types instead
 export * from './models/standup.types';
-export * from './models/red-team.types';
-export * from './models/focus-mode.types';
+// NOTE: red-team.types removed - feature deprecated
+// NOTE: focus-mode.types removed - feature deprecated
 export * from './models/goal-hub.types';
 // Offload types removed - migrated to Supabase
 export * from './models/session.types';
@@ -380,32 +352,7 @@ export const promptTemplateDb = {
   close: closeDatabase
 };
 
-/**
- * Idea Execution Outcome Database Operations
- * Tracks idea execution results for adaptive learning
- */
-export const ideaExecutionOutcomeDb = {
-  ...ideaExecutionOutcomeRepository,
-  close: closeDatabase
-};
-
-/**
- * Scoring Weight Database Operations
- * Manages adaptive scoring weights per category/scan type
- */
-export const scoringWeightDb = {
-  ...scoringWeightRepository,
-  close: closeDatabase
-};
-
-/**
- * Scoring Threshold Database Operations
- * Manages auto-accept/reject/priority thresholds
- */
-export const scoringThresholdDb = {
-  ...scoringThresholdRepository,
-  close: closeDatabase
-};
+// Adaptive Learning DB exports removed - feature deprecated
 
 /**
  * Debt Pattern Database Operations
@@ -462,114 +409,8 @@ export const codeChangeEventDb = {
 };
 
 // Security Intelligence DB exports removed - feature deprecated
-
-/**
- * Developer Profile Database Operations
- * Manages personalized developer profiles for AI learning
- */
-export const developerProfileDb = {
-  ...developerProfileRepository,
-  close: closeDatabase
-};
-
-/**
- * Developer Decision Database Operations
- * Tracks developer decisions for preference learning
- */
-export const developerDecisionDb = {
-  ...developerDecisionRepository,
-  close: closeDatabase
-};
-
-/**
- * Learning Insight Database Operations
- * Manages AI-generated learning insights
- */
-export const learningInsightDb = {
-  ...learningInsightRepository,
-  close: closeDatabase
-};
-
-/**
- * Code Pattern Usage Database Operations
- * Tracks code pattern usage for consistency learning
- */
-export const codePatternUsageDb = {
-  ...codePatternUsageRepository,
-  close: closeDatabase
-};
-
-/**
- * Consistency Rule Database Operations
- * Manages consistency rules for code style enforcement
- */
-export const consistencyRuleDb = {
-  ...consistencyRuleRepository,
-  close: closeDatabase
-};
-
-/**
- * Skill Tracking Database Operations
- * Tracks developer skill development and areas for improvement
- */
-export const skillTrackingDb = {
-  ...skillTrackingRepository,
-  close: closeDatabase
-};
-
-
-/**
- * Hypothesis Database Operations
- * Manages AI-generated hypotheses about code behavior
- */
-export const hypothesisDb = {
-  ...hypothesisRepository,
-  close: closeDatabase
-};
-
-/**
- * Invariant Database Operations
- * Manages discovered code invariants
- */
-export const invariantDb = {
-  ...invariantRepository,
-  close: closeDatabase
-};
-
-/**
- * Fuzz Session Database Operations
- * Manages fuzzing test sessions
- */
-export const fuzzSessionDb = {
-  ...fuzzSessionRepository,
-  close: closeDatabase
-};
-
-/**
- * Property Test Database Operations
- * Manages property-based tests
- */
-export const propertyTestDb = {
-  ...propertyTestRepository,
-  close: closeDatabase
-};
-
-/**
- * Test Knowledge Database Operations
- * Manages test-derived knowledge artifacts
- */
-export const testKnowledgeDb = {
-  ...testKnowledgeRepository,
-  close: closeDatabase
-};
-
-/**
- * Hypothesis Testing Summary Database Operations
- * Provides aggregated hypothesis testing statistics
- */
-export const hypothesisTestingSummaryDb = {
-  ...hypothesisTestingSummaryRepository,
-};
+// Developer Mind-Meld DB exports removed - feature deprecated
+// Hypothesis Testing DB exports removed - feature deprecated
 
 
 /**
@@ -581,77 +422,8 @@ export const standupDb = {
   close: closeDatabase,
 };
 
-/**
- * Red Team Session Database Operations
- * Manages adversarial testing sessions
- */
-export const redTeamSessionDb = {
-  ...redTeamSessionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Red Team Attack Database Operations
- * Manages planned and executed attacks
- */
-export const redTeamAttackDb = {
-  ...redTeamAttackRepository,
-  close: closeDatabase,
-};
-
-/**
- * Red Team Vulnerability Database Operations
- * Manages discovered vulnerabilities
- */
-export const redTeamVulnerabilityDb = {
-  ...redTeamVulnerabilityRepository,
-  close: closeDatabase,
-};
-
-/**
- * Vulnerability Debate Database Operations
- * Manages Parliament debates on vulnerabilities
- */
-export const vulnerabilityDebateDb = {
-  ...vulnerabilityDebateRepository,
-  close: closeDatabase,
-};
-
-/**
- * Red Team Summary Database Operations
- * Provides aggregated red team statistics
- */
-export const redTeamSummaryDb = {
-  ...redTeamSummaryRepository,
-};
-
-
-/**
- * Focus Session Database Operations
- * Manages focus/pomodoro sessions with productivity tracking
- */
-export const focusSessionDb = {
-  ...focusSessionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Focus Break Database Operations
- * Manages break periods between focus sessions
- */
-export const focusBreakDb = {
-  ...focusBreakRepository,
-  close: closeDatabase,
-};
-
-/**
- * Focus Stats Database Operations
- * Manages daily focus statistics and streaks
- */
-export const focusStatsDb = {
-  ...focusStatsRepository,
-  close: closeDatabase,
-};
+// Red Team DB exports removed - feature deprecated
+// Focus Mode DB exports removed - feature deprecated
 
 
 
