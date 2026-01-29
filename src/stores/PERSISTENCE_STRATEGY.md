@@ -31,7 +31,6 @@ Ephemeral state that should reset on every page load - loading states, errors, t
 | `serverProjectStore` | `projects` | `server-project-store` |
 | `clientProjectStore` | `activeProject`, `activeContext`, `selectedProjectId`, `showPreview` | `client-project-store` |
 | `annetteActionsStore` | `selectedProvider` | `annette-actions-storage` |
-| `terminalStore` | `inputHistory`, `lastSessionId`, `projectPath` | `claude-terminal-storage` |
 | `workflowStore` | `history` (last 10), `recentEntities` | `workflow-storage` |
 
 ### Session Persist (session_work)
@@ -42,7 +41,6 @@ Ephemeral state that should reset on every page load - loading states, errors, t
 | `stateMachineStore` | `configs`, `instances` | `state-machine-storage` |
 | `blueprintExecutionStore` | `settings`, `executionHistory` | `blueprint-execution-store` |
 | `debtPredictionStore` | `isEnabled`, `autoScanOnSave`, `showOpportunityPanel`, `predictionFilter` | `debt-prediction-storage` |
-| `focusModeStore` | `settings`, `projectId` | `focus-mode-store` |
 | ~~`decisionQueueStore`~~ | *(cannot persist - contains callback functions)* | - |
 
 ### Cache Persist (cache)
