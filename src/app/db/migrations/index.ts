@@ -10,6 +10,7 @@ import {
   type MigrationLogger,
   type ColumnInfo
 } from './migration.utils';
+import { migrateDropOrphanedTables } from './064_drop_orphaned_tables';
 
 /**
  * Migration logger utility
@@ -210,6 +211,8 @@ export function runMigrations() {
     migrateGroupHealth();
     // Migration 76: Remote Message Broker Config - Supabase credentials storage
     migrateRemoteConfig();
+    // Migration 77: Drop Orphaned Tables - v1.1 Dead Code Cleanup
+    migrateDropOrphanedTables();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
