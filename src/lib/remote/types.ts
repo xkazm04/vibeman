@@ -48,7 +48,15 @@ export type RemoteCommandType =
   | 'pause_batch'
   | 'resume_batch'
   | 'stop_batch'
-  | 'trigger_scan';
+  | 'trigger_scan'
+  // Mesh commands (cross-device)
+  | 'fetch_directions'
+  | 'fetch_ideas'
+  | 'triage_direction'
+  | 'triage_idea'
+  | 'fetch_requirements'
+  | 'start_remote_batch'
+  | 'get_batch_status';
 
 export type CommandStatus = 'pending' | 'processing' | 'completed' | 'failed';
 

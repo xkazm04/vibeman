@@ -91,10 +91,8 @@ export interface CLISSEEvent {
   timestamp: number;
 }
 
-/**
- * Skill IDs for CLI sessions
- */
-export type SkillId = 'deep-analysis' | 'ui-mastery';
+// Re-export SkillId from the canonical source for consumers of this types module
+export type { SkillId } from './skills';
 
 /**
  * Props for CompactTerminal with task queue

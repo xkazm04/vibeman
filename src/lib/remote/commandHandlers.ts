@@ -42,7 +42,9 @@ export function registerAllCommandHandlers(): void {
 
   // Mesh commands (Emulator mode)
   commandProcessor.registerHandler('fetch_directions', handleFetchDirections);
+  commandProcessor.registerHandler('fetch_ideas', handleFetchIdeas);
   commandProcessor.registerHandler('triage_direction', handleTriageDirection);
+  commandProcessor.registerHandler('triage_idea', handleTriageIdea);
   commandProcessor.registerHandler('fetch_requirements', handleFetchRequirements);
   commandProcessor.registerHandler('start_remote_batch', handleStartRemoteBatch);
   commandProcessor.registerHandler('get_batch_status', handleGetBatchStatus);
@@ -459,7 +461,7 @@ interface TriageDirectionPayload {
 }
 
 interface FetchRequirementsPayload {
-  project_id: string;
+  project_id?: string;
   project_path?: string;
 }
 
@@ -489,11 +491,11 @@ async function handleFetchDirections(command: RemoteCommand): Promise<CommandHan
     if (status === 'pending') {
       directions = payload.project_id
         ? directionDb.getPendingDirections(payload.project_id)
-        : directionDb.getAllDirections().filter(d => d.status === 'pending');
+        : directionDb.getAllPendingDirections();
     } else {
       directions = payload.project_id
-        ? directionDb.getAllDirections().filter(d => d.project_id === payload.project_id)
-        : directionDb.getAllDirections();
+        ? directionDb.getDirectionsByProject(payload.project_id)
+        : directionDb.getAllPendingDirections(); // Fallback to pending for safety
     }
 
     // Limit results
@@ -523,6 +525,164 @@ async function handleFetchDirections(command: RemoteCommand): Promise<CommandHan
   }
 }
 
+interface FetchIdeasPayload {
+  project_id?: string;
+  status?: 'pending' | 'all';
+  limit?: number;
+}
+
+interface TriageIdeaPayload {
+  idea_id: string;
+  action: 'accept' | 'reject' | 'delete';
+  project_path?: string;
+}
+
+/**
+ * Fetch pending ideas from this device
+ */
+async function handleFetchIdeas(command: RemoteCommand): Promise<CommandHandlerResult> {
+  try {
+    const payload = command.payload as FetchIdeasPayload;
+    const { ideaDb } = await import('@/app/db');
+
+    const status = payload.status || 'pending';
+    const limit = payload.limit || 50;
+
+    let ideas;
+    if (status === 'pending') {
+      ideas = payload.project_id
+        ? ideaDb.getIdeasByProject(payload.project_id).filter(i => i.status === 'pending')
+        : ideaDb.getIdeasByStatus('pending');
+    } else {
+      ideas = payload.project_id
+        ? ideaDb.getIdeasByProject(payload.project_id)
+        : ideaDb.getAllIdeas();
+    }
+
+    // Limit results
+    ideas = ideas.slice(0, limit);
+
+    return {
+      success: true,
+      result: {
+        ideas: ideas.map(i => ({
+          id: i.id,
+          title: i.title,
+          description: i.description,
+          category: i.category,
+          context_id: i.context_id,
+          goal_id: i.goal_id,
+          project_id: i.project_id,
+          status: i.status,
+          created_at: i.created_at,
+        })),
+        total: ideas.length,
+      },
+    };
+  } catch (error) {
+    console.error('[fetch_ideas] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch ideas',
+    };
+  }
+}
+
+/**
+ * Triage an idea (accept/reject/delete)
+ */
+async function handleTriageIdea(command: RemoteCommand): Promise<CommandHandlerResult> {
+  try {
+    const payload = command.payload as TriageIdeaPayload;
+
+    if (!payload.idea_id || !payload.action) {
+      return { success: false, error: 'Missing required fields: idea_id, action' };
+    }
+
+    const { ideaDb, projectDb } = await import('@/app/db');
+
+    const idea = ideaDb.getIdeaById(payload.idea_id);
+    if (!idea) {
+      return { success: false, error: `Idea not found: ${payload.idea_id}` };
+    }
+
+    if (payload.action === 'accept') {
+      // Get project path
+      const project = projectDb.getProject(idea.project_id);
+      if (!project) {
+        return { success: false, error: `Project not found: ${idea.project_id}` };
+      }
+
+      const projectPath = payload.project_path || project.path;
+      const { v4: uuidv4 } = await import('uuid');
+      const { createRequirement } = await import('@/app/Claude/lib/requirementApi');
+
+      // Generate requirement ID
+      const requirementId = `idea-${payload.idea_id.slice(0, 8)}-${uuidv4().slice(0, 8)}`;
+
+      // Create requirement content from idea
+      const content = `# ${idea.title}
+
+## Category
+${idea.category || 'enhancement'}
+
+## Description
+${idea.description}
+
+## Implementation Notes
+- Generated from accepted idea
+- Original idea ID: ${payload.idea_id}
+`;
+
+      // Create requirement file
+      createRequirement(projectPath, requirementId, content, true);
+
+      // Update idea status
+      ideaDb.updateIdea(payload.idea_id, {
+        status: 'accepted',
+        requirement_id: requirementId,
+      });
+
+      return {
+        success: true,
+        result: {
+          idea_id: payload.idea_id,
+          action: 'accepted',
+          requirement_id: requirementId,
+        },
+      };
+    } else if (payload.action === 'reject') {
+      ideaDb.updateIdea(payload.idea_id, { status: 'rejected' });
+
+      return {
+        success: true,
+        result: {
+          idea_id: payload.idea_id,
+          action: 'rejected',
+        },
+      };
+    } else if (payload.action === 'delete') {
+      ideaDb.deleteIdea(payload.idea_id);
+
+      return {
+        success: true,
+        result: {
+          idea_id: payload.idea_id,
+          action: 'deleted',
+        },
+      };
+    }
+
+    return { success: false, error: `Invalid action: ${payload.action}` };
+  } catch (error) {
+    console.error('[triage_idea] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to triage idea',
+    };
+  }
+}
+
 /**
  * Triage a direction (accept/reject/skip)
  */
@@ -537,7 +697,7 @@ async function handleTriageDirection(command: RemoteCommand): Promise<CommandHan
     const { directionDb } = await import('@/app/db');
 
     // Get the direction
-    const direction = directionDb.getDirection(payload.direction_id);
+    const direction = directionDb.getDirectionById(payload.direction_id);
     if (!direction) {
       return { success: false, error: `Direction not found: ${payload.direction_id}` };
     }
@@ -615,69 +775,100 @@ async function handleTriageDirection(command: RemoteCommand): Promise<CommandHan
 
 /**
  * Fetch requirements from this device
+ * If project_id is not specified, fetches from all projects
  */
 async function handleFetchRequirements(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
     const payload = command.payload as FetchRequirementsPayload;
 
-    if (!payload.project_id) {
-      return { success: false, error: 'Missing required field: project_id' };
-    }
-
     const { projectDb } = await import('@/app/db');
     const fs = await import('fs');
     const path = await import('path');
-
-    const project = projectDb.getProject(payload.project_id);
-    if (!project) {
-      return { success: false, error: `Project not found: ${payload.project_id}` };
-    }
-
-    const projectPath = payload.project_path || project.path;
-    const requirementsDir = path.join(projectPath, '.claude', 'requirements');
 
     const requirements: Array<{
       id: string;
       name: string;
       project_id: string;
       project_name: string;
+      project_path: string;
       created_at: string;
       source: 'direction' | 'idea' | 'manual';
     }> = [];
 
-    if (fs.existsSync(requirementsDir)) {
-      const files = fs.readdirSync(requirementsDir).filter(f => f.endsWith('.md'));
+    // Helper function to read requirements from a project
+    const readProjectRequirements = (project: { id: string; name: string; path: string }) => {
+      const requirementsDir = path.join(project.path, '.claude', 'requirements');
 
-      for (const file of files) {
-        const name = file.replace('.md', '');
-        const filePath = path.join(requirementsDir, file);
-        const stats = fs.statSync(filePath);
+      if (fs.existsSync(requirementsDir)) {
+        const files = fs.readdirSync(requirementsDir).filter((f: string) => f.endsWith('.md'));
 
-        // Determine source from name prefix
-        let source: 'direction' | 'idea' | 'manual' = 'manual';
-        if (name.startsWith('dir-')) source = 'direction';
-        else if (name.startsWith('idea-')) source = 'idea';
+        for (const file of files) {
+          const name = file.replace('.md', '');
+          const filePath = path.join(requirementsDir, file);
 
-        requirements.push({
-          id: name,
-          name,
+          try {
+            const stats = fs.statSync(filePath);
+
+            // Determine source from name prefix
+            let source: 'direction' | 'idea' | 'manual' = 'manual';
+            if (name.startsWith('dir-')) source = 'direction';
+            else if (name.startsWith('idea-')) source = 'idea';
+
+            requirements.push({
+              id: name,
+              name,
+              project_id: project.id,
+              project_name: project.name,
+              project_path: project.path,
+              created_at: stats.birthtime.toISOString(),
+              source,
+            });
+          } catch {
+            // Skip files that can't be read
+          }
+        }
+      }
+    };
+
+    if (payload.project_id) {
+      // Fetch from specific project
+      const project = projectDb.getProject(payload.project_id);
+      if (!project) {
+        return { success: false, error: `Project not found: ${payload.project_id}` };
+      }
+
+      const projectWithPath = {
+        ...project,
+        path: payload.project_path || project.path,
+      };
+      readProjectRequirements(projectWithPath);
+
+      return {
+        success: true,
+        result: {
+          requirements,
+          total: requirements.length,
           project_id: payload.project_id,
           project_name: project.name,
-          created_at: stats.birthtime.toISOString(),
-          source,
-        });
-      }
-    }
+        },
+      };
+    } else {
+      // Fetch from all projects
+      const projects = projectDb.getAllProjects();
 
-    return {
-      success: true,
-      result: {
-        requirements,
-        total: requirements.length,
-        project_id: payload.project_id,
-        project_name: project.name,
-      },
-    };
+      for (const project of projects) {
+        readProjectRequirements(project);
+      }
+
+      return {
+        success: true,
+        result: {
+          requirements,
+          total: requirements.length,
+          project_count: projects.length,
+        },
+      };
+    }
   } catch (error) {
     console.error('[fetch_requirements] Error:', error);
     return {

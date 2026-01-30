@@ -408,9 +408,6 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
   )
 );
 
-// Session IDs for iteration
-const ALL_SESSION_IDS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
-
 // Hooks for common operations
 export function useSession(sessionId: CLISessionId) {
   return useCLISessionStore((state) => state.sessions[sessionId]);
