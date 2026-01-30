@@ -5,7 +5,10 @@
 
 import { SupportedProvider } from '@/lib/llm/types';
 import { ScanType } from '../../lib/scanTypes';
-import { gatherCodebaseFiles, executeScan } from '../../lib/scanApi';
+import { gatherCodebaseFiles, executeScan, GatherFilesError } from '../../lib/scanApi';
+
+// Re-export for consumers
+export { GatherFilesError };
 
 export interface ExecuteContextScanParams {
   projectId: string;

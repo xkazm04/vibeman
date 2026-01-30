@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle, Layers } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { BatchState, BatchId } from '../store';
 import {
@@ -28,6 +28,43 @@ import CheckpointProgress from './CheckpointProgress';
 import TaskMonitor from './TaskMonitor';
 
 // NOTE: Remote batch delegation removed - migrating to Supabase Realtime
+
+/**
+ * Custom hook to debounce progress updates using requestAnimationFrame.
+ * Coalesces multiple store updates per frame to reduce animation churn.
+ */
+function useRAFDebouncedProgress(rawProgress: number): number {
+  const [debouncedProgress, setDebouncedProgress] = useState(rawProgress);
+  const rafIdRef = useRef<number | null>(null);
+  const latestValueRef = useRef(rawProgress);
+
+  // Update the latest value ref on every render
+  latestValueRef.current = rawProgress;
+
+  const scheduleUpdate = useCallback(() => {
+    if (rafIdRef.current !== null) return; // Already scheduled
+
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      setDebouncedProgress(latestValueRef.current);
+    });
+  }, []);
+
+  useEffect(() => {
+    scheduleUpdate();
+  }, [rawProgress, scheduleUpdate]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
+
+  return debouncedProgress;
+}
 
 interface DualBatchPanelProps {
   batch1: BatchState | null;
@@ -139,7 +176,9 @@ function BatchDisplay({
 
   const progressLines = runningTaskId ? (taskProgress[runningTaskId] || 0) : 0;
   // 100 progressLines = 100% completion
-  const progressLinesPercent = Math.min((progressLines / 100) * 100, 100);
+  const rawProgressLinesPercent = Math.min((progressLines / 100) * 100, 100);
+  // Debounce progress updates using RAF to reduce animation churn during active execution
+  const progressLinesPercent = useRAFDebouncedProgress(rawProgressLinesPercent);
 
   // Get activity for the running task
   const currentActivity = runningTaskId ? taskActivity[runningTaskId] || null : null;
@@ -154,11 +193,11 @@ function BatchDisplay({
         animate={{ opacity: 1, y: 0 }}
         className="w-full"
       >
-        <div className="relative bg-gray-800/30 border border-dashed border-gray-700/50 rounded-lg p-3 hover:border-cyan-500/30 transition-all">
+        <div className="relative bg-gray-800/30 border border-dashed border-gray-700/50 rounded-lg p-3 hover:border-cyan-500/30 hover:bg-gray-800/40 transition-all duration-300 group">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-700/20 rounded-lg">
-                <Plus className="w-4 h-4 text-gray-500" />
+              <div className="p-2 bg-gray-700/20 rounded-lg group-hover:bg-cyan-500/10 transition-colors duration-300">
+                <Plus className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors duration-300" />
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-gray-400">{label}</h3>
@@ -170,7 +209,7 @@ function BatchDisplay({
               whileTap={{ scale: 0.98 }}
               onClick={() => onCreateBatch(batchId)}
               disabled={selectedCount === 0}
-              className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded text-xs font-medium text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded-md text-xs font-medium text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-sm hover:shadow-cyan-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/30"
               data-testid={`create-batch-${batchId}-btn`}
             >
               Create from {selectedCount} selected
@@ -199,14 +238,14 @@ function BatchDisplay({
       animate={{ opacity: 1, y: 0 }}
       className="w-full"
     >
-      <div className={`relative bg-gray-800/40 border rounded-lg overflow-hidden ${
+      <div className={`relative bg-gradient-to-br from-gray-800/40 to-gray-900/30 border rounded-lg overflow-hidden backdrop-blur-sm transition-all duration-300 ${
         isRunning
-          ? 'border-blue-500/50 shadow-sm shadow-blue-500/20'
+          ? 'border-blue-500/50 shadow-md shadow-blue-500/20'
           : isPaused
-          ? 'border-amber-500/50 shadow-sm shadow-amber-500/20'
+          ? 'border-amber-500/50 shadow-md shadow-amber-500/20'
           : isCompleted
-          ? 'border-green-500/50 shadow-sm shadow-green-500/20'
-          : 'border-gray-700/50'
+          ? 'border-green-500/50 shadow-md shadow-green-500/20'
+          : 'border-gray-700/50 hover:border-gray-600/50'
       }`}>
         {/* Static background highlight for running state - removed animate-pulse for performance */}
         {isRunning && (
@@ -230,7 +269,7 @@ function BatchDisplay({
                 <TaskOffloadButton sourceBatchId={batchId} />
                 <button
                   onClick={() => onClearBatch(batchId)}
-                  className="p-1 hover:bg-red-500/10 rounded transition-colors text-gray-400 hover:text-red-400"
+                  className="p-1 hover:bg-red-500/10 rounded transition-all duration-200 text-gray-400 hover:text-red-400 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
                   title="Clear batch"
                   data-testid={`clear-batch-${batchId}-btn`}
                 >
@@ -246,7 +285,7 @@ function BatchDisplay({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onStartBatch(batchId)}
-                  className="flex-1 px-2 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded text-[10px] font-medium transition-all shadow-sm shadow-cyan-500/20 flex items-center justify-center gap-1"
+                  className="flex-1 px-2 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-md text-[10px] font-medium transition-all duration-200 shadow-sm shadow-cyan-500/20 hover:shadow-md hover:shadow-cyan-500/30 flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
                   data-testid={`start-batch-${batchId}-btn`}
                 >
                   <Play className="w-3 h-3" />
@@ -259,7 +298,7 @@ function BatchDisplay({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onPauseBatch(batchId)}
-                  className="flex-1 px-2 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 rounded text-[10px] font-medium transition-all flex items-center justify-center gap-1"
+                  className="flex-1 px-2 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 rounded-md text-[10px] font-medium transition-all duration-200 hover:shadow-sm hover:shadow-amber-500/20 flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30"
                   data-testid={`pause-batch-${batchId}-btn`}
                 >
                   <Pause className="w-3 h-3" />
@@ -272,7 +311,7 @@ function BatchDisplay({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onResumeBatch(batchId)}
-                  className="flex-1 px-2 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded text-[10px] font-medium transition-all shadow-sm shadow-cyan-500/20 flex items-center justify-center gap-1"
+                  className="flex-1 px-2 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-md text-[10px] font-medium transition-all duration-200 shadow-sm shadow-cyan-500/20 hover:shadow-md hover:shadow-cyan-500/30 flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
                   data-testid={`resume-batch-${batchId}-btn`}
                 >
                   <Play className="w-3 h-3" />
@@ -281,7 +320,7 @@ function BatchDisplay({
               )}
 
               {isCompleted && (
-                <div className="flex-1 px-2 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded text-[10px] font-medium flex items-center justify-center gap-1">
+                <div className="flex-1 px-2 py-1.5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 text-green-400 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 shadow-sm shadow-green-500/10">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Completed</span>
                 </div>
@@ -315,7 +354,7 @@ function BatchDisplay({
           <div className="flex-1 min-w-0 border-l border-gray-700/30 pl-4 space-y-2">
             {/* Progress Bar - Based on progressLines from running task (100 lines = 100%) */}
             <div className="space-y-1">
-              <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden shadow-inner">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${isRunning ? progressLinesPercent : (isCompleted ? 100 : 0)}%` }}

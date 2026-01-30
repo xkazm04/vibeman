@@ -57,7 +57,7 @@ function CompactCheckpointProgress({
 }) {
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="text-gray-500 font-mono">
+      <span className="text-gray-500 font-mono tabular-nums bg-gray-800/30 px-1.5 py-0.5 rounded">
         {completed}/{total}
       </span>
       <AnimatePresence mode="wait">
@@ -73,9 +73,9 @@ function CompactCheckpointProgress({
           </motion.span>
         ) : completed === total ? (
           <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-green-400"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-green-400 font-medium"
           >
             Complete
           </motion.span>
@@ -122,10 +122,10 @@ function CheckpointItem({ checkpoint }: { checkpoint: Checkpoint }) {
 
   return (
     <motion.div
-      className="flex items-center gap-2 text-xs"
+      className="flex items-center gap-2 text-xs py-0.5"
       initial={status === 'in_progress' ? { opacity: 0.5 } : false}
       animate={status === 'in_progress' ? { opacity: [0.5, 1, 0.5] } : { opacity: 1 }}
-      transition={status === 'in_progress' ? { duration: 1.5, repeat: Infinity } : undefined}
+      transition={status === 'in_progress' ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } : undefined}
     >
       <span className={statusColor}>{statusIcon}</span>
       <span className={labelColor}>

@@ -18,25 +18,25 @@ const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScr
         const count = contexts.length;
         if (count === 1) return {
             gridCols: 'grid-cols-1',
-            cellHeight: 'h-64', // Single card: large
-            fontSize: 'text-4xl',
+            cellHeight: 'h-32', // Single card: medium
+            fontSize: 'text-2xl',
             showDividers: false
         };
         if (count === 2) return {
             gridCols: 'grid-cols-2',
-            cellHeight: 'h-64', // Two cards: large
-            fontSize: 'text-2xl',
+            cellHeight: 'h-28', // Two cards: medium
+            fontSize: 'text-xl',
             showDividers: true
         };
         if (count <= 4) return {
             gridCols: 'grid-cols-2',
-            cellHeight: 'h-32', // 3-4 cards: medium
+            cellHeight: 'h-24', // 3-4 cards: compact
             fontSize: 'text-lg',
             showDividers: true
         };
         return {
             gridCols: 'grid-cols-3',
-            cellHeight: 'h-28', // 5+ cards: compact
+            cellHeight: 'h-20', // 5+ cards: very compact
             fontSize: 'text-base',
             showDividers: true
         };

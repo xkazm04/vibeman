@@ -276,5 +276,24 @@ export const contextRepository = {
     const stmt = db.prepare('DELETE FROM contexts WHERE project_id = ?');
     const result = stmt.run(projectId);
     return result.changes;
+  },
+
+  /**
+   * Get all contexts for multiple projects in a single query
+   * Uses SQL IN clause for efficient batching
+   */
+  getContextsByProjects: (projectIds: string[]): DbContext[] => {
+    if (projectIds.length === 0) return [];
+
+    const db = getDatabase();
+    const placeholders = projectIds.map(() => '?').join(', ');
+    const stmt = db.prepare(`
+      SELECT c.*, cg.name as group_name, cg.color as group_color
+      FROM contexts c
+      LEFT JOIN context_groups cg ON c.group_id = cg.id
+      WHERE c.project_id IN (${placeholders})
+      ORDER BY c.project_id, COALESCE(cg.position, 999) ASC, c.created_at DESC
+    `);
+    return stmt.all(...projectIds) as DbContext[];
   }
 };

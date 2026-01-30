@@ -8,7 +8,7 @@ import { SupportedProvider } from './llm/types';
 import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.repository';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { ideaRepository } from '@/app/db/repositories/idea.repository';
-import { techDebtRepository } from '@/app/db/repositories/tech-debt.repository';
+// Tech debt repository removed - feature deprecated
 import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -255,27 +255,11 @@ async function scanDirectoryStructure(dirPath: string, limit: number, prefix = '
 }
 
 /**
- * Scan tech debt items
+ * Scan tech debt items - deprecated, returns empty string
  */
-async function scanTechDebt(projectId: string): Promise<string> {
-  try {
-    const techDebtItems = techDebtRepository.getTechDebtByProject(projectId);
-
-    if (techDebtItems.length === 0) {
-      return '';
-    }
-
-    const summary = techDebtItems
-      .filter(item => item.status !== 'resolved' && item.status !== 'dismissed')
-      .slice(0, 10)
-      .map(item => `- [${item.severity}] ${item.title}: ${item.description}`)
-      .join('\n');
-
-    return `Technical Debt Items:\n${summary}`;
-  } catch (error) {
-    console.error('Error scanning tech debt:', error);
-    return '';
-  }
+async function scanTechDebt(_projectId: string): Promise<string> {
+  // Tech debt feature deprecated - return empty
+  return '';
 }
 
 /**

@@ -17,6 +17,15 @@ interface WorkerConfig {
   provider: SupportedProvider;
 }
 
+// Adaptive polling intervals for exponential backoff when queue is empty
+// Reduces idle CPU usage while maintaining responsiveness during active periods
+const ADAPTIVE_POLL_INTERVALS = {
+  BASE_MS: 5000,      // 5 seconds - used when items found or first poll
+  LEVEL_1_MS: 10000,  // 10 seconds - after 1 empty poll
+  LEVEL_2_MS: 30000,  // 30 seconds - after 2 empty polls
+  MAX_MS: 60000,      // 60 seconds - maximum backoff
+} as const;
+
 type NotificationType = 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed';
 
 interface NotificationData {
@@ -34,10 +43,13 @@ class ScanQueueWorker {
   private pollTimer: NodeJS.Timeout | null = null;
   private currentlyProcessing: Set<string> = new Set();
   private config: WorkerConfig = {
-    pollIntervalMs: 5000, // Poll every 5 seconds
+    pollIntervalMs: ADAPTIVE_POLL_INTERVALS.BASE_MS, // Base poll interval
     maxConcurrent: 1, // Process one scan at a time by default
     provider: 'gemini' // Default provider
   };
+
+  // Adaptive polling state - tracks consecutive empty polls for backoff
+  private consecutiveEmptyPolls = 0;
 
   /**
    * Generate a unique notification ID
@@ -83,6 +95,9 @@ class ScanQueueWorker {
 
     this.isRunning = true;
 
+    // Reset adaptive polling state on start
+    this.consecutiveEmptyPolls = 0;
+
     // Start polling
     this.poll();
   }
@@ -111,30 +126,79 @@ class ScanQueueWorker {
   }
 
   /**
+   * Get adaptive poll interval based on consecutive empty polls
+   * Implements exponential backoff: 5s -> 10s -> 30s -> 60s
+   * Resets to base interval when items are found
+   */
+  private getAdaptivePollInterval(): number {
+    switch (this.consecutiveEmptyPolls) {
+      case 0:
+        return ADAPTIVE_POLL_INTERVALS.BASE_MS;
+      case 1:
+        return ADAPTIVE_POLL_INTERVALS.LEVEL_1_MS;
+      case 2:
+        return ADAPTIVE_POLL_INTERVALS.LEVEL_2_MS;
+      default:
+        return ADAPTIVE_POLL_INTERVALS.MAX_MS;
+    }
+  }
+
+  /**
+   * Reset adaptive polling to base interval (called when work is found)
+   */
+  private resetAdaptivePolling(): void {
+    this.consecutiveEmptyPolls = 0;
+  }
+
+  /**
+   * Increment backoff level for adaptive polling (called when queue is empty)
+   */
+  private incrementBackoff(): void {
+    // Cap at 3 to stay at MAX_MS level
+    if (this.consecutiveEmptyPolls < 3) {
+      this.consecutiveEmptyPolls++;
+    }
+  }
+
+  /**
    * Poll for pending queue items
+   * Uses adaptive polling intervals based on queue activity
    */
   private poll(): void {
     if (!this.isRunning) {
       return;
     }
 
-    // Process queue
-    this.processQueue().catch(() => {
-      // Error handled in processQueue
-    });
+    // Process queue and track if items were found
+    this.processQueue()
+      .then((itemsFound) => {
+        if (itemsFound) {
+          // Reset to base interval when work is found
+          this.resetAdaptivePolling();
+        } else {
+          // Increase backoff when queue is empty
+          this.incrementBackoff();
+        }
+      })
+      .catch(() => {
+        // Error handled in processQueue, but don't increase backoff on errors
+      });
 
-    // Schedule next poll
-    this.pollTimer = setTimeout(() => this.poll(), this.config.pollIntervalMs);
+    // Schedule next poll with adaptive interval
+    const nextInterval = this.getAdaptivePollInterval();
+    this.pollTimer = setTimeout(() => this.poll(), nextInterval);
   }
 
   /**
    * Process the scan queue
    * Uses atomic claim to prevent race conditions between poll cycles
+   * @returns true if items were found and processed, false if queue was empty
    */
-  private async processQueue(): Promise<void> {
+  private async processQueue(): Promise<boolean> {
     // Check if we can process more items
     if (this.currentlyProcessing.size >= this.config.maxConcurrent) {
-      return;
+      // Already at max capacity - consider this as "active" to maintain responsiveness
+      return true;
     }
 
     // Atomically claim the next pending item
@@ -142,7 +206,7 @@ class ScanQueueWorker {
     const queueItem = scanQueueDb.claimNextPending();
 
     if (!queueItem) {
-      return; // No pending items or claim failed
+      return false; // No pending items - queue is empty
     }
 
     // Track that we're processing this item
@@ -167,6 +231,8 @@ class ScanQueueWorker {
       // Always clean up the processing set to prevent items getting stuck
       this.currentlyProcessing.delete(queueItem.id);
     }
+
+    return true; // Item was found and processed
   }
 
   /**
@@ -408,11 +474,19 @@ class ScanQueueWorker {
     isRunning: boolean;
     currentlyProcessing: number;
     config: WorkerConfig;
+    adaptivePolling: {
+      consecutiveEmptyPolls: number;
+      currentIntervalMs: number;
+    };
   } {
     return {
       isRunning: this.isRunning,
       currentlyProcessing: this.currentlyProcessing.size,
-      config: this.config
+      config: this.config,
+      adaptivePolling: {
+        consecutiveEmptyPolls: this.consecutiveEmptyPolls,
+        currentIntervalMs: this.getAdaptivePollInterval(),
+      },
     };
   }
 }

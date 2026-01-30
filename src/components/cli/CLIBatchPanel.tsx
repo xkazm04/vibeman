@@ -7,11 +7,10 @@ import type { CLIBatchPanelProps } from './types';
 import { requirementToQueuedTask } from './types';
 import {
   useCLISessionStore,
-  useCLIRecovery,
-  useCLIRecoveryStatus,
   abortSessionExecution,
   type CLISessionId,
 } from './store';
+import { useCLIRecovery, useCLIRecoveryStatus } from './store/useCLIRecovery';
 import type { SkillId } from './skills';
 import {
   useTaskRunnerStore,
@@ -24,6 +23,7 @@ import {
   executeGitOperations,
   generateCommitMessage,
 } from '@/app/features/TaskRunner/sub_Git/gitApi';
+import RemoteBatchSection from '@/app/features/TaskRunner/components/RemoteBatchSection';
 
 const SESSIONS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
 
@@ -72,6 +72,7 @@ export function CLIBatchPanel({
   getRequirementId,
   onClearSelection,
   onRequirementCompleted,
+  isRemoteMode = false,
 }: CLIBatchPanelProps) {
   // Use persistent store for sessions
   const sessions = useCLISessionStore((state) => state.sessions);
@@ -229,16 +230,18 @@ export function CLIBatchPanel({
   return (
     <div className="space-y-3 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-2 border-b border-gray-700/30">
         <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-medium text-gray-200">CLI Sessions</span>
-          <span className="text-xs text-gray-500">
+          <div className="p-1.5 bg-purple-500/10 rounded-md">
+            <Terminal className="w-4 h-4 text-purple-400" />
+          </div>
+          <span className="text-sm font-medium text-gray-200 tracking-tight">CLI Sessions</span>
+          <span className="text-xs text-gray-500 tabular-nums">
             ({selectedTaskIds.length} selected)
           </span>
           {/* Recovery indicator */}
           {isRecovering && sessionsToRecover > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-amber-400 px-1.5 py-0.5 bg-amber-500/10 rounded">
+            <span className="flex items-center gap-1 text-[10px] text-amber-400 px-1.5 py-0.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-md border border-amber-500/20">
               <RotateCcw className="w-3 h-3 animate-spin" />
               Recovering {sessionsToRecover}
             </span>
@@ -268,6 +271,9 @@ export function CLIBatchPanel({
           />
         ))}
       </div>
+
+      {/* Remote Batch Section - Shows when remote mode is active */}
+      {isRemoteMode && <RemoteBatchSection />}
     </div>
   );
 }

@@ -21,7 +21,7 @@ import {
   detectDuplication,
   detectUnusedImports,
   calculateCyclomaticComplexity,
-} from '@/app/features/RefactorWizard/lib/patternDetectors';
+} from './patternDetectorStubs';
 
 // ============================================================================
 // TYPES

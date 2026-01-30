@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { WorkspaceProjectNode, CrossProjectRelationship } from '../sub_WorkspaceArchitecture/lib/types';
-import { INTEGRATION_COLORS, INTEGRATION_STYLES } from '../sub_WorkspaceArchitecture/lib/types';
+import { INTEGRATION_COLORS, INTEGRATION_STYLES } from './constants';
 
 interface MatrixCellInfoProps {
   selectedCell: { sourceId: string; targetId: string };

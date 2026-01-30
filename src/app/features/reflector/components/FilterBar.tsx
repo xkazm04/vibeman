@@ -10,7 +10,7 @@ import {
   UnifiedFilterState,
   FilterBarConfig,
   getEmptyUnifiedFilterState,
-  countUnifiedActiveFilters,
+  countActiveFilters,
   getSuggestedFilters,
   IdeaFilterState
 } from '../lib/filterIdeas';
@@ -43,7 +43,7 @@ export default function FilterBar({
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const activeFilterCount = countUnifiedActiveFilters(filters);
+  const activeFilterCount = countActiveFilters(filters);
 
   // Only calculate suggestions if panel mode and ideas are provided
   const suggestions = config.variant === 'panel' && ideas.length > 0
@@ -119,14 +119,14 @@ export default function FilterBar({
           <div className="flex items-center gap-3">
             <button
               onClick={handlePreviousWeek}
-              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
+              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-all duration-200 hover:shadow-md hover:shadow-black/20 active:scale-95"
               aria-label="Previous week"
               data-testid="filter-bar-prev-week-btn"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-900/30 border border-amber-500/40">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-900/30 border border-amber-500/40 shadow-sm shadow-amber-500/10 transition-all duration-200">
               <Calendar className="w-4 h-4 text-amber-400" />
               <span className="text-amber-300 font-medium" data-testid="filter-bar-week-label">
                 {weekRange.label}
@@ -139,10 +139,10 @@ export default function FilterBar({
             <button
               onClick={handleNextWeek}
               disabled={filters.weekOffset >= 0}
-              className={`p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 transition-colors ${
+              className={`p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 transition-all duration-200 ${
                 filters.weekOffset >= 0
-                  ? 'text-gray-600 cursor-not-allowed'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+                  ? 'text-gray-600 cursor-not-allowed opacity-50'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/60 hover:shadow-md hover:shadow-black/20 active:scale-95'
               }`}
               aria-label="Next week"
               data-testid="filter-bar-next-week-btn"
@@ -153,7 +153,7 @@ export default function FilterBar({
             {filters.weekOffset !== 0 && (
               <button
                 onClick={handleCurrentWeek}
-                className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors"
+                className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all duration-200 hover:shadow-md hover:shadow-amber-500/20 active:scale-95"
                 data-testid="filter-bar-current-week-btn"
               >
                 Current Week
@@ -195,11 +195,11 @@ export default function FilterBar({
           {onRefresh && (
             <button
               onClick={onRefresh}
-              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
+              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-all duration-200 hover:shadow-md hover:shadow-black/20 active:scale-95 active:rotate-180"
               aria-label="Refresh"
               data-testid="filter-bar-refresh-btn"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-4 h-4 transition-transform duration-300" />
             </button>
           )}
 
@@ -207,7 +207,7 @@ export default function FilterBar({
           {activeFilterCount > 0 && (
             <button
               onClick={handleClearAll}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 transition-all duration-200 hover:shadow-md hover:shadow-red-500/20 active:scale-95"
               data-testid="filter-bar-clear-btn"
             >
               <X className="w-3 h-3" />

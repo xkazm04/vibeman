@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   OrphanedSession,
   CleanupStats,
@@ -180,18 +180,56 @@ export function useSessionCleanup(
     }
   }, [projectId]);
 
+  // Ref to always have access to the latest scanForOrphans without adding to dependencies
+  const scanForOrphansRef = useRef(scanForOrphans);
+  scanForOrphansRef.current = scanForOrphans;
+
+  // Ref to track current interval duration - only reset interval when this actually changes
+  const currentIntervalMsRef = useRef<number | null>(null);
+  const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Auto-scan on mount and periodically
+  // Uses refs to avoid unnecessary interval teardown when unrelated state changes
   useEffect(() => {
-    if (!autoScan) return;
+    if (!autoScan) {
+      // Clear any existing interval when autoScan is disabled
+      if (intervalIdRef.current !== null) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+        currentIntervalMsRef.current = null;
+      }
+      return;
+    }
 
-    // Initial scan
-    scanForOrphans();
+    // Only recreate interval if the duration actually changed
+    if (currentIntervalMsRef.current === scanIntervalMs && intervalIdRef.current !== null) {
+      return;
+    }
 
-    // Set up periodic scanning
-    const intervalId = setInterval(scanForOrphans, scanIntervalMs);
+    // Clear existing interval if any
+    if (intervalIdRef.current !== null) {
+      clearInterval(intervalIdRef.current);
+    }
 
-    return () => clearInterval(intervalId);
-  }, [autoScan, scanIntervalMs, scanForOrphans]);
+    // Initial scan on mount or when autoScan becomes true
+    if (currentIntervalMsRef.current === null) {
+      scanForOrphansRef.current();
+    }
+
+    // Set up periodic scanning using ref to avoid stale closure
+    intervalIdRef.current = setInterval(() => {
+      scanForOrphansRef.current();
+    }, scanIntervalMs);
+    currentIntervalMsRef.current = scanIntervalMs;
+
+    return () => {
+      if (intervalIdRef.current !== null) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+        currentIntervalMsRef.current = null;
+      }
+    };
+  }, [autoScan, scanIntervalMs]);
 
   return {
     orphanedSessions,

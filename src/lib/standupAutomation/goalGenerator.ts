@@ -7,7 +7,7 @@
  * are kept for backward compatibility but will be removed in a future version.
  */
 
-import { goalDb, ideaDb, techDebtDb, standupDb } from '@/app/db';
+import { goalDb, ideaDb, standupDb } from '@/app/db';
 import { projectDb } from '@/lib/project_database';
 import { logger } from '@/lib/logger';
 import {
@@ -205,18 +205,8 @@ export async function gatherGenerationContext(projectId: string): Promise<GoalGe
   const allIdeas = ideaDb.getAllIdeas();
   const pendingIdeas = allIdeas.filter(i => i.status === 'accepted' || i.status === 'pending');
 
-  // Get tech debt items
-  let techDebtItems: { id: string; title: string; severity: string }[] = [];
-  try {
-    const techDebt = techDebtDb.getTechDebtByProject(projectId);
-    techDebtItems = techDebt.map(td => ({
-      id: td.id,
-      title: td.title,
-      severity: td.severity || 'medium',
-    }));
-  } catch {
-    // Tech debt might not exist for all projects
-  }
+  // Get tech debt items - feature deprecated, return empty array
+  const techDebtItems: { id: string; title: string; severity: string }[] = [];
 
   // Get recent focus areas from standup summaries
   const recentFocusAreas: string[] = [];

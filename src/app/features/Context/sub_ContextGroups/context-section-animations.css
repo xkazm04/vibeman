@@ -1,0 +1,101 @@
+/* Neural Grid Animation - GPU accelerated CSS animation */
+.context-neural-grid {
+  background-image:
+    linear-gradient(var(--grid-color, rgba(100, 100, 100, 0.3)) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color, rgba(100, 100, 100, 0.3)) 1px, transparent 1px);
+  background-size: 12px 12px;
+  animation: neural-grid-scroll 12s linear infinite;
+  will-change: background-position;
+}
+
+@keyframes neural-grid-scroll {
+  from {
+    background-position: 0px 0px;
+  }
+
+  to {
+    background-position: 12px 12px;
+  }
+}
+
+/* Floating Particle Animations - GPU accelerated */
+.context-particle {
+  background-color: var(--particle-color, rgba(100, 100, 100, 0.6));
+  will-change: transform, opacity;
+}
+
+.context-particle-0 {
+  left: 20%;
+  top: 20%;
+}
+
+.context-particle-1 {
+  left: 40%;
+  top: 35%;
+}
+
+.context-particle-2 {
+  left: 60%;
+  top: 50%;
+}
+
+.context-particle-3 {
+  left: 80%;
+  top: 65%;
+}
+
+@keyframes particle-float-0 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: translate(5px, -30px) scale(1.5);
+    opacity: 1;
+  }
+}
+
+@keyframes particle-float-1 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: translate(-3px, -30px) scale(1.5);
+    opacity: 1;
+  }
+}
+
+@keyframes particle-float-2 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: translate(8px, -30px) scale(1.5);
+    opacity: 1;
+  }
+}
+
+@keyframes particle-float-3 {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: translate(-6px, -30px) scale(1.5);
+    opacity: 1;
+  }
+}

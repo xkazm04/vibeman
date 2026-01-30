@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, directionDb } from '@/app/db';
+import { ideaDb, directionDb, goalDb } from '@/app/db';
 import { TinderItem, TinderFilterMode } from '@/app/features/tinder/lib/tinderTypes';
 import { logger } from '@/lib/logger';
 
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const items: TinderItem[] = [];
     let ideasCount = 0;
     let directionsCount = 0;
+    const goalTitlesMap: Record<string, string> = {};
 
     // Fetch Ideas if needed
     if (itemType === 'ideas' || itemType === 'both') {
@@ -46,6 +47,15 @@ export async function GET(request: NextRequest) {
 
       const pendingIdeas = allIdeas.filter(idea => idea.status === 'pending');
       ideasCount = pendingIdeas.length;
+
+      // Batch-fetch goal titles to avoid N+1 queries in IdeaCard
+      const goalIds = [...new Set(pendingIdeas.map(idea => idea.goal_id).filter(Boolean))] as string[];
+      for (const goalId of goalIds) {
+        const goal = goalDb.getGoalById(goalId);
+        if (goal) {
+          goalTitlesMap[goalId] = goal.title;
+        }
+      }
 
       items.push(...pendingIdeas.map(idea => ({
         type: 'idea' as const,
@@ -83,7 +93,8 @@ export async function GET(request: NextRequest) {
       counts: {
         ideas: ideasCount,
         directions: directionsCount
-      }
+      },
+      goalTitlesMap
     });
   } catch (error) {
     logger.error('Error fetching tinder items:', { error });

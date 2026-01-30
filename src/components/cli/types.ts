@@ -127,6 +127,8 @@ export interface CLIBatchPanelProps {
   getRequirementId: (req: ProjectRequirement) => string;
   onClearSelection?: () => void;
   onRequirementCompleted?: (reqId: string, projectPath: string, requirementName: string) => void;
+  /** Enable remote batch management section */
+  isRemoteMode?: boolean;
 }
 
 /**

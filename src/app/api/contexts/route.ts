@@ -36,32 +36,64 @@ async function handleGet(request: NextRequest) {
       });
     }
 
-    // Multi-project: query each and merge
+    // Multi-project: batch query all projects in single request
     if (projectFilter.mode === 'multi') {
-      const allContexts: any[] = [];
-      const allGroups: any[] = [];
-      for (const pid of projectFilter.projectIds!) {
-        const [contexts, groups] = await Promise.all([
-          contextQueries.getContextsByProject(pid),
-          contextGroupQueries.getGroupsByProject(pid),
-        ]);
-        allContexts.push(...contexts);
-        allGroups.push(...groups);
-      }
+      const [contexts, groups] = await Promise.all([
+        contextQueries.getContextsByProjects(projectFilter.projectIds!),
+        contextGroupQueries.getGroupsByProjects(projectFilter.projectIds!),
+      ]);
 
       return NextResponse.json({
         success: true,
-        data: { contexts: allContexts, groups: allGroups }
+        data: { contexts, groups }
       });
     }
 
-    // All projects: get everything
+    // All projects: get everything (should rarely be used, but ensure consistent format)
+    // Note: This returns all contexts without group info - consider adding groups if needed
     const { getDatabase } = await import('@/app/db/connection');
     const db = getDatabase();
-    const allContexts = db.prepare(`
+    const allContextsRaw = db.prepare(`
       SELECT * FROM contexts
       ORDER BY created_at DESC
-    `).all();
+    `).all() as Array<{
+      id: string;
+      project_id: string;
+      group_id: string | null;
+      name: string;
+      description: string | null;
+      file_paths: string;
+      has_context_file: number;
+      context_file_path: string | null;
+      preview: string | null;
+      test_scenario: string | null;
+      test_updated: string | null;
+      target: string | null;
+      target_fulfillment: string | null;
+      target_rating: number | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    // Transform to camelCase for consistent API response format
+    const allContexts = allContextsRaw.map(ctx => ({
+      id: ctx.id,
+      projectId: ctx.project_id,
+      groupId: ctx.group_id,
+      name: ctx.name,
+      description: ctx.description || undefined,
+      filePaths: JSON.parse(ctx.file_paths),
+      hasContextFile: Boolean(ctx.has_context_file),
+      contextFilePath: ctx.context_file_path || undefined,
+      preview: ctx.preview || undefined,
+      testScenario: ctx.test_scenario || undefined,
+      testUpdated: ctx.test_updated || undefined,
+      target: ctx.target || undefined,
+      target_fulfillment: ctx.target_fulfillment || undefined,
+      target_rating: ctx.target_rating || undefined,
+      createdAt: new Date(ctx.created_at),
+      updatedAt: new Date(ctx.updated_at),
+    }));
 
     return NextResponse.json({
       success: true,

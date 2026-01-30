@@ -2,31 +2,86 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, FileJson, FileText, X, Check } from 'lucide-react';
+import { Download, FileJson, FileText, Check } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 
 interface ExportButtonProps {
   ideas: DbIdea[];
   filename?: string;
   className?: string;
+  /** 'full' shows dropdown with CSV/JSON options, 'compact' does single-click JSON export */
+  variant?: 'full' | 'compact';
 }
 
 type ExportFormat = 'csv' | 'json';
 
 /**
+ * Shared export data builder for JSON format
+ */
+function buildJsonExportData(ideas: DbIdea[]) {
+  return ideas.map(idea => ({
+    id: idea.id,
+    title: idea.title,
+    description: idea.description,
+    category: idea.category,
+    status: idea.status,
+    projectId: idea.project_id,
+    contextId: idea.context_id,
+    scanType: idea.scan_type,
+    impact: idea.impact,
+    effort: idea.effort,
+    risk: idea.risk,
+    created_at: idea.created_at,
+    updated_at: idea.updated_at,
+  }));
+}
+
+/**
+ * Escape special characters for CSV
+ */
+function escapeCSV(str: string): string {
+  if (!str) return '';
+  // If contains comma, newline, or quote, wrap in quotes
+  if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+    // Escape quotes by doubling them
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+/**
+ * Download file helper
+ */
+function downloadFile(content: string, mimeType: string, filename: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * ExportButton - Export ideas to CSV or JSON format
  *
- * Provides a dropdown to select export format and downloads
- * the filtered ideas in the chosen format.
+ * Supports two variants:
+ * - 'full' (default): Dropdown with CSV/JSON options
+ * - 'compact': Single-click JSON export (icon-only button)
  */
 export default function ExportButton({
   ideas,
   filename = 'ideas-export',
   className = '',
+  variant = 'full',
 }: ExportButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [success, setSuccess] = useState<ExportFormat | null>(null);
+
+  const dateStamp = new Date().toISOString().split('T')[0];
 
   const handleExport = async (format: ExportFormat) => {
     setExporting(format);
@@ -37,24 +92,7 @@ export default function ExportButton({
       let extension: string;
 
       if (format === 'json') {
-        // Export as JSON with readable formatting
-        const exportData = ideas.map(idea => ({
-          id: idea.id,
-          title: idea.title,
-          description: idea.description,
-          category: idea.category,
-          status: idea.status,
-          projectId: idea.project_id,
-          contextId: idea.context_id,
-          scanType: idea.scan_type,
-          impact: idea.impact,
-          effort: idea.effort,
-          risk: idea.risk,
-          created_at: idea.created_at,
-          updated_at: idea.updated_at,
-        }));
-
-        content = JSON.stringify(exportData, null, 2);
+        content = JSON.stringify(buildJsonExportData(ideas), null, 2);
         mimeType = 'application/json';
         extension = 'json';
       } else {
@@ -96,16 +134,7 @@ export default function ExportButton({
         extension = 'csv';
       }
 
-      // Create and download file
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${filename}-${new Date().toISOString().split('T')[0]}.${extension}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadFile(content, mimeType, `${filename}-${dateStamp}.${extension}`);
 
       setSuccess(format);
       setTimeout(() => setSuccess(null), 2000);
@@ -117,6 +146,38 @@ export default function ExportButton({
     }
   };
 
+  // Compact variant: single-click JSON export
+  if (variant === 'compact') {
+    return (
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => handleExport('json')}
+        disabled={ideas.length === 0 || exporting !== null}
+        className={`p-2 rounded-lg transition-all duration-200 ${
+          ideas.length === 0
+            ? 'text-gray-500 cursor-not-allowed opacity-50'
+            : 'text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 hover:shadow-md hover:shadow-amber-500/20'
+        } ${className}`}
+        title={`Export ${ideas.length} ideas as JSON`}
+      >
+        {exporting ? (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          >
+            <Download className="w-4 h-4" />
+          </motion.div>
+        ) : success ? (
+          <Check className="w-4 h-4 text-green-400" />
+        ) : (
+          <Download className="w-4 h-4" />
+        )}
+      </motion.button>
+    );
+  }
+
+  // Full variant: dropdown with CSV/JSON options
   return (
     <div className={`relative ${className}`}>
       {/* Main button */}
@@ -203,9 +264,9 @@ function ExportOption({
     <button
       onClick={onClick}
       disabled={loading}
-      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-700/50 transition-colors text-left"
+      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-700/50 transition-all duration-200 text-left hover:pl-5 group"
     >
-      <div className="mt-0.5">
+      <div className="mt-0.5 transition-transform duration-200 group-hover:scale-110">
         {success ? (
           <Check className="w-4 h-4 text-green-400" />
         ) : loading ? (
@@ -216,97 +277,20 @@ function ExportOption({
             <Download className="w-4 h-4 text-amber-400" />
           </motion.div>
         ) : (
-          <Icon className="w-4 h-4 text-gray-400" />
+          <Icon className="w-4 h-4 text-gray-400 group-hover:text-amber-400 transition-colors duration-200" />
         )}
       </div>
       <div>
-        <div className="text-sm font-medium text-gray-200">{label}</div>
-        <div className="text-xs text-gray-500">{description}</div>
+        <div className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors duration-200">{label}</div>
+        <div className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors duration-200">{description}</div>
       </div>
     </button>
   );
 }
 
 /**
- * Escape special characters for CSV
+ * @deprecated Use ExportButton with variant="compact" instead
  */
-function escapeCSV(str: string): string {
-  if (!str) return '';
-  // If contains comma, newline, or quote, wrap in quotes
-  if (str.includes(',') || str.includes('\n') || str.includes('"')) {
-    // Escape quotes by doubling them
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-/**
- * Compact version for toolbar integration
- */
-export function ExportButtonCompact({
-  ideas,
-  filename = 'ideas-export',
-  className = '',
-}: ExportButtonProps) {
-  const [exporting, setExporting] = useState(false);
-
-  const handleQuickExport = async () => {
-    if (ideas.length === 0) return;
-
-    setExporting(true);
-    try {
-      const exportData = ideas.map(idea => ({
-        id: idea.id,
-        title: idea.title,
-        description: idea.description,
-        category: idea.category,
-        status: idea.status,
-        scanType: idea.scan_type,
-        impact: idea.impact,
-        effort: idea.effort,
-        created_at: idea.created_at,
-      }));
-
-      const content = JSON.stringify(exportData, null, 2);
-      const blob = new Blob([content], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${filename}-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  return (
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={handleQuickExport}
-      disabled={ideas.length === 0 || exporting}
-      className={`p-2 rounded-lg transition-all ${
-        ideas.length === 0
-          ? 'text-gray-500 cursor-not-allowed'
-          : 'text-gray-400 hover:text-amber-400 hover:bg-amber-500/10'
-      } ${className}`}
-      title={`Export ${ideas.length} ideas as JSON`}
-    >
-      {exporting ? (
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        >
-          <Download className="w-4 h-4" />
-        </motion.div>
-      ) : (
-        <Download className="w-4 h-4" />
-      )}
-    </motion.button>
-  );
+export function ExportButtonCompact(props: Omit<ExportButtonProps, 'variant'>) {
+  return <ExportButton {...props} variant="compact" />;
 }

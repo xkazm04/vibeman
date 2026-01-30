@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { automationSessionDb, techDebtDb, ideaDb, goalDb } from '@/app/db';
+import { automationSessionDb, ideaDb, goalDb } from '@/app/db';
 import { buildUnifiedAutomationPrompt } from '@/lib/standupAutomation/unifiedAutomationPrompt';
 import { executionQueue } from '@/app/Claude/lib/claudeExecutionQueue';
 import { createRequirement } from '@/app/Claude/sub_ClaudeCodeManager/folderManager';
@@ -58,7 +58,8 @@ export async function POST(request: NextRequest) {
     const goals = goalDb.getGoalsByProject(projectId);
     const allIdeas = ideaDb.getIdeasByProject(projectId);
     const pendingIdeas = allIdeas.filter(idea => idea.status === 'pending');
-    const techDebtItems = techDebtDb.getTechDebtByProject(projectId);
+    // Tech debt feature deprecated - pass empty array
+    const techDebtItems: { id: string; title: string; severity: string; description?: string }[] = [];
 
     // Build the unified prompt
     const prompt = buildUnifiedAutomationPrompt({
@@ -70,12 +71,7 @@ export async function POST(request: NextRequest) {
       autonomyLevel,
       goals,
       pendingIdeas,
-      techDebtItems: techDebtItems.map(td => ({
-        id: td.id,
-        title: td.title,
-        severity: td.severity,
-        description: td.description,
-      })),
+      techDebtItems,
       recentImplementations: [],
     });
 

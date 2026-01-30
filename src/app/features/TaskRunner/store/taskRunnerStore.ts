@@ -105,6 +105,7 @@ export interface GitConfig {
 interface TaskRunnerState {
   // Batch Management
   batches: Record<BatchId, BatchState | null>;
+  reservedBatchIds: Set<BatchId>; // Batch IDs reserved for pending async operations
 
   // Task Management
   tasks: Record<string, TaskState>; // Map of taskId -> TaskState
@@ -188,6 +189,9 @@ interface TaskRunnerState {
   getNextAvailableBatchId: () => BatchId | null;
   getSessionBatches: () => BatchId[]; // Returns batches with claudeSessionId set
   isTaskInAnyBatch: (taskId: string) => BatchId | null;
+  // Atomic batch reservation for race-condition-free async operations
+  reserveBatchSlot: () => BatchId | null; // Atomically reserves a batch slot, returns null if all full
+  releaseBatchReservation: (batchId: BatchId) => void; // Releases a reservation if async op fails
 
   // Recovery
   recoverFromStorage: (requirements: ProjectRequirement[]) => void;
@@ -256,6 +260,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         batch3: null,
         batch4: null,
       },
+      reservedBatchIds: new Set(),
       tasks: {},
       executingTasks: new Set(),
       isPaused: false,
@@ -304,34 +309,41 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         const internalBatchId = `batch_${Date.now()}`;
         const now = Date.now();
 
-        set((state) => ({
-          batches: {
-            ...state.batches,
-            [batchId]: {
-              id: internalBatchId,
-              name,
-              taskIds: [taskId],
-              status: createIdleBatchStatus(),
-              completedCount: 0,
-              failedCount: 0,
-              // Session fields
-              claudeSessionId: null,
-              projectId,
-              projectPath,
-              createdAt: now,
-              updatedAt: now,
+        set((state) => {
+          // Clear reservation when actually creating the batch
+          const newReserved = new Set(state.reservedBatchIds);
+          newReserved.delete(batchId);
+
+          return {
+            reservedBatchIds: newReserved,
+            batches: {
+              ...state.batches,
+              [batchId]: {
+                id: internalBatchId,
+                name,
+                taskIds: [taskId],
+                status: createIdleBatchStatus(),
+                completedCount: 0,
+                failedCount: 0,
+                // Session fields
+                claudeSessionId: null,
+                projectId,
+                projectPath,
+                createdAt: now,
+                updatedAt: now,
+              },
             },
-          },
-          tasks: {
-            ...state.tasks,
-            [taskId]: {
-              id: taskId,
-              batchId,
-              status: createQueuedStatus(),
-              requirementName,
+            tasks: {
+              ...state.tasks,
+              [taskId]: {
+                id: taskId,
+                batchId,
+                status: createQueuedStatus(),
+                requirementName,
+              },
             },
-          },
-        }));
+          };
+        });
 
         return internalBatchId;
       },
@@ -1126,11 +1138,39 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
 
         for (const id of batchIds) {
-          if (!state.batches[id]) {
+          // Check both actual batches AND reservations
+          if (!state.batches[id] && !state.reservedBatchIds.has(id)) {
             return id;
           }
         }
         return null;
+      },
+
+      // Atomically reserve a batch slot for async operations
+      // This prevents race conditions when multiple requests try to claim the same slot
+      reserveBatchSlot: () => {
+        const state = get();
+        const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
+
+        for (const id of batchIds) {
+          if (!state.batches[id] && !state.reservedBatchIds.has(id)) {
+            // Atomically add reservation
+            set((s) => ({
+              reservedBatchIds: new Set([...s.reservedBatchIds, id]),
+            }));
+            return id;
+          }
+        }
+        return null;
+      },
+
+      // Release a batch reservation if the async operation fails
+      releaseBatchReservation: (batchId) => {
+        set((state) => {
+          const newReserved = new Set(state.reservedBatchIds);
+          newReserved.delete(batchId);
+          return { reservedBatchIds: newReserved };
+        });
       },
 
       getSessionBatches: () => {

@@ -1,7 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { ContextSectionContentProps } from './types';
 import ContextCards from './ContextCards';
+import './context-section-animations.css';
 
 const ContextSectionContent = React.memo(({
   group,
@@ -21,51 +21,32 @@ const ContextSectionContent = React.memo(({
         }}
       />
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent" />
-      
-      {/* Animated Neural Grid */}
-      <motion.div
-        className="absolute inset-0 opacity-5 rounded-2xl"
+
+      {/* Animated Neural Grid - CSS animation instead of Framer Motion */}
+      <div
+        className="absolute inset-0 opacity-5 rounded-2xl context-neural-grid"
         style={{
-          backgroundImage: `
-            linear-gradient(${group?.color}30 1px, transparent 1px),
-            linear-gradient(90deg, ${group?.color}30 1px, transparent 1px)
-          `,
-          backgroundSize: '12px 12px'
-        }}
-        animate={{
-          backgroundPosition: ['0px 0px', '12px 12px'],
-        }}
-        transition={{
-          duration: 12,
-          repeat: Infinity,
-          ease: "linear"
-        }}
+          '--grid-color': `${group?.color}30`,
+        } as React.CSSProperties}
       />
-      
-      {/* Floating Neural Particles */}
-      {Array.from({ length: 4 }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute w-1 h-1 rounded-full"
-          style={{
-            backgroundColor: `${group?.color}60`,
-            left: `${20 + i * 20}%`,
-            top: `${20 + i * 15}%`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            x: [0, Math.random() * 20 - 10, 0],
-            opacity: [0, 1, 0],
-            scale: [0, 1.5, 0],
-          }}
-          transition={{
-            duration: 3 + Math.random() * 2,
-            repeat: Infinity,
-            delay: i * 0.5,
-            ease: "easeInOut"
-          }}
-        />
-      ))}
+
+      {/* Floating Neural Particles - CSS animations instead of Framer Motion */}
+      <div
+        className="absolute w-1 h-1 rounded-full context-particle context-particle-0"
+        style={{ '--particle-color': `${group?.color}60` } as React.CSSProperties}
+      />
+      <div
+        className="absolute w-1 h-1 rounded-full context-particle context-particle-1"
+        style={{ '--particle-color': `${group?.color}60` } as React.CSSProperties}
+      />
+      <div
+        className="absolute w-1 h-1 rounded-full context-particle context-particle-2"
+        style={{ '--particle-color': `${group?.color}60` } as React.CSSProperties}
+      />
+      <div
+        className="absolute w-1 h-1 rounded-full context-particle context-particle-3"
+        style={{ '--particle-color': `${group?.color}60` } as React.CSSProperties}
+      />
 
       {/* Context Cards */}
       {isExpanded && (

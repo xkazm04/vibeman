@@ -3,7 +3,7 @@
  * Pure helper functions for voicebot operations
  */
 
-import { SessionLog, AudioConfig, AudioProcessingConfig } from './voicebotTypes';
+import { SessionLog, AudioConfig, AudioProcessingConfig, ConversationMessage, LLMProvider } from './voicebotTypes';
 
 /**
  * Default audio configuration for media stream
@@ -189,4 +189,183 @@ export async function resumeAudioContext(context: AudioContext): Promise<void> {
   if (context.state === 'suspended') {
     await context.resume();
   }
+}
+
+/**
+ * Process text message result interface
+ */
+export interface ProcessTextMessageResult {
+  assistantText: string;
+  audioUrl?: string;
+  timing: {
+    llmMs: number;
+    ttsMs: number;
+    totalMs: number;
+  };
+}
+
+/**
+ * Process a text message through the LLM and TTS pipeline
+ *
+ * @param text - The user's input text
+ * @param conversationHistory - Previous conversation messages for context
+ * @param provider - The LLM provider to use
+ * @param model - The specific model to use
+ * @returns The assistant's response with audio and timing
+ */
+export async function processTextMessage(
+  text: string,
+  conversationHistory: ConversationMessage[],
+  provider: LLMProvider,
+  model: string
+): Promise<ProcessTextMessageResult> {
+  const startTime = performance.now();
+
+  // Call LLM API
+  const llmStartTime = performance.now();
+  let assistantText = '';
+
+  try {
+    const llmResponse = await fetch('/api/voicebot/llm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        conversationHistory,
+        provider,
+        model,
+      }),
+    });
+
+    if (!llmResponse.ok) {
+      throw new Error(`LLM API error: ${llmResponse.status}`);
+    }
+
+    const llmData = await llmResponse.json();
+    assistantText = llmData.response || 'I apologize, I could not generate a response.';
+  } catch (error) {
+    console.error('LLM processing error:', error);
+    assistantText = 'I encountered an error processing your request.';
+  }
+
+  const llmEndTime = performance.now();
+  const llmMs = Math.round(llmEndTime - llmStartTime);
+
+  // Call TTS API to generate audio
+  const ttsStartTime = performance.now();
+  let audioUrl: string | undefined;
+
+  try {
+    const ttsResponse = await fetch('/api/voicebot/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: assistantText }),
+    });
+
+    if (ttsResponse.ok) {
+      const ttsData = await ttsResponse.json();
+      audioUrl = ttsData.audioUrl;
+    }
+  } catch (error) {
+    console.error('TTS processing error:', error);
+    // Audio is optional, continue without it
+  }
+
+  const ttsEndTime = performance.now();
+  const ttsMs = Math.round(ttsEndTime - ttsStartTime);
+
+  const endTime = performance.now();
+  const totalMs = Math.round(endTime - startTime);
+
+  return {
+    assistantText,
+    audioUrl,
+    timing: {
+      llmMs,
+      ttsMs,
+      totalMs,
+    },
+  };
+}
+
+/**
+ * Process voice message result interface
+ */
+export interface ProcessVoiceMessageResult {
+  userText: string;
+  assistantText: string;
+  audioUrl?: string;
+  timing: {
+    sttMs: number;
+    llmMs: number;
+    ttsMs: number;
+    totalMs: number;
+  };
+}
+
+/**
+ * Process a voice message through the STT, LLM, and TTS pipeline
+ *
+ * @param audioBlob - The user's voice input as a Blob
+ * @param conversationHistory - Previous conversation messages for context
+ * @param provider - The LLM provider to use
+ * @param model - The specific model to use
+ * @returns The assistant's response with transcription, audio and timing
+ */
+export async function processVoiceMessage(
+  audioBlob: Blob,
+  conversationHistory: ConversationMessage[],
+  provider: LLMProvider,
+  model: string
+): Promise<ProcessVoiceMessageResult> {
+  const startTime = performance.now();
+
+  // Call STT API to transcribe audio
+  const sttStartTime = performance.now();
+  let userText = '';
+
+  try {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.wav');
+
+    const sttResponse = await fetch('/api/voicebot/stt', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!sttResponse.ok) {
+      throw new Error(`STT API error: ${sttResponse.status}`);
+    }
+
+    const sttData = await sttResponse.json();
+    userText = sttData.text || '';
+  } catch (error) {
+    console.error('STT processing error:', error);
+    throw new Error('Failed to transcribe audio');
+  }
+
+  const sttEndTime = performance.now();
+  const sttMs = Math.round(sttEndTime - sttStartTime);
+
+  if (!userText.trim()) {
+    throw new Error('No speech detected in audio');
+  }
+
+  // Process the transcribed text through LLM and TTS
+  const textResult = await processTextMessage(userText, conversationHistory, provider, model);
+
+  const endTime = performance.now();
+  const totalMs = Math.round(endTime - startTime);
+
+  return {
+    userText,
+    assistantText: textResult.assistantText,
+    audioUrl: textResult.audioUrl,
+    timing: {
+      sttMs,
+      llmMs: textResult.timing.llmMs,
+      ttsMs: textResult.timing.ttsMs,
+      totalMs,
+    },
+  };
 }

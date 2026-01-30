@@ -47,32 +47,36 @@ export default function MatrixDiagramView({
     };
   }, []);
 
-  const isConnectionHighlighted = (conn: CrossProjectRelationship) => {
-    const active = selectedCell || hoveredCell;
-    if (!active) return false;
-    return conn.sourceProjectId === active.sourceId && conn.targetProjectId === active.targetId;
-  };
+  // Active cell from selection or hover (selection takes precedence)
+  const activeCell = selectedCell || hoveredCell;
+  const hasActiveSelection = !!activeCell;
 
-  const isNodeHighlighted = (nodeId: string) => {
-    return (
-      selectedCell?.sourceId === nodeId ||
-      selectedCell?.targetId === nodeId ||
-      hoveredCell?.sourceId === nodeId ||
-      hoveredCell?.targetId === nodeId
-    );
-  };
+  /**
+   * Unified highlight checker for nodes and connections
+   * @param id - The ID to check (node ID or connection source/target pair)
+   * @param role - 'node' checks if ID matches source or target, 'connection' checks exact match
+   * @param targetId - For connections, the target ID to match
+   */
+  const isHighlighted = (id: string, role: 'node' | 'connection', targetId?: string): boolean => {
+    if (!activeCell) return false;
 
-  const hasActiveSelection = !!(selectedCell || hoveredCell);
+    if (role === 'node') {
+      return activeCell.sourceId === id || activeCell.targetId === id;
+    }
+
+    // role === 'connection'
+    return activeCell.sourceId === id && activeCell.targetId === targetId;
+  };
 
   return (
     <div className="flex-1 relative z-10">
       {showMatrixButton && (
         <button
           onClick={onShowMatrix}
-          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-zinc-900/90 hover:bg-cyan-900/50 rounded-lg border border-cyan-500/30 text-sm text-zinc-300 transition-colors shadow-lg"
+          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-zinc-900/90 hover:bg-cyan-900/50 rounded-lg border border-cyan-500/30 text-sm text-zinc-300 transition-all duration-200 shadow-lg hover:shadow-cyan-500/20 hover:border-cyan-400/50 backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 group"
         >
-          <Grid3X3 className="w-4 h-4" />
-          Show Matrix
+          <Grid3X3 className="w-4 h-4 group-hover:text-cyan-400 transition-colors duration-200" />
+          <span className="group-hover:text-white transition-colors duration-200">Show Matrix</span>
         </button>
       )}
 
@@ -124,7 +128,7 @@ export default function MatrixDiagramView({
               key={conn.id}
               connection={conn}
               nodes={nodes}
-              isHighlighted={isConnectionHighlighted(conn)}
+              isHighlighted={isHighlighted(conn.sourceProjectId, 'connection', conn.targetProjectId)}
               isDimmed={hasActiveSelection}
             />
           ))}
@@ -134,7 +138,7 @@ export default function MatrixDiagramView({
             <MatrixNode
               key={node.id}
               node={node}
-              isHighlighted={isNodeHighlighted(node.id)}
+              isHighlighted={isHighlighted(node.id, 'node')}
             />
           ))}
         </g>

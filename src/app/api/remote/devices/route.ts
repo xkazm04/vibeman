@@ -6,6 +6,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { deviceRegistry, initializeDeviceRegistry } from '@/lib/remote/deviceRegistry';
+import { commandProcessor } from '@/lib/remote/commandProcessor';
+import { registerAllCommandHandlers } from '@/lib/remote/commandHandlers';
+import { getActiveRemoteConfig } from '@/lib/remote/config.server';
 import type { DeviceRegistration } from '@/lib/remote/deviceTypes';
 
 export async function GET(request: NextRequest) {
@@ -81,6 +84,22 @@ export async function POST(request: NextRequest) {
     // Start heartbeat for this device
     deviceRegistry.startHeartbeat();
 
+    // Initialize command processor for this device
+    const config = getActiveRemoteConfig();
+    if (config && !commandProcessor.isPolling()) {
+      // Configure if not already configured
+      if (!commandProcessor.isReady()) {
+        commandProcessor.configure(config.url, config.serviceRoleKey);
+      }
+      // Register all command handlers
+      registerAllCommandHandlers();
+      // Set the local device ID so processor knows which commands to handle
+      commandProcessor.setLocalDeviceId(body.device_id);
+      // Start polling for commands (5 second interval)
+      commandProcessor.startPolling(5000);
+      console.log('[API/Devices] Command processor started for device:', body.device_id);
+    }
+
     return NextResponse.json({
       success: true,
       device,
@@ -105,6 +124,12 @@ export async function DELETE(request: NextRequest) {
         { success: false, error: 'Remote not configured' },
         { status: 503 }
       );
+    }
+
+    // Stop command processor
+    if (commandProcessor.isPolling()) {
+      commandProcessor.stopPolling();
+      console.log('[API/Devices] Command processor stopped');
     }
 
     // Unregister the current device

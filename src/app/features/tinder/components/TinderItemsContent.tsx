@@ -45,6 +45,8 @@ interface TinderItemsContentProps {
   onStartOver: () => void;
   onFlushComplete?: () => void;
   contextsMap?: Record<string, Context[]>;
+  /** Map of goal_id -> goal_title for batch-fetched goals */
+  goalTitlesMap?: Record<string, string>;
 }
 
 export default function TinderItemsContent({
@@ -61,6 +63,7 @@ export default function TinderItemsContent({
   onStartOver,
   onFlushComplete,
   contextsMap = {},
+  goalTitlesMap = {},
 }: TinderItemsContentProps) {
   const { getProject, projects } = useProjectConfigStore();
   const { selectedProjectId } = useUnifiedProjectStore();
@@ -118,7 +121,7 @@ export default function TinderItemsContent({
 
   if (loading && currentIndex === 0) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-12">
+      <div className="max-w-3xl mx-auto px-4 py-4">
         <div className="flex flex-col items-center justify-center h-[600px]">
           <Loader2 className="w-12 h-12 text-purple-400 animate-spin mb-4" />
           <p className="text-gray-400">Loading {getFlushItemTypeLabel()}...</p>
@@ -135,7 +138,7 @@ export default function TinderItemsContent({
         : "You've reviewed all pending items";
 
     return (
-      <div className="max-w-2xl mx-auto px-6 py-12">
+      <div className="max-w-3xl mx-auto px-4 py-4">
         <div className="flex flex-col items-center justify-center h-[600px]">
           <Sparkles className="w-16 h-16 text-purple-400 mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">All Done!</h2>
@@ -154,9 +157,9 @@ export default function TinderItemsContent({
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 relative">
+    <div className="max-w-3xl mx-auto px-4 py-4 relative">
       {/* Flush Button - Top Right */}
-      <div className="absolute top-4 right-6 z-50">
+      <div className="absolute top-0 right-4 z-50">
         <motion.button
           onClick={handleFlush}
           disabled={flushing || loading || processing}
@@ -223,6 +226,7 @@ export default function TinderItemsContent({
               const contextName = item.data.context_id
                 ? getContextNameFromMap(item.data.context_id, contextsMap)
                 : 'General';
+              const goalTitle = item.data.goal_id ? goalTitlesMap[item.data.goal_id] : undefined;
 
               return (
                 <IdeaCard
@@ -230,6 +234,7 @@ export default function TinderItemsContent({
                   idea={item.data}
                   projectName={projectName}
                   contextName={contextName}
+                  goalTitle={goalTitle}
                   onSwipeLeft={index === 0 ? onReject : () => {}}
                   onSwipeRight={index === 0 ? onAccept : () => {}}
                   style={{
@@ -266,12 +271,12 @@ export default function TinderItemsContent({
       />
 
       {/* Keyboard Hints */}
-      <div className="mt-4 flex justify-center">
+      <div className="mt-2 flex justify-center">
         <KeyboardHintCompact hints={TINDER_KEYBOARD_HINTS} />
       </div>
 
       {/* Progress Indicator */}
-      <div className="mt-6">
+      <div className="mt-3">
         <SwipeProgress
           total={items.length}
           reviewed={currentIndex}

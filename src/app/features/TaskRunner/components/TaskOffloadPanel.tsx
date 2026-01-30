@@ -85,9 +85,9 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
 
   if (!sourceBatch || queuedTasks.length === 0) {
     return (
-      <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+      <div className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-900/30 border border-gray-700/50 rounded-lg backdrop-blur-sm">
         <div className="flex items-center gap-2 text-gray-400">
-          <AlertCircle className="w-4 h-4" />
+          <AlertCircle className="w-4 h-4 opacity-70" />
           <span className="text-sm">No queued tasks available to offload</span>
         </div>
       </div>
@@ -107,7 +107,7 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
           </span>
           <button
             onClick={handleSelectAll}
-            className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+            className="text-xs text-cyan-400 hover:text-cyan-300 transition-all duration-200 flex items-center gap-1 hover:scale-105 active:scale-95"
             data-testid="select-all-tasks-btn"
           >
             {allSelected ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
@@ -115,15 +115,15 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
           </button>
         </div>
 
-        <div className="space-y-1 max-h-48 overflow-y-auto bg-gray-900/50 rounded border border-gray-700 p-2">
+        <div className="space-y-1 max-h-48 overflow-y-auto bg-gray-900/50 rounded-lg border border-gray-700/50 p-2 shadow-inner">
           {queuedTasks.map(task => (
             <label
               key={task.id}
               className={`
-                flex items-center gap-2 p-2 rounded cursor-pointer transition-colors
+                flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all duration-200
                 ${selectedTaskIds.has(task.id)
-                  ? 'bg-cyan-500/20 border border-cyan-500/50'
-                  : 'hover:bg-gray-700/30 border border-transparent'
+                  ? 'bg-cyan-500/20 border border-cyan-500/50 shadow-sm shadow-cyan-500/10'
+                  : 'hover:bg-gray-700/30 border border-transparent hover:border-gray-600/30'
                 }
               `}
               data-testid={`task-checkbox-${task.id}`}
@@ -145,7 +145,7 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
 
       {/* Info Message */}
       {availableBatches.length === 0 && (
-        <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-300 flex items-start gap-2">
+        <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/10 to-amber-500/5 border border-yellow-500/30 rounded-lg text-xs text-yellow-300 flex items-start gap-2 backdrop-blur-sm">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <p>
             No available batches. Create a new batch or wait for existing batches to have capacity.
@@ -158,11 +158,11 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
         onClick={handleSelectBatch}
         disabled={!canOffload || availableBatches.length === 0}
         className={`
-          w-full flex items-center justify-center gap-2 px-4 py-2 rounded font-medium text-sm
-          transition-all duration-200
+          w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm
+          transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50
           ${canOffload && availableBatches.length > 0
-            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/50'
-            : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/30 hover:scale-[1.02] active:scale-[0.98]'
+            : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
           }
         `}
         data-testid="select-batch-btn"
@@ -213,7 +213,7 @@ export function TaskOffloadButton({ sourceBatchId }: { sourceBatchId: BatchId })
   return (
     <button
       onClick={handleOpen}
-      className="text-xs px-2 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded transition-colors flex items-center gap-1"
+      className="text-xs px-2 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-md transition-all duration-200 flex items-center gap-1 hover:shadow-sm hover:shadow-cyan-500/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/30"
       data-testid={`offload-button-${sourceBatchId}`}
     >
       <ArrowRight className="w-3 h-3" />

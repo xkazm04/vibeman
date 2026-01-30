@@ -75,20 +75,20 @@ const BufferColumn = React.memo(function BufferColumn({
 
   return (
     <motion.div
-      className="flex flex-col bg-gray-900/40 border border-gray-700/40 rounded-lg overflow-hidden transition-all duration-200 hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-lg hover:shadow-black/20"
+      className="flex flex-col bg-gradient-to-b from-gray-900/50 to-gray-900/30 border border-gray-700/40 rounded-lg overflow-hidden transition-all duration-300 ease-out hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-xl hover:shadow-black/30 backdrop-blur-sm"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8, x: -100 }}
       transition={{ duration: 0.3 }}
       whileHover={{
-        y: -2,
+        y: -3,
         transition: { duration: 0.2, ease: 'easeOut' }
       }}
       layout
       data-testid={`buffer-column-${contextId || 'no-context'}`}
     >
       {/* Header */}
-      <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
+      <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-sm font-semibold text-gray-300 truncate" title={contextName}>
             {contextName}
@@ -117,7 +117,7 @@ const BufferColumn = React.memo(function BufferColumn({
       </div>
 
       {/* Ideas List */}
-      <div className="flex-1 px-2 py-2 space-y-1 min-h-[100px] max-h-[400px] overflow-y-auto custom-scrollbar">
+      <div className="flex-1 px-2 py-2 space-y-1 min-h-[100px] max-h-[400px] overflow-y-auto custom-scrollbar scroll-smooth">
         {sortedIdeas.length === 0 ? (
           <div className="flex items-center justify-center h-20 text-[10px] text-gray-600">
             No ideas

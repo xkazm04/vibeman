@@ -1,10 +1,9 @@
 'use client';
-import React, { useRef, useState, useEffect } from 'react';
-import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import React from 'react';
+import { motion, useTransform } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import {
   getCategoryConfig,
-  statusConfig,
   effortConfig,
   impactConfig,
   riskConfig,
@@ -13,11 +12,15 @@ import {
   RiskIcon,
 } from '@/app/features/Ideas/lib/ideaConfig';
 import { Calendar, Tag, Target } from 'lucide-react';
+import { formatCardDate } from '../lib/tinderUtils';
+import { useDragSwipe } from '../lib/tinderHooks';
 
 interface IdeaCardProps {
   idea: DbIdea;
   projectName: string;
   contextName?: string;
+  /** Pre-fetched goal title (avoids N+1 queries) */
+  goalTitle?: string;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   style?: React.CSSProperties;
@@ -27,58 +30,14 @@ export default function IdeaCard({
   idea,
   projectName,
   contextName = 'General',
+  goalTitle,
   onSwipeLeft,
   onSwipeRight,
   style,
 }: IdeaCardProps) {
-  const x = useMotionValue(0);
-  const rotateZ = useTransform(x, [-200, 200], [-15, 15]);
-
-  const [exitX, setExitX] = useState(0);
-  const [exitOpacity, setExitOpacity] = useState(1);
-  const [goalTitle, setGoalTitle] = useState<string | null>(null);
-  const [loadingGoal, setLoadingGoal] = useState(false);
+  const { x, rotateZ, exitX, exitOpacity, handleDragEnd } = useDragSwipe(onSwipeLeft, onSwipeRight);
 
   const config = getCategoryConfig(idea.category);
-
-  // Fetch goal title if goal_id exists
-  useEffect(() => {
-    if (idea.goal_id) {
-      setLoadingGoal(true);
-      fetch(`/api/goals?id=${idea.goal_id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.goal) {
-            setGoalTitle(data.goal.title);
-          }
-        })
-        .catch(err => console.error('Error fetching goal:', err))
-        .finally(() => setLoadingGoal(false));
-    }
-  }, [idea.goal_id]);
-
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    const threshold = 150;
-
-    if (Math.abs(info.offset.x) > threshold) {
-      // Swiped
-      setExitX(info.offset.x > 0 ? 1000 : -1000);
-      setExitOpacity(0);
-
-      setTimeout(() => {
-        if (info.offset.x > 0) {
-          onSwipeRight(); // Accept
-        } else {
-          onSwipeLeft(); // Reject
-        }
-      }, 200);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  };
 
   return (
     <motion.div
@@ -147,10 +106,10 @@ export default function IdeaCard({
           {/* Metrics */}
           <div className="flex items-center gap-3 mb-6">
             {idea.impact && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg">
-                <ImpactIcon className={`w-5 h-5 ${impactConfig[idea.impact]?.color || 'text-gray-400'}`} />
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg transition-all duration-200 hover:bg-gray-800/80 hover:border-gray-600/60 hover:shadow-md">
+                <ImpactIcon className={`w-5 h-5 ${impactConfig[idea.impact]?.color || 'text-gray-400'} transition-transform duration-200`} />
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">Impact</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Impact</div>
                   <div className={`text-lg font-bold ${impactConfig[idea.impact]?.color || 'text-gray-400'}`}>
                     {idea.impact}
                   </div>
@@ -159,10 +118,10 @@ export default function IdeaCard({
             )}
 
             {idea.effort && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg">
-                <EffortIcon className={`w-5 h-5 ${effortConfig[idea.effort]?.color || 'text-gray-400'}`} />
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg transition-all duration-200 hover:bg-gray-800/80 hover:border-gray-600/60 hover:shadow-md">
+                <EffortIcon className={`w-5 h-5 ${effortConfig[idea.effort]?.color || 'text-gray-400'} transition-transform duration-200`} />
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">Effort</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Effort</div>
                   <div className={`text-lg font-bold ${effortConfig[idea.effort]?.color || 'text-gray-400'}`}>
                     {idea.effort}
                   </div>
@@ -171,10 +130,10 @@ export default function IdeaCard({
             )}
 
             {idea.risk && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg">
-                <RiskIcon className={`w-5 h-5 ${riskConfig[idea.risk]?.color || 'text-gray-400'}`} />
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg transition-all duration-200 hover:bg-gray-800/80 hover:border-gray-600/60 hover:shadow-md">
+                <RiskIcon className={`w-5 h-5 ${riskConfig[idea.risk]?.color || 'text-gray-400'} transition-transform duration-200`} />
                 <div>
-                  <div className="text-[10px] text-gray-500 uppercase">Risk</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Risk</div>
                   <div className={`text-lg font-bold ${riskConfig[idea.risk]?.color || 'text-gray-400'}`}>
                     {idea.risk}
                   </div>
@@ -186,10 +145,10 @@ export default function IdeaCard({
           {/* Related Goal */}
           {goalTitle && (
             <div className="mb-4">
-              <div className="flex items-center gap-2 px-3 py-2 bg-purple-900/20 border border-purple-500/30 rounded-lg">
-                <Target className="w-4 h-4 text-purple-400" />
+              <div className="flex items-center gap-2 px-3 py-2 bg-purple-900/20 border border-purple-500/30 rounded-lg transition-all duration-200 hover:bg-purple-900/30 hover:border-purple-500/50 hover:shadow-md hover:shadow-purple-500/10">
+                <Target className="w-4 h-4 text-purple-400 transition-transform duration-200" />
                 <div>
-                  <div className="text-[10px] text-purple-400 uppercase">Related Goal</div>
+                  <div className="text-[10px] text-purple-400 uppercase tracking-wide">Related Goal</div>
                   <div className="text-sm font-semibold text-purple-300">{goalTitle}</div>
                 </div>
               </div>
@@ -221,14 +180,14 @@ export default function IdeaCard({
           {/* Footer */}
           <div className="flex items-center justify-between pt-4 border-t border-gray-700/40">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-              <span className="text-sm text-gray-400">{projectName}</span>
+              <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></div>
+              <span className="text-sm text-gray-400 transition-colors duration-200">{projectName}</span>
               <span className="text-sm text-gray-500">•</span>
-              <span className="text-sm text-gray-400">{contextName}</span>
+              <span className="text-sm text-gray-400 transition-colors duration-200">{contextName}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 tabular-nums">
               <Calendar className="w-3 h-3" />
-              <span>{formatDate(idea.created_at)}</span>
+              <span>{formatCardDate(idea.created_at)}</span>
             </div>
           </div>
         </div>

@@ -16,12 +16,7 @@ import {
   AlertCircle,
   Zap,
   ExternalLink,
-  Cloud,
-  RefreshCw,
 } from 'lucide-react';
-import { SyncButton } from './SyncButton';
-import { DecisionBadge } from './DecisionBadge';
-import { useDecisionSyncStore, getTimeSinceLastPoll } from '@/stores/decisionSyncStore';
 import type {
   IntegrationProvider,
   IntegrationEventType,
@@ -35,6 +30,7 @@ const inputClass = 'w-full px-3 py-2 bg-gray-900/60 border border-gray-700/50 ro
 const darkGradient = 'from-gray-900/95 via-gray-900/90 to-gray-950/95';
 
 // All available providers
+// Note: 'supabase' removed - use Zen Mode for cross-device sync
 const ALL_PROVIDERS: IntegrationProvider[] = [
   'github',
   'gitlab',
@@ -44,7 +40,6 @@ const ALL_PROVIDERS: IntegrationProvider[] = [
   'jira',
   'linear',
   'notion',
-  'supabase',
   'postgres',
 ];
 
@@ -91,14 +86,6 @@ export function IntegrationDetailPanel({
   const [registryInfo, setRegistryInfo] = useState<Record<string, RegistryEntry>>({});
   const [allEventTypes, setAllEventTypes] = useState<IntegrationEventType[]>([]);
   const [eventLabels, setEventLabels] = useState<Record<string, string>>({});
-  const [isPollingNow, setIsPollingNow] = useState(false);
-
-  // Decision sync store
-  const startPolling = useDecisionSyncStore((s) => s.startPolling);
-  const stopPolling = useDecisionSyncStore((s) => s.stopPolling);
-  const pollNow = useDecisionSyncStore((s) => s.pollNow);
-  const lastPollAt = useDecisionSyncStore((s) => s.lastPollAt);
-  const isPolling = useDecisionSyncStore((s) => s.isPolling);
 
   // Fetch registry info
   useEffect(() => {
@@ -117,18 +104,6 @@ export function IntegrationDetailPanel({
       })
       .catch(console.error);
   }, []);
-
-  // Auto-start decision polling when Supabase is connected
-  const isSupabaseConnected = provider === 'supabase' && integration?.status === 'active';
-  useEffect(() => {
-    if (isSupabaseConnected && !isPolling) {
-      startPolling();
-    }
-    return () => {
-      // Note: We don't stop polling on unmount since user might want it to continue
-      // Stop polling is handled when integration is disconnected
-    };
-  }, [isSupabaseConnected, isPolling, startPolling]);
 
   // Sync form state when integration changes
   useEffect(() => {
@@ -326,58 +301,7 @@ export function IntegrationDetailPanel({
           </>
         );
 
-      case 'supabase':
-        return (
-          <>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Project URL</label>
-              <input
-                type="url"
-                value={(config.projectUrl as string) || ''}
-                onChange={(e) => setConfig({ ...config, projectUrl: e.target.value })}
-                placeholder="https://xxx.supabase.co"
-                disabled={!isEditing}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Table Name</label>
-              <input
-                type="text"
-                value={(config.tableName as string) || ''}
-                onChange={(e) => setConfig({ ...config, tableName: e.target.value })}
-                placeholder="events"
-                disabled={!isEditing}
-                className={inputClass}
-              />
-            </div>
-            {isEditing && (
-              <>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Anon Key</label>
-                  <input
-                    type="password"
-                    value={(credentials.anonKey as string) || ''}
-                    onChange={(e) => setCredentials({ ...credentials, anonKey: e.target.value })}
-                    placeholder="eyJ..."
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Service Role Key (optional)</label>
-                  <input
-                    type="password"
-                    value={(credentials.serviceRoleKey as string) || ''}
-                    onChange={(e) => setCredentials({ ...credentials, serviceRoleKey: e.target.value })}
-                    placeholder="eyJ..."
-                    className={inputClass}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Required to validate that remote message broker tables exist</p>
-                </div>
-              </>
-            )}
-          </>
-        );
+      // Note: 'supabase' case removed - use Zen Mode for cross-device sync
 
       case 'postgres':
         return (
@@ -664,50 +588,7 @@ export function IntegrationDetailPanel({
           </div>
         </div>
 
-        {/* Supabase Actions - Show sync button when Supabase is connected */}
-        {!isNew && !isEditing && provider === 'supabase' && integration?.status === 'active' && (
-          <div className="border-t border-gray-700/50 pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-medium text-gray-400 flex items-center gap-2">
-                <Cloud className="w-3 h-3" />
-                Remote Sync Actions
-              </h4>
-              <DecisionBadge />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <SyncButton
-                projectId={projectId}
-                disabled={false}
-              />
-              <motion.button
-                onClick={async () => {
-                  setIsPollingNow(true);
-                  try {
-                    await pollNow();
-                  } finally {
-                    setIsPollingNow(false);
-                  }
-                }}
-                disabled={isPollingNow}
-                whileHover={{ scale: isPollingNow ? 1 : 1.02 }}
-                whileTap={{ scale: isPollingNow ? 1 : 0.98 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-cyan-500/20 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/30"
-                data-testid="poll-decisions-btn"
-              >
-                <RefreshCw className={`w-4 h-4 ${isPollingNow ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium">
-                  {isPollingNow ? 'Polling...' : 'Poll Decisions'}
-                </span>
-              </motion.button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Push pending directions and requirements to Butler for mobile triage
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Last synced: {getTimeSinceLastPoll(lastPollAt)} {isPolling && <span className="text-cyan-400">(auto-polling active)</span>}
-            </p>
-          </div>
-        )}
+        {/* Note: Supabase Actions section removed - use Zen Mode for cross-device sync */}
 
         {/* Save Button (Edit Mode) */}
         {isEditing && (

@@ -212,6 +212,14 @@ export const contextGroupQueries = {
     );
   },
 
+  // Delete all context groups for a project
+  deleteAllByProject: async (projectId: string): Promise<number> => {
+    return handleAsyncOperation(
+      async () => contextGroupDb.deleteAllByProject(projectId),
+      'Failed to delete all context groups'
+    );
+  },
+
   // Get group count for a project
   getGroupCount: async (projectId: string): Promise<number> => {
     try {
@@ -220,6 +228,17 @@ export const contextGroupQueries = {
       logger.error('Failed to get group count:', error);
       return 0;
     }
+  },
+
+  // Get all context groups for multiple projects in a single batched query
+  getGroupsByProjects: async (projectIds: string[]): Promise<ContextGroup[]> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbGroups = contextGroupDb.getGroupsByProjects(projectIds);
+        return dbGroups.map(dbContextGroupToContextGroup);
+      },
+      'Failed to fetch context groups for multiple projects'
+    );
   },
 };
 
@@ -410,6 +429,17 @@ export const contextQueries = {
     return handleAsyncOperation(
       async () => contextDb.deleteAllContextsByProject(projectId),
       'Failed to delete all contexts'
+    );
+  },
+
+  // Get all contexts for multiple projects in a single batched query
+  getContextsByProjects: async (projectIds: string[]): Promise<Context[]> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbContexts = contextDb.getContextsByProjects(projectIds);
+        return dbContexts.map(dbContextToContext);
+      },
+      'Failed to fetch contexts for multiple projects'
     );
   },
 };

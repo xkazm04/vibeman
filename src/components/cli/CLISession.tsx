@@ -132,10 +132,10 @@ export function CLISession({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="flex flex-col bg-gray-800/30 border border-gray-700/50 rounded-lg overflow-hidden"
+      className="flex flex-col bg-gradient-to-br from-gray-800/30 to-gray-900/20 border border-gray-700/50 rounded-lg overflow-hidden backdrop-blur-sm shadow-sm hover:shadow-md hover:border-gray-600/50 transition-all duration-300"
     >
       {/* Session Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-800/50 border-b border-gray-700/50">
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-800/50 border-b border-gray-700/40">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             <span className="text-xs font-medium text-gray-300">
@@ -152,11 +152,11 @@ export function CLISession({
                       handleDelete();
                     }
                   }}
-                  className={`p-0.5 rounded transition-colors ${
+                  className={`p-0.5 rounded transition-all duration-200 ${
                     isRunning
-                      ? 'text-red-400/70 hover:text-red-400 hover:bg-red-500/20'
-                      : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
-                  }`}
+                      ? 'text-red-400/70 hover:text-red-400 hover:bg-red-500/20 hover:scale-110'
+                      : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10 hover:scale-110'
+                  } active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30`}
                   title={isRunning ? 'Stop & reset session' : 'Reset session'}
                 >
                   <X className="w-3 h-3" />
@@ -170,7 +170,7 @@ export function CLISession({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -5, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute left-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-sm border border-red-500/30 rounded-lg shadow-xl p-3 min-w-[200px]"
+                      className="absolute left-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-md border border-red-500/30 rounded-lg shadow-2xl shadow-red-500/10 p-3 min-w-[200px]"
                     >
                       <div className="flex items-start gap-2 mb-3">
                         <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
@@ -184,13 +184,13 @@ export function CLISession({
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => setShowDeleteConfirm(false)}
-                          className="px-2 py-1 text-[10px] text-gray-400 hover:text-gray-300 transition-colors"
+                          className="px-2 py-1 text-[10px] text-gray-400 hover:text-gray-300 transition-all duration-200 hover:bg-gray-800/50 rounded"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={handleDelete}
-                          className="px-2 py-1 text-[10px] bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors font-medium"
+                          className="px-2 py-1 text-[10px] bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-all duration-200 font-medium hover:shadow-sm hover:shadow-red-500/20 active:scale-95"
                         >
                           Stop & Reset
                         </button>
@@ -203,7 +203,7 @@ export function CLISession({
           </div>
           {/* Session resolved count */}
           {session.completedCount > 0 && (
-            <span className="text-[9px] px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded font-medium">
+            <span className="text-[9px] px-1.5 py-0.5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-green-400 rounded font-medium border border-green-500/20">
               {session.completedCount} resolved
             </span>
           )}
@@ -250,7 +250,7 @@ export function CLISession({
           <button
             onClick={handleAddTasks}
             disabled={selectedCount === 0}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-sm hover:shadow-cyan-500/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/30"
             title={`Add ${selectedCount} selected tasks`}
           >
             <Plus className="w-3 h-3" />
@@ -264,11 +264,11 @@ export function CLISession({
                 {/* Toggle button */}
                 <button
                   onClick={handleToggleGit}
-                  className={`p-1 rounded-l transition-colors border-r border-gray-700/30 ${
+                  className={`p-1 rounded-l transition-all duration-200 border-r border-gray-700/30 ${
                     session.gitEnabled
-                      ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                      : 'text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10'
-                  }`}
+                      ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 hover:scale-105'
+                      : 'text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:scale-105'
+                  } active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/30`}
                   title={session.gitEnabled ? 'Git auto-commit enabled (click to disable)' : 'Git auto-commit disabled (click to enable)'}
                 >
                   <Github className="w-3 h-3" />
@@ -276,13 +276,13 @@ export function CLISession({
                 {/* Config button */}
                 <button
                   onClick={() => setShowGitConfig(!showGitConfig)}
-                  className={`p-1 rounded-r transition-colors ${
+                  className={`p-1 rounded-r transition-all duration-200 ${
                     showGitConfig
                       ? 'bg-purple-500/20 text-purple-400'
                       : session.gitEnabled
-                        ? 'bg-yellow-500/10 text-yellow-400/60 hover:text-yellow-400'
-                        : 'text-gray-600 hover:text-gray-400 hover:bg-gray-700/30'
-                  }`}
+                        ? 'bg-yellow-500/10 text-yellow-400/60 hover:text-yellow-400 hover:scale-105'
+                        : 'text-gray-600 hover:text-gray-400 hover:bg-gray-700/30 hover:scale-105'
+                  } active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30`}
                   title="Configure git settings"
                 >
                   <Settings className="w-2.5 h-2.5" />
@@ -297,7 +297,7 @@ export function CLISession({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -5, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl p-3 min-w-[320px]"
+                    className="absolute right-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-lg shadow-2xl shadow-purple-500/10 p-3 min-w-[320px]"
                   >
                     <CLIGitConfigPanel
                       config={session.gitConfig}
@@ -325,7 +325,7 @@ export function CLISession({
                   <button
                     key={skill.id}
                     onClick={() => handleToggleSkill(skill.id)}
-                    className={`p-1 rounded border transition-colors ${isActive ? 'border' : 'border-transparent'} ${colorClasses[skill.color as keyof typeof colorClasses]}`}
+                    className={`p-1 rounded border transition-all duration-200 hover:scale-110 active:scale-95 ${isActive ? 'border shadow-sm' : 'border-transparent'} ${colorClasses[skill.color as keyof typeof colorClasses]} focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30`}
                     title={`${skill.name}: ${skill.description}${isActive ? ' (active)' : ''}`}
                   >
                     <Icon className="w-3 h-3" />
@@ -339,7 +339,7 @@ export function CLISession({
           {canStart && (
             <button
               onClick={handleStart}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-[10px] bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-md transition-all duration-200 hover:shadow-sm hover:shadow-green-500/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500/30"
               title="Start queue"
             >
               <Play className="w-3 h-3" />
@@ -356,11 +356,11 @@ export function CLISession({
               <button
                 key={task.id}
                 onClick={() => handleCopyFilename(task.id, task.requirementName)}
-                className={`text-[9px] px-1.5 py-0.5 rounded truncate max-w-[100px] flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity ${
-                  task.status === 'running' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                  task.status === 'completed' ? 'bg-green-500/10 text-green-400' :
-                  task.status === 'failed' ? 'bg-red-500/10 text-red-400' :
-                  'bg-gray-700/50 text-gray-400'
+                className={`text-[9px] px-1.5 py-0.5 rounded-md truncate max-w-[100px] flex items-center gap-1 cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${
+                  task.status === 'running' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-sm shadow-blue-500/10' :
+                  task.status === 'completed' ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20' :
+                  task.status === 'failed' ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' :
+                  'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50'
                 }`}
                 title={`${task.requirementName} (click to copy)`}
               >

@@ -2,8 +2,9 @@
 
 import React from 'react';
 import type { WorkspaceProjectNode, CrossProjectRelationship, IntegrationType } from '../sub_WorkspaceArchitecture/lib/types';
-import { TIER_CONFIG, INTEGRATION_COLORS } from '../sub_WorkspaceArchitecture/lib/types';
+import { TIER_CONFIG } from '../sub_WorkspaceArchitecture/lib/types';
 import { MATRIX_CONSTANTS } from '../sub_WorkspaceArchitecture/lib/matrixLayoutUtils';
+import { INTEGRATION_COLORS } from './constants';
 
 interface MatrixGridProps {
   sortedNodes: WorkspaceProjectNode[];
@@ -31,7 +32,7 @@ export default function MatrixGrid({
   const { cellSize, labelOffset, headerHeight } = MATRIX_CONSTANTS;
 
   return (
-    <div className="overflow-auto bg-zinc-900/30 rounded-lg border border-zinc-800/50 -p-2">
+    <div className="overflow-auto bg-zinc-900/30 rounded-lg border border-zinc-800/50 -p-2 transition-colors duration-200 hover:border-zinc-700/60">
       <svg width={contentWidth} height={contentHeight}>
         {/* Column headers (rotated) */}
         {sortedNodes.map((node, i) => (

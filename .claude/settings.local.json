@@ -138,7 +138,14 @@
       "WebFetch(domain:reactflow.dev)",
       "WebFetch(domain:github.com)",
       "Bash(powershell.exe -Command \"Start-Process -FilePath ''npm'' -ArgumentList ''run'',''dev'' -WorkingDirectory ''C:\\\\Users\\\\kazda\\\\kiro\\\\vibeman'' -NoNewWindow\")",
-      "Bash(cmd.exe /c \"start /B npm run dev\")"
+      "Bash(cmd.exe /c \"start /B npm run dev\")",
+      "Bash(while read f)",
+      "Bash(git -C /c/Users/kazda/kiro/vibeman status --short)",
+      "Bash(sort:*)",
+      "Bash(git -C /c/Users/kazda/kiro/vibeman show --name-status HEAD)",
+      "Bash(__NEW_LINE_de6f5695d7835421__ echo \"=== VERIFICATION OF FINDINGS ===\")",
+      "Skill(gsd:plan-phase)",
+      "Bash(npx next build:*)"
     ],
     "deny": [],
     "ask": []

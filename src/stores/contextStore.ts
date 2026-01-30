@@ -5,13 +5,28 @@ import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
 import { contextAPI } from './context/contextAPI';
 import type { Context, ContextGroup, ContextState, ContextStore } from './context/contextStoreTypes';
 import {
-  createLoadingState,
   createErrorState,
   createSuccessState,
   updateArrayItem,
   removeArrayItem,
-  addArrayItem
+  addArrayItem,
+  createDebouncedLoadingManager,
+  type DebouncedLoadingManager
 } from './utils/storeHelpers';
+
+// Singleton debounced loading manager for the context store
+// Initialized lazily to avoid issues with SSR
+let loadingManager: DebouncedLoadingManager | null = null;
+
+function getLoadingManager(set: (state: Partial<ContextStoreState>) => void): DebouncedLoadingManager {
+  if (!loadingManager) {
+    loadingManager = createDebouncedLoadingManager(
+      (loading) => set({ loading, error: null }),
+      150 // 150ms delay before showing loading spinner
+    );
+  }
+  return loadingManager;
+}
 
 // Re-export for backward compatibility
 export { CONTEXT_GROUP_COLORS };
@@ -79,6 +94,7 @@ interface ContextStoreState extends ContextState {
   loadProjectData: (projectId: string, signal?: AbortSignal) => Promise<void>;
   clearAllContexts: () => void;
   deleteAllContexts: (projectId: string) => Promise<number>;
+  removeAllGroups: (projectId: string) => Promise<number>;
   getContext: (contextId: string) => Context | undefined;
   getGroup: (groupId: string) => ContextGroup | undefined;
   getContextsByGroup: (groupId: string) => Context[];
@@ -97,17 +113,19 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
   loadProjectData: async (projectId: string, signal?: AbortSignal) => {
     if (!projectId) return;
 
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    // Force loading for initial data fetch (user expects to see loading)
+    manager.forceLoading();
 
     try {
       const { groups, contexts } = await contextAPI.getProjectData(projectId, signal);
 
       if (signal?.aborted) {
-        // Reset loading state even when aborted to prevent stuck "Syncing..." indicator
-        set(createSuccessState());
+        manager.reset();
         return;
       }
 
+      manager.reset();
       set({
         groups,
         contexts,
@@ -115,9 +133,8 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
         initialized: true,
       });
     } catch (error) {
+      manager.reset();
       if (error instanceof DOMException && error.name === 'AbortError') {
-        // Reset loading state on abort to prevent stuck "Syncing..." indicator
-        set(createSuccessState());
         return;
       }
       set(createErrorState(error, 'Failed to load contexts'));
@@ -126,7 +143,8 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
   // Add a new context
   addContext: async (contextData) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    manager.startOperation();
 
     try {
       // Use the new generate-context API endpoint
@@ -156,11 +174,13 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
       const newContext = result.context;
 
+      manager.endOperation();
       set(state => ({
         contexts: addArrayItem(state.contexts, newContext, 'start'),
         ...createSuccessState(),
       }));
     } catch (error) {
+      manager.endOperation();
       set(createErrorState(error, 'Failed to add context'));
       throw error;
     }
@@ -168,12 +188,14 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
   // Remove a context
   removeContext: async (contextId: string) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    manager.startOperation();
 
     try {
       const success = await contextAPI.deleteContext(contextId);
 
       if (success) {
+        manager.endOperation();
         set(state => ({
           contexts: removeArrayItem(state.contexts, contextId),
           ...createSuccessState(),
@@ -182,6 +204,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
         throw new Error('Context not found');
       }
     } catch (error) {
+      manager.endOperation();
       set(createErrorState(error, 'Failed to remove context'));
       throw error;
     }
@@ -189,12 +212,14 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
   // Update a context
   updateContext: async (contextId: string, updates) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    manager.startOperation();
 
     try {
       const updatedContext = await contextAPI.updateContext(contextId, updates);
 
       if (updatedContext) {
+        manager.endOperation();
         set(state => ({
           contexts: updateArrayItem(state.contexts, contextId, updatedContext),
           ...createSuccessState(),
@@ -203,6 +228,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
         throw new Error('Context not found');
       }
     } catch (error) {
+      manager.endOperation();
       set(createErrorState(error, 'Failed to update context'));
       throw error;
     }
@@ -210,12 +236,14 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
   // Move context to different group
   moveContext: async (contextId: string, newGroupId: string | null) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    manager.startOperation();
 
     try {
       const updatedContext = await contextAPI.updateContext(contextId, { groupId: newGroupId });
 
       if (updatedContext) {
+        manager.endOperation();
         set(state => ({
           contexts: updateArrayItem(state.contexts, contextId, updatedContext),
           ...createSuccessState(),
@@ -224,6 +252,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
         throw new Error('Context not found');
       }
     } catch (error) {
+      manager.endOperation();
       set(createErrorState(error, 'Failed to move context'));
       throw error;
     }
@@ -236,16 +265,19 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
   // Add a new group
   addGroup: async (groupData) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    manager.startOperation();
 
     try {
       const newGroup = await contextAPI.createGroup(groupData);
 
+      manager.endOperation();
       set(state => ({
         groups: [...state.groups, newGroup].sort((a, b) => a.position - b.position),
         ...createSuccessState(),
       }));
     } catch (error) {
+      manager.endOperation();
       set(createErrorState(error, 'Failed to add group'));
       throw error;
     }
@@ -253,12 +285,14 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
   // Remove a group
   removeGroup: async (groupId: string) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    manager.startOperation();
 
     try {
       const success = await contextAPI.deleteGroup(groupId);
 
       if (success) {
+        manager.endOperation();
         set(state => ({
           groups: removeArrayItem(state.groups, groupId),
           contexts: state.contexts.map(ctx =>
@@ -270,6 +304,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
         throw new Error('Group not found');
       }
     } catch (error) {
+      manager.endOperation();
       set(createErrorState(error, 'Failed to remove group'));
       throw error;
     }
@@ -277,12 +312,14 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
   // Update a group
   updateGroup: async (groupId: string, updates) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    manager.startOperation();
 
     try {
       const updatedGroup = await contextAPI.updateGroup(groupId, updates);
 
       if (updatedGroup) {
+        manager.endOperation();
         set(state => ({
           groups: updateArrayItem(state.groups, groupId, updatedGroup)
             .sort((a, b) => a.position - b.position),
@@ -292,6 +329,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
         throw new Error('Group not found');
       }
     } catch (error) {
+      manager.endOperation();
       set(createErrorState(error, 'Failed to update group'));
       throw error;
     }
@@ -304,21 +342,53 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
     initialized: false,
   }),
 
-  // Delete all contexts for a project (database + state)
+  // Delete all contexts and groups for a project (database + state)
   deleteAllContexts: async (projectId: string) => {
-    set(createLoadingState());
+    const manager = getLoadingManager(set);
+    // Force loading for bulk delete (user expects feedback)
+    manager.forceLoading();
 
     try {
+      // Delete all contexts first
       const deletedCount = await contextAPI.deleteAllContexts(projectId);
+      // Then delete all groups
+      await contextAPI.deleteAllGroups(projectId);
 
-      set(state => ({
+      manager.reset();
+      set(() => ({
         contexts: [],
+        groups: [],
         ...createSuccessState(),
       }));
 
       return deletedCount;
     } catch (error) {
+      manager.reset();
       set(createErrorState(error, 'Failed to delete all contexts'));
+      throw error;
+    }
+  },
+
+  // Delete all groups for a project (database + state)
+  removeAllGroups: async (projectId: string) => {
+    const manager = getLoadingManager(set);
+    manager.forceLoading();
+
+    try {
+      const deletedCount = await contextAPI.deleteAllGroups(projectId);
+
+      manager.reset();
+      set(state => ({
+        groups: [],
+        // Ungroup all contexts in state
+        contexts: state.contexts.map(ctx => ({ ...ctx, groupId: null })),
+        ...createSuccessState(),
+      }));
+
+      return deletedCount;
+    } catch (error) {
+      manager.reset();
+      set(createErrorState(error, 'Failed to delete all groups'));
       throw error;
     }
   },

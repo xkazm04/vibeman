@@ -58,3 +58,11 @@ function formatCount(count: number): string {
   if (count < 1000) return count.toString();
   return `${Math.floor(count / 100) / 10}k`;
 }
+
+/**
+ * Format date as MM-DD for compact card display
+ */
+export function formatCardDate(dateString: string): string {
+  const date = new Date(dateString);
+  return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}

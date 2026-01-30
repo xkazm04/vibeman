@@ -4,6 +4,7 @@
  */
 
 // Integration provider types
+// Note: 'supabase' removed - use Zen Mode for cross-device sync instead
 export type IntegrationProvider =
   | 'github'
   | 'gitlab'
@@ -13,7 +14,6 @@ export type IntegrationProvider =
   | 'jira'
   | 'linear'
   | 'notion'
-  | 'supabase'
   | 'postgres';
 
 // Integration status

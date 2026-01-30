@@ -5,7 +5,8 @@
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { DbQuestion, DbDirection, DbContext, DbContextGroup } from '@/app/db';
+import { DbQuestion, DbDirection } from '@/app/db';
+import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import {
   fetchQuestions,
   answerQuestion,
@@ -40,8 +41,8 @@ export const contextsQueryKeys = {
 // ============ CONTEXTS ============
 
 interface SqliteContextsData {
-  contexts: DbContext[];
-  groups: DbContextGroup[];
+  contexts: Context[];
+  groups: ContextGroup[];
 }
 
 /**

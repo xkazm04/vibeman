@@ -187,4 +187,21 @@ export const contextAPI = {
 
     return true;
   },
+
+  /**
+   * Delete all groups for a project
+   */
+  deleteAllGroups: async (projectId: string): Promise<number> => {
+    const response = await fetch(`/api/context-groups?projectId=${projectId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete all groups');
+    }
+
+    const data = await response.json();
+    return data.deletedCount || 0;
+  },
 };

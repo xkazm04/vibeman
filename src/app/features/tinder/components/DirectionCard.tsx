@@ -1,8 +1,10 @@
 'use client';
-import React, { useState, useMemo } from 'react';
-import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import React, { useMemo } from 'react';
+import { motion, useTransform } from 'framer-motion';
 import { DbDirection } from '@/app/db';
 import { Calendar, Compass, MapPin } from 'lucide-react';
+import { formatCardDate } from '../lib/tinderUtils';
+import { useDragSwipe } from '../lib/tinderHooks';
 
 interface DirectionCardProps {
   direction: DbDirection;
@@ -124,34 +126,7 @@ export default function DirectionCard({
   onSwipeRight,
   style,
 }: DirectionCardProps) {
-  const x = useMotionValue(0);
-  const rotateZ = useTransform(x, [-200, 200], [-15, 15]);
-
-  const [exitX, setExitX] = useState(0);
-  const [exitOpacity, setExitOpacity] = useState(1);
-
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    const threshold = 150;
-
-    if (Math.abs(info.offset.x) > threshold) {
-      // Swiped
-      setExitX(info.offset.x > 0 ? 1000 : -1000);
-      setExitOpacity(0);
-
-      setTimeout(() => {
-        if (info.offset.x > 0) {
-          onSwipeRight(); // Accept/Implement
-        } else {
-          onSwipeLeft(); // Reject/Skip
-        }
-      }, 200);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  };
+  const { x, rotateZ, exitX, exitOpacity, handleDragEnd } = useDragSwipe(onSwipeLeft, onSwipeRight);
 
   // Truncate direction content for preview (but preserve full lines)
   const getDirectionPreview = (content: string, maxLength: number = 500) => {
@@ -259,7 +234,7 @@ export default function DirectionCard({
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Calendar className="w-3 h-3" />
-              <span>{formatDate(direction.created_at)}</span>
+              <span>{formatCardDate(direction.created_at)}</span>
             </div>
           </div>
         </div>

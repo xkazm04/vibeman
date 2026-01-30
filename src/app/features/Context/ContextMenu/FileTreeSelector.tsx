@@ -184,7 +184,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search files..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20"
+            className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 hover:bg-gray-800/70"
           />
         </div>
         
@@ -198,7 +198,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
                 selectedPaths.forEach(path => onPathToggle(path));
                 clearSelection();
               }}
-              className="text-sm text-red-400 hover:text-red-300 transition-colors"
+              className="text-sm text-red-400 hover:text-red-300 transition-all duration-200 px-2 py-0.5 rounded hover:bg-red-500/10"
             >
               Clear all
             </button>
@@ -213,7 +213,7 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
           <button
             onClick={handleSmartSelection}
             disabled={isAnalyzing}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded-lg hover:from-purple-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium border border-purple-500/30"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded-lg hover:from-purple-500/30 hover:to-blue-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium border border-purple-500/30 hover:shadow-md hover:shadow-purple-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/50"
           >
             {isAnalyzing ? (
               <>

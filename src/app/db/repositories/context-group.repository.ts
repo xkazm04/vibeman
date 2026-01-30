@@ -177,6 +177,17 @@ export const contextGroupRepository = {
   },
 
   /**
+   * Delete all context groups for a project
+   * Returns the number of deleted groups
+   */
+  deleteAllByProject: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM context_groups WHERE project_id = ?');
+    const result = stmt.run(projectId);
+    return result.changes;
+  },
+
+  /**
    * Get the maximum position for a project
    */
   getMaxPosition: (projectId: string): number => {
@@ -202,5 +213,22 @@ export const contextGroupRepository = {
     `);
     const result = stmt.get(projectId) as { count: number };
     return result.count;
+  },
+
+  /**
+   * Get all context groups for multiple projects in a single query
+   * Uses SQL IN clause for efficient batching
+   */
+  getGroupsByProjects: (projectIds: string[]): DbContextGroup[] => {
+    if (projectIds.length === 0) return [];
+
+    const db = getDatabase();
+    const placeholders = projectIds.map(() => '?').join(', ');
+    const stmt = db.prepare(`
+      SELECT * FROM context_groups
+      WHERE project_id IN (${placeholders})
+      ORDER BY project_id, position ASC
+    `);
+    return stmt.all(...projectIds) as DbContextGroup[];
   }
 };

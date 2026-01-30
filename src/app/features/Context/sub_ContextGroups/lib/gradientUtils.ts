@@ -5,6 +5,23 @@
  * for smooth transitions between context group colors.
  */
 
+// Cache for glass gradient computations
+// Key format: "baseColor|accentColor" (accentColor may be undefined)
+const glassGradientCache = new Map<string, {
+  background: string;
+  borderColor: string;
+  shadowColor: string;
+  glowColor: string;
+}>();
+
+// Pre-computed gradients for standard group colors (computed at module load)
+// These 18 colors from CONTEXT_GROUP_COLORS are pre-warmed in the cache
+const PRECOMPUTED_COLORS = [
+  '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#3B82F6',
+  '#EC4899', '#84CC16', '#6366F1', '#14B8A6', '#F97316', '#A855F7',
+  '#22C55E', '#E11D48', '#0EA5E9', '#FACC15', '#64748B', '#D946EF',
+] as const;
+
 /**
  * Parse a hex color to RGB values
  */
@@ -98,6 +115,7 @@ export function generateMultiStopGradient(
 
 /**
  * Generate a glassmorphism-style gradient with subtle color accents
+ * Results are cached by color pair for efficient re-renders.
  * @param baseColor - Primary accent color
  * @param accentColor - Secondary accent color (optional)
  * @returns Object with CSS properties for glassmorphism effect
@@ -108,15 +126,28 @@ export function generateGlassGradient(baseColor: string, accentColor?: string): 
   shadowColor: string;
   glowColor: string;
 } {
+  // Check cache first
+  const cacheKey = `${baseColor}|${accentColor ?? ''}`;
+  const cached = glassGradientCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Compute gradient
   const rgb = hexToRgb(baseColor);
   const accent = accentColor ? hexToRgb(accentColor) : rgb;
 
-  return {
+  const result = {
     background: `linear-gradient(135deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08) 0%, rgba(${accent.r}, ${accent.g}, ${accent.b}, 0.04) 50%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.02) 100%)`,
     borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.2)`,
     shadowColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`,
     glowColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,
   };
+
+  // Cache result
+  glassGradientCache.set(cacheKey, result);
+
+  return result;
 }
 
 /**
@@ -227,3 +258,14 @@ export const ACCENT_PALETTES = {
 } as const;
 
 export type AccentPaletteName = keyof typeof ACCENT_PALETTES;
+
+// Pre-warm the cache with standard group colors at module load time
+// This ensures zero computation cost on first render for common colors
+function prewarmGlassGradientCache(): void {
+  for (const color of PRECOMPUTED_COLORS) {
+    generateGlassGradient(color);
+  }
+}
+
+// Execute pre-warming immediately when module loads
+prewarmGlassGradientCache();

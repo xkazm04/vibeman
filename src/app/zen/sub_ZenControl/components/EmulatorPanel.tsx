@@ -1,11 +1,19 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Loader2, Power, PowerOff, Send, AlertCircle } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { AlertCircle, Sparkles } from 'lucide-react';
+import EmulatorHeader from './EmulatorHeader';
+import EmulatorTabs, { type EmulatorTab } from './EmulatorTabs';
 import DeviceGrid from './DeviceGrid';
+import RemoteBatchPanel from './RemoteBatchPanel';
+import RemoteMonitorPanel from './RemoteMonitorPanel';
+import ResponsivePanel from './ResponsivePanel';
+import TopologyMap from './TopologyMap';
+import FleetDashboard from './FleetDashboard';
 import { useDeviceDiscovery } from '../hooks/useDeviceDiscovery';
 import { useSelectedDevice } from '@/stores/emulatorStore';
+import type { NetworkTopology } from '@/lib/remote/topologyBuilder';
+// Note: RemoteTriagePanel removed - triage now done via Tinder module
 
 interface EmulatorPanelProps {
   isConfigured: boolean;
@@ -28,17 +36,52 @@ export default function EmulatorPanel({ isConfigured }: EmulatorPanelProps) {
   } = useDeviceDiscovery({
     autoRegister: false,
     autoRefresh: true,
-    refreshInterval: 15000, // Faster refresh in emulator mode
+    refreshInterval: 15000,
   });
 
   const selectedDevice = useSelectedDevice();
-  const [isSendingCommand, setIsSendingCommand] = useState(false);
-  const [commandResult, setCommandResult] = useState<{ success: boolean; message: string } | null>(
-    null
-  );
+  const [activeTab, setActiveTab] = useState<EmulatorTab>('devices');
+
+  // Topology state
+  const [topology, setTopology] = useState<NetworkTopology | null>(null);
+  const [isLoadingTopology, setIsLoadingTopology] = useState(false);
+  const [selectedTopologyNode, setSelectedTopologyNode] = useState<string | null>(null);
 
   // Track if we've already attempted auto-connect to prevent infinite loops
   const hasAttemptedConnect = useRef(false);
+
+  // Fetch topology data
+  const fetchTopology = useCallback(async () => {
+    if (!isRegistered || !localDeviceId) return;
+
+    setIsLoadingTopology(true);
+    try {
+      const response = await fetch(
+        `/api/remote/mesh/topology?local_device_id=${localDeviceId}&include_improvements=true`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.topology) {
+          setTopology(data.topology);
+        }
+      }
+    } catch (error) {
+      console.error('[EmulatorPanel] Topology fetch error:', error);
+    } finally {
+      setIsLoadingTopology(false);
+    }
+  }, [isRegistered, localDeviceId]);
+
+  // Fetch topology when tab is active and registered
+  useEffect(() => {
+    if (activeTab === 'topology' && isRegistered) {
+      fetchTopology();
+
+      // Auto-refresh topology every 30 seconds
+      const interval = setInterval(fetchTopology, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, isRegistered, fetchTopology]);
 
   // Auto-connect when panel is shown and configured (only once)
   useEffect(() => {
@@ -48,48 +91,8 @@ export default function EmulatorPanel({ isConfigured }: EmulatorPanelProps) {
     }
   }, [isConfigured, isRegistered, isConnecting, registerDevice]);
 
-  // Reset the attempt flag when user manually disconnects
-  useEffect(() => {
-    if (!isRegistered && !isConnecting && hasAttemptedConnect.current) {
-      // Allow re-attempt after user manually connects/disconnects
-    }
-  }, [isRegistered, isConnecting]);
-
-  // Send a test command to selected device
-  const sendTestCommand = async () => {
-    if (!selectedDeviceId) return;
-
-    setIsSendingCommand(true);
-    setCommandResult(null);
-
-    try {
-      const response = await fetch('/api/remote/commands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: 'test',
-          command_type: 'healthcheck',
-          payload: {
-            message: `Ping from ${localDeviceName}`,
-            timestamp: new Date().toISOString(),
-          },
-          target_device_id: selectedDeviceId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setCommandResult({ success: true, message: 'Command sent successfully!' });
-      } else {
-        setCommandResult({ success: false, message: data.error || 'Failed to send command' });
-      }
-    } catch (err) {
-      setCommandResult({ success: false, message: 'Network error' });
-    } finally {
-      setIsSendingCommand(false);
-    }
-  };
+  // Count other devices for badge
+  const otherDevices = devices.filter((d) => d.device_id !== localDeviceId);
 
   if (!isConfigured) {
     return (
@@ -105,148 +108,170 @@ export default function EmulatorPanel({ isConfigured }: EmulatorPanelProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Connection Status */}
-      <div className="flex items-center justify-between p-3 bg-gray-800/50 border border-gray-700 rounded-lg">
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-2.5 h-2.5 rounded-full ${
-              isRegistered ? 'bg-green-400' : isConnecting ? 'bg-amber-400 animate-pulse' : 'bg-gray-500'
-            }`}
+    <div className="space-y-3">
+      {/* Compact Header with Device Selector */}
+      <EmulatorHeader
+        isRegistered={isRegistered}
+        isConnecting={isConnecting}
+        connectionError={connectionError}
+        localDeviceName={localDeviceName}
+        localDeviceId={localDeviceId}
+        devices={devices}
+        selectedDeviceId={selectedDeviceId}
+        onSelectDevice={selectDevice}
+        onConnect={registerDevice}
+        onDisconnect={unregisterDevice}
+        onRefreshDevices={refreshDevices}
+        isLoadingDevices={isLoadingDevices}
+      />
+
+      {/* Tab Navigation */}
+      <EmulatorTabs
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        isConnected={isRegistered}
+        hasSelectedDevice={!!selectedDeviceId}
+        onlineDevices={otherDevices.length}
+      />
+
+      {/* Triage Hint - Show when connected and device selected */}
+      {isRegistered && selectedDeviceId && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg text-xs text-purple-300">
+          <Sparkles className="w-4 h-4" />
+          <span>
+            Remote triage available in <strong>Tinder</strong> module. Click the Remote toggle when triaging.
+          </span>
+        </div>
+      )}
+
+      {/* Tab Content */}
+      <div className="min-h-[300px]">
+        {activeTab === 'responsive' && <ResponsivePanel />}
+
+        {activeTab === 'topology' && (
+          <div className="h-[400px] bg-gray-800/30 border border-gray-700 rounded-lg overflow-hidden">
+            <TopologyMap
+              topology={topology}
+              isLoading={isLoadingTopology}
+              onRefresh={fetchTopology}
+              selectedNodeId={selectedTopologyNode}
+              onNodeSelect={setSelectedTopologyNode}
+              showImprovements={true}
+            />
+          </div>
+        )}
+
+        {activeTab === 'fleet' && (
+          <FleetDashboard
+            localDeviceId={localDeviceId}
+            localDeviceName={localDeviceName}
           />
-          <div>
-            <p className="text-sm font-medium text-gray-200">
-              {isRegistered ? localDeviceName : isConnecting ? 'Connecting...' : 'Disconnected'}
-            </p>
-            <p className="text-[10px] text-gray-500">
-              {isRegistered
-                ? `Device ID: ${localDeviceId.slice(0, 8)}...`
-                : 'Not connected to mesh'}
-            </p>
-          </div>
-        </div>
+        )}
 
-        <button
-          onClick={isRegistered ? unregisterDevice : registerDevice}
-          disabled={isConnecting}
-          className={`
-            flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-all
-            ${isRegistered
-              ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30'
-              : 'bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/30'
-            }
-            disabled:opacity-50
-          `}
-        >
-          {isConnecting ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Connecting...</span>
-            </>
-          ) : isRegistered ? (
-            <>
-              <PowerOff className="w-3 h-3" />
-              <span>Disconnect</span>
-            </>
-          ) : (
-            <>
-              <Power className="w-3 h-3" />
-              <span>Connect</span>
-            </>
-          )}
-        </button>
+        {activeTab === 'batch' && (
+          <RemoteBatchPanel
+            targetDeviceId={selectedDeviceId}
+            targetDeviceName={selectedDevice?.device_name}
+          />
+        )}
+
+        {activeTab === 'monitor' && (
+          <RemoteMonitorPanel
+            targetDeviceId={selectedDeviceId}
+            targetDeviceName={selectedDevice?.device_name}
+          />
+        )}
+
+        {activeTab === 'devices' && (
+          <DevicesTab
+            isRegistered={isRegistered}
+            isConnecting={isConnecting}
+            connectionError={connectionError}
+            devices={devices}
+            localDeviceId={localDeviceId}
+            selectedDeviceId={selectedDeviceId}
+            isLoadingDevices={isLoadingDevices}
+            onSelectDevice={selectDevice}
+            onRefreshDevices={refreshDevices}
+            onRetryConnect={() => {
+              hasAttemptedConnect.current = false;
+              registerDevice();
+              hasAttemptedConnect.current = true;
+            }}
+          />
+        )}
       </div>
+    </div>
+  );
+}
 
-      {/* Device Grid - Only show when connected */}
-      {isRegistered && (
-        <DeviceGrid
-          devices={devices}
-          localDeviceId={localDeviceId}
-          selectedDeviceId={selectedDeviceId}
-          isLoading={isLoadingDevices}
-          onSelectDevice={selectDevice}
-          onRefresh={refreshDevices}
-        />
-      )}
+interface DevicesTabProps {
+  isRegistered: boolean;
+  isConnecting: boolean;
+  connectionError: string | null;
+  devices: import('@/lib/remote/deviceTypes').RemoteDevice[];
+  localDeviceId: string;
+  selectedDeviceId: string | null;
+  isLoadingDevices: boolean;
+  onSelectDevice: (deviceId: string | null) => void;
+  onRefreshDevices: () => void;
+  onRetryConnect: () => void;
+}
 
-      {/* Command Panel - Only show when device is selected */}
-      {isRegistered && selectedDevice && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-gray-800/50 border border-purple-500/30 rounded-lg"
-        >
-          <h4 className="text-sm font-medium text-purple-300 mb-3">
-            Send Command to {selectedDevice.device_name}
-          </h4>
-
+function DevicesTab({
+  isRegistered,
+  isConnecting,
+  connectionError,
+  devices,
+  localDeviceId,
+  selectedDeviceId,
+  isLoadingDevices,
+  onSelectDevice,
+  onRefreshDevices,
+  onRetryConnect,
+}: DevicesTabProps) {
+  if (!isRegistered && !isConnecting) {
+    return (
+      <div className="text-center py-12">
+        {connectionError ? (
           <div className="space-y-3">
-            {/* Test Command Button */}
+            <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
+            <p className="text-sm text-red-400">{connectionError}</p>
             <button
-              onClick={sendTestCommand}
-              disabled={isSendingCommand}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded text-sm font-medium text-purple-300 disabled:opacity-50 transition-all"
+              onClick={onRetryConnect}
+              className="text-xs text-cyan-400 hover:underline"
             >
-              {isSendingCommand ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Sending...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Send Test Ping</span>
-                </>
-              )}
+              Retry connection
             </button>
-
-            {/* Command Result */}
-            {commandResult && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-2 rounded text-xs ${
-                  commandResult.success
-                    ? 'bg-green-500/10 border border-green-500/30 text-green-400'
-                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
-                }`}
-              >
-                {commandResult.message}
-              </motion.div>
-            )}
-
-            {/* Future: Batch Composer, Direction Triage will go here */}
-            <p className="text-[10px] text-gray-500 text-center">
-              More commands coming soon: Batch execution, direction triage
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-400">
+              Click <span className="text-green-400 font-medium">Connect</span> in the header to join the mesh network
             </p>
           </div>
-        </motion.div>
-      )}
+        )}
+      </div>
+    );
+  }
 
-      {/* Not connected message */}
-      {!isRegistered && !isConnecting && (
-        <div className="text-center py-6">
-          {connectionError ? (
-            <div className="space-y-2">
-              <p className="text-sm text-red-400">{connectionError}</p>
-              <button
-                onClick={() => {
-                  hasAttemptedConnect.current = false;
-                  registerDevice();
-                  hasAttemptedConnect.current = true;
-                }}
-                className="text-xs text-cyan-400 hover:underline"
-              >
-                Retry connection
-              </button>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">
-              Click <span className="text-green-400">Connect</span> to join the mesh network
-            </p>
-          )}
-        </div>
-      )}
-    </div>
+  if (isConnecting) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm text-gray-400">Connecting to mesh network...</p>
+      </div>
+    );
+  }
+
+  return (
+    <DeviceGrid
+      devices={devices}
+      localDeviceId={localDeviceId}
+      selectedDeviceId={selectedDeviceId}
+      isLoading={isLoadingDevices}
+      onSelectDevice={onSelectDevice}
+      onRefresh={onRefreshDevices}
+    />
   );
 }

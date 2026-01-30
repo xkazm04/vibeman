@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Calendar } from 'lucide-react';
-import { ReflectorStats } from '../lib/statsHelpers';
+import { ReflectorStats } from '../lib/filterIdeas';
 
 interface ReflectorHeaderProps {
   stats: ReflectorStats;

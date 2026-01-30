@@ -5,7 +5,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { crossTaskPlanDb, contextDb, crossProjectRelationshipDb, architectureAnalysisDb, serverProjectDb } from '@/app/db';
+import { crossTaskPlanDb, contextDb, crossProjectRelationshipDb, architectureAnalysisDb } from '@/app/db';
+import { projectDb } from '@/lib/project_database';
 import { generateId } from '@/app/db/repositories/repository.utils';
 import { buildCrossTaskPrompt } from '@/lib/cross-task/promptBuilder';
 import type { CrossTaskContextData, CrossTaskArchitectureContext, CrossTaskArchitectureRelationship } from '@/app/db/models/cross-task.types';
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
       });
       for (const pid of allProjectIds) {
         if (!projectNameMap.has(pid)) {
-          const proj = serverProjectDb.getById(pid);
+          const proj = projectDb.getProject(pid);
           if (proj) {
             projectNameMap.set(pid, proj.name);
           }

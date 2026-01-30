@@ -1,46 +1,57 @@
-# Butler-Vibeman Remote Integration
+# Vibeman
 
 ## What This Is
 
-A remote development control system that connects the Butler mobile app (Flutter) to the Vibeman localhost development platform via Supabase. Users can triage AI-generated development suggestions and remotely trigger batch execution of development tasks from their phone, while Vibeman runs unattended in "Zen mode" executing work.
+An AI-driven development platform that automates the entire software development lifecycle using multiple specialized AI agents. Vibeman boosts personal productivity through intelligent code analysis, idea generation, batch implementation, and automated testing. Includes remote control via Butler mobile app for triaging and triggering execution while away from desk.
 
 ## Core Value
 
-Enable productive use of idle time by triaging development directions from mobile while away from the desk, and trigger remote execution of development batches without needing physical access to the development machine.
+Maximize developer productivity by automating routine development tasks through AI agents, with seamless mobile control for managing work queues remotely.
+
+## Current Milestone: v1.1 Dead Code Cleanup
+
+**Goal:** Remove ~10,000 lines of unused code across client, server, database, and feature layers to reduce maintenance burden and improve codebase clarity.
+
+**Target scope:**
+- Client: Unused hooks, stores, example files (7 items, ~2,395 LOC)
+- Server: Orphaned lib files and API routes (5 items, ~860 LOC)
+- Database: Abandoned repositories and orphaned tables (23 exports, 21 tables)
+- Features: Completely abandoned modules - CodeTree, RefactorSuggestion, ScanQueue (~4,833 LOC)
+
+**Excluded (partial implementations to keep):**
+- DailyStandup (backend utility, used by Manager)
+- Proposals (types absorbed by Manager)
+- DebtPrediction (has Layout, may be integrated later)
 
 ## Requirements
 
 ### Validated
 
-- Vibeman directions system exists — generates AI suggestions stored in SQLite
-- Vibeman CLI batch execution works — CLIBatchPanel runs Claude Code sessions
-- Butler Triage module exists — swipe-based card triage (currently GitHub issues)
-- Butler Activity module exists — event feed with filtering
-- Supabase schema designed — REMOTE_MESSAGE_BROKER.md has tables/RLS ready
-- Remote Gateway architecture defined — REMOTE_GATEWAY_PROPOSAL.md
+<!-- v1.0 Butler-Vibeman Remote Integration (2026-01-28) -->
+- ✓ Supabase integration with credentials management and connection testing
+- ✓ Manual sync of directions and requirements to Supabase
+- ✓ Auto-sync of accept/reject decisions back to SQLite
+- ✓ Zen mode command center with 1-4 CLI sessions and event sidebar
+- ✓ Remote batch execution via Supabase commands
+- ✓ Butler mobile triage with swipe gestures (accept/reject/skip)
+- ✓ Butler batch composer with healthcheck pre-flight
+- ✓ Push notifications for batch completion/failure
 
 ### Active
 
-- [ ] Supabase integration setup in Vibeman (credentials, connection test)
-- [ ] Manual sync: push directions/requirements from Vibeman to Supabase
-- [ ] Auto sync: accept/reject from Supabase back to Vibeman SQLite
-- [ ] Zen mode redesign: command center layout (1-4 CLI sessions + event sidebar)
-- [ ] Zen mode command listener: poll/subscribe for incoming batch commands
-- [ ] Zen mode auto-execution: start batches without desktop confirmation
-- [ ] Healthcheck endpoint: report Zen mode status to Butler
-- [ ] Butler Supabase connection: settings screen for credentials entry
-- [ ] Butler project browser: view multiple Vibeman projects from one Supabase
-- [ ] Butler Triage for directions: accept/reject/skip gestures on direction cards
-- [ ] Butler Batch Composer: browse requirements by project, multi-select, start batch
-- [ ] Butler healthcheck integration: check Vibeman status before batch start
+<!-- v1.1 Dead Code Cleanup -->
+- [ ] Remove unused client code (hooks, stores, examples)
+- [ ] Remove unused server code (lib files, API routes)
+- [ ] Remove orphaned database repositories and migrations
+- [ ] Remove abandoned feature modules (CodeTree, RefactorSuggestion, ScanQueue)
+- [ ] Verify no broken imports after cleanup
+- [ ] Update documentation to reflect removed features
 
 ### Out of Scope
 
-- Google Cloud Run gateway — direct Supabase connection is simpler for this use case
-- User authentication — single-user system, Supabase anon key sufficient
-- Real-time push notifications — polling/subscription sufficient
-- Conflict resolution — manual sync means user controls when data flows
-- Offline mode for Butler — requires Supabase connectivity
+- Partial implementations (DailyStandup, Proposals, DebtPrediction) — keep for potential future use
+- Refactoring working code — cleanup only, no behavior changes
+- Adding new features — pure deletion milestone
 
 ## Context
 
@@ -97,4 +108,4 @@ Enable productive use of idle time by triaging development directions from mobil
 | Healthcheck blocks in Butler (not queue) | Clear feedback prevents confusion about execution state | — Pending |
 
 ---
-*Last updated: 2025-01-27 after initialization*
+*Last updated: 2026-01-29 after v1.1 milestone initialization*

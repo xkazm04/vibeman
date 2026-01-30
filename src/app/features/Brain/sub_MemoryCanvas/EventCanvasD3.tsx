@@ -5,7 +5,7 @@ import * as d3 from 'd3';
 import { ArrowLeft } from 'lucide-react';
 import type { BrainEvent, Group, UndoEntry } from './lib/types';
 import { BG } from './lib/constants';
-import { formGroups, runForceLayout, packEventsInGroup } from './lib/layout';
+import { formGroups, runForceLayout, packEventsInGroup } from './lib/canvasLayout';
 import { useCanvasData } from './lib/useCanvasData';
 import { renderFocused } from './lib/renderFocused';
 import { renderOverview } from './lib/renderOverview';

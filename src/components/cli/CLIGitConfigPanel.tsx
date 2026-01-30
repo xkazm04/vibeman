@@ -127,11 +127,11 @@ export function CLIGitConfigPanel({
             <button
               key={key}
               onClick={() => handlePresetSelect(key as PresetKey)}
-              className={`flex-1 flex flex-col items-center gap-1 px-3 py-2 rounded-lg border transition-all ${
+              className={`flex-1 flex flex-col items-center gap-1 px-3 py-2 rounded-lg border transition-all duration-200 ${
                 isActive
-                  ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
-                  : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600 hover:text-gray-300'
-              }`}
+                  ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10 border-purple-500/50 text-purple-300 shadow-sm shadow-purple-500/10'
+                  : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600 hover:text-gray-300 hover:bg-gray-800/70 active:scale-[0.98]'
+              } focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30`}
             >
               <Icon className="w-4 h-4" />
               <span className="text-xs font-medium">{preset.label}</span>
@@ -150,7 +150,7 @@ export function CLIGitConfigPanel({
               <button
                 key={tag}
                 onClick={() => setLocalTemplate(prev => prev + ' ' + tag)}
-                className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded hover:bg-purple-500/20 transition-colors"
+                className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded-md hover:bg-purple-500/20 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"
               >
                 {tag}
               </button>
@@ -163,10 +163,10 @@ export function CLIGitConfigPanel({
             value={localTemplate}
             onChange={(e) => setLocalTemplate(e.target.value)}
             placeholder={DEFAULT_TEMPLATE}
-            className={`w-full px-3 py-1.5 pr-8 bg-gray-800/80 border rounded text-sm text-gray-200 placeholder-gray-500 focus:outline-none transition-colors ${
+            className={`w-full px-3 py-1.5 pr-8 bg-gray-800/80 border rounded-md text-sm text-gray-200 placeholder-gray-500 focus:outline-none transition-all duration-200 ${
               !templateValidation.valid
-                ? 'border-red-500/50 focus:border-red-400'
-                : 'border-gray-700/50 focus:border-purple-500/50'
+                ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
+                : 'border-gray-700/50 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20'
             }`}
           />
           {localTemplate && (
@@ -180,7 +180,7 @@ export function CLIGitConfigPanel({
           )}
         </div>
         {/* Live Preview */}
-        <div className="mt-1.5 px-2 py-1 bg-gray-900/50 rounded text-[10px] text-gray-500 font-mono truncate">
+        <div className="mt-1.5 px-2 py-1 bg-gray-900/70 rounded-md text-[10px] text-gray-500 font-mono truncate border border-gray-800/50">
           Preview: <span className="text-gray-300">{commitPreview}</span>
         </div>
       </div>
@@ -191,7 +191,7 @@ export function CLIGitConfigPanel({
           <label className="text-xs font-medium text-gray-400">Commands</label>
           <button
             onClick={() => handlePresetSelect('standard')}
-            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-purple-400 transition-colors"
+            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-purple-400 transition-all duration-200 hover:scale-105 active:scale-95"
           >
             <RotateCcw className="w-2.5 h-2.5" />
             Reset
@@ -204,10 +204,10 @@ export function CLIGitConfigPanel({
             const hasErrors = validation && !validation.valid;
             return (
               <div key={index} className="flex items-center gap-1.5">
-                <span className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-medium ${
+                <span className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-medium transition-colors duration-200 ${
                   hasErrors
-                    ? 'bg-red-500/20 text-red-400'
-                    : 'bg-gray-800 text-gray-500'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    : 'bg-gray-800 text-gray-500 border border-gray-700/50'
                 }`}>
                   {index + 1}
                 </span>
@@ -216,15 +216,15 @@ export function CLIGitConfigPanel({
                   value={cmd}
                   onChange={(e) => updateCommand(index, e.target.value)}
                   placeholder="git command..."
-                  className={`flex-1 px-2 py-1 bg-gray-800/80 border rounded text-xs text-gray-200 font-mono placeholder-gray-600 focus:outline-none transition-colors ${
+                  className={`flex-1 px-2 py-1 bg-gray-800/80 border rounded-md text-xs text-gray-200 font-mono placeholder-gray-600 focus:outline-none transition-all duration-200 ${
                     hasErrors
-                      ? 'border-red-500/50 focus:border-red-400'
-                      : 'border-gray-700/50 focus:border-purple-500/50'
+                      ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
+                      : 'border-gray-700/50 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20'
                   }`}
                 />
                 <button
                   onClick={() => removeCommand(index)}
-                  className="p-1 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                  className="p-1 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
@@ -235,7 +235,7 @@ export function CLIGitConfigPanel({
 
         <button
           onClick={addCommand}
-          className="mt-1.5 flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
+          className="mt-1.5 flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <Plus className="w-3 h-3" />
           Add command
@@ -244,7 +244,7 @@ export function CLIGitConfigPanel({
 
       {/* Validation Errors */}
       {(!templateValidation.valid || commandValidation.some(v => !v.valid)) && (
-        <div className="flex items-start gap-2 px-2 py-1.5 bg-red-500/10 border border-red-500/20 rounded text-[10px] text-red-400">
+        <div className="flex items-start gap-2 px-2 py-1.5 bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/20 rounded-md text-[10px] text-red-400">
           <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
           <div className="space-y-0.5">
             {templateValidation.errors.map((err, i) => <div key={`t-${i}`}>{err}</div>)}
@@ -274,7 +274,7 @@ export function CLIGitConfigPanel({
           {onClose && (
             <button
               onClick={onClose}
-              className="px-3 py-1 text-xs text-gray-400 hover:text-gray-300 transition-colors"
+              className="px-3 py-1 text-xs text-gray-400 hover:text-gray-300 transition-all duration-200 hover:bg-gray-800/50 rounded active:scale-95"
             >
               Cancel
             </button>
@@ -282,11 +282,11 @@ export function CLIGitConfigPanel({
           <button
             onClick={handleSave}
             disabled={!isConfigValid}
-            className={`px-3 py-1 text-xs rounded transition-colors font-medium ${
+            className={`px-3 py-1.5 text-xs rounded-md transition-all duration-200 font-medium ${
               isConfigValid
-                ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            }`}
+                ? 'bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white shadow-sm shadow-purple-500/20 hover:shadow-md hover:shadow-purple-500/30 active:scale-95'
+                : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+            } focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50`}
           >
             Save
           </button>

@@ -67,3 +67,99 @@ export function addArrayItem<T>(
 ): T[] {
   return position === 'start' ? [item, ...array] : [...array, item];
 }
+
+/**
+ * Debounced Loading State Manager
+ *
+ * Prevents rapid loading state flickers by:
+ * 1. Only showing loading after a delay (default 150ms)
+ * 2. Batching rapid operations so loading shows once
+ * 3. Clearing loading state when all operations complete
+ *
+ * Usage:
+ *   const loadingManager = createDebouncedLoadingManager(set, 150);
+ *
+ *   // In async operation:
+ *   loadingManager.startOperation();
+ *   try {
+ *     await doWork();
+ *     loadingManager.endOperation();
+ *   } catch (error) {
+ *     loadingManager.endOperation();
+ *     throw error;
+ *   }
+ */
+export interface DebouncedLoadingManager {
+  startOperation: () => void;
+  endOperation: () => void;
+  forceLoading: () => void;
+  reset: () => void;
+}
+
+export function createDebouncedLoadingManager(
+  setLoading: (loading: boolean) => void,
+  delayMs: number = 150
+): DebouncedLoadingManager {
+  let pendingOperations = 0;
+  let loadingTimer: ReturnType<typeof setTimeout> | null = null;
+  let isLoadingShown = false;
+
+  const clearTimer = () => {
+    if (loadingTimer) {
+      clearTimeout(loadingTimer);
+      loadingTimer = null;
+    }
+  };
+
+  const showLoading = () => {
+    if (!isLoadingShown) {
+      isLoadingShown = true;
+      setLoading(true);
+    }
+  };
+
+  const hideLoading = () => {
+    if (isLoadingShown) {
+      isLoadingShown = false;
+      setLoading(false);
+    }
+  };
+
+  return {
+    startOperation: () => {
+      pendingOperations++;
+
+      // Only start timer if this is the first pending operation
+      if (pendingOperations === 1 && !loadingTimer && !isLoadingShown) {
+        loadingTimer = setTimeout(() => {
+          loadingTimer = null;
+          // Only show loading if operations are still pending
+          if (pendingOperations > 0) {
+            showLoading();
+          }
+        }, delayMs);
+      }
+    },
+
+    endOperation: () => {
+      pendingOperations = Math.max(0, pendingOperations - 1);
+
+      // When all operations complete, clear loading state
+      if (pendingOperations === 0) {
+        clearTimer();
+        hideLoading();
+      }
+    },
+
+    forceLoading: () => {
+      clearTimer();
+      showLoading();
+    },
+
+    reset: () => {
+      pendingOperations = 0;
+      clearTimer();
+      hideLoading();
+    }
+  };
+}

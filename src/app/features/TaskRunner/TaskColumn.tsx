@@ -109,6 +109,14 @@ const TaskColumn = React.memo(function TaskColumn({
     }
   }, [stats.clearableCount, stats.clearableRequirements, onBulkDelete, getRequirementId]);
 
+  const handleResetAllFailed = useCallback(() => {
+    if (stats.failedCount > 0 && onReset) {
+      stats.failedRequirements.forEach((r) => {
+        onReset(getRequirementId(r));
+      });
+    }
+  }, [stats.failedCount, stats.failedRequirements, onReset, getRequirementId]);
+
   const handleProjectSelectionToggle = useCallback(() => {
     onToggleProjectSelection(projectId);
   }, [onToggleProjectSelection, projectId]);
@@ -130,6 +138,7 @@ const TaskColumn = React.memo(function TaskColumn({
         selectableCount={stats.selectableRequirements.length}
         selectedInColumnCount={stats.selectedInColumn.length}
         clearableCount={stats.clearableCount}
+        failedCount={stats.failedCount}
         requirementsCount={requirements.length}
         aggregationCheck={aggregationCheck}
         isAggregating={isAggregating}
@@ -137,7 +146,9 @@ const TaskColumn = React.memo(function TaskColumn({
         onAggregate={handleAggregate}
         onBulkDeleteSelected={handleBulkDeleteSelected}
         onClearCompleted={handleClearCompleted}
+        onResetAllFailed={handleResetAllFailed}
         canBulkDelete={!!onBulkDelete}
+        canReset={!!onReset}
       />
 
       <div className="flex-1 px-2 py-2 min-h-[100px] max-h-[500px] overflow-y-auto custom-scrollbar">

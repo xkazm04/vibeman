@@ -101,14 +101,6 @@ async function handlePost(request: NextRequest) {
       return createErrorResponse('Invalid project path', undefined, 400);
     }
 
-    // Update idea status to accepted
-    try {
-      ideaDb.updateIdea(ideaId, { status: 'accepted' });
-    } catch (error) {
-      logger.error('[API] Failed to update idea status:', { error });
-      return createErrorResponse('Failed to update idea status in database', error);
-    }
-
     // Generate requirement file name
     const requirementName = generateRequirementName(ideaId, idea.title);
 
@@ -135,12 +127,6 @@ async function handlePost(request: NextRequest) {
       });
     } catch (error) {
       logger.error('[API] Failed to build requirement content:', { error });
-      // Rollback status change
-      try {
-        ideaDb.updateIdea(ideaId, { status: 'pending' });
-      } catch (rollbackError) {
-        logger.error('[API] Failed to rollback status:', { rollbackError });
-      }
       return createErrorResponse('Failed to generate requirement content', error);
     }
 
@@ -168,36 +154,30 @@ async function handlePost(request: NextRequest) {
       }
     } catch (error) {
       logger.error('[API] Failed to wrap requirement content:', { error, wrapperMode });
-      // Rollback status change
-      try {
-        ideaDb.updateIdea(ideaId, { status: 'pending' });
-      } catch (rollbackError) {
-        logger.error('[API] Failed to rollback status:', { rollbackError });
-      }
       return createErrorResponse('Failed to wrap requirement content', error);
     }
 
-    // Create requirement file (overwrite if exists)
+    // Create requirement file FIRST (before updating status)
+    // This ensures we never have an accepted idea without its requirement file
     try {
       createRequirementFile(projectPath, requirementName, wrappedContent);
     } catch (error) {
       logger.error('[API] Failed to create requirement file:', { error });
-      // Rollback status change
-      try {
-        ideaDb.updateIdea(ideaId, { status: 'pending' });
-      } catch (rollbackError) {
-        logger.error('[API] Failed to rollback status:', { rollbackError });
-      }
       return createErrorResponse('Failed to create requirement file', error);
     }
 
-    // Update idea with requirement_id (the requirement file name)
+    // Now that the file exists, update idea status to accepted with requirement_id
+    // This is an atomic update - both fields in one call
     try {
-      ideaDb.updateIdea(ideaId, { requirement_id: requirementName });
+      ideaDb.updateIdea(ideaId, { status: 'accepted', requirement_id: requirementName });
     } catch (error) {
-      logger.error('[API] Failed to update idea with requirement_id:', { error });
-      // File is already created, so don't rollback status
-      // Just log the error and continue
+      logger.error('[API] Failed to update idea status after file creation:', { error });
+      // File exists but DB update failed - this is a minor inconsistency
+      // The file is still valid and usable, user can re-accept to fix DB state
+      return createErrorResponse(
+        'Requirement file created but failed to update idea status. Re-accept the idea to fix.',
+        error
+      );
     }
 
     // Record brain signal: idea accepted

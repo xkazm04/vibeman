@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { DbIdea } from '@/app/db';
 
 // Lib imports
-import { calculateImplementedStats } from '@/app/features/reflector/lib/statsHelpers';
+import { calculateImplementedStats } from '@/app/features/reflector/lib/filterIdeas';
 
 // Component imports
 import ReflectorHeader from '@/app/features/reflector/components/ReflectorHeader';

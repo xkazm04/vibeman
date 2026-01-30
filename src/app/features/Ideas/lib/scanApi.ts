@@ -12,16 +12,31 @@ interface CodebaseFile {
 }
 
 /**
+ * Error thrown when gathering codebase files fails
+ */
+export class GatherFilesError extends Error {
+  constructor(
+    message: string,
+    public readonly code: 'NETWORK_ERROR' | 'NOT_FOUND' | 'PERMISSION_DENIED' | 'SERVER_ERROR' | 'UNKNOWN'
+  ) {
+    super(message);
+    this.name = 'GatherFilesError';
+  }
+}
+
+/**
  * Gather codebase files for analysis
+ * @throws {GatherFilesError} When files cannot be gathered due to network, permission, or server errors
  */
 export async function gatherCodebaseFiles(
   projectPath: string,
   contextFilePaths?: string[]
 ): Promise<CodebaseFile[]> {
-  try {
-    const filesToAnalyze = contextFilePaths || [];
+  const filesToAnalyze = contextFilePaths || [];
 
-    const response = await fetch('/api/project/files', {
+  let response: Response;
+  try {
+    response = await fetch('/api/project/files', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -30,17 +45,45 @@ export async function gatherCodebaseFiles(
         limit: 20
       })
     });
+  } catch (error) {
+    throw new GatherFilesError(
+      `Network error fetching files for ${projectPath}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'NETWORK_ERROR'
+    );
+  }
 
-    if (!response.ok) {
-      return [];
+  if (!response.ok) {
+    let errorMessage = 'Unknown error';
+    let errorCode: GatherFilesError['code'] = 'UNKNOWN';
+
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+    } catch {
+      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
     }
 
-    const data = await response.json();
-    return data.files || [];
+    switch (response.status) {
+      case 404:
+        errorCode = 'NOT_FOUND';
+        errorMessage = `Project not found: ${projectPath}`;
+        break;
+      case 403:
+        errorCode = 'PERMISSION_DENIED';
+        errorMessage = `Permission denied accessing: ${projectPath}`;
+        break;
+      case 500:
+      case 502:
+      case 503:
+        errorCode = 'SERVER_ERROR';
+        break;
+    }
 
-  } catch {
-    return [];
+    throw new GatherFilesError(errorMessage, errorCode);
   }
+
+  const data = await response.json();
+  return data.files || [];
 }
 
 /**

@@ -24,7 +24,8 @@ async function getClientState(): Promise<{
   activeSessions: number;
 }> {
   const { useZenStore } = await import('@/app/zen/lib/zenStore');
-  const { useCLISessionStore } = await import('@/components/cli/store');
+  // Import directly from specific file to avoid circular dependency
+  const { useCLISessionStore } = await import('@/components/cli/store/cliSessionStore');
 
   const zenMode = useZenStore.getState().mode === 'online';
   const sessions = useCLISessionStore.getState().sessions;
@@ -42,13 +43,15 @@ async function getClientState(): Promise<{
  */
 function buildPayload(
   zenMode: boolean,
-  activeSessions: number
+  activeSessions: number,
+  deviceId?: string
 ): HealthcheckPayload {
   return {
     zen_mode: zenMode,
     active_sessions: activeSessions,
     available_slots: MAX_SESSIONS - activeSessions,
     timestamp: new Date().toISOString(),
+    device_id: deviceId,
   };
 }
 
@@ -58,19 +61,22 @@ function buildPayload(
 class HealthcheckPublisher {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private projectId: string | null = null;
+  private deviceId: string | null = null;
   private isPublishing = false;
 
   /**
    * Start periodic healthcheck publishing
    */
-  async start(projectId: string): Promise<void> {
+  async start(projectId: string, deviceId?: string): Promise<void> {
     if (this.isPublishing) {
       console.log('[HealthcheckPublisher] Already publishing, updating projectId');
       this.projectId = projectId;
+      if (deviceId) this.deviceId = deviceId;
       return;
     }
 
     this.projectId = projectId;
+    if (deviceId) this.deviceId = deviceId;
     this.isPublishing = true;
 
     // Publish immediately
@@ -110,7 +116,7 @@ class HealthcheckPublisher {
 
     try {
       const { zenMode, activeSessions } = await getClientState();
-      const payload = buildPayload(zenMode, activeSessions);
+      const payload = buildPayload(zenMode, activeSessions, this.deviceId ?? undefined);
 
       remoteEvents.publish('healthcheck', payload, projectId);
 
@@ -155,8 +161,8 @@ function getHealthcheckPublisher(): HealthcheckPublisher {
 /**
  * Start healthcheck publishing for a project
  */
-export async function startHealthcheckPublishing(projectId: string): Promise<void> {
-  return getHealthcheckPublisher().start(projectId);
+export async function startHealthcheckPublishing(projectId: string, deviceId?: string): Promise<void> {
+  return getHealthcheckPublisher().start(projectId, deviceId);
 }
 
 /**

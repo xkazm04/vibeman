@@ -130,7 +130,7 @@ export default function MiniFileTree({
     <div className={`space-y-1 ${className}`}>
       {/* Folder summary */}
       {groupByFolder && folders.size > 0 && (
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1.5">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1.5 py-1 px-1.5 rounded-md bg-gray-800/20 border border-gray-700/20 transition-colors duration-200 hover:bg-gray-800/40">
           <Folder className="w-3 h-3 text-amber-500/70" />
           <span className="font-mono">
             {folders.size} folder{folders.size !== 1 ? 's' : ''}
@@ -256,7 +256,7 @@ export function FileTypeSummary({
       {typeCounts.map(([ext, count]) => (
         <span
           key={ext}
-          className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${getExtensionColor(ext)} bg-gray-800/50`}
+          className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${getExtensionColor(ext)} bg-gray-800/50 border border-gray-700/30 transition-all duration-200 hover:bg-gray-700/50 hover:border-gray-600/40`}
         >
           {count} .{ext}
         </span>

@@ -294,6 +294,32 @@ ${directionSection}
 - Quality over quantity for directions - fewer excellent ones beat many mediocre ones
 - Each direction should represent 30-90 minutes of dedicated work
 - Use existing patterns from the codebase context when available
+
+## Context Maintenance
+
+If you discover that files referenced in a context no longer exist, or you find important files that should be part of a context but aren't included, you can update the context using the Context API:
+
+**Update context file paths (add/remove files):**
+\`\`\`bash
+curl -X PUT "${options.apiBaseUrl || 'http://localhost:3000'}/api/contexts" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "contextId": "CONTEXT_ID_HERE",
+    "updates": {
+      "filePaths": ["path/to/file1.ts", "path/to/file2.ts"]
+    }
+  }'
+\`\`\`
+
+**Delete a context that is no longer relevant:**
+\`\`\`bash
+curl -X DELETE "${options.apiBaseUrl || 'http://localhost:3000'}/api/contexts?contextId=CONTEXT_ID_HERE"
+\`\`\`
+
+Use these APIs to keep the context group accurate and up-to-date when you encounter:
+- Files that have been deleted or moved
+- New files that logically belong to an existing context
+- Contexts that are obsolete or empty
 `.trim();
 }
 

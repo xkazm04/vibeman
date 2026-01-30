@@ -13,7 +13,7 @@ interface GroupDetailViewProps {
 }
 
 export default function GroupDetailView({ groupId, onClose }: GroupDetailViewProps) {
-  const { contexts, groups } = useContextStore();
+  const { contexts, groups, removeGroup } = useContextStore();
   const { showConfirmModal } = useGlobalModal();
   const [selectedGroup, setSelectedGroup] = useState<ContextGroup | null>(null);
   const [groupContexts, setGroupContexts] = useState<Context[]>([]);
@@ -48,7 +48,12 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
       'Delete Group',
       `Are you sure you want to delete "${selectedGroup.name}"? This will ungroup all contexts but won't delete them.`,
       async () => {
-        onClose();
+        try {
+          await removeGroup(selectedGroup.id);
+          onClose();
+        } catch (error) {
+          console.error('Failed to delete group:', error);
+        }
       }
     );
   };

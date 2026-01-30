@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import * as d3 from 'd3';
 import type { BrainEvent, Group } from './types';
 import { FOCUS_ZOOM_THRESHOLD } from './constants';
-import { layoutFocusedGroup, runForceLayout, packEventsInGroup } from './layout';
+import { layoutFocusedGroup, runForceLayout, packEventsInGroup } from './canvasLayout';
 
 interface UseCanvasInteractionParams {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;

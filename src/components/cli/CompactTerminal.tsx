@@ -752,9 +752,9 @@ export function CompactTerminal({
   const queuePendingCount = taskQueue.filter(t => t.status === 'pending').length;
 
   return (
-    <div className={`flex flex-col bg-gray-900 border border-gray-800 rounded-lg overflow-hidden ${className}`}>
+    <div className={`flex flex-col bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-800/80 rounded-lg overflow-hidden shadow-inner ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-800/50 border-b border-gray-800">
+      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-gray-800/50 to-gray-800/30 border-b border-gray-800/80">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-purple-400" />
           <span className="text-xs font-medium text-gray-300">{title}</span>
@@ -767,7 +767,7 @@ export function CompactTerminal({
         <div className="flex items-center gap-1">
           {/* Queue count */}
           {queuePendingCount > 0 && (
-            <span className="text-[10px] text-cyan-400 px-1.5 py-0.5 bg-cyan-500/10 rounded">
+            <span className="text-[10px] text-cyan-400 px-1.5 py-0.5 bg-cyan-500/10 rounded-md border border-cyan-500/20 tabular-nums">
               Q:{queuePendingCount}
             </span>
           )}
@@ -785,7 +785,7 @@ export function CompactTerminal({
                 setInput('Continue');
                 setTimeout(() => handleSubmit(true), 0);
               }}
-              className="p-1 hover:bg-gray-700 rounded text-purple-400"
+              className="p-1 hover:bg-gray-700 rounded transition-all duration-200 text-purple-400 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"
               title="Resume session"
             >
               <RotateCcw className="w-3 h-3" />
@@ -795,7 +795,7 @@ export function CompactTerminal({
           <button
             onClick={handleClear}
             disabled={isStreaming}
-            className="p-1 hover:bg-gray-700 rounded text-gray-400 disabled:opacity-50"
+            className="p-1 hover:bg-gray-700 rounded transition-all duration-200 text-gray-400 hover:text-red-400 hover:scale-110 active:scale-95 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
             title="Clear"
           >
             <Trash2 className="w-3 h-3" />
@@ -804,7 +804,7 @@ export function CompactTerminal({
       </div>
 
       {/* Status bar */}
-      <div className="flex items-center justify-between px-3 py-1 text-[10px] text-gray-500 bg-gray-900/50 border-b border-gray-800/50">
+      <div className="flex items-center justify-between px-3 py-1 text-[10px] text-gray-500 bg-gray-900/70 border-b border-gray-800/50 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           {isStreaming ? (
             <span className="flex items-center gap-1 text-yellow-400">
@@ -848,7 +848,7 @@ export function CompactTerminal({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex items-start gap-2 px-3 py-0.5 hover:bg-gray-800/30"
+                  className="flex items-start gap-2 px-3 py-0.5 hover:bg-gray-800/40 transition-colors duration-150"
                 >
                   <span className="flex-shrink-0 mt-0.5">
                     {getLogIcon(log.type, log.toolName)}
@@ -884,14 +884,14 @@ export function CompactTerminal({
             setIsAutoScroll(true);
             scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
           }}
-          className="absolute bottom-14 right-3 p-1 bg-gray-800 border border-gray-700 rounded-full text-gray-400 hover:text-white"
+          className="absolute bottom-14 right-3 p-1 bg-gray-800/90 backdrop-blur-sm border border-gray-700 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 hover:scale-110 active:scale-95 transition-all duration-200 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"
         >
           <ChevronDown className="w-3 h-3" />
         </button>
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-800 bg-gray-900/50">
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-800/80 bg-gray-900/70 backdrop-blur-sm">
         <span className="text-purple-400 text-xs">❯</span>
         <input
           ref={inputRef}
@@ -911,14 +911,14 @@ export function CompactTerminal({
           className="flex-1 bg-transparent text-xs text-gray-200 placeholder-gray-600 outline-none"
         />
         {isStreaming ? (
-          <button onClick={handleAbort} className="p-1 text-red-400 hover:bg-red-500/20 rounded">
+          <button onClick={handleAbort} className="p-1 text-red-400 hover:bg-red-500/20 rounded transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30">
             <Square className="w-3 h-3" />
           </button>
         ) : (
           <button
             onClick={() => handleSubmit(false)}
             disabled={!input.trim()}
-            className="p-1 text-purple-400 hover:bg-purple-500/20 rounded disabled:opacity-50"
+            className="p-1 text-purple-400 hover:bg-purple-500/20 rounded transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"
           >
             <Send className="w-3 h-3" />
           </button>

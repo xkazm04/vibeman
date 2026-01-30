@@ -3,19 +3,80 @@
  * Client-side functions for interacting with the Questions API
  */
 
-import { DbQuestion, DbContext, DbContextGroup } from '@/app/db';
+import { DbQuestion } from '@/app/db';
+import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 
-// SQLite-based context types
+// ============================================================================
+// API Response Types - Discriminated Unions for type-safe response handling
+// ============================================================================
+
+/**
+ * Base success response shape for /api/contexts endpoint
+ * Returns contexts and groups nested in data object
+ */
+interface ContextsApiSuccessResponse {
+  success: true;
+  data: {
+    contexts: Context[];
+    groups: ContextGroup[];
+  };
+}
+
+/**
+ * Base success response shape for /api/context-groups endpoint
+ * Returns groups array directly in data
+ */
+interface ContextGroupsApiSuccessResponse {
+  success: true;
+  data: ContextGroup[];
+}
+
+/**
+ * Error response shape for API failures
+ */
+interface ApiErrorResponse {
+  success?: false;
+  error: string;
+}
+
+/**
+ * Type guard to check if contexts API response is successful
+ * Validates the discriminated union at runtime
+ */
+function isContextsApiSuccess(response: unknown): response is ContextsApiSuccessResponse {
+  if (typeof response !== 'object' || response === null) return false;
+  const r = response as Record<string, unknown>;
+  if (r.success !== true) return false;
+  if (typeof r.data !== 'object' || r.data === null) return false;
+  const data = r.data as Record<string, unknown>;
+  return Array.isArray(data.contexts) && Array.isArray(data.groups);
+}
+
+/**
+ * Type guard to check if context-groups API response is successful
+ * Validates the discriminated union at runtime
+ */
+function isContextGroupsApiSuccess(response: unknown): response is ContextGroupsApiSuccessResponse {
+  if (typeof response !== 'object' || response === null) return false;
+  const r = response as Record<string, unknown>;
+  return r.success === true && Array.isArray(r.data);
+}
+
+// ============================================================================
+// Public Response Types
+// ============================================================================
+
+// SQLite-based context types - using camelCase Context type from contextQueries
 export interface SqliteContextsResponse {
   success: boolean;
-  contexts: DbContext[];
-  groups: DbContextGroup[];
+  contexts: Context[];
+  groups: ContextGroup[];
   error?: string;
 }
 
 export interface GroupedContexts {
-  group: DbContextGroup;
-  contexts: DbContext[];
+  group: ContextGroup;
+  contexts: Context[];
 }
 
 export interface QuestionsResponse {
@@ -169,6 +230,9 @@ export async function setupContextMapGenerator(projectPath: string): Promise<Con
 /**
  * Fetch SQLite contexts and groups for a project
  * This replaces the JSON context map with proper database-backed contexts
+ *
+ * Returns camelCase Context and ContextGroup objects as transformed by the API layer.
+ * Uses type guards to validate API response shapes at runtime.
  */
 export async function fetchSqliteContexts(projectId: string): Promise<SqliteContextsResponse> {
   // Fetch contexts and groups in parallel
@@ -185,38 +249,60 @@ export async function fetchSqliteContexts(projectId: string): Promise<SqliteCont
       success: false,
       contexts: [],
       groups: [],
-      error: error.error || 'Failed to fetch contexts'
+      error: (error as ApiErrorResponse).error || 'Failed to fetch contexts'
     };
   }
 
-  const contextsData = await contextsRes.json();
-  const groupsData = await groupsRes.json();
+  const contextsData: unknown = await contextsRes.json();
+  const groupsData: unknown = await groupsRes.json();
 
+  // Validate API response shapes using type guards
+  if (!isContextsApiSuccess(contextsData)) {
+    return {
+      success: false,
+      contexts: [],
+      groups: [],
+      error: 'Unexpected response shape from /api/contexts - expected { success: true, data: { contexts, groups } }'
+    };
+  }
+
+  if (!isContextGroupsApiSuccess(groupsData)) {
+    return {
+      success: false,
+      contexts: [],
+      groups: [],
+      error: 'Unexpected response shape from /api/context-groups - expected { success: true, data: ContextGroup[] }'
+    };
+  }
+
+  // Type-safe access - no fallback chains needed
   return {
     success: true,
-    contexts: contextsData.data?.contexts || contextsData.contexts || [],
-    groups: groupsData.data || groupsData.groups || []
+    contexts: contextsData.data.contexts,
+    groups: groupsData.data
   };
 }
 
 /**
  * Group contexts by their context group
  * Returns an array of { group, contexts } for UI rendering
+ *
+ * Note: This function expects camelCase Context objects from the API.
+ * The API layer transforms snake_case DB records to camelCase before returning.
  */
 export function groupContextsByGroup(
-  contexts: DbContext[],
-  groups: DbContextGroup[]
+  contexts: Context[],
+  groups: ContextGroup[]
 ): GroupedContexts[] {
   // Create a map of group ID to group
   const groupMap = new Map(groups.map(g => [g.id, g]));
 
-  // Group contexts by group_id (handle both snake_case DB and camelCase API response)
-  const contextsByGroup = new Map<string, DbContext[]>();
-  const ungroupedContexts: DbContext[] = [];
+  // Group contexts by groupId (camelCase - consistent with API response format)
+  const contextsByGroup = new Map<string, Context[]>();
+  const ungroupedContexts: Context[] = [];
 
   for (const context of contexts) {
-    // Support both snake_case (direct DB) and camelCase (API response) property names
-    const groupId = context.group_id || (context as unknown as { groupId?: string }).groupId;
+    const groupId = context.groupId;
     if (groupId && groupMap.has(groupId)) {
       const existing = contextsByGroup.get(groupId) || [];
       existing.push(context);
@@ -245,15 +331,14 @@ export function groupContextsByGroup(
     result.push({
       group: {
         id: 'ungrouped',
-        project_id: ungroupedContexts[0]?.project_id || '',
+        projectId: ungroupedContexts[0]?.projectId || '',
         name: 'Ungrouped',
         color: '#6B7280', // gray-500
-        accent_color: null,
         position: 999,
         type: null,
         icon: null,
-        created_at: '',
-        updated_at: ''
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       contexts: ungroupedContexts
     });

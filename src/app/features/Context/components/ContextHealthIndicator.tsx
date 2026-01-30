@@ -97,14 +97,16 @@ export function ContextHealthIndicator({
     <motion.div
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className={`inline-flex items-center gap-1.5 ${className}`}
+      whileHover={{ scale: 1.05 }}
+      transition={{ duration: 0.2 }}
+      className={`inline-flex items-center gap-1.5 cursor-help ${className}`}
       title={issues.length > 0 ? issues.join('\n') : 'Context is healthy'}
     >
-      <div className={`${containerSize} rounded-full ${config.bgColor}`}>
-        <Icon className={`${iconSize} ${config.color}`} />
+      <div className={`${containerSize} rounded-full ${config.bgColor} transition-colors duration-200`}>
+        <Icon className={`${iconSize} ${config.color} transition-colors duration-200`} />
       </div>
       {showLabel && (
-        <span className={`text-xs ${config.color}`}>{config.label}</span>
+        <span className={`text-xs ${config.color} transition-colors duration-200`}>{config.label}</span>
       )}
     </motion.div>
   );

@@ -15,6 +15,9 @@ import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import { useDragDropContext, useDropZoneValidator, DEFAULT_TARGET_TRANSFORMS } from '@/hooks/dnd';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
 import { SYNTHETIC_GROUP_ID } from './lib/constants';
+import { ContextEmptyState } from './components/ContextEmptyState';
+import { ContextGenerationOverlay } from './components/ContextGenerationOverlay';
+import { useContextGenerationStore } from '@/stores/contextGenerationStore';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -34,6 +37,24 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const lastProjectIdRef = useRef<string | null>(null);
+
+  // Context generation store
+  const { activeScan: contextGenerationScan, isGenerating } = useContextGenerationStore();
+  const showGenerationOverlay = contextGenerationScan !== null;
+
+  // Check if we have groups but no contexts (empty state condition)
+  const hasGroupsButNoContexts = useMemo(() => {
+    return groups.length > 0 && contexts.length === 0 && !loading;
+  }, [groups.length, contexts.length, loading]);
+
+  // Handle context generation completion - reload data
+  const handleGenerationComplete = useCallback(() => {
+    if (activeProject?.id) {
+      // Force reload project data to show new contexts
+      lastProjectIdRef.current = null; // Reset to force reload
+      loadProjectData(activeProject.id);
+    }
+  }, [activeProject?.id, loadProjectData]);
 
   // Drop zone validator with target transforms for synthetic group
   const { transformTarget } = useDropZoneValidator({
@@ -234,6 +255,12 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                       height="py-32"
                       testId="context-empty"
                     />
+                  ) : hasGroupsButNoContexts ? (
+                    /* Empty state when groups exist but no contexts */
+                    <ContextEmptyState
+                      projectId={activeProject.id}
+                      groupCount={groups.length}
+                    />
                   ) : (
                     <div className="p-8">
                       {/* Responsive 2-Column Layout */}
@@ -330,6 +357,13 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
           />
         )}
       </AnimatePresence>
+
+      {/* Context Generation Overlay */}
+      {showGenerationOverlay && (
+        <ContextGenerationOverlay
+          onComplete={handleGenerationComplete}
+        />
+      )}
     </div>
   );
 });

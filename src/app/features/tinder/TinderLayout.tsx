@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import TinderItemsContent from '@/app/features/tinder/components/TinderItemsContent';
@@ -10,11 +10,35 @@ import { useTinderItems, useTinderItemsKeyboardShortcuts } from '@/app/features/
 import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTestMode';
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
 import { Context } from '@/lib/queries/contextQueries';
+import { useEmulatorStore, useSelectedDevice } from '@/stores/emulatorStore';
 
 const TinderLayout = () => {
   const { initializeProjects, projects } = useProjectConfigStore();
   const { selectedProjectId } = useUnifiedProjectStore();
   const [contextsMap, setContextsMap] = React.useState<Record<string, Context[]>>({});
+
+  // Remote mode state
+  const [isRemoteMode, setIsRemoteMode] = useState(false);
+  const isRegistered = useEmulatorStore(s => s.isRegistered);
+  const selectedDeviceId = useEmulatorStore(s => s.selectedDeviceId);
+  const selectedDevice = useSelectedDevice();
+  const isRemoteAvailable = isRegistered && !!selectedDeviceId;
+
+  // Toggle remote mode
+  const handleRemoteModeToggle = useCallback(() => {
+    if (isRemoteMode) {
+      setIsRemoteMode(false);
+    } else if (isRemoteAvailable) {
+      setIsRemoteMode(true);
+    }
+  }, [isRemoteMode, isRemoteAvailable]);
+
+  // Auto-disable remote mode if connection lost
+  useEffect(() => {
+    if (!isRemoteAvailable && isRemoteMode) {
+      setIsRemoteMode(false);
+    }
+  }, [isRemoteAvailable, isRemoteMode]);
 
   // Test mode hooks
   const testMode = useTestMode();
@@ -37,9 +61,7 @@ const TinderLayout = () => {
     loadContexts();
   }, [projects]);
 
-  // Use the unified tinder items hook
-  const tinderItems = useTinderItems(selectedProjectId);
-
+  // Unified tinder items hook - handles both local and remote modes
   const {
     items,
     currentIndex,
@@ -50,13 +72,17 @@ const TinderLayout = () => {
     remainingCount,
     filterMode,
     counts,
+    goalTitlesMap,
     setFilterMode,
     handleAccept,
     handleReject,
     handleDelete,
     resetStats,
     loadItems,
-  } = tinderItems;
+  } = useTinderItems({
+    selectedProjectId,
+    remoteDeviceId: isRemoteMode ? selectedDeviceId : null,
+  });
 
   // Setup keyboard shortcuts
   useTinderItemsKeyboardShortcuts(handleAccept, handleReject, !processing);
@@ -79,12 +105,16 @@ const TinderLayout = () => {
       )}
 
       {/* Filter Tabs */}
-      <div className="max-w-2xl mx-auto px-6 pt-6">
+      <div className="max-w-3xl mx-auto px-4 pt-2">
         <TinderFilterTabs
           filterMode={filterMode}
           onFilterChange={setFilterMode}
           counts={counts}
           disabled={loading || processing}
+          isRemoteAvailable={isRemoteAvailable}
+          isRemoteMode={isRemoteMode}
+          remoteDeviceName={selectedDevice?.device_name}
+          onRemoteModeToggle={handleRemoteModeToggle}
         />
       </div>
 
@@ -102,6 +132,7 @@ const TinderLayout = () => {
         onStartOver={handleStartOver}
         onFlushComplete={loadItems}
         contextsMap={contextsMap}
+        goalTitlesMap={goalTitlesMap}
       />
     </div>
   );

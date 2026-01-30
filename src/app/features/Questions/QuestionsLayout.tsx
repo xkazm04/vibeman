@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, Compass, RefreshCw } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
@@ -74,13 +74,16 @@ export default function QuestionsLayout() {
     [contexts, contextGroups]
   );
 
-  // Auto-select all contexts when they load
-  const contextIds = contexts.map(c => c.id).join(',');
-  useMemo(() => {
-    if (contexts.length > 0 && selectedContextIds.length === 0) {
+  // Auto-select all contexts when they first load (one-time initialization)
+  // Using useEffect for side effects instead of useMemo
+  const hasInitializedRef = React.useRef(false);
+  useEffect(() => {
+    // Only auto-select once when contexts first become available
+    if (contexts.length > 0 && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       setSelectedContextIds(contexts.map(c => c.id));
     }
-  }, [contextIds]);
+  }, [contexts]);
 
   const handleToggleContext = (contextId: string) => {
     setSelectedContextIds(prev =>

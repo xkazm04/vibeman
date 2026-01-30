@@ -84,14 +84,26 @@ async function handlePut(request: NextRequest) {
   }
 }
 
-// DELETE /api/context-groups - Delete a context group
+// DELETE /api/context-groups - Delete a context group or all groups for a project
 async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
+    const projectId = searchParams.get('projectId');
 
+    // Bulk delete all groups for a project
+    if (projectId) {
+      const deletedCount = await contextGroupQueries.deleteAllByProject(projectId);
+      return NextResponse.json({
+        success: true,
+        deletedCount,
+        message: `Deleted ${deletedCount} context group(s)`
+      });
+    }
+
+    // Single group delete
     if (!groupId) {
-      return createErrorResponse('Group ID is required', 400);
+      return createErrorResponse('Group ID or Project ID is required', 400);
     }
 
     const success = await contextGroupQueries.deleteGroup(groupId);

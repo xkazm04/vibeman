@@ -1,9 +1,75 @@
 /**
  * Filter logic for idea groups on Reflector dashboard
+ * Also includes stats calculation helpers
  */
 
 import { DbIdea } from '@/app/db';
 import { SuggestionFilter } from './unifiedTypes';
+
+// ============================================================================
+// Stats Types and Helpers
+// ============================================================================
+
+export interface ReflectorStats {
+  today: number;
+  week: number;
+  month: number;
+}
+
+/**
+ * Calculate stats for implemented ideas
+ */
+export function calculateImplementedStats(ideas: DbIdea[]): ReflectorStats {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const monthAgo = new Date(today);
+  monthAgo.setMonth(monthAgo.getMonth() - 1);
+
+  return {
+    today: ideas.filter(i => {
+      if (!i.implemented_at) return false;
+      const date = new Date(i.implemented_at);
+      return date >= today;
+    }).length,
+    week: ideas.filter(i => {
+      if (!i.implemented_at) return false;
+      const date = new Date(i.implemented_at);
+      return date >= weekAgo;
+    }).length,
+    month: ideas.filter(i => {
+      if (!i.implemented_at) return false;
+      const date = new Date(i.implemented_at);
+      return date >= monthAgo;
+    }).length,
+  };
+}
+
+/**
+ * Filter ideas by view mode (weekly vs total)
+ */
+export function filterIdeasByViewMode(
+  ideas: DbIdea[],
+  viewMode: 'weekly' | 'total' | 'ideas_stats' | 'dependencies' | 'observability'
+): DbIdea[] {
+  if (viewMode === 'weekly') {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    return ideas.filter(idea => {
+      if (!idea.implemented_at) return false;
+      const implementedDate = new Date(idea.implemented_at);
+      return implementedDate >= oneWeekAgo;
+    });
+  }
+
+  return ideas;
+}
+
+// ============================================================================
+// Filter Types and Interfaces
+// ============================================================================
 
 export interface IdeaFilterState {
   projectIds: string[];
@@ -115,23 +181,6 @@ export function toIdeaFilterState(unified: UnifiedFilterState): IdeaFilterState 
   };
 }
 
-/**
- * Count active filters in unified state
- */
-export function countUnifiedActiveFilters(filters: UnifiedFilterState): number {
-  let count = 0;
-
-  if (filters.projectIds.length > 0) count++;
-  if (filters.contextIds.length > 0) count++;
-  if (filters.statuses.length > 0) count++;
-  if (filters.scanTypes.length > 0) count++;
-  if (filters.effortLevels.length > 0) count++;
-  if (filters.impactLevels.length > 0) count++;
-  if (filters.dateRange.start || filters.dateRange.end) count++;
-  if (filters.searchQuery.trim()) count++;
-
-  return count;
-}
 
 /**
  * Check if date is within range
@@ -248,9 +297,17 @@ export function applyFilters(
 }
 
 /**
- * Count active filters
+ * Base filter fields shared by IdeaFilterState and UnifiedFilterState
  */
-export function countActiveFilters(filters: IdeaFilterState): number {
+type BaseFilterState = Pick<IdeaFilterState,
+  'projectIds' | 'contextIds' | 'statuses' | 'scanTypes' |
+  'effortLevels' | 'impactLevels' | 'dateRange' | 'searchQuery'
+>;
+
+/**
+ * Count active filters (works with both IdeaFilterState and UnifiedFilterState)
+ */
+export function countActiveFilters(filters: BaseFilterState): number {
   let count = 0;
 
   if (filters.projectIds.length > 0) count++;

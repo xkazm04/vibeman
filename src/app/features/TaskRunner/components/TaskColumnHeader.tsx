@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckSquare, Square, Trash2, XCircle, Layers } from 'lucide-react';
+import { CheckSquare, Square, Trash2, XCircle, Layers, RotateCcw } from 'lucide-react';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
 
 interface TaskColumnHeaderProps {
@@ -13,6 +13,7 @@ interface TaskColumnHeaderProps {
   selectableCount: number;
   selectedInColumnCount: number;
   clearableCount: number;
+  failedCount: number;
   requirementsCount: number;
   aggregationCheck: AggregationCheckResult | null;
   isAggregating: boolean;
@@ -20,7 +21,9 @@ interface TaskColumnHeaderProps {
   onAggregate: () => void;
   onBulkDeleteSelected: () => void;
   onClearCompleted: () => void;
+  onResetAllFailed: () => void;
   canBulkDelete: boolean;
+  canReset: boolean;
 }
 
 export default function TaskColumnHeader({
@@ -32,6 +35,7 @@ export default function TaskColumnHeader({
   selectableCount,
   selectedInColumnCount,
   clearableCount,
+  failedCount,
   requirementsCount,
   aggregationCheck,
   isAggregating,
@@ -39,7 +43,9 @@ export default function TaskColumnHeader({
   onAggregate,
   onBulkDeleteSelected,
   onClearCompleted,
+  onResetAllFailed,
   canBulkDelete,
+  canReset,
 }: TaskColumnHeaderProps) {
   return (
     <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
@@ -92,6 +98,19 @@ export default function TaskColumnHeader({
             >
               <Trash2 className="w-3 h-3" />
               <span>{selectedInColumnCount}</span>
+            </button>
+          )}
+
+          {/* Reset all failed button */}
+          {failedCount > 0 && canReset && (
+            <button
+              onClick={onResetAllFailed}
+              className="text-amber-400 hover:text-amber-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+              title={`Reset ${failedCount} failed task${failedCount > 1 ? 's' : ''}`}
+              data-testid={`reset-failed-btn-${projectId}`}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>{failedCount}</span>
             </button>
           )}
 

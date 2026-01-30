@@ -33,7 +33,7 @@ export default function BufferView({
 }: BufferViewProps) {
   const router = useRouter();
   const { getProject } = useProjectConfigStore();
-  const { getNextAvailableBatchId, createSessionBatch } = useTaskRunnerStore();
+  const { reserveBatchSlot, releaseBatchReservation, createSessionBatch } = useTaskRunnerStore();
 
   // Use React Query for fetching and caching ideas
   const {
@@ -190,9 +190,10 @@ export default function BufferView({
         return;
       }
 
-      // Check if there's an available batch slot
-      const availableBatchId = getNextAvailableBatchId();
-      if (!availableBatchId) {
+      // Atomically reserve a batch slot BEFORE any async operations
+      // This prevents race conditions from double-clicks or concurrent requests
+      const reservedBatchId = reserveBatchSlot();
+      if (!reservedBatchId) {
         alert('All batch slots are full. Please clear a batch in Task Runner first.');
         return;
       }
@@ -217,11 +218,12 @@ export default function BufferView({
         const requirementName = data.requirementName;
 
         // Step 2: Create a batch in TaskRunner with this requirement
+        // This also clears the reservation atomically
         const taskId = `${idea.project_id}:${requirementName}`;
         const batchName = idea.title.substring(0, 30);
 
         createSessionBatch(
-          availableBatchId,
+          reservedBatchId,
           idea.project_id,
           project.path,
           batchName,
@@ -235,6 +237,8 @@ export default function BufferView({
         // Step 3: Navigate to TaskRunner (home page)
         router.push('/');
       } catch (error) {
+        // Release the reservation if the async operation failed
+        releaseBatchReservation(reservedBatchId);
         console.error('Failed to queue idea for execution:', error);
         alert(
           error instanceof Error
@@ -243,7 +247,7 @@ export default function BufferView({
         );
       }
     },
-    [ideas, getProject, getNextAvailableBatchId, createSessionBatch, invalidateIdeas, router]
+    [ideas, getProject, reserveBatchSlot, releaseBatchReservation, createSessionBatch, invalidateIdeas, router]
   );
 
   if (isLoading) {

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import ModeToggle from './components/ModeToggle';
 import RemoteSetupPanel from './components/RemoteSetupPanel';
 import EmulatorPanel from './components/EmulatorPanel';
 import { useZenStore } from '../lib/zenStore';
@@ -41,21 +40,16 @@ export default function ZenControlPanel() {
       animate={{ opacity: 1 }}
       className="space-y-4"
     >
-      {/* Mode Toggle - Always visible */}
-      <div className="flex justify-center">
-        <ModeToggle />
-      </div>
-
       {/* Offline Mode - Show instructions */}
       {mode === 'offline' && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center py-6"
+          className="text-center py-12"
         >
           <p className="text-sm text-gray-500">
             Switch to <span className="text-cyan-400 font-medium">Online</span> or{' '}
-            <span className="text-purple-400 font-medium">Emulator</span> mode to connect with other devices
+            <span className="text-purple-400 font-medium">Emulator</span> mode in the header to connect with other devices
           </p>
         </motion.div>
       )}

@@ -52,13 +52,13 @@ export default function MatrixPanel({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
             <Grid3X3 className="w-4 h-4 text-cyan-400" />
-            Connection Matrix
+            <span className="tracking-wide">Connection Matrix</span>
           </h3>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-zinc-800/80 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-zinc-800/80 rounded-lg transition-all duration-200 hover:border-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 group"
           >
-            <X className="w-4 h-4 text-zinc-500" />
+            <X className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-200" />
           </button>
         </div>
 

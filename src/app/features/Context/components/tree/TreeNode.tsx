@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, File, ChevronRight, FolderOpen, Check } from 'lucide-react';
-import { TreeNode as TreeNodeType } from '../../../../types';
-import { useStore } from '../../../../stores/nodeStore';
-import { getFileTypeColor } from '../../../../helpers/typeStyles';
-import { pathsMatch } from '../../../../utils/pathUtils';
-import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
+import { TreeNode as TreeNodeType } from '@/types';
+import { useStore } from '@/stores/nodeStore';
+import { getFileTypeColor } from '@/helpers/typeStyles';
+import { pathsMatch } from '@/utils/pathUtils';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import CodePreviewModal from './CodePreviewModal';
 
 // Browser-compatible path join

@@ -7,7 +7,8 @@
 
 import { useCLISessionStore, type CLISessionId } from './cliSessionStore';
 import type { QueuedTask } from '../types';
-import { remoteEvents } from '@/lib/remote';
+// Import directly to avoid circular dependency through barrel exports
+import { remoteEvents } from '@/lib/remote/eventPublisher';
 
 // Polling state per session
 interface PollingState {

@@ -156,6 +156,7 @@ export interface HealthcheckPayload {
   active_sessions: number;  // 0-4
   available_slots: number;  // 4 - active_sessions
   timestamp: string;        // ISO string
+  device_id?: string;       // Device ID for health history tracking
 }
 
 // ============================================================================

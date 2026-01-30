@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useMotionValue, useTransform, PanInfo, MotionValue } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { fetchIdeasBatch, acceptIdea, rejectIdea, deleteIdea } from './tinderApi';
@@ -257,4 +258,53 @@ export function useTinderKeyboardShortcuts(
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleAccept, handleReject, enabled]);
+}
+
+export interface UseDragSwipeResult {
+  x: MotionValue<number>;
+  rotateZ: MotionValue<number>;
+  exitX: number;
+  exitOpacity: number;
+  handleDragEnd: (_: unknown, info: PanInfo) => void;
+}
+
+/**
+ * Shared drag/swipe handling for Tinder-style cards
+ * Encapsulates motion values, exit animation state, and drag end logic
+ */
+export function useDragSwipe(
+  onSwipeLeft: () => void,
+  onSwipeRight: () => void
+): UseDragSwipeResult {
+  const x = useMotionValue(0);
+  const rotateZ = useTransform(x, [-200, 200], [-15, 15]);
+
+  const [exitX, setExitX] = useState(0);
+  const [exitOpacity, setExitOpacity] = useState(1);
+
+  const handleDragEnd = useCallback((_: unknown, info: PanInfo) => {
+    const threshold = 150;
+
+    if (Math.abs(info.offset.x) > threshold) {
+      // Swiped past threshold
+      setExitX(info.offset.x > 0 ? 1000 : -1000);
+      setExitOpacity(0);
+
+      setTimeout(() => {
+        if (info.offset.x > 0) {
+          onSwipeRight();
+        } else {
+          onSwipeLeft();
+        }
+      }, 200);
+    }
+  }, [onSwipeLeft, onSwipeRight]);
+
+  return {
+    x,
+    rotateZ,
+    exitX,
+    exitOpacity,
+    handleDragEnd,
+  };
 }

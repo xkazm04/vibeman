@@ -52,6 +52,8 @@ export interface TinderItemsResponse {
     ideas: number;
     directions: number;
   };
+  /** Map of goal_id -> goal_title for batch-fetched goals (avoids N+1 queries) */
+  goalTitlesMap: Record<string, string>;
 }
 
 // Hook result type
@@ -68,6 +70,8 @@ export interface UseTinderItemsResult {
   currentItem: TinderItem | undefined;
   filterMode: TinderFilterMode;
   counts: { ideas: number; directions: number };
+  /** Map of goal_id -> goal_title for batch-fetched goals */
+  goalTitlesMap: Record<string, string>;
   setFilterMode: (mode: TinderFilterMode) => void;
   handleAccept: () => Promise<void>;
   handleReject: () => Promise<void>;
