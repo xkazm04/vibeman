@@ -1,17 +1,21 @@
 /**
  * Context Utility Functions
  * Pure helper functions for context operations
+ *
+ * Note: For validation and health analysis, prefer using ContextEntity
+ * from '@/stores/context/ContextEntity' which centralizes domain logic.
  */
 
 import { LucideIcon } from 'lucide-react';
 import { Context } from '../../../../stores/contextStore';
 import { normalizePath } from '../../../../utils/pathUtils';
-import { 
-  GROUP_ICON_MAPPING, 
-  DATE_FORMAT_OPTIONS, 
+import {
+  GROUP_ICON_MAPPING,
+  DATE_FORMAT_OPTIONS,
   GRID_LAYOUT_CONFIG,
-  FILE_DISPLAY_CONFIG 
+  FILE_DISPLAY_CONFIG
 } from './constants';
+import { ContextEntity, type NameValidationResult } from '../../../../stores/context/ContextEntity';
 
 /**
  * Format date with specified format option
@@ -168,27 +172,15 @@ export function getRelatedContexts(contexts: Context[], currentContextId: string
 
 /**
  * Validate context name
+ * @deprecated Use ContextEntity.validateName() for new code
  */
-export function validateContextName(name: string): { valid: boolean; error?: string } {
-  const trimmedName = name.trim();
-  
-  if (!trimmedName) {
-    return { valid: false, error: 'Context name is required' };
-  }
-  
-  if (trimmedName.length < 2) {
-    return { valid: false, error: 'Context name must be at least 2 characters' };
-  }
-  
-  if (trimmedName.length > 100) {
-    return { valid: false, error: 'Context name must be less than 100 characters' };
-  }
-  
-  return { valid: true };
+export function validateContextName(name: string): NameValidationResult {
+  return ContextEntity.validateName(name);
 }
 
 /**
  * Check if context name already exists in group
+ * @deprecated Use ContextEntity.isNameDuplicateInGroup() for new code
  */
 export function isContextNameDuplicate(
   contexts: Context[],
@@ -196,13 +188,7 @@ export function isContextNameDuplicate(
   groupId: string,
   excludeContextId?: string
 ): boolean {
-  const trimmedName = name.trim().toLowerCase();
-  
-  return contexts.some(context => 
-    context.name.toLowerCase() === trimmedName && 
-    context.groupId === groupId &&
-    context.id !== excludeContextId
-  );
+  return ContextEntity.isNameDuplicateInGroup(contexts, name, groupId, excludeContextId);
 }
 
 /**

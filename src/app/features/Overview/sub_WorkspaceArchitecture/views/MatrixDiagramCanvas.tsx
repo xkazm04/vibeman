@@ -2,17 +2,25 @@
 
 /**
  * Matrix + Diagram Hybrid Architecture Visualization
- * - Split view: Matrix on left, Diagram on right
- * - Matrix shows all connections at a glance with colored dots
- * - Click matrix cell to highlight path in diagram
- * - Filter by integration type
+ *
+ * Implements the LINKED VIEWS pattern from information visualization:
+ * - Multiple views (Matrix, Diagram) of the same graph data
+ * - Coordinated interaction: hover/select in one view highlights in all views
+ * - Extensible: can add Table View, Timeline View, etc. without rewriting coordination
+ *
+ * Uses LinkedViewsContainer for shared selection state across child views.
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { IntegrationType } from '../lib/types';
 import { useMatrixCanvasData } from '../lib/useMatrixCanvasData';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import {
+  LinkedViewsContainer,
+  useLocalFocusHighlight,
+  focusTargetToCell,
+} from '@/hooks/useFocusHighlight';
 
 import MatrixLoadingState from '../../sub_Matrix/MatrixLoadingState';
 import MatrixErrorState from '../../sub_Matrix/MatrixErrorState';
@@ -34,10 +42,38 @@ export default function MatrixDiagramCanvas({
 }: MatrixDiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [selectedCell, setSelectedCell] = useState<{ sourceId: string; targetId: string } | null>(null);
-  const [hoveredCell, setHoveredCell] = useState<{ sourceId: string; targetId: string } | null>(null);
   const [filterTypes, setFilterTypes] = useState<Set<IntegrationType>>(new Set());
   const [showMatrix, setShowMatrix] = useState(true);
+
+  // Use the focus highlight system for coordinated hover/selection
+  const focus = useLocalFocusHighlight();
+
+  // Convert focus state to legacy cell format for child components
+  const selectedCell = useMemo(() => focusTargetToCell(focus.state.selected), [focus.state.selected]);
+  const hoveredCell = useMemo(() => focusTargetToCell(focus.state.hovered), [focus.state.hovered]);
+
+  // Callback adapters for child components using legacy cell format
+  const handleCellHover = useCallback(
+    (cell: { sourceId: string; targetId: string } | null) => {
+      if (cell) {
+        focus.hover({ primaryId: cell.sourceId, secondaryId: cell.targetId });
+      } else {
+        focus.hover(null);
+      }
+    },
+    [focus]
+  );
+
+  const handleCellSelect = useCallback(
+    (cell: { sourceId: string; targetId: string } | null) => {
+      if (cell) {
+        focus.toggleSelect({ primaryId: cell.sourceId, secondaryId: cell.targetId });
+      } else {
+        focus.select(null);
+      }
+    },
+    [focus]
+  );
 
   const { workspaces } = useWorkspaceStore();
   const activeWorkspace = workspaceId && workspaceId !== 'default'
@@ -46,7 +82,7 @@ export default function MatrixDiagramCanvas({
 
   const {
     data, loading, error, refresh,
-    sortedNodes, matrix, filteredConnections,
+    sortedNodes, matrix, filteredConnections, filteredResolvedEdges,
     nodes, tierConfigs, availableIntegrationTypes,
     matrixContentWidth, matrixContentHeight, matrixPanelWidth,
   } = useMatrixCanvasData({ workspaceId, filterTypes, showMatrix, dimensionsWidth: dimensions.width });
@@ -85,39 +121,47 @@ export default function MatrixDiagramCanvas({
 
   const diagramWidth = dimensions.width - (showMatrix ? matrixPanelWidth : 0);
 
+  // Linked Views Pattern: Both Matrix and Diagram views share coordinated selection state
+  // Future views (Table, Timeline) can be added here and automatically participate in coordination
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden flex">
-      <MatrixBackground />
-      <AnimatePresence>
-        {showMatrix && (
-          <MatrixPanel
-            sortedNodes={sortedNodes}
-            matrix={matrix}
-            availableIntegrationTypes={availableIntegrationTypes}
-            filterTypes={filterTypes}
-            selectedCell={selectedCell}
-            hoveredCell={hoveredCell}
-            panelWidth={matrixPanelWidth}
-            contentWidth={matrixContentWidth}
-            contentHeight={matrixContentHeight}
-            onClose={() => setShowMatrix(false)}
-            onToggleFilter={toggleFilter}
-            onCellHover={setHoveredCell}
-            onCellSelect={setSelectedCell}
-          />
-        )}
-      </AnimatePresence>
-      <MatrixDiagramView
-        nodes={nodes}
-        connections={filteredConnections}
-        tierConfigs={tierConfigs}
-        width={diagramWidth}
-        height={dimensions.height}
-        selectedCell={selectedCell}
-        hoveredCell={hoveredCell}
-        showMatrixButton={!showMatrix}
-        onShowMatrix={() => setShowMatrix(true)}
-      />
-    </div>
+    <LinkedViewsContainer
+      className="relative w-full h-full overflow-hidden flex"
+      initialActiveViews={['matrix', 'diagram']}
+    >
+      <div ref={containerRef} className="relative w-full h-full overflow-hidden flex">
+        <MatrixBackground />
+        <AnimatePresence>
+          {showMatrix && (
+            <MatrixPanel
+              sortedNodes={sortedNodes}
+              matrix={matrix}
+              availableIntegrationTypes={availableIntegrationTypes}
+              filterTypes={filterTypes}
+              selectedCell={selectedCell}
+              hoveredCell={hoveredCell}
+              panelWidth={matrixPanelWidth}
+              contentWidth={matrixContentWidth}
+              contentHeight={matrixContentHeight}
+              onClose={() => setShowMatrix(false)}
+              onToggleFilter={toggleFilter}
+              onCellHover={handleCellHover}
+              onCellSelect={handleCellSelect}
+            />
+          )}
+        </AnimatePresence>
+        <MatrixDiagramView
+          nodes={nodes}
+          connections={filteredConnections}
+          resolvedEdges={filteredResolvedEdges}
+          tierConfigs={tierConfigs}
+          width={diagramWidth}
+          height={dimensions.height}
+          selectedCell={selectedCell}
+          hoveredCell={hoveredCell}
+          showMatrixButton={!showMatrix}
+          onShowMatrix={() => setShowMatrix(true)}
+        />
+      </div>
+    </LinkedViewsContainer>
   );
 }

@@ -234,7 +234,6 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
       <div className="flex-1 overflow-y-auto">
         {filteredStructure ? (
           <TreeView
-            activeProject={null}
             filteredStructure={filteredStructure}
             isLoading={false}
             error={null}

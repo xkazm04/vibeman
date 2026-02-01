@@ -59,6 +59,20 @@ export const ideaRepository = {
   },
 
   /**
+   * Get ideas by scan ID
+   * More efficient than fetching all project ideas and filtering in memory
+   */
+  getIdeasByScanId: (scanId: string): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE scan_id = ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(scanId) as DbIdea[];
+  },
+
+  /**
    * Get ideas by goal
    */
   getIdeasByGoal: (goalId: string): DbIdea[] => {

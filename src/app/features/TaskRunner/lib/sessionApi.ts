@@ -231,12 +231,11 @@ export async function executeSessionTask(params: ExecuteSessionTaskParams): Prom
   success: boolean;
   taskId: string;
 }> {
-  const response = await fetch('/api/claude-code', {
+  const response = await fetch('/api/claude-code/execute', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       projectPath: params.projectPath,
-      action: 'execute-requirement',
       requirementName: params.requirementName,
       projectId: params.projectId,
       async: true,
@@ -264,13 +263,9 @@ export async function getTaskExecutionStatus(taskId: string): Promise<{
   error?: string;
   output?: string;
 }> {
-  const response = await fetch('/api/claude-code', {
-    method: 'POST',
+  const response = await fetch(`/api/claude-code/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'GET',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'get-task-status',
-      taskId,
-    }),
   });
 
   if (!response.ok) {

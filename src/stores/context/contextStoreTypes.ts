@@ -76,7 +76,6 @@ export interface ContextStore extends ContextState {
     target_fulfillment?: string | null;
   }) => Promise<void>;
   moveContext: (contextId: string, newGroupId: string | null) => Promise<void>;
-  flushPendingMoves: () => Promise<void>;
 
   // Group operations
   addGroup: (groupData: {

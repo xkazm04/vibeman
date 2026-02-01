@@ -163,12 +163,11 @@ export async function createRequirementFromPlan(
     console.log('[CreateRequirement] Wrapped content length:', wrappedContent.length);
 
     // Create requirement using API
-    const response = await fetch('/api/claude-code', {
+    const response = await fetch('/api/claude-code/requirement', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         projectPath,
-        action: 'create-requirement',
         requirementName,
         content: wrappedContent,
       }),

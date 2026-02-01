@@ -1,5 +1,13 @@
 import type { Requirement } from '@/app/Claude/lib/requirementApi';
 import type { BatchId } from './batchStorage';
+import { RequirementId, type RequirementIdString, type ParsedRequirementId } from './requirementId';
+
+// Re-export RequirementId for consumers
+export { RequirementId, type RequirementIdString, type ParsedRequirementId };
+
+// Re-export ProgressEmitter types for progress tracking
+// See @/lib/progress for the unified progress interface
+export type { ProgressSnapshot, ProgressEmitter } from '@/lib/progress';
 
 // ============================================================================
 // Discriminated Union Types for Task Status
@@ -14,6 +22,13 @@ export interface TaskStatusQueued {
 
 /**
  * Task is currently being executed
+ *
+ * Progress is tracked via the progressLines metric in the store's taskProgress map.
+ * progressLines (0-100) serves as a normalized proxy for execution progress,
+ * implementing the ProgressEmitter pattern. See @/lib/progress for details.
+ *
+ * The progress field here is optional and may differ from progressLines -
+ * use taskProgress[taskId] from the store for the canonical progressLines value.
  */
 export interface TaskStatusRunning {
   type: 'running';
@@ -427,6 +442,24 @@ export interface ProjectRequirement {
   status: Requirement['status'];
   taskId?: string;
   batchId?: BatchId | null; // Track which batch this requirement belongs to (up to 4 batches)
+}
+
+/**
+ * Get the composite requirement ID for a ProjectRequirement
+ *
+ * Uses the RequirementId value object for consistent ID formatting.
+ *
+ * @param requirement - The project requirement
+ * @returns The composite requirement ID string
+ *
+ * @example
+ * ```typescript
+ * const req: ProjectRequirement = { projectId: 'proj-123', requirementName: 'fix-bug', ... };
+ * const id = getRequirementId(req); // "proj-123:fix-bug"
+ * ```
+ */
+export function getRequirementId(requirement: Pick<ProjectRequirement, 'projectId' | 'requirementName'>): RequirementIdString {
+  return RequirementId.fromRequirement(requirement);
 }
 
 export interface TaskRunnerState {

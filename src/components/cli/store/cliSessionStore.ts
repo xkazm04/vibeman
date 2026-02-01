@@ -19,6 +19,12 @@ export interface CLIGitConfig {
   commitMessageTemplate: string;
 }
 
+// Recovery state (ephemeral, not persisted)
+export interface RecoveryState {
+  inProgress: boolean;
+  endTime: number;
+}
+
 // Session state
 export interface CLISessionState {
   id: CLISessionId;
@@ -41,6 +47,7 @@ export interface CLISessionState {
 // Store state
 interface CLISessionStoreState {
   sessions: Record<CLISessionId, CLISessionState>;
+  recoveryState: RecoveryState;
 
   // Actions
   initSession: (sessionId: CLISessionId, projectPath: string) => void;
@@ -60,6 +67,8 @@ interface CLISessionStoreState {
   setGitConfig: (sessionId: CLISessionId, config: CLIGitConfig | null) => void;
 
   // Recovery
+  startRecovery: (durationMs?: number) => void;
+  endRecovery: () => void;
   getActiveSessions: () => CLISessionState[];
   getSessionsNeedingRecovery: () => CLISessionState[];
 }
@@ -95,6 +104,10 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         cliSession2: createDefaultSession('cliSession2'),
         cliSession3: createDefaultSession('cliSession3'),
         cliSession4: createDefaultSession('cliSession4'),
+      },
+      recoveryState: {
+        inProgress: false,
+        endTime: 0,
       },
 
       initSession: (sessionId, projectPath) => {
@@ -329,6 +342,24 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
             },
           },
         }));
+      },
+
+      startRecovery: (durationMs = 10000) => {
+        set({
+          recoveryState: {
+            inProgress: true,
+            endTime: Date.now() + durationMs,
+          },
+        });
+      },
+
+      endRecovery: () => {
+        set({
+          recoveryState: {
+            inProgress: false,
+            endTime: 0,
+          },
+        });
       },
 
       getActiveSessions: () => {

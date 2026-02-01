@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Activity, AlertCircle, CheckCircle } from 'lucide-react';
+import { Terminal, Activity, AlertCircle, CheckCircle, LucideIcon } from 'lucide-react';
+
+// Static icon map for O(1) lookup instead of switch statement per render
+const LOG_TYPE_ICON_MAP: Record<LogEntry['type'], LucideIcon> = {
+  success: CheckCircle,
+  warning: AlertCircle,
+  error: AlertCircle,
+  info: Activity,
+};
 
 interface LogEntry {
   id: string;
@@ -57,13 +65,9 @@ const CompactSystemLogs = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Get icon for log type - uses static map for O(1) lookup
   const getLogIcon = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'success': return CheckCircle;
-      case 'warning': return AlertCircle;
-      case 'error': return AlertCircle;
-      default: return Activity;
-    }
+    return LOG_TYPE_ICON_MAP[type] ?? Activity;
   };
 
   const getLogColor = (type: LogEntry['type']) => {

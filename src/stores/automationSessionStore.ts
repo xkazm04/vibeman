@@ -2,9 +2,13 @@
  * Automation Session Store
  * Global state for standup automation sessions
  * Enables GlobalTaskBar to show automation status across all modules
+ *
+ * Uses adaptive polling: faster when sessions are active, slower when idle.
+ * Shared polling infrastructure via createActivityAwarePoller from usePolling.
  */
 
 import { create } from 'zustand';
+import { createActivityAwarePoller, type ActivityAwarePoller } from '@/hooks/usePolling';
 
 // ============ Types ============
 
@@ -60,7 +64,8 @@ interface AutomationSessionState {
 const ACTIVE_POLL_INTERVAL = 3000; // 3 seconds when sessions running
 const IDLE_POLL_INTERVAL = 30000; // 30 seconds when idle
 
-let pollInterval: NodeJS.Timeout | null = null;
+// Polling manager instance (created lazily)
+let poller: ActivityAwarePoller | null = null;
 
 export const useAutomationSessionStore = create<AutomationSessionState>((set, get) => ({
   sessions: [],
@@ -90,7 +95,6 @@ export const useAutomationSessionStore = create<AutomationSessionState>((set, ge
   setPolling: (enabled) => {
     set({ isPolling: enabled });
     if (enabled) {
-      get().fetchSessions();
       startPolling(get);
     } else {
       stopPolling();
@@ -169,41 +173,49 @@ export const useAutomationSessionStore = create<AutomationSessionState>((set, ge
   },
 }));
 
-// Polling management
+// Polling management using shared activity-aware infrastructure
+function hasActiveSessions(sessions: AutomationSession[]): boolean {
+  return sessions.some(
+    (s) => s.phase !== 'complete' && s.phase !== 'failed' && s.phase !== 'paused'
+  );
+}
+
 function startPolling(get: () => AutomationSessionState) {
   stopPolling();
 
-  const poll = () => {
-    const state = get();
-    if (!state.isPolling) return;
+  // Create activity-aware poller that adapts interval based on session state
+  poller = createActivityAwarePoller(
+    async () => {
+      const state = get();
+      if (!state.isPolling) {
+        stopPolling();
+        return false;
+      }
 
-    // Determine poll interval based on active sessions
-    const hasActiveSessions = state.sessions.some(
-      (s) => s.phase !== 'complete' && s.phase !== 'failed' && s.phase !== 'paused'
-    );
-    const interval = hasActiveSessions ? ACTIVE_POLL_INTERVAL : IDLE_POLL_INTERVAL;
+      await state.fetchSessions();
 
-    pollInterval = setTimeout(() => {
-      state.fetchSessions().then(() => poll());
-    }, interval);
-  };
+      // Return true if sessions are active (triggers fast polling)
+      const newState = get();
+      return hasActiveSessions(newState.sessions);
+    },
+    {
+      activeIntervalMs: ACTIVE_POLL_INTERVAL,
+      idleIntervalMs: IDLE_POLL_INTERVAL,
+    }
+  );
 
-  poll();
+  poller.start();
 }
 
 function stopPolling() {
-  if (pollInterval) {
-    clearTimeout(pollInterval);
-    pollInterval = null;
-  }
+  poller?.stop();
+  poller = null;
 }
 
-// Initialize polling when store is created
-if (typeof window !== 'undefined') {
-  // Start polling on client side
-  setTimeout(() => {
-    const store = useAutomationSessionStore.getState();
-    store.fetchSessions();
-    startPolling(useAutomationSessionStore.getState);
-  }, 1000);
+// Export polling control for components that need to trigger polling explicitly
+export function initializePolling() {
+  if (typeof window === 'undefined') return;
+  const store = useAutomationSessionStore.getState();
+  store.fetchSessions();
+  startPolling(useAutomationSessionStore.getState);
 }

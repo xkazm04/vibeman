@@ -149,13 +149,13 @@ export class PipelineExecutor {
     steps.push(step);
 
     try {
-      const response = await fetch('/api/claude-code', {
+      const response = await fetch('/api/claude-code/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'execute-requirement-async',
           projectPath: config.projectPath,
-          requirementPath,
+          requirementName: requirementPath,
+          async: true,
         }),
       });
 
@@ -216,13 +216,9 @@ export class PipelineExecutor {
       config.onProgress?.(progressPercent, 'Waiting for task completion...');
 
       try {
-        const response = await fetch('/api/claude-code', {
-          method: 'POST',
+        const response = await fetch(`/api/claude-code/tasks/${encodeURIComponent(taskId)}`, {
+          method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'get-task-status',
-            taskId,
-          }),
         });
 
         if (response.ok) {

@@ -624,9 +624,13 @@ export interface DbDirection {
   // Content
   direction: string;                // Full markdown content
   summary: string;                  // One-liner summary
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'pending' | 'processing' | 'accepted' | 'rejected';
   requirement_id: string | null;    // Set when accepted (created requirement)
   requirement_path: string | null;  // Path to created requirement file
+  // Paired directions support - two alternative solutions for the same problem
+  pair_id: string | null;           // Shared ID between paired directions (null = single direction)
+  pair_label: 'A' | 'B' | null;     // Which variant in the pair (null = single direction)
+  problem_statement: string | null; // The problem both directions solve (for paired directions)
   created_at: string;
   updated_at: string;
 }

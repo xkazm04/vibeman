@@ -6,7 +6,7 @@ import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import DualBatchPanel from './components/DualBatchPanel';
 import { CLIBatchPanel } from '@/components/cli';
 import ConfigurationToolbar from './lib/ConfigurationToolbar';
-import SessionCleanupPanel from './components/SessionCleanupPanel';
+import TaskMonitor from './components/TaskMonitor';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
 import {
   type BatchId,
@@ -166,8 +166,8 @@ export default function TaskRunnerHeader({
 
   return (
     <div className="relative space-y-3">
-      {/* Session Cleanup Panel - Shows warning for orphaned sessions */}
-      <SessionCleanupPanel />
+      {/* Session Health Monitor - Shows task status and orphaned sessions */}
+      <TaskMonitor showOrphanCleanup={true} />
 
       {/* Error Display */}
       {error && (

@@ -4,6 +4,7 @@ import { contextDb } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import { ContextEntity } from '@/stores/context/ContextEntity';
 
 interface ContextRequest {
   contextName: string;
@@ -26,13 +27,28 @@ function createErrorResponse(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
 }
 
+/**
+ * Validates context creation request using ContextEntity domain rules
+ */
 function validateContextRequest(data: Partial<ContextRequest>): NextResponse | null {
-  if (!data.contextName || !data.projectId) {
-    return createErrorResponse('Context name and project ID are required', 400);
+  if (!data.projectId) {
+    return createErrorResponse('Project ID is required', 400);
   }
 
-  if (!data.filePaths || data.filePaths.length === 0) {
-    return createErrorResponse('At least one file path is required', 400);
+  // Use ContextEntity for name validation
+  if (!data.contextName) {
+    return createErrorResponse('Context name is required', 400);
+  }
+
+  const nameValidation = ContextEntity.validateName(data.contextName);
+  if (!nameValidation.valid) {
+    return createErrorResponse(nameValidation.error || 'Invalid context name', 400);
+  }
+
+  // Use ContextEntity for file paths validation
+  const filePathsValidation = ContextEntity.validateFilePaths(data.filePaths || []);
+  if (!filePathsValidation.valid) {
+    return createErrorResponse(filePathsValidation.error || 'At least one file path is required', 400);
   }
 
   return null;

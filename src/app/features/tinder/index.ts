@@ -6,6 +6,8 @@
 // Components
 export { default as IdeaCard } from './components/IdeaCard';
 export { default as DirectionCard } from './components/DirectionCard';
+export { default as DirectionPairCard } from './components/DirectionPairCard';
+export { default as IdeasCategorySidebar } from './components/IdeasCategorySidebar';
 export { default as ActionButtons } from './components/TinderButtons';
 export { default as TinderHeader } from './components/TinderHeader';
 export { default as TinderContent } from './components/TinderContent';

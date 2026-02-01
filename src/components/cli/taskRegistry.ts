@@ -200,35 +200,3 @@ export async function clearSessionTasks(sessionId: string): Promise<number> {
   }
 }
 
-/**
- * Poll for task completion (useful for detecting stuck tasks)
- */
-export async function waitForTaskCompletion(
-  taskId: string,
-  timeoutMs: number = 60000,
-  pollIntervalMs: number = 2000
-): Promise<TaskStatusResponse> {
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeoutMs) {
-    const status = await getTaskStatus(taskId);
-
-    if (!status.found || status.status !== 'running') {
-      return status;
-    }
-
-    if (status.isStale) {
-      return status;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-  }
-
-  // Timeout reached
-  return {
-    found: true,
-    taskId,
-    status: 'running',
-    isStale: true,
-  };
-}

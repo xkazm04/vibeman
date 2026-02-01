@@ -10,7 +10,8 @@ export type BehavioralSignalType =
   | 'context_focus'
   | 'implementation'
   | 'cross_task_analysis'
-  | 'cross_task_selection';
+  | 'cross_task_selection'
+  | 'cli_memory';
 
 // Reflection trigger types
 export type ReflectionTriggerType = 'threshold' | 'scheduled' | 'manual';
@@ -93,6 +94,14 @@ export interface CrossTaskSelectionSignalData {
   planTitle: string;
   userNotes: string | null;
   projectIds: string[];
+}
+
+export interface CliMemorySignalData {
+  category: 'decision' | 'insight' | 'pattern' | 'context' | 'lesson';
+  message: string;
+  source: 'claude_code_cli';
+  sessionContext?: string;  // optional: what user was working on
+  files?: string[];         // optional: related files
 }
 
 /**

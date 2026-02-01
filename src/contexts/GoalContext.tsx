@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useCallback, useState, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Goal } from '@/types';
-import { goalApi, goalKeys } from '@/lib/queries/goalQueries';
+import { goalApi, goalKeys, CreateGoalRequest, UpdateGoalRequest } from '@/lib/queries/goalQueries';
 
 /**
  * GoalContext State
@@ -158,16 +158,18 @@ export function GoalProvider({ projectId, children }: GoalProviderProps) {
   }, [projectId, createGoalMutation]);
 
   // Action: Update a goal
+  // Note: Frontend uses `order` but API expects `orderIndex` (which maps to `order_index` in DB)
   const updateGoal = useCallback(async (goalId: string, updates: Partial<Goal>): Promise<Goal | null> => {
     try {
-      const result = await updateGoalMutation.mutateAsync({
+      const apiParams: UpdateGoalRequest = {
         id: goalId,
         title: updates.title,
         description: updates.description,
         status: updates.status,
-        orderIndex: updates.order,
+        orderIndex: updates.order, // Map frontend `order` to API `orderIndex`
         contextId: updates.contextId,
-      });
+      };
+      const result = await updateGoalMutation.mutateAsync(apiParams);
       return result;
     } catch (error) {
       return null;

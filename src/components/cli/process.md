@@ -470,18 +470,25 @@ SSE events: connected -> message* -> tool_use* -> tool_result* -> result|error
 
 ### ✅ FIXED: 'Recovering' Label Stuck During Normal Operation
 
-**Status**: FIXED (2025-01)
+**Status**: FIXED (2025-01), refactored (2026-01)
 
 **Original Issue**: The "Recovering X" label would show indefinitely during normal operation, not just during actual recovery.
 
 **Root Cause**: `useCLIRecoveryStatus` was returning `isRecovering: true` whenever there were pending tasks with autoStart, not just during recovery phase.
 
-**Fix Applied**:
+**Fix Applied** (initial):
 - Added module-level `isInRecoveryPhase` and `recoveryPhaseEndTime` tracking
 - Recovery phase now lasts ~10 seconds, then ends
 - `isRecovering` only returns true during actual recovery phase
 
-**Files Modified**: `store/useCLIRecovery.ts`
+**Refactored** (2026-01):
+- Moved recovery state from module-level variables into `cliSessionStore.ts` as `recoveryState: {inProgress: boolean, endTime: number}`
+- Eliminated module-level variables `isInRecoveryPhase` and `recoveryPhaseEndTime`
+- `useCLIRecoveryStatus` now reactively subscribes to store instead of using polling/forceUpdate
+- Added `startRecovery()` and `endRecovery()` actions to store
+- Recovery state excluded from persistence (ephemeral)
+
+**Files Modified**: `store/useCLIRecovery.ts`, `store/cliSessionStore.ts`
 
 ### ✅ FIXED: 'Waiting for task' Infinite Loop
 

@@ -34,6 +34,7 @@ async function handlePost(request: NextRequest) {
       'api_focus',
       'context_focus',
       'implementation',
+      'cli_memory',
     ];
 
     if (!validTypes.includes(signalType)) {
@@ -56,6 +57,9 @@ async function handlePost(request: NextRequest) {
         break;
       case 'implementation':
         signalCollector.recordImplementation(projectId, data);
+        break;
+      case 'cli_memory':
+        signalCollector.recordCliMemory(projectId, data, contextId, contextName);
         break;
     }
 

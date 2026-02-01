@@ -31,6 +31,24 @@ import type {
   CLISSEEvent,
 } from '@/components/cli/types';
 
+// Static icon maps for O(1) lookup instead of switch statement per render
+const MINI_LOG_ICON_SIZE = 'w-2.5 h-2.5';
+
+const MINI_LOG_TYPE_ICONS: Record<LogEntry['type'], { icon: typeof Bot; colorClass: string }> = {
+  user: { icon: Bot, colorClass: 'text-gray-400' }, // user type falls through to default in original
+  assistant: { icon: Bot, colorClass: 'text-purple-400' },
+  tool_use: { icon: Wrench, colorClass: 'text-yellow-400' },
+  tool_result: { icon: CheckCircle, colorClass: 'text-green-400' },
+  error: { icon: AlertCircle, colorClass: 'text-red-400' },
+  system: { icon: Terminal, colorClass: 'text-cyan-400' },
+};
+
+const MINI_TOOL_ICONS: Record<string, { icon: typeof FileEdit; colorClass: string }> = {
+  Edit: { icon: FileEdit, colorClass: 'text-yellow-400' },
+  Write: { icon: FilePlus, colorClass: 'text-green-400' },
+  Read: { icon: Eye, colorClass: 'text-blue-400' },
+};
+
 export interface MiniTerminalProps {
   /** Unique instance identifier */
   instanceId: string;
@@ -260,26 +278,26 @@ export function MiniTerminal({
     }
   }, [autoStart, hasStarted, startExecution]);
 
-  // Get icon for log type
+  // Get icon for log type - uses static maps for O(1) lookup
   const getLogIcon = (type: LogEntry['type'], toolName?: string) => {
-    const size = 'w-2.5 h-2.5';
-    switch (type) {
-      case 'assistant':
-        return <Bot className={`${size} text-purple-400`} />;
-      case 'tool_use':
-        if (toolName === 'Edit') return <FileEdit className={`${size} text-yellow-400`} />;
-        if (toolName === 'Write') return <FilePlus className={`${size} text-green-400`} />;
-        if (toolName === 'Read') return <Eye className={`${size} text-blue-400`} />;
-        return <Wrench className={`${size} text-yellow-400`} />;
-      case 'tool_result':
-        return <CheckCircle className={`${size} text-green-400`} />;
-      case 'error':
-        return <AlertCircle className={`${size} text-red-400`} />;
-      case 'system':
-        return <Terminal className={`${size} text-cyan-400`} />;
-      default:
-        return <Bot className={`${size} text-gray-400`} />;
+    // For tool_use, check tool-specific icons first
+    if (type === 'tool_use' && toolName) {
+      const toolIcon = MINI_TOOL_ICONS[toolName];
+      if (toolIcon) {
+        const Icon = toolIcon.icon;
+        return <Icon className={`${MINI_LOG_ICON_SIZE} ${toolIcon.colorClass}`} />;
+      }
     }
+
+    // Look up in type map
+    const config = MINI_LOG_TYPE_ICONS[type];
+    if (config) {
+      const Icon = config.icon;
+      return <Icon className={`${MINI_LOG_ICON_SIZE} ${config.colorClass}`} />;
+    }
+
+    // Default fallback
+    return <Bot className={`${MINI_LOG_ICON_SIZE} text-gray-400`} />;
   };
 
   // Format log content

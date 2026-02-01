@@ -10,6 +10,64 @@ import type { QueuedTask } from '../types';
 // Import directly to avoid circular dependency through barrel exports
 import { remoteEvents } from '@/lib/remote/eventPublisher';
 
+// ============ Shared Task Completion Utilities ============
+
+/**
+ * Delete a requirement file after successful completion
+ * Shared by cliExecutionManager and CLIBatchPanel
+ */
+export async function deleteRequirementFile(
+  projectPath: string,
+  requirementName: string
+): Promise<boolean> {
+  try {
+    const response = await fetch('/api/claude-code/requirement', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectPath, requirementName }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('[CLI] Failed to delete requirement:', error);
+    return false;
+  }
+}
+
+/**
+ * Update idea status to implemented
+ * Shared by cliExecutionManager and CLIBatchPanel
+ */
+export async function updateIdeaImplementationStatus(
+  requirementName: string
+): Promise<void> {
+  try {
+    await fetch('/api/ideas/update-implementation-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requirementName }),
+    });
+  } catch {
+    // Non-critical - silently ignore
+  }
+}
+
+/**
+ * Perform post-completion cleanup for a successful task
+ * Deletes requirement file and updates idea status
+ *
+ * @returns true if requirement was deleted successfully
+ */
+export async function performTaskCleanup(
+  projectPath: string,
+  requirementName: string
+): Promise<boolean> {
+  // Update idea status (fire-and-forget, non-blocking)
+  updateIdeaImplementationStatus(requirementName);
+
+  // Delete requirement file
+  return deleteRequirementFile(projectPath, requirementName);
+}
+
 // Polling state per session
 interface PollingState {
   intervalId: NodeJS.Timeout;
@@ -22,29 +80,6 @@ const activePolling: Map<CLISessionId, PollingState> = new Map();
 
 // Execution stream tracking
 const activeStreams: Map<string, EventSource> = new Map();
-
-// Requirements cache (for finding next task after completion)
-let cachedRequirements: Array<{
-  id: string;
-  projectPath: string;
-  requirementName: string;
-}> = [];
-
-/**
- * Cache requirements for use in polling callbacks
- */
-export function setCachedRequirements(
-  requirements: Array<{ id: string; projectPath: string; requirementName: string }>
-): void {
-  cachedRequirements = [...requirements];
-}
-
-/**
- * Get cached requirements
- */
-export function getCachedRequirements() {
-  return cachedRequirements;
-}
 
 /**
  * Start CLI execution for a task
@@ -239,30 +274,8 @@ async function handleTaskComplete(
   }
 
   if (success) {
-    // Delete requirement file
-    try {
-      await fetch('/api/claude-code/requirement', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectPath: task.projectPath,
-          requirementName: task.requirementName,
-        }),
-      });
-    } catch (error) {
-      console.error('[CLI] Failed to delete requirement:', error);
-    }
-
-    // Update idea status
-    try {
-      await fetch('/api/ideas/update-implementation-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requirementName: task.requirementName }),
-      });
-    } catch {
-      // Non-critical
-    }
+    // Perform shared cleanup (delete requirement, update idea status)
+    await performTaskCleanup(task.projectPath, task.requirementName);
 
     // Remove task from queue after brief delay
     setTimeout(() => {

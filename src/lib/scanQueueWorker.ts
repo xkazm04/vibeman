@@ -10,6 +10,7 @@ import { ScanType, getScanTypeName } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { generateNotificationId } from '@/lib/idGenerator';
+import { projectServiceDb } from '@/lib/projectServiceDb';
 
 interface WorkerConfig {
   pollIntervalMs: number;
@@ -52,14 +53,6 @@ class ScanQueueWorker {
   private consecutiveEmptyPolls = 0;
 
   /**
-   * Generate a unique notification ID
-   * Uses shared idGenerator for consistency
-   */
-  private generateNotificationId(): string {
-    return generateNotificationId();
-  }
-
-  /**
    * Create a notification for a queue item
    */
   private createNotification(
@@ -70,7 +63,7 @@ class ScanQueueWorker {
     data: NotificationData
   ): void {
     scanQueueDb.createNotification({
-      id: this.generateNotificationId(),
+      id: generateNotificationId(),
       queue_item_id: queueItem.id,
       project_id: queueItem.project_id,
       notification_type: notificationType,
@@ -456,14 +449,16 @@ class ScanQueueWorker {
   }
 
   /**
-   * Get project info (simplified - extend based on your project structure)
+   * Get project info from the project database
    */
   private async getProjectInfo(projectId: string): Promise<{ name: string; path: string }> {
-    // In a real implementation, this would query your project database or store
-    // For now, return a placeholder
+    const project = await projectServiceDb.getProject(projectId);
+    if (!project) {
+      throw new Error(`Project not found: ${projectId}`);
+    }
     return {
-      name: 'Project',
-      path: process.cwd() // Fallback to current working directory
+      name: project.name,
+      path: project.path
     };
   }
 

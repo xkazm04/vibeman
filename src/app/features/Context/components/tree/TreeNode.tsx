@@ -4,35 +4,9 @@ import { Folder, File, ChevronRight, FolderOpen, Check } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '@/types';
 import { useStore } from '@/stores/nodeStore';
 import { getFileTypeColor } from '@/helpers/typeStyles';
-import { pathsMatch } from '@/utils/pathUtils';
+import { pathsMatch, joinPath, isAbsolutePath } from '@/utils/pathUtils';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import CodePreviewModal from './CodePreviewModal';
-
-// Browser-compatible path join
-const joinPath = (...parts: string[]): string => {
-  return parts
-    .join('/')
-    .replace(/\/+/g, '/') // Remove duplicate slashes
-    .replace(/\\/g, '/'); // Normalize backslashes to forward slashes
-};
-
-// Helper to normalize path for vibeman base path
-const normalizeVibemanPath = (nodePath: string, vibemanBasePath: string): string => {
-  const normalizedVibemanPath = vibemanBasePath.replace(/\\/g, '/');
-  let normalizedNodePath = nodePath.replace(/\\/g, '/');
-
-  if (normalizedNodePath.startsWith(normalizedVibemanPath + '/') ||
-      normalizedNodePath.startsWith(normalizedVibemanPath)) {
-    normalizedNodePath = normalizedNodePath.replace(normalizedVibemanPath + '/', '').replace(normalizedVibemanPath, '');
-  }
-
-  return normalizedNodePath.replace(/\//g, '\\');
-};
-
-// Helper to check if path is absolute
-const isAbsolutePath = (path: string): boolean => {
-  return /^[A-Za-z]:[\\\/]/.test(path) || path.startsWith('/');
-};
 
 interface TreeNodeProps {
   node: TreeNodeType;
@@ -61,17 +35,14 @@ export default function TreeNode({
   const absoluteFilePath = (() => {
     if (node.type !== 'file') return nodePath;
 
-    const vibemanBasePath = 'C:\\Users\\kazda\\kiro\\vibeman';
-    const cleanedNodePath = normalizeVibemanPath(nodePath, vibemanBasePath);
-
-    if (isAbsolutePath(cleanedNodePath)) {
-      return cleanedNodePath;
+    if (isAbsolutePath(nodePath)) {
+      return nodePath;
     }
 
     const baseProjectPath = projectPath || activeProject?.path;
-    if (!baseProjectPath) return cleanedNodePath;
+    if (!baseProjectPath) return nodePath;
 
-    return joinPath(baseProjectPath, cleanedNodePath);
+    return joinPath(baseProjectPath, nodePath);
   })();
 
   // For checkbox mode, check if any selected path matches this node's path (normalized)

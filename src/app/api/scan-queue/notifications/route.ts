@@ -7,8 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
+import { withObservability } from '@/lib/observability/middleware';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
   try {
     const body = await request.json();
     const { notificationId, projectId, markAll } = body;
@@ -63,7 +64,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const notificationId = searchParams.get('notificationId');
@@ -92,3 +93,8 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+// Export with observability tracking
+export const GET = withObservability(handleGet, '/api/scan-queue/notifications');
+export const PATCH = withObservability(handlePatch, '/api/scan-queue/notifications');
+export const DELETE = withObservability(handleDelete, '/api/scan-queue/notifications');

@@ -16,6 +16,7 @@ import {
   Edit2,
   Check,
 } from 'lucide-react';
+import { getStatusIcon, getStatusColor } from '@/components/ui/taskStatusUtils';
 import {
   useTaskRunnerStore,
   type BatchId,
@@ -46,33 +47,7 @@ interface DisplayTask {
   errorMessage?: string;
 }
 
-const getStatusIcon = (status: DisplayTask['status']) => {
-  switch (status) {
-    case 'pending':
-      return <Clock className="w-3 h-3 text-gray-400" />;
-    case 'running':
-      return <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />;
-    case 'completed':
-      return <CheckCircle2 className="w-3 h-3 text-emerald-400" />;
-    case 'failed':
-      return <XCircle className="w-3 h-3 text-red-400" />;
-    default:
-      return null;
-  }
-};
-
-const getStatusColor = (status: DisplayTask['status']) => {
-  switch (status) {
-    case 'running':
-      return 'border-purple-500/50 bg-purple-500/10';
-    case 'completed':
-      return 'border-emerald-500/50 bg-emerald-500/10';
-    case 'failed':
-      return 'border-red-500/50 bg-red-500/10';
-    default:
-      return 'border-gray-600/50 bg-gray-700/10';
-  }
-};
+// Status utilities imported from ../lib/taskStatusUtils with purple theme for sessions
 
 /**
  * Session Batch Display Component
@@ -283,7 +258,7 @@ export default function SessionBatchDisplay({
       renameBatch(batchId, editName.trim());
     }
     setIsEditing(false);
-  }, [editName, session?.name, batchId, renameSession]);
+  }, [editName, session?.name, batchId, renameBatch]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
@@ -513,12 +488,12 @@ export default function SessionBatchDisplay({
                     className={`
                       relative flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded border
                       transition-all duration-200
-                      ${getStatusColor(item.status)}
+                      ${getStatusColor(item.status, { runningTheme: 'purple' })}
                       min-w-[120px] max-w-[160px]
                     `}
                     title={`${item.requirementName} - ${item.status}${item.errorMessage ? `: ${item.errorMessage}` : ''}`}
                   >
-                    <div className="flex-shrink-0">{getStatusIcon(item.status)}</div>
+                    <div className="flex-shrink-0">{getStatusIcon(item.status, { runningTheme: 'purple' })}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[10px] font-medium text-gray-300 truncate">
                         {item.requirementName}

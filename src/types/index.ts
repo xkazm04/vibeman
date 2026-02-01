@@ -2,6 +2,123 @@
 export type { IdeaCategory } from './ideaCategory';
 export { IDEA_CATEGORIES, isStandardCategory, getStandardCategories } from './ideaCategory';
 
+// ============================================================================
+// Rich Progress Types
+// ============================================================================
+
+/**
+ * Rich Progress State - Multi-dimensional status model for long-running operations
+ *
+ * Standardizes progress tracking across Vibeman:
+ * - percentage: 0-100 for visual progress bars
+ * - message: human-readable context for current activity
+ * - currentStep: current phase identifier for step indicators
+ * - totalSteps: total phases for completion estimation
+ * - startedAt: for elapsed time and ETA calculations
+ *
+ * Usage patterns:
+ * - Scans: Initialize → Gather Files → Execute Scan → Process Results → Complete
+ * - Requirement Execution: Create → Queue → Execute → Poll → Complete
+ * - Idea Generation: Analyze → Generate → Evaluate → Filter → Complete
+ */
+export interface RichProgress {
+  /** Percentage complete (0-100). Use for progress bars. */
+  percentage: number;
+  /** Human-readable message describing current activity */
+  message: string;
+  /** Current step identifier (e.g., 'gather_files', 'execute_scan') */
+  currentStep?: string;
+  /** Total number of steps for phase indicators */
+  totalSteps?: number;
+  /** Step number (1-indexed) for "Step X of Y" display */
+  stepNumber?: number;
+  /** When the operation started (ISO string or timestamp) */
+  startedAt?: string | number;
+}
+
+/**
+ * Progress callback signature used across the system
+ *
+ * @example
+ * const onProgress: ProgressCallback = (progress) => {
+ *   console.log(`${progress.percentage}% - ${progress.message}`);
+ * };
+ */
+export type ProgressCallback = (progress: RichProgress) => void;
+
+/**
+ * Simple progress callback for backward compatibility
+ * Used by LLMProgress and PipelineConfig
+ */
+export type SimpleProgressCallback = (percentage: number, message?: string) => void;
+
+/**
+ * Helper to convert simple progress to RichProgress
+ */
+export function toRichProgress(
+  percentage: number,
+  message?: string,
+  step?: { current: string; number: number; total: number }
+): RichProgress {
+  return {
+    percentage,
+    message: message || '',
+    currentStep: step?.current,
+    stepNumber: step?.number,
+    totalSteps: step?.total,
+  };
+}
+
+/**
+ * Helper to create a RichProgress with step info
+ */
+export function createStepProgress(
+  stepNumber: number,
+  totalSteps: number,
+  stepName: string,
+  message: string,
+  startedAt?: string | number
+): RichProgress {
+  // Calculate percentage based on step completion
+  // Each step starts at (stepNumber-1)/totalSteps and ends at stepNumber/totalSteps
+  const percentage = Math.round(((stepNumber - 1) / totalSteps) * 100);
+
+  return {
+    percentage,
+    message,
+    currentStep: stepName,
+    stepNumber,
+    totalSteps,
+    startedAt,
+  };
+}
+
+/**
+ * Estimated time remaining calculator
+ * Returns null if not enough data or elapsed time too short
+ */
+export function estimateTimeRemaining(progress: RichProgress): number | null {
+  if (!progress.startedAt || progress.percentage <= 0 || progress.percentage >= 100) {
+    return null;
+  }
+
+  const startTime = typeof progress.startedAt === 'string'
+    ? new Date(progress.startedAt).getTime()
+    : progress.startedAt;
+
+  const elapsed = Date.now() - startTime;
+
+  // Need at least 5 seconds of data for meaningful estimate
+  if (elapsed < 5000) {
+    return null;
+  }
+
+  const rate = progress.percentage / elapsed;
+  const remaining = (100 - progress.percentage) / rate;
+
+  return Math.round(remaining);
+}
+
 // Project types for framework detection
 export type ProjectType =
   | 'nextjs'
@@ -114,10 +231,25 @@ export interface AppState {
   customBacklogItems: CustomBacklogItem[];
 }
 
+/**
+ * Frontend Goal type (camelCase properties)
+ *
+ * NAMING CONVENTION - order field mapping:
+ * - Frontend: `order` (this interface)
+ * - API requests: `orderIndex` (CreateGoalRequest, UpdateGoalRequest in goalQueries.ts)
+ * - Database: `order_index` (DbGoal in types.ts)
+ *
+ * The mapping chain:
+ * 1. Component uses `goal.order`
+ * 2. GoalContext maps `order` → `orderIndex` when calling API
+ * 3. API route maps `orderIndex` → `order_index` when saving to DB
+ * 4. goalQueries.ts maps `order_index` → `order` when fetching from API
+ */
 export interface Goal {
   id: string;
   projectId: string;
   contextId?: string; // Optional context association
+  /** Display order. Maps to `orderIndex` in API requests and `order_index` in database. */
   order: number;
   title: string;
   description?: string;
@@ -150,10 +282,16 @@ export interface AppStore extends AppState {
   getSelectedFilePaths: (fileStructure: TreeNode | null, activeProjectId: string | null) => string[]; // Get selected file paths
 }
 
-// Database-related types
+/**
+ * Database Goal type (snake_case properties)
+ *
+ * This mirrors the database schema. For frontend usage, use the `Goal` type instead.
+ * See `Goal` interface for the naming convention documentation.
+ */
 export interface DatabaseGoal {
   id: string;
   project_id: string;
+  /** Database column for ordering. Maps to `order` in frontend Goal type. */
   order_index: number;
   title: string;
   description: string | null;

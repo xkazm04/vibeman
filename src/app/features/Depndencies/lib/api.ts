@@ -111,11 +111,10 @@ ${packageList}
 - Verify package compatibility before finalizing
 `;
 
-  const response = await fetch('/api/claude-code', {
+  const response = await fetch('/api/claude-code/requirement', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      action: 'create-requirement',
       projectPath,
       requirementName,
       content

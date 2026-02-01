@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useSessionCleanup } from '../hooks/useSessionCleanup';
 import type { OrphanedSession, OrphanReason } from '../lib/sessionCleanup.types';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 // Static icon components - pre-computed to enable reference equality and avoid creating new JSX on every render
 const REASON_ICONS: Record<OrphanReason, React.ReactNode> = {
@@ -52,24 +53,6 @@ function getReasonIcon(reason: OrphanReason): React.ReactNode {
  */
 function getReasonText(reason: OrphanReason): string {
   return REASON_TEXT[reason] ?? DEFAULT_REASON_TEXT;
-}
-
-/**
- * Format relative time
- * Handles both Date objects and date strings from API
- */
-function formatRelativeTime(date: Date | string): string {
-  const now = new Date();
-  const dateObj = date instanceof Date ? date : new Date(date);
-  const diffMs = now.getTime() - dateObj.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays > 0) return `${diffDays}d ago`;
-  if (diffHours > 0) return `${diffHours}h ago`;
-  if (diffMins > 0) return `${diffMins}m ago`;
-  return 'just now';
 }
 
 /**

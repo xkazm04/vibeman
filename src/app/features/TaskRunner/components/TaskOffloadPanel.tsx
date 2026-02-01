@@ -32,7 +32,6 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
   const availableBatches = useAvailableBatchesForOffload(sourceBatchId);
 
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
-  const [targetBatchId, setTargetBatchId] = useState<BatchId | null>(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
 
   // Filter to only queued tasks (can't offload running/completed tasks)
@@ -67,7 +66,6 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
   };
 
   const handleBatchSelected = (batchId: BatchId) => {
-    setTargetBatchId(batchId);
     setShowBatchModal(false);
 
     // Immediately offload to selected batch
@@ -75,7 +73,6 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
 
     // Reset selection
     setSelectedTaskIds(new Set());
-    setTargetBatchId(null);
 
     // Close panel if callback provided
     if (onClose) {

@@ -67,7 +67,6 @@ interface ContextStoreState extends ContextState {
     target_fulfillment?: string | null;
   }) => Promise<void>;
   moveContext: (contextId: string, newGroupId: string | null) => Promise<void>;
-  flushPendingMoves: () => Promise<void>;
 
   // Group operations
   addGroup: (groupData: {
@@ -256,11 +255,6 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
       set(createErrorState(error, 'Failed to move context'));
       throw error;
     }
-  },
-
-  // Flush pending moves (no-op for now, implements interface requirement)
-  flushPendingMoves: async () => {
-    // No pending moves to flush in this implementation
   },
 
   // Add a new group
@@ -454,3 +448,7 @@ export const useContextStore = useContextStoreBase;
 
 // Export shallow for convenience
 export { useShallow };
+
+// Re-export ContextEntity for domain-driven context operations
+export { ContextEntity } from './context/ContextEntity';
+export type { HealthLevel, ContextHealth, NameValidationResult, ContextValidationResult } from './context/ContextEntity';

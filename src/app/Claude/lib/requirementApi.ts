@@ -75,12 +75,11 @@ export async function executeRequirementAsync(
   gitConfig?: GitExecutionConfig
 ): Promise<{ success: boolean; taskId: string }> {
   try {
-    const response = await fetch('/api/claude-code', {
+    const response = await fetch('/api/claude-code/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         projectPath,
-        action: 'execute-requirement',
         requirementName,
         projectId,
         async: true,
@@ -110,14 +109,9 @@ export async function executeRequirementAsync(
  */
 export async function getTaskStatus(taskId: string): Promise<any> {
   try {
-    const response = await fetch('/api/claude-code', {
-      method: 'POST',
+    const response = await fetch(`/api/claude-code/tasks/${encodeURIComponent(taskId)}`, {
+      method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectPath: '', // Not needed for task status
-        action: 'get-task-status',
-        taskId,
-      }),
     });
 
     // Check if response is JSON
@@ -141,13 +135,13 @@ export async function getTaskStatus(taskId: string): Promise<any> {
  * List all execution tasks for a project
  */
 export async function listExecutionTasks(projectPath: string): Promise<any[]> {
-  const response = await fetch('/api/claude-code', {
-    method: 'POST',
+  const url = projectPath
+    ? `/api/claude-code/tasks?projectPath=${encodeURIComponent(projectPath)}`
+    : '/api/claude-code/tasks';
+
+  const response = await fetch(url, {
+    method: 'GET',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectPath,
-      action: 'list-tasks',
-    }),
   });
 
   const data = await response.json();
@@ -167,12 +161,11 @@ export async function executeRequirement(
   requirementName: string,
   projectId?: string
 ): Promise<{ success: boolean; output?: string; error?: string; sessionLimitReached?: boolean; contextUpdates?: any[]; logFilePath?: string }> {
-  const response = await fetch('/api/claude-code', {
+  const response = await fetch('/api/claude-code/execute', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       projectPath,
-      action: 'execute-requirement',
       requirementName,
       projectId,
       async: false,

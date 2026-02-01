@@ -11,6 +11,24 @@ export function normalizePath(path: string): string {
 }
 
 /**
+ * Browser-compatible path join
+ * Joins path segments and normalizes slashes
+ */
+export function joinPath(...parts: string[]): string {
+  return parts
+    .join('/')
+    .replace(/\/+/g, '/') // Remove duplicate slashes
+    .replace(/\\/g, '/'); // Normalize backslashes to forward slashes
+}
+
+/**
+ * Check if path is absolute (Windows drive letter or Unix root)
+ */
+export function isAbsolutePath(path: string): boolean {
+  return /^[A-Za-z]:[\\\/]/.test(path) || path.startsWith('/');
+}
+
+/**
  * Convert path to Windows format (backslashes)
  */
 export function toWindowsPath(path: string): string {

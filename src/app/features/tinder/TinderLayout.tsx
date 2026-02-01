@@ -6,6 +6,8 @@ import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import TinderItemsContent from '@/app/features/tinder/components/TinderItemsContent';
 import TinderFilterTabs from '@/app/features/tinder/components/TinderFilterTabs';
 import TestModeControls from '@/app/features/tinder/components/TestModeControls';
+import IdeasCategorySidebar from '@/app/features/tinder/components/IdeasCategorySidebar';
+import { AnimatePresence } from 'framer-motion';
 import { useTinderItems, useTinderItemsKeyboardShortcuts } from '@/app/features/tinder/lib/useTinderItems';
 import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTestMode';
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
@@ -73,16 +75,28 @@ const TinderLayout = () => {
     filterMode,
     counts,
     goalTitlesMap,
+    // Category filtering
+    selectedCategory,
+    categories,
+    categoriesLoading,
+    setCategory,
     setFilterMode,
     handleAccept,
     handleReject,
     handleDelete,
+    // Paired direction handlers
+    handleAcceptPairVariant,
+    handleRejectPair,
+    handleDeletePair,
     resetStats,
     loadItems,
   } = useTinderItems({
     selectedProjectId,
     remoteDeviceId: isRemoteMode ? selectedDeviceId : null,
   });
+
+  // Show sidebar only in ideas mode with categories
+  const showCategorySidebar = filterMode === 'ideas' && !isRemoteMode;
 
   // Setup keyboard shortcuts
   useTinderItemsKeyboardShortcuts(handleAccept, handleReject, !processing);
@@ -118,6 +132,22 @@ const TinderLayout = () => {
         />
       </div>
 
+      {/* Category Sidebar - absolutely positioned on left, only visible in ideas mode on large screens */}
+      <AnimatePresence>
+        {showCategorySidebar && (
+          <div className="hidden xl:block fixed left-4 top-32 z-40">
+            <IdeasCategorySidebar
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setCategory}
+              loading={categoriesLoading}
+              disabled={loading || processing}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Main tinder content - unchanged width */}
       <TinderItemsContent
         items={items}
         currentIndex={currentIndex}
@@ -133,6 +163,9 @@ const TinderLayout = () => {
         onFlushComplete={loadItems}
         contextsMap={contextsMap}
         goalTitlesMap={goalTitlesMap}
+        onAcceptPairVariant={handleAcceptPairVariant}
+        onRejectPair={handleRejectPair}
+        onDeletePair={handleDeletePair}
       />
     </div>
   );

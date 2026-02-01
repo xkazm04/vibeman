@@ -2,8 +2,10 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle, Layers } from 'lucide-react';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { getStatusIcon, getStatusColor } from '@/components/ui/taskStatusUtils';
+import { useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { useRAFSmoothedValue } from '@/hooks/useRAFSmoothing';
 import type { BatchState, BatchId } from '../store';
 import {
   useAutoExecution,
@@ -29,43 +31,6 @@ import TaskMonitor from './TaskMonitor';
 
 // NOTE: Remote batch delegation removed - migrating to Supabase Realtime
 
-/**
- * Custom hook to debounce progress updates using requestAnimationFrame.
- * Coalesces multiple store updates per frame to reduce animation churn.
- */
-function useRAFDebouncedProgress(rawProgress: number): number {
-  const [debouncedProgress, setDebouncedProgress] = useState(rawProgress);
-  const rafIdRef = useRef<number | null>(null);
-  const latestValueRef = useRef(rawProgress);
-
-  // Update the latest value ref on every render
-  latestValueRef.current = rawProgress;
-
-  const scheduleUpdate = useCallback(() => {
-    if (rafIdRef.current !== null) return; // Already scheduled
-
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = null;
-      setDebouncedProgress(latestValueRef.current);
-    });
-  }, []);
-
-  useEffect(() => {
-    scheduleUpdate();
-  }, [rawProgress, scheduleUpdate]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, []);
-
-  return debouncedProgress;
-}
-
 interface DualBatchPanelProps {
   batch1: BatchState | null;
   batch2: BatchState | null;
@@ -82,37 +47,7 @@ interface DualBatchPanelProps {
   getRequirementId: (req: ProjectRequirement) => string;
 }
 
-const getStatusIcon = (status: ProjectRequirement['status']) => {
-  switch (status) {
-    case 'running':
-      return <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />;
-    case 'completed':
-      return <CheckCircle2 className="w-3 h-3 text-emerald-400" />;
-    case 'failed':
-    case 'session-limit':
-      return <XCircle className="w-3 h-3 text-red-400" />;
-    case 'queued':
-      return <Clock className="w-3 h-3 text-amber-400" />;
-    default:
-      return null;
-  }
-};
-
-const getStatusColor = (status: ProjectRequirement['status']) => {
-  switch (status) {
-    case 'running':
-      return 'border-blue-500/50 bg-blue-500/10';
-    case 'completed':
-      return 'border-emerald-500/50 bg-emerald-500/10';
-    case 'failed':
-    case 'session-limit':
-      return 'border-red-500/50 bg-red-500/10';
-    case 'queued':
-      return 'border-amber-500/50 bg-amber-500/10';
-    default:
-      return 'border-gray-600/50 bg-gray-700/10';
-  }
-};
+// Status utilities imported from ../lib/taskStatusUtils
 
 /**
  * Single Batch Display Component with Auto-Execution
@@ -178,7 +113,7 @@ function BatchDisplay({
   // 100 progressLines = 100% completion
   const rawProgressLinesPercent = Math.min((progressLines / 100) * 100, 100);
   // Debounce progress updates using RAF to reduce animation churn during active execution
-  const progressLinesPercent = useRAFDebouncedProgress(rawProgressLinesPercent);
+  const progressLinesPercent = useRAFSmoothedValue(rawProgressLinesPercent);
 
   // Get activity for the running task
   const currentActivity = runningTaskId ? taskActivity[runningTaskId] || null : null;
@@ -479,14 +414,20 @@ export default function DualBatchPanel({
       { batch: batch4, id: 'batch4' as BatchId },
     ];
 
+    const timers: NodeJS.Timeout[] = [];
+
     batches.forEach(({ batch, id }) => {
       if (batch && isBatchCompleted(batch.status)) {
         const timer = setTimeout(() => {
           onClearBatch(id);
         }, 3000);
-        return () => clearTimeout(timer);
+        timers.push(timer);
       }
     });
+
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+    };
   }, [batch1, batch2, batch3, batch4, onClearBatch]);
 
   // Determine which batches to show based on running state

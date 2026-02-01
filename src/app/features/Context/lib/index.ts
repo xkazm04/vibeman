@@ -14,3 +14,7 @@ export * from './constants';
 
 // Re-export useContextDetail hook
 export { useContextDetail } from './useContextDetail';
+
+// Domain Entity (preferred for new code)
+export { ContextEntity } from '@/stores/context/ContextEntity';
+export type { HealthLevel, ContextHealth, NameValidationResult, ContextValidationResult } from '@/stores/context/ContextEntity';

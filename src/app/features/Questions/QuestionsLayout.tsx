@@ -74,16 +74,26 @@ export default function QuestionsLayout() {
     [contexts, contextGroups]
   );
 
-  // Auto-select all contexts when they first load (one-time initialization)
+  // Auto-select all contexts when they first load (one-time initialization per project)
   // Using useEffect for side effects instead of useMemo
   const hasInitializedRef = React.useRef(false);
+  const lastProjectIdRef = React.useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    // Only auto-select once when contexts first become available
+    // Reset initialization when project changes
+    if (activeProject?.id !== lastProjectIdRef.current) {
+      lastProjectIdRef.current = activeProject?.id;
+      hasInitializedRef.current = false;
+      // Clear selection when switching projects to avoid stale selections
+      setSelectedContextIds([]);
+    }
+
+    // Auto-select all contexts once when they first become available for this project
     if (contexts.length > 0 && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
       setSelectedContextIds(contexts.map(c => c.id));
     }
-  }, [contexts]);
+  }, [contexts, activeProject?.id]);
 
   const handleToggleContext = (contextId: string) => {
     setSelectedContextIds(prev =>
@@ -111,18 +121,24 @@ export default function QuestionsLayout() {
   const handleGenerateQuestions = async (questionsPerContext: number) => {
     if (!activeProject) return;
 
-    const result = await generateQuestionRequirement({
-      projectId: activeProject.id,
-      projectName: activeProject.name,
-      projectPath: activeProject.path,
-      selectedContextIds, // Pass SQLite context IDs directly
-      questionsPerContext
-    });
+    try {
+      const result = await generateQuestionRequirement({
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        selectedContextIds, // Pass SQLite context IDs directly
+        questionsPerContext
+      });
 
-    return {
-      requirementPath: result.requirementPath,
-      requirementName: result.requirementName
-    };
+      return {
+        requirementPath: result.requirementPath,
+        requirementName: result.requirementName
+      };
+    } catch (error) {
+      // Re-throw with user-friendly message for upstream handling
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to generate questions: ${message}`);
+    }
   };
 
   const handleOpenAnswerModal = useCallback((question: DbQuestion) => {
@@ -141,6 +157,14 @@ export default function QuestionsLayout() {
     deleteQuestionMutation.mutate(questionId);
   }, [deleteQuestionMutation]);
 
+  // Derived data - must be defined before handlers that reference them
+  const questions = questionsData?.questions || [];
+  const directions = directionsData?.directions || [];
+  const answeredQuestions = useMemo(() =>
+    questions.filter(q => q.status === 'answered'),
+    [questions]
+  );
+
   // Directions handlers
   const handleGenerateDirections = async (
     directionsPerContext: number,
@@ -150,35 +174,41 @@ export default function QuestionsLayout() {
   ) => {
     if (!activeProject) return;
 
-    // In brainstorm mode, use all contexts; otherwise use selected ones
-    const contextIdsToUse = brainstormAll
-      ? contexts.map(c => c.id)
-      : selectedContextIds;
+    try {
+      // In brainstorm mode, use all contexts; otherwise use selected ones
+      const contextIdsToUse = brainstormAll
+        ? contexts.map(c => c.id)
+        : selectedContextIds;
 
-    // Build answered questions array from selected IDs
-    const answeredQuestionsInput: AnsweredQuestionInput[] = answeredQuestions
-      .filter(q => selectedQuestionIds.includes(q.id))
-      .map(q => ({
-        id: q.id,
-        question: q.question,
-        answer: q.answer || ''
-      }));
+      // Build answered questions array from selected IDs
+      const answeredQuestionsInput: AnsweredQuestionInput[] = answeredQuestions
+        .filter(q => selectedQuestionIds.includes(q.id))
+        .map(q => ({
+          id: q.id,
+          question: q.question,
+          answer: q.answer || ''
+        }));
 
-    const result = await generateDirectionRequirement({
-      projectId: activeProject.id,
-      projectName: activeProject.name,
-      projectPath: activeProject.path,
-      selectedContextIds: contextIdsToUse, // Pass SQLite context IDs
-      directionsPerContext,
-      userContext: userContext.trim() || undefined,
-      answeredQuestions: answeredQuestionsInput.length > 0 ? answeredQuestionsInput : undefined,
-      brainstormAll
-    });
+      const result = await generateDirectionRequirement({
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        selectedContextIds: contextIdsToUse, // Pass SQLite context IDs
+        directionsPerContext,
+        userContext: userContext.trim() || undefined,
+        answeredQuestions: answeredQuestionsInput.length > 0 ? answeredQuestionsInput : undefined,
+        brainstormAll
+      });
 
-    return {
-      requirementPath: result.requirementPath,
-      requirementName: result.requirementName
-    };
+      return {
+        requirementPath: result.requirementPath,
+        requirementName: result.requirementName
+      };
+    } catch (error) {
+      // Re-throw with user-friendly message for upstream handling
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to generate directions: ${message}`);
+    }
   };
 
   const handleAcceptDirection = useCallback((directionId: string) => {
@@ -197,14 +227,6 @@ export default function QuestionsLayout() {
   const handleRefresh = useCallback(() => {
     invalidateAll();
   }, [invalidateAll]);
-
-  // Derived data
-  const questions = questionsData?.questions || [];
-  const directions = directionsData?.directions || [];
-  const answeredQuestions = useMemo(() =>
-    questions.filter(q => q.status === 'answered'),
-    [questions]
-  );
 
   const isLoading = questionsLoading || directionsLoading;
 

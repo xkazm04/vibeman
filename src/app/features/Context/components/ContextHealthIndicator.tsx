@@ -4,8 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
 import type { Context } from '@/stores/contextStore';
-
-type HealthLevel = 'healthy' | 'warning' | 'critical' | 'unknown';
+import { ContextEntity, type HealthLevel } from '@/stores/context/ContextEntity';
 
 interface ContextHealthIndicatorProps {
   context: Context;
@@ -15,42 +14,16 @@ interface ContextHealthIndicatorProps {
 }
 
 /**
- * Analyzes context health based on:
+ * Analyzes context health using the centralized ContextEntity domain logic.
+ * The ContextEntity enforces these business rules:
  * - File count (too few = warning, none = critical)
  * - Description presence
- * - Preview image presence
- * - Test scenarios presence
+ *
+ * @deprecated For new code, use ContextEntity.analyzeHealth() directly
  */
 function analyzeHealth(context: Context): { level: HealthLevel; issues: string[] } {
-  const issues: string[] = [];
-
-  const filePaths = context.filePaths || [];
-  const hasDescription = context.description && context.description.trim().length > 0;
-  const hasPreview = context.preview && context.preview.trim().length > 0;
-
-  // File count check
-  if (filePaths.length === 0) {
-    issues.push('No files assigned');
-  } else if (filePaths.length < 2) {
-    issues.push('Only one file - consider adding more');
-  }
-
-  // Description check
-  if (!hasDescription) {
-    issues.push('Missing description');
-  }
-
-  // Determine health level
-  if (filePaths.length === 0) {
-    return { level: 'critical', issues };
-  }
-  if (issues.length > 1) {
-    return { level: 'warning', issues };
-  }
-  if (issues.length > 0) {
-    return { level: 'warning', issues };
-  }
-  return { level: 'healthy', issues };
+  const health = ContextEntity.analyzeHealth(context);
+  return { level: health.level, issues: health.issues };
 }
 
 const healthConfig: Record<HealthLevel, { icon: React.ElementType; color: string; bgColor: string; label: string }> = {

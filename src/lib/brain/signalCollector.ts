@@ -12,6 +12,7 @@ import type {
   ImplementationSignalData,
   CrossTaskAnalysisSignalData,
   CrossTaskSelectionSignalData,
+  CliMemorySignalData,
 } from '@/app/db/models/brain.types';
 
 /**
@@ -168,6 +169,31 @@ export const signalCollector = {
   },
 
   /**
+   * Record a CLI memory signal (user explicitly recording knowledge)
+   */
+  recordCliMemory: (
+    projectId: string,
+    data: CliMemorySignalData,
+    contextId?: string,
+    contextName?: string
+  ): void => {
+    try {
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'cli_memory',
+        context_id: contextId || null,
+        context_name: contextName || null,
+        data: JSON.stringify(data),
+        weight: calculateCliMemoryWeight(data),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record CLI memory:', error);
+    }
+  },
+
+  /**
    * Batch record API focus signals from observability data
    * Called periodically to aggregate API usage patterns
    */
@@ -316,4 +342,19 @@ function calculateImplementationWeight(data: ImplementationSignalData): number {
   }
   // Failed implementations are also informative
   return 1.0;
+}
+
+/**
+ * Calculate weight for CLI memory based on category
+ * User-recorded memories are high signal by definition
+ */
+function calculateCliMemoryWeight(data: CliMemorySignalData): number {
+  switch (data.category) {
+    case 'decision': return 2.0;  // Architectural decisions most valuable
+    case 'pattern': return 1.8;   // Patterns inform future work
+    case 'insight': return 1.5;   // Codebase knowledge
+    case 'lesson': return 1.5;    // Implementation learnings
+    case 'context': return 1.2;   // General context
+    default: return 1.5;
+  }
 }

@@ -15,7 +15,6 @@ export type ScanType =
   | 'onboarding_optimizer'
   | 'ai_integration_scout'
   | 'delight_designer'
-  | 'refactor_analysis'
   | 'code_refactor'
   // People's Choice - User First Approach
   | 'user_empathy_champion'
@@ -308,20 +307,6 @@ export function isValidScanType(value: string): value is ScanType {
   return ALL_SCAN_TYPES.includes(value as ScanType);
 }
 
-/**
- * Alias mapping for backward-compatible scan type values
- */
-export const SCAN_TYPE_ALIAS: Record<string, ScanType> = {
-  refactor_analysis: 'code_refactor',
-};
-
-/**
- * Resolve arbitrary input to a canonical ScanType, applying aliases first
- */
-export function resolveScanType(value: string): ScanType | null {
-  const candidate = (SCAN_TYPE_ALIAS[value] ?? value) as ScanType;
-  return isValidScanType(candidate) ? candidate : null;
-}
 
 /**
  * Get abbreviation for a scan type

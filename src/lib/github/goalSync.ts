@@ -34,6 +34,141 @@ const logger = createLogger('GitHubGoalSync');
 export { isGitHubConfigured };
 
 // ============================================================================
+// ERROR DIAGNOSTICS
+// ============================================================================
+
+/**
+ * GitHub sync error codes for structured error handling
+ */
+export type GitHubSyncErrorCode =
+  | 'NOT_CONFIGURED'
+  | 'TOKEN_MISSING'
+  | 'TOKEN_INVALID'
+  | 'PROJECT_NOT_FOUND'
+  | 'PERMISSION_DENIED'
+  | 'RATE_LIMITED'
+  | 'NETWORK_ERROR'
+  | 'GRAPHQL_ERROR'
+  | 'UNKNOWN_ERROR';
+
+/**
+ * Structured GitHub sync error with actionable guidance
+ */
+export interface GitHubSyncErrorInfo {
+  code: GitHubSyncErrorCode;
+  message: string;
+  action: string;
+  goalId: string;
+  details?: string;
+}
+
+/**
+ * Diagnose GitHub error and provide actionable guidance
+ */
+function diagnoseGitHubError(error: unknown, goalId: string): GitHubSyncErrorInfo {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorLower = errorMessage.toLowerCase();
+
+  // Check for missing token
+  if (errorLower.includes('token') && (errorLower.includes('missing') || errorLower.includes('not configured') || errorLower.includes('undefined'))) {
+    return {
+      code: 'TOKEN_MISSING',
+      message: `GitHub token missing for goal ${goalId}`,
+      action: 'Set GITHUB_TOKEN in .env.local - create a token at https://github.com/settings/tokens with "project" scope',
+      goalId,
+      details: errorMessage,
+    };
+  }
+
+  // Check for invalid/expired token
+  if (errorLower.includes('bad credentials') || errorLower.includes('401') || errorLower.includes('unauthorized')) {
+    return {
+      code: 'TOKEN_INVALID',
+      message: `GitHub token invalid or expired for goal ${goalId}`,
+      action: 'Generate a new GitHub token at https://github.com/settings/tokens - ensure it has "project" scope for GitHub Projects V2',
+      goalId,
+      details: errorMessage,
+    };
+  }
+
+  // Check for permission issues
+  if (errorLower.includes('403') || errorLower.includes('forbidden') || errorLower.includes('permission') || errorLower.includes('scope')) {
+    return {
+      code: 'PERMISSION_DENIED',
+      message: `GitHub permission denied for goal ${goalId}`,
+      action: 'Ensure your GitHub token has "project" scope - regenerate at https://github.com/settings/tokens with correct permissions',
+      goalId,
+      details: errorMessage,
+    };
+  }
+
+  // Check for rate limiting
+  if (errorLower.includes('rate limit') || errorLower.includes('429') || errorLower.includes('too many requests')) {
+    return {
+      code: 'RATE_LIMITED',
+      message: `GitHub API rate limited for goal ${goalId}`,
+      action: 'Wait a few minutes and try again - or check https://docs.github.com/en/rest/rate-limit for rate limit status',
+      goalId,
+      details: errorMessage,
+    };
+  }
+
+  // Check for project not found
+  if (errorLower.includes('not found') || errorLower.includes('404') || errorLower.includes('could not resolve')) {
+    return {
+      code: 'PROJECT_NOT_FOUND',
+      message: `GitHub project not found for goal ${goalId}`,
+      action: 'Check GITHUB_PROJECT_ID and GITHUB_PROJECT_OWNER in .env.local - verify the project exists and you have access',
+      goalId,
+      details: errorMessage,
+    };
+  }
+
+  // Check for network errors
+  if (errorLower.includes('fetch') || errorLower.includes('network') || errorLower.includes('econnrefused') || errorLower.includes('timeout')) {
+    return {
+      code: 'NETWORK_ERROR',
+      message: `Network error syncing goal ${goalId} to GitHub`,
+      action: 'Check your internet connection and verify GitHub API is accessible (https://www.githubstatus.com/)',
+      goalId,
+      details: errorMessage,
+    };
+  }
+
+  // Check for GraphQL-specific errors
+  if (errorLower.includes('graphql') || errorLower.includes('mutation') || errorLower.includes('query')) {
+    return {
+      code: 'GRAPHQL_ERROR',
+      message: `GitHub GraphQL error for goal ${goalId}`,
+      action: 'Check GitHub Project field IDs in .env.local - use /api/github/discover to find correct field IDs',
+      goalId,
+      details: errorMessage,
+    };
+  }
+
+  // Unknown error
+  return {
+    code: 'UNKNOWN_ERROR',
+    message: `Unexpected error syncing goal ${goalId} to GitHub`,
+    action: 'Check GitHub status (https://www.githubstatus.com/) and review error details',
+    goalId,
+    details: errorMessage,
+  };
+}
+
+/**
+ * Log structured GitHub sync error with actionable guidance
+ */
+function logGitHubSyncError(syncError: GitHubSyncErrorInfo, operation: string): void {
+  logger.warn(
+    `[${syncError.code}] ${syncError.message}\n` +
+    `  Operation: ${operation}\n` +
+    `  Action: ${syncError.action}` +
+    (syncError.details ? `\n  Details: ${syncError.details}` : '')
+  );
+}
+
+// ============================================================================
 // CONFIGURATION HELPERS
 // ============================================================================
 
@@ -191,13 +326,13 @@ export async function syncGoalToGitHub(goal: DbGoal): Promise<GitHubSyncResult> 
     };
 
   } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    logger.warn(`Failed to sync goal ${goal.id} to GitHub:`, errorMessage);
+    const syncError = diagnoseGitHubError(error, goal.id);
+    logGitHubSyncError(syncError, `sync goal "${goal.title}"`);
     return {
       success: false,
       operation: 'update',
       goalId: goal.id,
-      error: errorMessage,
+      error: syncError.message,
     };
   }
 }
@@ -227,13 +362,13 @@ export async function deleteGoalFromGitHub(
     };
 
   } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    logger.warn(`Failed to delete goal ${goalId} from GitHub:`, errorMessage);
+    const syncError = diagnoseGitHubError(error, goalId);
+    logGitHubSyncError(syncError, `delete goal ${goalId}`);
     return {
       success: false,
       operation: 'delete',
       goalId,
-      error: errorMessage,
+      error: syncError.message,
     };
   }
 }
@@ -291,6 +426,7 @@ export async function batchSyncGoalsToGitHub(
 
 /**
  * Fire-and-forget wrapper for non-blocking GitHub sync
+ * Logs structured errors with actionable guidance on failure
  */
 export function fireAndForgetGitHubSync<T>(
   syncFn: () => Promise<T>,
@@ -300,8 +436,12 @@ export function fireAndForgetGitHubSync<T>(
     try {
       await syncFn();
     } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      logger.warn(`Fire-and-forget GitHub sync failed [${context}]:`, errorMessage);
+      // Extract goal ID from context if possible (format: "Create goal <id> in GitHub")
+      const goalIdMatch = context.match(/goal\s+([a-f0-9-]+)/i);
+      const goalId = goalIdMatch ? goalIdMatch[1] : 'unknown';
+
+      const syncError = diagnoseGitHubError(error, goalId);
+      logGitHubSyncError(syncError, context);
     }
   });
 }

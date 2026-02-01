@@ -30,31 +30,28 @@ async function handleGet(request: NextRequest) {
       );
     }
 
-    // For multi-project: query each and merge
+    // For multi-project: use batch queries with IN clauses for efficiency
     const projectIds = projectFilter.mode === 'single'
       ? [projectFilter.projectId!]
       : projectFilter.projectIds!;
 
-    let directions: any[] = [];
+    let directions: any[];
 
-    for (const projectId of projectIds) {
-      let projectDirections;
-      if (contextId) {
-        projectDirections = directionDb.getDirectionsByContextId(projectId, contextId);
-      } else if (contextGroupId) {
-        projectDirections = directionDb.getDirectionsByContextGroupId(projectId, contextGroupId);
-      } else if (contextMapId) {
-        projectDirections = directionDb.getDirectionsByContextMapId(projectId, contextMapId);
-      } else if (status === 'pending') {
-        projectDirections = directionDb.getPendingDirections(projectId);
-      } else if (status === 'accepted') {
-        projectDirections = directionDb.getAcceptedDirections(projectId);
-      } else if (status === 'rejected') {
-        projectDirections = directionDb.getRejectedDirections(projectId);
-      } else {
-        projectDirections = directionDb.getDirectionsByProject(projectId);
-      }
-      directions.push(...projectDirections);
+    // Use batch query methods to reduce database round-trips
+    if (contextId) {
+      directions = directionDb.getDirectionsByContextIdMultiple(projectIds, contextId);
+    } else if (contextGroupId) {
+      directions = directionDb.getDirectionsByContextGroupIdMultiple(projectIds, contextGroupId);
+    } else if (contextMapId) {
+      directions = directionDb.getDirectionsByContextMapIdMultiple(projectIds, contextMapId);
+    } else if (status === 'pending') {
+      directions = directionDb.getPendingDirectionsMultiple(projectIds);
+    } else if (status === 'accepted') {
+      directions = directionDb.getAcceptedDirectionsMultiple(projectIds);
+    } else if (status === 'rejected') {
+      directions = directionDb.getRejectedDirectionsMultiple(projectIds);
+    } else {
+      directions = directionDb.getDirectionsByProjects(projectIds);
     }
 
     // Group directions by context_map_id for UI display
@@ -75,7 +72,7 @@ async function handleGet(request: NextRequest) {
       grouped[d.context_map_id].directions.push(d);
     }
 
-    const counts = directionDb.getDirectionCounts(projectIds[0]);
+    const counts = directionDb.getDirectionCountsMultiple(projectIds);
 
     return NextResponse.json({
       success: true,
@@ -106,13 +103,25 @@ async function handlePost(request: NextRequest) {
       // NEW: SQLite context fields
       context_id,
       context_name,
-      context_group_id
+      context_group_id,
+      // NEW: Paired directions support
+      pair_id,
+      pair_label,
+      problem_statement
     } = body;
 
     // Validate required fields
     if (!project_id || !context_map_id || !context_map_title || !direction || !summary) {
       return NextResponse.json(
         { error: 'project_id, context_map_id, context_map_title, direction, and summary are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate pair_label if provided
+    if (pair_label && !['A', 'B'].includes(pair_label)) {
+      return NextResponse.json(
+        { error: 'pair_label must be "A" or "B"' },
         { status: 400 }
       );
     }
@@ -133,7 +142,11 @@ async function handlePost(request: NextRequest) {
       // NEW: SQLite context fields for unified context management
       context_id: context_id || null,
       context_name: context_name || null,
-      context_group_id: context_group_id || null
+      context_group_id: context_group_id || null,
+      // NEW: Paired directions support
+      pair_id: pair_id || null,
+      pair_label: pair_label || null,
+      problem_statement: problem_statement || null
     });
 
     logger.info('[API] Direction created:', {

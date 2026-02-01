@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import * as d3 from 'd3';
 import { ZoomIn, ZoomOut, Maximize2, type LucideIcon } from 'lucide-react';
 
@@ -27,28 +27,28 @@ interface MatrixZoomControlsProps {
 }
 
 export default function MatrixZoomControls({ svgRef }: MatrixZoomControlsProps) {
+  // Create a stable zoom behavior instance for programmatic zoom control
+  const zoom = useMemo(() => d3.zoom<SVGSVGElement, unknown>(), []);
+
   const handleZoomIn = () => {
     if (!svgRef.current) return;
-    d3.select(svgRef.current)
-      .transition()
-      .duration(300)
-      .call(d3.zoom<SVGSVGElement, unknown>().scaleBy as any, 1.3);
+    const selection = d3.select(svgRef.current);
+    const transition = selection.transition().duration(300);
+    zoom.scaleBy(transition, 1.3);
   };
 
   const handleZoomOut = () => {
     if (!svgRef.current) return;
-    d3.select(svgRef.current)
-      .transition()
-      .duration(300)
-      .call(d3.zoom<SVGSVGElement, unknown>().scaleBy as any, 0.7);
+    const selection = d3.select(svgRef.current);
+    const transition = selection.transition().duration(300);
+    zoom.scaleBy(transition, 0.7);
   };
 
   const handleReset = () => {
     if (!svgRef.current) return;
-    d3.select(svgRef.current)
-      .transition()
-      .duration(500)
-      .call(d3.zoom<SVGSVGElement, unknown>().transform as any, d3.zoomIdentity);
+    const selection = d3.select(svgRef.current);
+    const transition = selection.transition().duration(500);
+    zoom.transform(transition, d3.zoomIdentity);
   };
 
   return (

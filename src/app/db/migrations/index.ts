@@ -11,6 +11,8 @@ import {
   type ColumnInfo
 } from './migration.utils';
 import { migrateDropOrphanedTables } from './064_drop_orphaned_tables';
+import { migrate065DirectionPairs } from './065_direction_pairs';
+import { migrate066CleanupStaleContextPaths } from './066_cleanup_stale_context_paths';
 
 /**
  * Migration logger utility
@@ -213,6 +215,10 @@ export function runMigrations() {
     migrateRemoteConfig();
     // Migration 77: Drop Orphaned Tables - v1.1 Dead Code Cleanup
     migrateDropOrphanedTables();
+    // Migration 78: Direction Pairs - two alternative solutions for comparison
+    migrate065DirectionPairs();
+    // Migration 79: Cleanup Stale Context Paths - remove non-existent file references
+    migrate066CleanupStaleContextPaths();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

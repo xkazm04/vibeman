@@ -23,17 +23,7 @@ export interface QueuedTask {
   directPrompt?: string;
 }
 
-/**
- * CLI Session state
- */
-export interface CLISessionState {
-  id: string;
-  sessionId: string | null;  // Claude Code session ID for resume
-  queue: QueuedTask[];
-  isRunning: boolean;
-  completedCount: number;
-  failedCount: number;
-}
+// CLISessionState is defined in ./store/cliSessionStore.ts and re-exported from ./store/index.ts
 
 /**
  * File change tracking

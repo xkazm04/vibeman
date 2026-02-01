@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
+import { usePolling } from '@/hooks/usePolling';
 import type {
   OrphanedSession,
   CleanupStats,
@@ -87,10 +88,7 @@ export function useSessionCleanup(
       const response = await fetch('/api/claude-code/sessions/cleanup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cleanup',
-          sessionIds,
-        }),
+        body: JSON.stringify({ sessionIds }),
       });
 
       if (!response.ok) {
@@ -137,13 +135,10 @@ export function useSessionCleanup(
     setError(null);
 
     try {
-      const response = await fetch('/api/claude-code/sessions/cleanup', {
+      const response = await fetch('/api/claude-code/sessions/cleanup/all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cleanup-all',
-          projectId,
-        }),
+        body: JSON.stringify({ projectId }),
       });
 
       if (!response.ok) {
@@ -180,56 +175,12 @@ export function useSessionCleanup(
     }
   }, [projectId]);
 
-  // Ref to always have access to the latest scanForOrphans without adding to dependencies
-  const scanForOrphansRef = useRef(scanForOrphans);
-  scanForOrphansRef.current = scanForOrphans;
-
-  // Ref to track current interval duration - only reset interval when this actually changes
-  const currentIntervalMsRef = useRef<number | null>(null);
-  const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Auto-scan on mount and periodically
-  // Uses refs to avoid unnecessary interval teardown when unrelated state changes
-  useEffect(() => {
-    if (!autoScan) {
-      // Clear any existing interval when autoScan is disabled
-      if (intervalIdRef.current !== null) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
-        currentIntervalMsRef.current = null;
-      }
-      return;
-    }
-
-    // Only recreate interval if the duration actually changed
-    if (currentIntervalMsRef.current === scanIntervalMs && intervalIdRef.current !== null) {
-      return;
-    }
-
-    // Clear existing interval if any
-    if (intervalIdRef.current !== null) {
-      clearInterval(intervalIdRef.current);
-    }
-
-    // Initial scan on mount or when autoScan becomes true
-    if (currentIntervalMsRef.current === null) {
-      scanForOrphansRef.current();
-    }
-
-    // Set up periodic scanning using ref to avoid stale closure
-    intervalIdRef.current = setInterval(() => {
-      scanForOrphansRef.current();
-    }, scanIntervalMs);
-    currentIntervalMsRef.current = scanIntervalMs;
-
-    return () => {
-      if (intervalIdRef.current !== null) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
-        currentIntervalMsRef.current = null;
-      }
-    };
-  }, [autoScan, scanIntervalMs]);
+  // Use shared polling hook for auto-scan
+  usePolling(scanForOrphans, {
+    enabled: autoScan,
+    intervalMs: scanIntervalMs,
+    immediate: true,
+  });
 
   return {
     orphanedSessions,
@@ -248,13 +199,10 @@ export function useSessionCleanup(
  */
 export async function sendSessionHeartbeat(sessionId: string): Promise<boolean> {
   try {
-    const response = await fetch('/api/claude-code/sessions/cleanup', {
+    const response = await fetch('/api/claude-code/sessions/heartbeat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'heartbeat',
-        sessionId,
-      }),
+      body: JSON.stringify({ sessionId }),
     });
 
     if (!response.ok) return false;
@@ -266,5 +214,3 @@ export async function sendSessionHeartbeat(sessionId: string): Promise<boolean> 
     return false;
   }
 }
-
-export default useSessionCleanup;

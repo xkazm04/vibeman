@@ -488,6 +488,7 @@ export function createStructureRulesFile(
 const DEFAULT_SKILLS_TO_COPY = [
   'context-map-generator.md',
   'brain-training.md',
+  'mem.md',
 ];
 
 /**

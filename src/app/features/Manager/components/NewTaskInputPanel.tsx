@@ -91,12 +91,11 @@ export default function NewTaskInputPanel({
                     const requirementName = `${prefix}${sanitizedTitle}-${timestamp}.md`;
 
                     // Create requirement file directly via API
-                    const response = await fetch('/api/claude-code', {
+                    const response = await fetch('/api/claude-code/requirement', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             projectPath,
-                            action: 'create-requirement',
                             requirementName,
                             content: plan,
                         }),

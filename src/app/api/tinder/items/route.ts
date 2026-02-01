@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const itemType = (searchParams.get('itemType') || 'both') as TinderFilterMode;
     const offsetParam = searchParams.get('offset') || '0';
     const limitParam = searchParams.get('limit') || '20';
+    const ideaCategory = searchParams.get('category'); // Optional category filter for ideas
 
     // Validate pagination parameters
     const offset = parseInt(offsetParam, 10);
@@ -35,18 +36,29 @@ export async function GET(request: NextRequest) {
     }
 
     const items: TinderItem[] = [];
-    let ideasCount = 0;
-    let directionsCount = 0;
     const goalTitlesMap: Record<string, string> = {};
 
-    // Fetch Ideas if needed
-    if (itemType === 'ideas' || itemType === 'both') {
-      const allIdeas = projectId && projectId !== 'all'
-        ? ideaDb.getIdeasByProject(projectId)
-        : ideaDb.getAllIdeas();
+    // ALWAYS fetch counts for both types (for tab display) regardless of itemType filter
+    const allIdeasForCount = projectId && projectId !== 'all'
+      ? ideaDb.getIdeasByProject(projectId)
+      : ideaDb.getAllIdeas();
+    const pendingIdeasForCount = allIdeasForCount.filter(idea => idea.status === 'pending');
+    const ideasCount = pendingIdeasForCount.length;
 
-      const pendingIdeas = allIdeas.filter(idea => idea.status === 'pending');
-      ideasCount = pendingIdeas.length;
+    const allDirectionsForCount = projectId && projectId !== 'all'
+      ? directionDb.getPendingDirections(projectId)
+      : directionDb.getAllPendingDirections();
+    const directionsCount = allDirectionsForCount.length;
+
+    // Fetch Ideas items if needed
+    if (itemType === 'ideas' || itemType === 'both') {
+      // Use already fetched ideas for count, apply category filter for items
+      let pendingIdeas = pendingIdeasForCount;
+
+      // Apply category filter if specified (only for ideas mode or when explicitly filtering)
+      if (ideaCategory && itemType === 'ideas') {
+        pendingIdeas = pendingIdeas.filter(idea => idea.category === ideaCategory);
+      }
 
       // Batch-fetch goal titles to avoid N+1 queries in IdeaCard
       const goalIds = [...new Set(pendingIdeas.map(idea => idea.goal_id).filter(Boolean))] as string[];
@@ -63,18 +75,61 @@ export async function GET(request: NextRequest) {
       })));
     }
 
-    // Fetch Directions if needed
+    // Fetch Directions items if needed
     if (itemType === 'directions' || itemType === 'both') {
-      const pendingDirections = projectId && projectId !== 'all'
-        ? directionDb.getPendingDirections(projectId)
-        : directionDb.getAllPendingDirections();
+      // Use already fetched directions for count
+      const pendingDirections = allDirectionsForCount;
 
-      directionsCount = pendingDirections.length;
+      // Group directions by pair_id
+      const singleDirections: typeof pendingDirections = [];
+      const pairsMap = new Map<string, typeof pendingDirections>();
 
-      items.push(...pendingDirections.map(direction => ({
+      for (const direction of pendingDirections) {
+        if (direction.pair_id) {
+          const existing = pairsMap.get(direction.pair_id) || [];
+          existing.push(direction);
+          pairsMap.set(direction.pair_id, existing);
+        } else {
+          singleDirections.push(direction);
+        }
+      }
+
+      // Add single directions as normal items
+      items.push(...singleDirections.map(direction => ({
         type: 'direction' as const,
         data: direction
       })));
+
+      // Add complete pairs as direction_pair items
+      for (const [pairId, directions] of pairsMap) {
+        if (directions.length === 2) {
+          const dirA = directions.find(d => d.pair_label === 'A');
+          const dirB = directions.find(d => d.pair_label === 'B');
+          if (dirA && dirB) {
+            items.push({
+              type: 'direction_pair' as const,
+              data: {
+                pairId,
+                problemStatement: dirA.problem_statement || dirB.problem_statement,
+                directionA: dirA,
+                directionB: dirB,
+              }
+            });
+          } else {
+            // Labels don't match, treat as singles
+            items.push(...directions.map(direction => ({
+              type: 'direction' as const,
+              data: direction
+            })));
+          }
+        } else {
+          // Incomplete pair, treat as singles
+          items.push(...directions.map(direction => ({
+            type: 'direction' as const,
+            data: direction
+          })));
+        }
+      }
     }
 
     // Sort all items by created_at (newest first)

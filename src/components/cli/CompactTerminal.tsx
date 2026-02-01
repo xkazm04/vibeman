@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { List, RowComponentProps } from 'react-window';
 import {
   Terminal,
   User,
@@ -37,6 +38,97 @@ import {
   getTaskStatus,
   clearSessionTasks,
 } from './taskRegistry';
+
+// Static icon maps for O(1) lookup instead of switch statement per render
+const LOG_ICON_SIZE = 'w-3 h-3';
+
+const LOG_TYPE_ICONS: Record<LogEntry['type'], { icon: typeof User; colorClass: string }> = {
+  user: { icon: User, colorClass: 'text-blue-400' },
+  assistant: { icon: Bot, colorClass: 'text-purple-400' },
+  tool_use: { icon: Wrench, colorClass: 'text-yellow-400' },
+  tool_result: { icon: CheckCircle, colorClass: 'text-green-400' },
+  error: { icon: AlertCircle, colorClass: 'text-red-400' },
+  system: { icon: ListOrdered, colorClass: 'text-cyan-400' },
+};
+
+const TOOL_ICONS: Record<string, { icon: typeof FileEdit; colorClass: string }> = {
+  Edit: { icon: FileEdit, colorClass: 'text-yellow-400' },
+  Write: { icon: FilePlus, colorClass: 'text-green-400' },
+  Read: { icon: Eye, colorClass: 'text-blue-400' },
+};
+
+// Virtualization constants
+const LOG_ITEM_HEIGHT = 24; // px - matches py-0.5 + text-xs line height
+const ANIMATED_LOG_COUNT = 5; // Number of recent logs to animate
+const VIRTUALIZATION_THRESHOLD = 50; // Start virtualizing after this many logs
+
+// Get icon for log type - uses static maps for O(1) lookup
+const getLogIcon = (type: LogEntry['type'], toolName?: string) => {
+  // For tool_use, check tool-specific icons first
+  if (type === 'tool_use' && toolName) {
+    const toolIcon = TOOL_ICONS[toolName];
+    if (toolIcon) {
+      const Icon = toolIcon.icon;
+      return <Icon className={`${LOG_ICON_SIZE} ${toolIcon.colorClass}`} />;
+    }
+  }
+
+  // Look up in type map
+  const config = LOG_TYPE_ICONS[type];
+  if (config) {
+    const Icon = config.icon;
+    return <Icon className={`${LOG_ICON_SIZE} ${config.colorClass}`} />;
+  }
+
+  // Default fallback
+  return <Bot className={`${LOG_ICON_SIZE} text-gray-400`} />;
+};
+
+// Format log content - extracted for reuse
+const formatLogContent = (log: LogEntry) => {
+  if (log.type === 'tool_use' && log.toolInput?.file_path) {
+    const fileName = String(log.toolInput.file_path).split(/[/\\]/).pop();
+    return `${log.toolName}: ${fileName}`;
+  }
+  if (log.type === 'tool_result') {
+    return log.content.length > 80 ? log.content.slice(0, 80) + '...' : log.content;
+  }
+  return log.content.length > 150 ? log.content.slice(0, 150) + '...' : log.content;
+};
+
+// Get text color class for log type
+const getLogTextClass = (type: LogEntry['type']) => {
+  switch (type) {
+    case 'error': return 'text-red-400';
+    case 'user': return 'text-blue-300';
+    case 'tool_result': return 'text-gray-500 font-mono';
+    case 'system': return 'text-cyan-400';
+    default: return 'text-gray-300';
+  }
+};
+
+// Memoized log row component for virtualized list
+interface LogRowData {
+  logs: LogEntry[];
+}
+
+const LogRow = memo(({ index, style, logs }: RowComponentProps<LogRowData>) => {
+  const log = logs[index];
+  return (
+    <div
+      style={style}
+      className="flex items-start gap-2 px-3 py-0.5 hover:bg-gray-800/40 transition-colors duration-150"
+    >
+      <span className="flex-shrink-0 mt-0.5">
+        {getLogIcon(log.type, log.toolName)}
+      </span>
+      <span className={`text-xs leading-relaxed break-all truncate ${getLogTextClass(log.type)}`}>
+        {formatLogContent(log)}
+      </span>
+    </div>
+  );
+});
+LogRow.displayName = 'LogRow';
 
 /**
  * Compact Terminal Component
@@ -83,17 +175,39 @@ export function CompactTerminal({
   const currentTaskIdRef = useRef<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<List>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stuckCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (isAutoScroll && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  // Determine if we should use virtualization (for performance with many logs)
+  const useVirtualization = logs.length > VIRTUALIZATION_THRESHOLD;
+
+  // Split logs: virtualized (older) and animated (recent)
+  const { virtualizedLogs, animatedLogs } = useMemo(() => {
+    if (!useVirtualization) {
+      return { virtualizedLogs: [], animatedLogs: logs };
     }
-  }, [logs, isAutoScroll]);
+    const splitIndex = Math.max(0, logs.length - ANIMATED_LOG_COUNT);
+    return {
+      virtualizedLogs: logs.slice(0, splitIndex),
+      animatedLogs: logs.slice(splitIndex),
+    };
+  }, [logs, useVirtualization]);
+
+  // Auto-scroll to bottom - works for both virtualized and non-virtualized
+  useEffect(() => {
+    if (isAutoScroll) {
+      if (useVirtualization && listRef.current) {
+        // Scroll virtualized list to end
+        listRef.current.scrollToItem(virtualizedLogs.length - 1, 'end');
+      }
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }
+  }, [logs, isAutoScroll, useVirtualization, virtualizedLogs.length]);
 
   // Detect manual scroll
   const handleScroll = useCallback(() => {
@@ -711,42 +825,6 @@ export function CompactTerminal({
     setInput(newIndex >= 0 ? inputHistory[newIndex] : '');
   }, [inputHistory, historyIndex]);
 
-  // Get icon for log type
-  const getLogIcon = (type: LogEntry['type'], toolName?: string) => {
-    const size = 'w-3 h-3';
-    switch (type) {
-      case 'user':
-        return <User className={`${size} text-blue-400`} />;
-      case 'assistant':
-        return <Bot className={`${size} text-purple-400`} />;
-      case 'tool_use':
-        if (toolName === 'Edit') return <FileEdit className={`${size} text-yellow-400`} />;
-        if (toolName === 'Write') return <FilePlus className={`${size} text-green-400`} />;
-        if (toolName === 'Read') return <Eye className={`${size} text-blue-400`} />;
-        return <Wrench className={`${size} text-yellow-400`} />;
-      case 'tool_result':
-        return <CheckCircle className={`${size} text-green-400`} />;
-      case 'error':
-        return <AlertCircle className={`${size} text-red-400`} />;
-      case 'system':
-        return <ListOrdered className={`${size} text-cyan-400`} />;
-      default:
-        return <Bot className={`${size} text-gray-400`} />;
-    }
-  };
-
-  // Format log content
-  const formatContent = (log: LogEntry) => {
-    if (log.type === 'tool_use' && log.toolInput?.file_path) {
-      const fileName = String(log.toolInput.file_path).split(/[/\\]/).pop();
-      return `${log.toolName}: ${fileName}`;
-    }
-    if (log.type === 'tool_result') {
-      return log.content.length > 80 ? log.content.slice(0, 80) + '...' : log.content;
-    }
-    return log.content.length > 150 ? log.content.slice(0, 150) + '...' : log.content;
-  };
-
   const editCount = fileChanges.filter(c => c.changeType === 'edit').length;
   const writeCount = fileChanges.filter(c => c.changeType === 'write').length;
   const queuePendingCount = taskQueue.filter(t => t.status === 'pending').length;
@@ -839,7 +917,43 @@ export function CompactTerminal({
           <div className="flex items-center justify-center h-full text-gray-600 text-xs">
             {queuePendingCount > 0 ? 'Waiting to start...' : 'Enter a prompt to start'}
           </div>
+        ) : useVirtualization ? (
+          // Virtualized rendering for long sessions (>50 logs)
+          <div className="py-1">
+            {/* Virtualized older logs */}
+            {virtualizedLogs.length > 0 && (
+              <List<LogRowData>
+                ref={listRef}
+                defaultHeight={Math.min(virtualizedLogs.length * LOG_ITEM_HEIGHT, 200)}
+                rowCount={virtualizedLogs.length}
+                rowHeight={LOG_ITEM_HEIGHT}
+                overscanCount={5}
+                rowComponent={LogRow}
+                rowProps={{ logs: virtualizedLogs }}
+              />
+            )}
+            {/* Animated recent logs */}
+            <AnimatePresence initial={false}>
+              {animatedLogs.map((log) => (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-start gap-2 px-3 py-0.5 hover:bg-gray-800/40 transition-colors duration-150"
+                >
+                  <span className="flex-shrink-0 mt-0.5">
+                    {getLogIcon(log.type, log.toolName)}
+                  </span>
+                  <span className={`text-xs leading-relaxed break-all ${getLogTextClass(log.type)}`}>
+                    {formatLogContent(log)}
+                  </span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         ) : (
+          // Standard animated rendering for short sessions
           <div className="py-1">
             <AnimatePresence initial={false}>
               {logs.map((log) => (
@@ -853,14 +967,8 @@ export function CompactTerminal({
                   <span className="flex-shrink-0 mt-0.5">
                     {getLogIcon(log.type, log.toolName)}
                   </span>
-                  <span className={`text-xs leading-relaxed break-all ${
-                    log.type === 'error' ? 'text-red-400' :
-                    log.type === 'user' ? 'text-blue-300' :
-                    log.type === 'tool_result' ? 'text-gray-500 font-mono' :
-                    log.type === 'system' ? 'text-cyan-400' :
-                    'text-gray-300'
-                  }`}>
-                    {formatContent(log)}
+                  <span className={`text-xs leading-relaxed break-all ${getLogTextClass(log.type)}`}>
+                    {formatLogContent(log)}
                   </span>
                 </motion.div>
               ))}
@@ -882,6 +990,10 @@ export function CompactTerminal({
         <button
           onClick={() => {
             setIsAutoScroll(true);
+            // Scroll virtualized list to bottom if active
+            if (useVirtualization && listRef.current) {
+              listRef.current.scrollToItem(virtualizedLogs.length - 1, 'end');
+            }
             scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
           }}
           className="absolute bottom-14 right-3 p-1 bg-gray-800/90 backdrop-blur-sm border border-gray-700 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 hover:scale-110 active:scale-95 transition-all duration-200 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"

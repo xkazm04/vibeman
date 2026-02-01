@@ -14,6 +14,7 @@ import {
   UseTinderItemsResult,
   initialTinderItemStats,
   isIdeaItem,
+  isDirectionPairItem,
   getTinderItemProjectId,
 } from './tinderTypes';
 import {
@@ -21,6 +22,11 @@ import {
   acceptTinderItem,
   rejectTinderItem,
   deleteTinderItem,
+  fetchIdeaCategories,
+  CategoryCount,
+  acceptPairVariant,
+  rejectDirectionPair,
+  deleteDirectionPair,
 } from './tinderItemsApi';
 import { TINDER_CONSTANTS } from './tinderUtils';
 
@@ -103,6 +109,10 @@ export function useTinderItems(
   const [filterMode, setFilterMode] = useState<TinderFilterMode>(isRemoteMode ? 'directions' : 'both');
   const [counts, setCounts] = useState({ ideas: 0, directions: 0 });
   const [goalTitlesMap, setGoalTitlesMap] = useState<Record<string, string>>({});
+  // Category filtering for ideas
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryCount[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   const { getProject } = useProjectConfigStore();
   const { localDeviceId, localDeviceName } = useEmulatorStore();
@@ -127,6 +137,38 @@ export function useTinderItems(
       };
     });
   }, []);
+
+  // Optimistically update category counts when an idea is processed
+  const updateCategoryCountOptimistic = useCallback((item: TinderItem) => {
+    if (!isIdeaItem(item)) return;
+
+    const category = item.data.category;
+    setCategories(prev =>
+      prev.map(cat =>
+        cat.category === category
+          ? { ...cat, count: Math.max(0, cat.count - 1) }
+          : cat
+      ).filter(cat => cat.count > 0) // Remove categories with 0 count
+    );
+  }, []);
+
+  // Load idea categories for filtering
+  const loadCategories = useCallback(async () => {
+    if (isRemoteMode) return; // No category filtering in remote mode
+
+    setCategoriesLoading(true);
+    try {
+      const result = await fetchIdeaCategories(
+        selectedProjectId === 'all' ? undefined : selectedProjectId
+      );
+      setCategories(result.categories);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, [isRemoteMode, selectedProjectId]);
 
   // Load items - handles both local and remote modes
   const loadItems = useCallback(async (offset: number = 0) => {
@@ -181,7 +223,8 @@ export function useTinderItems(
           selectedProjectId === 'all' ? undefined : selectedProjectId,
           filterMode,
           offset,
-          TINDER_CONSTANTS.BATCH_SIZE
+          TINDER_CONSTANTS.BATCH_SIZE,
+          filterMode === 'ideas' ? selectedCategory : null
         );
 
         if (offset === 0) {
@@ -203,7 +246,7 @@ export function useTinderItems(
         setLoading(false);
       }
     }
-  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, localDeviceId, localDeviceName]);
+  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory, localDeviceId, localDeviceName]);
 
   const loadMoreIfNeeded = useCallback(() => {
     if (!isRemoteMode && currentIndex >= items.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loading) {
@@ -269,6 +312,7 @@ export function useTinderItems(
       }
 
       updateStats(currentItem, 'accepted');
+      updateCategoryCountOptimistic(currentItem);
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to accept: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -281,7 +325,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, sendRemoteTriageCommand]);
+  }, [processing, currentIndex, items, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
 
   const handleReject = useCallback(async () => {
     if (processing || currentIndex >= items.length) return;
@@ -305,6 +349,7 @@ export function useTinderItems(
       }
 
       updateStats(currentItem, 'rejected');
+      updateCategoryCountOptimistic(currentItem);
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to reject');
@@ -317,7 +362,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, sendRemoteTriageCommand]);
+  }, [processing, currentIndex, items, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
 
   const handleDelete = useCallback(async () => {
     if (processing || currentIndex >= items.length) return;
@@ -329,6 +374,7 @@ export function useTinderItems(
       // Remote mode: delete just skips locally (no confirmation needed)
       setItems(prev => prev.filter((_, i) => i !== currentIndex));
       updateStats(currentItem, 'deleted');
+      updateCategoryCountOptimistic(currentItem);
       return;
     }
 
@@ -343,6 +389,7 @@ export function useTinderItems(
     try {
       await deleteTinderItem(currentItem);
       updateStats(currentItem, 'deleted');
+      updateCategoryCountOptimistic(currentItem);
       loadMoreIfNeeded();
     } catch (error) {
       alert(`Failed to delete ${itemType}`);
@@ -354,7 +401,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, isRemoteMode, loadMoreIfNeeded, updateStats]);
+  }, [processing, currentIndex, items, isRemoteMode, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
 
   const resetStats = useCallback(() => {
     setStats(initialTinderItemStats);
@@ -362,8 +409,136 @@ export function useTinderItems(
 
   const handleSetFilterMode = useCallback((mode: TinderFilterMode) => {
     setFilterMode(mode);
+    // Reset category when switching away from ideas mode
+    if (mode !== 'ideas') {
+      setSelectedCategory(null);
+    }
     // Items will be reloaded automatically via useEffect
   }, []);
+
+  const handleSetCategory = useCallback((category: string | null) => {
+    setSelectedCategory(category);
+    // Items will be reloaded automatically via useEffect
+  }, []);
+
+  // Handler for accepting a variant from a direction pair
+  const handleAcceptPairVariant = useCallback(async (pairId: string, variant: 'A' | 'B') => {
+    if (processing || currentIndex >= items.length) return;
+
+    const currentItem = items[currentIndex];
+    if (!isDirectionPairItem(currentItem)) return;
+
+    const projectId = currentItem.data.directionA.project_id;
+    const selectedProject = getProject(projectId);
+
+    if (!selectedProject || !selectedProject.path) {
+      alert('Project path not found. Cannot create requirement file.');
+      return;
+    }
+
+    setProcessing(true);
+    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
+      await acceptPairVariant(pairId, variant, selectedProject.path);
+      // Count as 2 directions processed (one accepted, one rejected)
+      setStats(prev => ({
+        ...prev,
+        directions: {
+          ...prev.directions,
+          accepted: prev.directions.accepted + 1,
+          rejected: prev.directions.rejected + 1,
+        },
+      }));
+      loadMoreIfNeeded();
+    } catch (error) {
+      alert('Failed to accept direction variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setItems(prev => {
+        const newItems = [...prev];
+        newItems.splice(currentIndex, 0, currentItem);
+        return newItems;
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded]);
+
+  // Handler for rejecting both directions in a pair
+  const handleRejectPair = useCallback(async (pairId: string) => {
+    if (processing || currentIndex >= items.length) return;
+
+    const currentItem = items[currentIndex];
+    if (!isDirectionPairItem(currentItem)) return;
+
+    setProcessing(true);
+    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
+      await rejectDirectionPair(pairId);
+      // Count as 2 directions rejected
+      setStats(prev => ({
+        ...prev,
+        directions: {
+          ...prev.directions,
+          rejected: prev.directions.rejected + 2,
+        },
+      }));
+      loadMoreIfNeeded();
+    } catch (error) {
+      alert('Failed to reject direction pair');
+      setItems(prev => {
+        const newItems = [...prev];
+        newItems.splice(currentIndex, 0, currentItem);
+        return newItems;
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }, [processing, currentIndex, items, loadMoreIfNeeded]);
+
+  // Handler for deleting both directions in a pair
+  const handleDeletePair = useCallback(async (pairId: string) => {
+    if (processing || currentIndex >= items.length) return;
+
+    const currentItem = items[currentIndex];
+    if (!isDirectionPairItem(currentItem)) return;
+
+    if (!confirm('Are you sure you want to permanently delete both direction variants?')) {
+      return;
+    }
+
+    setProcessing(true);
+    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
+      await deleteDirectionPair(pairId);
+      // Count as 2 directions deleted
+      setStats(prev => ({
+        ...prev,
+        directions: {
+          ...prev.directions,
+          deleted: prev.directions.deleted + 2,
+        },
+      }));
+      loadMoreIfNeeded();
+    } catch (error) {
+      alert('Failed to delete direction pair');
+      setItems(prev => {
+        const newItems = [...prev];
+        newItems.splice(currentIndex, 0, currentItem);
+        return newItems;
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }, [processing, currentIndex, items, loadMoreIfNeeded]);
+
+  // Load categories when in ideas mode
+  useEffect(() => {
+    if (filterMode === 'ideas' && !isRemoteMode) {
+      loadCategories();
+    }
+  }, [filterMode, isRemoteMode, loadCategories]);
 
   // Load items when dependencies change
   useEffect(() => {
@@ -377,7 +552,7 @@ export function useTinderItems(
     } else {
       loadItems(0);
     }
-  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentItem = items[currentIndex];
   const remainingCount = total - currentIndex;
@@ -396,10 +571,19 @@ export function useTinderItems(
     filterMode,
     counts,
     goalTitlesMap,
+    // Category filtering
+    selectedCategory,
+    categories,
+    categoriesLoading,
+    setCategory: handleSetCategory,
     setFilterMode: handleSetFilterMode,
     handleAccept,
     handleReject,
     handleDelete,
+    // Paired direction handlers
+    handleAcceptPairVariant,
+    handleRejectPair,
+    handleDeletePair,
     resetStats,
     loadItems: () => loadItems(0),
   };

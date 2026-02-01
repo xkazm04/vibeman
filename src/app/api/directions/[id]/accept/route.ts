@@ -78,20 +78,34 @@ async function handlePost(
       );
     }
 
-    // Get the direction
-    const direction = directionDb.getDirectionById(id);
+    // Atomically claim the direction for processing (prevents double-click duplicates)
+    // This uses a conditional UPDATE that only succeeds if status is 'pending'
+    const claimed = directionDb.claimDirectionForProcessing(id);
 
-    if (!direction) {
+    if (!claimed) {
+      // Direction was not in 'pending' status - either doesn't exist or already being processed
+      const direction = directionDb.getDirectionById(id);
+      if (!direction) {
+        return NextResponse.json(
+          { error: 'Direction not found' },
+          { status: 404 }
+        );
+      }
+      // Direction exists but is already processed or being processed
       return NextResponse.json(
-        { error: 'Direction not found' },
-        { status: 404 }
+        { error: 'Direction has already been processed' },
+        { status: 409 } // 409 Conflict - more appropriate for idempotency violations
       );
     }
 
-    if (direction.status !== 'pending') {
+    // Fetch the direction now that we've claimed it
+    const direction = directionDb.getDirectionById(id);
+
+    if (!direction) {
+      // Shouldn't happen since we just claimed it, but handle gracefully
       return NextResponse.json(
-        { error: 'Direction has already been processed' },
-        { status: 400 }
+        { error: 'Direction not found after claim' },
+        { status: 500 }
       );
     }
 

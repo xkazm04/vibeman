@@ -6,7 +6,18 @@ export const goalKeys = {
   byProject: (projectId: string) => ['goals', projectId] as const,
 };
 
-// Database goal structure (as returned by the API)
+/**
+ * Database goal structure (as returned by the API)
+ *
+ * NAMING CONVENTION:
+ * - Database layer uses snake_case: `order_index`, `project_id`, `context_id`
+ * - Frontend layer uses camelCase: `order`, `projectId`, `contextId`
+ * - API request params use camelCase: `orderIndex` (mapped to `order_index` in route)
+ *
+ * The mapping happens in two places:
+ * 1. API route (route.ts): `orderIndex` param → `order_index` for DB
+ * 2. This file: `order_index` from DB → `order` for frontend
+ */
 interface DbGoal {
   id: string;
   project_id: string;
@@ -25,7 +36,33 @@ interface DbGoal {
 }
 
 /**
- * Convert database goal to app Goal type
+ * API request types for Goal operations
+ * Uses camelCase consistently for all API calls
+ */
+export interface CreateGoalRequest {
+  projectId: string;
+  title: string;
+  description?: string;
+  status?: Goal['status'];
+  /** Maps to `order_index` in database. Use this for ordering goals. */
+  orderIndex?: number;
+  contextId?: string;
+}
+
+export interface UpdateGoalRequest {
+  id: string;
+  title?: string;
+  description?: string;
+  status?: Goal['status'];
+  /** Maps to `order_index` in database. Use this for reordering goals. */
+  orderIndex?: number;
+  contextId?: string;
+}
+
+/**
+ * Convert database goal (snake_case) to app Goal type (camelCase)
+ *
+ * Key mapping: `order_index` (DB) → `order` (frontend)
  */
 const convertDbGoalToGoal = (dbGoal: DbGoal): Goal => ({
   id: dbGoal.id,
@@ -125,14 +162,7 @@ export const goalApi = {
   },
 
   // Create a new goal
-  createGoal: async (params: {
-    projectId: string;
-    title: string;
-    description?: string;
-    status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
-    orderIndex?: number;
-    contextId?: string;
-  }): Promise<Goal> => {
+  createGoal: async (params: CreateGoalRequest): Promise<Goal> => {
     const response = await postJSON('/api/goals', {
       projectId: params.projectId,
       title: params.title,
@@ -151,14 +181,7 @@ export const goalApi = {
   },
 
   // Update a goal
-  updateGoal: async (params: {
-    id: string;
-    title?: string;
-    description?: string;
-    status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
-    orderIndex?: number;
-    contextId?: string;
-  }): Promise<Goal> => {
+  updateGoal: async (params: UpdateGoalRequest): Promise<Goal> => {
     const response = await putJSON('/api/goals', {
       id: params.id,
       title: params.title,

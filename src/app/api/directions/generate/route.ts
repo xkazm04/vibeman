@@ -258,27 +258,35 @@ Look for opportunities in these strategic categories:
 - What testing infrastructure would prevent regressions?
 - What observability would help debug production issues?
 
-### Step 3: Generate Strategic Directions
+### Step 3: Generate Strategic Directions as Paired Alternatives
 
-For each context, generate exactly ${directionsPerContext} ambitious directions.
+For each context, generate **${directionsPerContext} problem-solution pairs**. Each pair consists of:
+- **One problem statement**: The challenge or opportunity being addressed
+- **Two alternative directions**: Different approaches to solve the same problem (Variant A and Variant B)
+
+This allows users to compare approaches and pick the best one for their situation.
 
 **Each direction MUST include:**
 
-1. **Summary** (compelling one-liner): Clear, ambitious title that conveys scope
+1. **Summary** (compelling one-liner): Clear, ambitious title that conveys the approach
 2. **Direction content** (detailed markdown with sections):
    - **Vision**: What is the end state we're building toward?
    - **Business Value**: Why does this matter? What problem does it solve?
    - **Scope**: What's included and what's explicitly out of scope?
    - **Key Components**: What are the major pieces to build?
    - **Technical Approach**: High-level architecture and patterns to use
+   - **Trade-offs**: What are the pros and cons of this approach vs alternatives?
    - **Files to Create/Modify**: Specific paths
    - **Success Criteria**: How do we know when it's done?
    - **Potential Challenges**: What might be tricky?
 
-### Step 4: Save Directions to Database
+### Step 4: Save Direction Pairs to Database
 
-For each direction, make a POST request with **SQLite context references**:
+For each problem, create **TWO directions** with matching \`pair_id\`:
 
+**First, generate a unique pair_id** (e.g., \`pair_<timestamp>_<index>\`)
+
+**Then create Variant A:**
 \`\`\`bash
 curl -X POST ${apiUrl}/api/directions \\
   -H "Content-Type: application/json" \\
@@ -289,49 +297,88 @@ curl -X POST ${apiUrl}/api/directions \\
     "context_group_id": "<sqlite_group_id_if_available>",
     "context_map_id": "<context_id>",
     "context_map_title": "<context_title>",
-    "summary": "<compelling one-liner summary>",
-    "direction": "<full markdown content with all sections>"
+    "summary": "<Variant A: approach title>",
+    "direction": "<full markdown content with all sections>",
+    "pair_id": "<unique_pair_id>",
+    "pair_label": "A",
+    "problem_statement": "<the problem both variants solve>"
   }'
 \`\`\`
 
-**Important**: Use the SQLite Context ID from the context entry (shown as "SQLite Context ID" above) for \`context_id\`. This links the direction to the unified context system for X-Ray visualization and observability.
+**Then create Variant B (same pair_id):**
+\`\`\`bash
+curl -X POST ${apiUrl}/api/directions \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "project_id": "${projectId}",
+    "context_id": "<sqlite_context_id>",
+    "context_name": "<context_title>",
+    "context_group_id": "<sqlite_group_id_if_available>",
+    "context_map_id": "<context_id>",
+    "context_map_title": "<context_title>",
+    "summary": "<Variant B: alternative approach title>",
+    "direction": "<full markdown content with all sections>",
+    "pair_id": "<same_unique_pair_id>",
+    "pair_label": "B",
+    "problem_statement": "<the problem both variants solve>"
+  }'
+\`\`\`
+
+**Important**:
+- Both directions in a pair MUST have the same \`pair_id\`
+- Use \`pair_label\` "A" for the first variant and "B" for the second
+- Include the same \`problem_statement\` in both to help users understand what they're solving
+- Make the two variants genuinely different approaches (e.g., build vs buy, simple vs comprehensive, quick-win vs long-term)
 
 ## Direction Quality Guidelines
 
-### EXCELLENT Directions (Strategic, High-Impact):
+### EXCELLENT Direction Pairs (Genuine Alternatives):
 
-**Example 1:**
+**Example Problem: "Need better error handling across the application"**
+
+**Variant A - Centralized Error Boundary System:**
 \`\`\`json
 {
-  "summary": "Implement comprehensive keyboard navigation and power-user shortcuts system",
-  "direction": "## Keyboard Navigation & Power-User Shortcuts\\n\\n### Vision\\nTransform the application into a keyboard-first experience where power users can navigate, select, and execute actions without touching the mouse, dramatically improving productivity.\\n\\n### Business Value\\n- Power users can work 2-3x faster\\n- Accessibility compliance (WCAG 2.1 AA)\\n- Professional-grade UX expected by enterprise users\\n- Reduced repetitive strain from mouse usage\\n\\n### Scope\\n**Included:**\\n- Global keyboard shortcut system with customizable bindings\\n- Focus management across all interactive elements\\n- Command palette (Cmd+K) for quick actions\\n- Vim-style navigation mode (optional)\\n- Visual indicators for focused elements\\n- Shortcut hints in tooltips\\n\\n**Out of Scope:**\\n- Full vim emulation\\n- Voice commands\\n\\n### Key Components\\n1. **ShortcutManager** - Central registry for all shortcuts\\n2. **FocusManager** - Tracks and controls focus across the app\\n3. **CommandPalette** - Searchable action launcher\\n4. **ShortcutHints** - UI overlay showing available shortcuts\\n\\n### Technical Approach\\n- Use React context for shortcut state\\n- Implement focus trap patterns for modals\\n- Store user customizations in localStorage\\n- Use event delegation for performance\\n\\n### Files to Create/Modify\\n- Create: \`src/lib/shortcuts/ShortcutManager.ts\`\\n- Create: \`src/lib/shortcuts/FocusManager.ts\`\\n- Create: \`src/components/CommandPalette.tsx\`\\n- Modify: All interactive components for focus handling\\n\\n### Success Criteria\\n- Can navigate entire app without mouse\\n- Command palette finds all actions\\n- Custom shortcuts persist across sessions\\n- No focus traps or dead ends\\n\\n### Potential Challenges\\n- Conflict resolution between shortcuts\\n- Maintaining focus during dynamic content changes\\n- Browser shortcut conflicts"
+  "pair_id": "pair_1706745600_001",
+  "pair_label": "A",
+  "problem_statement": "Error handling is inconsistent across the app, leading to poor user experience and difficult debugging",
+  "summary": "Variant A: Implement centralized error boundary system with recovery strategies",
+  "direction": "## Centralized Error Boundary System\\n\\n### Vision\\nCreate a hierarchical error boundary system that catches, logs, and recovers from errors gracefully at multiple levels.\\n\\n### Trade-offs\\n**Pros:** Simpler implementation, React-native approach, good for unexpected errors\\n**Cons:** Less granular control, can't handle async errors as well\\n\\n### Technical Approach\\n- React Error Boundaries at app, feature, and component levels\\n- Centralized error logging service\\n- Recovery strategies: retry, fallback UI, reload..."
 }
 \`\`\`
 
-**Example 2:**
+**Variant B - Distributed Error Handling with Result Types:**
 \`\`\`json
 {
-  "summary": "Build real-time collaborative editing with presence indicators and conflict resolution",
-  "direction": "## Real-Time Collaborative Editing System\\n\\n### Vision\\nEnable multiple users to work on the same document simultaneously with live cursors, presence indicators, and intelligent conflict resolution - like Google Docs but for our domain.\\n\\n### Business Value\\n- Enables team workflows (currently single-user only)\\n- Eliminates version conflicts and lost work\\n- Creates stickiness through team adoption\\n- Premium feature for enterprise tier\\n\\n### Scope\\n**Included:**\\n- Real-time sync using WebSocket/CRDT\\n- User presence indicators (who's viewing/editing)\\n- Live cursor positions for other users\\n- Automatic conflict resolution\\n- Offline support with sync on reconnect\\n- Activity feed of recent changes\\n\\n**Out of Scope:**\\n- Video/voice chat\\n- Comments/threads (future enhancement)\\n\\n### Key Components\\n1. **CollaborationProvider** - WebSocket connection management\\n2. **PresenceManager** - Track who's online and where\\n3. **SyncEngine** - CRDT-based document synchronization\\n4. **ConflictResolver** - Merge strategy for concurrent edits\\n5. **ActivityFeed** - Real-time change notifications\\n\\n### Technical Approach\\n- Use Yjs or Automerge for CRDT implementation\\n- WebSocket server for presence and signaling\\n- IndexedDB for offline storage\\n- Optimistic UI with rollback on conflict\\n\\n### Files to Create/Modify\\n- Create: \`src/lib/collaboration/\` directory\\n- Create: \`src/hooks/useCollaboration.ts\`\\n- Create: \`src/components/PresenceAvatars.tsx\`\\n- Modify: Editor components for collaborative state\\n- Create: API routes for WebSocket handling\\n\\n### Success Criteria\\n- Two users can edit simultaneously without conflicts\\n- Changes appear in <100ms on other clients\\n- Offline edits sync correctly on reconnect\\n- Clear indication of who's editing what\\n\\n### Potential Challenges\\n- CRDT complexity for nested data structures\\n- Scaling WebSocket connections\\n- Mobile network reliability"
+  "pair_id": "pair_1706745600_001",
+  "pair_label": "B",
+  "problem_statement": "Error handling is inconsistent across the app, leading to poor user experience and difficult debugging",
+  "summary": "Variant B: Implement Result/Either pattern with typed error handling throughout",
+  "direction": "## Distributed Result-Based Error Handling\\n\\n### Vision\\nAdopt functional programming patterns with Result/Either types to make error handling explicit and type-safe throughout the codebase.\\n\\n### Trade-offs\\n**Pros:** Type-safe, explicit error paths, better for expected errors, composable\\n**Cons:** Learning curve, more verbose, requires refactoring existing code\\n\\n### Technical Approach\\n- Create Result<T, E> type utilities\\n- Refactor async functions to return Results\\n- Pattern matching for error handling..."
 }
 \`\`\`
 
-### BAD Directions (Too Small or Vague):
+### What Makes Good Paired Alternatives:
 
-- "Add loading spinner to button" (too small - single line change)
-- "Improve performance" (too vague - no specific approach)
-- "Fix the bug in the form" (reactive, not strategic)
-- "Add TypeScript types" (incremental, not transformative)
-- "Refactor this component" (no clear value proposition)
+1. **Same problem, different philosophy**: e.g., "Build vs Buy", "Simple vs Comprehensive", "Quick-win vs Long-term"
+2. **Clear trade-offs**: Each variant should have distinct pros and cons
+3. **Both are viable**: Don't make one obviously worse
+4. **Different technical approaches**: Not just cosmetic differences
 
-### The Strategic Litmus Test:
+### BAD Pairs (Avoid These):
 
-A good direction should:
-1. **Require a full Claude Code session** (30-90 min) - not a quick fix
-2. **Deliver measurable business value** - users or developers benefit significantly
-3. **Be architecturally sound** - fits with existing patterns or improves them
-4. **Have clear success criteria** - we know when it's done
-5. **Be exciting** - something you'd be proud to ship
+- Same solution with minor tweaks (e.g., using tabs vs spaces)
+- One clearly superior option (biased comparison)
+- Solutions to different problems
+- Variants that can't stand alone
+
+### The Paired Direction Litmus Test:
+
+A good pair should:
+1. **Solve the same clearly-stated problem** - users understand what they're choosing between
+2. **Offer genuine trade-offs** - neither is universally better
+3. **Both require similar effort** - both are worthy of implementation time
+4. **Help users think strategically** - the choice reveals priorities
 
 ## Output Summary
 

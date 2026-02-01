@@ -7,10 +7,11 @@ import { FileTypeSummary } from './components/MiniFileTree';
 import { useTooltipStore } from '../../../stores/tooltipStore';
 import { useStore } from '../../../stores/nodeStore';
 import { MultiFileEditor } from '../../../components/editor';
+import { saveFileContent } from '../../../components/editor/fileApi';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import ContextEditModal from './sub_ContextGen/ContextEditModal';
 import ContextFileModal from './sub_ContextFile/ContextFileModal';
-import ContextMenu from '@/components/ContextMenu';
+import ContextMenu, { type ContextMenuItem } from '@/components/ContextMenu';
 import { useThemeStore } from '@/stores/themeStore';
 import { getFocusRingStyles } from '@/lib/ui/focusRing';
 
@@ -162,54 +163,52 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
   };
 
   const handleFileSave = async (filePath: string, content: string) => {
-    // Saving file
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        if (Math.random() > 0.1) {
-          resolve();
-        } else {
-          reject(new Error('Failed to save file'));
-        }
-      }, 1000);
-    });
+    await saveFileContent(filePath, content);
   };
 
-  const contextMenuItems = [
+  const contextMenuItems: ContextMenuItem[] = [
     {
+      id: 'open-files',
       label: 'Open Neural Files',
       icon: FolderOpen,
-      onClick: handleOpenFiles,
+      action: handleOpenFiles,
     },
     {
+      id: 'clone',
       label: 'Clone Context',
       icon: Copy,
-      onClick: handleCopy,
+      action: handleCopy,
     },
     {
+      id: 'select',
       label: 'Select',
       icon: MousePointer,
-      onClick: handleSelect,
+      action: handleSelect,
     },
     {
+      id: 'toggle-queue',
       label: selectedContextIds.has(context.id) ? 'Remove from Queue' : 'Add to Queue',
       icon: selectedContextIds.has(context.id) ? CheckSquare : Square,
-      onClick: handleToggleForBacklog,
+      action: handleToggleForBacklog,
     },
     {
+      id: 'context-matrix',
       label: 'Context Matrix',
       icon: FileText,
-      onClick: handleContextFile,
+      action: handleContextFile,
     },
     {
+      id: 'modify',
       label: 'Modify Node',
       icon: Edit,
-      onClick: handleEdit,
+      action: handleEdit,
     },
     {
+      id: 'delete',
       label: 'Delete Context',
       icon: Trash2,
-      onClick: handleDelete,
-      destructive: true,
+      action: handleDelete,
+      isDanger: true,
     },
   ];
 

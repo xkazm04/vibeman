@@ -50,16 +50,50 @@ export interface PollingState {
 }
 
 /**
- * Result from a polling callback
+ * Result from a polling callback - discriminated union for type safety
+ *
+ * Three possible states:
+ * 1. Continue polling: { done: false }
+ * 2. Success: { done: true, success: true }
+ * 3. Failure: { done: true, success: false, error: string }
+ *
+ * Using a discriminated union prevents invalid combinations like
+ * { done: false, success: true } or { done: true } without success.
  */
-export interface PollingResult {
-  /** Whether to stop polling */
-  done: boolean;
-  /** Whether the task completed successfully (only relevant if done=true) */
-  success?: boolean;
-  /** Error message if the task failed */
-  error?: string;
+export type PollingResult =
+  | PollingResultContinue
+  | PollingResultSuccess
+  | PollingResultFailure;
+
+/** Polling should continue - task is still running */
+export interface PollingResultContinue {
+  done: false;
 }
+
+/** Polling complete - task succeeded */
+export interface PollingResultSuccess {
+  done: true;
+  success: true;
+}
+
+/** Polling complete - task failed */
+export interface PollingResultFailure {
+  done: true;
+  success: false;
+  error: string;
+}
+
+/**
+ * Helper functions to create type-safe polling results
+ */
+export const PollingResults = {
+  /** Create a "continue polling" result */
+  continue: (): PollingResultContinue => ({ done: false }),
+  /** Create a "success" result */
+  success: (): PollingResultSuccess => ({ done: true, success: true }),
+  /** Create a "failure" result with error message */
+  failure: (error: string): PollingResultFailure => ({ done: true, success: false, error }),
+} as const;
 
 /**
  * Callback function invoked on each polling interval

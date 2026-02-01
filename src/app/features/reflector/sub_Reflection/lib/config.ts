@@ -124,14 +124,6 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     bgGradient: 'from-rose-500/5 to-rose-600/2',
     description: 'Wow moments & micro-interactions'
   },
-  refactor_analysis: {
-    label: 'Refactor Analysis',
-    icon: Wrench,
-    color: 'text-slate-400',
-    borderColor: 'border-slate-500/40',
-    bgGradient: 'from-slate-500/5 to-slate-600/2',
-    description: 'Code quality & refactoring'
-  },
   code_refactor: {
     label: 'Code Refactor',
     icon: Wrench,

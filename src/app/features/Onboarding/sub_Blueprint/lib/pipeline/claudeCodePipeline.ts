@@ -57,20 +57,20 @@ const executeRequirementStep: PipelineStep = {
 
     console.log('[Pipeline] Step 2: Execute requirement async');
     console.log('[Pipeline] Request body:', JSON.stringify({
-      action: 'execute-requirement-async',
       projectPath: config.projectPath,
       projectId: config.projectId,
       requirementName: config.requirementName,
+      async: true,
     }));
 
-    const response = await fetch('/api/claude-code', {
+    const response = await fetch('/api/claude-code/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'execute-requirement-async',
         projectPath: config.projectPath,
         projectId: config.projectId,
         requirementName: config.requirementName,
+        async: true,
       }),
     });
 
@@ -106,13 +106,9 @@ const pollTaskStatusStep: PipelineStep = {
       await new Promise(resolve => setTimeout(resolve, pollInterval));
       pollCount++;
 
-      const response = await fetch('/api/claude-code', {
-        method: 'POST',
+      const response = await fetch(`/api/claude-code/tasks/${encodeURIComponent(context.taskId)}`, {
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'get-task-status',
-          taskId: context.taskId,
-        }),
       });
 
       const result = await response.json();

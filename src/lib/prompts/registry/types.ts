@@ -19,7 +19,6 @@ export type ScanType =
   | 'onboarding_optimizer'
   | 'ai_integration_scout'
   | 'delight_designer'
-  | 'refactor_analysis'
   | 'code_refactor'
   | 'user_empathy_champion'
   | 'paradigm_shifter'

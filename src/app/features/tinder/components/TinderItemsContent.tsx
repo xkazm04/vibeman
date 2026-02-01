@@ -8,6 +8,7 @@ import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import DirectionCard from './DirectionCard';
+import DirectionPairCard from './DirectionPairCard';
 import ActionButtons from './TinderButtons';
 import SwipeProgress from './SwipeProgress';
 import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
@@ -17,6 +18,7 @@ import {
   TinderFilterMode,
   TinderCombinedStats,
   isIdeaItem,
+  isDirectionPairItem,
   getTinderItemId,
   getTinderItemProjectId,
 } from '../lib/tinderTypes';
@@ -47,6 +49,10 @@ interface TinderItemsContentProps {
   contextsMap?: Record<string, Context[]>;
   /** Map of goal_id -> goal_title for batch-fetched goals */
   goalTitlesMap?: Record<string, string>;
+  // Paired direction handlers
+  onAcceptPairVariant?: (pairId: string, variant: 'A' | 'B') => Promise<void>;
+  onRejectPair?: (pairId: string) => Promise<void>;
+  onDeletePair?: (pairId: string) => Promise<void>;
 }
 
 export default function TinderItemsContent({
@@ -64,6 +70,9 @@ export default function TinderItemsContent({
   onFlushComplete,
   contextsMap = {},
   goalTitlesMap = {},
+  onAcceptPairVariant,
+  onRejectPair,
+  onDeletePair,
 }: TinderItemsContentProps) {
   const { getProject, projects } = useProjectConfigStore();
   const { selectedProjectId } = useUnifiedProjectStore();
@@ -156,8 +165,14 @@ export default function TinderItemsContent({
     );
   }
 
+  // Use wider container for direction pairs
+  const isPairView = currentItem && isDirectionPairItem(currentItem);
+  const containerClass = isPairView
+    ? 'max-w-5xl mx-auto px-4 py-4 relative' // Wider for pair comparison
+    : 'max-w-3xl mx-auto px-4 py-4 relative'; // Standard width for single cards
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-4 relative">
+    <div className={containerClass}>
       {/* Flush Button - Top Right */}
       <div className="absolute top-0 right-4 z-50">
         <motion.button
@@ -214,8 +229,8 @@ export default function TinderItemsContent({
         )}
       </div>
 
-      {/* Card Stack */}
-      <div className="relative h-[600px]">
+      {/* Card Stack - taller for pair comparison */}
+      <div className={`relative ${isPairView ? 'h-[620px]' : 'h-[600px]'}`}>
         <AnimatePresence>
           {items.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((item, index) => {
             const projectId = getTinderItemProjectId(item);
@@ -243,7 +258,28 @@ export default function TinderItemsContent({
                   }}
                 />
               );
+            } else if (isDirectionPairItem(item)) {
+              // Paired directions - show comparison card
+              return (
+                <DirectionPairCard
+                  key={itemId}
+                  directionA={item.data.directionA}
+                  directionB={item.data.directionB}
+                  problemStatement={item.data.problemStatement}
+                  projectName={projectName}
+                  onAcceptA={index === 0 && onAcceptPairVariant ? () => onAcceptPairVariant(item.data.pairId, 'A') : () => {}}
+                  onAcceptB={index === 0 && onAcceptPairVariant ? () => onAcceptPairVariant(item.data.pairId, 'B') : () => {}}
+                  onRejectBoth={index === 0 && onRejectPair ? () => onRejectPair(item.data.pairId) : () => {}}
+                  onDeleteBoth={index === 0 && onDeletePair ? () => onDeletePair(item.data.pairId) : () => {}}
+                  disabled={index !== 0 || processing}
+                  style={{
+                    zIndex: 10 - index,
+                    ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
+                  }}
+                />
+              );
             } else {
+              // Single direction
               return (
                 <DirectionCard
                   key={itemId}
@@ -262,18 +298,22 @@ export default function TinderItemsContent({
         </AnimatePresence>
       </div>
 
-      {/* Action Buttons */}
-      <ActionButtons
-        onReject={onReject}
-        onDelete={onDelete}
-        onAccept={onAccept}
-        disabled={processing}
-      />
+      {/* Action Buttons - Hide for paired directions since they have built-in buttons */}
+      {currentItem && !isDirectionPairItem(currentItem) && (
+        <ActionButtons
+          onReject={onReject}
+          onDelete={onDelete}
+          onAccept={onAccept}
+          disabled={processing}
+        />
+      )}
 
-      {/* Keyboard Hints */}
-      <div className="mt-2 flex justify-center">
-        <KeyboardHintCompact hints={TINDER_KEYBOARD_HINTS} />
-      </div>
+      {/* Keyboard Hints - hide for paired directions */}
+      {currentItem && !isDirectionPairItem(currentItem) && (
+        <div className="mt-2 flex justify-center">
+          <KeyboardHintCompact hints={TINDER_KEYBOARD_HINTS} />
+        </div>
+      )}
 
       {/* Progress Indicator */}
       <div className="mt-3">

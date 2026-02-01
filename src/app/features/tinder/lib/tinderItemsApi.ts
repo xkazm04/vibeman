@@ -34,7 +34,8 @@ export async function fetchTinderItems(
   projectId: string | undefined,
   itemType: TinderFilterMode = 'both',
   offset: number = 0,
-  limit: number = 20
+  limit: number = 20,
+  category?: string | null
 ): Promise<TinderItemsResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
@@ -46,10 +47,47 @@ export async function fetchTinderItems(
     params.append('projectId', projectId);
   }
 
+  // Add category filter for ideas
+  if (category && itemType === 'ideas') {
+    params.append('category', category);
+  }
+
   const response = await fetch(`/api/tinder/items?${params.toString()}`);
 
   if (!response.ok) {
     await handleApiError(response, 'Failed to fetch items');
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch idea categories with counts for filtering
+ */
+export interface CategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface CategoriesResponse {
+  categories: CategoryCount[];
+  total: number;
+}
+
+export async function fetchIdeaCategories(
+  projectId?: string,
+  status: string = 'pending'
+): Promise<CategoriesResponse> {
+  const params = new URLSearchParams({ status });
+
+  if (projectId && projectId !== 'all') {
+    params.append('projectId', projectId);
+  }
+
+  const response = await fetch(`/api/ideas/categories?${params.toString()}`);
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to fetch categories');
   }
 
   return response.json();
@@ -163,6 +201,58 @@ export async function deleteTinderItem(item: TinderItem): Promise<{ success: boo
   }
 
   throw new Error('Unknown item type');
+}
+
+/**
+ * Accept one variant from a direction pair
+ */
+export async function acceptPairVariant(
+  pairId: string,
+  variant: 'A' | 'B',
+  projectPath: string
+): Promise<{ success: boolean; requirementName?: string; error?: string }> {
+  const response = await fetch(`/api/directions/pair/${pairId}/accept`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ variant, projectPath }),
+  });
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to accept direction variant');
+  }
+
+  return response.json();
+}
+
+/**
+ * Reject both directions in a pair
+ */
+export async function rejectDirectionPair(pairId: string): Promise<{ success: boolean }> {
+  const response = await fetch(`/api/directions/pair/${pairId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to reject direction pair');
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete both directions in a pair
+ */
+export async function deleteDirectionPair(pairId: string): Promise<{ success: boolean }> {
+  const response = await fetch(`/api/directions/pair/${pairId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to delete direction pair');
+  }
+
+  return response.json();
 }
 
 /**

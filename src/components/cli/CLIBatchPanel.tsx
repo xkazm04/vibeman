@@ -8,6 +8,7 @@ import { requirementToQueuedTask } from './types';
 import {
   useCLISessionStore,
   abortSessionExecution,
+  performTaskCleanup,
   type CLISessionId,
 } from './store';
 import { useCLIRecovery, useCLIRecoveryStatus } from './store/useCLIRecovery';
@@ -27,37 +28,8 @@ import RemoteBatchSection from '@/app/features/TaskRunner/components/RemoteBatch
 
 const SESSIONS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
 
-/**
- * Delete a requirement file after successful completion
- */
-async function deleteRequirementFile(projectPath: string, requirementName: string): Promise<boolean> {
-  try {
-    const response = await fetch('/api/claude-code/requirement', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectPath, requirementName }),
-    });
-    return response.ok;
-  } catch (error) {
-    console.error('Failed to delete requirement:', error);
-    return false;
-  }
-}
-
-/**
- * Update idea status to implemented
- */
-async function updateIdeaStatus(requirementName: string): Promise<void> {
-  try {
-    await fetch('/api/ideas/update-implementation-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requirementName }),
-    });
-  } catch {
-    // Silently ignore - non-critical
-  }
-}
+// Task completion utilities (deleteRequirementFile, updateIdeaImplementationStatus)
+// are imported from ./store (cliExecutionManager.ts) to avoid duplication
 
 /**
  * CLI Batch Panel
@@ -153,10 +125,7 @@ export function CLIBatchPanel({
 
     // If successful, perform cleanup actions
     if (success && task) {
-      // Update idea status (fire-and-forget)
-      updateIdeaStatus(task.requirementName);
-
-      // Git operations if enabled
+      // Git operations if enabled (UI-specific, not shared)
       if (session?.gitEnabled && session.gitConfig && session.projectId) {
         try {
           const commitMessage = generateCommitMessage(
@@ -177,11 +146,11 @@ export function CLIBatchPanel({
         }
       }
 
-      // Delete the requirement file
-      const deleted = await deleteRequirementFile(task.projectPath, task.requirementName);
+      // Shared cleanup: delete requirement file and update idea status
+      const deleted = await performTaskCleanup(task.projectPath, task.requirementName);
 
       if (deleted) {
-        // Notify parent to remove from requirements list
+        // Notify parent to remove from requirements list (UI-specific)
         onRequirementCompleted?.(taskId, task.projectPath, task.requirementName);
 
         // Remove completed task from queue after short delay

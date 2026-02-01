@@ -13,7 +13,14 @@ import {
   XCircle,
   RefreshCw,
   Eye,
+  Trash2,
+  Pause,
+  HelpCircle,
+  X,
 } from 'lucide-react';
+import { useSessionCleanup } from '../hooks/useSessionCleanup';
+import type { OrphanedSession, OrphanReason } from '../lib/sessionCleanup.types';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 interface ExecutionTask {
   id: string;
@@ -31,6 +38,36 @@ interface TaskMonitorProps {
   projectId?: string;
   autoRefresh?: boolean;
   refreshInterval?: number;
+  /** Show orphan session cleanup section (default: true) */
+  showOrphanCleanup?: boolean;
+}
+
+// === Orphan Session Helpers ===
+
+const REASON_ICONS: Record<OrphanReason, React.ReactNode> = {
+  no_heartbeat: <AlertTriangle className="w-3 h-3 text-red-400" />,
+  stale_running: <AlertTriangle className="w-3 h-3 text-red-400" />,
+  stale_paused: <Pause className="w-3 h-3 text-amber-400" />,
+  stale_pending: <Clock className="w-3 h-3 text-gray-400" />,
+  no_polling: <HelpCircle className="w-3 h-3 text-orange-400" />,
+};
+const DEFAULT_REASON_ICON = <AlertTriangle className="w-3 h-3 text-gray-400" />;
+
+const REASON_TEXT: Record<OrphanReason, string> = {
+  no_heartbeat: 'No heartbeat (>30 min)',
+  stale_running: 'Stale running state',
+  stale_paused: 'Paused too long (>48 hrs)',
+  stale_pending: 'Never started (>2 hrs)',
+  no_polling: 'Not being polled',
+};
+const DEFAULT_REASON_TEXT = 'Unknown reason';
+
+function getReasonIcon(reason: OrphanReason): React.ReactNode {
+  return REASON_ICONS[reason] ?? DEFAULT_REASON_ICON;
+}
+
+function getReasonText(reason: OrphanReason): string {
+  return REASON_TEXT[reason] ?? DEFAULT_REASON_TEXT;
 }
 
 /**
@@ -38,13 +75,13 @@ interface TaskMonitorProps {
  */
 async function fetchAllTasks(projectPath?: string): Promise<ExecutionTask[]> {
   try {
-    const response = await fetch('/api/claude-code', {
-      method: 'POST',
+    const url = projectPath
+      ? `/api/claude-code/tasks?projectPath=${encodeURIComponent(projectPath)}`
+      : '/api/claude-code/tasks';
+
+    const response = await fetch(url, {
+      method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectPath: projectPath || '',
-        action: 'list-tasks',
-      }),
     });
 
     if (!response.ok) {
@@ -123,6 +160,52 @@ function formatDuration(startTime?: string, endTime?: string): string {
 }
 
 /**
+ * Single orphaned session item
+ */
+const OrphanedSessionItem = memo(function OrphanedSessionItem({
+  session,
+  onCleanup,
+  isDisabled,
+}: {
+  session: OrphanedSession;
+  onCleanup: (id: string) => void;
+  isDisabled: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
+      className="flex items-center justify-between gap-3 px-2 py-1.5 bg-gray-800/40 rounded-lg transition-all duration-200 hover:bg-gray-800/60 border border-transparent hover:border-gray-700/30"
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        {getReasonIcon(session.reason)}
+        <div className="min-w-0">
+          <div className="text-xs font-medium text-gray-300 truncate">
+            {session.name}
+          </div>
+          <div className="text-[10px] text-gray-500 flex items-center gap-2">
+            <span>{getReasonText(session.reason)}</span>
+            <span>|</span>
+            <span>{formatRelativeTime(session.lastActivity)}</span>
+            <span>|</span>
+            <span>{session.taskCount} tasks</span>
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={() => onCleanup(session.id)}
+        disabled={isDisabled}
+        className="p-1 hover:bg-red-500/20 rounded transition-all duration-200 text-gray-400 hover:text-red-400 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
+        title="Clean up this session"
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
+    </motion.div>
+  );
+});
+
+/**
  * Single task item in the monitor
  */
 const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
@@ -198,17 +281,29 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
 
 /**
  * Task Monitor Component
- * Provides transparency into all running execution tasks
+ * Provides transparency into all running execution tasks and orphaned sessions
  */
 export const TaskMonitor = memo(function TaskMonitor({
   projectId,
   autoRefresh = true,
   refreshInterval = 5000,
+  showOrphanCleanup = true,
 }: TaskMonitorProps) {
   const [tasks, setTasks] = useState<ExecutionTask[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  // Orphan session cleanup hook
+  const {
+    orphanedSessions,
+    isScanning: isOrphanScanning,
+    isCleaning,
+    error: orphanError,
+    scanForOrphans,
+    cleanupSessions,
+    cleanupAll,
+  } = useSessionCleanup({ projectId, autoScan: showOrphanCleanup });
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -232,8 +327,8 @@ export const TaskMonitor = memo(function TaskMonitor({
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
   const runningCount = tasks.filter(t => t.status === 'running').length;
   const stuckCount = tasks.filter(t => t.status === 'running' && (t.progress?.length || 0) === 0).length;
-  const completedCount = tasks.filter(t => t.status === 'completed').length;
   const failedCount = tasks.filter(t => t.status === 'failed' || t.status === 'session-limit').length;
+  const orphanCount = orphanedSessions.length;
 
   // Sort: stuck first, then running, then pending, then rest
   const sortedTasks = [...tasks].sort((a, b) => {
@@ -246,12 +341,27 @@ export const TaskMonitor = memo(function TaskMonitor({
     return (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
   });
 
-  // Don't render if no tasks
-  if (tasks.length === 0) {
+  const handleCleanupSingle = useCallback(async (sessionId: string) => {
+    await cleanupSessions([sessionId]);
+  }, [cleanupSessions]);
+
+  const handleCleanupAll = useCallback(async () => {
+    await cleanupAll();
+  }, [cleanupAll]);
+
+  const handleRefreshAll = useCallback(() => {
+    refresh();
+    if (showOrphanCleanup) {
+      scanForOrphans();
+    }
+  }, [refresh, showOrphanCleanup, scanForOrphans]);
+
+  // Don't render if no tasks AND no orphans
+  if (tasks.length === 0 && orphanCount === 0 && !isOrphanScanning) {
     return null;
   }
 
-  const hasIssues = stuckCount > 0 || pendingCount > 0;
+  const hasIssues = stuckCount > 0 || pendingCount > 0 || orphanCount > 0;
 
   return (
     <motion.div
@@ -271,9 +381,14 @@ export const TaskMonitor = memo(function TaskMonitor({
         <div className="flex items-center gap-2">
           <Eye className={`w-4 h-4 ${hasIssues ? 'text-orange-400' : 'text-gray-400'}`} />
           <span className={`text-xs font-medium ${hasIssues ? 'text-orange-400' : 'text-gray-400'}`}>
-            Task Monitor
+            Session Health
           </span>
           <div className="flex items-center gap-1.5 text-[10px]">
+            {orphanCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                {orphanCount} orphan{orphanCount !== 1 ? 's' : ''}
+              </span>
+            )}
             {pendingCount > 0 && (
               <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
                 {pendingCount} pending
@@ -297,16 +412,29 @@ export const TaskMonitor = memo(function TaskMonitor({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Clean All button for orphans */}
+          {orphanCount > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCleanupAll();
+              }}
+              disabled={isCleaning}
+              className="px-2 py-0.5 text-[10px] font-medium bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded text-amber-400 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCleaning ? 'Cleaning...' : 'Clean All'}
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              refresh();
+              handleRefreshAll();
             }}
-            disabled={isRefreshing}
+            disabled={isRefreshing || isOrphanScanning}
             className="p-1 hover:bg-white/10 rounded transition-colors"
-            title="Refresh task list"
+            title="Refresh status"
           >
-            <RefreshCw className={`w-3 h-3 text-gray-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3 h-3 text-gray-400 ${isRefreshing || isOrphanScanning ? 'animate-spin' : ''}`} />
           </button>
           {isExpanded ? (
             <ChevronUp className="w-4 h-4 text-gray-400" />
@@ -315,6 +443,16 @@ export const TaskMonitor = memo(function TaskMonitor({
           )}
         </div>
       </div>
+
+      {/* Error message */}
+      {orphanError && (
+        <div className="px-2.5 pb-2">
+          <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded">
+            <X className="w-3 h-3" />
+            <span>{orphanError}</span>
+          </div>
+        </div>
+      )}
 
       {/* Expanded content */}
       <AnimatePresence>
@@ -326,10 +464,39 @@ export const TaskMonitor = memo(function TaskMonitor({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-2.5 pb-2.5 space-y-1.5 max-h-64 overflow-y-auto">
-              {sortedTasks.map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))}
+            <div className="px-2.5 pb-2.5 space-y-3 max-h-72 overflow-y-auto">
+              {/* Orphaned Sessions Section */}
+              {showOrphanCleanup && orphanCount > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-[10px] text-amber-400 font-medium">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>Orphaned Sessions</span>
+                  </div>
+                  {orphanedSessions.map((session) => (
+                    <OrphanedSessionItem
+                      key={session.id}
+                      session={session}
+                      onCleanup={handleCleanupSingle}
+                      isDisabled={isCleaning}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Tasks Section */}
+              {tasks.length > 0 && (
+                <div className="space-y-1.5">
+                  {orphanCount > 0 && (
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                      <Activity className="w-3 h-3" />
+                      <span>Execution Tasks</span>
+                    </div>
+                  )}
+                  {sortedTasks.map((task) => (
+                    <TaskItem key={task.id} task={task} />
+                  ))}
+                </div>
+              )}
             </div>
             {lastRefresh && (
               <div className="px-2.5 pb-2 text-[9px] text-gray-600">

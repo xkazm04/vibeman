@@ -163,3 +163,132 @@ export function createDebouncedLoadingManager(
     }
   };
 }
+
+/**
+ * Stall Detector - Zero-Progress Heuristic
+ *
+ * Detects stuck operations by checking if an operation is running
+ * but producing no progress. Useful for:
+ * - Async task monitoring (tasks that launched but hang)
+ * - Streaming operations that stop mid-stream
+ * - Progress-based operations with potential deadlocks
+ *
+ * Pattern extracted from TaskMonitor component.
+ *
+ * Usage:
+ *   const detector = createStallDetector<MyTask>({
+ *     isRunning: (task) => task.status === 'running',
+ *     getProgressCount: (task) => task.output.length,
+ *     onStallDetected: (task) => console.warn('Task stalled:', task.id),
+ *     stallThresholdMs: 30000, // optional: time-based threshold
+ *   });
+ *
+ *   // Check single item
+ *   const isStuck = detector.isStalled(task);
+ *
+ *   // Check collection and get stuck items
+ *   const stuckTasks = detector.findStalled(tasks);
+ *
+ *   // Monitor continuously
+ *   detector.startMonitoring(getTasks, 5000);
+ *   detector.stopMonitoring();
+ */
+export interface StallDetectorConfig<T> {
+  /** Returns true if the item is in a "running" state */
+  isRunning: (item: T) => boolean;
+  /** Returns the progress count (0 = no progress) */
+  getProgressCount: (item: T) => number;
+  /** Optional callback when stall is detected */
+  onStallDetected?: (item: T) => void;
+  /** Optional: consider stalled only if running longer than this (ms) */
+  stallThresholdMs?: number;
+  /** Optional: get start time for threshold check */
+  getStartTime?: (item: T) => Date | string | number | undefined;
+}
+
+export interface StallDetector<T> {
+  /** Check if a single item is stalled */
+  isStalled: (item: T) => boolean;
+  /** Find all stalled items in a collection */
+  findStalled: (items: T[]) => T[];
+  /** Count stalled items */
+  countStalled: (items: T[]) => number;
+  /** Start continuous monitoring */
+  startMonitoring: (getItems: () => T[] | Promise<T[]>, intervalMs?: number) => void;
+  /** Stop continuous monitoring */
+  stopMonitoring: () => void;
+}
+
+export function createStallDetector<T>(
+  config: StallDetectorConfig<T>
+): StallDetector<T> {
+  const { isRunning, getProgressCount, onStallDetected, stallThresholdMs, getStartTime } = config;
+  let monitorInterval: ReturnType<typeof setInterval> | null = null;
+  const notifiedItems = new WeakSet<object>();
+
+  const checkTimeThreshold = (item: T): boolean => {
+    if (!stallThresholdMs || !getStartTime) return true;
+    const startTime = getStartTime(item);
+    if (!startTime) return true;
+    const start = typeof startTime === 'string' || typeof startTime === 'number'
+      ? new Date(startTime)
+      : startTime;
+    const elapsed = Date.now() - start.getTime();
+    return elapsed >= stallThresholdMs;
+  };
+
+  const isStalled = (item: T): boolean => {
+    return isRunning(item) && getProgressCount(item) === 0 && checkTimeThreshold(item);
+  };
+
+  const findStalled = (items: T[]): T[] => {
+    return items.filter(isStalled);
+  };
+
+  const countStalled = (items: T[]): number => {
+    return items.reduce((count, item) => count + (isStalled(item) ? 1 : 0), 0);
+  };
+
+  const notifyStalled = (items: T[]) => {
+    if (!onStallDetected) return;
+    for (const item of items) {
+      // Only notify once per item (for object types)
+      if (typeof item === 'object' && item !== null) {
+        if (!notifiedItems.has(item)) {
+          notifiedItems.add(item);
+          onStallDetected(item);
+        }
+      } else {
+        onStallDetected(item);
+      }
+    }
+  };
+
+  return {
+    isStalled,
+    findStalled,
+    countStalled,
+
+    startMonitoring: (getItems, intervalMs = 5000) => {
+      if (monitorInterval) {
+        clearInterval(monitorInterval);
+      }
+
+      const check = async () => {
+        const items = await getItems();
+        const stalled = findStalled(items);
+        notifyStalled(stalled);
+      };
+
+      check(); // Immediate first check
+      monitorInterval = setInterval(check, intervalMs);
+    },
+
+    stopMonitoring: () => {
+      if (monitorInterval) {
+        clearInterval(monitorInterval);
+        monitorInterval = null;
+      }
+    }
+  };
+}

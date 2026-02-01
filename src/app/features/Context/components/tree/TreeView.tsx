@@ -4,7 +4,7 @@ import { TreeNode as TreeNodeType, Project } from '../../../../types';
 import TreeNode from './TreeNode';
 
 interface TreeViewProps {
-  activeProject: Project | null;
+  activeProject?: Project | null;
   filteredStructure: TreeNodeType | null;
   isLoading: boolean;
   error: string | null;
@@ -17,7 +17,7 @@ interface TreeViewProps {
 }
 
 export default function TreeView({
-  activeProject,
+  activeProject = null,
   filteredStructure,
   isLoading,
   error,

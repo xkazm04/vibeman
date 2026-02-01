@@ -187,12 +187,11 @@ async function createRequirementFile(
   projectPath: string,
   requirementName: string
 ): Promise<void> {
-  const response = await fetch('/api/claude-code', {
+  const response = await fetch('/api/claude-code/requirement', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       projectPath,
-      action: 'create-requirement',
       requirementName,
       content: plan,
     }),

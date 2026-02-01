@@ -5,7 +5,7 @@
 import { DbIdea, DbDirection } from '@/app/db';
 
 // Discriminated union types for item identification
-export type TinderItemType = 'idea' | 'direction';
+export type TinderItemType = 'idea' | 'direction' | 'direction_pair';
 
 export interface TinderIdea {
   type: 'idea';
@@ -17,7 +17,18 @@ export interface TinderDirection {
   data: DbDirection;
 }
 
-export type TinderItem = TinderIdea | TinderDirection;
+// Paired directions - two alternative solutions for the same problem
+export interface TinderDirectionPair {
+  type: 'direction_pair';
+  data: {
+    pairId: string;
+    problemStatement: string | null;
+    directionA: DbDirection;
+    directionB: DbDirection;
+  };
+}
+
+export type TinderItem = TinderIdea | TinderDirection | TinderDirectionPair;
 
 // Filter mode for the tab switcher
 export type TinderFilterMode = 'ideas' | 'directions' | 'both';
@@ -56,6 +67,12 @@ export interface TinderItemsResponse {
   goalTitlesMap: Record<string, string>;
 }
 
+// Category count for filtering
+export interface CategoryCount {
+  category: string;
+  count: number;
+}
+
 // Hook result type
 export interface UseTinderItemsResult {
   items: TinderItem[];
@@ -72,10 +89,19 @@ export interface UseTinderItemsResult {
   counts: { ideas: number; directions: number };
   /** Map of goal_id -> goal_title for batch-fetched goals */
   goalTitlesMap: Record<string, string>;
+  // Category filtering for ideas
+  selectedCategory: string | null;
+  categories: CategoryCount[];
+  categoriesLoading: boolean;
+  setCategory: (category: string | null) => void;
   setFilterMode: (mode: TinderFilterMode) => void;
   handleAccept: () => Promise<void>;
   handleReject: () => Promise<void>;
   handleDelete: () => Promise<void>;
+  // Paired direction handlers
+  handleAcceptPairVariant: (pairId: string, variant: 'A' | 'B') => Promise<void>;
+  handleRejectPair: (pairId: string) => Promise<void>;
+  handleDeletePair: (pairId: string) => Promise<void>;
   resetStats: () => void;
   loadItems: () => Promise<void>;
 }
@@ -89,18 +115,31 @@ export function isDirectionItem(item: TinderItem): item is TinderDirection {
   return item.type === 'direction';
 }
 
+export function isDirectionPairItem(item: TinderItem): item is TinderDirectionPair {
+  return item.type === 'direction_pair';
+}
+
 // Helper to get item ID regardless of type
 export function getTinderItemId(item: TinderItem): string {
+  if (isDirectionPairItem(item)) {
+    return item.data.pairId;
+  }
   return item.data.id;
 }
 
 // Helper to get item created_at regardless of type
 export function getTinderItemCreatedAt(item: TinderItem): string {
+  if (isDirectionPairItem(item)) {
+    return item.data.directionA.created_at;
+  }
   return item.data.created_at;
 }
 
 // Helper to get project_id regardless of type
 export function getTinderItemProjectId(item: TinderItem): string {
+  if (isDirectionPairItem(item)) {
+    return item.data.directionA.project_id;
+  }
   return item.data.project_id;
 }
 

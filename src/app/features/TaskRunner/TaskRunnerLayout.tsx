@@ -1,9 +1,8 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, RefreshCw, FileText } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { ToolbarAction } from '@/components/ui/ProjectToolbar';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import { loadRequirements, loadRequirementsBatch, deleteRequirement } from '@/app/Claude/lib/requirementApi';
@@ -17,7 +16,7 @@ import {
   isRequirementCompleted,
 } from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
-import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
+import { useTaskRunnerStore, useIsAnyBatchRunning } from '@/app/features/TaskRunner/store';
 import { useShallow } from 'zustand/react/shallow';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import ClaudeLogViewer from '@/app/Claude/ClaudeLogViewer';
@@ -36,6 +35,9 @@ const TaskRunnerLayout = () => {
 
   // Get store tasks to sync status (useShallow prevents re-renders when unrelated task properties change)
   const storeTasks = useTaskRunnerStore(useShallow((state) => state.tasks));
+
+  // Use store state to check if any batch is running (fixes race condition with component state)
+  const isAnyBatchRunning = useIsAnyBatchRunning();
 
   const actions: TaskRunnerActions = {
     setRequirements,
@@ -56,7 +58,9 @@ const TaskRunnerLayout = () => {
     const loadAllRequirements = async () => {
       // CRITICAL: Don't reload requirements while a batch is running
       // This would wipe out status information for queued/running tasks
-      if (isRunning) {
+      // Uses store state (isAnyBatchRunning) instead of component state (isRunning)
+      // to avoid race conditions where isRunning may be stale between renders
+      if (isAnyBatchRunning) {
         return;
       }
 
@@ -100,7 +104,7 @@ const TaskRunnerLayout = () => {
     if (projects.length > 0) {
       loadAllRequirements();
     }
-  }, [projects, isRunning]);
+  }, [projects, isAnyBatchRunning]);
 
   // Helper to get requirement ID
   const getRequirementId = (req: ProjectRequirement) =>
@@ -239,28 +243,36 @@ const TaskRunnerLayout = () => {
       if (!confirmed) return;
     }
 
-    // Delete each requirement
-    const results = await Promise.allSettled(
-      reqIds.map(async (reqId) => {
-        const req = requirements.find((r) => getRequirementId(r) === reqId);
-        if (!req) return { success: false, reqId };
+    // Delete each requirement with concurrency limit to prevent overwhelming filesystem
+    // Uses batched execution: processes up to CONCURRENCY_LIMIT items at a time
+    const CONCURRENCY_LIMIT = 5;
+    const deletedIds: string[] = [];
 
-        try {
-          const success = await deleteRequirement(req.projectPath, req.requirementName);
-          return { success, reqId };
-        } catch {
-          return { success: false, reqId };
+    // Process in batches of CONCURRENCY_LIMIT
+    for (let i = 0; i < reqIds.length; i += CONCURRENCY_LIMIT) {
+      const batch = reqIds.slice(i, i + CONCURRENCY_LIMIT);
+
+      const results = await Promise.allSettled(
+        batch.map(async (reqId) => {
+          const req = requirements.find((r) => getRequirementId(r) === reqId);
+          if (!req) return { success: false, reqId };
+
+          try {
+            const success = await deleteRequirement(req.projectPath, req.requirementName);
+            return { success, reqId };
+          } catch {
+            return { success: false, reqId };
+          }
+        })
+      );
+
+      // Collect successfully deleted IDs from this batch
+      results.forEach((r) => {
+        if (r.status === 'fulfilled' && r.value.success) {
+          deletedIds.push(r.value.reqId);
         }
-      })
-    );
-
-    // Get successfully deleted IDs
-    const deletedIds = results
-      .filter(
-        (r): r is PromiseFulfilledResult<{ success: boolean; reqId: string }> =>
-          r.status === 'fulfilled' && r.value.success
-      )
-      .map((r) => r.value.reqId);
+      });
+    }
 
     // Update state with successful deletions
     if (deletedIds.length > 0) {
@@ -344,21 +356,6 @@ const TaskRunnerLayout = () => {
       );
     }
   };
-
-  // Toolbar actions
-  const toolbarActions: ToolbarAction[] = useMemo(() => [
-    {
-      icon: RefreshCw,
-      label: 'Refresh requirements',
-      onClick: () => {
-        setRequirements([]);
-        setSelectedRequirements(new Set());
-      },
-      colorScheme: 'green',
-      tooltip: 'Reload all requirements',
-      disabled: isRunning,
-    },
-  ], [isRunning]);
 
   if (isLoading) {
     return (

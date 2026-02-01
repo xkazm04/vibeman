@@ -29,7 +29,7 @@ interface IdeaDetailContentProps {
   retryRequirementGen: () => void;
   showAIError: boolean;
   setShowAIError: (value: boolean) => void;
-  onUpdate: (updates: Partial<DbIdea>) => Promise<void>;
+  onUpdate: (updates: Partial<DbIdea>) => Promise<boolean | void>;
   /** ID for the description element (used for aria-describedby) */
   descriptionId?: string;
 }

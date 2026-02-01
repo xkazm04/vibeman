@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { ProjectRequirement } from '../lib/types';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
 import type { DbIdea } from '@/app/db';
@@ -30,17 +30,13 @@ export function useTaskColumnData({
   const [aggregationCheck, setAggregationCheck] = useState<AggregationCheckResult | null>(aggregationData || null);
   const [ideasMap, setIdeasMap] = useState<Record<string, DbIdea | null>>(ideasData || {});
   const [contextsMap, setContextsMap] = useState<Record<string, ContextInfo>>(contextsData || {});
-
-  const aggregationFetchedRef = useRef(false);
-  const ideasFetchedRef = useRef(false);
-  const contextsFetchedRef = useRef(false);
+  const [hasFetchedAggregation, setHasFetchedAggregation] = useState(false);
+  const [hasFetchedIdeas, setHasFetchedIdeas] = useState(false);
+  const [hasFetchedContexts, setHasFetchedContexts] = useState(false);
 
   // Check for aggregatable files
   const checkAggregation = useCallback(async () => {
     if (!projectPath || aggregationData !== undefined) return;
-    if (aggregationFetchedRef.current) return;
-
-    aggregationFetchedRef.current = true;
 
     try {
       const response = await fetch(`/api/idea-aggregator?projectPath=${encodeURIComponent(projectPath)}`);
@@ -54,16 +50,20 @@ export function useTaskColumnData({
   }, [projectPath, aggregationData]);
 
   useEffect(() => {
-    if (aggregationData === undefined) {
+    if (aggregationData === undefined && !hasFetchedAggregation) {
+      setHasFetchedAggregation(true);
       checkAggregation();
     }
-  }, [checkAggregation, aggregationData]);
+  }, [checkAggregation, aggregationData, hasFetchedAggregation]);
 
-  // Reset fetch guards when project changes
+  // Reset fetch state when project changes
   useEffect(() => {
-    aggregationFetchedRef.current = false;
-    ideasFetchedRef.current = false;
-    contextsFetchedRef.current = false;
+    setHasFetchedAggregation(false);
+    setHasFetchedIdeas(false);
+    setHasFetchedContexts(false);
+    setAggregationCheck(null);
+    setIdeasMap({});
+    setContextsMap({});
   }, [projectPath]);
 
   // Batch fetch ideas
@@ -75,8 +75,8 @@ export function useTaskColumnData({
       return;
     }
 
-    if (ideasFetchedRef.current) return;
-    ideasFetchedRef.current = true;
+    if (hasFetchedIdeas) return;
+    setHasFetchedIdeas(true);
 
     const fetchIdeasBatch = async () => {
       if (requirementNames.length === 0) {
@@ -101,7 +101,7 @@ export function useTaskColumnData({
     };
 
     fetchIdeasBatch();
-  }, [requirementNames, ideasData]);
+  }, [requirementNames, ideasData, hasFetchedIdeas]);
 
   // Fetch contexts for grouping
   useEffect(() => {
@@ -110,8 +110,8 @@ export function useTaskColumnData({
       return;
     }
 
-    if (contextsFetchedRef.current) return;
-    contextsFetchedRef.current = true;
+    if (hasFetchedContexts) return;
+    setHasFetchedContexts(true);
 
     const fetchContexts = async () => {
       try {
@@ -145,7 +145,7 @@ export function useTaskColumnData({
     };
 
     fetchContexts();
-  }, [projectId, contextsData]);
+  }, [projectId, contextsData, hasFetchedContexts]);
 
   return {
     aggregationCheck,

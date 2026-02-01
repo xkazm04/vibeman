@@ -1,80 +1,22 @@
 'use client';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/shallow';
-import { AppState, AppStore, EventLogEntry, CustomBacklogItem, BacklogProposal, TreeNode } from '../types';
+import { AppState, EventLogEntry, CustomBacklogItem, TreeNode } from '../types';
 import { isSupportedFile } from '../helpers/typeStyles';
 
-// Mock data for backlog proposals with status and impacted files
-const mockBacklogProposals: BacklogProposal[] = [
-  {
-    id: '1',
-    agent: 'developer',
-    title: 'Optimize component re-renders',
-    description: 'Implement React.memo and useCallback to reduce unnecessary re-renders in the tree structure. This will improve performance significantly, especially for large component trees.',
-    timestamp: new Date(Date.now() - 300000),
-    status: 'pending',
-    impactedFiles: [
-      { filepath: 'components/agent-manager/AgentManager.tsx', type: 'update' },
-      { filepath: 'components/agent-manager/AgentButton.tsx', type: 'update' }
-    ]
-  },
-  {
-    id: '2',
-    agent: 'tester',
-    title: 'Add unit tests for state management',
-    description: 'Create comprehensive test suite covering all Zustand store actions and state mutations. Include edge cases and error scenarios.',
-    timestamp: new Date(Date.now() - 600000),
-    status: 'pending',
-    impactedFiles: [
-      { filepath: 'lib/store/app-store.ts', type: 'update' },
-      { filepath: 'lib/utils.ts', type: 'update' },
-      { filepath: 'tests/store.test.ts', type: 'create' }
-    ]
-  },
-  {
-    id: '3',
-    agent: 'artist',
-    title: 'Enhance accessibility features',
-    description: 'Implement keyboard navigation and screen reader support for the code structure viewer. Add ARIA labels and focus management.',
-    timestamp: new Date(Date.now() - 900000),
-    status: 'accepted',
-    impactedFiles: [
-      { filepath: 'components/ui/GlowCard.tsx', type: 'update' },
-      { filepath: 'components/ui/Button.tsx', type: 'update' },
-      { filepath: 'components/ui/Input.tsx', type: 'update' }
-    ]
-  },
-  {
-    id: '4',
-    agent: 'mastermind',
-    title: 'Integrate real-time collaboration',
-    description: 'Add WebSocket support for multi-user agent coordination and shared state management. Include conflict resolution and synchronization.',
-    timestamp: new Date(Date.now() - 1200000),
-    status: 'pending',
-    impactedFiles: [
-      { filepath: 'lib/api.ts', type: 'update' },
-      { filepath: 'components/layout/MainLayout.tsx', type: 'update' },
-      { filepath: 'lib/websocket.ts', type: 'create' }
-    ]
-  },
-  {
-    id: '5',
-    agent: 'developer',
-    title: 'Implement code splitting',
-    description: 'Add dynamic imports and lazy loading for better performance. Split routes and components to reduce initial bundle size.',
-    timestamp: new Date(Date.now() - 1500000),
-    status: 'accepted',
-    impactedFiles: [
-      { filepath: 'components/layout/MainLayout.tsx', type: 'update' },
-      { filepath: 'components/layout/Sidebar.tsx', type: 'update' }
-    ]
-  }
-];
-
-// Helper function to normalize paths for comparison
-const normalizePath = (path: string): string => {
-  return path.replace(/\\/g, '/');
-};
+/**
+ * Node Store - Unified Facade
+ *
+ * This store provides backward compatibility by combining:
+ * - SelectionManager (selectionStore.ts) - Tree selection state
+ * - BacklogManager (backlogStore.ts) - Proposal/workflow lifecycle
+ *
+ * For new code, prefer using the specialized stores directly:
+ * - import { useSelectionStore } from '@/stores/selectionStore';
+ * - import { useBacklogStore } from '@/stores/backlogStore';
+ *
+ * This facade is maintained for existing code that depends on the unified interface.
+ */
 
 // Helper function to get all child file nodes from a folder
 const getAllChildFiles = (node: TreeNode, fileStructure: TreeNode | null): string[] => {
@@ -146,7 +88,7 @@ const useStoreBase = create<NodeStoreState>()((set, get) => ({
   selectedNodes: new Set<string>(),
   highlightedNodes: new Set<string>(),
   eventLog: [],
-  backlogProposals: [...mockBacklogProposals],
+  backlogProposals: [],
   inProgressProposals: [],
   customBacklogItems: [],
 
@@ -372,12 +314,24 @@ const useStoreBase = create<NodeStoreState>()((set, get) => ({
  * const activeTab = useStore(state => state.activeTab);
  *
  * // Subscribe to multiple values with shallow comparison
- * const { selectedNodes, highlightedNodes } = useStore(useShallow(state => ({ selectedNodes: state.selectedNodes, highlightedNodes: state.highlightedNodes })));
+ * const { selectedNodes, highlightedNodes } = useStore(useShallow(state => ({
+ *   selectedNodes: state.selectedNodes,
+ *   highlightedNodes: state.highlightedNodes
+ * })));
  *
  * // Get actions (stable references, won't cause re-renders)
  * const toggleNode = useStore(state => state.toggleNode);
+ *
+ * MIGRATION NOTE:
+ * For new code, prefer the specialized stores:
+ * - useSelectionStore for tree selection state
+ * - useBacklogStore for proposal workflows
  */
 export const useStore = useStoreBase;
 
 // Export shallow for convenience
 export { useShallow };
+
+// Re-export specialized stores for gradual migration
+export { useSelectionStore } from './selectionStore';
+export { useBacklogStore } from './backlogStore';

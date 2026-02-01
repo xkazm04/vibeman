@@ -77,11 +77,6 @@ const SCAN_TYPE_EXAMPLES: Record<ScanType, string[]> = {
     'Implement smooth page transitions',
     'Add playful empty state illustrations',
   ],
-  refactor_analysis: [
-    'Identify duplicate code patterns',
-    'Suggest module consolidation',
-    'Find unused exports',
-  ],
   code_refactor: [
     'Remove dead code in utils.ts',
     'Consolidate duplicate helpers',

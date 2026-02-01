@@ -29,7 +29,9 @@ import {
   cleanupAllPolling,
   recoverActivePolling,
   isPollingActive,
+  PollingResults,
   type PollingCallback,
+  type PollingResult,
 } from '../lib/pollingManager';
 import { remoteEvents } from '@/lib/remote';
 
@@ -130,6 +132,15 @@ interface TaskRunnerState {
   // Git Configuration
   gitConfig: GitConfig | null;
 
+  // Orphaned requirement files that failed to delete after task completion
+  // Tracked so users can manually clean up or retry deletion
+  orphanedRequirements: Array<{
+    projectPath: string;
+    requirementName: string;
+    failedAt: number;
+    error: string;
+  }>;
+
   // Actions - Batch Management
   createBatch: (batchId: BatchId, name: string, taskIds: string[]) => void;
   createSessionBatch: (
@@ -178,6 +189,12 @@ interface TaskRunnerState {
   setGitConfig: (config: GitConfig | null) => void;
   setPaused: (paused: boolean) => void;
   setRequirementsCache: (requirements: ProjectRequirement[]) => void;
+
+  // Actions - Orphaned Requirements Cleanup
+  addOrphanedRequirement: (projectPath: string, requirementName: string, error: string) => void;
+  removeOrphanedRequirement: (requirementName: string) => void;
+  retryDeleteOrphanedRequirement: (requirementName: string) => Promise<boolean>;
+  clearOrphanedRequirements: () => void;
 
   // Helpers
   getActiveBatches: () => BatchId[];
@@ -269,6 +286,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       taskActivity: {},
       taskCheckpoints: {},
       gitConfig: null,
+      orphanedRequirements: [],
 
       // ========================================================================
       // Batch Management Actions
@@ -892,6 +910,37 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         // Initialize checkpoints for this task
         // Look up contextId from requirement (may be null if no linked idea)
         const contextId = await getContextIdFromRequirement(requirement.requirementName);
+
+        // Post-await verification: check batch/task state hasn't changed during async operation
+        // This prevents orphaned executions when users quickly pause/clear batches
+        {
+          const freshState = get();
+          const freshBatch = freshState.batches[batchId];
+          if (!freshBatch || !isBatchRunning(freshBatch.status) || freshState.isPaused) {
+            console.log(`⚠️ Batch ${batchId} state changed during context lookup, aborting task ${nextTask.id}`);
+            // Clean up: remove from executing set since we're not proceeding
+            set((s) => ({
+              executingTasks: new Set([...s.executingTasks].filter(id => id !== nextTask.id)),
+              tasks: {
+                ...s.tasks,
+                [nextTask.id]: {
+                  ...s.tasks[nextTask.id],
+                  status: createQueuedStatus(), // Reset to queued so it can be re-executed later
+                },
+              },
+            }));
+            return;
+          }
+          // Verify task is still owned by this batch
+          if (!freshBatch.taskIds.includes(nextTask.id)) {
+            console.log(`⚠️ Task ${nextTask.id} no longer in batch ${batchId}, aborting execution`);
+            set((s) => ({
+              executingTasks: new Set([...s.executingTasks].filter(id => id !== nextTask.id)),
+            }));
+            return;
+          }
+        }
+
         const builtRules = rulesLoader.buildRules({
           requirementContent: '', // Not needed for checkpoint extraction
           projectPath: requirement.projectPath,
@@ -919,8 +968,32 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
             state.gitConfig || undefined
           );
 
+          // Post-await verification after executeRequirementAsync
+          // Check batch/task state hasn't changed during task execution startup
+          {
+            const freshState = get();
+            const freshBatch = freshState.batches[batchId];
+            if (!freshBatch || !isBatchRunning(freshBatch.status) || freshState.isPaused) {
+              console.log(`⚠️ Batch ${batchId} state changed during execution startup, task ${nextTask.id} will be orphaned`);
+              // Task already started in Claude Code, but we won't poll for it
+              // The execution will complete but store won't track it
+              set((s) => ({
+                executingTasks: new Set([...s.executingTasks].filter(id => id !== nextTask.id)),
+              }));
+              return;
+            }
+            if (!freshBatch.taskIds.includes(nextTask.id)) {
+              console.log(`⚠️ Task ${nextTask.id} removed from batch ${batchId} during execution startup`);
+              set((s) => ({
+                executingTasks: new Set([...s.executingTasks].filter(id => id !== nextTask.id)),
+              }));
+              return;
+            }
+          }
+
           // Start polling for completion using the polling manager
-          startTaskPolling(result.taskId, nextTask.id, batchId, requirement, state);
+          // Note: state is no longer passed - polling callback uses getState() for fresh state
+          startTaskPolling(result.taskId, nextTask.id, batchId, requirement);
 
         } catch (error) {
           console.error(`Error executing task ${nextTask.id}:`, error);
@@ -1068,6 +1141,60 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       setRequirementsCache: (requirements) => {
         set({ requirementsCache: [...requirements] });
         console.log(`📦 Requirements cache updated: ${requirements.length} requirements`);
+      },
+
+      // ========================================================================
+      // Orphaned Requirements Cleanup Actions
+      // ========================================================================
+
+      addOrphanedRequirement: (projectPath, requirementName, error) => {
+        set((state) => ({
+          orphanedRequirements: [
+            ...state.orphanedRequirements,
+            {
+              projectPath,
+              requirementName,
+              failedAt: Date.now(),
+              error,
+            },
+          ],
+        }));
+        console.warn(`⚠️ Orphaned requirement tracked: ${requirementName} (${error})`);
+      },
+
+      removeOrphanedRequirement: (requirementName) => {
+        set((state) => ({
+          orphanedRequirements: state.orphanedRequirements.filter(
+            (r) => r.requirementName !== requirementName
+          ),
+        }));
+      },
+
+      retryDeleteOrphanedRequirement: async (requirementName) => {
+        const state = get();
+        const orphaned = state.orphanedRequirements.find(
+          (r) => r.requirementName === requirementName
+        );
+        if (!orphaned) return false;
+
+        try {
+          await deleteRequirement(orphaned.projectPath, requirementName);
+          // Remove from orphaned list on success
+          set((s) => ({
+            orphanedRequirements: s.orphanedRequirements.filter(
+              (r) => r.requirementName !== requirementName
+            ),
+          }));
+          console.log(`✅ Successfully deleted orphaned requirement: ${requirementName}`);
+          return true;
+        } catch (err) {
+          console.warn(`❌ Retry delete failed for ${requirementName}:`, err);
+          return false;
+        }
+      },
+
+      clearOrphanedRequirements: () => {
+        set({ orphanedRequirements: [] });
       },
 
       // ========================================================================
@@ -1280,12 +1407,12 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
 
                 if (requirement) {
                   // Build the polling callback for this task
+                  // Note: createPollingCallback uses getState() internally to avoid stale closures
                   const callback = createPollingCallback(
                     requirement.requirementName,
                     taskId,
                     batchId,
-                    requirement,
-                    state
+                    requirement
                   );
                   tasksToRecover.push({ taskId, callback });
                 }
@@ -1329,6 +1456,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
         tasks: state.tasks,
         isPaused: state.isPaused,
         gitConfig: state.gitConfig,
+        orphanedRequirements: state.orphanedRequirements,
         // Don't persist executingTasks - will be reconstructed on recovery
       }),
     }
@@ -1342,29 +1470,37 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
 /**
  * Create a polling callback for a task
  * This callback is used by the polling manager to check task status
+ *
+ * IMPORTANT: This callback runs asynchronously (every ~10s) and must NOT capture
+ * state by reference in the closure. Always use useTaskRunnerStore.getState()
+ * inside the callback to get fresh state on each poll.
+ *
+ * @returns PollingCallback that returns one of three discriminated union types:
+ * - { done: false } - continue polling
+ * - { done: true, success: true } - task completed successfully
+ * - { done: true, success: false, error: string } - task failed
  */
 function createPollingCallback(
   taskId: string,
   requirementId: string,
   batchId: BatchId,
-  requirement: ProjectRequirement,
-  state: TaskRunnerState
+  requirement: ProjectRequirement
 ): PollingCallback {
-  return async () => {
+  return async (): Promise<PollingResult> => {
     try {
       const taskStatus = await getTaskStatus(taskId);
 
       // Handle case where task is not found yet
       if (!taskStatus) {
         console.log(`⏳ Task ${taskId} not found yet, will retry...`);
-        return { done: false };
+        return PollingResults.continue();
       }
 
       // Handle stuck pending tasks - if task is pending after being started, something is wrong
       if (taskStatus.status === 'pending') {
         console.warn(`⚠️ Task ${requirementId} still pending - execution may have failed to start`);
         // Continue polling but log warning - task should transition to running
-        return { done: false };
+        return PollingResults.continue();
       }
 
       // Batch all progress/activity/checkpoint state updates into a single setState call
@@ -1436,10 +1572,13 @@ function createPollingCallback(
       if (taskStatus.status === 'completed') {
         // Task completed successfully
         console.log(`✅ Task ${requirementId} completed successfully`);
-        state.updateTaskStatus(requirementId, createCompletedStatus());
+
+        // Get fresh state to avoid stale closure - methods must be called on current state
+        const freshState = useTaskRunnerStore.getState();
+        freshState.updateTaskStatus(requirementId, createCompletedStatus());
 
         // Finalize checkpoints (mark remaining as completed)
-        state.finalizeTaskCheckpoints(requirementId);
+        freshState.finalizeTaskCheckpoints(requirementId);
 
         // Update batch progress and clear task progress/activity/checkpoints using setState
         useTaskRunnerStore.setState((state) => {
@@ -1500,20 +1639,32 @@ function createPollingCallback(
         try {
           await deleteRequirement(requirement.projectPath, requirement.requirementName);
         } catch (err) {
-          console.warn('Failed to delete requirement file:', err);
+          // Track orphaned requirement for later cleanup instead of silent failure
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          useTaskRunnerStore.getState().addOrphanedRequirement(
+            requirement.projectPath,
+            requirement.requirementName,
+            errorMessage
+          );
         }
 
         // Continue with next task using cached requirements from store
-        const allRequirements = useTaskRunnerStore.getState().requirementsCache;
-        setTimeout(() => state.executeNextTask(batchId, allRequirements), 500);
+        // Use fresh state inside setTimeout to avoid stale closure
+        setTimeout(() => {
+          const nextState = useTaskRunnerStore.getState();
+          nextState.executeNextTask(batchId, nextState.requirementsCache);
+        }, 500);
 
-        return { done: true, success: true };
+        return PollingResults.success();
 
       } else if (taskStatus.status === 'failed' || taskStatus.status === 'session-limit') {
         // Task failed
         console.error(`❌ Task ${requirementId} failed: ${taskStatus.error || 'Unknown error'}`);
         const isSessionLimit = taskStatus.status === 'session-limit';
-        state.updateTaskStatus(
+
+        // Get fresh state to avoid stale closure
+        const freshFailedState = useTaskRunnerStore.getState();
+        freshFailedState.updateTaskStatus(
           requirementId,
           createFailedStatus(taskStatus.error || 'Task failed', Date.now(), isSessionLimit)
         );
@@ -1564,36 +1715,41 @@ function createPollingCallback(
         });
 
         // Continue with next task using cached requirements from store
-        const allRequirements = useTaskRunnerStore.getState().requirementsCache;
-        setTimeout(() => state.executeNextTask(batchId, allRequirements), 1000);
+        // Use fresh state inside setTimeout to avoid stale closure
+        setTimeout(() => {
+          const nextState = useTaskRunnerStore.getState();
+          nextState.executeNextTask(batchId, nextState.requirementsCache);
+        }, 1000);
 
-        return { done: true, success: false, error: taskStatus.error || 'Task failed' };
+        return PollingResults.failure(taskStatus.error || 'Task failed');
       }
 
       // Task still running, continue polling
-      return { done: false };
+      return PollingResults.continue();
 
     } catch (error) {
       console.error('Error polling task status:', error);
       // Continue polling despite error - will retry on next interval
-      return { done: false };
+      return PollingResults.continue();
     }
   };
 }
 
 /**
  * Start polling for task completion using the polling manager
+ *
+ * Note: State is no longer passed as parameter - the polling callback uses
+ * useTaskRunnerStore.getState() internally to get fresh state on each poll.
  */
 function startTaskPolling(
   taskId: string,
   requirementId: string,
   batchId: BatchId,
-  requirement: ProjectRequirement,
-  state: TaskRunnerState
+  requirement: ProjectRequirement
 ): void {
   console.log(`🔄 Starting polling for task: ${requirementId}`);
 
-  const callback = createPollingCallback(taskId, requirementId, batchId, requirement, state);
+  const callback = createPollingCallback(taskId, requirementId, batchId, requirement);
 
   startPolling(requirementId, callback, {
     intervalMs: 10000, // Poll every 10 seconds

@@ -3,7 +3,6 @@ import {
   claudeFolderExists,
   isClaudeFolderInitialized,
   initializeClaudeFolder,
-  createRequirement,
   readRequirement,
   updateRequirement,
   listRequirements,
@@ -87,12 +86,12 @@ async function handleGet(request: NextRequest) {
 }
 
 /**
- * POST - Initialize folder, create requirement, or execute requirement
+ * POST - Initialize folder or execute requirement
  */
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectPath, action, projectName, requirementName, content, settings } = body;
+    const { projectPath, action, projectName, requirementName, settings } = body;
 
     // Actions that don't require projectPath
     const noProjectPathActions = ['get-task-status', 'list-tasks', 'clear-old-tasks'];
@@ -109,19 +108,6 @@ async function handlePost(request: NextRequest) {
         result,
         'Claude folder initialized successfully',
         'Failed to initialize Claude folder'
-      );
-    }
-
-    // Create requirement
-    if (action === 'create-requirement') {
-      const validationError = validateRequired({ requirementName, content }, ['requirementName', 'content']);
-      if (validationError) return validationError;
-
-      const result = createRequirement(projectPath, requirementName, content);
-      return handleOperationResult(
-        result,
-        'Requirement created successfully',
-        'Failed to create requirement'
       );
     }
 

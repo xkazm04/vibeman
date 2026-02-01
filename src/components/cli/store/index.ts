@@ -28,9 +28,11 @@ export {
   stopSessionPolling,
   cleanupAllCLISessions,
   getSessionExecutionStatus,
-  setCachedRequirements,
-  getCachedRequirements,
   abortSessionExecution,
+  // Shared task completion utilities
+  deleteRequirementFile,
+  updateIdeaImplementationStatus,
+  performTaskCleanup,
 } from './cliExecutionManager';
 
 // NOTE: Recovery hooks are NOT exported from barrel to avoid pulling React hooks into server context.

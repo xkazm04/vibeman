@@ -1,6 +1,10 @@
 /**
  * Session Cleanup API Route
  * Handles detection and cleanup of orphaned Claude Code sessions
+ *
+ * Related endpoints:
+ * - POST /api/claude-code/sessions/cleanup/all - Clean all orphaned sessions
+ * - POST /api/claude-code/sessions/heartbeat - Update session heartbeat
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -109,95 +113,39 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ orphans, stats });
   } catch (error) {
     logger.error('Failed to detect orphaned sessions', { error });
-    return NextResponse.json(
-      { error: 'Failed to detect orphaned sessions' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to detect orphaned sessions' }, { status: 500 });
   }
 }
 
 /**
  * POST /api/claude-code/sessions/cleanup
- * Clean up orphaned sessions
+ * Clean up specific sessions by ID
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, sessionIds, projectId } = body;
+    const { sessionIds } = body;
 
-    if (action === 'cleanup' && sessionIds && Array.isArray(sessionIds)) {
-      // Clean up specific sessions
-      const deletedCount = sessionRepository.bulkDelete(sessionIds);
-
-      logger.info('Sessions cleaned up', {
-        requestedCount: sessionIds.length,
-        deletedCount,
-      });
-
-      return NextResponse.json({
-        success: true,
-        cleanedCount: deletedCount,
-      });
+    if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+      return NextResponse.json(
+        { error: 'sessionIds array is required and must not be empty' },
+        { status: 400 }
+      );
     }
 
-    if (action === 'cleanup-all') {
-      // Get all orphaned sessions
-      const orphaned = sessionRepository.getAllOrphaned({
-        runningMinutes: ORPHAN_THRESHOLDS.RUNNING_NO_HEARTBEAT_MINUTES,
-        pausedHours: ORPHAN_THRESHOLDS.PAUSED_STALE_HOURS,
-        pendingHours: ORPHAN_THRESHOLDS.PENDING_STALE_HOURS,
-      });
+    const deletedCount = sessionRepository.bulkDelete(sessionIds);
 
-      // Collect all orphaned session IDs
-      let allOrphanIds = [
-        ...orphaned.staleRunning.map(s => s.id),
-        ...orphaned.stalePaused.map(s => s.id),
-        ...orphaned.stalePending.map(s => s.id),
-      ];
+    logger.info('Sessions cleaned up', {
+      requestedCount: sessionIds.length,
+      deletedCount,
+    });
 
-      // Filter by projectId if provided
-      if (projectId) {
-        const projectSessions = new Set([
-          ...orphaned.staleRunning.filter(s => s.project_id === projectId).map(s => s.id),
-          ...orphaned.stalePaused.filter(s => s.project_id === projectId).map(s => s.id),
-          ...orphaned.stalePending.filter(s => s.project_id === projectId).map(s => s.id),
-        ]);
-        allOrphanIds = allOrphanIds.filter(id => projectSessions.has(id));
-      }
-
-      const deletedCount = sessionRepository.bulkDelete(allOrphanIds);
-
-      logger.info('All orphaned sessions cleaned up', {
-        totalOrphans: allOrphanIds.length,
-        deletedCount,
-        projectId: projectId || 'all',
-      });
-
-      return NextResponse.json({
-        success: true,
-        cleanedCount: deletedCount,
-      });
-    }
-
-    if (action === 'heartbeat' && body.sessionId) {
-      // Update heartbeat for a session
-      const success = sessionRepository.updateHeartbeat(body.sessionId);
-
-      return NextResponse.json({
-        success,
-        updatedAt: new Date(),
-      });
-    }
-
-    return NextResponse.json(
-      { error: 'Invalid action' },
-      { status: 400 }
-    );
+    return NextResponse.json({
+      success: true,
+      cleanedCount: deletedCount,
+    });
   } catch (error) {
     logger.error('Failed to clean up sessions', { error });
-    return NextResponse.json(
-      { error: 'Failed to clean up sessions' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to clean up sessions' }, { status: 500 });
   }
 }

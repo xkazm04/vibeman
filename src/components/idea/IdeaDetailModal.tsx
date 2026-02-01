@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useEffect, useId } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import FocusTrap from 'focus-trap-react';
+import { AlertCircle, X } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
@@ -25,6 +26,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAIError, setShowAIError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { projects, initializeProjects } = useProjectConfigStore();
   const invalidateIdeas = useInvalidateIdeas();
@@ -84,9 +86,10 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
     }
   };
 
-  const updateIdea = async (updates: Partial<DbIdea>) => {
+  const updateIdea = async (updates: Partial<DbIdea>): Promise<boolean> => {
     try {
       setSaving(true);
+      setError(null);
       const response = await fetch('/api/ideas', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -101,39 +104,44 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         onUpdate(data.idea);
         // Invalidate React Query cache to keep BufferView in sync
         invalidateIdeas();
+        return true;
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to update idea');
+        return false;
       }
-    } catch {
-      // Silently fail - error will be shown in UI
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error - please try again');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const handleAccept = async () => {
-    try {
-      // 1. Update idea status to accepted
-      await updateIdea({ status: 'accepted' });
+    setError(null);
+    // 1. Update idea status to accepted
+    const success = await updateIdea({ status: 'accepted' });
+    if (!success) return; // Error already set by updateIdea
 
-      // 2. If idea has goal_id, generate requirement file for that goal
-      if (idea.goal_id) {
-        const project = projects.find(p => p.id === idea.project_id);
-        if (project) {
-          await executeRequirementGen(async () => {
-            await generateRequirementForGoal(project.path, idea.project_id, idea.goal_id!);
-            return { success: true };
-          });
-        }
+    // 2. If idea has goal_id, generate requirement file for that goal
+    if (idea.goal_id) {
+      const project = projects.find(p => p.id === idea.project_id);
+      if (project) {
+        await executeRequirementGen(async () => {
+          await generateRequirementForGoal(project.path, idea.project_id, idea.goal_id!);
+          return { success: true };
+        });
       }
-    } catch {
-      // Error handling done by useAIOperation hook
     }
   };
 
   const handleReject = async () => {
     try {
       setSaving(true);
+      setError(null);
       const project = projects.find(p => p.id === idea.project_id);
-      
+
       if (project) {
         // Use the tinder reject endpoint which handles requirement deletion
         const response = await fetch('/api/ideas/tinder/reject', {
@@ -149,15 +157,15 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
           // Update local state
           await updateIdea({ status: 'rejected', requirement_id: null });
         } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to reject idea');
+          const errorData = await response.json().catch(() => ({}));
+          setError(errorData.error || 'Failed to reject idea');
         }
       } else {
         // Fallback if project not found
         await updateIdea({ status: 'rejected' });
       }
-    } catch {
-      // Error will be shown in UI
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error - please try again');
     } finally {
       setSaving(false);
     }
@@ -185,13 +193,14 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const handleDelete = async () => {
     try {
       setSaving(true);
-      
+      setError(null);
+
       // Delete requirement file if it exists
       if (idea.requirement_id) {
         const project = projects.find(p => p.id === idea.project_id);
         if (project?.path) {
           try {
-            const deleteResponse = await fetch('/api/claude-code/requirement', {
+            await fetch('/api/claude-code/requirement', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -199,7 +208,6 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
                 requirementName: idea.requirement_id,
               }),
             });
-
             // Ignore delete errors - idea will still be deleted from DB
           } catch {
             // Ignore file deletion errors
@@ -216,9 +224,12 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         onDelete(idea.id);
         // Invalidate React Query cache to keep BufferView in sync
         invalidateIdeas();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to delete idea');
       }
-    } catch {
-      // Error will be shown in UI
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error - please try again');
     } finally {
       setSaving(false);
     }
@@ -227,16 +238,16 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const handleRegenerate = async () => {
     try {
       setSaving(true);
+      setError(null);
 
       // 1. If requirement_id exists, delete it from DB and file system
       if (idea.requirement_id) {
         const project = projects.find(p => p.id === idea.project_id);
 
         if (project?.path) {
-
           // Delete requirement file
           try {
-            const deleteResponse = await fetch('/api/claude-code/requirement', {
+            await fetch('/api/claude-code/requirement', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -244,14 +255,14 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
                 requirementName: idea.requirement_id,
               }),
             });
-
             // Ignore delete errors
           } catch {
             // Ignore file deletion errors
           }
 
           // Remove requirement_id from idea in DB
-          await updateIdea({ requirement_id: null });
+          const cleared = await updateIdea({ requirement_id: null });
+          if (!cleared) return; // Error already set
         }
       }
 
@@ -259,30 +270,26 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
       //    This uses the unified builder and handles goal/context lookups
       const project = projects.find(p => p.id === idea.project_id);
       if (project) {
-        try {
-          const acceptResponse = await fetch('/api/ideas/tinder/accept', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ideaId: idea.id,
-              projectPath: project.path,
-            }),
-          });
+        const acceptResponse = await fetch('/api/ideas/tinder/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ideaId: idea.id,
+            projectPath: project.path,
+          }),
+        });
 
-          if (acceptResponse.ok) {
-            const acceptData = await acceptResponse.json();
-            // Update local idea state with new requirement_id
-            await updateIdea({ requirement_id: acceptData.requirementName });
-          } else {
-            const errorData = await acceptResponse.json();
-            throw new Error(errorData.error || 'Failed to regenerate requirement');
-          }
-        } catch (regenerateError) {
-          throw regenerateError;
+        if (acceptResponse.ok) {
+          const acceptData = await acceptResponse.json();
+          // Update local idea state with new requirement_id
+          await updateIdea({ requirement_id: acceptData.requirementName });
+        } else {
+          const errorData = await acceptResponse.json().catch(() => ({}));
+          setError(errorData.error || 'Failed to regenerate requirement');
         }
       }
-    } catch {
-      // Error will be shown in UI
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error - please try again');
     } finally {
       setSaving(false);
     }
@@ -332,6 +339,30 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
             getStatusColor={getStatusColor}
             titleId={modalTitleId}
           />
+
+          {/* Error Banner */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mx-4 mt-2"
+              >
+                <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-300 flex-1">{error}</p>
+                  <button
+                    onClick={() => setError(null)}
+                    className="text-red-400 hover:text-red-300 transition-colors"
+                    aria-label="Dismiss error"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Scrollable Content */}
           <IdeaDetailContent
