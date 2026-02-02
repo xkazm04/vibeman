@@ -708,6 +708,20 @@ export interface DbDiscoveredTemplate {
   updated_at: string;
 }
 
+// Generation History types (for template discovery feature)
+export interface DbGenerationHistory {
+  id: string;
+  template_id: string;
+  query: string;
+  file_path: string;
+  created_at: string;
+}
+
+// Extended type for display (with JOIN)
+export interface DbGenerationHistoryWithTemplate extends DbGenerationHistory {
+  template_name?: string;
+}
+
 // === Workspace Types ===
 
 export interface DbWorkspace {
