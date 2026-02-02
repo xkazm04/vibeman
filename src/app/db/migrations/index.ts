@@ -219,6 +219,8 @@ export function runMigrations() {
     migrate065DirectionPairs();
     // Migration 79: Cleanup Stale Context Paths - remove non-existent file references
     migrate066CleanupStaleContextPaths();
+    // Migration 80: Discovered Templates - store templates from external projects
+    migrateDiscoveredTemplates();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4540,5 +4542,17 @@ function migrateRemoteConfig() {
     const db = getConnection();
     const { migrate063RemoteConfig } = require('./063_remote_config');
     migrate063RemoteConfig(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 80: Discovered Templates
+ * Creates table for storing discovered templates from external projects
+ */
+function migrateDiscoveredTemplates() {
+  safeMigration('discovered_templates', () => {
+    const db = getConnection();
+    const { migrate067DiscoveredTemplates } = require('./067_discovered_templates');
+    migrate067DiscoveredTemplates(db);
   }, migrationLogger);
 }
