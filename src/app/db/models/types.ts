@@ -694,6 +694,20 @@ export interface DbPromptTemplate {
   updated_at: string;
 }
 
+// Discovered Template types (for external template discovery)
+export interface DbDiscoveredTemplate {
+  id: string;
+  source_project_path: string;
+  file_path: string;
+  template_id: string;
+  template_name: string;
+  description: string | null;
+  config_json: string; // JSON string of full TemplateConfig
+  content_hash: string; // SHA-256 hash for change detection
+  discovered_at: string;
+  updated_at: string;
+}
+
 // === Workspace Types ===
 
 export interface DbWorkspace {
