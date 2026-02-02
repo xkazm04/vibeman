@@ -11,6 +11,7 @@ import { buildResearchPrompt } from './lib/promptGenerator';
 
 interface TemplateVariableFormProps {
   template: DbDiscoveredTemplate;
+  flashSuccess?: boolean;
   onPreview: (content: string) => void;
   onGenerate: (params: { query: string; content: string }) => void;
   onCancel: () => void;
@@ -27,6 +28,7 @@ interface TemplateConfig {
 
 export function TemplateVariableForm({
   template,
+  flashSuccess,
   onPreview,
   onGenerate,
   onCancel,
@@ -176,7 +178,9 @@ export function TemplateVariableForm({
           type="button"
           onClick={handleGenerate}
           disabled={!isValid || isGenerating}
-          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          className={`px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center gap-2 ${
+            flashSuccess ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-gray-700' : ''
+          }`}
         >
           {isGenerating ? (
             <>

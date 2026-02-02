@@ -9,11 +9,12 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { scanProject, getTemplates, type ScanResult } from './lib/discoveryApi';
 import { generateRequirementFile } from './lib/fileGenerator';
 import { TemplateVariableForm } from './TemplateVariableForm';
 import { PromptPreviewModal } from './PromptPreviewModal';
+import { GenerationHistoryPanel, type GenerationHistoryPanelRef } from './GenerationHistoryPanel';
 import { toast } from '@/stores/toastStore';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 
@@ -42,6 +43,12 @@ export function TemplateDiscoveryPanel() {
     content: string;
     templateId: string;
   } | null>(null);
+
+  // Green flash state for generation success feedback
+  const [flashSuccess, setFlashSuccess] = useState(false);
+
+  // Ref to history panel for refreshing after generation
+  const historyPanelRef = useRef<GenerationHistoryPanelRef>(null);
 
   // Load existing templates on mount
   useEffect(() => {
@@ -105,6 +112,38 @@ export function TemplateDiscoveryPanel() {
     setIsPreviewOpen(true);
   };
 
+  /**
+   * Handle successful generation: trigger green flash and record to history
+   */
+  const handleGenerationSuccess = async (
+    templateId: string,
+    query: string,
+    filePath: string
+  ) => {
+    // Trigger green flash on Generate button
+    setFlashSuccess(true);
+    setTimeout(() => setFlashSuccess(false), 600);
+
+    // Record to generation history
+    try {
+      await fetch('/api/generation-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template_id: templateId,
+          query,
+          file_path: filePath,
+        }),
+      });
+      // Refresh history panel
+      historyPanelRef.current?.refresh();
+    } catch (err) {
+      console.error('Failed to record generation history:', err);
+    }
+
+    setSelectedTemplateId(null);
+  };
+
   const handleGenerate = async (params: { query: string; content: string }) => {
     const template = templates.find((t) => t.id === selectedTemplateId);
     if (!template) {
@@ -140,8 +179,11 @@ export function TemplateDiscoveryPanel() {
         });
 
         if (overwriteResult.success) {
-          toast.success('Requirement file created', overwriteResult.filePath);
-          setSelectedTemplateId(null);
+          await handleGenerationSuccess(
+            template.template_id,
+            params.query,
+            overwriteResult.filePath || ''
+          );
         } else {
           toast.error('Failed to create file', overwriteResult.error);
         }
@@ -150,8 +192,11 @@ export function TemplateDiscoveryPanel() {
     }
 
     if (result.success) {
-      toast.success('Requirement file created', result.filePath);
-      setSelectedTemplateId(null);
+      await handleGenerationSuccess(
+        template.template_id,
+        params.query,
+        result.filePath || ''
+      );
     } else {
       toast.error('Failed to create file', result.error);
     }
@@ -337,6 +382,7 @@ export function TemplateDiscoveryPanel() {
                 {selectedTemplateId === t.id && (
                   <TemplateVariableForm
                     template={t}
+                    flashSuccess={flashSuccess}
                     onPreview={(content) => {
                       // We need to track query for generate from modal
                       // The form will call onGenerate directly for the normal flow
@@ -350,6 +396,16 @@ export function TemplateDiscoveryPanel() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Generation History Section */}
+      <div className="space-y-3 mt-8">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+          Generation History
+        </h3>
+        <div className="border dark:border-gray-700 rounded-lg overflow-hidden">
+          <GenerationHistoryPanel ref={historyPanelRef} />
+        </div>
       </div>
 
       {/* Preview Modal */}
