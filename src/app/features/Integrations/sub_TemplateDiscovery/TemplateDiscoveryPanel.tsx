@@ -18,6 +18,12 @@ import { GenerationHistoryPanel, type GenerationHistoryPanelRef } from './Genera
 import { toast } from '@/stores/toastStore';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 
+// UI Components
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import UnifiedButton from '@/components/ui/buttons/UnifiedButton';
+import EmptyState from '@/components/DecisionPanel/EmptyState';
+import { FolderSearch, Scan, Search, FileText, Calendar, CheckCircle } from 'lucide-react';
+
 type ScanStatus = 'idle' | 'scanning' | 'complete' | 'error';
 
 export function TemplateDiscoveryPanel() {
@@ -92,9 +98,9 @@ export function TemplateDiscoveryPanel() {
 
   const getStatusBadge = (action: 'created' | 'updated' | 'unchanged') => {
     const styles = {
-      created: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      updated: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      unchanged: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+      created: 'bg-green-500/20 text-green-400 border border-green-500/30',
+      updated: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+      unchanged: 'bg-gray-500/20 text-gray-400 border border-white/10',
     };
     return (
       <span className={`px-2 py-0.5 text-xs rounded-full ${styles[action]}`}>
@@ -215,108 +221,123 @@ export function TemplateDiscoveryPanel() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold text-gray-100">
           Template Discovery
         </h2>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-gray-400">
           Scan external projects to discover TemplateConfig exports
         </p>
       </div>
 
-      {/* Scan Form */}
-      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-4">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={projectPath}
-            onChange={(e) => setProjectPath(e.target.value)}
-            placeholder="Enter project path (e.g., C:/Users/mkdol/dolla/res)"
-            className="flex-1 px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-            disabled={scanStatus === 'scanning'}
-            onKeyDown={(e) => e.key === 'Enter' && handleScan()}
-          />
-          <button
-            onClick={handleScan}
-            disabled={scanStatus === 'scanning'}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {scanStatus === 'scanning' ? (
-              <>
-                <span className="animate-spin">&#8987;</span>
-                Scanning...
-              </>
-            ) : (
-              'Scan'
-            )}
-          </button>
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* Scan progress indicator */}
-        {scanStatus === 'scanning' && (
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md">
-            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-              <span className="animate-pulse">Scanning project for templates...</span>
+      {/* Scanner Section - Elevated Card */}
+      <Card variant="elevated" padding="lg">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+              <FolderSearch className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <CardTitle>Project Scanner</CardTitle>
+              <CardDescription>
+                Enter a project path to discover available templates
+              </CardDescription>
             </div>
           </div>
-        )}
+        </CardHeader>
 
-        {/* Scan result */}
-        {scanResult && (
-          <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-md space-y-2">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-              <span>&#10003;</span>
-              <span className="font-medium">Scan complete</span>
-            </div>
-            <div className="text-sm text-green-600 dark:text-green-400 space-y-1">
-              <p>Files scanned: {scanResult.filesScanned}</p>
-              <p>
-                Results: {scanResult.results.created} created,{' '}
-                {scanResult.results.updated} updated,{' '}
-                {scanResult.results.unchanged} unchanged
-              </p>
-            </div>
+        <CardContent className="mt-4 space-y-4">
+          {/* Input Row */}
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={projectPath}
+              onChange={(e) => setProjectPath(e.target.value)}
+              placeholder="Enter project path (e.g., C:/Users/mkdol/dolla/res)"
+              className="flex-1 px-4 py-2.5 bg-gray-800/40 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/30 transition-all duration-200"
+              disabled={scanStatus === 'scanning'}
+              onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+            />
+            <UnifiedButton
+              icon={Scan}
+              colorScheme="cyan"
+              variant="gradient"
+              onClick={handleScan}
+              disabled={scanStatus === 'scanning'}
+              loading={scanStatus === 'scanning'}
+            >
+              {scanStatus === 'scanning' ? 'Scanning...' : 'Scan'}
+            </UnifiedButton>
           </div>
-        )}
-      </div>
+
+          {/* Error message */}
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Scan progress indicator */}
+          {scanStatus === 'scanning' && (
+            <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+              <div className="flex items-center gap-2 text-cyan-300">
+                <span className="animate-pulse">Scanning project for templates...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Scan result - Success Card */}
+          {scanResult && (
+            <Card variant="default" padding="md" className="border-green-500/30 bg-green-500/5">
+              <div className="flex items-center gap-2 text-green-400 mb-2">
+                <CheckCircle className="w-4 h-4" />
+                <span className="font-medium">Scan complete</span>
+              </div>
+              <div className="text-sm text-green-300/80 space-y-1">
+                <p>Files scanned: {scanResult.filesScanned}</p>
+                <p>
+                  Results: {scanResult.results.created} created,{' '}
+                  {scanResult.results.updated} updated,{' '}
+                  {scanResult.results.unchanged} unchanged
+                </p>
+              </div>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent scan templates */}
       {scanResult && scanResult.templates.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-100">
             Scan Results
           </h3>
-          <div className="border dark:border-gray-700 rounded-lg divide-y dark:divide-gray-700">
-            {scanResult.templates.map((t) => (
-              <div
-                key={t.templateId}
-                className="p-3 flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-medium text-gray-900 dark:text-gray-100">
-                    {t.templateName}
+          <Card variant="default" padding="none">
+            <div className="divide-y divide-white/5">
+              {scanResult.templates.map((t) => (
+                <div
+                  key={t.templateId}
+                  className="p-4 flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-gray-100">
+                      {t.templateName}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      {t.templateId}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {t.templateId}
-                  </div>
+                  {getStatusBadge(t.action)}
                 </div>
-                {getStatusBadge(t.action)}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
 
       {/* Target Project Path */}
       <div className="space-y-2">
-        <label htmlFor="target-project" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label htmlFor="target-project" className="block text-sm font-medium text-gray-200">
           Target Project Path
         </label>
         <input
@@ -325,72 +346,116 @@ export function TemplateDiscoveryPanel() {
           value={targetProjectPath}
           onChange={(e) => setTargetProjectPath(e.target.value)}
           placeholder="Enter target project path for generated files"
-          className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+          className="w-full px-4 py-2.5 bg-gray-800/40 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/30 transition-all duration-200"
         />
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-xs text-gray-500">
           Generated requirement files will be placed in this project&apos;s .claude/commands/ directory
         </p>
       </div>
 
-      {/* All discovered templates */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-          All Discovered Templates ({templates.length})
+      {/* All discovered templates - Responsive Grid */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-100">
+          Discovered Templates ({templates.length})
         </h3>
+
         {isLoading ? (
-          <div className="p-4 text-center text-gray-500">Loading...</div>
-        ) : templates.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 dark:text-gray-400 border dark:border-gray-700 rounded-lg">
-            No templates discovered yet. Scan a project to get started.
+          <div className="p-8 text-center text-gray-500">
+            <div className="animate-pulse">Loading templates...</div>
           </div>
+        ) : templates.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            headline="No templates discovered"
+            subtext="Scan a project to discover TemplateConfig exports"
+            height="h-48"
+          />
         ) : (
-          <div className="border dark:border-gray-700 rounded-lg divide-y dark:divide-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {templates.map((t) => (
               <div key={t.id}>
-                <div
+                <Card
+                  variant="glass"
+                  padding="md"
+                  hover
+                  clickable
                   onClick={() => handleTemplateClick(t.id)}
-                  className={`p-3 cursor-pointer transition-colors ${
-                    selectedTemplateId === t.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  }`}
+                  className={selectedTemplateId === t.id ? 'ring-2 ring-cyan-500/40' : ''}
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-gray-100">
-                        {t.template_name}
+                  <CardHeader
+                    actions={
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(t.discovered_at).toLocaleDateString()}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {t.template_id}
+                    }
+                  >
+                    <div className="flex items-start gap-2">
+                      <FileText className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <CardTitle className="truncate">{t.template_name}</CardTitle>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">{t.template_id}</p>
                       </div>
-                      {t.description && (
-                        <div className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-                          {t.description}
-                        </div>
-                      )}
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(t.discovered_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs text-gray-400 dark:text-gray-500 truncate">
-                    {t.source_project_path}
-                  </div>
-                </div>
+                  </CardHeader>
+
+                  <CardContent className="mt-3">
+                    {t.description && (
+                      <p className="text-sm text-gray-400 line-clamp-2 mb-3">
+                        {t.description}
+                      </p>
+                    )}
+
+                    {/* Search angles preview - parse from config_json */}
+                    {(() => {
+                      try {
+                        const config = JSON.parse(t.config_json || '{}');
+                        const angles = config.searchAngles as string[] | undefined;
+                        if (angles && angles.length > 0) {
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {angles.slice(0, 3).map((angle, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 text-xs bg-gray-700/50 text-gray-400 rounded-full border border-white/5 truncate max-w-[100px]"
+                                  title={angle}
+                                >
+                                  {angle}
+                                </span>
+                              ))}
+                              {angles.length > 3 && (
+                                <span className="px-2 py-0.5 text-xs text-gray-500">
+                                  +{angles.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      } catch {
+                        return null;
+                      }
+                    })()}
+
+                    <p className="mt-2 text-xs text-gray-500 truncate" title={t.source_project_path}>
+                      {t.source_project_path}
+                    </p>
+                  </CardContent>
+                </Card>
 
                 {/* Inline Form Expansion */}
                 {selectedTemplateId === t.id && (
-                  <TemplateVariableForm
-                    template={t}
-                    flashSuccess={flashSuccess}
-                    onPreview={(content) => {
-                      // We need to track query for generate from modal
-                      // The form will call onGenerate directly for the normal flow
-                      handlePreview(content);
-                    }}
-                    onGenerate={handleGenerate}
-                    onCancel={() => setSelectedTemplateId(null)}
-                  />
+                  <div className="mt-2">
+                    <TemplateVariableForm
+                      template={t}
+                      flashSuccess={flashSuccess}
+                      onPreview={(content) => {
+                        handlePreview(content);
+                      }}
+                      onGenerate={handleGenerate}
+                      onCancel={() => setSelectedTemplateId(null)}
+                    />
+                  </div>
                 )}
               </div>
             ))}
@@ -399,13 +464,13 @@ export function TemplateDiscoveryPanel() {
       </div>
 
       {/* Generation History Section */}
-      <div className="space-y-3 mt-8">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-100">
           Generation History
         </h3>
-        <div className="border dark:border-gray-700 rounded-lg overflow-hidden">
+        <Card variant="default" padding="none">
           <GenerationHistoryPanel ref={historyPanelRef} />
-        </div>
+        </Card>
       </div>
 
       {/* Preview Modal */}

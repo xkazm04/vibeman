@@ -6,6 +6,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { Eye, Wand2, X } from 'lucide-react';
+import CyberCard from '@/components/ui/wizard/CyberCard';
+import UnifiedButton from '@/components/ui/buttons/UnifiedButton';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 import { buildResearchPrompt } from './lib/promptGenerator';
 
@@ -129,77 +132,81 @@ export function TemplateVariableForm({
   const isValid = query.trim().length > 0;
 
   return (
-    <div className="mt-3 p-4 bg-gray-700 rounded-lg border border-gray-600 space-y-4">
-      {/* Template Details Section (read-only) */}
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-200">Template Details</h4>
-        <p className="text-xs text-gray-400">{config.description || 'No description'}</p>
+    <CyberCard variant="glow" className="mt-4">
+      <div className="space-y-4">
+        {/* Template Details Section (read-only) */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-gray-200">Template Details</h4>
+          <p className="text-xs text-gray-400">{config.description || 'No description'}</p>
 
-        {renderCollapsibleList('Search Angles', config.searchAngles, 'searchAngles')}
-        {renderCollapsibleList('Finding Types', config.findingTypes, 'findingTypes')}
-        {renderCollapsibleList('Perspectives', config.perspectives, 'perspectives')}
-      </div>
+          {renderCollapsibleList('Search Angles', config.searchAngles, 'searchAngles')}
+          {renderCollapsibleList('Finding Types', config.findingTypes, 'findingTypes')}
+          {renderCollapsibleList('Perspectives', config.perspectives, 'perspectives')}
+        </div>
 
-      {/* Query Input */}
-      <div>
-        <label htmlFor="research-query" className="block text-sm font-medium text-gray-200 mb-1">
-          Research Topic
-        </label>
-        <input
-          id="research-query"
-          type="text"
-          value={query}
-          onChange={(e) => handleQueryChange(e.target.value)}
-          placeholder="Enter your research topic..."
-          className={`w-full px-3 py-2 bg-gray-800 border rounded-md text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            queryError ? 'border-red-500' : 'border-gray-600'
-          }`}
-          disabled={isGenerating}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && isValid) {
-              handleGenerate();
-            }
-          }}
-        />
-        {queryError && <p className="mt-1 text-xs text-red-400">{queryError}</p>}
-      </div>
+        {/* Query Input */}
+        <div>
+          <label htmlFor="research-query" className="block text-sm font-medium text-gray-200 mb-1">
+            Research Topic
+          </label>
+          <input
+            id="research-query"
+            type="text"
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            placeholder="Enter your research topic..."
+            className={`w-full px-4 py-2.5 bg-gray-800/40 border rounded-lg
+                       text-gray-100 placeholder-gray-500
+                       focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/30
+                       transition-all duration-200 ${
+              queryError ? 'border-red-500' : 'border-white/10'
+            }`}
+            disabled={isGenerating}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && isValid) {
+                handleGenerate();
+              }
+            }}
+          />
+          {queryError && <p className="mt-1 text-xs text-red-400">{queryError}</p>}
+        </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-2 pt-2">
-        <button
-          type="button"
-          onClick={handlePreview}
-          disabled={!isValid || isGenerating}
-          className="px-3 py-1.5 text-sm bg-gray-600 text-gray-200 rounded-md hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Preview
-        </button>
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={!isValid || isGenerating}
-          className={`px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center gap-2 ${
-            flashSuccess ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-gray-700' : ''
-          }`}
-        >
-          {isGenerating ? (
-            <>
-              <span className="animate-spin">&#8987;</span>
-              Generating...
-            </>
-          ) : (
-            'Generate'
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isGenerating}
-          className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Cancel
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 pt-2">
+          <UnifiedButton
+            icon={Eye}
+            variant="outline"
+            colorScheme="gray"
+            size="sm"
+            onClick={handlePreview}
+            disabled={!isValid || isGenerating}
+          >
+            Preview
+          </UnifiedButton>
+          <UnifiedButton
+            icon={Wand2}
+            variant="gradient"
+            colorScheme="cyan"
+            size="sm"
+            onClick={handleGenerate}
+            disabled={!isValid || isGenerating}
+            loading={isGenerating}
+            className={flashSuccess ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-gray-900' : ''}
+          >
+            Generate
+          </UnifiedButton>
+          <UnifiedButton
+            icon={X}
+            variant="ghost"
+            colorScheme="gray"
+            size="sm"
+            onClick={onCancel}
+            disabled={isGenerating}
+          >
+            Cancel
+          </UnifiedButton>
+        </div>
       </div>
-    </div>
+    </CyberCard>
   );
 }

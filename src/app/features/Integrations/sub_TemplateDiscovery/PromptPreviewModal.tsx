@@ -7,6 +7,7 @@
 
 import { useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import UnifiedButton from '@/components/ui/buttons/UnifiedButton';
 
 // Lazy load Monaco Editor to avoid initial bundle bloat
 const MonacoEditor = dynamic(() => import('@/components/editor/LazyMonacoEditor'), {
@@ -63,15 +64,15 @@ export function PromptPreviewModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal Content */}
-      <div className="relative z-10 w-full max-w-4xl max-h-[80vh] mx-4 bg-gray-800 border border-gray-700 rounded-lg shadow-xl flex flex-col">
+      <div className="relative z-10 w-full max-w-4xl max-h-[80vh] mx-4 bg-gray-900/95 border border-white/10 rounded-xl shadow-2xl flex flex-col backdrop-blur-sm">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <h2 className="text-lg font-semibold text-gray-100">Prompt Preview</h2>
           <button
             type="button"
@@ -113,24 +114,24 @@ export function PromptPreviewModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-700">
-          <button
-            type="button"
+        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-white/10">
+          <UnifiedButton
+            variant="ghost"
+            colorScheme="gray"
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-300 hover:text-gray-100 transition-colors"
           >
             Close
-          </button>
-          <button
-            type="button"
+          </UnifiedButton>
+          <UnifiedButton
+            variant="gradient"
+            colorScheme="cyan"
             onClick={() => {
               onConfirmGenerate();
               onClose();
             }}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-500 transition-colors"
           >
             Generate File
-          </button>
+          </UnifiedButton>
         </div>
       </div>
     </div>

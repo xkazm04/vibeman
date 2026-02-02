@@ -54,45 +54,47 @@ export const GenerationHistoryPanel = forwardRef<GenerationHistoryPanelRef>(
 
   if (isLoading) {
     return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        Loading...
+      <div className="p-6 text-center text-gray-400">
+        <div className="animate-pulse">Loading history...</div>
       </div>
     );
   }
 
   if (history.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        No generation history yet.
+      <div className="p-6 text-center">
+        <Clock className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+        <p className="text-sm text-gray-400">No generation history yet</p>
+        <p className="text-xs text-gray-500 mt-1">Generate a prompt to see it here</p>
       </div>
     );
   }
 
   return (
-    <div className="divide-y dark:divide-gray-700">
+    <div className="divide-y divide-white/5">
       {history.map((entry) => (
         <div
           key={entry.id}
-          className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          className="p-4 hover:bg-white/5 transition-colors duration-200"
         >
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              {/* Template name */}
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="truncate">
+              {/* Template name with icon */}
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-100 truncate">
                   {entry.template_name || entry.template_id}
                 </span>
               </div>
 
               {/* Query snippet */}
-              <div className="mt-1 text-sm text-gray-600 dark:text-gray-400 truncate">
+              <p className="mt-1 text-sm text-gray-400 truncate">
                 {truncateQuery(entry.query)}
-              </div>
+              </p>
             </div>
 
-            {/* Relative time */}
-            <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+            {/* Timestamp */}
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-shrink-0">
               <Clock className="w-3 h-3" />
               <span>{formatRelativeTime(entry.created_at)}</span>
             </div>
