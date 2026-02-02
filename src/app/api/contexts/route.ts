@@ -179,8 +179,8 @@ async function handlePut(request: NextRequest) {
 
     // Record brain signal: context updated
     try {
-      if (context.project_id) {
-        signalCollector.recordContextFocus(context.project_id, {
+      if (context.projectId) {
+        signalCollector.recordContextFocus(context.projectId, {
           contextId,
           contextName: context.name || contextId,
           duration: 0,
