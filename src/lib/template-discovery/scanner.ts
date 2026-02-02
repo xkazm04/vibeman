@@ -3,6 +3,7 @@
  * Discovers TypeScript template config files in external projects
  */
 
+import 'server-only';
 import { glob } from 'glob';
 import path from 'path';
 

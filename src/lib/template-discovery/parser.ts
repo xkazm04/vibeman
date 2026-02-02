@@ -3,6 +3,7 @@
  * Extracts TemplateConfig exports from TypeScript files using ts-morph AST
  */
 
+import 'server-only';
 import { Project, SyntaxKind, VariableDeclaration } from 'ts-morph';
 import crypto from 'crypto';
 import fs from 'fs/promises';
