@@ -11,6 +11,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { scanProject, getTemplates, type ScanResult } from './lib/discoveryApi';
+import { generateRequirementFile } from './lib/fileGenerator';
+import { TemplateVariableForm } from './TemplateVariableForm';
+import { PromptPreviewModal } from './PromptPreviewModal';
+import { toast } from '@/stores/toastStore';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 
 type ScanStatus = 'idle' | 'scanning' | 'complete' | 'error';
@@ -25,6 +29,19 @@ export function TemplateDiscoveryPanel() {
   // Templates list
   const [templates, setTemplates] = useState<DbDiscoveredTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Template selection and generation state
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [targetProjectPath, setTargetProjectPath] = useState('');
+
+  // Store pending generation params for confirm from modal
+  const [pendingGeneration, setPendingGeneration] = useState<{
+    query: string;
+    content: string;
+    templateId: string;
+  } | null>(null);
 
   // Load existing templates on mount
   useEffect(() => {
@@ -77,6 +94,77 @@ export function TemplateDiscoveryPanel() {
         {action}
       </span>
     );
+  };
+
+  const handleTemplateClick = (templateId: string) => {
+    setSelectedTemplateId(selectedTemplateId === templateId ? null : templateId);
+  };
+
+  const handlePreview = (content: string) => {
+    setPreviewContent(content);
+    setIsPreviewOpen(true);
+  };
+
+  const handleGenerate = async (params: { query: string; content: string }) => {
+    const template = templates.find((t) => t.id === selectedTemplateId);
+    if (!template) {
+      toast.error('Template not found');
+      return;
+    }
+
+    if (!targetProjectPath.trim()) {
+      toast.error('Please enter a target project path');
+      return;
+    }
+
+    const result = generateRequirementFile({
+      targetProjectPath: targetProjectPath.trim(),
+      templateId: template.template_id,
+      query: params.query,
+      content: params.content,
+      overwrite: false,
+    });
+
+    if (result.exists) {
+      // File exists, ask for overwrite confirmation
+      const confirmOverwrite = confirm(
+        `File already exists at ${result.filePath || 'target location'}. Overwrite?`
+      );
+      if (confirmOverwrite) {
+        const overwriteResult = generateRequirementFile({
+          targetProjectPath: targetProjectPath.trim(),
+          templateId: template.template_id,
+          query: params.query,
+          content: params.content,
+          overwrite: true,
+        });
+
+        if (overwriteResult.success) {
+          toast.success('Requirement file created', overwriteResult.filePath);
+          setSelectedTemplateId(null);
+        } else {
+          toast.error('Failed to create file', overwriteResult.error);
+        }
+      }
+      return;
+    }
+
+    if (result.success) {
+      toast.success('Requirement file created', result.filePath);
+      setSelectedTemplateId(null);
+    } else {
+      toast.error('Failed to create file', result.error);
+    }
+  };
+
+  const handleConfirmGenerateFromModal = () => {
+    if (pendingGeneration) {
+      handleGenerate({
+        query: pendingGeneration.query,
+        content: pendingGeneration.content,
+      });
+      setPendingGeneration(null);
+    }
   };
 
   return (
@@ -181,6 +269,24 @@ export function TemplateDiscoveryPanel() {
         </div>
       )}
 
+      {/* Target Project Path */}
+      <div className="space-y-2">
+        <label htmlFor="target-project" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Target Project Path
+        </label>
+        <input
+          id="target-project"
+          type="text"
+          value={targetProjectPath}
+          onChange={(e) => setTargetProjectPath(e.target.value)}
+          placeholder="Enter target project path for generated files"
+          className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+        />
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Generated requirement files will be placed in this project&apos;s .claude/commands/ directory
+        </p>
+      </div>
+
       {/* All discovered templates */}
       <div className="space-y-3">
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -195,33 +301,67 @@ export function TemplateDiscoveryPanel() {
         ) : (
           <div className="border dark:border-gray-700 rounded-lg divide-y dark:divide-gray-700">
             {templates.map((t) => (
-              <div key={t.id} className="p-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {t.template_name}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {t.template_id}
-                    </div>
-                    {t.description && (
-                      <div className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-                        {t.description}
+              <div key={t.id}>
+                <div
+                  onClick={() => handleTemplateClick(t.id)}
+                  className={`p-3 cursor-pointer transition-colors ${
+                    selectedTemplateId === t.id
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {t.template_name}
                       </div>
-                    )}
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {t.template_id}
+                      </div>
+                      {t.description && (
+                        <div className="mt-1 text-sm text-gray-500 dark:text-gray-500">
+                          {t.description}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {new Date(t.discovered_at).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    {new Date(t.discovered_at).toLocaleDateString()}
+                  <div className="mt-2 text-xs text-gray-400 dark:text-gray-500 truncate">
+                    {t.source_project_path}
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-gray-400 dark:text-gray-500 truncate">
-                  {t.source_project_path}
-                </div>
+
+                {/* Inline Form Expansion */}
+                {selectedTemplateId === t.id && (
+                  <TemplateVariableForm
+                    template={t}
+                    onPreview={(content) => {
+                      // We need to track query for generate from modal
+                      // The form will call onGenerate directly for the normal flow
+                      handlePreview(content);
+                    }}
+                    onGenerate={handleGenerate}
+                    onCancel={() => setSelectedTemplateId(null)}
+                  />
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      <PromptPreviewModal
+        isOpen={isPreviewOpen}
+        content={previewContent || ''}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setPendingGeneration(null);
+        }}
+        onConfirmGenerate={handleConfirmGenerateFromModal}
+      />
     </div>
   );
 }

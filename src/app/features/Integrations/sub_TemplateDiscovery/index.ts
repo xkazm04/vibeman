@@ -4,6 +4,8 @@
  */
 
 export { TemplateDiscoveryPanel } from './TemplateDiscoveryPanel';
+export { TemplateVariableForm } from './TemplateVariableForm';
+export { PromptPreviewModal } from './PromptPreviewModal';
 export * from './lib/discoveryApi';
 export * from './lib/promptGenerator';
 export * from './lib/fileGenerator';
