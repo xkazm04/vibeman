@@ -11,7 +11,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { scanProject, getTemplates, type ScanResult } from './lib/discoveryApi';
-import { generateRequirementFile } from './lib/fileGenerator';
 import { TemplateVariableForm } from './TemplateVariableForm';
 import { PromptPreviewModal } from './PromptPreviewModal';
 import { GenerationHistoryPanel, type GenerationHistoryPanelRef } from './GenerationHistoryPanel';
@@ -150,6 +149,21 @@ export function TemplateDiscoveryPanel() {
     setSelectedTemplateId(null);
   };
 
+  const generateRequirementViaApi = async (params: {
+    targetProjectPath: string;
+    templateId: string;
+    query: string;
+    content: string;
+    overwrite: boolean;
+  }) => {
+    const response = await fetch('/api/template-discovery/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    return response.json();
+  };
+
   const handleGenerate = async (params: { query: string; content: string }) => {
     const template = templates.find((t) => t.id === selectedTemplateId);
     if (!template) {
@@ -162,7 +176,7 @@ export function TemplateDiscoveryPanel() {
       return;
     }
 
-    const result = generateRequirementFile({
+    const result = await generateRequirementViaApi({
       targetProjectPath: targetProjectPath.trim(),
       templateId: template.template_id,
       query: params.query,
@@ -176,7 +190,7 @@ export function TemplateDiscoveryPanel() {
         `File already exists at ${result.filePath || 'target location'}. Overwrite?`
       );
       if (confirmOverwrite) {
-        const overwriteResult = generateRequirementFile({
+        const overwriteResult = await generateRequirementViaApi({
           targetProjectPath: targetProjectPath.trim(),
           templateId: template.template_id,
           query: params.query,

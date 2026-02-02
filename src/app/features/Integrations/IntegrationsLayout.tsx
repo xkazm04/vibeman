@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { Plug, FileText, Activity } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { IntegrationsDashboard } from './IntegrationsDashboard';
-import { PromptTemplateStudio } from './sub_PromptTemplates/PromptTemplateStudio';
+import { TemplateDiscoveryPanel } from './sub_TemplateDiscovery/TemplateDiscoveryPanel';
 import { EventsLog } from './components/EventsLog';
 
 interface IntegrationsLayoutProps {
@@ -22,7 +22,7 @@ type TabType = 'connectors' | 'templates' | 'events';
 
 const tabs = [
   { id: 'connectors' as const, label: 'Connectors', icon: Plug },
-  { id: 'templates' as const, label: 'Templates', icon: FileText },
+  { id: 'templates' as const, label: 'Template Discovery', icon: FileText },
   { id: 'events' as const, label: 'Events', icon: Activity },
 ];
 
@@ -56,7 +56,7 @@ export default function IntegrationsLayout({ projectId: propProjectId }: Integra
       case 'connectors':
         return <IntegrationsDashboard projectId={projectId} projectName={projectName} />;
       case 'templates':
-        return <PromptTemplateStudio projectId={projectId} />;
+        return <TemplateDiscoveryPanel />;
       case 'events':
         return <EventsLog projectId={projectId} />;
     }
