@@ -219,6 +219,10 @@ export function runMigrations() {
     migrate065DirectionPairs();
     // Migration 79: Cleanup Stale Context Paths - remove non-existent file references
     migrate066CleanupStaleContextPaths();
+    // Migration 80: Discovered Templates - store templates from external projects
+    migrateDiscoveredTemplates();
+    // Migration 81: Generation History - track template generation history
+    migrateGenerationHistory();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4540,5 +4544,29 @@ function migrateRemoteConfig() {
     const db = getConnection();
     const { migrate063RemoteConfig } = require('./063_remote_config');
     migrate063RemoteConfig(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 80: Discovered Templates
+ * Creates table for storing discovered templates from external projects
+ */
+function migrateDiscoveredTemplates() {
+  safeMigration('discovered_templates', () => {
+    const db = getConnection();
+    const { migrate067DiscoveredTemplates } = require('./067_discovered_templates');
+    migrate067DiscoveredTemplates(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 81: Generation History
+ * Creates table for storing generation history from template discovery
+ */
+function migrateGenerationHistory() {
+  safeMigration('generation_history', () => {
+    const db = getConnection();
+    const { migrate068GenerationHistory } = require('./068_generation_history');
+    migrate068GenerationHistory(db);
   }, migrationLogger);
 }

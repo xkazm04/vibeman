@@ -694,6 +694,34 @@ export interface DbPromptTemplate {
   updated_at: string;
 }
 
+// Discovered Template types (for external template discovery)
+export interface DbDiscoveredTemplate {
+  id: string;
+  source_project_path: string;
+  file_path: string;
+  template_id: string;
+  template_name: string;
+  description: string | null;
+  config_json: string; // JSON string of full TemplateConfig
+  content_hash: string; // SHA-256 hash for change detection
+  discovered_at: string;
+  updated_at: string;
+}
+
+// Generation History types (for template discovery feature)
+export interface DbGenerationHistory {
+  id: string;
+  template_id: string;
+  query: string;
+  file_path: string;
+  created_at: string;
+}
+
+// Extended type for display (with JOIN)
+export interface DbGenerationHistoryWithTemplate extends DbGenerationHistory {
+  template_name?: string;
+}
+
 // === Workspace Types ===
 
 export interface DbWorkspace {

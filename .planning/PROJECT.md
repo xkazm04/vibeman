@@ -8,20 +8,20 @@ An AI-driven development platform that automates the entire software development
 
 Maximize developer productivity by automating routine development tasks through AI agents, with seamless mobile control for managing work queues remotely.
 
-## Current Milestone: v1.1 Dead Code Cleanup
+## Current Milestone: v2.0 Template Discovery & Research Integration
 
-**Goal:** Remove ~10,000 lines of unused code across client, server, database, and feature layers to reduce maintenance burden and improve codebase clarity.
+**Goal:** Transform the unused PromptTemplates module into a template discovery and research execution system.
 
-**Target scope:**
-- Client: Unused hooks, stores, example files (7 items, ~2,395 LOC)
-- Server: Orphaned lib files and API routes (5 items, ~860 LOC)
-- Database: Abandoned repositories and orphaned tables (23 exports, 21 tables)
-- Features: Completely abandoned modules - CodeTree, RefactorSuggestion, ScanQueue (~4,833 LOC)
+**Target features:**
+- Template discovery: Scan foreign projects for `TemplateConfig` exports in `src/templates/configs/*.ts`
+- Auto-import: Discovered templates saved to DB with metadata
+- Variable UI: Simplified form for filling research queries (minimum: query field)
+- Requirement generation: Create .md files with CLI execution hints
+- Full redesign: Rebuild Integrations module with clean visual hierarchy
 
-**Excluded (partial implementations to keep):**
-- DailyStandup (backend utility, used by Manager)
-- Proposals (types absorbed by Manager)
-- DebtPrediction (has Layout, may be integrated later)
+**Integration target:**
+- res project at `C:/Users/mkdol/dolla/res`
+- 10 templates: tech_market, financial, competitive, investigative, due_diligence, legal, contract, reputation, purchase_decision, understanding
 
 ## Requirements
 
@@ -39,73 +39,102 @@ Maximize developer productivity by automating routine development tasks through 
 
 ### Active
 
-<!-- v1.1 Dead Code Cleanup -->
-- [ ] Remove unused client code (hooks, stores, examples)
-- [ ] Remove unused server code (lib files, API routes)
-- [ ] Remove orphaned database repositories and migrations
-- [ ] Remove abandoned feature modules (CodeTree, RefactorSuggestion, ScanQueue)
-- [ ] Verify no broken imports after cleanup
-- [ ] Update documentation to reflect removed features
+<!-- v2.0 Template Discovery & Research Integration -->
+
+**Template Discovery:**
+- [ ] DISC-01: Scan project path for `src/templates/configs/*.ts` files
+- [ ] DISC-02: Parse TypeScript to extract `TemplateConfig` exports
+- [ ] DISC-03: Store discovered templates in DB with source_project_path
+- [ ] DISC-04: Detect template changes on re-scan (update vs skip)
+- [ ] DISC-05: Show discovery progress and results in UI
+
+**Research Variable UI:**
+- [ ] VAR-01: Query input field (required, the research topic)
+- [ ] VAR-02: Granularity selector (quick/standard/deep)
+- [ ] VAR-03: Template selector from discovered templates
+- [ ] VAR-04: Preview interpolated prompt before generation
+- [ ] VAR-05: Generate .md requirement file with filled variables
+
+**Execution Hints:**
+- [ ] EXEC-01: Show CLI command to run after generation
+- [ ] EXEC-02: Copy-to-clipboard for command
+- [ ] EXEC-03: Track generation history per template
+
+**UI Redesign:**
+- [ ] UI-01: Clean visual hierarchy with consistent spacing
+- [ ] UI-02: Project scanner card (path input + scan button)
+- [ ] UI-03: Discovered templates grid with metadata cards
+- [ ] UI-04: Research launcher panel with variable inputs
+- [ ] UI-05: Execution history timeline
+- [ ] UI-06: Remove whitespace issues, improve typography
 
 ### Out of Scope
 
-- Partial implementations (DailyStandup, Proposals, DebtPrediction) — keep for potential future use
-- Refactoring working code — cleanup only, no behavior changes
-- Adding new features — pure deletion milestone
+- Direct CLI invocation from Vibeman — user runs command manually in res project
+- Research results viewing — handled by res project's report UI
+- Template editing in Vibeman — edit source `.ts` files in res project
+- Multi-project simultaneous discovery — one project at a time
+- Template versioning — always use latest from source
 
 ## Context
 
 **Existing Vibeman Architecture:**
 - Next.js 16 + React 19 + TypeScript
 - SQLite database with repository pattern (`src/app/db/`)
-- Directions stored in `directions` table with pending/accepted/rejected status
-- Requirements are `.claude/commands/` text files executed by Claude Code CLI
-- CLIBatchPanel (`src/components/cli/CLIBatchPanel.tsx`) runs 1-4 concurrent sessions
-- Integrations module exists (`src/app/features/Integrations/`) — add Supabase here
-- Zen page exists (`src/app/zen/`) — currently batch monitoring, needs redesign
+- Integrations module exists (`src/app/features/Integrations/`) — target for redesign
+- PromptTemplates submodule (`sub_PromptTemplates/`) — ~20 files, never used
 
-**Existing Butler Architecture:**
-- Flutter with modular theme system (cyberpunk/modern/terminal)
-- Triage module (`lib/screens/modules/triage/`) — swipe cards with physics
-- Activity module (`lib/screens/modules/activity/`) — event feed with grouping
-- Service locator pattern for dependency injection
-- ModuleTheme system for visual styling
+**Existing PromptTemplates Module:**
+- Manual template creation with 6 categories
+- `{{VARIABLE}}` interpolation syntax
+- Batch generation via GeneratorPanel
+- API routes: `/api/prompt-templates/*`
+- DB: `prompt_templates` table with variables JSON
 
-**Supabase Schema (from REMOTE_MESSAGE_BROKER.md):**
-- `vibeman_clients` — API key management (may simplify to anon key only)
-- `vibeman_events` — outbound events from Vibeman
-- `vibeman_commands` — inbound commands to Vibeman (batch start, etc.)
-- Real-time subscriptions enabled for command notifications
+**Integration Target (res project):**
+- Path: `C:/Users/mkdol/dolla/res`
+- Templates: `src/templates/configs/*.ts`
+- 10 templates: tech_market, financial, competitive, investigative, due_diligence, legal, contract, reputation, purchase_decision, understanding
+
+**TemplateConfig Structure:**
+```typescript
+{
+  templateId: string;
+  templateName: string;
+  description: string;
+  searchAngles: SearchAngle[];
+  findingTypes: FindingTypeConfig[];
+  perspectives: string[];
+  searchDepthGuidance: { quick, standard, deep };
+  defaultMaxSearches: number;
+}
+```
 
 **Data Flow:**
-1. Vibeman generates directions → SQLite
-2. User clicks "Sync" → directions/requirements pushed to Supabase
-3. Butler Triage shows pending directions → swipe accept/reject/skip
-4. Decisions sync back to Vibeman SQLite (auto via subscription)
-5. Butler Batch Composer → select requirements → start batch
-6. Command inserted to Supabase → Vibeman Zen mode polls/subscribes
-7. Vibeman spawns CLI sessions → executes requirements
-8. Progress events published to Supabase → Butler receives updates
+1. User enters project path → Vibeman scans for templates
+2. Discovered templates stored in SQLite with metadata
+3. User selects template → fills query variable
+4. Vibeman generates `.md` requirement file
+5. User copies CLI command → runs in res project
+6. Claude Code executes research → saves to Supabase
 
 ## Constraints
 
-- **Platform**: Vibeman is Windows desktop app (localhost:3000), Butler is Android/iOS
-- **Network**: Both apps must reach same Supabase instance
-- **Execution**: Claude Code CLI must be available on Vibeman machine
-- **Concurrency**: Max 4 simultaneous CLI sessions (existing CLIBatchPanel limit)
-- **Single User**: No multi-user auth — one Supabase per user
+- **Vibeman-only changes**: res project is read-only for discovery
+- **File structure detection**: Scan `src/templates/configs/*.ts` pattern, no manifest
+- **SQLite compatibility**: Use existing DB patterns and better-sqlite3
+- **Existing UI patterns**: Follow Vibeman's dark theme and component conventions
+- **TypeScript parsing**: Extract exports without full compilation (regex or ts-morph)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Supabase over Cloud Run gateway | Direct connection simpler, gateway adds deployment complexity | — Pending |
-| Hybrid sync (manual push, auto receive) | User controls data flow, prevents accidental overwrites | — Pending |
-| Anon key auth (no API key rotation) | Single-user system, simplicity over security | — Pending |
-| Redesign Zen page (not new page) | Existing page underutilized, avoid navigation sprawl | — Pending |
-| Accept/Reject/Skip gestures (3 actions) | Matches existing Triage patterns, skip preserves items | — Pending |
-| No desktop confirmation for remote batches | Fire-and-forget model enables true remote execution | — Pending |
-| Healthcheck blocks in Butler (not queue) | Clear feedback prevents confusion about execution state | — Pending |
+| File structure discovery | Simpler than manifest, no source project changes needed | — Pending |
+| Generate file + CLI hint | Decouples Vibeman from res execution environment | — Pending |
+| Full UI redesign | Module never used, opportunity to do it right | — Pending |
+| Regex-based TS parsing | Faster than full ts-morph, sufficient for export extraction | — Pending |
+| Single project at a time | Simpler state management, avoid confusion | — Pending |
 
 ---
-*Last updated: 2026-01-29 after v1.1 milestone initialization*
+*Last updated: 2026-02-02 after v2.0 milestone initialization*
