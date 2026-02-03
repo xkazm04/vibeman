@@ -8,21 +8,23 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plug, FileText, Activity } from 'lucide-react';
+import { Plug, FileText, Activity, Newspaper } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { IntegrationsDashboard } from './IntegrationsDashboard';
 import { TemplateDiscoveryPanel } from './sub_TemplateDiscovery/TemplateDiscoveryPanel';
+import { NewsFeedPanel } from './sub_NewsFeed/NewsFeedPanel';
 import { EventsLog } from './components/EventsLog';
 
 interface IntegrationsLayoutProps {
   projectId: string | null;
 }
 
-type TabType = 'connectors' | 'templates' | 'events';
+type TabType = 'connectors' | 'templates' | 'newsfeed' | 'events';
 
 const tabs = [
   { id: 'connectors' as const, label: 'Connectors', icon: Plug },
   { id: 'templates' as const, label: 'Template Discovery', icon: FileText },
+  { id: 'newsfeed' as const, label: 'News Feed', icon: Newspaper },
   { id: 'events' as const, label: 'Events', icon: Activity },
 ];
 
@@ -57,6 +59,8 @@ export default function IntegrationsLayout({ projectId: propProjectId }: Integra
         return <IntegrationsDashboard projectId={projectId} projectName={projectName} />;
       case 'templates':
         return <TemplateDiscoveryPanel />;
+      case 'newsfeed':
+        return <NewsFeedPanel />;
       case 'events':
         return <EventsLog projectId={projectId} />;
     }
