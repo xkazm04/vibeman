@@ -107,7 +107,7 @@ const TinderLayout = () => {
   };
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
+    <div className="min-h-full bg-gradient-to-br from-gray-900 via-purple-900/15 to-gray-900">
       {/* Test Mode Controls - Only visible when test mode is enabled */}
       {testMode.isTestMode && (
         <TestModeControls

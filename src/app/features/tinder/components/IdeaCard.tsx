@@ -59,7 +59,7 @@ export default function IdeaCard({
         opacity: { duration: 0.2 },
       }}
     >
-      <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden cursor-grab active:cursor-grabbing">
+      <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-700/50 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden cursor-grab active:cursor-grabbing">
         {/* Swipe indicators */}
         <motion.div
           className="absolute top-8 right-8 z-10"
@@ -180,7 +180,7 @@ export default function IdeaCard({
           {/* Footer */}
           <div className="flex items-center justify-between pt-4 border-t border-gray-700/40">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></div>
+              <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50 animate-pulse"></div>
               <span className="text-sm text-gray-400 transition-colors duration-200">{projectName}</span>
               <span className="text-sm text-gray-500">•</span>
               <span className="text-sm text-gray-400 transition-colors duration-200">{contextName}</span>

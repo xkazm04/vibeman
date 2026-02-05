@@ -482,7 +482,7 @@ export default function DirectionCard({
           {/* Footer */}
           <div className={`flex items-center justify-between pt-4 border-t border-gray-700/40 ${isPaired ? '' : ''}`}>
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${isPaired ? 'bg-amber-500' : 'bg-cyan-500'}`}></div>
+              <div className={`w-2 h-2 rounded-full ${isPaired ? 'bg-amber-500 shadow-sm shadow-amber-500/50' : 'bg-cyan-500 shadow-sm shadow-cyan-500/50'}`}></div>
               <span className="text-sm text-gray-400">{projectName}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">

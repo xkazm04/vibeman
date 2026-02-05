@@ -139,7 +139,7 @@ export default function TinderContent({
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 relative">
+    <div className="max-w-2xl mx-auto px-6 py-8 relative">
       {/* Flush Button - Top Right */}
       <div className="absolute top-4 right-6 z-50">
         <motion.button

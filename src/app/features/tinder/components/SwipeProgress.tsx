@@ -38,9 +38,9 @@ export default function SwipeProgress({
           </span>
           <span className="text-gray-500 transition-colors duration-200">{remaining} remaining</span>
         </div>
-        <div className="h-2 bg-gray-800 rounded-full overflow-hidden shadow-inner">
+        <div className="h-2 bg-gray-800/80 rounded-full overflow-hidden shadow-inner ring-1 ring-gray-700/30">
           <motion.div
-            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm shadow-purple-500/30"
+            className="h-full bg-gradient-to-r from-purple-500 via-purple-400 to-pink-500 shadow-sm shadow-purple-500/40"
             initial={{ width: 0 }}
             animate={{ width: `${percentComplete}%` }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
