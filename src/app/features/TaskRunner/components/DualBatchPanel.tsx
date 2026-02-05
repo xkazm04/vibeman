@@ -32,6 +32,33 @@ import TaskMonitor from './TaskMonitor';
 
 // NOTE: Remote batch delegation removed - migrating to Supabase Realtime
 
+/**
+ * Lazy-rendered queue item using IntersectionObserver.
+ * Only renders children once the placeholder scrolls into view (with 100px margin).
+ * Used when total queue items exceed 12 to reduce DOM pressure.
+ */
+function LazyQueueItem({ children, height = 36 }: { children: React.ReactNode; height?: number }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+      { rootMargin: '100px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  if (!isVisible) {
+    return <div ref={ref} style={{ minWidth: 120, height }} className="flex-shrink-0" />;
+  }
+
+  return <div ref={ref}>{children}</div>;
+}
+
 interface DualBatchPanelProps {
   batch1: BatchState | null;
   batch2: BatchState | null;
@@ -166,7 +193,7 @@ function BatchDisplay({
     ...queueItems.filter(r => isRequirementQueued(r.status)),
     ...queueItems.filter(r => isRequirementCompleted(r.status)).slice(-2),
     ...queueItems.filter(r => isRequirementFailed(r.status)).slice(-2),
-  ].slice(0, 6);
+  ].slice(0, queueItems.length > 20 ? 12 : 8);
 
   return (
     <motion.div
@@ -334,7 +361,9 @@ function BatchDisplay({
               <AnimatePresence mode="popLayout">
                 {displayItems.map((item, index) => {
                   const itemId = getRequirementId(item);
-                  return (
+                  const useLazy = queueItems.length > 12;
+
+                  const itemContent = (
                     <React.Fragment key={itemId}>
                       {/* Connector line */}
                       {index > 0 && (
@@ -381,6 +410,11 @@ function BatchDisplay({
                       </motion.div>
                     </React.Fragment>
                   );
+
+                  if (useLazy) {
+                    return <LazyQueueItem key={itemId}>{itemContent}</LazyQueueItem>;
+                  }
+                  return itemContent;
                 })}
               </AnimatePresence>
 

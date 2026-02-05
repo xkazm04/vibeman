@@ -1,8 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { logger } from '@/lib/logger';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = "WAhoMTNdLdMoq1j3wf3I";
+
+/**
+ * Simple in-memory TTS cache to avoid redundant ElevenLabs calls.
+ * Key: SHA-256 hash of text, Value: { audio: Uint8Array, expiry: number }
+ */
+const ttsCache = new Map<string, { audio: Uint8Array; expiry: number }>();
+const TTS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const TTS_CACHE_MAX_ENTRIES = 50;
+
+function getTTSCacheKey(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+function cleanTTSCache(): void {
+  if (ttsCache.size <= TTS_CACHE_MAX_ENTRIES) return;
+  const now = Date.now();
+  for (const [key, entry] of ttsCache) {
+    if (now > entry.expiry) ttsCache.delete(key);
+  }
+  // If still over limit, remove oldest entries
+  if (ttsCache.size > TTS_CACHE_MAX_ENTRIES) {
+    const entries = [...ttsCache.entries()];
+    entries.sort((a, b) => a[1].expiry - b[1].expiry);
+    const toRemove = entries.slice(0, entries.length - TTS_CACHE_MAX_ENTRIES);
+    for (const [key] of toRemove) ttsCache.delete(key);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +48,19 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Text is required' },
         { status: 400 }
       );
+    }
+
+    // Check TTS cache
+    const cacheKey = getTTSCacheKey(text);
+    const cached = ttsCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+      return new NextResponse(cached.audio.buffer as ArrayBuffer, {
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': cached.audio.byteLength.toString(),
+          'X-TTS-Cache': 'hit',
+        },
+      });
     }
 
     // Split long text into sentence chunks for better TTS quality
@@ -68,6 +109,10 @@ export async function POST(request: NextRequest) {
       combined.set(new Uint8Array(buf), offset);
       offset += buf.byteLength;
     }
+
+    // Store in cache
+    ttsCache.set(cacheKey, { audio: combined, expiry: Date.now() + TTS_CACHE_TTL });
+    cleanTTSCache();
 
     return new NextResponse(combined.buffer, {
       headers: {

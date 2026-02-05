@@ -65,6 +65,18 @@ export async function loadRequirements(projectPath: string): Promise<string[]> {
 }
 
 /**
+ * Invalidate the requirement cache for a specific project or all projects.
+ * Call after mutations (delete, save, generate) to force fresh data on next load.
+ */
+export function invalidateRequirementCache(projectPath?: string): void {
+  if (projectPath) {
+    requirementCache.delete(projectPath);
+  } else {
+    requirementCache.clear();
+  }
+}
+
+/**
  * Load requirements for multiple projects in a single batch request
  * Returns a map of projectId -> requirement names
  */
@@ -234,7 +246,11 @@ export async function deleteRequirement(
     body: JSON.stringify({ projectPath, requirementName }),
   });
 
-  return response.ok;
+  if (response.ok) {
+    requirementCache.delete(projectPath);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -362,6 +378,7 @@ export async function saveRequirement(
     throw new Error(data.error || 'Failed to save requirement');
   }
 
+  requirementCache.delete(projectPath);
   return true;
 }
 

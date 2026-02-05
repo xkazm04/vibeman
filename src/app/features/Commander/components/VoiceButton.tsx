@@ -32,6 +32,35 @@ function RecordingWaveform() {
   );
 }
 
+/**
+ * Downsample audio buffer to 16kHz mono for reduced STT upload size.
+ * Call this before sending audio to the transcription API.
+ */
+export function downsampleAudioBuffer(
+  audioBuffer: AudioBuffer,
+  targetSampleRate = 16000
+): Float32Array {
+  const channel = audioBuffer.getChannelData(0); // mono: first channel
+  const sourceSampleRate = audioBuffer.sampleRate;
+
+  if (sourceSampleRate === targetSampleRate) return channel;
+
+  const ratio = sourceSampleRate / targetSampleRate;
+  const newLength = Math.round(channel.length / ratio);
+  const result = new Float32Array(newLength);
+
+  for (let i = 0; i < newLength; i++) {
+    const srcIndex = i * ratio;
+    const low = Math.floor(srcIndex);
+    const high = Math.min(low + 1, channel.length - 1);
+    const frac = srcIndex - low;
+    // Linear interpolation for smooth downsampling
+    result[i] = channel[low] * (1 - frac) + channel[high] * frac;
+  }
+
+  return result;
+}
+
 export default function VoiceButton() {
   const isRecording = useAnnetteStore((s) => s.isRecording);
   const isSpeaking = useAnnetteStore((s) => s.isSpeaking);

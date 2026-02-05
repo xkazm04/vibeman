@@ -21,7 +21,8 @@ interface Props {
   scope?: 'project' | 'global';
 }
 
-const POLL_INTERVAL_MS = 8000;
+const POLL_INITIAL_MS = 4000;
+const POLL_MAX_MS = 30000;
 
 const ACCENT_COLOR = '#a855f7'; // Purple
 const GLOW_COLOR = 'rgba(168, 85, 247, 0.15)';
@@ -149,8 +150,14 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
   useEffect(() => { refreshStatus(); }, [scope, activeProject?.id]);
   useEffect(() => {
     if (reflectionStatus !== 'running') return;
-    pollRef.current = setInterval(refreshStatus, POLL_INTERVAL_MS);
-    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+    let currentInterval = POLL_INITIAL_MS;
+    const tick = () => {
+      refreshStatus();
+      currentInterval = Math.min(currentInterval * 2, POLL_MAX_MS);
+      pollRef.current = setTimeout(tick, currentInterval);
+    };
+    pollRef.current = setTimeout(tick, currentInterval);
+    return () => { if (pollRef.current) { clearTimeout(pollRef.current); pollRef.current = null; } };
   }, [reflectionStatus, scope, activeProject?.id]);
 
   // Elapsed timer while running

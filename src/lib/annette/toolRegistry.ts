@@ -3,14 +3,30 @@
  * Defines all tools in Anthropic tool_use format and dispatches execution
  */
 
-import { executeBrainTools } from './tools/brain';
-import { executeDirectionTools } from './tools/directions';
-import { executeIdeaTools } from './tools/ideas';
-import { executeGoalTools } from './tools/goals';
-import { executeContextTools } from './tools/contexts';
-import { executeTaskTools } from './tools/tasks';
-import { executeProjectTools } from './tools/projects';
-import { executeStandupTools } from './tools/standup';
+// Lazy tool module loaders - defer heavy imports until first use
+const toolModules = {
+  brain: () => import('./tools/brain').then(m => m.executeBrainTools),
+  directions: () => import('./tools/directions').then(m => m.executeDirectionTools),
+  ideas: () => import('./tools/ideas').then(m => m.executeIdeaTools),
+  goals: () => import('./tools/goals').then(m => m.executeGoalTools),
+  contexts: () => import('./tools/contexts').then(m => m.executeContextTools),
+  tasks: () => import('./tools/tasks').then(m => m.executeTaskTools),
+  projects: () => import('./tools/projects').then(m => m.executeProjectTools),
+  standup: () => import('./tools/standup').then(m => m.executeStandupTools),
+} as const;
+
+// Cache resolved modules to avoid re-importing
+const resolvedModules = new Map<string, Function>();
+
+async function getToolExecutor(category: keyof typeof toolModules): Promise<Function> {
+  let executor = resolvedModules.get(category);
+  if (!executor) {
+    executor = await toolModules[category]();
+    resolvedModules.set(category, executor);
+  }
+  return executor;
+}
+
 import { logger } from '@/lib/logger';
 
 // Anthropic tool_use format
@@ -57,30 +73,38 @@ export async function executeTool(
     if (name.startsWith('get_behavioral') || name.startsWith('get_outcomes') ||
         name.startsWith('get_reflection') || name.startsWith('trigger_reflection') ||
         name.startsWith('get_signals') || name.startsWith('get_insights')) {
-      result = await executeBrainTools(name, input, projectId);
+      const execute = await getToolExecutor('brain');
+      result = await execute(name, input, projectId);
     } else if (name.startsWith('generate_directions') || name.startsWith('list_directions') ||
                name.startsWith('get_direction') || name.startsWith('accept_direction') ||
                name.startsWith('reject_direction')) {
-      result = await executeDirectionTools(name, input, projectId, projectPath);
+      const execute = await getToolExecutor('directions');
+      result = await execute(name, input, projectId, projectPath);
     } else if (name.startsWith('browse_ideas') || name.startsWith('accept_idea') ||
                name.startsWith('reject_idea') || name.startsWith('generate_ideas') ||
                name.startsWith('get_idea')) {
-      result = await executeIdeaTools(name, input, projectId, projectPath);
+      const execute = await getToolExecutor('ideas');
+      result = await execute(name, input, projectId, projectPath);
     } else if (name.startsWith('list_goals') || name.startsWith('create_goal') ||
                name.startsWith('update_goal') || name.startsWith('generate_goal')) {
-      result = await executeGoalTools(name, input, projectId, projectPath);
+      const execute = await getToolExecutor('goals');
+      result = await execute(name, input, projectId, projectPath);
     } else if (name.startsWith('list_contexts') || name.startsWith('get_context') ||
                name.startsWith('scan_contexts') || name.startsWith('generate_description')) {
-      result = await executeContextTools(name, input, projectId);
+      const execute = await getToolExecutor('contexts');
+      result = await execute(name, input, projectId);
     } else if (name.startsWith('get_queue') || name.startsWith('queue_requirement') ||
                name.startsWith('get_execution') || name.startsWith('get_implementation') ||
                name.startsWith('execute_now') || name.startsWith('execute_requirement')) {
-      result = await executeTaskTools(name, input, projectId, projectPath);
+      const execute = await getToolExecutor('tasks');
+      result = await execute(name, input, projectId, projectPath);
     } else if (name.startsWith('get_project') || name.startsWith('list_projects')) {
-      result = await executeProjectTools(name, input, projectId);
+      const execute = await getToolExecutor('projects');
+      result = await execute(name, input, projectId);
     } else if (name.startsWith('generate_standup') || name.startsWith('get_standup') ||
                name.startsWith('run_automation')) {
-      result = await executeStandupTools(name, input, projectId);
+      const execute = await getToolExecutor('standup');
+      result = await execute(name, input, projectId);
     } else {
       result = `Unknown tool: ${name}`;
       return { tool_use_id: id, content: result, is_error: true };

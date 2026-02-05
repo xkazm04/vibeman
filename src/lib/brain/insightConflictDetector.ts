@@ -236,8 +236,24 @@ export function detectAllConflicts(
   const conflicts: ConflictResult[] = [];
   const seen = new Set<string>();
 
+  // Pre-compute full text for each insight to avoid repeated string concat
+  const textCache = insights.map(i => `${i.title} ${i.description}`);
+
+  // Types that can self-conflict
+  const selfConflictTypes = new Set(['recommendation', 'warning']);
+
   for (let i = 0; i < insights.length; i++) {
+    // Skip resolved insights
+    if (insights[i].conflict_resolved) continue;
+
     for (let j = i + 1; j < insights.length; j++) {
+      if (insights[j].conflict_resolved) continue;
+
+      // Early-exit: same type that doesn't self-conflict
+      if (insights[i].type === insights[j].type && !selfConflictTypes.has(insights[i].type)) {
+        continue;
+      }
+
       const pairKey = [insights[i].title, insights[j].title].sort().join('|||');
       if (seen.has(pairKey)) continue;
 
