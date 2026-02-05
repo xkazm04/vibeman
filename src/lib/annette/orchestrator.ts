@@ -100,6 +100,46 @@ function parseQuickOptions(text: string): { cleanText: string; options: QuickOpt
 }
 
 /**
+ * Summarize conversation history when it exceeds the message threshold.
+ * Keeps the first 2 and last 4 messages, replacing the middle with a summary.
+ */
+const HISTORY_SUMMARIZE_THRESHOLD = 10;
+
+function summarizeHistory(history: ConversationMessage[]): ConversationMessage[] {
+  if (history.length <= HISTORY_SUMMARIZE_THRESHOLD) {
+    return history;
+  }
+
+  const kept = history.slice(0, 2);
+  const middle = history.slice(2, -4);
+  const recent = history.slice(-4);
+
+  // Build a condensed summary of the middle messages
+  const topics = middle
+    .filter(m => m.role === 'user')
+    .map(m => m.content.slice(0, 80))
+    .join('; ');
+
+  const toolNames = middle
+    .filter(m => m.toolCalls && m.toolCalls.length > 0)
+    .flatMap(m => m.toolCalls!.map(t => t.name));
+  const uniqueTools = [...new Set(toolNames)];
+
+  const summaryContent = `[Earlier conversation summary: User discussed ${middle.length} messages covering: ${topics || 'various topics'}. Tools used: ${uniqueTools.join(', ') || 'none'}]`;
+
+  kept.push({
+    role: 'user',
+    content: summaryContent,
+  });
+  kept.push({
+    role: 'assistant',
+    content: 'Understood, I have context from our earlier conversation. How can I help?',
+  });
+
+  return [...kept, ...recent];
+}
+
+/**
  * Run the Annette orchestration loop
  * Sends message to Claude with tools, executes any tool calls, loops until text response
  */
@@ -119,8 +159,11 @@ export async function orchestrate(input: OrchestratorInput): Promise<Orchestrato
     audioMode: input.audioMode,
   });
 
-  // Build conversation messages for the API
-  const messages = buildApiMessages(input.message, input.conversationHistory);
+  // Build conversation messages for the API (with summarization for long histories)
+  const condensedHistory = input.conversationHistory
+    ? summarizeHistory(input.conversationHistory)
+    : undefined;
+  const messages = buildApiMessages(input.message, condensedHistory);
 
   // Get tool definitions
   const tools = getToolDefinitions();
@@ -302,4 +345,48 @@ async function callClaude(
   }
 
   return await response.json();
+}
+
+/**
+ * Extract key topics from a completed conversation for future context injection.
+ * Returns topic strings that can be stored in the memory system.
+ */
+export function extractConversationTopics(
+  messages: ConversationMessage[],
+  toolsUsed: OrchestratorOutput['toolsUsed']
+): string[] {
+  const topics: Set<string> = new Set();
+
+  // Extract topics from user messages (first 50 chars of each)
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      const firstSentence = msg.content.split(/[.!?\n]/)[0]?.trim();
+      if (firstSentence && firstSentence.length > 10) {
+        topics.add(firstSentence.slice(0, 80));
+      }
+    }
+  }
+
+  // Extract tool usage patterns
+  const toolNames = [...new Set(toolsUsed.map(t => t.name))];
+  if (toolNames.length > 0) {
+    topics.add(`Tools: ${toolNames.join(', ')}`);
+  }
+
+  // Extract direction/context references from tool results
+  for (const tool of toolsUsed) {
+    if (tool.name === 'get_directions' || tool.name === 'get_insights') {
+      try {
+        const parsed = JSON.parse(tool.result);
+        if (parsed.directions?.length > 0) {
+          topics.add(`Reviewed ${parsed.directions.length} directions`);
+        }
+        if (parsed.insights?.length > 0) {
+          topics.add(`Discussed ${parsed.insights.length} insights`);
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }
+
+  return [...topics].slice(0, 10);
 }

@@ -296,6 +296,18 @@ export const useBrainStore = create<BrainStore>()(
             runningReflectionId: data.runningReflection?.id || null,
             // Don't overwrite promptContent from GET - it's only set by triggerReflection
           });
+
+          // Restore promptContent from sessionStorage if running but no prompt in memory
+          const currentPrompt = get().promptContent;
+          const runId = data.runningReflection?.id;
+          if (status === 'running' && !currentPrompt && runId && typeof window !== 'undefined') {
+            try {
+              const savedPrompt = sessionStorage.getItem(`brain-prompt-${runId}`);
+              if (savedPrompt) {
+                set({ promptContent: savedPrompt });
+              }
+            } catch { /* sessionStorage unavailable */ }
+          }
         } catch (error) {
           console.error('Failed to fetch reflection status:', error);
           set({ reflectionStatus: 'idle', lastReflection: null, runningReflectionId: null, promptContent: null });
@@ -348,6 +360,16 @@ export const useBrainStore = create<BrainStore>()(
             shouldTrigger: false,
             triggerReason: null,
           });
+
+          // Persist promptContent to sessionStorage for refresh recovery
+          if (typeof window !== 'undefined' && data.promptContent && data.reflectionId) {
+            try {
+              sessionStorage.setItem(
+                `brain-prompt-${data.reflectionId}`,
+                data.promptContent
+              );
+            } catch { /* sessionStorage full or unavailable */ }
+          }
         } catch (error) {
           set({
             reflectionStatus: 'failed',

@@ -22,40 +22,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'audio/mpeg',
-        'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY,
-      },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_flash_v2_5",
-        voice_settings: {
-          stability: 0.8,
-          similarity_boost: 0.5
-        }
-      }),
-    });
+    // Split long text into sentence chunks for better TTS quality
+    const chunks = text.length > 500 ? splitIntoSentences(text) : [text];
+    const audioBuffers: ArrayBuffer[] = [];
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      return NextResponse.json(
-        {
-          success: false,
-          error: `ElevenLabs TTS error (${response.status}): ${errorText}`
+    for (const chunk of chunks) {
+      if (!chunk.trim()) continue;
+
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': ELEVENLABS_API_KEY,
         },
-        { status: response.status }
-      );
+        body: JSON.stringify({
+          text: chunk.trim(),
+          model_id: "eleven_flash_v2_5",
+          voice_settings: {
+            stability: 0.8,
+            similarity_boost: 0.5
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        return NextResponse.json(
+          {
+            success: false,
+            error: `ElevenLabs TTS error (${response.status}): ${errorText}`
+          },
+          { status: response.status }
+        );
+      }
+
+      audioBuffers.push(await response.arrayBuffer());
     }
 
-    const audioBuffer = await response.arrayBuffer();
+    // Concatenate all audio chunks
+    const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const buf of audioBuffers) {
+      combined.set(new Uint8Array(buf), offset);
+      offset += buf.byteLength;
+    }
 
-    return new NextResponse(audioBuffer, {
+    return new NextResponse(combined.buffer, {
       headers: {
         'Content-Type': 'audio/mpeg',
-        'Content-Length': audioBuffer.byteLength.toString(),
+        'Content-Length': totalLength.toString(),
       },
     });
   } catch (error) {
@@ -69,4 +86,30 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Split text into sentence-sized chunks for TTS processing.
+ * Keeps chunks between 100-500 characters for optimal TTS quality.
+ */
+function splitIntoSentences(text: string): string[] {
+  // Split on sentence boundaries
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const sentence of sentences) {
+    if ((current + ' ' + sentence).length > 500 && current.length > 0) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current = current ? current + ' ' + sentence : sentence;
+    }
+  }
+
+  if (current.trim()) {
+    chunks.push(current.trim());
+  }
+
+  return chunks;
 }

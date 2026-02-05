@@ -23,6 +23,42 @@ function generateSignalId(): string {
 }
 
 /**
+ * Simple dedup cache to prevent recording identical signals within a time window.
+ * Key: project_id + signal_type + data_hash
+ */
+const recentSignalHashes = new Map<string, number>();
+const DEDUP_WINDOW_MS = 60_000; // 60 seconds
+
+function createSignalHash(projectId: string, signalType: string, data: string): string {
+  // Simple hash: first 100 chars of data + type + project
+  const dataPrefix = data.slice(0, 100);
+  return `${projectId}:${signalType}:${dataPrefix}`;
+}
+
+function isDuplicate(projectId: string, signalType: string, data: string): boolean {
+  const hash = createSignalHash(projectId, signalType, data);
+  const lastSeen = recentSignalHashes.get(hash);
+  const now = Date.now();
+
+  if (lastSeen && (now - lastSeen) < DEDUP_WINDOW_MS) {
+    return true;
+  }
+
+  recentSignalHashes.set(hash, now);
+
+  // Cleanup old entries periodically (every 100 entries)
+  if (recentSignalHashes.size > 500) {
+    for (const [key, time] of recentSignalHashes.entries()) {
+      if (now - time > DEDUP_WINDOW_MS) {
+        recentSignalHashes.delete(key);
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Signal Collector - captures behavioral signals from various sources
  */
 export const signalCollector = {
@@ -36,13 +72,15 @@ export const signalCollector = {
     contextName?: string
   ): void => {
     try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'git_activity', dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'git_activity',
         context_id: contextId || null,
         context_name: contextName || null,
-        data: JSON.stringify(data),
+        data: dataStr,
         weight: calculateGitWeight(data),
         timestamp: new Date().toISOString(),
       });
@@ -61,13 +99,15 @@ export const signalCollector = {
     contextName?: string
   ): void => {
     try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'api_focus', dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'api_focus',
         context_id: contextId || null,
         context_name: contextName || null,
-        data: JSON.stringify(data),
+        data: dataStr,
         weight: calculateApiWeight(data),
         timestamp: new Date().toISOString(),
       });
@@ -84,13 +124,15 @@ export const signalCollector = {
     data: ContextFocusSignalData
   ): void => {
     try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'context_focus', dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'context_focus',
         context_id: data.contextId,
         context_name: data.contextName,
-        data: JSON.stringify(data),
+        data: dataStr,
         weight: calculateContextWeight(data),
         timestamp: new Date().toISOString(),
       });
@@ -107,13 +149,15 @@ export const signalCollector = {
     data: ImplementationSignalData
   ): void => {
     try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'implementation', dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'implementation',
         context_id: data.contextId || null,
         context_name: null,
-        data: JSON.stringify(data),
+        data: dataStr,
         weight: calculateImplementationWeight(data),
         timestamp: new Date().toISOString(),
       });
@@ -130,13 +174,15 @@ export const signalCollector = {
     data: CrossTaskAnalysisSignalData
   ): void => {
     try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'cross_task_analysis', dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'cross_task_analysis',
         context_id: null,
         context_name: null,
-        data: JSON.stringify(data),
+        data: dataStr,
         weight: data.success ? 2.0 : 1.0, // Successful analysis is high signal
         timestamp: new Date().toISOString(),
       });
@@ -153,13 +199,15 @@ export const signalCollector = {
     data: CrossTaskSelectionSignalData
   ): void => {
     try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'cross_task_selection', dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'cross_task_selection',
         context_id: null,
         context_name: null,
-        data: JSON.stringify(data),
+        data: dataStr,
         weight: 1.5, // Plan selection is a high-signal user decision
         timestamp: new Date().toISOString(),
       });
@@ -178,13 +226,15 @@ export const signalCollector = {
     contextName?: string
   ): void => {
     try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'cli_memory', dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'cli_memory',
         context_id: contextId || null,
         context_name: contextName || null,
-        data: JSON.stringify(data),
+        data: dataStr,
         weight: calculateCliMemoryWeight(data),
         timestamp: new Date().toISOString(),
       });

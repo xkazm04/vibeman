@@ -14,19 +14,54 @@ export interface Requirement {
 }
 
 /**
+ * Simple cache for requirement lists to prevent rapid re-fetching.
+ * Key: projectPath, Value: { data, expiry }
+ */
+const requirementCache = new Map<string, { data: string[]; expiry: number }>();
+const REQUIREMENT_CACHE_TTL = 30_000; // 30 seconds
+
+// Dedup in-flight requests
+const inFlightRequests = new Map<string, Promise<string[]>>();
+
+/**
  * Load requirements from API (single project)
+ * Includes 30-second cache and in-flight dedup
  */
 export async function loadRequirements(projectPath: string): Promise<string[]> {
-  const response = await fetch(
-    `/api/claude-code?projectPath=${encodeURIComponent(projectPath)}&action=list-requirements`
-  );
-
-  if (response.ok) {
-    const data = await response.json();
-    return data.requirements || [];
+  // Check cache first
+  const cached = requirementCache.get(projectPath);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.data;
   }
 
-  throw new Error('Failed to load requirements');
+  // Dedup concurrent requests for the same path
+  const existing = inFlightRequests.get(projectPath);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(
+        `/api/claude-code?projectPath=${encodeURIComponent(projectPath)}&action=list-requirements`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const requirements = data.requirements || [];
+        requirementCache.set(projectPath, {
+          data: requirements,
+          expiry: Date.now() + REQUIREMENT_CACHE_TTL,
+        });
+        return requirements;
+      }
+
+      throw new Error('Failed to load requirements');
+    } finally {
+      inFlightRequests.delete(projectPath);
+    }
+  })();
+
+  inFlightRequests.set(projectPath, promise);
+  return promise;
 }
 
 /**

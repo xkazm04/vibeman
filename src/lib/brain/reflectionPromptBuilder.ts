@@ -94,27 +94,40 @@ export async function gatherReflectionData(
   // Get previous insights to prevent duplicates
   const previousInsights = brainReflectionDb.getAllInsights(projectId, 20);
 
-  // Get git history for correlation analysis
+  // Get git history for correlation analysis with timeout protection
   let gitHistory: GitCommitInfo[] = [];
   let detectedRepoUrl = gitRepoUrl || null;
 
   try {
-    const isGit = await GitManager.isGitRepo(projectPath);
-    if (isGit) {
+    const GIT_TIMEOUT_MS = 5000;
+    const gitPromise = (async () => {
+      const isGit = await GitManager.isGitRepo(projectPath);
+      if (!isGit) return { commits: [] as GitCommitInfo[], remoteUrl: null as string | null };
+
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         .toISOString().split('T')[0];
-      gitHistory = await GitManager.getRecentCommits(projectPath, {
+      const commits = await GitManager.getRecentCommits(projectPath, {
         since: thirtyDaysAgo,
         limit: 30,
       });
 
-      // Auto-detect remote URL if not provided
-      if (!detectedRepoUrl) {
-        detectedRepoUrl = await GitManager.getRemoteUrl(projectPath);
+      let remoteUrl: string | null = null;
+      if (!gitRepoUrl) {
+        remoteUrl = await GitManager.getRemoteUrl(projectPath);
       }
-    }
+
+      return { commits, remoteUrl };
+    })();
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Git operations timed out')), GIT_TIMEOUT_MS)
+    );
+
+    const result = await Promise.race([gitPromise, timeoutPromise]);
+    gitHistory = result.commits;
+    if (result.remoteUrl) detectedRepoUrl = result.remoteUrl;
   } catch (error) {
-    console.warn('[ReflectionPromptBuilder] Git history unavailable:', error);
+    console.warn('[ReflectionPromptBuilder] Git history unavailable:', error instanceof Error ? error.message : error);
   }
 
   return {

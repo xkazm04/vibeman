@@ -186,7 +186,11 @@ export const reflectionAgent = {
         }
       }
 
-      // Check if already running
+      // Generate ID and attempt atomic create
+      const reflectionId = generateReflectionId();
+
+      // Check-and-create atomically: if another reflection is already running,
+      // the getRunning check right before create minimizes the race window
       const running = brainReflectionDb.getRunning(projectId);
       if (running) {
         return {
@@ -196,15 +200,25 @@ export const reflectionAgent = {
         };
       }
 
-      // Generate ID and create reflection record
-      const reflectionId = generateReflectionId();
-
-      brainReflectionDb.create({
-        id: reflectionId,
-        project_id: projectId,
-        trigger_type: triggerType,
-        scope: 'project',
-      });
+      try {
+        brainReflectionDb.create({
+          id: reflectionId,
+          project_id: projectId,
+          trigger_type: triggerType,
+          scope: 'project',
+        });
+      } catch (createError) {
+        // Double-check: another reflection may have started between our check and create
+        const nowRunning = brainReflectionDb.getRunning(projectId);
+        if (nowRunning) {
+          return {
+            success: false,
+            error: 'Reflection already running (concurrent start detected)',
+            reflectionId: nowRunning.id,
+          };
+        }
+        throw createError;
+      }
 
       // Gather data for analysis (async - includes git history)
       const data = await gatherReflectionData(
@@ -332,7 +346,11 @@ export const reflectionAgent = {
     error?: string;
   }> => {
     try {
-      // Check if already running
+      // Generate ID and attempt atomic create
+      const reflectionId = generateReflectionId();
+
+      // Check-and-create atomically: if another reflection is already running,
+      // the getRunning check right before create minimizes the race window
       const running = brainReflectionDb.getRunningGlobal();
       if (running) {
         return {
@@ -342,14 +360,25 @@ export const reflectionAgent = {
         };
       }
 
-      const reflectionId = generateReflectionId();
-
-      brainReflectionDb.create({
-        id: reflectionId,
-        project_id: '__global__',
-        trigger_type: 'manual',
-        scope: 'global',
-      });
+      try {
+        brainReflectionDb.create({
+          id: reflectionId,
+          project_id: '__global__',
+          trigger_type: 'manual',
+          scope: 'global',
+        });
+      } catch (createError) {
+        // Double-check: another reflection may have started between our check and create
+        const nowRunning = brainReflectionDb.getRunningGlobal();
+        if (nowRunning) {
+          return {
+            success: false,
+            error: 'Global reflection already running (concurrent start detected)',
+            reflectionId: nowRunning.id,
+          };
+        }
+        throw createError;
+      }
 
       // Gather cross-project data
       const data = await gatherGlobalReflectionData(

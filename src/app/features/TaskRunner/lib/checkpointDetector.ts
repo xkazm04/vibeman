@@ -148,6 +148,12 @@ const DETECTION_RULES: Record<string, DetectionRule> = {
 };
 
 /**
+ * Maximum time a checkpoint can be in_progress before being auto-completed
+ * Prevents stuck checkpoints from blocking the pipeline
+ */
+const CHECKPOINT_STALE_MS = 120_000; // 2 minutes
+
+/**
  * Update checkpoint states based on current activity
  *
  * @param checkpoints - Current checkpoints array
@@ -162,10 +168,31 @@ export function updateCheckpointStates(
 ): Checkpoint[] {
   return checkpoints.map((checkpoint) => {
     const rules = DETECTION_RULES[checkpoint.id];
-    if (!rules) return checkpoint;
 
     // Skip if already completed or skipped
     if (checkpoint.status === 'completed' || checkpoint.status === 'skipped') {
+      return checkpoint;
+    }
+
+    // For checkpoints without detection rules, use phase-based fallback
+    if (!rules) {
+      if (checkpoint.status === 'pending' && activity.phase !== 'idle') {
+        return {
+          ...checkpoint,
+          status: 'in_progress' as const,
+          startedAt: Date.now(),
+        };
+      }
+      // Auto-complete unknown checkpoints after staleness timeout
+      if (checkpoint.status === 'in_progress' && checkpoint.startedAt) {
+        if (Date.now() - checkpoint.startedAt > CHECKPOINT_STALE_MS) {
+          return {
+            ...checkpoint,
+            status: 'completed' as const,
+            completedAt: Date.now(),
+          };
+        }
+      }
       return checkpoint;
     }
 
@@ -183,6 +210,15 @@ export function updateCheckpointStates(
     // Check for completion conditions
     if (checkpoint.status === 'in_progress') {
       if (rules.completeOn(activity, events)) {
+        return {
+          ...checkpoint,
+          status: 'completed' as const,
+          completedAt: Date.now(),
+        };
+      }
+
+      // Staleness timeout: auto-complete if stuck for too long
+      if (checkpoint.startedAt && (Date.now() - checkpoint.startedAt > CHECKPOINT_STALE_MS)) {
         return {
           ...checkpoint,
           status: 'completed' as const,

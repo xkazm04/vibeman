@@ -341,3 +341,29 @@ function shouldSend(projectId: string, notification: AnnetteNotification): boole
 export function clearThrottles(projectId: string): void {
   lastNotificationTime.delete(projectId);
 }
+
+/**
+ * Get pending notifications formatted as conversation context.
+ * Injected into the next Annette conversation turn for proactive awareness.
+ */
+export function getNotificationContext(projectId: string): string | null {
+  const notifications = checkForNotifications(projectId);
+  if (notifications.length === 0) return null;
+
+  const lines = notifications.map(n => {
+    const actionHint = n.suggestedAction
+      ? ` (suggested: ${n.suggestedAction.description})`
+      : '';
+    return `- [${n.priority.toUpperCase()}] ${n.title}: ${n.message}${actionHint}`;
+  });
+
+  return `## Recent System Events\n${lines.join('\n')}`;
+}
+
+/**
+ * Get the most recent notifications as structured data for UI display.
+ * Returns up to 5 most recent notifications.
+ */
+export function getRecentNotifications(projectId: string, limit: number = 5): AnnetteNotification[] {
+  return checkForNotifications(projectId).slice(0, limit);
+}
