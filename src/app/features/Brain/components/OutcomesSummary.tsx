@@ -6,6 +6,7 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Target, CheckCircle, XCircle, RotateCcw, Clock, TrendingUp } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
@@ -108,8 +109,44 @@ function KPICard({
   );
 }
 
+/** Compute daily success rates for the last 7 days from recent outcomes. */
+function useDailyTrend(recentOutcomes: { execution_completed_at: string | null; execution_success: number | null }[]) {
+  return useMemo(() => {
+    const now = new Date();
+    const dayMs = 86400000;
+    // Build map: "YYYY-MM-DD" -> { success, total }
+    const dayMap = new Map<string, { success: number; total: number }>();
+
+    for (let d = 6; d >= 0; d--) {
+      const date = new Date(now.getTime() - d * dayMs);
+      const key = date.toISOString().slice(0, 10);
+      dayMap.set(key, { success: 0, total: 0 });
+    }
+
+    for (const o of recentOutcomes) {
+      if (!o.execution_completed_at) continue;
+      const key = new Date(o.execution_completed_at).toISOString().slice(0, 10);
+      const entry = dayMap.get(key);
+      if (entry) {
+        entry.total++;
+        if (o.execution_success) entry.success++;
+      }
+    }
+
+    const days = Array.from(dayMap.entries()).map(([date, { success, total }]) => ({
+      date,
+      rate: total > 0 ? Math.round((success / total) * 100) : null,
+      total,
+    }));
+
+    const daysWithData = days.filter(d => d.rate !== null);
+    return { days, daysWithData };
+  }, [recentOutcomes]);
+}
+
 export default function OutcomesSummary({ isLoading }: Props) {
   const { outcomeStats, recentOutcomes } = useBrainStore();
+  const { days: trendDays, daysWithData } = useDailyTrend(recentOutcomes);
 
   if (isLoading) {
     return (
@@ -279,6 +316,86 @@ export default function OutcomesSummary({ isLoading }: Props) {
               </div>
             )}
           </div>
+
+          {/* 7-Day Success Rate Trend */}
+          {daysWithData.length >= 2 && (() => {
+            const sparkW = 200;
+            const sparkH = 32;
+            const pad = 4;
+            const cw = sparkW - pad * 2;
+            const ch = sparkH - pad * 2;
+
+            // Only render points that have data
+            const dataPoints = trendDays
+              .map((d, i) => ({ ...d, idx: i }))
+              .filter(d => d.rate !== null);
+
+            if (dataPoints.length < 2) return null;
+
+            const rates = dataPoints.map(d => d.rate as number);
+            const minR = Math.min(...rates);
+            const maxR = Math.max(...rates);
+            const range = maxR - minR || 1;
+
+            const pts = dataPoints.map((d, i) => ({
+              x: pad + (i / (dataPoints.length - 1)) * cw,
+              y: pad + ch - ((d.rate as number) - minR) / range * ch,
+              rate: d.rate as number,
+              date: d.date,
+            }));
+
+            const lineD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+            const areaD = lineD
+              + ` L ${pts[pts.length - 1].x.toFixed(1)} ${(pad + ch).toFixed(1)}`
+              + ` L ${pts[0].x.toFixed(1)} ${(pad + ch).toFixed(1)} Z`;
+
+            // Trend direction: compare first vs last
+            const firstRate = pts[0].rate;
+            const lastRate = pts[pts.length - 1].rate;
+            const isImproving = lastRate >= firstRate;
+            const trendColor = isImproving ? '#10b981' : '#f59e0b'; // emerald vs amber
+
+            return (
+              <div className="mt-3 pt-3 border-t border-zinc-800/50">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-zinc-500 font-mono">7_DAY_TREND</span>
+                  <span className="text-xs font-mono" style={{ color: trendColor }}>
+                    {isImproving ? 'IMPROVING' : 'DECLINING'}
+                  </span>
+                </div>
+                <svg width={sparkW} height={sparkH} className="w-full">
+                  <defs>
+                    <linearGradient id="outcomeTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={trendColor} stopOpacity={0.25} />
+                      <stop offset="100%" stopColor={trendColor} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <path d={areaD} fill="url(#outcomeTrendGrad)" />
+                  <path
+                    d={lineD}
+                    fill="none"
+                    stroke={trendColor}
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {pts.map((p, i) => (
+                    <circle
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r={2}
+                      fill={trendColor}
+                    />
+                  ))}
+                </svg>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] text-zinc-600 font-mono">{trendDays[0]?.date.slice(5)}</span>
+                  <span className="text-[10px] text-zinc-600 font-mono">{trendDays[trendDays.length - 1]?.date.slice(5)}</span>
+                </div>
+              </div>
+            );
+          })()}
         </motion.div>
       )}
 

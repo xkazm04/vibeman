@@ -26,7 +26,13 @@ const POLL_INTERVAL_MS = 8000;
 const ACCENT_COLOR = '#a855f7'; // Purple
 const GLOW_COLOR = 'rgba(168, 85, 247, 0.15)';
 
-function StatusBadge({ status }: { status: string }) {
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
+
+function StatusBadge({ status, elapsedSec }: { status: string; elapsedSec?: number }) {
   const config = status === 'running'
     ? { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.3)', color: '#60a5fa', icon: Loader2, spin: true, text: 'Running' }
     : status === 'completed'
@@ -37,7 +43,7 @@ function StatusBadge({ status }: { status: string }) {
 
   const Icon = config.icon;
 
-  return (
+  const badge = (
     <div
       className="px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5"
       style={{
@@ -49,15 +55,51 @@ function StatusBadge({ status }: { status: string }) {
     >
       <Icon className={`w-3.5 h-3.5 ${config.spin ? 'animate-spin' : ''}`} />
       {config.text}
+      {status === 'running' && elapsedSec !== undefined && (
+        <span className="ml-1.5 text-blue-300/70 tabular-nums">{formatElapsed(elapsedSec)}</span>
+      )}
     </div>
   );
+
+  if (status === 'running') {
+    return (
+      <motion.div
+        className="relative"
+        initial={false}
+      >
+        {/* Pulsing ring */}
+        <motion.div
+          className="absolute inset-0 rounded-lg"
+          style={{ border: `1.5px solid ${config.border}` }}
+          animate={{
+            boxShadow: [
+              `0 0 0px ${config.border}`,
+              `0 0 12px ${config.border}`,
+              `0 0 0px ${config.border}`,
+            ],
+            opacity: [0.6, 1, 0.6],
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+        {badge}
+      </motion.div>
+    );
+  }
+
+  return badge;
 }
 
 export default function ReflectionStatus({ isLoading, scope = 'project' }: Props) {
   const [isTriggering, setIsTriggering] = useState(false);
   const [completionMessage, setCompletionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
+  const runStartRef = useRef<number>(Date.now());
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const allProjects = useServerProjectStore((state) => state.projects);
@@ -110,6 +152,20 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
     pollRef.current = setInterval(refreshStatus, POLL_INTERVAL_MS);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [reflectionStatus, scope, activeProject?.id]);
+
+  // Elapsed timer while running
+  useEffect(() => {
+    if (reflectionStatus === 'running') {
+      runStartRef.current = Date.now();
+      setElapsedSec(0);
+      const interval = setInterval(() => {
+        setElapsedSec(Math.floor((Date.now() - runStartRef.current) / 1000));
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setElapsedSec(0);
+    }
+  }, [reflectionStatus]);
 
   const handleTrigger = async () => {
     setIsTriggering(true);
@@ -213,7 +269,7 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
               {scope === 'global' ? 'Global Reflection' : 'Project Reflection'}
             </h2>
           </div>
-          <StatusBadge status={reflectionStatus} />
+          <StatusBadge status={reflectionStatus} elapsedSec={elapsedSec} />
         </div>
 
         {/* Completion Message */}

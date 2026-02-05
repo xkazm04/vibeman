@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import type { ConfidencePoint } from '@/app/api/brain/insights/route';
 
 interface Props {
@@ -31,13 +31,15 @@ const trendColors: Record<Trend, string> = {
  * Tiny inline SVG sparkline showing confidence over time.
  * Color indicates trend: green (growing), gray (stable), amber (declining).
  * Hover shows tooltip with point details.
+ * Features gradient fill under the line and a draw-in entrance animation.
  */
 export default function InsightSparkline({ history, width = 48, height = 18 }: Props) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const gradientId = useId();
 
   if (history.length === 0) return null;
 
-  // Single point — just show a dot
+  // Single point -- just show a dot
   if (history.length === 1) {
     return (
       <svg
@@ -63,6 +65,7 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
   const padding = 3;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
+  const chartBottom = padding + chartHeight;
 
   // Scale confidence (0-100) to chart coordinates
   const minConf = Math.min(...history.map(p => p.confidence));
@@ -75,16 +78,33 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
     return { x, y, ...point };
   });
 
-  // Build SVG path
+  // Build SVG line path
   const pathD = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
     .join(' ');
+
+  // Build closed area path for gradient fill (line path + close to bottom)
+  const areaD = pathD
+    + ` L ${points[points.length - 1].x.toFixed(1)} ${chartBottom.toFixed(1)}`
+    + ` L ${points[0].x.toFixed(1)} ${chartBottom.toFixed(1)} Z`;
+
+  // Approximate total path length for draw-in animation
+  let totalLength = 0;
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i - 1].x;
+    const dy = points[i].y - points[i - 1].y;
+    totalLength += Math.sqrt(dx * dx + dy * dy);
+  }
+  const dashLength = Math.ceil(totalLength + 2);
 
   // Format date for tooltip
   const formatTooltipDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
+
+  // Use a CSS-safe gradient ID (strip colons from useId)
+  const safeGradientId = `sparkGrad${gradientId.replace(/:/g, '')}`;
 
   return (
     <div className="relative inline-block" style={{ width, height }}>
@@ -93,7 +113,33 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
         height={height}
         className="block"
       >
-        {/* Sparkline path */}
+        {/* Animation keyframes + gradient definition */}
+        <defs>
+          <linearGradient id={safeGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <style>{`
+          @keyframes sparkline-draw-${safeGradientId} {
+            from { stroke-dashoffset: ${dashLength}; }
+            to { stroke-dashoffset: 0; }
+          }
+          @keyframes sparkline-fill-${safeGradientId} {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        `}</style>
+        {/* Gradient-filled area under the line */}
+        <path
+          d={areaD}
+          fill={`url(#${safeGradientId})`}
+          style={{
+            animation: `sparkline-fill-${safeGradientId} 0.8s ease-out forwards`,
+            opacity: 0,
+          }}
+        />
+        {/* Sparkline path with draw-in animation */}
         <path
           d={pathD}
           fill="none"
@@ -101,6 +147,11 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
+          strokeDasharray={dashLength}
+          strokeDashoffset={dashLength}
+          style={{
+            animation: `sparkline-draw-${safeGradientId} 0.6s ease-out forwards`,
+          }}
         />
         {/* Data point dots */}
         {points.map((p, idx) => (
@@ -125,7 +176,7 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
             left: Math.min(Math.max(points[hoveredIdx].x - 20, 0), width - 40),
           }}
         >
-          {points[hoveredIdx].confidence}% — {formatTooltipDate(points[hoveredIdx].date)}
+          {points[hoveredIdx].confidence}% -- {formatTooltipDate(points[hoveredIdx].date)}
         </div>
       )}
     </div>

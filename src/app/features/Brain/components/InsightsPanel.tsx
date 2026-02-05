@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Filter, RefreshCw, AlertOctagon } from 'lucide-react';
+import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { InsightsTable } from './InsightsTable';
@@ -21,6 +21,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
   const [sortField, setSortField] = useState<SortField>('confidence');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [typeFilter, setTypeFilter] = useState<InsightType | 'all' | 'conflicts'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const projects = useServerProjectStore((state) => state.projects);
@@ -122,6 +123,10 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     } else {
       list = insights.filter(i => i.type === typeFilter);
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(i => i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q));
+    }
     list = [...list].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -133,7 +138,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [insights, typeFilter, sortField, sortDir]);
+  }, [insights, typeFilter, sortField, sortDir, searchQuery]);
 
   const baseCardStyle = {
     background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
@@ -191,11 +196,27 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
                 textShadow: `0 0 10px ${GLOW_COLOR}`
               }}
             >
-              {displayed.length}{typeFilter !== 'all' ? ` / ${insights.length}` : ''}
+              {displayed.length}{typeFilter !== 'all' || searchQuery.trim() ? ` / ${insights.length}` : ''}
             </span>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Search input */}
+            <div className="relative flex items-center">
+              <Search className="absolute left-2.5 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search insights..."
+                className="rounded-lg text-xs text-zinc-300 pl-8 pr-3 py-1.5 outline-none font-mono w-44 placeholder:text-zinc-600 focus:ring-1 focus:ring-amber-500/40 transition-all"
+                style={{
+                  background: 'rgba(39, 39, 42, 0.8)',
+                  border: '1px solid rgba(63, 63, 70, 0.5)'
+                }}
+              />
+            </div>
+
             {/* Conflicts button - prominent when conflicts exist */}
             {conflictCount > 0 && (
               <button
