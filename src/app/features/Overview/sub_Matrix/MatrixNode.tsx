@@ -3,15 +3,37 @@
 import React from 'react';
 import type { WorkspaceProjectNode } from '../sub_WorkspaceArchitecture/lib/types';
 import { TIER_CONFIG } from '../sub_WorkspaceArchitecture/lib/types';
+import type { ZoomDetailFlags } from './lib/semanticZoom';
 
 interface MatrixNodeProps {
   node: WorkspaceProjectNode;
   isHighlighted: boolean;
+  /** Detail flags from semantic zoom level (optional for backwards compatibility) */
+  detailFlags?: ZoomDetailFlags;
 }
 
-export default function MatrixNode({ node, isHighlighted }: MatrixNodeProps) {
+/**
+ * MatrixNode with semantic zoom support
+ * Renders different levels of detail based on zoom level:
+ * - Medium zoom: name + framework
+ * - High zoom: name + framework + git branch + file counts
+ */
+export default function MatrixNode({ node, isHighlighted, detailFlags }: MatrixNodeProps) {
   const tierConfig = TIER_CONFIG[node.tier];
-  const displayName = node.name.length > 16 ? node.name.slice(0, 15) + '…' : node.name;
+
+  // Default to high detail for backwards compatibility
+  const flags = detailFlags ?? {
+    showNodeName: true,
+    showFramework: true,
+    showGitBranch: true,
+    showCounts: true,
+    showHealth: true,
+    maxNameLength: 24,
+  };
+
+  // Truncate name based on zoom level
+  const maxLen = flags.maxNameLength || 16;
+  const displayName = node.name.length > maxLen ? node.name.slice(0, maxLen - 1) + '…' : node.name;
 
   // Branch display (full name)
   const branchName = node.branch || '';
@@ -40,14 +62,23 @@ export default function MatrixNode({ node, isHighlighted }: MatrixNodeProps) {
         stroke="#2a2a35"
       />
       <rect width={node.width} height={2} fill={tierConfig.color} />
-      <text x={10} y={20} fill="#ffffff" fontSize={11} fontWeight={600}>
-        {displayName}
-      </text>
-      <text x={10} y={34} fill="#6b7280" fontSize={9}>
-        {node.framework}
-      </text>
-      {/* Git branch indicator (like IDE status bar) */}
-      {node.branch && (
+
+      {/* Node name - always shown when node is visible */}
+      {flags.showNodeName && (
+        <text x={10} y={20} fill="#ffffff" fontSize={11} fontWeight={600}>
+          {displayName}
+        </text>
+      )}
+
+      {/* Framework label - medium+ zoom */}
+      {flags.showFramework && node.framework && (
+        <text x={10} y={34} fill="#6b7280" fontSize={9}>
+          {node.framework}
+        </text>
+      )}
+
+      {/* Git branch indicator - high zoom only */}
+      {flags.showGitBranch && node.branch && (
         <g transform={`translate(10, 44)`}>
           {/* Git branch icon (simplified) */}
           <path
@@ -65,6 +96,40 @@ export default function MatrixNode({ node, isHighlighted }: MatrixNodeProps) {
               *
             </text>
           )}
+        </g>
+      )}
+
+      {/* File/context counts - high zoom only */}
+      {flags.showCounts && (node.contextCount > 0 || node.contextGroupCount > 0) && (
+        <g transform={`translate(10, ${flags.showGitBranch && node.branch ? 60 : 44})`}>
+          <text x={0} y={5.5} fill="#4b5563" fontSize={8}>
+            {node.contextGroupCount > 0 && `${node.contextGroupCount} groups`}
+            {node.contextGroupCount > 0 && node.contextCount > 0 && ' · '}
+            {node.contextCount > 0 && `${node.contextCount} contexts`}
+          </text>
+        </g>
+      )}
+
+      {/* Connection count badge - high zoom only */}
+      {flags.showCounts && node.connectionCount > 0 && (
+        <g transform={`translate(${node.width - 24}, 8)`}>
+          <rect
+            width={18}
+            height={14}
+            rx={3}
+            fill={tierConfig.color}
+            opacity={0.2}
+          />
+          <text
+            x={9}
+            y={10}
+            fill={tierConfig.color}
+            fontSize={8}
+            fontWeight={600}
+            textAnchor="middle"
+          >
+            {node.connectionCount}
+          </text>
         </g>
       )}
     </g>

@@ -48,7 +48,6 @@ export function migrate059ExecutiveAnalysis(db: Database.Database): void {
         ON executive_analysis(created_at DESC);
     `);
     console.log('[Migration 059] Created executive_analysis table');
+    console.log('[Migration 059] Executive Analysis migration complete');
   }
-
-  console.log('[Migration 059] Executive Analysis migration complete');
 }

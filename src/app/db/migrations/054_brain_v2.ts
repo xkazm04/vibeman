@@ -16,6 +16,8 @@ function tableExists(db: Database.Database, tableName: string): boolean {
 }
 
 export function migrate054BrainV2(db: Database.Database): void {
+  let tablesCreated = 0;
+
   // Create behavioral_signals table
   if (!tableExists(db, 'behavioral_signals')) {
     db.exec(`
@@ -41,6 +43,7 @@ export function migrate054BrainV2(db: Database.Database): void {
         ON behavioral_signals(context_id);
     `);
     console.log('[Migration 054] Created behavioral_signals table');
+    tablesCreated++;
   }
 
   // Create direction_outcomes table
@@ -88,6 +91,7 @@ export function migrate054BrainV2(db: Database.Database): void {
         ON direction_outcomes(was_reverted);
     `);
     console.log('[Migration 054] Created direction_outcomes table');
+    tablesCreated++;
   }
 
   // Create brain_reflections table
@@ -123,7 +127,10 @@ export function migrate054BrainV2(db: Database.Database): void {
         ON brain_reflections(created_at DESC);
     `);
     console.log('[Migration 054] Created brain_reflections table');
+    tablesCreated++;
   }
 
-  console.log('[Migration 054] Brain 2.0 tables migration complete');
+  if (tablesCreated > 0) {
+    console.log('[Migration 054] Brain 2.0 tables migration complete');
+  }
 }

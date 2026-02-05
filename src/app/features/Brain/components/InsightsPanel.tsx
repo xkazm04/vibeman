@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Filter, RefreshCw } from 'lucide-react';
+import { Lightbulb, Filter, RefreshCw, AlertOctagon } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { InsightsTable } from './InsightsTable';
@@ -20,7 +20,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [sortField, setSortField] = useState<SortField>('confidence');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [typeFilter, setTypeFilter] = useState<InsightType | 'all'>('all');
+  const [typeFilter, setTypeFilter] = useState<InsightType | 'all' | 'conflicts'>('all');
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const projects = useServerProjectStore((state) => state.projects);
@@ -75,6 +75,30 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     }
   };
 
+  const handleResolveConflict = async (
+    insight: InsightWithMeta,
+    resolution: 'keep_both' | 'keep_this' | 'keep_other'
+  ) => {
+    try {
+      const response = await fetch('/api/brain/insights', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reflectionId: insight.reflection_id,
+          insightTitle: insight.title,
+          resolution,
+          conflictingInsightTitle: insight.conflict_with,
+        }),
+      });
+      if (response.ok) {
+        // Refresh insights to get updated state
+        fetchInsights();
+      }
+    } catch (err) {
+      console.error('Failed to resolve conflict:', err);
+    }
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -84,8 +108,20 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     }
   };
 
+  // Count conflicts for badge
+  const conflictCount = useMemo(() => {
+    return insights.filter(i => i.conflict_with && !i.conflict_resolved).length;
+  }, [insights]);
+
   const displayed = useMemo(() => {
-    let list = typeFilter === 'all' ? insights : insights.filter(i => i.type === typeFilter);
+    let list: InsightWithMeta[];
+    if (typeFilter === 'all') {
+      list = insights;
+    } else if (typeFilter === 'conflicts') {
+      list = insights.filter(i => i.conflict_with && !i.conflict_resolved);
+    } else {
+      list = insights.filter(i => i.type === typeFilter);
+    }
     list = [...list].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -160,11 +196,27 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Conflicts button - prominent when conflicts exist */}
+            {conflictCount > 0 && (
+              <button
+                onClick={() => setTypeFilter(typeFilter === 'conflicts' ? 'all' : 'conflicts')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                  typeFilter === 'conflicts'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                    : 'bg-red-500/10 text-red-400/80 border border-red-500/20 hover:bg-red-500/15'
+                }`}
+                title="View conflicting insights"
+              >
+                <AlertOctagon className="w-3.5 h-3.5" />
+                <span>{conflictCount} CONFLICTS</span>
+              </button>
+            )}
+
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-zinc-500" />
               <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as InsightType | 'all')}
+                value={typeFilter === 'conflicts' ? 'all' : typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as InsightType | 'all' | 'conflicts')}
                 className="rounded-lg text-xs text-zinc-300 px-3 py-1.5 outline-none font-mono"
                 style={{
                   background: 'rgba(39, 39, 42, 0.8)',
@@ -225,6 +277,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
             sortDir={sortDir}
             onSort={handleSort}
             onDelete={handleDelete}
+            onResolveConflict={handleResolveConflict}
             projectNameMap={projectNameMap}
           />
         )}

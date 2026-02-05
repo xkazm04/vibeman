@@ -73,6 +73,22 @@ export const ideaRepository = {
   },
 
   /**
+   * Get the latest scan ID for a project and scan type
+   * Returns the most recent scan_id or null if none found
+   */
+  getLatestScanId: (projectId: string, scanType: string): string | null => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT scan_id FROM ideas
+      WHERE project_id = ? AND scan_type = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    const result = stmt.get(projectId, scanType) as { scan_id: string } | undefined;
+    return result?.scan_id ?? null;
+  },
+
+  /**
    * Get ideas by goal
    */
   getIdeasByGoal: (goalId: string): DbIdea[] => {

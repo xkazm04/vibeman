@@ -181,6 +181,10 @@ export function CompactTerminal({
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stuckCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // RAF batching for log updates - reduces re-renders from 20+/sec to 60fps max
+  const pendingLogsRef = useRef<LogEntry[]>([]);
+  const rafIdRef = useRef<number | null>(null);
+
   // Determine if we should use virtualization (for performance with many logs)
   const useVirtualization = logs.length > VIRTUALIZATION_THRESHOLD;
 
@@ -235,9 +239,35 @@ export function CompactTerminal({
   // Track if we've attempted reconnection
   const hasAttemptedReconnectRef = useRef(false);
 
-  // Add log entry
+  // Flush pending logs to state - called once per animation frame
+  const flushLogs = useCallback(() => {
+    if (pendingLogsRef.current.length === 0) return;
+
+    const logsToAdd = pendingLogsRef.current;
+    pendingLogsRef.current = [];
+    rafIdRef.current = null;
+
+    setLogs(prev => [...prev, ...logsToAdd]);
+  }, []);
+
+  // Add log entry with RAF batching
+  // Collects logs and flushes once per animation frame to reduce re-renders
   const addLog = useCallback((entry: LogEntry) => {
-    setLogs(prev => [...prev, entry]);
+    pendingLogsRef.current.push(entry);
+
+    // Schedule flush if not already scheduled
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(flushLogs);
+    }
+  }, [flushLogs]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
   }, []);
 
   // Add file change

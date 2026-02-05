@@ -18,6 +18,8 @@ function tableExists(db: Database.Database, tableName: string): boolean {
 }
 
 export function migrate056AnnetteV2(db: Database.Database): void {
+  let tablesCreated = 0;
+
   // 1. Conversation sessions
   if (!tableExists(db, 'annette_sessions')) {
     db.exec(`
@@ -41,6 +43,7 @@ export function migrate056AnnetteV2(db: Database.Database): void {
         ON annette_sessions(last_activity_at DESC);
     `);
     console.log('[Migration 056] Created annette_sessions table');
+    tablesCreated++;
   }
 
   // 2. Individual messages
@@ -65,6 +68,7 @@ export function migrate056AnnetteV2(db: Database.Database): void {
         ON annette_messages(created_at);
     `);
     console.log('[Migration 056] Created annette_messages table');
+    tablesCreated++;
   }
 
   // 3. Cross-session topic memory (Layer 3: ~300 tokens)
@@ -87,6 +91,7 @@ export function migrate056AnnetteV2(db: Database.Database): void {
         ON annette_memory_topics(relevance_score DESC);
     `);
     console.log('[Migration 056] Created annette_memory_topics table');
+    tablesCreated++;
   }
 
   // 4. Long-term user preferences (Layer 5: ~200 tokens)
@@ -111,6 +116,7 @@ export function migrate056AnnetteV2(db: Database.Database): void {
         ON annette_user_preferences(category);
     `);
     console.log('[Migration 056] Created annette_user_preferences table');
+    tablesCreated++;
   }
 
   // 5. Audio cache metadata
@@ -135,7 +141,10 @@ export function migrate056AnnetteV2(db: Database.Database): void {
         ON annette_audio_cache(last_accessed_at ASC);
     `);
     console.log('[Migration 056] Created annette_audio_cache table');
+    tablesCreated++;
   }
 
-  console.log('[Migration 056] Annette 2.0 tables migration complete');
+  if (tablesCreated > 0) {
+    console.log('[Migration 056] Annette 2.0 tables migration complete');
+  }
 }

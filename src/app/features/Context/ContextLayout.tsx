@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Plus, FolderPlus } from 'lucide-react';
 import { Caveat } from 'next/font/google';
-import { DndContext, DragOverlay } from '@dnd-kit/core';
+import { DndContext, DragOverlay, DragEndEvent } from '@dnd-kit/core';
 import { useContextStore } from '../../../stores/contextStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
@@ -30,7 +30,7 @@ interface HorizontalContextBarProps {
 }
 
 const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalContextBarProps) => {
-  const { contexts, groups, loading, loadProjectData, updateContext, moveContext, deleteAllContexts } = useContextStore();
+  const { contexts, groups, loading, loadProjectData, queueMove, flushPendingMoves, clearPendingMoves, deleteAllContexts } = useContextStore();
   const { activeProject } = useActiveProjectStore();
   const { showFullScreenModal } = useGlobalModal();
   const { isDetailOpen, selectedGroupId, closeGroupDetail, openGroupDetail } = useContextDetail();
@@ -61,24 +61,28 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     targetTransforms: DEFAULT_TARGET_TRANSFORMS.UNGROUPED,
   });
 
-  // DnD Context hook - replaces manual sensor setup and state management
+  // DnD Context hook - uses batching for O(1) API calls instead of O(n)
+  // queueMove: optimistically updates UI and queues the move
+  // flushPendingMoves: sends all queued moves in a single batch API call on drag end
   const {
     sensors,
     activeId,
     isDragActive,
     handleDragStart,
     handleDragEnd,
+    handleDragCancel,
     dropAnimation,
   } = useDragDropContext({
-    onDrop: async (contextId, groupId) => {
+    onDrop: (contextId, groupId) => {
       if (!groupId) return;
       // Transform synthetic group ID to null for ungrouped
       const targetGroupId = transformTarget(groupId);
-      try {
-        await moveContext(contextId, targetGroupId);
-      } catch (error) {
-        console.error('Failed to move context:', error);
-      }
+      // Queue the move for batch processing - updates UI optimistically
+      queueMove(contextId, targetGroupId);
+    },
+    onDragCancel: () => {
+      // Clear pending moves if drag is cancelled
+      clearPendingMoves();
     },
     sensorOptions: {
       delay: 300,
@@ -86,12 +90,43 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     },
   });
 
+  // Flush pending moves when drag ends
+  // This sends all queued moves in a single batch API call
+  const handleDragEndWithFlush = useCallback(async (event: Parameters<typeof handleDragEnd>[0]) => {
+    handleDragEnd(event);
+    // Flush after a short delay to allow the queue to populate
+    setTimeout(async () => {
+      try {
+        await flushPendingMoves();
+      } catch (error) {
+        console.error('Failed to batch move contexts:', error);
+      }
+    }, 0);
+  }, [handleDragEnd, flushPendingMoves]);
+
 
   // Memoized calculations for performance
-  const ungroupedContexts = useMemo(() =>
-    contexts.filter(ctx => !ctx.groupId),
-    [contexts]
-  );
+  // Pre-compute group-to-context mapping in a single O(n) pass
+  // This avoids O(groups × contexts) filtering on every render
+  const { ungroupedContexts, contextsByGroupId } = useMemo(() => {
+    const ungrouped: typeof contexts = [];
+    const byGroupId = new Map<string, typeof contexts>();
+
+    for (const ctx of contexts) {
+      if (!ctx.groupId) {
+        ungrouped.push(ctx);
+      } else {
+        const existing = byGroupId.get(ctx.groupId);
+        if (existing) {
+          existing.push(ctx);
+        } else {
+          byGroupId.set(ctx.groupId, [ctx]);
+        }
+      }
+    }
+
+    return { ungroupedContexts: ungrouped, contextsByGroupId: byGroupId };
+  }, [contexts]);
 
   const syntheticToGroup = useMemo(() => ({
     id: SYNTHETIC_GROUP_ID,
@@ -194,7 +229,8 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+        onDragEnd={handleDragEndWithFlush}
+        onDragCancel={handleDragCancel}
       >
         <motion.div
           initial={{ opacity: 0, y: -30 }}
@@ -270,9 +306,10 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                         {/* Render all groups */}
                         {allGroups.map((group, index) => {
                           const isSyntheticGroup = group.id === SYNTHETIC_GROUP_ID;
-                          const groupContexts = isSyntheticGroup ?
-                            ungroupedContexts :
-                            contexts.filter(ctx => ctx.groupId === group.id);
+                          // Use pre-computed lookup map - O(1) instead of O(n) filter
+                          const groupContexts = isSyntheticGroup
+                            ? ungroupedContexts
+                            : (contextsByGroupId.get(group.id) || []);
 
                           return (
                             <motion.div

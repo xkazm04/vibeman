@@ -13,6 +13,7 @@ import {
 import { migrateDropOrphanedTables } from './064_drop_orphaned_tables';
 import { migrate065DirectionPairs } from './065_direction_pairs';
 import { migrate066CleanupStaleContextPaths } from './066_cleanup_stale_context_paths';
+import { migrate067FixCheckConstraints } from './067_fix_check_constraints';
 
 /**
  * Migration logger utility
@@ -219,10 +220,13 @@ export function runMigrations() {
     migrate065DirectionPairs();
     // Migration 79: Cleanup Stale Context Paths - remove non-existent file references
     migrate066CleanupStaleContextPaths();
-    // Migration 80: Discovered Templates - store templates from external projects
+    // Migration 80: Fix CHECK constraints for directions.status and behavioral_signals.signal_type
+    migrate067FixCheckConstraints();
+    // Migration 81: Discovered Templates - store templates from external projects
     migrateDiscoveredTemplates();
-    // Migration 81: Generation History - track template generation history
+    // Migration 82: Generation History - track template generation history
     migrateGenerationHistory();
+
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

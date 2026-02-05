@@ -12,6 +12,10 @@ interface ContextRowSelectionProps {
   contextGroups: ContextGroup[];
   selectedContextIds: string[];
   onSelectContexts: (contextIds: string[]) => void;
+  /** Groups selected as whole units for requirement generation */
+  selectedGroupIdsForGeneration?: string[];
+  /** Callback when groups are selected for generation via Shift+Click */
+  onSelectGroupsForGeneration?: (groupIds: string[]) => void;
 }
 
 export default function ContextRowSelection({
@@ -19,35 +23,66 @@ export default function ContextRowSelection({
   contextGroups,
   selectedContextIds,
   onSelectContexts,
+  selectedGroupIdsForGeneration: externalSelectedGroupIdsForGeneration,
+  onSelectGroupsForGeneration,
 }: ContextRowSelectionProps) {
   const { getThemeColors } = useThemeStore();
 
-  // Internal state: which groups are selected/expanded
+  // Internal state: which groups are expanded (to show individual contexts)
   const [selectedGroupIds, setSelectedGroupIds] = React.useState<string[]>([]);
 
-  // Check if "Full Project" is selected (no contexts and no groups selected)
-  const isFullProjectSelected = selectedContextIds.length === 0 && selectedGroupIds.length === 0;
+  // State for groups selected as whole units for requirement generation (Shift+Click)
+  // Use external state if provided, otherwise use internal state
+  const [internalSelectedGroupIdsForGeneration, setInternalSelectedGroupIdsForGeneration] = React.useState<string[]>([]);
+  const selectedGroupIdsForGeneration = externalSelectedGroupIdsForGeneration ?? internalSelectedGroupIdsForGeneration;
+
+  // Callback to update group selection for generation
+  const updateGroupsForGeneration = React.useCallback((groupIds: string[]) => {
+    if (onSelectGroupsForGeneration) {
+      onSelectGroupsForGeneration(groupIds);
+    } else {
+      setInternalSelectedGroupIdsForGeneration(groupIds);
+    }
+  }, [onSelectGroupsForGeneration]);
+
+  // Check if "Full Project" is selected (no contexts, no groups expanded, no groups selected for generation)
+  const isFullProjectSelected = selectedContextIds.length === 0 && selectedGroupIds.length === 0 && selectedGroupIdsForGeneration.length === 0;
 
   // Handle "Full Project" button click
   const handleFullProjectClick = () => {
     setSelectedGroupIds([]);
     onSelectContexts([]);
+    updateGroupsForGeneration([]);
   };
 
-  // Toggle group selection
-  const handleToggleGroup = (groupId: string) => {
-    if (selectedGroupIds.includes(groupId)) {
-      // Deselecting group - also remove all contexts from this group
-      setSelectedGroupIds((prev) => prev.filter((id) => id !== groupId));
-
-      // Remove all contexts belonging to this group from selection
-      const groupContextIds = contexts
-        .filter((ctx) => ctx.groupId === groupId)
-        .map((ctx) => ctx.id);
-      onSelectContexts(selectedContextIds.filter((id) => !groupContextIds.includes(id)));
+  // Toggle group selection - handles both expand/collapse (normal click) and generation selection (shift+click)
+  const handleToggleGroup = (groupId: string, isShiftClick?: boolean) => {
+    if (isShiftClick) {
+      // Shift+Click: Toggle group selection for generation (select entire group)
+      if (selectedGroupIdsForGeneration.includes(groupId)) {
+        updateGroupsForGeneration(selectedGroupIdsForGeneration.filter((id) => id !== groupId));
+      } else {
+        updateGroupsForGeneration([...selectedGroupIdsForGeneration, groupId]);
+        // Also expand the group to show what contexts are included
+        if (!selectedGroupIds.includes(groupId)) {
+          setSelectedGroupIds((prev) => [...prev, groupId]);
+        }
+      }
     } else {
-      // Selecting group - just add to selected groups (don't auto-select contexts)
-      setSelectedGroupIds((prev) => [...prev, groupId]);
+      // Normal click: Toggle expand/collapse
+      if (selectedGroupIds.includes(groupId)) {
+        // Deselecting group - also remove all contexts from this group
+        setSelectedGroupIds((prev) => prev.filter((id) => id !== groupId));
+
+        // Remove all contexts belonging to this group from selection
+        const groupContextIds = contexts
+          .filter((ctx) => ctx.groupId === groupId)
+          .map((ctx) => ctx.id);
+        onSelectContexts(selectedContextIds.filter((id) => !groupContextIds.includes(id)));
+      } else {
+        // Selecting group - just add to selected groups (don't auto-select contexts)
+        setSelectedGroupIds((prev) => [...prev, groupId]);
+      }
     }
   };
 
@@ -55,6 +90,7 @@ export default function ContextRowSelection({
   const handleClearAll = () => {
     setSelectedGroupIds([]);
     onSelectContexts([]);
+    updateGroupsForGeneration([]);
   };
 
   // Toggle individual context selection
@@ -66,8 +102,10 @@ export default function ContextRowSelection({
     }
   };
 
-  // Calculate total selection count
-  const totalSelectedCount = selectedContextIds.length;
+  // Calculate total selection count (both contexts and groups for generation)
+  const contextCount = selectedContextIds.length;
+  const groupCount = selectedGroupIdsForGeneration.length;
+  const totalSelectedCount = contextCount + groupCount;
 
   if (contexts.length === 0) {
     return null;
@@ -115,6 +153,7 @@ export default function ContextRowSelection({
             contextGroups={contextGroups}
             contexts={contexts}
             selectedGroupIds={selectedGroupIds}
+            selectedGroupIdsForGeneration={selectedGroupIdsForGeneration}
             onToggleGroup={handleToggleGroup}
             onClearAll={handleClearAll}
           />
@@ -130,7 +169,11 @@ export default function ContextRowSelection({
               exit={{ opacity: 0, scale: 0.8 }}
               data-testid="context-selection-count"
             >
-              {totalSelectedCount} selected
+              {groupCount > 0 && contextCount > 0
+                ? `${contextCount} ctx + ${groupCount} grp`
+                : groupCount > 0
+                  ? `${groupCount} group${groupCount > 1 ? 's' : ''}`
+                  : `${contextCount} selected`}
             </motion.span>
           )}
         </AnimatePresence>

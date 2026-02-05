@@ -13,6 +13,7 @@ import {
   createDebouncedLoadingManager,
   type DebouncedLoadingManager
 } from './utils/storeHelpers';
+import { toast } from './toastStore';
 
 // Singleton debounced loading manager for the context store
 // Initialized lazily to avoid issues with SSR
@@ -46,7 +47,16 @@ export type { Context, ContextGroup } from './context/contextStoreTypes';
  * const { addContext, removeContext } = useContextStore(useShallow(state => ({ addContext: state.addContext, removeContext: state.removeContext })));
  */
 
+// Pending move operation for batch processing
+interface PendingMove {
+  contextId: string;
+  newGroupId: string | null;
+}
+
 interface ContextStoreState extends ContextState {
+  // Pending moves for batch processing during drag-drop
+  pendingMoves: PendingMove[];
+
   // Context operations
   addContext: (contextData: {
     projectId: string;
@@ -67,6 +77,11 @@ interface ContextStoreState extends ContextState {
     target_fulfillment?: string | null;
   }) => Promise<void>;
   moveContext: (contextId: string, newGroupId: string | null) => Promise<void>;
+
+  // Batch move operations for drag-drop sessions
+  queueMove: (contextId: string, newGroupId: string | null) => void;
+  flushPendingMoves: () => Promise<void>;
+  clearPendingMoves: () => void;
 
   // Group operations
   addGroup: (groupData: {
@@ -107,6 +122,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
   error: null,
   initialized: false,
   selectedContextIds: new Set<string>(),
+  pendingMoves: [],
 
   // Load all project data (groups and contexts)
   loadProjectData: async (projectId: string, signal?: AbortSignal) => {
@@ -140,10 +156,30 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
     }
   },
 
-  // Add a new context
+  // Add a new context (optimistic with temp ID, replaced on server response)
   addContext: async (contextData) => {
-    const manager = getLoadingManager(set);
-    manager.startOperation();
+    // Create optimistic context with temporary ID
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticContext: Context = {
+      id: tempId,
+      projectId: contextData.projectId,
+      groupId: contextData.groupId || null,
+      name: contextData.name,
+      description: contextData.description || '',
+      filePaths: contextData.filePaths,
+      hasContextFile: contextData.hasContextFile || false,
+      contextFilePath: contextData.contextFilePath || null,
+      previewImage: null,
+      target: null,
+      target_fulfillment: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    // Optimistically add to UI immediately
+    set(state => ({
+      contexts: addArrayItem(state.contexts, optimisticContext, 'start'),
+    }));
 
     try {
       // Use the new generate-context API endpoint
@@ -173,158 +209,229 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
 
       const newContext = result.context;
 
-      manager.endOperation();
+      // Replace optimistic context with server response (real ID)
       set(state => ({
-        contexts: addArrayItem(state.contexts, newContext, 'start'),
-        ...createSuccessState(),
+        contexts: state.contexts.map(ctx =>
+          ctx.id === tempId ? newContext : ctx
+        ),
       }));
     } catch (error) {
-      manager.endOperation();
-      set(createErrorState(error, 'Failed to add context'));
+      // Rollback on error - remove optimistic context
+      set(state => ({
+        contexts: state.contexts.filter(ctx => ctx.id !== tempId),
+      }));
+      toast.error('Failed to create context', contextData.name);
       throw error;
     }
   },
 
-  // Remove a context
+  // Remove a context (optimistic update)
   removeContext: async (contextId: string) => {
-    const manager = getLoadingManager(set);
-    manager.startOperation();
+    // Store previous state for rollback
+    const previousContexts = get().contexts;
+    const removedContext = previousContexts.find(c => c.id === contextId);
+
+    // Optimistically update UI immediately
+    set(state => ({
+      contexts: removeArrayItem(state.contexts, contextId),
+    }));
 
     try {
       const success = await contextAPI.deleteContext(contextId);
 
-      if (success) {
-        manager.endOperation();
-        set(state => ({
-          contexts: removeArrayItem(state.contexts, contextId),
-          ...createSuccessState(),
-        }));
-      } else {
+      if (!success) {
         throw new Error('Context not found');
       }
+      // Success - state already updated optimistically
     } catch (error) {
-      manager.endOperation();
-      set(createErrorState(error, 'Failed to remove context'));
+      // Rollback on error
+      set({ contexts: previousContexts });
+      toast.error('Failed to delete context', removedContext?.name || 'Unknown context');
       throw error;
     }
   },
 
-  // Update a context
+  // Update a context (optimistic update)
   updateContext: async (contextId: string, updates) => {
-    const manager = getLoadingManager(set);
-    manager.startOperation();
+    // Store previous state for rollback
+    const previousContexts = get().contexts;
+    const existingContext = previousContexts.find(c => c.id === contextId);
+
+    if (!existingContext) {
+      toast.error('Failed to update context', 'Context not found');
+      throw new Error('Context not found');
+    }
+
+    // Optimistically update UI immediately
+    const optimisticContext = { ...existingContext, ...updates, updatedAt: new Date() };
+    set(state => ({
+      contexts: updateArrayItem(state.contexts, contextId, optimisticContext),
+    }));
 
     try {
       const updatedContext = await contextAPI.updateContext(contextId, updates);
 
       if (updatedContext) {
-        manager.endOperation();
+        // Sync with server response (may have additional changes)
         set(state => ({
           contexts: updateArrayItem(state.contexts, contextId, updatedContext),
-          ...createSuccessState(),
         }));
       } else {
         throw new Error('Context not found');
       }
     } catch (error) {
-      manager.endOperation();
-      set(createErrorState(error, 'Failed to update context'));
+      // Rollback on error
+      set({ contexts: previousContexts });
+      toast.error('Failed to update context', existingContext.name);
       throw error;
     }
   },
 
-  // Move context to different group
+  // Move context to different group (optimistic update)
   moveContext: async (contextId: string, newGroupId: string | null) => {
-    const manager = getLoadingManager(set);
-    manager.startOperation();
+    // Store previous state for rollback
+    const previousContexts = get().contexts;
+    const existingContext = previousContexts.find(c => c.id === contextId);
+
+    if (!existingContext) {
+      toast.error('Failed to move context', 'Context not found');
+      throw new Error('Context not found');
+    }
+
+    // Optimistically update UI immediately
+    const optimisticContext = { ...existingContext, groupId: newGroupId, updatedAt: new Date() };
+    set(state => ({
+      contexts: updateArrayItem(state.contexts, contextId, optimisticContext),
+    }));
 
     try {
       const updatedContext = await contextAPI.updateContext(contextId, { groupId: newGroupId });
 
       if (updatedContext) {
-        manager.endOperation();
+        // Sync with server response
         set(state => ({
           contexts: updateArrayItem(state.contexts, contextId, updatedContext),
-          ...createSuccessState(),
         }));
       } else {
         throw new Error('Context not found');
       }
     } catch (error) {
-      manager.endOperation();
-      set(createErrorState(error, 'Failed to move context'));
+      // Rollback on error
+      set({ contexts: previousContexts });
+      toast.error('Failed to move context', existingContext.name);
       throw error;
     }
   },
 
-  // Add a new group
+  // Add a new group (optimistic with temp ID, replaced on server response)
   addGroup: async (groupData) => {
-    const manager = getLoadingManager(set);
-    manager.startOperation();
+    // Create optimistic group with temporary ID
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const currentGroups = get().groups;
+    const maxPosition = currentGroups.length > 0
+      ? Math.max(...currentGroups.map(g => g.position))
+      : 0;
+
+    const optimisticGroup: ContextGroup = {
+      id: tempId,
+      projectId: groupData.projectId,
+      name: groupData.name,
+      color: groupData.color || '#6366f1',
+      icon: groupData.icon || null,
+      type: null,
+      position: maxPosition + 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    // Optimistically add to UI immediately
+    set(state => ({
+      groups: [...state.groups, optimisticGroup].sort((a, b) => a.position - b.position),
+    }));
 
     try {
       const newGroup = await contextAPI.createGroup(groupData);
 
-      manager.endOperation();
+      // Replace optimistic group with server response (real ID)
       set(state => ({
-        groups: [...state.groups, newGroup].sort((a, b) => a.position - b.position),
-        ...createSuccessState(),
+        groups: state.groups.map(g =>
+          g.id === tempId ? newGroup : g
+        ).sort((a, b) => a.position - b.position),
       }));
     } catch (error) {
-      manager.endOperation();
-      set(createErrorState(error, 'Failed to add group'));
+      // Rollback on error - remove optimistic group
+      set(state => ({
+        groups: state.groups.filter(g => g.id !== tempId),
+      }));
+      toast.error('Failed to create group', groupData.name);
       throw error;
     }
   },
 
-  // Remove a group
+  // Remove a group (optimistic update)
   removeGroup: async (groupId: string) => {
-    const manager = getLoadingManager(set);
-    manager.startOperation();
+    // Store previous state for rollback
+    const previousGroups = get().groups;
+    const previousContexts = get().contexts;
+    const removedGroup = previousGroups.find(g => g.id === groupId);
+
+    // Optimistically update UI immediately
+    set(state => ({
+      groups: removeArrayItem(state.groups, groupId),
+      contexts: state.contexts.map(ctx =>
+        ctx.groupId === groupId ? { ...ctx, groupId: null } : ctx
+      ),
+    }));
 
     try {
       const success = await contextAPI.deleteGroup(groupId);
 
-      if (success) {
-        manager.endOperation();
-        set(state => ({
-          groups: removeArrayItem(state.groups, groupId),
-          contexts: state.contexts.map(ctx =>
-            ctx.groupId === groupId ? { ...ctx, groupId: null } : ctx
-          ),
-          ...createSuccessState(),
-        }));
-      } else {
+      if (!success) {
         throw new Error('Group not found');
       }
+      // Success - state already updated optimistically
     } catch (error) {
-      manager.endOperation();
-      set(createErrorState(error, 'Failed to remove group'));
+      // Rollback on error
+      set({ groups: previousGroups, contexts: previousContexts });
+      toast.error('Failed to delete group', removedGroup?.name || 'Unknown group');
       throw error;
     }
   },
 
-  // Update a group
+  // Update a group (optimistic update)
   updateGroup: async (groupId: string, updates) => {
-    const manager = getLoadingManager(set);
-    manager.startOperation();
+    // Store previous state for rollback
+    const previousGroups = get().groups;
+    const existingGroup = previousGroups.find(g => g.id === groupId);
+
+    if (!existingGroup) {
+      toast.error('Failed to update group', 'Group not found');
+      throw new Error('Group not found');
+    }
+
+    // Optimistically update UI immediately
+    const optimisticGroup = { ...existingGroup, ...updates, updatedAt: new Date() };
+    set(state => ({
+      groups: updateArrayItem(state.groups, groupId, optimisticGroup)
+        .sort((a, b) => a.position - b.position),
+    }));
 
     try {
       const updatedGroup = await contextAPI.updateGroup(groupId, updates);
 
       if (updatedGroup) {
-        manager.endOperation();
+        // Sync with server response
         set(state => ({
           groups: updateArrayItem(state.groups, groupId, updatedGroup)
             .sort((a, b) => a.position - b.position),
-          ...createSuccessState(),
         }));
       } else {
         throw new Error('Group not found');
       }
     } catch (error) {
-      manager.endOperation();
-      set(createErrorState(error, 'Failed to update group'));
+      // Rollback on error
+      set({ groups: previousGroups });
+      toast.error('Failed to update group', existingGroup.name);
       throw error;
     }
   },
@@ -427,6 +534,73 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
     set(state => ({
       selectedContextIds: new Set(state.contexts.map(ctx => ctx.id))
     }));
+  },
+
+  // Queue a context move for batch processing
+  // Optimistically updates local state immediately for responsive UI
+  queueMove: (contextId: string, newGroupId: string | null) => {
+    set(state => {
+      // Check if there's already a pending move for this context
+      const existingIndex = state.pendingMoves.findIndex(m => m.contextId === contextId);
+      const newPendingMoves = [...state.pendingMoves];
+
+      if (existingIndex >= 0) {
+        // Update existing pending move
+        newPendingMoves[existingIndex] = { contextId, newGroupId };
+      } else {
+        // Add new pending move
+        newPendingMoves.push({ contextId, newGroupId });
+      }
+
+      // Optimistically update local state for immediate UI feedback
+      const updatedContexts = updateArrayItem(
+        state.contexts,
+        contextId,
+        { ...state.contexts.find(c => c.id === contextId)!, groupId: newGroupId }
+      );
+
+      return {
+        pendingMoves: newPendingMoves,
+        contexts: updatedContexts,
+      };
+    });
+  },
+
+  // Flush all pending moves to the server in a single batch API call
+  // Note: queueMove already applies optimistic updates, this just syncs with server
+  flushPendingMoves: async () => {
+    const { pendingMoves, contexts } = get();
+    if (pendingMoves.length === 0) return;
+
+    // Store snapshot for potential rollback (queueMove already optimistically updated)
+    const previousContexts = contexts;
+    const moveCount = pendingMoves.length;
+
+    try {
+      const updatedContexts = await contextAPI.batchMoveContexts(pendingMoves);
+
+      set(state => ({
+        // Sync contexts with server response
+        contexts: state.contexts.map(ctx => {
+          const updated = updatedContexts.find(u => u.id === ctx.id);
+          return updated || ctx;
+        }),
+        pendingMoves: [],
+      }));
+    } catch (error) {
+      // Rollback optimistic updates on failure
+      set({
+        contexts: previousContexts,
+        pendingMoves: [],
+      });
+      toast.error('Failed to move contexts', `${moveCount} context${moveCount > 1 ? 's' : ''} could not be moved`);
+      throw error;
+    }
+  },
+
+  // Clear pending moves without flushing (e.g., on drag cancel)
+  clearPendingMoves: () => {
+    set({ pendingMoves: [] });
   },
 }));
 

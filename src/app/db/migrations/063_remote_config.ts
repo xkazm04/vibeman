@@ -31,7 +31,6 @@ export function migrate063RemoteConfig(db: Database.Database): void {
         ON remote_config(is_configured);
     `);
     console.log('[Migration 063] Created remote_config table');
+    console.log('[Migration 063] Remote config migration complete');
   }
-
-  console.log('[Migration 063] Remote config migration complete');
 }

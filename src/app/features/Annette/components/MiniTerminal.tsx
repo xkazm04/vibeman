@@ -102,6 +102,10 @@ export function MiniTerminal({
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
+  // RAF batching for log updates - reduces re-renders from 20+/sec to 60fps max
+  const pendingLogsRef = useRef<LogEntry[]>([]);
+  const rafIdRef = useRef<number | null>(null);
+
   // Auto-scroll
   useEffect(() => {
     if (scrollRef.current && !isCollapsed) {
@@ -115,13 +119,34 @@ export function MiniTerminal({
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
     };
   }, []);
 
-  // Add log entry
-  const addLog = useCallback((entry: LogEntry) => {
-    setLogs(prev => [...prev.slice(-30), entry]); // Keep last 30 logs for memory
+  // Flush pending logs to state - called once per animation frame
+  const flushLogs = useCallback(() => {
+    if (pendingLogsRef.current.length === 0) return;
+
+    const logsToAdd = pendingLogsRef.current;
+    pendingLogsRef.current = [];
+    rafIdRef.current = null;
+
+    // Keep last 30 logs for memory
+    setLogs(prev => [...prev, ...logsToAdd].slice(-30));
   }, []);
+
+  // Add log entry with RAF batching
+  // Collects logs and flushes once per animation frame to reduce re-renders
+  const addLog = useCallback((entry: LogEntry) => {
+    pendingLogsRef.current.push(entry);
+
+    // Schedule flush if not already scheduled
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(flushLogs);
+    }
+  }, [flushLogs]);
 
   // Handle SSE event
   const handleSSEEvent = useCallback((event: CLISSEEvent) => {

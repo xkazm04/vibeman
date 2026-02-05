@@ -14,7 +14,8 @@ export interface ClaudeIdeasExecutorConfig {
   projectName: string;
   projectPath: string;
   scanTypes: ScanType[];
-  contextIds: string[];  // Support multiple contexts
+  contextIds: string[];  // Individual contexts
+  groupIds: string[];    // Whole context groups
 }
 
 export interface ClaudeIdeasExecutorResult {
@@ -30,7 +31,14 @@ interface ClaudeIdeasApiResponse {
   requirementContent: string;
   scanType: ScanType;
   contextId: string | null;
+  groupId: string | null;
   error?: string;
+}
+
+/** Represents an item to process - either a context or a group */
+interface ProcessItem {
+  type: 'context' | 'group';
+  id: string | undefined;
 }
 
 /**
@@ -46,6 +54,7 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
     scanTypesCount: config.scanTypes.length,
     scanTypes: config.scanTypes,
     contextIdsCount: config.contextIds.length,
+    groupIdsCount: config.groupIds.length,
   }, null, 2));
 
   const result: ClaudeIdeasExecutorResult = {
@@ -70,19 +79,30 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
     return result;
   }
 
-  // Build list of context IDs to process (empty array means full project analysis)
-  const contextsToProcess = config.contextIds.length > 0
-    ? config.contextIds
-    : [undefined]; // undefined means full project analysis
+  // Build list of items to process (contexts + groups)
+  const itemsToProcess: ProcessItem[] = [];
 
-  // Process each scan type for each context
+  // Add individual contexts
+  config.contextIds.forEach(id => itemsToProcess.push({ type: 'context', id }));
+
+  // Add whole groups
+  config.groupIds.forEach(id => itemsToProcess.push({ type: 'group', id }));
+
+  // If nothing selected, default to full project analysis
+  if (itemsToProcess.length === 0) {
+    itemsToProcess.push({ type: 'context', id: undefined });
+  }
+
+  // Process each scan type for each item (context or group)
   for (const scanType of config.scanTypes) {
-    for (const contextId of contextsToProcess) {
+    for (const item of itemsToProcess) {
       const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
       const scanLabel = scanConfig?.label ?? scanType;
-      const contextLabel = contextId ? `ctx-${contextId.slice(0, 8)}` : 'full-project';
+      const itemLabel = item.id
+        ? `${item.type}-${item.id.slice(0, 8)}`
+        : 'full-project';
 
-      console.log(`[ClaudeIdeasExecutor] Processing: ${scanLabel} for ${contextLabel}`);
+      console.log(`[ClaudeIdeasExecutor] Processing: ${scanLabel} for ${itemLabel} (${item.type})`);
 
       try {
         // Step 1: Call API to build prompt with context/goals
@@ -95,7 +115,8 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
             projectName: config.projectName,
             projectPath: config.projectPath,
             scanType,
-            contextId
+            contextId: item.type === 'context' ? item.id : undefined,
+            groupId: item.type === 'group' ? item.id : undefined,
           })
         });
 
@@ -120,13 +141,13 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
           requirementName: apiResult.requirementName,
           requirementContent: apiResult.requirementContent,
           onProgress: (progress, message) => {
-            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${contextLabel}: ${progress}% - ${message}`);
+            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${itemLabel}: ${progress}% - ${message}`);
           },
           onComplete: (pipelineResult) => {
-            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${contextLabel}: Requirement file created`, pipelineResult.requirementPath);
+            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${itemLabel}: Requirement file created`, pipelineResult.requirementPath);
           },
           onError: (error) => {
-            console.error(`[ClaudeIdeasExecutor] ${scanLabel}/${contextLabel}: Pipeline error`, error.message);
+            console.error(`[ClaudeIdeasExecutor] ${scanLabel}/${itemLabel}: Pipeline error`, error.message);
           }
         };
 
@@ -140,13 +161,13 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
           result.requirementPaths.push(pipelineResult.requirementPath);
           console.log(`[ClaudeIdeasExecutor] SUCCESS: Requirement file created at ${pipelineResult.requirementPath}`);
         } else {
-          const errorMsg = `${scanLabel}/${contextLabel}: ${pipelineResult.error || 'Unknown error (no requirementPath)'}`;
+          const errorMsg = `${scanLabel}/${itemLabel}: ${pipelineResult.error || 'Unknown error (no requirementPath)'}`;
           result.errors.push(errorMsg);
           console.error(`[ClaudeIdeasExecutor] FAILED:`, errorMsg);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        result.errors.push(`${scanLabel}/${contextLabel}: ${errorMessage}`);
+        result.errors.push(`${scanLabel}/${itemLabel}: ${errorMessage}`);
         console.error(`[ClaudeIdeasExecutor] EXCEPTION:`, errorMessage);
       }
     }

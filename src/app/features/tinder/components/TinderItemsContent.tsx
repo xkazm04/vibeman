@@ -8,7 +8,6 @@ import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import DirectionCard from './DirectionCard';
-import DirectionPairCard from './DirectionPairCard';
 import ActionButtons from './TinderButtons';
 import SwipeProgress from './SwipeProgress';
 import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
@@ -259,18 +258,23 @@ export default function TinderItemsContent({
                 />
               );
             } else if (isDirectionPairItem(item)) {
-              // Paired directions - show comparison card
+              // Paired directions - use unified DirectionCard with split view
               return (
-                <DirectionPairCard
+                <DirectionCard
                   key={itemId}
-                  directionA={item.data.directionA}
+                  direction={item.data.directionA}
                   directionB={item.data.directionB}
                   problemStatement={item.data.problemStatement}
+                  pairId={item.data.pairId}
                   projectName={projectName}
-                  onAcceptA={index === 0 && onAcceptPairVariant ? () => onAcceptPairVariant(item.data.pairId, 'A') : () => {}}
-                  onAcceptB={index === 0 && onAcceptPairVariant ? () => onAcceptPairVariant(item.data.pairId, 'B') : () => {}}
-                  onRejectBoth={index === 0 && onRejectPair ? () => onRejectPair(item.data.pairId) : () => {}}
-                  onDeleteBoth={index === 0 && onDeletePair ? () => onDeletePair(item.data.pairId) : () => {}}
+                  onSwipeLeft={() => {}}
+                  onSwipeRight={() => {}}
+                  onAcceptVariant={index === 0 && onAcceptPairVariant
+                    ? (variant) => onAcceptPairVariant(item.data.pairId, variant)
+                    : undefined
+                  }
+                  onRejectBoth={index === 0 && onRejectPair ? () => onRejectPair(item.data.pairId) : undefined}
+                  onDeleteBoth={index === 0 && onDeletePair ? () => onDeletePair(item.data.pairId) : undefined}
                   disabled={index !== 0 || processing}
                   style={{
                     zIndex: 10 - index,

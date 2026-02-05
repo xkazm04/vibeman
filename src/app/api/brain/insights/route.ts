@@ -227,6 +227,110 @@ async function handlePost(request: NextRequest) {
   }
 }
 
+/**
+ * PATCH /api/brain/insights
+ * Resolve a conflict between insights
+ * Body: { reflectionId, insightTitle, resolution: 'keep_both' | 'keep_this' | 'keep_other', conflictingInsightTitle? }
+ */
+async function handlePatch(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { reflectionId, insightTitle, resolution, conflictingInsightTitle } = body;
+
+    if (!reflectionId || !insightTitle || !resolution) {
+      return NextResponse.json(
+        { error: 'reflectionId, insightTitle, and resolution required' },
+        { status: 400 }
+      );
+    }
+
+    if (!['keep_both', 'keep_this', 'keep_other'].includes(resolution)) {
+      return NextResponse.json(
+        { error: 'resolution must be keep_both, keep_this, or keep_other' },
+        { status: 400 }
+      );
+    }
+
+    const reflection = brainReflectionDb.getById(reflectionId);
+    if (!reflection) {
+      return NextResponse.json({ error: 'Reflection not found' }, { status: 404 });
+    }
+
+    let insights: LearningInsight[] = [];
+    try {
+      insights = JSON.parse(reflection.insights_generated || '[]');
+    } catch {
+      return NextResponse.json({ error: 'Failed to parse insights' }, { status: 500 });
+    }
+
+    const insightIndex = insights.findIndex(i => i.title === insightTitle);
+    if (insightIndex === -1) {
+      return NextResponse.json({ error: 'Insight not found' }, { status: 404 });
+    }
+
+    const insight = insights[insightIndex];
+    const conflictTitle = conflictingInsightTitle || insight.conflict_with;
+
+    if (resolution === 'keep_both') {
+      // Mark conflict as resolved, keep both insights
+      insights[insightIndex] = {
+        ...insight,
+        conflict_resolved: true,
+        conflict_resolution: 'keep_both',
+      };
+      // Also update the conflicting insight if it's in the same reflection
+      const conflictIndex = insights.findIndex(i => i.title === conflictTitle);
+      if (conflictIndex !== -1) {
+        insights[conflictIndex] = {
+          ...insights[conflictIndex],
+          conflict_resolved: true,
+          conflict_resolution: 'keep_both',
+        };
+      }
+    } else if (resolution === 'keep_this') {
+      // Mark this insight as resolved, delete the other
+      insights[insightIndex] = {
+        ...insight,
+        conflict_resolved: true,
+        conflict_resolution: 'keep_this',
+        conflict_with: undefined, // Clear conflict marker
+        conflict_type: undefined,
+      };
+      // Remove the conflicting insight if it's in the same reflection
+      insights = insights.filter(i => i.title !== conflictTitle);
+    } else if (resolution === 'keep_other') {
+      // Delete this insight, keep the other
+      insights = insights.filter(i => i.title !== insightTitle);
+      // Mark the other insight's conflict as resolved
+      const conflictIndex = insights.findIndex(i => i.title === conflictTitle);
+      if (conflictIndex !== -1) {
+        insights[conflictIndex] = {
+          ...insights[conflictIndex],
+          conflict_resolved: true,
+          conflict_resolution: 'keep_other',
+          conflict_with: undefined,
+          conflict_type: undefined,
+        };
+      }
+    }
+
+    brainReflectionDb.updateInsights(reflectionId, JSON.stringify(insights));
+
+    return NextResponse.json({
+      success: true,
+      resolution,
+      remaining: insights.length,
+    });
+  } catch (error) {
+    console.error('[Brain Insights PATCH] Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to resolve conflict' },
+      { status: 500 }
+    );
+  }
+}
+
 export const GET = withObservability(handleGet, '/api/brain/insights');
 export const POST = withObservability(handlePost, '/api/brain/insights');
 export const DELETE = withObservability(handleDelete, '/api/brain/insights');
+export const PATCH = withObservability(handlePatch, '/api/brain/insights');

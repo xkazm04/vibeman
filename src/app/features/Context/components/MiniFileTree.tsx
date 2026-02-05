@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { File, Folder, ChevronRight, FileCode, FileJson, FileText, Image } from 'lucide-react';
+import { File, Folder, ChevronRight, FileCode, FileJson, FileText, Image, LucideIcon } from 'lucide-react';
 
 interface MiniFileTreeProps {
   filePaths: string[];
@@ -21,55 +21,59 @@ interface FileNode {
 }
 
 /**
- * Get icon based on file extension
+ * Static lookup map for file icons - O(1) access instead of O(n) switch evaluation
  */
-function getFileIcon(extension: string | undefined) {
-  switch (extension) {
-    case 'tsx':
-    case 'ts':
-    case 'jsx':
-    case 'js':
-      return FileCode;
-    case 'json':
-      return FileJson;
-    case 'md':
-    case 'txt':
-      return FileText;
-    case 'png':
-    case 'jpg':
-    case 'svg':
-    case 'gif':
-      return Image;
-    default:
-      return File;
-  }
+const FILE_ICONS: Record<string, LucideIcon> = {
+  tsx: FileCode,
+  ts: FileCode,
+  jsx: FileCode,
+  js: FileCode,
+  json: FileJson,
+  md: FileText,
+  txt: FileText,
+  png: Image,
+  jpg: Image,
+  jpeg: Image,
+  svg: Image,
+  gif: Image,
+  webp: Image,
+};
+
+/**
+ * Static lookup map for extension colors - O(1) access instead of O(n) switch evaluation
+ */
+const EXTENSION_COLORS: Record<string, string> = {
+  tsx: 'text-blue-400',
+  ts: 'text-blue-300',
+  jsx: 'text-yellow-400',
+  js: 'text-yellow-300',
+  json: 'text-green-400',
+  css: 'text-pink-400',
+  scss: 'text-pink-400',
+  sass: 'text-pink-400',
+  less: 'text-pink-400',
+  py: 'text-emerald-400',
+  md: 'text-gray-400',
+  html: 'text-orange-400',
+  vue: 'text-green-500',
+  svelte: 'text-orange-500',
+};
+
+const DEFAULT_FILE_ICON = File;
+const DEFAULT_EXTENSION_COLOR = 'text-gray-500';
+
+/**
+ * Get icon based on file extension - O(1) lookup
+ */
+function getFileIcon(extension: string | undefined): LucideIcon {
+  return FILE_ICONS[extension || ''] || DEFAULT_FILE_ICON;
 }
 
 /**
- * Get extension color for visual differentiation
+ * Get extension color for visual differentiation - O(1) lookup
  */
 function getExtensionColor(extension: string | undefined): string {
-  switch (extension) {
-    case 'tsx':
-      return 'text-blue-400';
-    case 'ts':
-      return 'text-blue-300';
-    case 'jsx':
-      return 'text-yellow-400';
-    case 'js':
-      return 'text-yellow-300';
-    case 'json':
-      return 'text-green-400';
-    case 'css':
-    case 'scss':
-      return 'text-pink-400';
-    case 'py':
-      return 'text-emerald-400';
-    case 'md':
-      return 'text-gray-400';
-    default:
-      return 'text-gray-500';
-  }
+  return EXTENSION_COLORS[extension || ''] || DEFAULT_EXTENSION_COLOR;
 }
 
 /**

@@ -103,14 +103,14 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
       // For folders, collect all child file paths
       const childFilePaths = collectChildFilesFromNode(node);
 
-      // Check if all child files are already selected
+      // Check if all child files are already selected - O(1) per check using Set
       const allSelected = childFilePaths.every(path =>
-        selectedPaths.some(sp => normalizePath(sp) === path)
+        normalizedSelectedPathsSet.has(path)
       );
 
       // Toggle all child files
       childFilePaths.forEach(path => {
-        const isCurrentlySelected = selectedPaths.some(sp => normalizePath(sp) === path);
+        const isCurrentlySelected = normalizedSelectedPathsSet.has(path);
 
         // If deselecting all, remove each file
         // If selecting all, add each file
@@ -126,10 +126,16 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
     }
   };
 
-  // Create normalized selected paths for comparison
-  const normalizedSelectedPaths = useMemo(() => {
-    return selectedPaths.map(normalizePath);
+  // Create normalized selected paths Set for O(1) membership checks
+  // This avoids O(n) array scans on every selection check
+  const normalizedSelectedPathsSet = useMemo(() => {
+    return new Set(selectedPaths.map(normalizePath));
   }, [selectedPaths]);
+
+  // Array version for TreeView component (maintains compatibility)
+  const normalizedSelectedPaths = useMemo(() => {
+    return Array.from(normalizedSelectedPathsSet);
+  }, [normalizedSelectedPathsSet]);
 
   // Smart selection: analyze file dependencies and select related files
   const handleSmartSelection = async () => {
@@ -157,11 +163,11 @@ export const FileTreeSelector: React.FC<FileTreeSelectorProps> = ({
       const data: DependencyAnalysisResponse = await response.json();
 
       if (data.success && data.dependencies) {
-        // Add all dependencies to selection
+        // Add all dependencies to selection - O(1) check using Set
         data.dependencies.forEach((dep) => {
           const relPath = normalizePath(dep.relativePath);
           // Only toggle if not already selected
-          if (!selectedPaths.some(sp => normalizePath(sp) === relPath)) {
+          if (!normalizedSelectedPathsSet.has(relPath)) {
             onPathToggle(relPath);
           }
         });

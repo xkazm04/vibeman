@@ -9,30 +9,26 @@ import { addColumnIfNotExists } from './migration.utils';
 import type { DbConnection } from '../drivers/types';
 
 export function migrate047(db: DbConnection): void {
-  console.log('[Migration 047] Checking for ideas.risk column...');
+  let columnsAdded = 0;
 
   // Add risk column if missing (uses internal hasColumn check)
-  addColumnIfNotExists(
-    db,
-    'ideas',
-    'risk',
-    'INTEGER'
-  );
+  if (addColumnIfNotExists(db, 'ideas', 'risk', 'INTEGER')) {
+    console.log('[Migration 047] Added risk column to ideas table');
+    columnsAdded++;
+  }
 
   // Also ensure effort and impact columns exist (for completeness)
-  addColumnIfNotExists(
-    db,
-    'ideas',
-    'effort',
-    'INTEGER'
-  );
+  if (addColumnIfNotExists(db, 'ideas', 'effort', 'INTEGER')) {
+    console.log('[Migration 047] Added effort column to ideas table');
+    columnsAdded++;
+  }
 
-  addColumnIfNotExists(
-    db,
-    'ideas',
-    'impact',
-    'INTEGER'
-  );
+  if (addColumnIfNotExists(db, 'ideas', 'impact', 'INTEGER')) {
+    console.log('[Migration 047] Added impact column to ideas table');
+    columnsAdded++;
+  }
 
-  console.log('[Migration 047] Complete');
+  if (columnsAdded > 0) {
+    console.log('[Migration 047] Complete');
+  }
 }

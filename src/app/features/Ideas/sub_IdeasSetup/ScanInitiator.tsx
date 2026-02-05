@@ -15,6 +15,8 @@ interface ScanInitiatorProps {
   selectedScanTypes: ScanType[];
   onScanTypesChange?: (types: ScanType[]) => void;
   selectedContextIds: string[];
+  /** Groups selected as whole units for requirement generation */
+  selectedGroupIds?: string[];
   onBatchScan?: () => void;
 }
 
@@ -23,6 +25,7 @@ export default function ScanInitiator({
   selectedScanTypes,
   onScanTypesChange,
   selectedContextIds: propSelectedContextIds,
+  selectedGroupIds: propSelectedGroupIds = [],
 }: ScanInitiatorProps) {
   const [message, setMessage] = React.useState<string>('');
 
@@ -33,6 +36,7 @@ export default function ScanInitiator({
 
   // Use prop selected context IDs directly - context loading is handled by IdeasHeaderWithFilter
   const currentSelectedContextIds = propSelectedContextIds;
+  const currentSelectedGroupIds = propSelectedGroupIds;
 
   // Generated Ideas: Create requirement files directly
   const handleGeneratedIdeasClick = async () => {
@@ -40,6 +44,7 @@ export default function ScanInitiator({
     console.log('[ScanInitiator] activeProject:', activeProject);
     console.log('[ScanInitiator] selectedScanTypes:', selectedScanTypes);
     console.log('[ScanInitiator] currentSelectedContextIds:', currentSelectedContextIds);
+    console.log('[ScanInitiator] currentSelectedGroupIds:', currentSelectedGroupIds);
 
     if (!activeProject) {
       setMessage('No active project selected');
@@ -58,8 +63,12 @@ export default function ScanInitiator({
 
     try {
       // Calculate expected file count for user feedback
-      const contextCount = currentSelectedContextIds.length > 0 ? currentSelectedContextIds.length : 1;
-      const expectedFiles = selectedScanTypes.length * contextCount;
+      // Count individual contexts + whole groups (each counts as 1 item per scan type)
+      const contextCount = currentSelectedContextIds.length;
+      const groupCount = currentSelectedGroupIds.length;
+      const totalItems = contextCount + groupCount;
+      const itemCount = totalItems > 0 ? totalItems : 1; // At least 1 for full project
+      const expectedFiles = selectedScanTypes.length * itemCount;
 
       console.log('[ScanInitiator] Calling executeClaudeIdeasWithContexts with config:', {
         projectId: activeProject.id,
@@ -67,6 +76,7 @@ export default function ScanInitiator({
         projectPath: activeProject.path,
         scanTypes: selectedScanTypes,
         contextIds: currentSelectedContextIds,
+        groupIds: currentSelectedGroupIds,
       });
 
       const result = await executeClaudeIdeasWithContexts({
@@ -75,6 +85,7 @@ export default function ScanInitiator({
         projectPath: activeProject.path,
         scanTypes: selectedScanTypes,
         contextIds: currentSelectedContextIds,
+        groupIds: currentSelectedGroupIds,
       });
 
       console.log('[ScanInitiator] executeClaudeIdeasWithContexts result:', result);
@@ -132,6 +143,7 @@ export default function ScanInitiator({
               isProcessing={isProcessing}
               scanTypesCount={selectedScanTypes.length}
               contextsCount={currentSelectedContextIds.length}
+              groupsCount={currentSelectedGroupIds.length}
             />
           )}
         </div>

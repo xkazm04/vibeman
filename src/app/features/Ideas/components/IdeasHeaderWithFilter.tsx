@@ -12,12 +12,18 @@ interface IdeasHeaderWithFilterProps {
   onSelectProject: (projectId: string) => void;
   selectedContextIds: string[];
   onSelectContexts: (contextIds: string[]) => void;
+  /** Groups selected as whole units for requirement generation */
+  selectedGroupIdsForGeneration?: string[];
+  /** Callback when groups are selected for generation via Shift+Click */
+  onSelectGroupsForGeneration?: (groupIds: string[]) => void;
 }
 
 export default function IdeasHeaderWithFilter({
   selectedProjectId,
   selectedContextIds,
   onSelectContexts,
+  selectedGroupIdsForGeneration,
+  onSelectGroupsForGeneration,
 }: IdeasHeaderWithFilterProps) {
   // Use React Query hook for automatic caching and deduplication
   const projectId = selectedProjectId !== 'all' ? selectedProjectId : null;
@@ -49,6 +55,8 @@ export default function IdeasHeaderWithFilter({
               contextGroups={contextGroups}
               selectedContextIds={selectedContextIds}
               onSelectContexts={onSelectContexts}
+              selectedGroupIdsForGeneration={selectedGroupIdsForGeneration}
+              onSelectGroupsForGeneration={onSelectGroupsForGeneration}
             />
           )}
         </div>

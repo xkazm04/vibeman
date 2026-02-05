@@ -17,6 +17,8 @@ function tableExists(db: Database.Database, tableName: string): boolean {
 }
 
 export function migrate058AnnetteMemorySystem(db: Database.Database): void {
+  let tablesCreated = 0;
+
   // 1. Persistent memories with semantic indexing
   if (!tableExists(db, 'annette_memories')) {
     db.exec(`
@@ -50,6 +52,7 @@ export function migrate058AnnetteMemorySystem(db: Database.Database): void {
       CREATE INDEX idx_annette_memories_accessed ON annette_memories(last_accessed_at DESC);
     `);
     console.log('[Migration 058] Created annette_memories table');
+    tablesCreated++;
   }
 
   // 2. Knowledge graph nodes (entities, concepts, files, functions, etc.)
@@ -79,6 +82,7 @@ export function migrate058AnnetteMemorySystem(db: Database.Database): void {
       CREATE INDEX idx_annette_kn_importance ON annette_knowledge_nodes(importance_score DESC);
     `);
     console.log('[Migration 058] Created annette_knowledge_nodes table');
+    tablesCreated++;
   }
 
   // 3. Knowledge graph edges (relationships between nodes)
@@ -106,6 +110,7 @@ export function migrate058AnnetteMemorySystem(db: Database.Database): void {
       CREATE INDEX idx_annette_ke_type ON annette_knowledge_edges(relationship_type);
     `);
     console.log('[Migration 058] Created annette_knowledge_edges table');
+    tablesCreated++;
   }
 
   // 4. Memory consolidation history
@@ -129,7 +134,10 @@ export function migrate058AnnetteMemorySystem(db: Database.Database): void {
       CREATE INDEX idx_annette_mc_result ON annette_memory_consolidations(result_memory_id);
     `);
     console.log('[Migration 058] Created annette_memory_consolidations table');
+    tablesCreated++;
   }
 
-  console.log('[Migration 058] Annette Memory System migration complete');
+  if (tablesCreated > 0) {
+    console.log('[Migration 058] Annette Memory System migration complete');
+  }
 }

@@ -10,6 +10,7 @@ interface ClaudeIdeasButtonProps {
   isProcessing: boolean;
   scanTypesCount: number;
   contextsCount?: number;
+  groupsCount?: number;
 }
 
 export default function ClaudeIdeasButton({
@@ -17,14 +18,26 @@ export default function ClaudeIdeasButton({
   disabled = false,
   isProcessing,
   scanTypesCount,
-  contextsCount = 0
+  contextsCount = 0,
+  groupsCount = 0
 }: ClaudeIdeasButtonProps) {
-  // Calculate total tasks: scanTypes * contexts (or just scanTypes if no contexts)
-  const multiplier = contextsCount > 0 ? contextsCount : 1;
+  // Calculate total tasks: scanTypes * (contexts + groups) (or just scanTypes if none selected)
+  const totalItems = contextsCount + groupsCount;
+  const multiplier = totalItems > 0 ? totalItems : 1;
   const totalTasks = scanTypesCount * multiplier;
 
-  const tooltipText = contextsCount > 0
-    ? `Generate ideas using Claude Code (${scanTypesCount} scan types × ${contextsCount} contexts = ${totalTasks} tasks)`
+  // Build tooltip text
+  let selectionInfo = '';
+  if (groupsCount > 0 && contextsCount > 0) {
+    selectionInfo = `${contextsCount} contexts + ${groupsCount} groups`;
+  } else if (groupsCount > 0) {
+    selectionInfo = `${groupsCount} group${groupsCount > 1 ? 's' : ''}`;
+  } else if (contextsCount > 0) {
+    selectionInfo = `${contextsCount} contexts`;
+  }
+
+  const tooltipText = selectionInfo
+    ? `Generate ideas using Claude Code (${scanTypesCount} scan types × ${selectionInfo} = ${totalTasks} tasks)`
     : `Generate ideas using Claude Code (${scanTypesCount} scan types)`;
 
   return (

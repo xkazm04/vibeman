@@ -31,37 +31,33 @@ interface ContextMapSelectorProps {
 // Max columns per row
 const MAX_COLUMNS = 4;
 
+// Category color map - static to avoid recreation
+const CATEGORY_COLORS: Record<string, string> = {
+  ui: 'text-purple-400',
+  lib: 'text-blue-400',
+  api: 'text-green-400',
+  data: 'text-amber-400'
+};
+
 /**
  * Convert DbContext to CompactListItem
+ * Note: parsedFilePaths parameter allows pre-parsed file paths to avoid
+ * redundant JSON.parse calls on every selection change
  */
 function contextToListItem(
   context: DbContext,
-  isSelected: boolean
+  isSelected: boolean,
+  _parsedFilePaths?: string[] // Pre-parsed for efficiency (currently unused but available for future badges)
 ): CompactListItem {
-  // Parse file paths if available
-  let fileCount = 0;
-  try {
-    const filePaths = JSON.parse(context.file_paths || '[]');
-    fileCount = Array.isArray(filePaths) ? filePaths.length : 0;
-  } catch {
-    fileCount = 0;
-  }
-
   // Build badges array
   const badges: CompactListItem['badges'] = [];
 
   // Category badge
   if (context.category) {
-    const categoryColors: Record<string, string> = {
-      ui: 'text-purple-400',
-      lib: 'text-blue-400',
-      api: 'text-green-400',
-      data: 'text-amber-400'
-    };
     badges.push({
       icon: FileCode,
       label: context.category,
-      color: categoryColors[context.category] || 'text-gray-400'
+      color: CATEGORY_COLORS[context.category] || 'text-gray-400'
     });
   }
 
@@ -90,6 +86,21 @@ export default function ContextMapSelector({
   const allSelected = allContexts.length > 0 && selectedContextIds.length === allContexts.length;
   const someSelected = selectedContextIds.length > 0;
 
+  // Memoize parsed file paths - only re-parses when contexts change, not on selection changes
+  // This eliminates redundant JSON.parse calls (20+ contexts × every selection toggle)
+  const parsedFilePathsMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const ctx of allContexts) {
+      try {
+        const filePaths = JSON.parse(ctx.file_paths || '[]');
+        map.set(ctx.id, Array.isArray(filePaths) ? filePaths : []);
+      } catch {
+        map.set(ctx.id, []);
+      }
+    }
+    return map;
+  }, [allContexts]);
+
   const handleSetup = async () => {
     if (!onSetupContextMap) return;
 
@@ -107,14 +118,19 @@ export default function ContextMapSelector({
   };
 
   // Convert grouped contexts to CompactList items
+  // Uses pre-parsed file paths to avoid redundant JSON.parse on selection changes
   const groupedListItems = useMemo(() => {
     return groupedContexts.map(({ group, contexts }) => ({
       group,
       items: contexts.map(ctx =>
-        contextToListItem(ctx, selectedContextIds.includes(ctx.id))
+        contextToListItem(
+          ctx,
+          selectedContextIds.includes(ctx.id),
+          parsedFilePathsMap.get(ctx.id)
+        )
       )
     }));
-  }, [groupedContexts, selectedContextIds]);
+  }, [groupedContexts, selectedContextIds, parsedFilePathsMap]);
 
   // Split groups into rows (max 4 per row)
   const rows = useMemo(() => {

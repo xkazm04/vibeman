@@ -6,8 +6,10 @@ import type { WorkspaceProjectNode, CrossProjectRelationship, TierConfig } from 
 import type { GraphEdge } from '../sub_WorkspaceArchitecture/lib/Graph';
 import MatrixConnectionLine from './MatrixConnectionLine';
 import MatrixNode from './MatrixNode';
+import MatrixTierAggregate from './MatrixTierAggregate';
 import { ZoomableCanvas, type ZoomTransform } from '@/components/ZoomableCanvas';
 import { HighlightRule, isHighlighted, isDimmed, type HighlightRule as HighlightRuleType } from './lib/highlightAlgebra';
+import { getDetailFlagsFromScale, calculateTierAggregates } from './lib/semanticZoom';
 
 interface MatrixDiagramViewProps {
   nodes: WorkspaceProjectNode[];
@@ -55,7 +57,11 @@ export default function MatrixDiagramView({
     return HighlightRule.fromSelection(activeCell);
   }, [selectedCell, hoveredCell, customHighlightRule]);
 
-  const hasActiveSelection = highlightRule.hasActiveHighlight();
+  // Pre-calculate tier aggregates for low zoom rendering
+  const tierAggregates = useMemo(
+    () => calculateTierAggregates(nodes, tierConfigs),
+    [nodes, tierConfigs]
+  );
 
   // Background elements (outside zoom transform)
   const background = (
@@ -86,64 +92,90 @@ export default function MatrixDiagramView({
         width={width}
         height={height}
         background={background}
-        config={{ minScale: 0.5, maxScale: 2 }}
+        config={{ minScale: 0.3, maxScale: 2.5 }}
       >
-        {(transform: ZoomTransform) => (
-          <>
-            {/* Tier backgrounds */}
-            {tierConfigs.map((config) => (
-              <g key={config.id}>
-                <rect
-                  x={0}
-                  y={config.y}
-                  width={width / transform.k}
-                  height={config.height}
-                  fill={config.bgColor}
+        {(transform: ZoomTransform) => {
+          // Get semantic zoom detail flags based on current scale
+          const detailFlags = getDetailFlagsFromScale(transform.k);
+
+          return (
+            <>
+              {/* Tier backgrounds - always shown */}
+              {tierConfigs.map((config) => (
+                <g key={config.id}>
+                  <rect
+                    x={0}
+                    y={config.y}
+                    width={width / transform.k}
+                    height={config.height}
+                    fill={config.bgColor}
+                  />
+                  {/* Tier label - shown at medium+ zoom or as part of aggregate at low zoom */}
+                  {!detailFlags.showTierAggregates && (
+                    <text
+                      x={16}
+                      y={config.y + 14}
+                      fill={config.color}
+                      fontSize={10}
+                      fontWeight={600}
+                      opacity={0.6}
+                      style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                    >
+                      {config.label}
+                    </text>
+                  )}
+                </g>
+              ))}
+
+              {/* LOW ZOOM: Tier aggregates instead of individual nodes */}
+              {detailFlags.showTierAggregates && tierAggregates.map((aggregate) => {
+                const tierConfig = tierConfigs.find(t => t.id === aggregate.tierId);
+                if (!tierConfig) return null;
+                return (
+                  <MatrixTierAggregate
+                    key={aggregate.tierId}
+                    aggregate={aggregate}
+                    tierY={tierConfig.y}
+                    tierHeight={tierConfig.height}
+                    canvasWidth={width / transform.k}
+                  />
+                );
+              })}
+
+              {/* MEDIUM+ ZOOM: Connection lines */}
+              {detailFlags.showConnections && (
+                useResolvedEdges
+                  ? resolvedEdges!.map((edge) => (
+                      <MatrixConnectionLine
+                        key={edge.id}
+                        edge={edge}
+                        isHighlighted={isHighlighted(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
+                        isDimmed={isDimmed(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
+                      />
+                    ))
+                  : connections.map((conn) => (
+                      <MatrixConnectionLine
+                        key={conn.id}
+                        connection={conn}
+                        nodes={nodes}
+                        isHighlighted={isHighlighted(highlightRule, conn.sourceProjectId, 'connection', conn.targetProjectId)}
+                        isDimmed={isDimmed(highlightRule, conn.sourceProjectId, 'connection', conn.targetProjectId)}
+                      />
+                    ))
+              )}
+
+              {/* MEDIUM+ ZOOM: Individual nodes with progressive detail */}
+              {detailFlags.showNodes && nodes.map((node) => (
+                <MatrixNode
+                  key={node.id}
+                  node={node}
+                  isHighlighted={isHighlighted(highlightRule, node.id, 'node')}
+                  detailFlags={detailFlags}
                 />
-                <text
-                  x={16}
-                  y={config.y + 14}
-                  fill={config.color}
-                  fontSize={10}
-                  fontWeight={600}
-                  opacity={0.6}
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}
-                >
-                  {config.label}
-                </text>
-              </g>
-            ))}
-
-            {/* Connections - use resolved edges for O(1) node access when available */}
-            {useResolvedEdges
-              ? resolvedEdges.map((edge) => (
-                  <MatrixConnectionLine
-                    key={edge.id}
-                    edge={edge}
-                    isHighlighted={isHighlighted(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
-                    isDimmed={isDimmed(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
-                  />
-                ))
-              : connections.map((conn) => (
-                  <MatrixConnectionLine
-                    key={conn.id}
-                    connection={conn}
-                    nodes={nodes}
-                    isHighlighted={isHighlighted(highlightRule, conn.sourceProjectId, 'connection', conn.targetProjectId)}
-                    isDimmed={isDimmed(highlightRule, conn.sourceProjectId, 'connection', conn.targetProjectId)}
-                  />
-                ))}
-
-            {/* Nodes */}
-            {nodes.map((node) => (
-              <MatrixNode
-                key={node.id}
-                node={node}
-                isHighlighted={isHighlighted(highlightRule, node.id, 'node')}
-              />
-            ))}
-          </>
-        )}
+              ))}
+            </>
+          );
+        }}
       </ZoomableCanvas>
     </div>
   );

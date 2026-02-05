@@ -173,6 +173,11 @@ export interface LearningInsight {
   confidence: number; // 0-100
   evidence: string[]; // direction IDs or signal IDs
   evolves?: string; // title of previous insight this one updates
+  // Conflict detection fields
+  conflict_with?: string; // title of conflicting insight
+  conflict_type?: 'semantic' | 'keyword' | 'direct'; // how conflict was detected
+  conflict_resolved?: boolean; // whether user has resolved the conflict
+  conflict_resolution?: 'keep_both' | 'keep_this' | 'keep_other' | 'merge'; // resolution choice
 }
 
 /**

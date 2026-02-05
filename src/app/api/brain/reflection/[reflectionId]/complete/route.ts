@@ -10,6 +10,7 @@ import { reflectionAgent } from '@/lib/brain/reflectionAgent';
 import { brainReflectionDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import type { LearningInsight } from '@/app/db/models/brain.types';
+import { detectConflicts, markConflictsOnInsights } from '@/lib/brain/insightConflictDetector';
 
 /**
  * Normalize a string for comparison (lowercase, trim, strip punctuation)
@@ -162,6 +163,23 @@ async function handlePost(
     const existingInsights = brainReflectionDb.getAllInsights(reflection.project_id);
     const dedupedInsights = deduplicateInsights(validatedInsights, existingInsights);
 
+    // Detect conflicts between new insights and existing insights
+    let conflictsDetected = 0;
+    for (const insight of dedupedInsights) {
+      const conflicts = detectConflicts(insight, existingInsights);
+      if (conflicts.length > 0) {
+        // Mark the first (highest confidence) conflict
+        const topConflict = conflicts.sort((a, b) => b.confidence - a.confidence)[0];
+        insight.conflict_with = topConflict.insight2Title;
+        insight.conflict_type = topConflict.conflictType;
+        insight.conflict_resolved = false;
+        conflictsDetected++;
+      }
+    }
+
+    // Also detect conflicts within the new insights themselves
+    conflictsDetected += markConflictsOnInsights(dedupedInsights);
+
     // Complete the reflection
     const success = reflectionAgent.completeReflection(reflectionId, {
       directionsAnalyzed,
@@ -192,6 +210,7 @@ async function handlePost(
         insightsSubmitted: validatedInsights.length,
         insightsAfterDedup: dedupedInsights.length,
         duplicatesRemoved: validatedInsights.length - dedupedInsights.length,
+        conflictsDetected,
         sectionsUpdated: guideSectionsUpdated?.length || 0,
       },
     });

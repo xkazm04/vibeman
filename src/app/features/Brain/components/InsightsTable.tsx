@@ -10,6 +10,10 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronRight,
+  AlertOctagon,
+  GitMerge,
+  Check,
+  X,
 } from 'lucide-react';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import InsightEvidenceLinks from './InsightEvidenceLinks';
@@ -40,6 +44,7 @@ interface InsightsTableProps {
   sortDir: SortDir;
   onSort: (field: SortField) => void;
   onDelete: (insight: InsightWithMeta) => void;
+  onResolveConflict?: (insight: InsightWithMeta, resolution: 'keep_both' | 'keep_this' | 'keep_other') => void;
   projectNameMap: Map<string, string>;
 }
 
@@ -55,8 +60,9 @@ function SortHeader({ field, label, sortField, onSort }: { field: SortField; lab
   );
 }
 
-export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onDelete, projectNameMap }: InsightsTableProps) {
+export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onDelete, onResolveConflict, projectNameMap }: InsightsTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [resolvingConflict, setResolvingConflict] = useState<string | null>(null);
 
   const getRowKey = (insight: InsightWithMeta, idx: number) => `${insight.reflection_id}-${idx}`;
 
@@ -98,12 +104,14 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
             const rowKey = getRowKey(insight, idx);
             const isExpanded = expandedRow === rowKey;
             const hasEvidence = insight.evidence.length > 0;
+            const hasConflict = insight.conflict_with && !insight.conflict_resolved;
+            const isResolvingThis = resolvingConflict === rowKey;
 
             return (
               <>
                 <tr
                   key={rowKey}
-                  className={`border-b border-zinc-800/30 hover:bg-zinc-800/20 group ${isExpanded ? 'bg-zinc-800/10' : ''}`}
+                  className={`border-b border-zinc-800/30 hover:bg-zinc-800/20 group ${isExpanded ? 'bg-zinc-800/10' : ''} ${hasConflict ? 'border-l-2 border-l-red-500/50' : ''}`}
                 >
                   <td className="py-2 pr-3">
                     <span className={`flex items-center gap-1.5 ${config.color}`}>
@@ -117,6 +125,16 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
                       <p className="text-zinc-500 text-xs truncate mt-0.5" title={insight.description}>{insight.description}</p>
                       {insight.evolves && (
                         <p className="text-purple-400/60 text-[10px] italic mt-0.5 truncate">Evolved: {insight.evolves}</p>
+                      )}
+                      {/* Conflict indicator */}
+                      {hasConflict && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <AlertOctagon className="w-3 h-3 text-red-400" />
+                          <span className="text-red-400/80 text-[10px] font-mono truncate" title={`Conflicts with: ${insight.conflict_with}`}>
+                            CONFLICT: {insight.conflict_with}
+                          </span>
+                          <span className="text-zinc-600 text-[10px]">({insight.conflict_type})</span>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -161,15 +179,88 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
                     )}
                   </td>
                   <td className="py-2 text-right">
-                    <button
-                      onClick={() => onDelete(insight)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                      title="Delete insight"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Conflict resolution button */}
+                      {hasConflict && onResolveConflict && (
+                        <button
+                          onClick={() => setResolvingConflict(isResolvingThis ? null : rowKey)}
+                          className={`p-1 rounded transition-all ${
+                            isResolvingThis
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'opacity-0 group-hover:opacity-100 text-red-400/60 hover:text-red-400 hover:bg-red-500/10'
+                          }`}
+                          title="Resolve conflict"
+                        >
+                          <GitMerge className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onDelete(insight)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                        title="Delete insight"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
+                {/* Conflict resolution row */}
+                {isResolvingThis && hasConflict && onResolveConflict && (
+                  <tr key={`${rowKey}-conflict`} className="border-b border-zinc-800/30 bg-red-500/5">
+                    <td colSpan={colCount} className="py-3 px-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertOctagon className="w-4 h-4 text-red-400" />
+                          <span className="text-xs text-zinc-300">
+                            Resolve conflict with &quot;<span className="text-red-400">{insight.conflict_with}</span>&quot;
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              onResolveConflict(insight, 'keep_both');
+                              setResolvingConflict(null);
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700 transition-colors"
+                            title="Keep both insights (mark as compatible)"
+                          >
+                            <Check className="w-3 h-3" />
+                            Keep Both
+                          </button>
+                          <button
+                            onClick={() => {
+                              onResolveConflict(insight, 'keep_this');
+                              setResolvingConflict(null);
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                            title="Keep this insight, delete the other"
+                          >
+                            <Check className="w-3 h-3" />
+                            Keep This
+                          </button>
+                          <button
+                            onClick={() => {
+                              onResolveConflict(insight, 'keep_other');
+                              setResolvingConflict(null);
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                            title="Keep the other insight, delete this one"
+                          >
+                            <X className="w-3 h-3" />
+                            Keep Other
+                          </button>
+                          <button
+                            onClick={() => setResolvingConflict(null)}
+                            className="p-1 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+                            title="Cancel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 {/* Expanded evidence row */}
                 {isExpanded && (
                   <tr key={`${rowKey}-evidence`} className="border-b border-zinc-800/30 bg-zinc-800/5">

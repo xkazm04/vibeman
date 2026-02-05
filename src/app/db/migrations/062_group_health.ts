@@ -19,6 +19,8 @@ function columnExists(db: Database.Database, tableName: string, columnName: stri
 }
 
 export function migrate062GroupHealth(db: Database.Database): void {
+  let changesApplied = 0;
+
   // Create group_health_scans table
   if (!tableExists(db, 'group_health_scans')) {
     db.exec(`
@@ -50,19 +52,24 @@ export function migrate062GroupHealth(db: Database.Database): void {
         ON group_health_scans(created_at DESC);
     `);
     console.log('[Migration 062] Created group_health_scans table');
+    changesApplied++;
   }
 
   // Add health_score column to context_groups if not exists
   if (tableExists(db, 'context_groups') && !columnExists(db, 'context_groups', 'health_score')) {
     db.exec(`ALTER TABLE context_groups ADD COLUMN health_score INTEGER`);
     console.log('[Migration 062] Added health_score column to context_groups');
+    changesApplied++;
   }
 
   // Add last_scan_at column to context_groups if not exists
   if (tableExists(db, 'context_groups') && !columnExists(db, 'context_groups', 'last_scan_at')) {
     db.exec(`ALTER TABLE context_groups ADD COLUMN last_scan_at TEXT`);
     console.log('[Migration 062] Added last_scan_at column to context_groups');
+    changesApplied++;
   }
 
-  console.log('[Migration 062] Group health migration complete');
+  if (changesApplied > 0) {
+    console.log('[Migration 062] Group health migration complete');
+  }
 }

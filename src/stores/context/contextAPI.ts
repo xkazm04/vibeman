@@ -204,4 +204,24 @@ export const contextAPI = {
     const data = await response.json();
     return data.deletedCount || 0;
   },
+
+  /**
+   * Batch move multiple contexts to new groups in a single API call
+   * Reduces O(n) API calls to O(1) for drag-drop operations
+   */
+  batchMoveContexts: async (moves: Array<{ contextId: string; newGroupId: string | null }>): Promise<Context[]> => {
+    const response = await fetch('/api/contexts/batch-move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ moves }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to batch move contexts');
+    }
+
+    const result = await response.json();
+    return result.data.map((ctx: Record<string, unknown>) => transformDates(ctx));
+  },
 };

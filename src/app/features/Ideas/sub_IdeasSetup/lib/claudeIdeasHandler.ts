@@ -45,7 +45,8 @@ export async function executeClaudeIdeas(config: ClaudeIdeasConfig): Promise<Cla
     projectName: config.projectName,
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
-    contextIds
+    contextIds,
+    groupIds: [], // Legacy wrapper doesn't support groups
   });
 
   // Transform executor result to handler result format
@@ -77,7 +78,8 @@ export async function executeClaudeIdeasBatch(config: {
     projectName: config.projectName,
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
-    contextIds
+    contextIds,
+    groupIds: [], // Legacy wrapper doesn't support groups
   });
 
   // Also run full project analysis (no context) - for backward compatibility
@@ -86,7 +88,8 @@ export async function executeClaudeIdeasBatch(config: {
     projectName: config.projectName,
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
-    contextIds: [] // Empty means full project
+    contextIds: [], // Empty means full project
+    groupIds: [], // Legacy wrapper doesn't support groups
   });
 
   // Transform executor results to handler result format

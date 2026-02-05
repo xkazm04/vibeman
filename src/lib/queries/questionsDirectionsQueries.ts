@@ -70,13 +70,15 @@ export function useSqliteContexts(projectId: string | undefined) {
 
 /**
  * Hook for fetching questions with caching
+ * staleTime: 30 seconds - matches useSqliteContexts for consistency
+ * Mutations invalidate the cache, so we don't need frequent refetches
  */
 export function useQuestions(projectId: string | undefined) {
   return useQuery({
     queryKey: questionsQueryKeys.list(projectId ?? ''),
     queryFn: () => fetchQuestions(projectId!),
     enabled: !!projectId,
-    staleTime: 5000,
+    staleTime: 30000, // 30 seconds - reduced from 5s to minimize background refetches
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -165,13 +167,15 @@ export function useDeleteQuestion() {
 
 /**
  * Hook for fetching directions with caching
+ * staleTime: 30 seconds - matches useSqliteContexts for consistency
+ * Mutations invalidate the cache, so we don't need frequent refetches
  */
 export function useDirections(projectId: string | undefined) {
   return useQuery({
     queryKey: directionsQueryKeys.list(projectId ?? ''),
     queryFn: () => fetchDirections(projectId!),
     enabled: !!projectId,
-    staleTime: 5000,
+    staleTime: 30000, // 30 seconds - reduced from 5s to minimize background refetches
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });

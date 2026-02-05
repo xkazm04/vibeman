@@ -52,6 +52,10 @@ class ScanQueueWorker {
   // Adaptive polling state - tracks consecutive empty polls for backoff
   private consecutiveEmptyPolls = 0;
 
+  // Event-driven wake: resolvers waiting for queue notifications
+  // When a new item is added, we resolve these to wake the worker immediately
+  private wakeResolvers: Set<() => void> = new Set();
+
   /**
    * Create a notification for a queue item
    */
@@ -109,7 +113,14 @@ class ScanQueueWorker {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
+
+    // Wake any waiting resolvers so they can exit
+    for (const resolve of this.wakeResolvers) {
+      resolve();
+    }
+    this.wakeResolvers.clear();
   }
+
 
   /**
    * Update worker configuration
@@ -154,32 +165,92 @@ class ScanQueueWorker {
   }
 
   /**
-   * Poll for pending queue items
-   * Uses adaptive polling intervals based on queue activity
+   * Notify the worker that a new item has been added to the queue.
+   * This wakes the worker immediately instead of waiting for the next poll cycle.
+   * Called from API routes when items are added/modified.
    */
-  private poll(): void {
+  notifyNewItem(): void {
+    if (!this.isRunning) {
+      return;
+    }
+
+    // Reset adaptive polling since we know there's work
+    this.resetAdaptivePolling();
+
+    // Wake all waiting poll cycles immediately
+    for (const resolve of this.wakeResolvers) {
+      resolve();
+    }
+    this.wakeResolvers.clear();
+
+    // Also cancel the current poll timer and trigger immediate processing
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
+
+    // Trigger immediate poll
+    this.poll();
+  }
+
+  /**
+   * Wait for either the adaptive timeout or an external wake notification
+   * Returns a promise that resolves when either condition is met
+   */
+  private waitForWakeOrTimeout(timeoutMs: number): Promise<void> {
+    return new Promise((resolve) => {
+      // Set up timeout
+      const timer = setTimeout(() => {
+        this.wakeResolvers.delete(resolve);
+        resolve();
+      }, timeoutMs);
+
+      // Set up wake notification listener
+      const wakeResolver = () => {
+        clearTimeout(timer);
+        this.wakeResolvers.delete(wakeResolver);
+        resolve();
+      };
+
+      this.wakeResolvers.add(wakeResolver);
+    });
+  }
+
+  /**
+   * Poll for pending queue items
+   * Uses event-driven wake with adaptive polling fallback
+   * Worker sleeps until either:
+   * 1. notifyNewItem() is called (immediate wake)
+   * 2. Adaptive timeout expires (fallback polling)
+   */
+  private async poll(): Promise<void> {
     if (!this.isRunning) {
       return;
     }
 
     // Process queue and track if items were found
-    this.processQueue()
-      .then((itemsFound) => {
-        if (itemsFound) {
-          // Reset to base interval when work is found
-          this.resetAdaptivePolling();
-        } else {
-          // Increase backoff when queue is empty
-          this.incrementBackoff();
-        }
-      })
-      .catch(() => {
-        // Error handled in processQueue, but don't increase backoff on errors
-      });
+    try {
+      const itemsFound = await this.processQueue();
+      if (itemsFound) {
+        // Reset to base interval when work is found
+        this.resetAdaptivePolling();
+      } else {
+        // Increase backoff when queue is empty
+        this.incrementBackoff();
+      }
+    } catch {
+      // Error handled in processQueue, but don't increase backoff on errors
+    }
 
-    // Schedule next poll with adaptive interval
+    // Wait for either wake notification or adaptive timeout
     const nextInterval = this.getAdaptivePollInterval();
-    this.pollTimer = setTimeout(() => this.poll(), nextInterval);
+    await this.waitForWakeOrTimeout(nextInterval);
+
+    // Schedule next poll (recursive but async to avoid stack overflow)
+    if (this.isRunning) {
+      // Use setImmediate/setTimeout(0) to prevent call stack growth
+      this.pollTimer = setTimeout(() => this.poll(), 0);
+    }
   }
 
   /**
@@ -281,10 +352,8 @@ class ScanQueueWorker {
       // Update progress: processing results
       scanQueueDb.updateProgress(queueItem.id, 75, 'Processing scan results...', 'process_results', 4);
 
-      // Get ideas from this project to find the latest scan ID
-      const projectIdeas = ideaDb.getIdeasByProject(queueItem.project_id);
-      const relevantIdeas = projectIdeas.filter(idea => idea.scan_type === queueItem.scan_type);
-      const latestScanId = relevantIdeas.length > 0 ? relevantIdeas[0].scan_id : null;
+      // Get the latest scan ID for this project and scan type (efficient single-row query)
+      const latestScanId = ideaDb.getLatestScanId(queueItem.project_id, queueItem.scan_type);
 
       // Link the scan to the queue item
       if (latestScanId) {
@@ -342,13 +411,12 @@ class ScanQueueWorker {
     try {
       scanQueueDb.updateAutoMergeStatus(queueItem.id, 'in_progress');
 
-      // Get all ideas from the scan
+      // Get ideas directly by scan ID (more efficient than fetching all project ideas)
       if (!queueItem.scan_id) {
         throw new Error('No scan ID available for auto-merge');
       }
 
-      const allProjectIdeas = ideaDb.getIdeasByProject(queueItem.project_id);
-      const ideas = allProjectIdeas.filter(idea => idea.scan_id === queueItem.scan_id);
+      const ideas = ideaDb.getIdeasByScanId(queueItem.scan_id);
 
       // Filter ideas that qualify for auto-accept (high-impact, low-effort)
       const eligibleIdeas = ideas.filter(idea => idea.impact === 3 && idea.effort === 1);
@@ -473,6 +541,9 @@ class ScanQueueWorker {
       consecutiveEmptyPolls: number;
       currentIntervalMs: number;
     };
+    eventDriven: {
+      waitingResolvers: number;
+    };
   } {
     return {
       isRunning: this.isRunning,
@@ -481,6 +552,9 @@ class ScanQueueWorker {
       adaptivePolling: {
         consecutiveEmptyPolls: this.consecutiveEmptyPolls,
         currentIntervalMs: this.getAdaptivePollInterval(),
+      },
+      eventDriven: {
+        waitingResolvers: this.wakeResolvers.size,
       },
     };
   }

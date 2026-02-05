@@ -10,6 +10,7 @@ import { ALL_SCAN_TYPES, isValidScanType, type ScanType } from '@/app/features/I
 import { generateQueueId } from '@/lib/idGenerator';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { scanQueueWorker } from '@/lib/scanQueueWorker';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -82,6 +83,10 @@ async function handlePost(request: NextRequest) {
       priority: priority || 0,
       auto_merge_enabled: autoMergeEnabled || false
     });
+
+    // Notify worker immediately instead of waiting for next poll cycle
+    // This enables event-driven processing with O(1) latency
+    scanQueueWorker.notifyNewItem();
 
     return NextResponse.json({ queueItem }, { status: 201 });
   } catch (error) {

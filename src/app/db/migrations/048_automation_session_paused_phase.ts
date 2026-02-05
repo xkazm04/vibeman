@@ -20,24 +20,20 @@ function columnExists(db: Database.Database, tableName: string, columnName: stri
 export function migrate048AutomationSessionPausedPhase(db: Database.Database): void {
   // Skip if table doesn't exist
   if (!tableExists(db, 'automation_sessions')) {
-    console.log('[Migration 048] automation_sessions table not found, skipping');
     return;
   }
 
   // Check if we need to migrate by looking at the table schema
-  // We'll check by trying to update a dummy value - if it fails, we need to migrate
   const tableInfo = db.prepare(`
     SELECT sql FROM sqlite_master WHERE type='table' AND name='automation_sessions'
   `).get() as { sql: string } | undefined;
 
   if (!tableInfo) {
-    console.log('[Migration 048] Could not get table info, skipping');
     return;
   }
 
   // If 'paused' is already in the constraint, skip
   if (tableInfo.sql.includes("'paused'")) {
-    console.log('[Migration 048] paused phase already supported, skipping');
     return;
   }
 
