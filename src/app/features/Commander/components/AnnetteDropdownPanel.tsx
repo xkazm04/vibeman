@@ -5,12 +5,62 @@
 
 'use client';
 
-import { motion } from 'framer-motion';
-import { Bot, Maximize2, Volume2, VolumeX } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, Maximize2, Volume2, VolumeX, Bell, X } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useAnnetteStore } from '@/stores/annetteStore';
 import MiniChatPanel from './MiniChatPanel';
 import MiniChatInput from './MiniChatInput';
+
+function NotificationBar() {
+  const [notifications, setNotifications] = useState<Array<{ id: string; text: string; type: 'info' | 'success' | 'warning' }>>([]);
+
+  // Listen for brain notifications via custom events
+  useEffect(() => {
+    const handler = (e: CustomEvent<{ text: string; type: 'info' | 'success' | 'warning' }>) => {
+      const id = `notif-${Date.now()}`;
+      setNotifications(prev => [...prev.slice(-2), { id, ...e.detail }]);
+      // Auto-dismiss after 8 seconds
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      }, 8000);
+    };
+    window.addEventListener('annette-notification', handler as EventListener);
+    return () => window.removeEventListener('annette-notification', handler as EventListener);
+  }, []);
+
+  if (notifications.length === 0) return null;
+
+  const colorMap = {
+    info: 'border-cyan-500/30 bg-cyan-500/5 text-cyan-300',
+    success: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300',
+    warning: 'border-amber-500/30 bg-amber-500/5 text-amber-300',
+  };
+
+  return (
+    <AnimatePresence>
+      {notifications.map((notif) => (
+        <motion.div
+          key={notif.id}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className={`flex items-center gap-2 px-3 py-1.5 border-b text-[10px] ${colorMap[notif.type]}`}
+        >
+          <Bell className="w-3 h-3 flex-shrink-0" />
+          <span className="flex-1 truncate">{notif.text}</span>
+          <button
+            onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+            className="flex-shrink-0 p-0.5 hover:bg-white/5 rounded transition-colors"
+          >
+            <X className="w-2.5 h-2.5" />
+          </button>
+        </motion.div>
+      ))}
+    </AnimatePresence>
+  );
+}
 
 export default function AnnetteDropdownPanel({ onClose }: { onClose: () => void }) {
   const setActiveModule = useOnboardingStore((s) => s.setActiveModule);
@@ -60,6 +110,9 @@ export default function AnnetteDropdownPanel({ onClose }: { onClose: () => void 
           </button>
         </div>
       </div>
+
+      {/* Notification toast bar */}
+      <NotificationBar />
 
       {/* Chat body */}
       <MiniChatPanel />

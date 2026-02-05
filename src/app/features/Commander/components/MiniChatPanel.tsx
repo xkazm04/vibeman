@@ -129,10 +129,26 @@ export default function MiniChatPanel() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-center gap-1.5 text-slate-500 text-xs pl-7"
+          className="flex items-center gap-2 pl-7 mt-1"
         >
-          <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
-          <span>Thinking...</span>
+          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+            <Bot className="w-3 h-3 text-cyan-400" />
+          </div>
+          <div className="px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/30 rounded-bl-sm flex items-center gap-1">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+                animate={{ y: [0, -4, 0] }}
+                transition={{
+                  duration: 0.5,
+                  repeat: Infinity,
+                  delay: i * 0.15,
+                  ease: 'easeInOut',
+                }}
+              />
+            ))}
+          </div>
         </motion.div>
       )}
 

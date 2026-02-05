@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle, Layers } from 'lucide-react';
 import { getStatusIcon, getStatusColor } from '@/components/ui/taskStatusUtils';
@@ -331,41 +332,54 @@ function BatchDisplay({
             {/* Queue Items */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
               <AnimatePresence mode="popLayout">
-                {displayItems.map((item) => {
+                {displayItems.map((item, index) => {
                   const itemId = getRequirementId(item);
                   return (
-                    <motion.div
-                      key={itemId}
-                      initial={{ opacity: 0, scale: 0.8, x: -10 }}
-                      animate={{ opacity: 1, scale: 1, x: 0 }}
-                      exit={{ opacity: 0, scale: 0.8, x: 10 }}
-                      transition={{ duration: 0.2 }}
-                      className={`
-                        relative flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded border
-                        transition-all duration-200
-                        ${getStatusColor(item.status)}
-                        min-w-[120px] max-w-[160px]
-                      `}
-                      title={`${item.projectName} / ${item.requirementName}`}
-                    >
-                      {/* Status Icon */}
-                      <div className="flex-shrink-0">{getStatusIcon(item.status)}</div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[10px] font-medium text-gray-300 truncate">
-                          {item.requirementName}
+                    <React.Fragment key={itemId}>
+                      {/* Connector line */}
+                      {index > 0 && (
+                        <div className="flex-shrink-0 w-4 flex items-center justify-center">
+                          <div className={`w-full h-px ${
+                            isRequirementCompleted(item.status) ? 'bg-green-500/40' :
+                            isRequirementRunning(item.status) ? 'bg-blue-500/40' :
+                            'bg-gray-700/40'
+                          }`} />
                         </div>
-                        <div className="text-[8px] text-gray-500 truncate">
-                          {item.projectName}
-                        </div>
-                      </div>
-
-                      {/* Running indicator - static border */}
-                      {isRequirementRunning(item.status) && (
-                        <div className="absolute inset-0 rounded border-2 border-blue-500/60" />
                       )}
-                    </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8, x: -10 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, x: 10 }}
+                        transition={{ duration: 0.2 }}
+                        className={`
+                          relative flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded border
+                          transition-all duration-200
+                          ${getStatusColor(item.status)}
+                          min-w-[120px] max-w-[160px]
+                        `}
+                        title={`${item.projectName} / ${item.requirementName}`}
+                      >
+                        {/* Step number badge */}
+                        <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center">
+                          <span className="text-[8px] font-mono text-gray-400">{index + 1}</span>
+                        </div>
+                        {/* Status Icon */}
+                        <div className="flex-shrink-0">{getStatusIcon(item.status)}</div>
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-medium text-gray-300 truncate">
+                            {item.requirementName}
+                          </div>
+                          <div className="text-[8px] text-gray-500 truncate">
+                            {item.projectName}
+                          </div>
+                        </div>
+                        {/* Running indicator */}
+                        {isRequirementRunning(item.status) && (
+                          <div className="absolute inset-0 rounded border-2 border-blue-500/60" />
+                        )}
+                      </motion.div>
+                    </React.Fragment>
                   );
                 })}
               </AnimatePresence>

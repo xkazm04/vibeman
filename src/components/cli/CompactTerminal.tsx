@@ -931,9 +931,26 @@ export function CompactTerminal({
           )}
         </div>
         {lastResult?.usage && (
-          <span className="text-gray-600">
-            {(lastResult.usage.inputTokens / 1000).toFixed(1)}k/{(lastResult.usage.outputTokens / 1000).toFixed(1)}k
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-600">
+              {(lastResult.usage.inputTokens / 1000).toFixed(1)}k/{(lastResult.usage.outputTokens / 1000).toFixed(1)}k
+            </span>
+            {/* Token usage bar */}
+            <div className="w-12 h-1 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  (lastResult.usage.inputTokens + lastResult.usage.outputTokens) > 150000
+                    ? 'bg-red-500'
+                    : (lastResult.usage.inputTokens + lastResult.usage.outputTokens) > 100000
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+                }`}
+                style={{
+                  width: `${Math.min(((lastResult.usage.inputTokens + lastResult.usage.outputTokens) / 200000) * 100, 100)}%`
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
 

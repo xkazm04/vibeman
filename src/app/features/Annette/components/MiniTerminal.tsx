@@ -441,18 +441,33 @@ export function MiniTerminal({
                   {logs.map((log) => (
                     <div
                       key={log.id}
-                      className="flex items-start gap-1.5 px-2.5 py-0.5 hover:bg-gray-800/30"
+                      className={`flex items-start gap-1.5 px-2.5 py-0.5 hover:bg-gray-800/30 ${
+                        log.type === 'error' ? 'bg-red-500/5' : ''
+                      }`}
                     >
                       <span className="flex-shrink-0 mt-0.5">
                         {getLogIcon(log.type, log.toolName)}
                       </span>
-                      <span className={`text-[10px] leading-relaxed break-all ${
+                      <span className={`text-[10px] leading-relaxed break-all flex-1 ${
                         log.type === 'error' ? 'text-red-400' :
                         log.type === 'tool_result' ? 'text-gray-500 font-mono' :
                         log.type === 'system' ? 'text-cyan-400' :
                         'text-gray-300'
                       }`}>
-                        {formatContent(log)}
+                        {log.type === 'tool_use' && log.toolName ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className={`inline-block px-1 py-0 rounded text-[9px] font-mono font-medium ${
+                              log.toolName === 'Edit' ? 'bg-yellow-500/15 text-yellow-400' :
+                              log.toolName === 'Write' ? 'bg-green-500/15 text-green-400' :
+                              log.toolName === 'Read' ? 'bg-blue-500/15 text-blue-400' :
+                              log.toolName === 'Bash' ? 'bg-purple-500/15 text-purple-400' :
+                              'bg-gray-500/15 text-gray-400'
+                            }`}>{log.toolName}</span>
+                            <span className="text-gray-400">{log.toolInput?.file_path ? String(log.toolInput.file_path).split(/[/\\]/).pop() : ''}</span>
+                          </span>
+                        ) : (
+                          formatContent(log)
+                        )}
                       </span>
                     </div>
                   ))}
@@ -464,6 +479,26 @@ export function MiniTerminal({
                 <div className="flex items-center gap-1.5 px-2.5 py-1 text-purple-400 text-[10px]">
                   <Loader2 className="w-2.5 h-2.5 animate-spin" />
                   <span>Working...</span>
+                </div>
+              )}
+
+              {/* Completion summary */}
+              {lastResult && !isStreaming && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 border-t border-gray-800/50">
+                  <div className={`flex items-center gap-1 text-[10px] ${lastResult.isError ? 'text-red-400' : 'text-green-400'}`}>
+                    {lastResult.isError ? <AlertCircle className="w-2.5 h-2.5" /> : <CheckCircle className="w-2.5 h-2.5" />}
+                    <span>{lastResult.isError ? 'Failed' : 'Done'}</span>
+                  </div>
+                  {(fileStats.edits > 0 || fileStats.writes > 0) && (
+                    <div className="flex items-center gap-1.5 text-[9px]">
+                      {fileStats.edits > 0 && (
+                        <span className="px-1 py-0 rounded bg-yellow-500/10 text-yellow-400">{fileStats.edits} edits</span>
+                      )}
+                      {fileStats.writes > 0 && (
+                        <span className="px-1 py-0 rounded bg-green-500/10 text-green-400">{fileStats.writes} writes</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
