@@ -3,7 +3,7 @@
  * Computes and formats behavioral signals for prompt injection
  */
 
-import { behavioralSignalDb, directionOutcomeDb, observabilityDb } from '@/app/db';
+import { behavioralSignalDb, directionOutcomeDb, observabilityDb, contextDb } from '@/app/db';
 import type {
   BehavioralContext,
   GitActivitySignalData,
@@ -49,11 +49,23 @@ export function getBehavioralContext(
   const activeContexts = contextActivity
     .filter(c => c.context_id && c.context_name)
     .slice(0, 5)
-    .map(c => ({
-      id: c.context_id,
-      name: c.context_name,
-      activityScore: c.total_weight,
-    }));
+    .map(c => {
+      const base: { id: string; name: string; activityScore: number; keywords?: string[]; entryPoints?: Array<{ path: string; type: string }>; techStack?: string[] } = {
+        id: c.context_id,
+        name: c.context_name,
+        activityScore: c.total_weight,
+      };
+      // Enrich with AI navigation metadata
+      try {
+        const ctx = contextDb.getContextById(c.context_id);
+        if (ctx) {
+          try { base.keywords = JSON.parse(ctx.keywords || '[]'); } catch {}
+          try { base.entryPoints = JSON.parse(ctx.entry_points || '[]'); } catch {}
+          try { base.techStack = JSON.parse(ctx.tech_stack || '[]'); } catch {}
+        }
+      } catch { /* enrichment is best-effort */ }
+      return base;
+    });
 
   // Get git activity signals for recent files and commit themes
   const gitSignals = behavioralSignalDb.getByTypeAndWindow(projectId, 'git_activity', windowDays);
@@ -125,7 +137,11 @@ export function formatBehavioralForPrompt(ctx: BehavioralContext): string {
   // Current Focus Section
   if (ctx.currentFocus.activeContexts.length > 0) {
     const contextList = ctx.currentFocus.activeContexts
-      .map(c => `- **${c.name}**: activity score ${c.activityScore.toFixed(1)}`)
+      .map((c: { name: string; activityScore: number; entryPoints?: Array<{ path: string }>; keywords?: string[] }) => {
+        const epStr = c.entryPoints?.[0]?.path ? ` → \`${c.entryPoints[0].path}\`` : '';
+        const kwStr = c.keywords?.length ? ` [${c.keywords.slice(0, 3).join(', ')}]` : '';
+        return `- **${c.name}**: activity ${c.activityScore.toFixed(1)}${epStr}${kwStr}`;
+      })
       .join('\n');
 
     sections.push(`### Active Areas (Last 7 Days)\n${contextList}`);

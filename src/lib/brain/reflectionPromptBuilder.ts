@@ -6,7 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb } from '@/app/db';
+import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb, contextDb } from '@/app/db';
 import type { DbDirection, DbDirectionOutcome } from '@/app/db';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import { GitManager } from '@/lib/gitManager';
@@ -231,6 +231,9 @@ ${data.gitRepoUrl ? `**Repository**: ${data.gitRepoUrl}` : ''}
 ---`
     : '';
 
+  // Build context architecture section from active contexts
+  const contextArchitectureSection = buildContextArchitectureSection(projectId);
+
   const previousInsightsSection = data.previousInsights.length > 0
     ? `## Previously Identified Insights
 
@@ -277,6 +280,8 @@ Analyze patterns in accepted vs rejected directions to understand what resonates
 ---
 
 ${previousInsightsSection}
+
+${contextArchitectureSection}
 
 ${gitSection}
 
@@ -660,6 +665,50 @@ curl -X POST ${apiUrl}/api/brain/reflection/${reflectionId}/complete \\
 2. Confirm API call succeeded
 3. Summarize cross-project patterns found
 `;
+}
+
+/**
+ * Build context architecture section for reflection prompt
+ */
+function buildContextArchitectureSection(projectId: string): string {
+  try {
+    const contexts = contextDb.getContextsByProject(projectId);
+    if (contexts.length === 0) return '';
+
+    const contextLines: string[] = [];
+    for (const ctx of contexts.slice(0, 10)) {
+      let dbTables: string[] = [];
+      let apiSurface: Array<{ path: string; methods: string }> = [];
+      let crossRefs: Array<{ contextId: string; relationship: string }> = [];
+      let techStack: string[] = [];
+      try { dbTables = JSON.parse(ctx.db_tables || '[]'); } catch {}
+      try { apiSurface = JSON.parse(ctx.api_surface || '[]'); } catch {}
+      try { crossRefs = JSON.parse(ctx.cross_refs || '[]'); } catch {}
+      try { techStack = JSON.parse(ctx.tech_stack || '[]'); } catch {}
+
+      if (dbTables.length === 0 && apiSurface.length === 0 && crossRefs.length === 0) continue;
+
+      const parts: string[] = [`### ${ctx.name}`];
+      if (dbTables.length > 0) parts.push(`- **DB Tables**: ${dbTables.join(', ')}`);
+      if (apiSurface.length > 0) parts.push(`- **API**: ${apiSurface.map(a => `${a.methods} ${a.path}`).join(', ')}`);
+      if (crossRefs.length > 0) parts.push(`- **Cross-refs**: ${crossRefs.map(r => `${r.relationship} → ${r.contextId}`).join(', ')}`);
+      if (techStack.length > 0) parts.push(`- **Tech**: ${techStack.join(', ')}`);
+      contextLines.push(parts.join('\n'));
+    }
+
+    if (contextLines.length === 0) return '';
+
+    return `## Context Architecture
+
+The following contexts have rich metadata. Use this to produce architecture-aware insights
+(e.g., contexts sharing the same DB table but lacking cross_refs may need tighter integration).
+
+${contextLines.join('\n\n')}
+
+---`;
+  } catch {
+    return '';
+  }
 }
 
 // Note: writeReflectionRequirement was removed in favor of direct prompt execution

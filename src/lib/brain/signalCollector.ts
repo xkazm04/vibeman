@@ -3,7 +3,7 @@
  * Central service for capturing and storing behavioral signals
  */
 
-import { behavioralSignalDb } from '@/app/db';
+import { behavioralSignalDb, contextDb } from '@/app/db';
 import type {
   BehavioralSignalType,
   GitActivitySignalData,
@@ -126,13 +126,32 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, 'context_focus', dataStr)) return;
+
+      // Enrich signal data with context metadata
+      let enrichedData = dataStr;
+      if (data.contextId) {
+        try {
+          const ctx = contextDb.getContextById(data.contextId);
+          if (ctx) {
+            const parsed = JSON.parse(dataStr);
+            let dbTables: string[] = [];
+            let techStack: string[] = [];
+            try { dbTables = JSON.parse(ctx.db_tables || '[]'); } catch {}
+            try { techStack = JSON.parse(ctx.tech_stack || '[]'); } catch {}
+            if (dbTables.length > 0) parsed.dbTables = dbTables;
+            if (techStack.length > 0) parsed.techStack = techStack;
+            enrichedData = JSON.stringify(parsed);
+          }
+        } catch { /* enrichment is best-effort */ }
+      }
+
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: 'context_focus',
         context_id: data.contextId,
         context_name: data.contextName,
-        data: dataStr,
+        data: enrichedData,
         weight: calculateContextWeight(data),
         timestamp: new Date().toISOString(),
       });
