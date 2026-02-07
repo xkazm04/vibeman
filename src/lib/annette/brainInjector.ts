@@ -4,7 +4,7 @@
  */
 
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
-import { directionOutcomeDb, brainReflectionDb } from '@/app/db';
+import { directionOutcomeDb, brainReflectionDb, contextDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 
 export interface BrainSnapshot {
@@ -63,6 +63,12 @@ export function formatBrainForPrompt(projectId: string): string {
     parts.push(`### Learning Insights\n${snapshot.reflectionInsights}`);
   }
 
+  // Context Map Summary (~200 tokens)
+  const contextMapSummary = getContextMapSummary(projectId);
+  if (contextMapSummary) {
+    parts.push(`### Context Map\n${contextMapSummary}`);
+  }
+
   if (parts.length === 0) {
     return 'No brain data available yet. The system will learn from your decisions over time.';
   }
@@ -114,6 +120,38 @@ function getReflectionInsights(projectId: string): string {
       .slice(0, 3)
       .map(i => `- [${i.type}] ${i.insight}`)
       .join('\n');
+  } catch {
+    return '';
+  }
+}
+
+function getContextMapSummary(projectId: string): string {
+  try {
+    const behavioralCtx = getBehavioralContext(projectId);
+    const activeIds = behavioralCtx.currentFocus?.activeContexts
+      ?.slice(0, 5)
+      .map((c: { id: string }) => c.id) || [];
+
+    if (activeIds.length === 0) return '';
+
+    const lines: string[] = [];
+    for (const id of activeIds) {
+      const ctx = contextDb.getContextById(id);
+      if (!ctx) continue;
+
+      let keywords: string[] = [];
+      let entryPoints: Array<{ path: string; type: string }> = [];
+      try { keywords = JSON.parse(ctx.keywords || '[]'); } catch {}
+      try { entryPoints = JSON.parse(ctx.entry_points || '[]'); } catch {}
+
+      if (keywords.length > 0 || entryPoints.length > 0) {
+        const kwStr = keywords.length > 0 ? ` [${keywords.slice(0, 4).join(', ')}]` : '';
+        const epStr = entryPoints.length > 0 ? ` → ${entryPoints[0].path}` : '';
+        lines.push(`- **${ctx.name}**${kwStr}${epStr}`);
+      }
+    }
+
+    return lines.length > 0 ? lines.join('\n') : '';
   } catch {
     return '';
   }

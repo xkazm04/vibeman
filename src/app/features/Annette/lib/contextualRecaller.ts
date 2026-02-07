@@ -3,7 +3,7 @@
  * Automatically retrieves relevant memories based on conversation context
  */
 
-import { annetteDb } from '@/app/db';
+import { annetteDb, contextDb } from '@/app/db';
 import type { DbAnnetteMemory, DbAnnetteKnowledgeNode } from '@/app/db/models/annette.types';
 import { memoryStore, Memory } from './memoryStore';
 import { knowledgeGraph, KnowledgeNode, KnowledgeEdge } from './knowledgeGraph';
@@ -105,6 +105,9 @@ Respond in JSON format:
     // Extract context signals for better targeting
     const signals = await this.extractContextSignals(searchQuery);
 
+    // Fast path: keyword-based context lookup
+    const contextMatches = this.findContextsByKeywords(projectId, signals);
+
     // Find similar memories semantically
     const similarMemories = await semanticIndexer.findSimilarMemories(
       projectId,
@@ -192,14 +195,27 @@ Respond in JSON format:
       relevantTopics.map(t => ({ topic: t.topic, summary: t.summary }))
     );
 
+    // Enrich summary with keyword-matched context entry points
+    let enrichedSummary = summary;
+    if (contextMatches.length > 0) {
+      const contextLines = contextMatches.slice(0, 3).map(m => {
+        const epStr = m.entryPoints.length > 0
+          ? ` (start: ${m.entryPoints[0].path})`
+          : '';
+        return `- **${m.name}**${epStr}: ${m.keywords.slice(0, 3).join(', ')}`;
+      });
+      enrichedSummary = (summary ? summary + '\n\n' : '') +
+        'Matched contexts:\n' + contextLines.join('\n');
+    }
+
     // Estimate tokens
-    const tokenEstimate = this.estimateTokens(memories, knowledgeNodes, summary);
+    const tokenEstimate = this.estimateTokens(memories, knowledgeNodes, enrichedSummary);
 
     return {
       memories,
       knowledgeNodes,
       knowledgeEdges,
-      summary,
+      summary: enrichedSummary,
       tokenEstimate,
     };
   },
@@ -264,6 +280,51 @@ Respond in JSON format:
     tokens += summary.length / 4;
 
     return Math.round(tokens);
+  },
+
+  /**
+   * Fast keyword-based context lookup
+   */
+  findContextsByKeywords(
+    projectId: string,
+    signals: ConversationContext
+  ): Array<{ id: string; name: string; keywords: string[]; entryPoints: Array<{ path: string; type: string }>; apiSurface: Array<{ path: string; methods: string }> }> {
+    try {
+      const allContexts = contextDb.getContextsByProject(projectId);
+      const queryTerms = [...signals.topics, ...signals.entities].map(t => t.toLowerCase());
+
+      if (queryTerms.length === 0) return [];
+
+      const matches: Array<{ id: string; name: string; keywords: string[]; entryPoints: Array<{ path: string; type: string }>; apiSurface: Array<{ path: string; methods: string }>; score: number }> = [];
+
+      for (const ctx of allContexts) {
+        let keywords: string[] = [];
+        let entryPoints: Array<{ path: string; type: string }> = [];
+        let apiSurface: Array<{ path: string; methods: string }> = [];
+        try { keywords = JSON.parse(ctx.keywords || '[]'); } catch {}
+        try { entryPoints = JSON.parse(ctx.entry_points || '[]'); } catch {}
+        try { apiSurface = JSON.parse(ctx.api_surface || '[]'); } catch {}
+
+        if (keywords.length === 0) continue;
+
+        let score = 0;
+        for (const term of queryTerms) {
+          for (const kw of keywords) {
+            if (kw.toLowerCase().includes(term) || term.includes(kw.toLowerCase())) {
+              score += 1;
+            }
+          }
+        }
+
+        if (score > 0) {
+          matches.push({ id: ctx.id, name: ctx.name, keywords, entryPoints, apiSurface, score });
+        }
+      }
+
+      return matches.sort((a, b) => b.score - a.score).slice(0, 5);
+    } catch {
+      return [];
+    }
   },
 
   /**

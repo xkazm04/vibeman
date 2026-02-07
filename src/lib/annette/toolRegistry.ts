@@ -13,6 +13,7 @@ const toolModules = {
   tasks: () => import('./tools/tasks').then(m => m.executeTaskTools),
   projects: () => import('./tools/projects').then(m => m.executeProjectTools),
   standup: () => import('./tools/standup').then(m => m.executeStandupTools),
+  analysis: () => import('./tools/analysis').then(m => m.executeAnalysisTools),
 } as const;
 
 // Cache resolved modules to avoid re-importing
@@ -90,7 +91,8 @@ export async function executeTool(
       const execute = await getToolExecutor('goals');
       result = await execute(name, input, projectId, projectPath);
     } else if (name.startsWith('list_contexts') || name.startsWith('get_context') ||
-               name.startsWith('scan_contexts') || name.startsWith('generate_description')) {
+               name.startsWith('scan_contexts') || name.startsWith('generate_description') ||
+               name.startsWith('find_context_by_query')) {
       const execute = await getToolExecutor('contexts');
       result = await execute(name, input, projectId);
     } else if (name.startsWith('get_queue') || name.startsWith('queue_requirement') ||
@@ -105,6 +107,10 @@ export async function executeTool(
                name.startsWith('run_automation')) {
       const execute = await getToolExecutor('standup');
       result = await execute(name, input, projectId);
+    } else if (name.startsWith('assess_codebase') || name.startsWith('analyze_context') ||
+               name.startsWith('get_analysis') || name.startsWith('create_directions_from')) {
+      const execute = await getToolExecutor('analysis');
+      result = await execute(name, input, projectId, projectPath);
     } else {
       result = `Unknown tool: ${name}`;
       return { tool_use_id: id, content: result, is_error: true };
@@ -378,6 +384,17 @@ export function getToolDefinitions(): ToolDefinition[] {
         required: ['context_id'],
       },
     },
+    {
+      name: 'find_context_by_query',
+      description: 'Find the most relevant context for a natural language query. Searches by keywords, name, description, and API surface. Returns top 3 matches with entry points.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Natural language search query (e.g., "login page", "database migrations", "brain signals")' },
+        },
+        required: ['query'],
+      },
+    },
 
     // Task/Execution Tools
     {
@@ -497,6 +514,53 @@ export function getToolDefinitions(): ToolDefinition[] {
       input_schema: {
         type: 'object',
         properties: {},
+      },
+    },
+
+    // Analysis Tools
+    {
+      name: 'assess_codebase_health',
+      description: 'Quick health assessment of all project contexts using Brain signals, implementation outcomes, and activity data. Returns contexts ranked by health score. No CLI execution needed — instant results from DB.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          min_score: { type: 'string', description: 'Only return contexts at or below this health score (0-100). Default: show all.' },
+        },
+      },
+    },
+    {
+      name: 'analyze_context',
+      description: 'Deep analysis of a specific context/module using Claude Code CLI in read-only mode. Reads actual source files, checks patterns, reports findings. Shows real-time progress in inline terminal. Use assess_codebase_health first to identify which contexts need analysis.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          context_id: { type: 'string', description: 'Context ID to analyze (from list_contexts or assess_codebase_health)' },
+          analysis_type: { type: 'string', description: 'Focus area for the analysis', enum: ['architecture', 'quality', 'security', 'performance'] },
+        },
+        required: ['context_id'],
+      },
+    },
+    {
+      name: 'get_analysis_findings',
+      description: 'Parse the results from a completed analyze_context CLI execution. Returns structured findings with severity levels, recommendations with effort/impact, and executive summary. Call this after the inline terminal shows the analysis is complete.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          requirement_name: { type: 'string', description: 'The analysis requirement name returned by analyze_context' },
+        },
+        required: ['requirement_name'],
+      },
+    },
+    {
+      name: 'create_directions_from_analysis',
+      description: 'Convert analysis findings into actionable direction cards that can be accepted for implementation. Creates directions from the top recommendations sorted by impact.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          findings_json: { type: 'string', description: 'The _rawResult JSON string from get_analysis_findings' },
+          max_directions: { type: 'string', description: 'Maximum number of directions to create (default: 3)' },
+        },
+        required: ['findings_json'],
       },
     },
   ];

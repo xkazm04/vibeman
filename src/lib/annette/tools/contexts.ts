@@ -27,6 +27,10 @@ export async function executeContextTools(
               return 0;
             }
           })(),
+          keywords: (() => { try { return JSON.parse(c.keywords || '[]'); } catch { return []; } })(),
+          entryPoints: (() => { try { return JSON.parse(c.entry_points || '[]'); } catch { return []; } })(),
+          apiSurface: (() => { try { return JSON.parse(c.api_surface || '[]'); } catch { return []; } })(),
+          dbTables: (() => { try { return JSON.parse(c.db_tables || '[]'); } catch { return []; } })(),
         })),
       });
     }
@@ -108,6 +112,89 @@ export async function executeContextTools(
       } catch (error) {
         return JSON.stringify({ success: false, error: 'Failed to generate description' });
       }
+    }
+
+    case 'find_context_by_query': {
+      const query = (input.query as string || '').toLowerCase().trim();
+      if (!query) {
+        return JSON.stringify({ error: 'query is required' });
+      }
+
+      const allContexts = contextDb.getContextsByProject(projectId);
+
+      // Score each context by keyword match + name match + description match
+      const scored = allContexts.map(c => {
+        let score = 0;
+        const nameLower = (c.name || '').toLowerCase();
+        const descLower = (c.description || '').toLowerCase();
+
+        // Name match (highest weight)
+        if (nameLower.includes(query)) score += 10;
+        for (const word of query.split(/\s+/)) {
+          if (word.length > 2 && nameLower.includes(word)) score += 5;
+        }
+
+        // Description match
+        if (descLower.includes(query)) score += 5;
+        for (const word of query.split(/\s+/)) {
+          if (word.length > 2 && descLower.includes(word)) score += 2;
+        }
+
+        // Keyword match (high weight)
+        try {
+          const keywords: string[] = JSON.parse(c.keywords || '[]');
+          for (const kw of keywords) {
+            if (kw.toLowerCase().includes(query) || query.includes(kw.toLowerCase())) score += 8;
+            for (const word of query.split(/\s+/)) {
+              if (word.length > 2 && kw.toLowerCase().includes(word)) score += 4;
+            }
+          }
+        } catch {}
+
+        // API surface match
+        try {
+          const surface: Array<{ path: string; description?: string }> = JSON.parse(c.api_surface || '[]');
+          for (const ep of surface) {
+            if (ep.path.toLowerCase().includes(query)) score += 3;
+            if (ep.description && ep.description.toLowerCase().includes(query)) score += 2;
+          }
+        } catch {}
+
+        return { context: c, score };
+      });
+
+      // Sort by score desc, take top 3
+      const top = scored
+        .filter(s => s.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      if (top.length === 0) {
+        return JSON.stringify({ results: [], message: `No contexts matched query "${query}"` });
+      }
+
+      return JSON.stringify({
+        query,
+        results: top.map(({ context: c, score }) => {
+          let entryPoints: unknown[] = [];
+          let filePaths: string[] = [];
+          let keywords: string[] = [];
+          try { entryPoints = JSON.parse(c.entry_points || '[]'); } catch {}
+          try { filePaths = JSON.parse(c.file_paths || '[]'); } catch {}
+          try { keywords = JSON.parse(c.keywords || '[]'); } catch {}
+
+          return {
+            id: c.id,
+            name: c.name,
+            description: c.description?.substring(0, 120),
+            groupId: c.group_id,
+            score,
+            keywords,
+            entryPoints,
+            fileCount: filePaths.length,
+          };
+        }),
+      });
     }
 
     default:
