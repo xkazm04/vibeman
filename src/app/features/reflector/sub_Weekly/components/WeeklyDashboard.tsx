@@ -12,9 +12,9 @@ import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import FilterBar from '../../components/FilterBar';
 import SuggestionTypeToggle from '../../components/SuggestionTypeToggle';
 import {
-  UnifiedFilterState,
+  FilterState,
   FilterBarConfig,
-  getEmptyUnifiedFilterState
+  getEmptyFilterState
 } from '../../lib/filterIdeas';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
 
@@ -30,7 +30,7 @@ export default function WeeklyDashboard() {
   const [stats, setStats] = useState<WeeklyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [unifiedFilters, setUnifiedFilters] = useState<UnifiedFilterState>(getEmptyUnifiedFilterState());
+  const [unifiedFilters, setUnifiedFilters] = useState<FilterState>(getEmptyFilterState());
 
   const { projects, initializeProjects } = useProjectConfigStore();
 
@@ -38,8 +38,8 @@ export default function WeeklyDashboard() {
   const filters: WeeklyFilters = useMemo(() => ({
     projectId: unifiedFilters.projectIds[0] || null,
     contextId: unifiedFilters.contextIds[0] || null,
-    weekOffset: unifiedFilters.weekOffset,
-    suggestionType: unifiedFilters.suggestionType,
+    weekOffset: unifiedFilters.weekOffset ?? 0,
+    suggestionType: unifiedFilters.suggestionType ?? 'both',
   }), [unifiedFilters]);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function WeeklyDashboard() {
     loadStats();
   }, [loadStats]);
 
-  const handleFilterChange = useCallback((newFilters: UnifiedFilterState) => {
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
     setUnifiedFilters(newFilters);
   }, []);
 
@@ -106,7 +106,7 @@ export default function WeeklyDashboard() {
       {/* Type Toggle + Unified FilterBar */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <SuggestionTypeToggle
-          value={unifiedFilters.suggestionType}
+          value={unifiedFilters.suggestionType ?? 'both'}
           onChange={handleSuggestionTypeChange}
           ideasCount={stats?.overall.ideasTotal}
           directionsCount={stats?.overall.directionsTotal}

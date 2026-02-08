@@ -95,8 +95,8 @@ export function useTaskColumnData({
           const data = await response.json();
           setIdeasMap(data.ideas || {});
         }
-      } catch (error) {
-        console.debug('Failed to batch fetch ideas:', error);
+      } catch {
+        // Batch fetch failed - non-critical
       }
     };
 
@@ -139,8 +139,8 @@ export function useTaskColumnData({
           });
           setContextsMap(map);
         }
-      } catch (error) {
-        console.debug('Failed to fetch contexts:', error);
+      } catch {
+        // Context fetch failed - non-critical
       }
     };
 

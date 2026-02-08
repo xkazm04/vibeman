@@ -3,6 +3,11 @@ import type React from 'react';
 import type { WizardStepAction } from '@/components/DecisionPanel/WizardStepPanel';
 import { generateDecisionId } from '@/lib/idGenerator';
 
+// Reusable interrogative engine for queue-based decision processing.
+// The Zustand store below provides the React-optimized API; the engine
+// offers the same pattern for non-UI consumers.
+export { createDecisionQueueEngine } from '@/lib/interrogative-engine';
+
 export type DecisionType = 'structure-scan' | 'build-fix' | 'context-scan' | 'pre-scan';
 
 export interface DecisionItem {

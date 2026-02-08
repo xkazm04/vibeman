@@ -178,6 +178,39 @@ export interface LearningInsight {
   conflict_type?: 'semantic' | 'keyword' | 'direct'; // how conflict was detected
   conflict_resolved?: boolean; // whether user has resolved the conflict
   conflict_resolution?: 'keep_both' | 'keep_this' | 'keep_other' | 'merge'; // resolution choice
+  // Auto-pruning fields
+  auto_pruned?: boolean; // whether this insight was auto-pruned (confidence lowered or conflict auto-resolved)
+  auto_prune_reason?: string; // why it was auto-pruned
+  original_confidence?: number; // confidence before auto-pruning
+}
+
+/**
+ * Database row for brain_insights table (first-class insight entity)
+ */
+export interface DbBrainInsight {
+  id: string;
+  reflection_id: string;
+  project_id: string;
+  type: LearningInsight['type'];
+  title: string;
+  description: string;
+  confidence: number;
+  evidence: string; // JSON array of direction/signal IDs
+  evolves_from_id: string | null; // FK to previous insight ID
+  evolves_title: string | null; // original title for display (before FK was resolved)
+  // Conflict fields
+  conflict_with_id: string | null; // FK to conflicting insight
+  conflict_with_title: string | null; // title for display
+  conflict_type: string | null; // 'semantic' | 'keyword' | 'direct'
+  conflict_resolved: number; // 0 or 1 (SQLite boolean)
+  conflict_resolution: string | null; // 'keep_both' | 'keep_this' | 'keep_other' | 'merge'
+  // Auto-pruning fields
+  auto_pruned: number; // 0 or 1
+  auto_prune_reason: string | null;
+  original_confidence: number | null;
+  // Timestamps
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -209,6 +242,14 @@ export interface BehavioralContext {
     averageTaskDuration: number;
     preferredContexts: string[];
   };
+
+  // Top insights from Brain reflections (high-confidence, proven helpful)
+  topInsights: Array<{
+    title: string;
+    type: LearningInsight['type'];
+    description: string;
+    confidence: number;
+  }>;
 }
 
 /**

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       return createApiErrorResponse(
         ApiErrorCode.EXTERNAL_SERVICE_ERROR,
         errorMessage || 'Sync failed',
-        { directions: response.directions, requirements: response.requirements }
+        { details: { directions: response.directions, requirements: response.requirements } }
       );
     }
 

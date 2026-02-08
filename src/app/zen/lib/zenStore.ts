@@ -26,7 +26,7 @@ export interface ZenStats {
   sessionStart: Date;
 }
 
-export type ZenMode = 'offline' | 'online' | 'emulator';
+export type ZenMode = 'offline' | 'online' | 'emulator' | 'mission-control';
 
 interface ZenState {
   // Mode: offline (monitoring) or online (accepting tasks)

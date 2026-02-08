@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search } from 'lucide-react';
+import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { InsightsTable } from './InsightsTable';
@@ -109,9 +109,14 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     }
   };
 
-  // Count conflicts for badge
+  // Count manual unresolved conflicts (exclude auto-resolved)
   const conflictCount = useMemo(() => {
     return insights.filter(i => i.conflict_with && !i.conflict_resolved).length;
+  }, [insights]);
+
+  // Count auto-pruned insights
+  const autoPrunedCount = useMemo(() => {
+    return insights.filter(i => i.auto_pruned).length;
   }, [insights]);
 
   const displayed = useMemo(() => {
@@ -217,7 +222,18 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
               />
             </div>
 
-            {/* Conflicts button - prominent when conflicts exist */}
+            {/* Auto-pruned indicator */}
+            {autoPrunedCount > 0 && (
+              <span
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-amber-500/10 text-amber-400/80 border border-amber-500/20"
+                title={`${autoPrunedCount} insight${autoPrunedCount !== 1 ? 's' : ''} auto-pruned by effectiveness analysis`}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>{autoPrunedCount} AUTO-PRUNED</span>
+              </span>
+            )}
+
+            {/* Conflicts button - only for unresolved manual conflicts */}
             {conflictCount > 0 && (
               <button
                 onClick={() => setTypeFilter(typeFilter === 'conflicts' ? 'all' : 'conflicts')}
@@ -226,7 +242,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
                     ? 'bg-red-500/20 text-red-400 border border-red-500/40'
                     : 'bg-red-500/10 text-red-400/80 border border-red-500/20 hover:bg-red-500/15'
                 }`}
-                title="View conflicting insights"
+                title="View conflicting insights needing manual resolution"
               >
                 <AlertOctagon className="w-3.5 h-3.5" />
                 <span>{conflictCount} CONFLICTS</span>

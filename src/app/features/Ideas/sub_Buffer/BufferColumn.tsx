@@ -5,6 +5,9 @@ import { motion } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferItem from './BufferItem';
+import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
+
+const ideaStagingBuffer = createIdeaStagingBuffer<DbIdea>();
 
 interface BufferColumnProps {
   contextName: string;
@@ -55,27 +58,14 @@ const BufferColumn = React.memo(function BufferColumn({
       setIsDeleting(false);
     }
   };
-  // Sort ideas: First by status (Pending, Accepted, etc.), then by category (type) within each status
+  // Sort ideas by status order then category, using the staging buffer abstraction
   const sortedIdeas = React.useMemo(() => {
-    return [...ideas].sort((a, b) => {
-      // First sort by status
-      const statusOrder = { pending: 0, accepted: 1, implemented: 2, rejected: 3 };
-      const statusDiff =
-        (statusOrder[a.status as keyof typeof statusOrder] || 99) -
-        (statusOrder[b.status as keyof typeof statusOrder] || 99);
-
-      // If same status, sort by category (type)
-      if (statusDiff === 0) {
-        return a.category.localeCompare(b.category);
-      }
-
-      return statusDiff;
-    });
+    return ideaStagingBuffer.sort(ideas);
   }, [ideas]);
 
   return (
     <motion.div
-      className="flex flex-col bg-gradient-to-b from-gray-900/50 to-gray-900/30 border border-gray-700/40 rounded-lg overflow-hidden transition-all duration-300 ease-out hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-xl hover:shadow-black/30 backdrop-blur-sm"
+      className="flex flex-col bg-gradient-to-b from-gray-900/50 to-gray-900/30 border border-gray-700/40 rounded-xl overflow-hidden transition-all duration-300 ease-out hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-xl hover:shadow-black/40 backdrop-blur-sm"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8, x: -100 }}
@@ -88,7 +78,7 @@ const BufferColumn = React.memo(function BufferColumn({
       data-testid={`buffer-column-${contextId || 'no-context'}`}
     >
       {/* Header */}
-      <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40 backdrop-blur-sm">
+      <div className="px-3 py-2.5 bg-gray-800/60 border-b border-gray-700/40 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-sm font-semibold text-gray-300 truncate" title={contextName}>
             {contextName}

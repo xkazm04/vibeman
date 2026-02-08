@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Monitor, Wifi, Tablet, Clock } from 'lucide-react';
+import { Monitor, Wifi, Tablet, Clock, Rocket } from 'lucide-react';
 import { useZenStore, type ZenMode } from '../lib/zenStore';
 
 interface ZenHeaderProps {
@@ -13,6 +13,7 @@ const modes: { value: ZenMode; label: string; icon: typeof Monitor; color: strin
   { value: 'offline', label: 'Offline', icon: Monitor, color: 'gray' },
   { value: 'online', label: 'Online', icon: Wifi, color: 'cyan' },
   { value: 'emulator', label: 'Emulator', icon: Tablet, color: 'purple' },
+  { value: 'mission-control', label: 'Mission', icon: Rocket, color: 'blue' },
 ];
 
 export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
@@ -67,6 +68,8 @@ export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
                 ? 'linear-gradient(to right, #374151, #4b5563)'
                 : mode === 'online'
                 ? 'linear-gradient(to right, #06b6d4, #3b82f6)'
+                : mode === 'mission-control'
+                ? 'linear-gradient(to right, #3b82f6, #06b6d4)'
                 : 'linear-gradient(to right, #a855f7, #7c3aed)',
           }}
           animate={{
@@ -119,6 +122,7 @@ export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
             ${mode === 'offline' ? 'bg-gray-600' : ''}
             ${mode === 'online' ? 'bg-cyan-400 animate-pulse' : ''}
             ${mode === 'emulator' ? 'bg-purple-400 animate-pulse' : ''}
+            ${mode === 'mission-control' ? 'bg-blue-400 animate-pulse' : ''}
           `}
         />
       </div>

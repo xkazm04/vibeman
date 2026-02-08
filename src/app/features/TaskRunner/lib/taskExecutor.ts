@@ -7,7 +7,7 @@ import type { ProjectRequirement, TaskRunnerActions } from './types';
 import { isRequirementRunning, isRequirementQueued } from './types';
 import { executeGitOperations, generateCommitMessage } from '../sub_Git/gitApi';
 import type { GitConfig } from '../sub_Git/useGitConfig';
-import { getContextIdFromRequirement, triggerScreenshotCapture } from '../sub_Screenshot/screenshotApi';
+import { getContextIdFromRequirement, triggerScreenshotCapture } from '../screenshot/screenshotApi';
 import { BatchStorage } from './batchStorage';
 
 /**
@@ -35,26 +35,22 @@ export function updateBatchProgress(reqId: string): void {
   if (!currentState) return;
 
   // Check all batches and update the one that contains this requirement
-  const batchIds: Array<'batch1' | 'batch2' | 'batch3' | 'batch4'> = ['batch1', 'batch2', 'batch3', 'batch4'];
-  const updatedState = { ...currentState };
+  const updatedBatches = { ...currentState.batches };
 
-  for (const batchId of batchIds) {
-    const batch = currentState[batchId];
+  for (const batchId of Object.keys(currentState.batches)) {
+    const batch = currentState.batches[batchId];
     if (batch && batch.requirementIds.includes(reqId)) {
-      updatedState[batchId] = {
+      const newCompleted = batch.completedCount + 1;
+      updatedBatches[batchId] = {
         ...batch,
-        completedCount: batch.completedCount + 1,
+        completedCount: newCompleted,
+        status: newCompleted >= batch.requirementIds.length ? 'completed' : batch.status,
       };
-
-      // Check if batch is complete
-      if (updatedState[batchId]!.completedCount >= batch.requirementIds.length) {
-        updatedState[batchId]!.status = 'completed';
-      }
     }
   }
 
   // Save updated state
-  BatchStorage.save(updatedState);
+  BatchStorage.save({ ...currentState, batches: updatedBatches });
 }
 
 /**

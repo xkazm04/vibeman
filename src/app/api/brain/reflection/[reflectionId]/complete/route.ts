@@ -7,10 +7,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { reflectionAgent } from '@/lib/brain/reflectionAgent';
-import { brainReflectionDb } from '@/app/db';
+import { brainReflectionDb, brainInsightDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import { detectConflicts, markConflictsOnInsights } from '@/lib/brain/insightConflictDetector';
+import { autoPruneInsights } from '@/lib/brain/insightAutoPruner';
 
 /**
  * Normalize a string for comparison (lowercase, trim, strip punctuation)
@@ -159,8 +160,8 @@ async function handlePost(
       }
     }
 
-    // Deduplicate insights against previously stored ones
-    const existingInsights = brainReflectionDb.getAllInsights(reflection.project_id);
+    // Deduplicate insights against previously stored ones (from new table)
+    const existingInsights = brainInsightDb.getAllInsights(reflection.project_id);
     const dedupedInsights = deduplicateInsights(validatedInsights, existingInsights);
 
     // Detect conflicts between new insights and existing insights
@@ -180,7 +181,7 @@ async function handlePost(
     // Also detect conflicts within the new insights themselves
     conflictsDetected += markConflictsOnInsights(dedupedInsights);
 
-    // Complete the reflection
+    // Complete the reflection (keeps JSON blob for backward compat)
     const success = reflectionAgent.completeReflection(reflectionId, {
       directionsAnalyzed,
       outcomesAnalyzed,
@@ -196,7 +197,13 @@ async function handlePost(
       );
     }
 
-    // Get updated reflection
+    // Insert insights into the first-class brain_insights table
+    brainInsightDb.createBatch(reflectionId, reflection.project_id, dedupedInsights);
+
+    // Run auto-pruning: demote misleading insights and auto-resolve clear conflicts
+    const autoPruneResult = autoPruneInsights(reflection.project_id);
+
+    // Get updated reflection (after auto-pruning may have modified insights)
     const updatedReflection = brainReflectionDb.getById(reflectionId);
 
     return NextResponse.json({
@@ -212,6 +219,12 @@ async function handlePost(
         duplicatesRemoved: validatedInsights.length - dedupedInsights.length,
         conflictsDetected,
         sectionsUpdated: guideSectionsUpdated?.length || 0,
+      },
+      autoPrune: {
+        misleadingDemoted: autoPruneResult.misleadingDemoted,
+        conflictsAutoResolved: autoPruneResult.conflictsAutoResolved,
+        conflictsRemaining: autoPruneResult.conflictsRemaining,
+        actions: autoPruneResult.actions,
       },
     });
   } catch (error) {

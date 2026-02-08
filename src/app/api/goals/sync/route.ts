@@ -8,6 +8,7 @@ import { batchSyncGoals, isSupabaseConfigured } from '@/lib/supabase/goalSync';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
+import type { SyncStatusResponse, SyncResultResponse } from '@/lib/api-types/goals';
 
 async function handlePost(request: NextRequest) {
   try {
@@ -25,7 +26,7 @@ async function handlePost(request: NextRequest) {
         goalsCount: 0,
         errors: ['Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'],
         configured: false,
-      }, { status: 200 }); // 200 because this is expected state, not an error
+      } satisfies SyncResultResponse, { status: 200 }); // 200 because this is expected state, not an error
     }
 
     // Perform batch sync
@@ -52,7 +53,7 @@ async function handleGet() {
       message: configured
         ? 'Supabase is configured and ready for sync'
         : 'Supabase is not configured. Set environment variables to enable sync.',
-    });
+    } satisfies SyncStatusResponse);
 
   } catch (error) {
     logger.error('Error in GET /api/goals/sync:', { error });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
+import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
 import type { InsightEffectiveness } from '@/app/api/brain/insights/effectiveness/route';
@@ -261,7 +261,11 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           >
             <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-red-300">
-              {misleadingInsights.length} insight{misleadingInsights.length > 1 ? 's' : ''} may be misleading — direction acceptance dropped after {misleadingInsights.length > 1 ? 'they were' : 'it was'} learned.
+              <span>{misleadingInsights.length} insight{misleadingInsights.length > 1 ? 's' : ''} {misleadingInsights.length > 1 ? 'are' : 'is'} misleading — direction acceptance dropped after {misleadingInsights.length > 1 ? 'they were' : 'it was'} learned.</span>
+              <span className="flex items-center gap-1 mt-1 text-amber-400/80">
+                <Zap className="w-3 h-3" />
+                Confidence auto-demoted on next reflection.
+              </span>
             </div>
           </motion.div>
         )}

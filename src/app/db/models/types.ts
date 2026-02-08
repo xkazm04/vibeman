@@ -94,6 +94,13 @@ export interface DbContext {
   category: 'ui' | 'lib' | 'api' | 'data' | null; // File category classification
   api_routes: string | null; // JSON array of API paths handled by this context
   business_feature: string | null; // Human-readable business feature name
+  // AI Navigation Metadata (Phase 2)
+  entry_points: string | null; // JSON: Array<{path: string, type: 'page'|'api'|'component'|'config'}>
+  db_tables: string | null; // JSON: string[] - DB table names this context reads/writes
+  keywords: string | null; // JSON: string[] - search keywords for fuzzy matching
+  api_surface: string | null; // JSON: Array<{path: string, methods: string, description: string}>
+  cross_refs: string | null; // JSON: Array<{contextId: string, relationship: 'depends_on'|'depended_by'|'shares_data'}>
+  tech_stack: string | null; // JSON: string[] - key technologies/libraries used
   created_at: string;
   updated_at: string;
 }

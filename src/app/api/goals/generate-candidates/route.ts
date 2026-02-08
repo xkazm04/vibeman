@@ -4,6 +4,14 @@ import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.re
 import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { randomUUID } from 'crypto';
 import { withObservability } from '@/lib/observability/middleware';
+import type {
+  GenerateCandidatesResponse,
+  CandidatesListResponse,
+  CandidateAcceptResponse,
+  CandidateUpdateResponse,
+  CandidatesBulkDeleteResponse,
+  CandidateDeleteResponse,
+} from '@/lib/api-types/goals';
 
 function createErrorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -54,7 +62,7 @@ async function handlePost(request: NextRequest) {
       candidateIds: result.candidateIds,
       totalGenerated: result.totalGenerated,
       metadata: result.metadata
-    });
+    } satisfies GenerateCandidatesResponse);
   } catch (error) {
     return createErrorResponse('Internal server error', 500);
   }
@@ -85,7 +93,7 @@ async function handleGet(request: NextRequest) {
       success: true,
       candidates,
       stats
-    });
+    } satisfies CandidatesListResponse);
   } catch (error) {
     return createErrorResponse('Internal server error', 500);
   }
@@ -121,7 +129,7 @@ function handleAcceptAction(candidateId: string, updates: any) {
     success: true,
     candidate: updatedCandidate,
     goal
-  });
+  } satisfies CandidateAcceptResponse);
 }
 
 function handleRejectAction(candidateId: string) {
@@ -132,7 +140,7 @@ function handleRejectAction(candidateId: string) {
   return NextResponse.json({
     success: true,
     candidate: updatedCandidate
-  });
+  } satisfies CandidateUpdateResponse);
 }
 
 function handleTweakAction(candidateId: string, updates: any) {
@@ -144,7 +152,7 @@ function handleTweakAction(candidateId: string, updates: any) {
   return NextResponse.json({
     success: true,
     candidate: updatedCandidate
-  });
+  } satisfies CandidateUpdateResponse);
 }
 
 function handleUpdateAction(candidateId: string, updates: any) {
@@ -153,7 +161,7 @@ function handleUpdateAction(candidateId: string, updates: any) {
   return NextResponse.json({
     success: true,
     candidate: updatedCandidate
-  });
+  } satisfies CandidateUpdateResponse);
 }
 
 /**
@@ -191,7 +199,7 @@ function handleDeleteAll(projectId: string) {
   return NextResponse.json({
     success: true,
     deletedCount
-  });
+  } satisfies CandidatesBulkDeleteResponse);
 }
 
 function handleDeleteSingle(candidateId: string) {
@@ -201,7 +209,7 @@ function handleDeleteSingle(candidateId: string) {
     return createErrorResponse('Candidate not found', 404);
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true } satisfies CandidateDeleteResponse);
 }
 
 /**

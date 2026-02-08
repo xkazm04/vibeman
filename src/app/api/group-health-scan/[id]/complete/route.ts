@@ -65,7 +65,7 @@ async function handlePost(
 
     // Also update the context group with the health score
     try {
-      const group = contextGroupDb.getById(existingScan.group_id);
+      const group = contextGroupDb.getGroupById(existingScan.group_id);
       if (group) {
         // The repository's completeScan already updates context_groups,
         // but we can do additional updates here if needed

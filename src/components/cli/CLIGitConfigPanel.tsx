@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, RotateCcw, AlertCircle, CheckCircle, AlertTriangle, Zap, GitCommit, Upload, Layers } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, AlertCircle, CheckCircle, Zap, GitCommit, Layers } from 'lucide-react';
 import { validateGitCommand, validateCommitMessageTemplate } from '@/app/features/TaskRunner/sub_Git/lib/gitConfigValidator';
 import type { CLIGitConfig } from './store/cliSessionStore';
 

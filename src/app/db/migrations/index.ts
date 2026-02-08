@@ -14,6 +14,9 @@ import { migrateDropOrphanedTables } from './064_drop_orphaned_tables';
 import { migrate065DirectionPairs } from './065_direction_pairs';
 import { migrate066CleanupStaleContextPaths } from './066_cleanup_stale_context_paths';
 import { migrate067FixCheckConstraints } from './067_fix_check_constraints';
+import { migrate069ContextAiNavigation } from './069_context_ai_navigation';
+import { migrate070CollectiveMemory } from './070_collective_memory';
+import { migrate071BrainInsightsTable } from './071_brain_insights_table';
 
 /**
  * Migration logger utility
@@ -226,6 +229,12 @@ export function runMigrations() {
     migrateDiscoveredTemplates();
     // Migration 82: Generation History - track template generation history
     migrateGenerationHistory();
+    // Migration 83: Context AI Navigation - entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack
+    migrateContextAiNavigation();
+    // Migration 84: Collective Memory - cross-session learning and pattern knowledge graph
+    migrateCollectiveMemory();
+    // Migration 85: Brain Insights Table - extract insights from JSON blobs to proper table
+    migrateBrainInsightsTable();
 
 
     migrationLogger.success('Database migrations completed successfully');
@@ -4572,5 +4581,26 @@ function migrateGenerationHistory() {
     const db = getConnection();
     const { migrate068GenerationHistory } = require('./068_generation_history');
     migrate068GenerationHistory(db);
+  }, migrationLogger);
+}
+
+function migrateContextAiNavigation() {
+  safeMigration('context_ai_navigation', () => {
+    const db = getConnection();
+    migrate069ContextAiNavigation(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migrateCollectiveMemory() {
+  safeMigration('collective_memory', () => {
+    const db = getConnection();
+    migrate070CollectiveMemory(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migrateBrainInsightsTable() {
+  safeMigration('brain_insights_table', () => {
+    const db = getConnection();
+    migrate071BrainInsightsTable(db, migrationLogger);
   }, migrationLogger);
 }

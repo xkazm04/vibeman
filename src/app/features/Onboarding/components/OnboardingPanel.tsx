@@ -104,11 +104,11 @@ export default function OnboardingPanel({ isOpen, onClose }: OnboardingPanelProp
             className="fixed left-1/2 -translate-x-1/2 z-50 w-full max-w-md"
           >
             {/* Paper-like card */}
-            <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-amber-200/20 rounded-lg shadow-2xl shadow-amber-500/10 p-8">
+            <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-amber-200/20 rounded-lg shadow-2xl shadow-amber-500/15 p-8 backdrop-blur-sm">
               {/* Close button */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-1 rounded-full bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-gray-700/50 hover:bg-gray-600/50 active:scale-90 transition-all duration-200"
               >
                 <X className="w-4 h-4 text-gray-400 hover:text-white" />
               </button>

@@ -3,7 +3,7 @@
  * Generates Claude Code requirement for creating/updating test scenarios and steps
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/context-scans/prompts/testDesign.ts
+ * src/app/features/Onboarding/blueprint/lib/context-scans/prompts/testDesign.ts
  */
 
 export interface TestStep {

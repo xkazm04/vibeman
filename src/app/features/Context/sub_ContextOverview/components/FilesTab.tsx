@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Folder, FolderOpen, ChevronRight } from 'lucide-react';
+import { FilePath } from '../../../../../utils/pathUtils';
 
 interface FilesTabProps {
   filePaths: string[];
@@ -15,9 +16,9 @@ export default function FilesTab({ filePaths, groupColor }: FilesTabProps) {
     const groups: Record<string, string[]> = {};
 
     filePaths.forEach((filePath) => {
-      const parts = filePath.split('/');
-      const directory = parts.length > 1 ? parts.slice(0, -1).join('/') : '/';
-      const fileName = parts[parts.length - 1];
+      const fp = FilePath.from(filePath);
+      const directory = fp.directory || '/';
+      const fileName = fp.fileName;
 
       if (!groups[directory]) {
         groups[directory] = [];
@@ -108,7 +109,7 @@ export default function FilesTab({ filePaths, groupColor }: FilesTabProps) {
                         color: groupColor,
                       }}
                     >
-                      {fileName.split('.').pop()}
+                      {FilePath.from(fileName).extension}
                     </span>
                   )}
                 </motion.div>

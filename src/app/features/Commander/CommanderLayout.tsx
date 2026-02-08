@@ -1,16 +1,19 @@
 /**
  * Commander Layout
- * Main Annette 2.0 interface - 2/3 chat + 1/3 decision panel
+ * Main Annette 2.0 interface with tab switcher: Annette (chat) / Voice Lab
  */
 
 'use client';
 
-import { useEffect, useCallback } from 'react';
-import { Bot, Bell, BellOff, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Bot, Bell, BellOff, Trash2, Volume2, VolumeX, FlaskConical } from 'lucide-react';
 import { useAnnetteStore } from '@/stores/annetteStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import ChatPanel from './components/ChatPanel';
 import DecisionPanel from './components/DecisionPanel';
+import VoiceLabPanel from './components/VoiceLabPanel';
+
+type Tab = 'annette' | 'voicelab';
 
 export default function CommanderLayout() {
   const activeProject = useActiveProjectStore((s) => s.activeProject);
@@ -21,6 +24,7 @@ export default function CommanderLayout() {
   const audioEnabled = useAnnetteStore((s) => s.audioEnabled);
   const toggleAudio = useAnnetteStore((s) => s.toggleAudio);
   const markAllRead = useAnnetteStore((s) => s.markAllRead);
+  const [activeTab, setActiveTab] = useState<Tab>('annette');
 
   // Initialize session when project changes
   useEffect(() => {
@@ -44,8 +48,8 @@ export default function CommanderLayout() {
 
   return (
     <div className="flex h-full bg-slate-900/50">
-      {/* Left 2/3: Chat */}
-      <div className="flex flex-col flex-1 min-w-0">
+      {/* Left panel (full width when Voice Lab active, 2/3 when Annette) */}
+      <div className={`flex flex-col min-w-0 ${activeTab === 'annette' ? 'flex-1' : 'flex-1'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/50">
           <div className="flex items-center gap-2.5">
@@ -59,44 +63,76 @@ export default function CommanderLayout() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={toggleAudio}
-              className={`p-1.5 rounded-lg transition-colors ${
-                audioEnabled
-                  ? 'text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20'
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
-              }`}
-              title={audioEnabled ? 'Disable audio responses' : 'Enable audio responses'}
-            >
-              {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={toggleMute}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"
-              title={notificationsMuted ? 'Unmute notifications' : 'Mute notifications'}
-            >
-              {notificationsMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={handleClearChat}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"
-              title="Clear chat"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {activeTab === 'annette' && (
+              <>
+                <button
+                  onClick={toggleAudio}
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    audioEnabled
+                      ? 'text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+                  }`}
+                  title={audioEnabled ? 'Disable audio responses' : 'Enable audio responses'}
+                >
+                  {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={toggleMute}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"
+                  title={notificationsMuted ? 'Unmute notifications' : 'Mute notifications'}
+                >
+                  {notificationsMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={handleClearChat}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"
+                  title="Clear chat"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Chat area */}
+        {/* Tab bar */}
+        <div className="flex items-center gap-0.5 px-4 pt-1.5 pb-0 border-b border-slate-800/50">
+          <button
+            onClick={() => setActiveTab('annette')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
+              activeTab === 'annette'
+                ? 'text-cyan-400 bg-slate-800/50 border border-b-0 border-slate-700/40'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            Annette
+          </button>
+          <button
+            onClick={() => setActiveTab('voicelab')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
+              activeTab === 'voicelab'
+                ? 'text-purple-400 bg-slate-800/50 border border-b-0 border-slate-700/40'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            Voice Lab
+          </button>
+        </div>
+
+        {/* Content */}
         <div className="flex-1 overflow-hidden">
-          <ChatPanel />
+          {activeTab === 'annette' ? <ChatPanel /> : <VoiceLabPanel />}
         </div>
       </div>
 
-      {/* Right 1/3: Decision Panel */}
-      <div className="w-80 flex-shrink-0">
-        <DecisionPanel />
-      </div>
+      {/* Right 1/3: Decision Panel (only in Annette tab) */}
+      {activeTab === 'annette' && (
+        <div className="w-80 flex-shrink-0">
+          <DecisionPanel />
+        </div>
+      )}
     </div>
   );
 }

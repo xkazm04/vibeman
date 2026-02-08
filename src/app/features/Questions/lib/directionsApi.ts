@@ -5,6 +5,10 @@
 
 import { DbDirection } from '@/app/db';
 
+// Interrogative engine preset for directions. Provides the same accept/reject/generate
+// pattern as the functions below but through a unified engine interface.
+export { createDirectionsEngine } from '@/lib/interrogative-engine';
+
 export interface DirectionsResponse {
   success: boolean;
   directions: DbDirection[];

@@ -3,7 +3,7 @@
  * Detects unused components and exports using streaming analysis
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/blueprintUnusedScan.ts
+ * src/app/features/Onboarding/blueprint/lib/blueprintUnusedScan.ts
  *
  * Execution flow:
  * 1. Call /api/unused-code with streaming enabled

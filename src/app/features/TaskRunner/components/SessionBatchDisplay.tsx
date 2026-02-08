@@ -20,9 +20,6 @@ import { getStatusIcon, getStatusColor } from '@/components/ui/taskStatusUtils';
 import {
   useTaskRunnerStore,
   type BatchId,
-  type BatchState,
-  type TaskState,
-  isTaskQueued,
   isTaskRunning,
   isTaskCompleted,
   isTaskFailed,
@@ -147,7 +144,6 @@ export default function SessionBatchDisplay({
   const handleStart = useCallback(async () => {
     if (!session || isExecuting || !session.projectPath || !session.projectId) return;
 
-    console.log('🚀 Starting session execution:', session.id);
     setIsExecuting(true);
     startBatch(batchId);
 
@@ -159,18 +155,15 @@ export default function SessionBatchDisplay({
       projectPath: session.projectPath,
       projectId: session.projectId,
       onTaskStatusChange: (taskId, status, extras) => {
-        console.log(`📋 Task status change: ${taskId} -> ${status}`);
         updateTaskSessionStatus(batchId, taskId, status, extras);
       },
       onSessionStatusChange: (status) => {
-        console.log(`📦 Session status change: ${status}`);
         // Status is auto-updated by updateTaskSessionStatus
         if (status === 'completed' || status === 'failed') {
           setIsExecuting(false);
         }
       },
       onClaudeSessionIdCaptured: (claudeSessionId) => {
-        console.log(`📎 Captured Claude session ID: ${claudeSessionId}`);
         updateBatchClaudeSessionId(batchId, claudeSessionId);
       },
     });

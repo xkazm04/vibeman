@@ -30,7 +30,7 @@ import { buildDataFlowOptimizerPrompt } from './dataFlowOptimizerPrompt';
 import { buildCodeRefactorPrompt } from './codeRefactorPrompt';
 import { buildPragmaticIntegratorPrompt } from './pragmaticIntegratorPrompt';
 
-import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { ScanType, registerPromptBuilders, getAgent } from '@/app/features/Ideas/lib/scanTypes';
 
 export interface PromptOptions {
   projectName: string;
@@ -75,11 +75,15 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   pragmatic_integrator: buildPragmaticIntegratorPrompt,
 };
 
+// Register all prompt builders into the unified AGENT_REGISTRY
+registerPromptBuilders(PROMPT_BUILDERS as Record<ScanType, PromptBuilder>);
+
 /**
- * Get the appropriate prompt builder for a scan type
+ * Get the appropriate prompt builder for a scan type.
+ * Checks AGENT_REGISTRY first, falls back to PROMPT_BUILDERS map.
  */
 export function getPromptBuilder(scanType: ScanType): PromptBuilder | undefined {
-  return PROMPT_BUILDERS[scanType];
+  return getAgent(scanType)?.buildPrompt ?? PROMPT_BUILDERS[scanType];
 }
 
 /**

@@ -7,9 +7,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { reflectionAgent } from '@/lib/brain/reflectionAgent';
-import { brainReflectionDb } from '@/app/db';
+import { brainReflectionDb, brainInsightDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
-import type { ReflectionTriggerType, LearningInsight } from '@/app/db/models/brain.types';
+import type { ReflectionTriggerType } from '@/app/db/models/brain.types';
+import { dbInsightToLearning } from '@/app/db/repositories/brain-insight.repository';
 
 /**
  * GET /api/brain/reflection
@@ -38,12 +39,10 @@ async function handleGet(request: NextRequest) {
 
       const reflections = brainReflectionDb.getByProject(projectId, limit);
 
-      // Compute stats for each reflection
+      // Compute stats for each reflection (using brain_insights table)
       const history = reflections.map((r) => {
-        let insights: LearningInsight[] = [];
-        try {
-          insights = r.insights_generated ? JSON.parse(r.insights_generated) : [];
-        } catch { /* malformed JSON */ }
+        const insightRows = brainInsightDb.getByReflection(r.id);
+        const insights = insightRows.map(dbInsightToLearning);
 
         let sectionsUpdated: string[] = [];
         try {

@@ -5,103 +5,30 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, Bot, User, AlertCircle } from 'lucide-react';
-import { useAnnetteStore, ChatMessage, QuickOption } from '@/stores/annetteStore';
-import ToolCallDisplay from './ToolCallDisplay';
-import ToolExecutionInline from './ToolExecutionInline';
+import { Send, Loader2, Bot, AlertCircle, Sparkles } from 'lucide-react';
+import { useAnnetteStore, QuickOption } from '@/stores/annetteStore';
+import { ChatBubble, DecisionEventMarker } from './ChatBubble';
+import CapabilityCatalog from './CapabilityCatalog';
 import VoiceButton from './VoiceButton';
-
-function MessageBubble({ message }: { message: ChatMessage }) {
-  const isUser = message.role === 'user';
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
-    >
-      {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Bot className="w-4 h-4 text-cyan-400" />
-        </div>
-      )}
-
-      <div className={`max-w-[80%] ${isUser ? 'order-first' : ''}`}>
-        <div
-          className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-            isUser
-              ? 'bg-cyan-600/20 border border-cyan-500/20 text-slate-200 rounded-br-md'
-              : 'bg-slate-800/60 border border-slate-700/30 text-slate-300 rounded-bl-md'
-          }`}
-        >
-          <div className="whitespace-pre-wrap break-words">{message.content}</div>
-        </div>
-
-        {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-          <ToolCallDisplay toolCalls={message.toolCalls} />
-        )}
-
-        {/* Inline CLI executions */}
-        {!isUser && message.cliExecutions && message.cliExecutions.length > 0 && (
-          <ToolExecutionInline
-            executions={message.cliExecutions}
-            messageId={message.id}
-          />
-        )}
-
-        {!isUser && message.tokensUsed && (
-          <p className="text-[10px] text-slate-600 mt-1 ml-1">
-            {message.tokensUsed.total.toLocaleString()} tokens
-          </p>
-        )}
-      </div>
-
-      {isUser && (
-        <div className="w-7 h-7 rounded-full bg-slate-700/50 border border-slate-600/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <User className="w-4 h-4 text-slate-400" />
-        </div>
-      )}
-    </motion.div>
-  );
-}
+import { useChatInput } from '../hooks/useChatInput';
 
 export default function ChatPanel() {
-  const [input, setInput] = useState('');
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const messages = useAnnetteStore((s) => s.messages);
-  const isLoading = useAnnetteStore((s) => s.isLoading);
   const error = useAnnetteStore((s) => s.error);
-  const sendMessage = useAnnetteStore((s) => s.sendMessage);
   const setError = useAnnetteStore((s) => s.setError);
+  const sendMessage = useAnnetteStore((s) => s.sendMessage);
+
+  const { input, setInput, inputRef, isLoading, handleSend, handleKeyDown, canSend } = useChatInput();
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Focus input on mount
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
-
-    setInput('');
-    await sendMessage(trimmed);
-  }, [input, isLoading, sendMessage]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }, [handleSend]);
 
   return (
     <div className="flex flex-col h-full">
@@ -114,19 +41,30 @@ export default function ChatPanel() {
             </div>
             <p className="text-slate-400 text-sm">Ask me about your project, goals, or what to work on next.</p>
             <p className="text-slate-600 text-xs mt-1">I have access to your Brain context, directions, ideas, and more.</p>
+            <button
+              onClick={() => setCatalogOpen(true)}
+              className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors mx-auto"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Browse Capabilities
+            </button>
           </div>
         )}
 
         <AnimatePresence mode="popLayout">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
+          {messages.map((msg) =>
+            msg.role === 'system' && msg.decisionEvent ? (
+              <DecisionEventMarker key={msg.id} event={msg.decisionEvent} content={msg.content} size="full" />
+            ) : msg.role !== 'system' ? (
+              <ChatBubble key={msg.id} message={msg} size="full" />
+            ) : null
+          )}
         </AnimatePresence>
 
         {/* Quick options from last assistant message */}
         {!isLoading && messages.length > 0 && (() => {
-          const last = messages[messages.length - 1];
-          if (last.role === 'assistant' && last.quickOptions && last.quickOptions.length > 0) {
+          const last = [...messages].reverse().find(m => m.role !== 'system');
+          if (last && last.role === 'assistant' && last.quickOptions && last.quickOptions.length > 0) {
             return (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
@@ -198,13 +136,18 @@ export default function ChatPanel() {
 
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!canSend}
             className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
       </div>
+
+      <CapabilityCatalog
+        isOpen={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+      />
     </div>
   );
 }

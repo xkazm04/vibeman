@@ -7,59 +7,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, User, Loader2, Terminal } from 'lucide-react';
-import { useAnnetteStore, ChatMessage, QuickOption } from '@/stores/annetteStore';
-import ToolExecutionInline from './ToolExecutionInline';
-
-function MiniBubble({ message }: { message: ChatMessage }) {
-  const isUser = message.role === 'user';
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}
-    >
-      {!isUser && (
-        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Bot className="w-3 h-3 text-cyan-400" />
-        </div>
-      )}
-
-      <div className={`max-w-[85%] ${isUser ? 'order-first' : ''}`}>
-        <div
-          className={`px-2.5 py-1.5 rounded-xl text-xs leading-relaxed ${
-            isUser
-              ? 'bg-cyan-600/20 border border-cyan-500/20 text-slate-200 rounded-br-sm'
-              : 'bg-slate-800/60 border border-slate-700/30 text-slate-300 rounded-bl-sm'
-          }`}
-        >
-          <div className="whitespace-pre-wrap break-words">{message.content}</div>
-        </div>
-
-        {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-          <p className="text-[9px] text-slate-600 mt-0.5 ml-1">
-            [used {message.toolCalls.length} tool{message.toolCalls.length > 1 ? 's' : ''}]
-          </p>
-        )}
-
-        {/* Inline CLI executions - compact view */}
-        {!isUser && message.cliExecutions && message.cliExecutions.length > 0 && (
-          <ToolExecutionInline
-            executions={message.cliExecutions}
-            messageId={message.id}
-          />
-        )}
-      </div>
-
-      {isUser && (
-        <div className="w-5 h-5 rounded-full bg-slate-700/50 border border-slate-600/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <User className="w-3 h-3 text-slate-400" />
-        </div>
-      )}
-    </motion.div>
-  );
-}
+import { Bot } from 'lucide-react';
+import { useAnnetteStore, QuickOption } from '@/stores/annetteStore';
+import { ChatBubble, DecisionEventMarker } from './ChatBubble';
 
 function QuickOptionsBar({ options }: { options: QuickOption[] }) {
   const sendMessage = useAnnetteStore((s) => s.sendMessage);
@@ -111,15 +61,19 @@ export default function MiniChatPanel() {
       )}
 
       <AnimatePresence mode="popLayout">
-        {displayMessages.map((msg) => (
-          <MiniBubble key={msg.id} message={msg} />
-        ))}
+        {displayMessages.map((msg) =>
+          msg.role === 'system' && msg.decisionEvent ? (
+            <DecisionEventMarker key={msg.id} event={msg.decisionEvent} content={msg.content} size="compact" />
+          ) : msg.role !== 'system' ? (
+            <ChatBubble key={msg.id} message={msg} size="compact" />
+          ) : null
+        )}
       </AnimatePresence>
 
       {/* Quick options from last assistant message */}
       {!isLoading && displayMessages.length > 0 && (() => {
-        const last = displayMessages[displayMessages.length - 1];
-        if (last.role === 'assistant' && last.quickOptions && last.quickOptions.length > 0) {
+        const last = [...displayMessages].reverse().find(m => m.role !== 'system');
+        if (last && last.role === 'assistant' && last.quickOptions && last.quickOptions.length > 0) {
           return <QuickOptionsBar options={last.quickOptions} />;
         }
         return null;

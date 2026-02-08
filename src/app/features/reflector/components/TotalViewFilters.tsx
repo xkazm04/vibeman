@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, ChevronDown, Sparkles } from 'lucide-react';
-import { IdeaFilterState, getEmptyFilterState, countActiveFilters, getSuggestedFilters } from '../lib/filterIdeas';
+import { FilterState, getEmptyFilterState, countActiveFilters, getSuggestedFilters } from '../lib/filterIdeas';
 import ProjectFilter from './ProjectFilter';
 import ContextFilter from './ContextFilter';
 import StatusFilter from './StatusFilter';
@@ -13,8 +13,8 @@ import { DbIdea } from '@/app/db';
 
 interface TotalViewFiltersProps {
   projects: Array<{ id: string; name: string }>;
-  filters: IdeaFilterState;
-  onChange: (filters: IdeaFilterState) => void;
+  filters: FilterState;
+  onChange: (filters: FilterState) => void;
   ideas: DbIdea[]; // For smart suggestions
 }
 
@@ -49,7 +49,7 @@ export default function TotalViewFilters({ projects, filters, onChange, ideas }:
     onChange({ ...filters, searchQuery });
   };
 
-  const applySuggestion = (suggestion: Partial<IdeaFilterState>) => {
+  const applySuggestion = (suggestion: Partial<FilterState>) => {
     onChange({ ...filters, ...suggestion });
     setShowSuggestions(false);
   };

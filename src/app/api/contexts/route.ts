@@ -109,7 +109,8 @@ async function handleGet(request: NextRequest) {
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, groupId, name, description, filePaths, testScenario } = body;
+    const { projectId, groupId, name, description, filePaths, testScenario,
+      entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack } = body;
 
     const validationError = validateRequiredFields({ projectId, name, filePaths }, ['projectId', 'name', 'filePaths']);
     if (validationError) return validationError;
@@ -121,6 +122,12 @@ async function handlePost(request: NextRequest) {
       description,
       filePaths,
       testScenario,
+      entryPoints: entry_points,
+      dbTables: db_tables,
+      keywords,
+      apiSurface: api_surface,
+      crossRefs: cross_refs,
+      techStack: tech_stack,
     });
 
     // Record brain signal: context created
@@ -169,6 +176,12 @@ async function handlePut(request: NextRequest) {
       testScenario: updates.test_scenario ?? updates.testScenario,
       target: updates.target,
       target_rating: updates.target_rating,
+      entryPoints: updates.entry_points ?? updates.entryPoints,
+      dbTables: updates.db_tables ?? updates.dbTables,
+      keywords: updates.keywords,
+      apiSurface: updates.api_surface ?? updates.apiSurface,
+      crossRefs: updates.cross_refs ?? updates.crossRefs,
+      techStack: updates.tech_stack ?? updates.techStack,
     };
 
     const context = await contextQueries.updateContext(contextId, transformedUpdates);
@@ -179,8 +192,8 @@ async function handlePut(request: NextRequest) {
 
     // Record brain signal: context updated
     try {
-      if (context.project_id) {
-        signalCollector.recordContextFocus(context.project_id, {
+      if (context.projectId) {
+        signalCollector.recordContextFocus(context.projectId, {
           contextId,
           contextName: context.name || contextId,
           duration: 0,

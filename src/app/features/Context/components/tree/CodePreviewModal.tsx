@@ -5,6 +5,7 @@ import { X, Save, Loader2, FileCode, Eye } from 'lucide-react';
 import MonacoEditor from '@/components/editor/LazyMonacoEditor';
 import FileErrorDisplay from './FileErrorDisplay';
 import { classifyFileError } from './fileOperationErrors';
+import { FilePath } from '../../../../../utils/pathUtils';
 
 interface FileOperationState {
   errorMessage: string | null;
@@ -157,7 +158,7 @@ export default function CodePreviewModal({
 
   // Get file extension for syntax highlighting
   const getLanguage = (path: string): string => {
-    const ext = path.split('.').pop()?.toLowerCase() || '';
+    const ext = FilePath.from(path).extension?.toLowerCase() || '';
     const languageMap: Record<string, string> = {
       js: 'javascript',
       jsx: 'javascript',

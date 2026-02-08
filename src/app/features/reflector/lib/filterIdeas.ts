@@ -71,7 +71,12 @@ export function filterIdeasByViewMode(
 // Filter Types and Interfaces
 // ============================================================================
 
-export interface IdeaFilterState {
+/**
+ * Unified filter state that works for all views (Weekly, Total, Stats).
+ * Weekly view uses weekOffset for week navigation.
+ * Total view uses the standard filter fields.
+ */
+export interface FilterState {
   projectIds: string[];
   contextIds: string[];
   statuses: string[];
@@ -83,28 +88,14 @@ export interface IdeaFilterState {
     end: Date | null;
   };
   searchQuery: string;
+  weekOffset?: number; // 0 = current week, -1 = last week, etc.
+  suggestionType?: SuggestionFilter; // 'ideas' | 'directions' | 'both'
 }
 
-/**
- * Unified filter state that works for both Weekly and Total views
- * Weekly view uses weekOffset for week navigation
- * Total view uses the standard filter fields
- */
-export interface UnifiedFilterState {
-  projectIds: string[];
-  contextIds: string[];
-  statuses: string[];
-  scanTypes: string[];
-  effortLevels: string[];
-  impactLevels: string[];
-  dateRange: {
-    start: Date | null;
-    end: Date | null;
-  };
-  searchQuery: string;
-  weekOffset: number; // 0 = current week, -1 = last week, etc.
-  suggestionType: SuggestionFilter; // 'ideas' | 'directions' | 'both'
-}
+/** @deprecated Use FilterState instead */
+export type IdeaFilterState = FilterState;
+/** @deprecated Use FilterState instead */
+export type UnifiedFilterState = FilterState;
 
 /**
  * Configuration for which filter controls to show in the FilterBar
@@ -123,9 +114,9 @@ export interface FilterBarConfig {
 }
 
 /**
- * Get empty unified filter state
+ * Get empty filter state with sensible defaults
  */
-export function getEmptyUnifiedFilterState(): UnifiedFilterState {
+export function getEmptyFilterState(): FilterState {
   return {
     projectIds: [],
     contextIds: [],
@@ -143,43 +134,8 @@ export function getEmptyUnifiedFilterState(): UnifiedFilterState {
   };
 }
 
-/**
- * Convert IdeaFilterState to UnifiedFilterState
- */
-export function toUnifiedFilterState(
-  filters: IdeaFilterState,
-  weekOffset: number = 0,
-  suggestionType: SuggestionFilter = 'both'
-): UnifiedFilterState {
-  return {
-    projectIds: filters.projectIds,
-    contextIds: filters.contextIds,
-    statuses: filters.statuses,
-    scanTypes: filters.scanTypes ?? [],
-    effortLevels: filters.effortLevels ?? [],
-    impactLevels: filters.impactLevels ?? [],
-    dateRange: filters.dateRange,
-    searchQuery: filters.searchQuery,
-    weekOffset,
-    suggestionType,
-  };
-}
-
-/**
- * Convert UnifiedFilterState to IdeaFilterState
- */
-export function toIdeaFilterState(unified: UnifiedFilterState): IdeaFilterState {
-  return {
-    projectIds: unified.projectIds,
-    contextIds: unified.contextIds,
-    statuses: unified.statuses,
-    scanTypes: unified.scanTypes,
-    effortLevels: unified.effortLevels,
-    impactLevels: unified.impactLevels,
-    dateRange: unified.dateRange,
-    searchQuery: unified.searchQuery,
-  };
-}
+/** @deprecated Use getEmptyFilterState instead */
+export const getEmptyUnifiedFilterState = getEmptyFilterState;
 
 
 /**
@@ -224,7 +180,7 @@ function getImpactLevel(impact: number | null): string {
  */
 export function applyFilters(
   ideas: DbIdea[],
-  filters: IdeaFilterState
+  filters: FilterState
 ): DbIdea[] {
   return ideas.filter((idea) => {
     // Filter by project
@@ -297,17 +253,9 @@ export function applyFilters(
 }
 
 /**
- * Base filter fields shared by IdeaFilterState and UnifiedFilterState
+ * Count active filters
  */
-type BaseFilterState = Pick<IdeaFilterState,
-  'projectIds' | 'contextIds' | 'statuses' | 'scanTypes' |
-  'effortLevels' | 'impactLevels' | 'dateRange' | 'searchQuery'
->;
-
-/**
- * Count active filters (works with both IdeaFilterState and UnifiedFilterState)
- */
-export function countActiveFilters(filters: BaseFilterState): number {
+export function countActiveFilters(filters: FilterState): number {
   let count = 0;
 
   if (filters.projectIds.length > 0) count++;
@@ -323,32 +271,13 @@ export function countActiveFilters(filters: BaseFilterState): number {
 }
 
 /**
- * Get empty filter state
- */
-export function getEmptyFilterState(): IdeaFilterState {
-  return {
-    projectIds: [],
-    contextIds: [],
-    statuses: [],
-    scanTypes: [],
-    effortLevels: [],
-    impactLevels: [],
-    dateRange: {
-      start: null,
-      end: null,
-    },
-    searchQuery: '',
-  };
-}
-
-/**
  * Smart suggestion: detect if most ideas are from a specific quarter
  */
 export function getSuggestedFilters(ideas: DbIdea[]): Array<{
   label: string;
-  filter: Partial<IdeaFilterState>;
+  filter: Partial<FilterState>;
 }> {
-  const suggestions: Array<{ label: string; filter: Partial<IdeaFilterState> }> = [];
+  const suggestions: Array<{ label: string; filter: Partial<FilterState> }> = [];
 
   // Suggestion: Recent ideas (last 30 days)
   const thirtyDaysAgo = new Date();

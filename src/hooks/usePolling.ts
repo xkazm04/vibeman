@@ -1,208 +1,79 @@
 'use client';
 
 /**
- * Shared Polling Hook
+ * Unified Polling Infrastructure
  *
- * Provides reusable polling infrastructure for session management systems.
- * Used by useSessionCleanup and automationSessionStore for consistent polling behavior.
+ * Single adaptive polling primitive that covers all polling use cases:
+ * 1. Fixed-interval polling (useSessionCleanup)
+ * 2. Activity-aware adaptive polling (automationSessionStore)
+ * 3. Task-keyed polling with maxAttempts (TaskRunner pollingManager)
+ *
+ * Core primitive: createUnifiedPoller()
+ * React hook: usePolling()
+ * Legacy aliases: createPollingManager(), createActivityAwarePoller()
  */
 
 import { useEffect, useRef, useCallback } from 'react';
 
-export interface UsePollingOptions {
-  /** Whether polling is enabled */
-  enabled: boolean;
-  /** Interval in milliseconds between polls */
-  intervalMs: number;
-  /** Whether to run immediately on mount/enable */
-  immediate?: boolean;
-}
+// ============================================================================
+// Unified Poller Configuration
+// ============================================================================
 
-export interface UsePollingReturn {
-  /** Manually trigger a poll */
-  poll: () => void;
-  /** Force restart polling with current options */
-  restart: () => void;
-}
-
-/**
- * Hook for managing polling intervals with automatic cleanup
- *
- * @param callback - Function to call on each poll
- * @param options - Polling configuration
- */
-export function usePolling(
-  callback: () => void | Promise<void>,
-  options: UsePollingOptions
-): UsePollingReturn {
-  const { enabled, intervalMs, immediate = true } = options;
-
-  // Refs to avoid stale closures
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
-
-  const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentIntervalMsRef = useRef<number | null>(null);
-
-  const clearPolling = useCallback(() => {
-    if (intervalIdRef.current !== null) {
-      clearInterval(intervalIdRef.current);
-      intervalIdRef.current = null;
-      currentIntervalMsRef.current = null;
-    }
-  }, []);
-
-  const startPolling = useCallback(
-    (runImmediate: boolean) => {
-      clearPolling();
-
-      if (runImmediate) {
-        callbackRef.current();
-      }
-
-      intervalIdRef.current = setInterval(() => {
-        callbackRef.current();
-      }, intervalMs);
-      currentIntervalMsRef.current = intervalMs;
-    },
-    [intervalMs, clearPolling]
-  );
-
-  // Manage polling lifecycle
-  useEffect(() => {
-    if (!enabled) {
-      clearPolling();
-      return;
-    }
-
-    // Only recreate interval if duration changed or not running
-    if (currentIntervalMsRef.current === intervalMs && intervalIdRef.current !== null) {
-      return;
-    }
-
-    // Start with immediate call only if this is the first start
-    const isFirstStart = currentIntervalMsRef.current === null;
-    startPolling(immediate && isFirstStart);
-
-    return clearPolling;
-  }, [enabled, intervalMs, immediate, startPolling, clearPolling]);
-
-  const poll = useCallback(() => {
-    callbackRef.current();
-  }, []);
-
-  const restart = useCallback(() => {
-    startPolling(immediate);
-  }, [startPolling, immediate]);
-
-  return { poll, restart };
-}
-
-/**
- * Non-hook version for use in Zustand stores
- * Returns cleanup function
- */
-export function createPollingManager(
-  callback: () => void | Promise<void>,
-  intervalMs: number
-): {
-  start: () => void;
-  stop: () => void;
-  setInterval: (ms: number) => void;
-} {
-  let intervalId: ReturnType<typeof setTimeout> | null = null;
-  let currentIntervalMs = intervalMs;
-
-  const stop = () => {
-    if (intervalId !== null) {
-      clearTimeout(intervalId);
-      intervalId = null;
-    }
-  };
-
-  const scheduleNext = () => {
-    intervalId = setTimeout(async () => {
-      await callback();
-      scheduleNext();
-    }, currentIntervalMs);
-  };
-
-  const start = () => {
-    stop();
-    callback();
-    scheduleNext();
-  };
-
-  const setIntervalMs = (ms: number) => {
-    currentIntervalMs = ms;
-    // If already running, restart with new interval
-    if (intervalId !== null) {
-      start();
-    }
-  };
-
-  return { start, stop, setInterval: setIntervalMs };
-}
-
-/**
- * Activity-Aware Polling Configuration
- *
- * Defines polling behavior that adapts based on activity level.
- * Two main patterns supported:
- * 1. Binary active/idle (e.g., sessions running vs idle)
- * 2. Exponential backoff (e.g., queue empty for consecutive polls)
- */
-export interface ActivityAwareConfig {
-  /** Interval when activity is detected (fast polling) */
+export interface UnifiedPollerConfig {
+  /** Interval when activity is detected or default interval (ms) */
   activeIntervalMs: number;
-  /** Interval when idle (slow polling) */
-  idleIntervalMs: number;
-  /** Optional: Enable exponential backoff when idle */
+  /** Interval when idle - defaults to activeIntervalMs if not set */
+  idleIntervalMs?: number;
+  /** Whether to run callback immediately on start (default: true) */
+  immediate?: boolean;
+  /** Maximum polling attempts before auto-stop (default: Infinity) */
+  maxAttempts?: number;
+  /** Optional exponential backoff when idle */
   backoff?: {
-    /** Backoff levels in ms (e.g., [10000, 30000, 60000]) */
     levels: number[];
-    /** Max consecutive idle polls before capping at max level */
     maxLevel?: number;
   };
+  /** Called on each attempt with the attempt number */
+  onAttempt?: (attempt: number) => void;
+  /** Called when maxAttempts is reached */
+  onTimeout?: () => void;
 }
 
-export interface ActivityAwarePollerState {
-  /** Current interval in ms */
+export interface UnifiedPollerState {
   currentIntervalMs: number;
-  /** Whether currently considered active */
   isActive: boolean;
-  /** Consecutive idle polls (for backoff) */
   consecutiveIdlePolls: number;
+  attempts: number;
+  isRunning: boolean;
 }
 
-export interface ActivityAwarePoller {
-  /** Start polling */
+export interface UnifiedPoller {
   start: () => void;
-  /** Stop polling */
   stop: () => void;
-  /** Signal that activity was detected (resets to active interval) */
+  /** Signal activity detected (resets to active interval) */
   signalActivity: () => void;
   /** Signal idle state (may trigger backoff) */
   signalIdle: () => void;
-  /** Get current state */
-  getState: () => ActivityAwarePollerState;
-  /** Manually set interval (overrides activity-based calculation) */
+  getState: () => UnifiedPollerState;
   setInterval: (ms: number) => void;
 }
 
 /**
- * Creates an activity-aware polling manager
+ * Creates a unified polling manager - the single polling primitive.
  *
- * This unifies the polling patterns used across the system:
- * - automationSessionStore: 3s active vs 30s idle based on running sessions
- * - scanQueueWorker: exponential backoff 5s -> 10s -> 30s -> 60s when queue empty
+ * The pollCallback can return:
+ * - void/undefined: treated as fixed-interval (no activity detection)
+ * - boolean: true = activity detected (fast poll), false = idle (slow poll)
+ * - PollingResult: { done: true/false, success?, error? } for task completion
  *
- * The pollCallback should return true if activity was detected (work found),
- * or false if idle (no work). This determines the next polling interval.
+ * @example Fixed interval (like useSessionCleanup)
+ * const poller = createUnifiedPoller(
+ *   async () => { await scanForOrphans(); },
+ *   { activeIntervalMs: 60000 }
+ * );
  *
- * @example
- * // Binary active/idle polling (like automationSessionStore)
- * const poller = createActivityAwarePoller(
+ * @example Activity-aware (like automationSessionStore)
+ * const poller = createUnifiedPoller(
  *   async () => {
  *     const sessions = await fetchSessions();
  *     return sessions.some(s => s.status === 'running');
@@ -210,41 +81,37 @@ export interface ActivityAwarePoller {
  *   { activeIntervalMs: 3000, idleIntervalMs: 30000 }
  * );
  *
- * @example
- * // With exponential backoff (like scanQueueWorker)
- * const poller = createActivityAwarePoller(
+ * @example Task polling with maxAttempts
+ * const poller = createUnifiedPoller(
  *   async () => {
- *     const item = await processQueue();
- *     return item !== null; // true = found work, false = queue empty
+ *     const status = await getTaskStatus(taskId);
+ *     if (status === 'completed') return { done: true, success: true };
+ *     if (status === 'failed') return { done: true, success: false, error: 'failed' };
+ *     return { done: false };
  *   },
- *   {
- *     activeIntervalMs: 5000,
- *     idleIntervalMs: 10000,
- *     backoff: { levels: [10000, 30000, 60000] }
- *   }
+ *   { activeIntervalMs: 10000, maxAttempts: 120 }
  * );
  */
-export function createActivityAwarePoller(
-  pollCallback: () => Promise<boolean> | boolean,
-  config: ActivityAwareConfig
-): ActivityAwarePoller {
+export function createUnifiedPoller(
+  pollCallback: () => Promise<boolean | void | PollingResult> | boolean | void | PollingResult,
+  config: UnifiedPollerConfig
+): UnifiedPoller {
+  const idleIntervalMs = config.idleIntervalMs ?? config.activeIntervalMs;
+  const immediate = config.immediate ?? true;
+  const maxAttempts = config.maxAttempts ?? Infinity;
+
   let intervalId: ReturnType<typeof setTimeout> | null = null;
-  let isRunning = false;
+  let running = false;
   let consecutiveIdlePolls = 0;
   let isActive = false;
   let manualIntervalOverride: number | null = null;
+  let attempts = 0;
+  let isExecuting = false;
 
   const getInterval = (): number => {
-    // Manual override takes precedence
-    if (manualIntervalOverride !== null) {
-      return manualIntervalOverride;
-    }
+    if (manualIntervalOverride !== null) return manualIntervalOverride;
+    if (isActive) return config.activeIntervalMs;
 
-    if (isActive) {
-      return config.activeIntervalMs;
-    }
-
-    // Apply backoff if configured
     if (config.backoff && consecutiveIdlePolls > 0) {
       const maxLevel = config.backoff.maxLevel ?? config.backoff.levels.length;
       const levelIndex = Math.min(consecutiveIdlePolls - 1, maxLevel - 1);
@@ -253,7 +120,7 @@ export function createActivityAwarePoller(
       }
     }
 
-    return config.idleIntervalMs;
+    return idleIntervalMs;
   };
 
   const stop = () => {
@@ -261,62 +128,96 @@ export function createActivityAwarePoller(
       clearTimeout(intervalId);
       intervalId = null;
     }
-    isRunning = false;
+    running = false;
+  };
+
+  const processResult = (result: boolean | void | PollingResult): boolean => {
+    // void/undefined: no activity tracking, just continue
+    if (result === undefined || result === null) return false;
+
+    // boolean: activity detection
+    if (typeof result === 'boolean') {
+      if (result) {
+        isActive = true;
+        consecutiveIdlePolls = 0;
+      } else {
+        isActive = false;
+        consecutiveIdlePolls++;
+      }
+      return false; // not done
+    }
+
+    // PollingResult object
+    if (typeof result === 'object' && 'done' in result) {
+      if (result.done) {
+        stop();
+        return true; // done, stop polling
+      }
+      return false;
+    }
+
+    return false;
+  };
+
+  const executePoll = async (): Promise<boolean> => {
+    if (isExecuting) return false;
+    isExecuting = true;
+
+    try {
+      attempts++;
+      config.onAttempt?.(attempts);
+
+      // Check max attempts
+      if (Number.isFinite(maxAttempts) && attempts >= maxAttempts) {
+        config.onTimeout?.();
+        stop();
+        return true;
+      }
+
+      const result = await pollCallback();
+      return processResult(result);
+    } catch {
+      // On error, continue polling
+      return false;
+    } finally {
+      isExecuting = false;
+    }
   };
 
   const scheduleNext = () => {
-    if (!isRunning) return;
-
+    if (!running) return;
     const interval = getInterval();
     intervalId = setTimeout(async () => {
-      if (!isRunning) return;
-
-      try {
-        const wasActive = await pollCallback();
-
-        if (wasActive) {
-          isActive = true;
-          consecutiveIdlePolls = 0;
-        } else {
-          isActive = false;
-          consecutiveIdlePolls++;
-        }
-      } catch {
-        // On error, don't change activity state
-      }
-
-      scheduleNext();
+      if (!running) return;
+      const done = await executePoll();
+      if (!done) scheduleNext();
     }, interval);
   };
 
   const start = () => {
-    if (isRunning) return;
-    isRunning = true;
+    if (running) return;
+    running = true;
     consecutiveIdlePolls = 0;
     isActive = false;
     manualIntervalOverride = null;
+    attempts = 0;
+    isExecuting = false;
 
-    // Run immediately, then schedule
-    (async () => {
-      try {
-        const wasActive = await pollCallback();
-        isActive = wasActive;
-        if (!wasActive) {
-          consecutiveIdlePolls = 1;
-        }
-      } catch {
-        // Ignore initial error
-      }
+    if (immediate) {
+      (async () => {
+        const done = await executePoll();
+        if (!done) scheduleNext();
+      })();
+    } else {
       scheduleNext();
-    })();
+    }
   };
 
   const signalActivity = () => {
     isActive = true;
     consecutiveIdlePolls = 0;
     manualIntervalOverride = null;
-    // Restart with new interval if running
-    if (isRunning && intervalId !== null) {
+    if (running && intervalId !== null) {
       clearTimeout(intervalId);
       scheduleNext();
     }
@@ -326,8 +227,7 @@ export function createActivityAwarePoller(
     isActive = false;
     consecutiveIdlePolls++;
     manualIntervalOverride = null;
-    // Restart with new interval if running
-    if (isRunning && intervalId !== null) {
+    if (running && intervalId !== null) {
       clearTimeout(intervalId);
       scheduleNext();
     }
@@ -335,17 +235,18 @@ export function createActivityAwarePoller(
 
   const setIntervalOverride = (ms: number) => {
     manualIntervalOverride = ms;
-    // Restart with new interval if running
-    if (isRunning && intervalId !== null) {
+    if (running && intervalId !== null) {
       clearTimeout(intervalId);
       scheduleNext();
     }
   };
 
-  const getState = (): ActivityAwarePollerState => ({
+  const getState = (): UnifiedPollerState => ({
     currentIntervalMs: getInterval(),
     isActive,
     consecutiveIdlePolls,
+    attempts,
+    isRunning: isExecuting,
   });
 
   return {
@@ -357,5 +258,199 @@ export function createActivityAwarePoller(
     setInterval: setIntervalOverride,
   };
 }
+
+// ============================================================================
+// React Hook (delegates to createUnifiedPoller)
+// ============================================================================
+
+export interface UsePollingOptions {
+  enabled: boolean;
+  intervalMs: number;
+  immediate?: boolean;
+}
+
+export interface UsePollingReturn {
+  poll: () => void;
+  restart: () => void;
+}
+
+/**
+ * React hook for polling with automatic cleanup.
+ * Internally uses createUnifiedPoller.
+ */
+export function usePolling(
+  callback: () => void | Promise<void>,
+  options: UsePollingOptions
+): UsePollingReturn {
+  const { enabled, intervalMs, immediate = true } = options;
+
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  const pollerRef = useRef<UnifiedPoller | null>(null);
+  const currentIntervalRef = useRef<number | null>(null);
+
+  const clearPoller = useCallback(() => {
+    pollerRef.current?.stop();
+    pollerRef.current = null;
+    currentIntervalRef.current = null;
+  }, []);
+
+  const startPoller = useCallback(
+    (runImmediate: boolean) => {
+      clearPoller();
+      const poller = createUnifiedPoller(
+        () => { callbackRef.current(); },
+        { activeIntervalMs: intervalMs, immediate: runImmediate }
+      );
+      pollerRef.current = poller;
+      currentIntervalRef.current = intervalMs;
+      poller.start();
+    },
+    [intervalMs, clearPoller]
+  );
+
+  useEffect(() => {
+    if (!enabled) {
+      clearPoller();
+      return;
+    }
+
+    if (currentIntervalRef.current === intervalMs && pollerRef.current !== null) {
+      return;
+    }
+
+    const isFirstStart = currentIntervalRef.current === null;
+    startPoller(immediate && isFirstStart);
+
+    return clearPoller;
+  }, [enabled, intervalMs, immediate, startPoller, clearPoller]);
+
+  const poll = useCallback(() => {
+    callbackRef.current();
+  }, []);
+
+  const restart = useCallback(() => {
+    startPoller(immediate);
+  }, [startPoller, immediate]);
+
+  return { poll, restart };
+}
+
+// ============================================================================
+// Legacy Aliases (backwards-compatible)
+// ============================================================================
+
+/**
+ * Non-hook polling manager for Zustand stores.
+ * Delegates to createUnifiedPoller.
+ */
+export function createPollingManager(
+  callback: () => void | Promise<void>,
+  intervalMs: number
+): {
+  start: () => void;
+  stop: () => void;
+  setInterval: (ms: number) => void;
+} {
+  const poller = createUnifiedPoller(
+    () => { callback(); },
+    { activeIntervalMs: intervalMs, immediate: true }
+  );
+
+  return {
+    start: poller.start,
+    stop: poller.stop,
+    setInterval: poller.setInterval,
+  };
+}
+
+// Activity-aware poller config and types (kept for backwards compatibility)
+export type ActivityAwareConfig = {
+  activeIntervalMs: number;
+  idleIntervalMs: number;
+  backoff?: {
+    levels: number[];
+    maxLevel?: number;
+  };
+};
+
+export type ActivityAwarePollerState = {
+  currentIntervalMs: number;
+  isActive: boolean;
+  consecutiveIdlePolls: number;
+};
+
+export type ActivityAwarePoller = {
+  start: () => void;
+  stop: () => void;
+  signalActivity: () => void;
+  signalIdle: () => void;
+  getState: () => ActivityAwarePollerState;
+  setInterval: (ms: number) => void;
+};
+
+/**
+ * Activity-aware poller. Delegates to createUnifiedPoller.
+ */
+export function createActivityAwarePoller(
+  pollCallback: () => Promise<boolean> | boolean,
+  config: ActivityAwareConfig
+): ActivityAwarePoller {
+  const poller = createUnifiedPoller(pollCallback, {
+    activeIntervalMs: config.activeIntervalMs,
+    idleIntervalMs: config.idleIntervalMs,
+    backoff: config.backoff,
+    immediate: true,
+  });
+
+  return {
+    start: poller.start,
+    stop: poller.stop,
+    signalActivity: poller.signalActivity,
+    signalIdle: poller.signalIdle,
+    getState: () => {
+      const s = poller.getState();
+      return {
+        currentIntervalMs: s.currentIntervalMs,
+        isActive: s.isActive,
+        consecutiveIdlePolls: s.consecutiveIdlePolls,
+      };
+    },
+    setInterval: poller.setInterval,
+  };
+}
+
+// ============================================================================
+// Polling Result types (used by pollingManager)
+// ============================================================================
+
+export type PollingResult =
+  | PollingResultContinue
+  | PollingResultSuccess
+  | PollingResultFailure;
+
+export interface PollingResultContinue {
+  done: false;
+}
+
+export interface PollingResultSuccess {
+  done: true;
+  success: true;
+}
+
+export interface PollingResultFailure {
+  done: true;
+  success: false;
+  error: string;
+}
+
+export const PollingResults = {
+  continue: (): PollingResultContinue => ({ done: false }),
+  success: (): PollingResultSuccess => ({ done: true, success: true }),
+  failure: (error: string): PollingResultFailure => ({ done: true, success: false, error }),
+} as const;
+
+export type PollingCallback = () => Promise<PollingResult>;
 
 export default usePolling;

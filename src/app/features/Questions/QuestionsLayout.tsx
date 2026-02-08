@@ -30,6 +30,11 @@ import {
   useInvalidateQuestionsDirections,
 } from '@/lib/queries/questionsDirectionsQueries';
 
+// Interrogative engines for programmatic access to the generate → decide → act pattern.
+// UI components continue using React Query hooks for rendering; these engines provide
+// the same pattern for non-UI consumers (tests, automation, CLI tools).
+export { createQuestionsEngine, createDirectionsEngine } from '@/lib/interrogative-engine';
+
 export default function QuestionsLayout() {
   const { activeProject } = useActiveProjectStore();
 

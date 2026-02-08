@@ -74,12 +74,9 @@ export interface ExecutionResult {
 
 /**
  * SSE Event from CLI stream
+ * @deprecated Use CLIEvent from './protocol' for typed events
  */
-export interface CLISSEEvent {
-  type: string;
-  data: Record<string, unknown>;
-  timestamp: number;
-}
+export type CLISSEEvent = import('./protocol').CLIEvent;
 
 // Re-export SkillId from the canonical source for consumers of this types module
 export type { SkillId } from './skills';

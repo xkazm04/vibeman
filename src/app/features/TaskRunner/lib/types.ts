@@ -217,57 +217,57 @@ export function createCompletedBatchStatus(startedAt: number, completedAt: numbe
 /**
  * Type guard to check if task status is queued
  */
-export function isTaskQueued(status: TaskStatusUnion): status is TaskStatusQueued {
-  return status.type === 'queued';
+export function isTaskQueued(status: TaskStatusUnion | undefined): status is TaskStatusQueued {
+  return status?.type === 'queued';
 }
 
 /**
  * Type guard to check if task status is running
  */
-export function isTaskRunning(status: TaskStatusUnion): status is TaskStatusRunning {
-  return status.type === 'running';
+export function isTaskRunning(status: TaskStatusUnion | undefined): status is TaskStatusRunning {
+  return status?.type === 'running';
 }
 
 /**
  * Type guard to check if task status is completed
  */
-export function isTaskCompleted(status: TaskStatusUnion): status is TaskStatusCompleted {
-  return status.type === 'completed';
+export function isTaskCompleted(status: TaskStatusUnion | undefined): status is TaskStatusCompleted {
+  return status?.type === 'completed';
 }
 
 /**
  * Type guard to check if task status is failed
  */
-export function isTaskFailed(status: TaskStatusUnion): status is TaskStatusFailed {
-  return status.type === 'failed';
+export function isTaskFailed(status: TaskStatusUnion | undefined): status is TaskStatusFailed {
+  return status?.type === 'failed';
 }
 
 /**
  * Type guard to check if batch status is idle
  */
-export function isBatchIdle(status: BatchStatusUnion): status is BatchStatusIdle {
-  return status.type === 'idle';
+export function isBatchIdle(status: BatchStatusUnion | undefined): status is BatchStatusIdle {
+  return status?.type === 'idle';
 }
 
 /**
  * Type guard to check if batch status is running
  */
-export function isBatchRunning(status: BatchStatusUnion): status is BatchStatusRunning {
-  return status.type === 'running';
+export function isBatchRunning(status: BatchStatusUnion | undefined): status is BatchStatusRunning {
+  return status?.type === 'running';
 }
 
 /**
  * Type guard to check if batch status is paused
  */
-export function isBatchPaused(status: BatchStatusUnion): status is BatchStatusPaused {
-  return status.type === 'paused';
+export function isBatchPaused(status: BatchStatusUnion | undefined): status is BatchStatusPaused {
+  return status?.type === 'paused';
 }
 
 /**
  * Type guard to check if batch status is completed
  */
-export function isBatchCompleted(status: BatchStatusUnion): status is BatchStatusCompleted {
-  return status.type === 'completed';
+export function isBatchCompleted(status: BatchStatusUnion | undefined): status is BatchStatusCompleted {
+  return status?.type === 'completed';
 }
 
 /**

@@ -8,6 +8,8 @@ import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useAIOperation } from '@/hooks/useAIOperation';
 import { useInvalidateIdeas } from '@/lib/queries/ideaQueries';
+import { getStatusTextClass } from '@/lib/design-tokens/useEntityStyling';
+import type { StatusType } from '@/lib/design-tokens/colors';
 import IdeaDetailHeader from './IdeaDetailHeader';
 import IdeaDetailContent from './IdeaDetailContent';
 import IdeaDetailActions from './IdeaDetailActions';
@@ -77,13 +79,9 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
     return emojis[category] || '💡';
   };
 
+  // Use design token system for status colors
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'accepted': return 'text-green-400';
-      case 'rejected': return 'text-red-400';
-      case 'implemented': return 'text-amber-400';
-      default: return 'text-gray-400';
-    }
+    return getStatusTextClass((status || 'pending') as StatusType);
   };
 
   const updateIdea = async (updates: Partial<DbIdea>): Promise<boolean> => {

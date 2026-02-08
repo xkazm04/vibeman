@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
+import type { DbScanQueueItem } from '@/app/db/models/types';
 import { ALL_SCAN_TYPES, isValidScanType, type ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateQueueId } from '@/lib/idGenerator';
 import { logger } from '@/lib/logger';
@@ -27,7 +28,7 @@ async function handleGet(request: NextRequest) {
 
     let queueItems;
     if (status) {
-      queueItems = scanQueueDb.getQueueByStatus(projectId, status as any);
+      queueItems = scanQueueDb.getQueueByStatus(projectId, status as DbScanQueueItem['status']);
     } else {
       queueItems = scanQueueDb.getQueueByProject(projectId);
     }

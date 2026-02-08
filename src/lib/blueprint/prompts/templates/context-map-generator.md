@@ -22,6 +22,23 @@ Initialize **SQLite-based contexts** via API calls that map **business features*
 
 **Key Principle:** A developer working on "Image Upload" should get ONE context containing everything they need - not 4 separate contexts for UI/hooks/API/db.
 
+## Full-Stack Slice Rule
+
+Every context MUST be a vertical slice through the entire stack. For each feature context, include files from ALL applicable layers:
+
+- **UI**: Layout, components, sub-components for this feature
+- **Hooks/State**: Zustand stores, custom hooks, state logic
+- **API Routes**: All route.ts files that this feature calls
+- **Business Logic**: lib/ helpers, utilities, prompt builders
+- **Database**: Repository files, types, migrations related to this feature
+- **Types**: Shared type definitions used across layers
+
+**Litmus test**: Can a developer implement a full feature change (DB schema + API + UI) using ONLY the files in this context? If not, the context is incomplete.
+
+**NEVER** create contexts that only contain one layer (e.g., "API routes for X" or "UI components for Y"). Always bundle the full vertical stack.
+
+**Merge sub-features aggressively**: If a feature has sub-modules (e.g., Ideas has Buffer, Lifecycle, Setup), bundle them ALL into ONE context unless they exceed 25 files. Sub-features that share the same DB table, API namespace, or parent feature folder MUST be in the same context.
+
 ---
 
 ## Step-by-Step Workflow
@@ -43,61 +60,18 @@ curl -s "http://localhost:3000/api/projects" | node -e "const d=require('fs').re
 
 ### Step 2: Analyze Codebase Structure
 
-Before creating groups and contexts, explore the codebase to understand its structure:
+Explore the project directory tree (max depth 3-4) and identify:
 
-**First, detect if this is a monorepo:**
-```bash
-# Check for multiple package.json files (monorepo indicator)
-find . -maxdepth 3 -name "package.json" 2>/dev/null | head -10
+1. **Feature directories** - folders that represent distinct business capabilities (e.g., `src/app/features/Ideas/`, `src/app/features/Brain/`)
+2. **API route namespaces** - groups of related API endpoints (e.g., `src/app/api/ideas/`, `src/app/api/brain/`)
+3. **Database entities** - repository files and their associated types (e.g., `idea.repository.ts`, `brain-reflection.repository.ts`)
+4. **State stores** - Zustand stores that manage feature state (e.g., `ideaStore.ts`, `brainStore.ts`)
 
-# List top-level directories that look like packages
-ls -d */ 2>/dev/null | head -15
+**The formula**: Each feature-folder + its-matching-API-routes + its-DB-repositories + its-store = ONE context.
 
-# Count files per top-level directory
-for dir in */; do echo "$dir: $(find "$dir" -name "*.ts" -o -name "*.tsx" 2>/dev/null | grep -v node_modules | wc -l) files"; done
-```
+**Monorepo detection**: If the project has multiple `package.json` files at different levels, treat each package with 20+ files as its own group. Single apps group by business features.
 
-**If monorepo detected** → Each package with 20+ files becomes its own group.
-**If single app** → Group by business features within the app.
-
-**Universal Analysis Commands (work with any project):**
-
-```bash
-# Find all source directories
-find . -type d -name "src" -o -name "app" -o -name "lib" -o -name "features" 2>/dev/null | head -20
-
-# List top-level directories
-ls -la
-
-# Count files by extension to understand the tech stack
-find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" \) 2>/dev/null | sed 's/.*\.//' | sort | uniq -c | sort -rn
-
-# Find feature directories (common patterns)
-ls -la src/features/ 2>/dev/null || ls -la app/features/ 2>/dev/null || ls -la lib/features/ 2>/dev/null || ls -la features/ 2>/dev/null
-
-# Find API/route files
-find . -name "route.ts" -o -name "routes.ts" -o -name "*_router.py" -o -name "*_api.go" 2>/dev/null | head -30
-
-# Find state management
-find . -name "*.store.ts" -o -name "*Store.ts" -o -name "store.ts" -o -name "*.zustand.ts" 2>/dev/null | head -20
-
-# Find configuration files
-find . -name "package.json" -o -name "pyproject.toml" -o -name "go.mod" -o -name "Cargo.toml" 2>/dev/null | head -5
-
-# Count total source files
-find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" \) 2>/dev/null | wc -l
-```
-
-**Framework-Specific Analysis:**
-
-| Framework | Key Directories | Feature Detection |
-|-----------|-----------------|-------------------|
-| **Next.js** | `app/`, `src/app/features/`, `src/api/` | `app/api/**/route.ts` |
-| **React** | `src/components/`, `src/features/`, `src/hooks/` | Feature folders |
-| **Express** | `src/routes/`, `src/controllers/`, `src/services/` | `router.get/post` |
-| **FastAPI** | `app/routers/`, `app/services/`, `app/models/` | `@router.get` |
-| **React Native** | `src/screens/`, `src/components/`, `src/hooks/` | Screen folders |
-| **Go** | `cmd/`, `internal/`, `pkg/` | `func Handler` |
+**Key principle**: Start by listing feature folders, then find the API routes and DB repos that serve each feature. This mapping IS your context list.
 
 ### Step 3: Plan Context Groups
 
@@ -160,7 +134,13 @@ curl -s -X POST "http://localhost:3000/api/contexts" \
     "groupId": "GROUP_ID",
     "name": "Feature Name",
     "description": "What this feature DOES for users (1-2 sentences)",
-    "filePaths": ["path/to/file1.tsx", "path/to/file2.ts", "path/to/api/route.ts"]
+    "filePaths": ["path/to/file1.tsx", "path/to/file2.ts", "path/to/api/route.ts"],
+    "entry_points": [{"path": "path/to/MainLayout.tsx", "type": "component"}],
+    "db_tables": ["table_name"],
+    "keywords": ["keyword1", "keyword2", "keyword3"],
+    "api_surface": [{"path": "/api/feature/endpoint", "methods": "GET,POST", "description": "Endpoint purpose"}],
+    "cross_refs": [],
+    "tech_stack": ["zustand", "framer-motion"]
   }'
 ```
 
@@ -175,10 +155,19 @@ curl -s -X POST "http://localhost:3000/api/contexts" \
 - Bad: "React component with useState and useEffect hooks"
 
 **File Path Guidelines:**
-- Include ALL files related to the feature (UI + logic + API + types)
-- Target 5-15 files per context
+- Include ALL files related to the feature (UI + logic + API + DB + types + store)
+- Target 10-25 files per context (ideal ~20)
 - Include the main layout/entry file first
 - Use relative paths from project root
+- Include sub-folders of the feature as part of the SAME context
+
+**AI Navigation Fields** (populate for every context):
+- `entry_points`: The 1-3 most important files a developer should read first to understand this feature. Each has a `path` and `type` ("page"|"api"|"component"|"config")
+- `db_tables`: Array of SQLite/database table names this context reads from or writes to (e.g., ["ideas", "scans"])
+- `keywords`: 3-8 search terms for fuzzy matching user queries to this context (e.g., ["authentication", "login", "session", "JWT"])
+- `api_surface`: API endpoints this context exposes, with HTTP methods and a short description
+- `cross_refs`: IDs of related contexts. Relationships: "depends_on", "depended_by", "shares_data". Populate AFTER all contexts are created
+- `tech_stack`: Key libraries/technologies used in this context (e.g., ["zustand", "d3", "framer-motion"])
 
 ### Step 6: Create Relationships Between Groups
 
@@ -223,13 +212,13 @@ echo "Contexts: $(curl -s "http://localhost:3000/api/contexts?projectId=$PROJECT
 
 ## Size Guidelines
 
-**Target: 5-15 files per context, 3-6 contexts per group**
+**Target: 10-25 files per context (ideal ~20), 2-4 contexts per group. Prefer FEWER, LARGER contexts.**
 
 | App Size | Total Files | Groups | Contexts | Relationships |
 |----------|-------------|--------|----------|---------------|
-| Small | 10-50 | 3-4 | 8-12 | 5-8 |
-| Medium | 50-200 | 5-8 | 15-30 | 10-15 |
-| Large | 200+ | 8-12 | 30-50 | 15-25 |
+| Small | 10-50 | 2-3 | 4-8 | 3-6 |
+| Medium | 50-200 | 4-6 | 8-16 | 6-10 |
+| Large | 200+ | 5-8 | 12-25 | 8-15 |
 
 ---
 
@@ -285,17 +274,52 @@ Character Studio → Project Persistence (depends-on)
 
 ### Example 2: Vibeman Project (AI Dev Platform)
 
-**500+ files, 8 groups, 32 contexts, 11 relationships**
+**500+ files, 6 groups, 18 contexts, 10 relationships**
 
 **Groups Created:**
-1. **Core Development Engine** (`#3B82F6`) - Ideas, Goals, Context Management, Task Runner
-2. **Analysis & Optimization** (`#8B5CF6`) - RefactorWizard, TechDebtRadar, Reflector
-3. **Understanding & Documentation** (`#10B981`) - Architecture Explorer, Code Browser
-4. **Project Setup & Configuration** (`#F59E0B`) - Blueprint Scanner, Getting Started
-5. **Execution & Monitoring** (`#EF4444`) - Scan Queue, Implementation Review
-6. **Intelligence & Collaboration** (`#EC4899`) - Annette AI, Social Kanban, Tinder
-7. **Integration & Extension** (`#06B6D4`) - External Integrations, Marketplace
-8. **Data & Infrastructure** (`#6366F1`) - Database Layer, LLM Integration
+1. **Core Development Engine** (`#3B82F6`) - Ideas System, Goals & Standup, Context Management
+2. **Code Execution & Testing** (`#8B5CF6`) - TaskRunner & Claude Code, Scan Queue, Blueprint
+3. **Intelligence Layer** (`#EC4899`) - Annette AI Assistant, Brain & Signals, Reflector
+4. **Analysis & Quality** (`#10B981`) - Dependencies & Security, Debt Prediction, Architecture
+5. **Social & Integrations** (`#06B6D4`) - Social Feedback, External Integrations
+6. **Data & Infrastructure** (`#6366F1`) - Database & Migrations, LLM Integration, Onboarding
+
+**Sample Full-Stack Context (18 files spanning all layers):**
+```json
+{
+  "name": "Ideas System",
+  "description": "Continuous AI-powered suggestion engine. Scans codebase with specialized agents, evaluates ideas via LLM, and lets users triage through swipe-based acceptance.",
+  "filePaths": [
+    "src/app/features/Ideas/IdeasLayout.tsx",
+    "src/app/features/Ideas/components/IdeasHeaderWithFilter.tsx",
+    "src/app/features/Ideas/components/ScanTypePreview.tsx",
+    "src/app/features/Ideas/lib/scanApi.ts",
+    "src/app/features/Ideas/lib/scanTypes.ts",
+    "src/app/features/Ideas/lib/ideaConfig.ts",
+    "src/app/features/Ideas/sub_Buffer/BufferView.tsx",
+    "src/app/features/Ideas/sub_Buffer/BufferColumn.tsx",
+    "src/app/features/Ideas/sub_IdeasSetup/components/ClaudeIdeasButton.tsx",
+    "src/app/features/Ideas/sub_Lifecycle/LifecycleDashboard.tsx",
+    "src/app/features/Ideas/sub_Lifecycle/lib/lifecycleOrchestrator.ts",
+    "src/app/api/ideas/stats/route.ts",
+    "src/app/api/ideas/categories/route.ts",
+    "src/app/api/ideas/tinder/accept/route.ts",
+    "src/app/api/idea-aggregator/route.ts",
+    "src/app/db/repositories/idea.repository.ts",
+    "src/app/db/models/types.ts",
+    "src/stores/ideaStore.ts"
+  ],
+  "entry_points": [{"path": "src/app/features/Ideas/IdeasLayout.tsx", "type": "component"}, {"path": "src/app/api/ideas/stats/route.ts", "type": "api"}],
+  "db_tables": ["ideas", "scans"],
+  "keywords": ["ideas", "suggestions", "tinder", "scan", "evaluate", "accept", "reject"],
+  "api_surface": [{"path": "/api/ideas/stats", "methods": "GET", "description": "Idea statistics"}, {"path": "/api/ideas/tinder/accept", "methods": "POST", "description": "Accept idea"}],
+  "cross_refs": [],
+  "tech_stack": ["zustand"]
+}
+```
+
+Notice: 18 files spanning UI (5), lib (3), sub-features (3), API routes (4), DB (2), store (1).
+One context = everything a developer needs to work on Ideas.
 
 ### Example 3: Arc Project (Multi-Component Monorepo)
 
@@ -392,12 +416,15 @@ rm context_map.json 2>/dev/null
 Before finalizing:
 - [ ] Each group represents a BUSINESS DOMAIN (not code layer)
 - [ ] Each context represents a USER CAPABILITY
-- [ ] Each context has 5-15 files
+- [ ] Each context has 10-25 files (ideal ~20)
 - [ ] Context descriptions say what users CAN DO
 - [ ] Files are grouped by feature, not by type
 - [ ] Every group has at least 2 contexts
 - [ ] Every group has at least 1 relationship
 - [ ] No orphan contexts (all belong to a group)
+- [ ] Every context has entry_points populated (1-3 key files)
+- [ ] Every context has db_tables populated (or empty array if none)
+- [ ] Every context has keywords populated (3-8 search terms)
 - [ ] Verified via API calls that data is persisted
 
 ## Anti-Patterns to Avoid
@@ -425,15 +452,22 @@ Before finalizing:
 { "name": "Poster Display & Gallery" }
 ```
 
-**3. Too few or too many contexts per group:**
+**3. Too many thin contexts (CONSOLIDATE aggressively):**
 ```
-// WRONG
-Group with 1 context (merge with another group)
-Group with 15 contexts (split into multiple groups)
+// WRONG - splitting sub-features into separate contexts
+{ "name": "Idea Generation" }       // 6 files
+{ "name": "Idea Evaluation" }       // 4 files
+{ "name": "Idea Display" }          // 5 files
 
-// CORRECT
-Each group has 3-6 contexts
+// CORRECT - one fat context per domain feature
+{ "name": "Ideas System" }          // 15-20 files: generation + evaluation + display + API + DB
 ```
+
+**Merge rule**: If two contexts share the same database table, API namespace,
+or feature folder they MUST be a single context. Prefer fewer, larger contexts
+over many granular ones. When in doubt, MERGE.
+
+Each group should have 2-4 contexts. If you have more than 4, merge the smallest ones.
 
 **4. Missing relationships:**
 ```

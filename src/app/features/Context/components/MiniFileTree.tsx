@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { File, Folder, ChevronRight, FileCode, FileJson, FileText, Image, LucideIcon } from 'lucide-react';
+import { FilePath } from '../../../../utils/pathUtils';
 
 interface MiniFileTreeProps {
   filePaths: string[];
@@ -77,26 +78,23 @@ function getExtensionColor(extension: string | undefined): string {
 }
 
 /**
- * Build a simplified tree structure from file paths
+ * Build a simplified tree structure from file paths using FilePath value objects
  */
 function buildSimpleTree(filePaths: string[]): { folders: Set<string>; files: { name: string; path: string; extension?: string }[] } {
   const folders = new Set<string>();
   const files: { name: string; path: string; extension?: string }[] = [];
 
-  filePaths.forEach(path => {
-    const parts = path.split(/[/\\]/);
-    const fileName = parts[parts.length - 1];
-    const extension = fileName.includes('.') ? fileName.split('.').pop() : undefined;
-
-    // Add parent folders
-    if (parts.length > 1) {
-      folders.add(parts[parts.length - 2]);
+  filePaths.forEach(raw => {
+    const fp = FilePath.from(raw);
+    const parent = fp.parentFolder;
+    if (parent) {
+      folders.add(parent);
     }
 
     files.push({
-      name: fileName,
-      path,
-      extension,
+      name: fp.fileName,
+      path: raw,
+      extension: fp.extension,
     });
   });
 
@@ -212,8 +210,9 @@ export function MiniFileList({
   return (
     <div className={`flex items-center gap-1 flex-wrap ${className}`}>
       {displayPaths.map((path) => {
-        const fileName = path.split(/[/\\]/).pop() || path;
-        const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
+        const fp = FilePath.from(path);
+        const fileName = fp.fileName;
+        const ext = fp.extension;
 
         return (
           <span
@@ -244,8 +243,8 @@ export function FileTypeSummary({
 }) {
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    filePaths.forEach(path => {
-      const ext = path.split('.').pop() || 'other';
+    filePaths.forEach(raw => {
+      const ext = FilePath.from(raw).extension || 'other';
       counts[ext] = (counts[ext] || 0) + 1;
     });
     return Object.entries(counts)

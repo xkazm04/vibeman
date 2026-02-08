@@ -7,6 +7,7 @@
  */
 
 import { wrapRequirementForExecution, ExecutionWrapperConfig } from '@/lib/prompts/requirement_file';
+import { getTaskKnowledge } from '@/lib/collective-memory/taskCompletionHook';
 
 export interface ExecutionPromptConfig {
   requirementContent: string;
@@ -26,11 +27,28 @@ export interface ExecutionPromptConfig {
  *
  * This function wraps the requirement content with execution instructions
  * using the centralized execution wrapper for consistency.
+ * Injects relevant collective memory knowledge from past sessions.
  */
 export function buildExecutionPrompt(config: ExecutionPromptConfig): string {
+  // Inject collective memory knowledge if we have a project ID
+  let enhancedContent = config.requirementContent;
+  if (config.projectId) {
+    try {
+      const { promptSection } = getTaskKnowledge({
+        projectId: config.projectId,
+        requirementName: config.requirementContent.slice(0, 200),
+      });
+      if (promptSection) {
+        enhancedContent = `${config.requirementContent}\n${promptSection}`;
+      }
+    } catch {
+      // Collective memory injection must never break execution
+    }
+  }
+
   // Map to wrapper config (omit deprecated dbPath)
   const wrapperConfig: ExecutionWrapperConfig = {
-    requirementContent: config.requirementContent,
+    requirementContent: enhancedContent,
     projectPath: config.projectPath,
     projectId: config.projectId,
     contextId: config.contextId,

@@ -10,13 +10,7 @@ import {
   startExecution,
   type CLIExecutionEvent,
 } from '@/lib/claude-terminal/cli-service';
-
-// SSE Event type for the terminal
-interface SSEEvent {
-  type: string;
-  data: Record<string, unknown>;
-  timestamp: number;
-}
+import { type CLIEvent, encodeEvent } from '@/components/cli/protocol';
 
 /**
  * GET: Stream execution events via SSE
@@ -53,11 +47,11 @@ export async function GET(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       // Helper to send SSE event
-      const sendEvent = (event: SSEEvent) => {
+      const sendEvent = (event: CLIEvent) => {
         if (isStreamClosed) return;
 
         try {
-          const data = `data: ${JSON.stringify(event)}\n\n`;
+          const data = `data: ${encodeEvent(event)}\n\n`;
           controller.enqueue(encoder.encode(data));
         } catch {
           isStreamClosed = true;
@@ -71,18 +65,23 @@ export async function GET(request: NextRequest) {
         timestamp: Date.now(),
       });
 
-      // Convert CLI events to SSE events
-      const convertEvent = (cliEvent: CLIExecutionEvent): SSEEvent => {
+      // Convert CLI execution events to typed protocol events.
+      // CLIExecutionEvent.data is Record<string, unknown> from the CLI process —
+      // this is the serialization boundary where we cast to typed protocol shapes.
+      const d = (e: CLIExecutionEvent) => e.data as Record<string, never>;
+
+      const convertEvent = (cliEvent: CLIExecutionEvent): CLIEvent | null => {
+        const data = d(cliEvent);
         switch (cliEvent.type) {
           case 'init':
             return {
               type: 'connected',
               data: {
                 executionId: activeExecutionId,
-                sessionId: cliEvent.data.sessionId,
-                model: cliEvent.data.model,
-                tools: cliEvent.data.tools,
-                version: cliEvent.data.version,
+                sessionId: data.sessionId,
+                model: data.model,
+                tools: data.tools,
+                version: data.version,
               },
               timestamp: cliEvent.timestamp,
             };
@@ -92,8 +91,8 @@ export async function GET(request: NextRequest) {
               type: 'message',
               data: {
                 type: 'assistant',
-                content: cliEvent.data.content,
-                model: cliEvent.data.model,
+                content: data.content,
+                model: data.model,
               },
               timestamp: cliEvent.timestamp,
             };
@@ -102,9 +101,9 @@ export async function GET(request: NextRequest) {
             return {
               type: 'tool_use',
               data: {
-                toolUseId: cliEvent.data.id,
-                toolName: cliEvent.data.name,
-                toolInput: cliEvent.data.input,
+                toolUseId: data.id,
+                toolName: data.name,
+                toolInput: data.input,
               },
               timestamp: cliEvent.timestamp,
             };
@@ -113,8 +112,8 @@ export async function GET(request: NextRequest) {
             return {
               type: 'tool_result',
               data: {
-                toolUseId: cliEvent.data.toolUseId,
-                content: cliEvent.data.content,
+                toolUseId: data.toolUseId,
+                content: data.content,
               },
               timestamp: cliEvent.timestamp,
             };
@@ -123,11 +122,11 @@ export async function GET(request: NextRequest) {
             return {
               type: 'result',
               data: {
-                sessionId: cliEvent.data.sessionId,
-                usage: cliEvent.data.usage,
-                durationMs: cliEvent.data.durationMs,
-                totalCostUsd: cliEvent.data.costUsd,
-                isError: cliEvent.data.isError,
+                sessionId: data.sessionId,
+                usage: data.usage,
+                durationMs: data.durationMs,
+                totalCostUsd: data.costUsd,
+                isError: data.isError,
               },
               timestamp: cliEvent.timestamp,
             };
@@ -136,18 +135,15 @@ export async function GET(request: NextRequest) {
             return {
               type: 'error',
               data: {
-                error: cliEvent.data.message,
-                exitCode: cliEvent.data.exitCode,
+                error: data.message,
+                exitCode: data.exitCode,
               },
               timestamp: cliEvent.timestamp,
             };
 
           default:
-            return {
-              type: 'stdout',
-              data: cliEvent.data,
-              timestamp: cliEvent.timestamp,
-            };
+            // Unknown event types are skipped (stdout, etc.)
+            return null;
         }
       };
 
@@ -188,12 +184,12 @@ export async function GET(request: NextRequest) {
         // Send new events
         const newEvents = execution.events.slice(lastEventIndex);
         for (const event of newEvents) {
-          // Skip raw stdout events
-          if (event.type === 'stdout') continue;
+          const converted = convertEvent(event);
+          if (!converted) continue; // Skip unknown event types (stdout, etc.)
 
-          sendEvent(convertEvent(event));
+          sendEvent(converted);
 
-          // Close stream on result or error
+          // Close stream on terminal events
           if (event.type === 'result' || event.type === 'error') {
             isStreamClosed = true;
             clearInterval(pollInterval);
@@ -207,14 +203,10 @@ export async function GET(request: NextRequest) {
         if (execution.status !== 'running') {
           // Send final event if not already sent
           if (!isStreamClosed) {
-            sendEvent({
-              type: execution.status === 'completed' ? 'result' : 'error',
-              data: {
-                status: execution.status,
-                sessionId: execution.sessionId,
-              },
-              timestamp: Date.now(),
-            });
+            const finalEvent: CLIEvent = execution.status === 'completed'
+              ? { type: 'result', data: { sessionId: execution.sessionId }, timestamp: Date.now() }
+              : { type: 'error', data: { error: `Execution ${execution.status}` }, timestamp: Date.now() };
+            sendEvent(finalEvent);
           }
           isStreamClosed = true;
           clearInterval(pollInterval);
@@ -222,7 +214,7 @@ export async function GET(request: NextRequest) {
         }
       }, 100); // Poll every 100ms
 
-      // Send heartbeat to keep connection alive
+      // Send heartbeat to keep connection alive (raw write — not a protocol event)
       const heartbeatInterval = setInterval(() => {
         if (isStreamClosed) {
           clearInterval(heartbeatInterval);
@@ -230,11 +222,8 @@ export async function GET(request: NextRequest) {
         }
 
         try {
-          sendEvent({
-            type: 'heartbeat',
-            data: { executionId: activeExecutionId, timestamp: Date.now() },
-            timestamp: Date.now(),
-          });
+          const hb = `data: ${JSON.stringify({ type: 'heartbeat', data: { executionId: activeExecutionId }, timestamp: Date.now() })}\n\n`;
+          controller.enqueue(encoder.encode(hb));
         } catch {
           isStreamClosed = true;
           clearInterval(heartbeatInterval);

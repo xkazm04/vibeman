@@ -99,7 +99,7 @@ export function ReflectionTerminal({
   const taskQueue = terminalTask ? [terminalTask] : [];
 
   // Only show terminal if running AND we have the prompt content
-  // (prompt content is only available right after triggering, not on page refresh)
+  // (prompt content is set on trigger and restored from sessionStorage on refresh)
   if (!isRunning || !hasPrompt || !terminalTask || (!activeProject && scope !== 'global')) {
     return null;
   }

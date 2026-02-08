@@ -60,7 +60,7 @@ export const annetteMemoryRepository = {
 
   getById(id: string): DbAnnetteMemory | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_memories WHERE id = ?').get(id) as DbAnnetteMemory | null;
+    return db.prepare('SELECT * FROM annette_memories WHERE id = ?').get(id) as unknown as DbAnnetteMemory | null;
   },
 
   getByProject(projectId: string, options?: {
@@ -72,7 +72,7 @@ export const annetteMemoryRepository = {
     const db = getConnection();
     const limit = options?.limit ?? 50;
     const conditions: string[] = ['project_id = ?'];
-    const params: unknown[] = [projectId];
+    const params: (string | number | boolean | null)[] = [projectId];
 
     if (options?.type) {
       conditions.push('memory_type = ?');
@@ -95,7 +95,7 @@ export const annetteMemoryRepository = {
       WHERE ${conditions.join(' AND ')}
       ORDER BY importance_score * decay_factor DESC, created_at DESC
       LIMIT ?
-    `).all(...params) as DbAnnetteMemory[];
+    `).all(...params) as unknown as DbAnnetteMemory[];
   },
 
   getBySession(sessionId: string, limit = 100): DbAnnetteMemory[] {
@@ -105,7 +105,7 @@ export const annetteMemoryRepository = {
       WHERE session_id = ?
       ORDER BY created_at ASC
       LIMIT ?
-    `).all(sessionId, limit) as DbAnnetteMemory[];
+    `).all(sessionId, limit) as unknown as DbAnnetteMemory[];
   },
 
   getRecentActive(projectId: string, limit = 20): DbAnnetteMemory[] {
@@ -116,7 +116,7 @@ export const annetteMemoryRepository = {
       ORDER BY
         CASE WHEN last_accessed_at IS NOT NULL THEN last_accessed_at ELSE created_at END DESC
       LIMIT ?
-    `).all(projectId, limit) as DbAnnetteMemory[];
+    `).all(projectId, limit) as unknown as DbAnnetteMemory[];
   },
 
   updateImportance(id: string, importanceScore: number): void {
@@ -170,7 +170,7 @@ export const annetteMemoryRepository = {
       WHERE project_id = ? AND decay_factor < ? AND consolidated_into IS NULL
       ORDER BY decay_factor ASC
       LIMIT ?
-    `).all(projectId, maxDecayFactor, limit) as DbAnnetteMemory[];
+    `).all(projectId, maxDecayFactor, limit) as unknown as DbAnnetteMemory[];
   },
 
   delete(id: string): boolean {
@@ -205,7 +205,7 @@ export const annetteKnowledgeNodeRepository = {
     const existing = db.prepare(`
       SELECT * FROM annette_knowledge_nodes
       WHERE project_id = ? AND node_type = ? AND name = ?
-    `).get(input.projectId, input.nodeType, input.name) as DbAnnetteKnowledgeNode | null;
+    `).get(input.projectId, input.nodeType, input.name) as unknown as DbAnnetteKnowledgeNode | null;
 
     if (existing) {
       db.prepare(`
@@ -254,7 +254,7 @@ export const annetteKnowledgeNodeRepository = {
 
   getById(id: string): DbAnnetteKnowledgeNode | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_knowledge_nodes WHERE id = ?').get(id) as DbAnnetteKnowledgeNode | null;
+    return db.prepare('SELECT * FROM annette_knowledge_nodes WHERE id = ?').get(id) as unknown as DbAnnetteKnowledgeNode | null;
   },
 
   getByName(projectId: string, name: string): DbAnnetteKnowledgeNode | null {
@@ -262,7 +262,7 @@ export const annetteKnowledgeNodeRepository = {
     return db.prepare(`
       SELECT * FROM annette_knowledge_nodes
       WHERE project_id = ? AND name = ?
-    `).get(projectId, name) as DbAnnetteKnowledgeNode | null;
+    `).get(projectId, name) as unknown as DbAnnetteKnowledgeNode | null;
   },
 
   getByProject(projectId: string, options?: {
@@ -273,7 +273,7 @@ export const annetteKnowledgeNodeRepository = {
     const db = getConnection();
     const limit = options?.limit ?? 100;
     const conditions: string[] = ['project_id = ?'];
-    const params: unknown[] = [projectId];
+    const params: (string | number | boolean | null)[] = [projectId];
 
     if (options?.type) {
       conditions.push('node_type = ?');
@@ -292,7 +292,7 @@ export const annetteKnowledgeNodeRepository = {
       WHERE ${conditions.join(' AND ')}
       ORDER BY importance_score DESC, mention_count DESC
       LIMIT ?
-    `).all(...params) as DbAnnetteKnowledgeNode[];
+    `).all(...params) as unknown as DbAnnetteKnowledgeNode[];
   },
 
   search(projectId: string, query: string, limit = 20): DbAnnetteKnowledgeNode[] {
@@ -303,7 +303,7 @@ export const annetteKnowledgeNodeRepository = {
       WHERE project_id = ? AND (name LIKE ? OR description LIKE ?)
       ORDER BY importance_score DESC
       LIMIT ?
-    `).all(projectId, searchPattern, searchPattern, limit) as DbAnnetteKnowledgeNode[];
+    `).all(projectId, searchPattern, searchPattern, limit) as unknown as DbAnnetteKnowledgeNode[];
   },
 
   getRelated(nodeId: string, limit = 20): DbAnnetteKnowledgeNode[] {
@@ -315,7 +315,7 @@ export const annetteKnowledgeNodeRepository = {
                                      OR (e.target_node_id = ? AND e.source_node_id = n.id)
       ORDER BY e.weight DESC
       LIMIT ?
-    `).all(nodeId, nodeId, limit) as DbAnnetteKnowledgeNode[];
+    `).all(nodeId, nodeId, limit) as unknown as DbAnnetteKnowledgeNode[];
   },
 
   delete(id: string): boolean {
@@ -341,7 +341,7 @@ export const annetteKnowledgeEdgeRepository = {
     const existing = db.prepare(`
       SELECT * FROM annette_knowledge_edges
       WHERE project_id = ? AND source_node_id = ? AND target_node_id = ? AND relationship_type = ?
-    `).get(input.projectId, input.sourceNodeId, input.targetNodeId, input.relationshipType) as DbAnnetteKnowledgeEdge | null;
+    `).get(input.projectId, input.sourceNodeId, input.targetNodeId, input.relationshipType) as unknown as DbAnnetteKnowledgeEdge | null;
 
     if (existing) {
       db.prepare(`
@@ -384,7 +384,7 @@ export const annetteKnowledgeEdgeRepository = {
 
   getById(id: string): DbAnnetteKnowledgeEdge | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_knowledge_edges WHERE id = ?').get(id) as DbAnnetteKnowledgeEdge | null;
+    return db.prepare('SELECT * FROM annette_knowledge_edges WHERE id = ?').get(id) as unknown as DbAnnetteKnowledgeEdge | null;
   },
 
   getByNode(nodeId: string, direction: 'outgoing' | 'incoming' | 'both' = 'both'): DbAnnetteKnowledgeEdge[] {
@@ -395,7 +395,7 @@ export const annetteKnowledgeEdgeRepository = {
         SELECT * FROM annette_knowledge_edges
         WHERE source_node_id = ?
         ORDER BY weight DESC
-      `).all(nodeId) as DbAnnetteKnowledgeEdge[];
+      `).all(nodeId) as unknown as DbAnnetteKnowledgeEdge[];
     }
 
     if (direction === 'incoming') {
@@ -403,14 +403,14 @@ export const annetteKnowledgeEdgeRepository = {
         SELECT * FROM annette_knowledge_edges
         WHERE target_node_id = ?
         ORDER BY weight DESC
-      `).all(nodeId) as DbAnnetteKnowledgeEdge[];
+      `).all(nodeId) as unknown as DbAnnetteKnowledgeEdge[];
     }
 
     return db.prepare(`
       SELECT * FROM annette_knowledge_edges
       WHERE source_node_id = ? OR target_node_id = ?
       ORDER BY weight DESC
-    `).all(nodeId, nodeId) as DbAnnetteKnowledgeEdge[];
+    `).all(nodeId, nodeId) as unknown as DbAnnetteKnowledgeEdge[];
   },
 
   getByProject(projectId: string, options?: {
@@ -421,7 +421,7 @@ export const annetteKnowledgeEdgeRepository = {
     const db = getConnection();
     const limit = options?.limit ?? 500;
     const conditions: string[] = ['project_id = ?'];
-    const params: unknown[] = [projectId];
+    const params: (string | number | boolean | null)[] = [projectId];
 
     if (options?.relationshipType) {
       conditions.push('relationship_type = ?');
@@ -440,7 +440,7 @@ export const annetteKnowledgeEdgeRepository = {
       WHERE ${conditions.join(' AND ')}
       ORDER BY weight DESC
       LIMIT ?
-    `).all(...params) as DbAnnetteKnowledgeEdge[];
+    `).all(...params) as unknown as DbAnnetteKnowledgeEdge[];
   },
 
   delete(id: string): boolean {
@@ -486,7 +486,7 @@ export const annetteMemoryConsolidationRepository = {
 
   getById(id: string): DbAnnetteMemoryConsolidation | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_memory_consolidations WHERE id = ?').get(id) as DbAnnetteMemoryConsolidation | null;
+    return db.prepare('SELECT * FROM annette_memory_consolidations WHERE id = ?').get(id) as unknown as DbAnnetteMemoryConsolidation | null;
   },
 
   getByProject(projectId: string, limit = 50): DbAnnetteMemoryConsolidation[] {
@@ -496,7 +496,7 @@ export const annetteMemoryConsolidationRepository = {
       WHERE project_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(projectId, limit) as DbAnnetteMemoryConsolidation[];
+    `).all(projectId, limit) as unknown as DbAnnetteMemoryConsolidation[];
   },
 
   getTokenSavings(projectId: string): { totalBefore: number; totalAfter: number; savings: number } {

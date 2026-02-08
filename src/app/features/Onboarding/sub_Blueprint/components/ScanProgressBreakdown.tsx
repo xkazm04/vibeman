@@ -121,10 +121,10 @@ export function ScanProgressBreakdown({
   const progressPercent = ((currentIndex + 1) / orderedPhases.length) * 100;
 
   return (
-    <div className={`bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 ${className}`}>
+    <div className={`bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 shadow-lg shadow-black/10 backdrop-blur-sm ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-200">Scan Progress</h3>
+        <h3 className="text-sm font-medium text-gray-200 tracking-tight">Scan Progress</h3>
         <span className="text-xs text-gray-400">
           {Math.round(progressPercent)}% complete
         </span>

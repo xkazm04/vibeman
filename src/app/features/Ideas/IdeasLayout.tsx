@@ -16,7 +16,6 @@ import ScanInitiator from '@/app/features/Ideas/sub_IdeasSetup/ScanInitiator';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 // Handlers and utilities
-import { getProjectName } from '@/app/features/Ideas/lib/ideasUtils';
 import { getContextName } from '@/app/features/Ideas/lib/contextLoader';
 
 interface IdeasLayoutProps {
@@ -91,12 +90,12 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
 
   // Memoize getProjectName callback to prevent re-creating on every render
   const getProjectNameCallback = React.useCallback((projectId: string) => {
-    return getProjectName(projectId, projects);
+    return projects.find(p => p.id === projectId)?.name || projectId;
   }, [projects]);
 
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
+    <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900/95 to-gray-800">
         {/* Header with Project Filter */}
         <LazyContentSection delay={0}>
           <IdeasHeaderWithFilter

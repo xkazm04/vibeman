@@ -6,6 +6,7 @@ import { Trash2, Edit2, Zap, Play } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
 import { getCategoryConfig, EffortIcon, ImpactIcon, effortConfig, impactConfig } from '../lib/ideaConfig';
+import { getStatusClasses, type StatusType } from '@/lib/design-tokens/useEntityStyling';
 
 interface BufferItemProps {
   idea: DbIdea;
@@ -54,20 +55,8 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
 
   const categoryConfig = getCategoryConfig(idea.category);
 
-  // Get status-based styling with dark-mode friendly colors and high-contrast hover states
-  const getStatusClasses = () => {
-    const baseClasses = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900';
-    switch (idea.status) {
-      case 'accepted':
-        return `${baseClasses} border-green-500/40 bg-green-900/10 hover:bg-green-800/30 hover:border-green-400/60 focus-visible:ring-green-400/70`;
-      case 'rejected':
-        return `${baseClasses} border-red-500/40 bg-red-900/10 hover:bg-red-800/30 hover:border-red-400/60 focus-visible:ring-red-400/70`;
-      case 'implemented':
-        return `${baseClasses} border-amber-500/40 bg-amber-900/10 hover:bg-amber-800/30 hover:border-amber-400/60 focus-visible:ring-amber-400/70`;
-      default:
-        return `${baseClasses} border-gray-600/40 bg-gray-800/20 hover:bg-gray-700/40 hover:border-gray-500/60 focus-visible:ring-blue-400/70`;
-    }
-  };
+  // Get status-based styling using design tokens
+  const statusClasses = getStatusClasses((idea.status || 'pending') as StatusType);
 
   const effortCfg = idea.effort ? effortConfig[idea.effort] || null : null;
   const impactCfg = idea.impact ? impactConfig[idea.impact] || null : null;
@@ -87,7 +76,7 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
         tabIndex={0}
         role="button"
         aria-label={`${idea.title} - ${idea.status}`}
-        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-all duration-200 ease-out ${getStatusClasses()}`}
+        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-all duration-200 ease-out ${statusClasses}`}
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         whileHover={{
@@ -124,7 +113,7 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
         </div>
 
         {/* Title */}
-        <span className="flex-1 min-w-0 text-xs text-gray-200 truncate font-medium">
+        <span className="flex-1 min-w-0 text-xs text-gray-200 truncate font-medium leading-snug">
           {idea.title}
         </span>
 

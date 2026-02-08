@@ -1,11 +1,13 @@
 /**
  * Brain Insights API
- * GET: Fetch all insights (per-project or global) with reflection IDs for deletion
- * DELETE: Remove a specific insight from a reflection
+ * GET: Fetch all insights (per-project or global) with reflection IDs
+ * DELETE: Remove a specific insight
+ * PATCH: Resolve a conflict between insights
+ * POST: Batch-resolve evidence IDs to direction summaries
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { brainReflectionDb, directionDb, getDatabase } from '@/app/db';
+import { brainInsightDb, directionDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 
@@ -32,7 +34,7 @@ async function handleGet(request: NextRequest) {
     }
 
     const includeHistory = searchParams.get('includeHistory') !== 'false';
-    const insights = getInsightsWithMeta(projectId, scope === 'global', includeHistory);
+    const insights = brainInsightDb.getWithMeta(projectId, scope === 'global', includeHistory);
     return NextResponse.json({ insights });
   } catch (error) {
     console.error('[Brain Insights GET] Error:', error);
@@ -52,26 +54,16 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    const reflection = brainReflectionDb.getById(reflectionId);
-    if (!reflection) {
-      return NextResponse.json({ error: 'Reflection not found' }, { status: 404 });
-    }
-
-    let insights: LearningInsight[] = [];
-    try {
-      insights = JSON.parse(reflection.insights_generated || '[]');
-    } catch {
-      return NextResponse.json({ error: 'Failed to parse insights' }, { status: 500 });
-    }
-
-    const filtered = insights.filter(i => i.title !== insightTitle);
-    if (filtered.length === insights.length) {
+    const deleted = brainInsightDb.deleteByTitle(reflectionId, insightTitle);
+    if (!deleted) {
       return NextResponse.json({ error: 'Insight not found' }, { status: 404 });
     }
 
-    brainReflectionDb.updateInsights(reflectionId, JSON.stringify(filtered));
+    // Keep JSON blob in sync
+    brainInsightDb.syncToReflectionJson(reflectionId);
 
-    return NextResponse.json({ success: true, remaining: filtered.length });
+    const remaining = brainInsightDb.countByReflection(reflectionId);
+    return NextResponse.json({ success: true, remaining });
   } catch (error) {
     console.error('[Brain Insights DELETE] Error:', error);
     return NextResponse.json({ error: 'Failed to delete insight' }, { status: 500 });
@@ -79,103 +71,9 @@ async function handleDelete(request: NextRequest) {
 }
 
 /**
- * Fetch insights with reflection_id and project_id attached for each entry.
- * When includeHistory=true, also builds confidence history per insight title
- * by tracing through reflections chronologically (using title + evolves field).
- */
-function getInsightsWithMeta(projectId: string | null, isGlobal: boolean, includeHistory = true): InsightWithMeta[] {
-  const db = getDatabase();
-
-  // Query reflections in chronological order (ASC) for history building
-  const queryAsc = isGlobal
-    ? `SELECT id, insights_generated, project_id, completed_at FROM brain_reflections
-       WHERE status = 'completed' AND insights_generated IS NOT NULL
-       ORDER BY completed_at ASC LIMIT 50`
-    : `SELECT id, insights_generated, project_id, completed_at FROM brain_reflections
-       WHERE project_id = ? AND status = 'completed' AND insights_generated IS NOT NULL
-       ORDER BY completed_at ASC LIMIT 30`;
-
-  const rows = (isGlobal
-    ? db.prepare(queryAsc).all()
-    : db.prepare(queryAsc).all(projectId)) as Array<{ id: string; insights_generated: string; project_id: string; completed_at: string }>;
-
-  // Build confidence history map: canonical title → ConfidencePoint[]
-  // We track title aliases via the "evolves" field
-  const historyMap = new Map<string, ConfidencePoint[]>();
-  // Maps evolved titles to their canonical (current) title
-  const titleAliases = new Map<string, string>();
-
-  if (includeHistory) {
-    for (const row of rows) {
-      try {
-        const parsed = JSON.parse(row.insights_generated);
-        if (!Array.isArray(parsed)) continue;
-        for (const insight of parsed as LearningInsight[]) {
-          // Resolve canonical title (follow evolves chain)
-          let canonicalTitle = insight.title;
-          if (insight.evolves && titleAliases.has(insight.evolves)) {
-            canonicalTitle = insight.title; // This insight IS the new canonical
-            // Update the alias: old title now points to new title
-            titleAliases.set(insight.evolves, insight.title);
-            // Move history from old canonical to new
-            const oldHistory = historyMap.get(insight.evolves);
-            if (oldHistory) {
-              historyMap.set(insight.title, oldHistory);
-              historyMap.delete(insight.evolves);
-            }
-          } else if (insight.evolves) {
-            // First evolution: create alias
-            titleAliases.set(insight.evolves, insight.title);
-            const oldHistory = historyMap.get(insight.evolves);
-            if (oldHistory) {
-              historyMap.set(insight.title, oldHistory);
-              historyMap.delete(insight.evolves);
-            }
-          }
-
-          const history = historyMap.get(canonicalTitle) || [];
-          history.push({
-            confidence: insight.confidence,
-            date: row.completed_at,
-            reflectionId: row.id,
-          });
-          historyMap.set(canonicalTitle, history);
-        }
-      } catch { /* skip corrupted */ }
-    }
-  }
-
-  // Build result (return in DESC order for display - most recent first)
-  const result: InsightWithMeta[] = [];
-  for (let i = rows.length - 1; i >= 0; i--) {
-    const row = rows[i];
-    try {
-      const parsed = JSON.parse(row.insights_generated);
-      if (Array.isArray(parsed)) {
-        for (const insight of parsed) {
-          const entry: InsightWithMeta = {
-            ...insight,
-            reflection_id: row.id,
-            project_id: row.project_id,
-          };
-          if (includeHistory) {
-            entry.confidenceHistory = historyMap.get(insight.title) || [
-              { confidence: insight.confidence, date: row.completed_at, reflectionId: row.id }
-            ];
-          }
-          result.push(entry);
-        }
-      }
-    } catch { /* skip corrupted */ }
-  }
-  return result;
-}
-
-/**
  * POST /api/brain/insights
  * Batch-resolve evidence IDs (direction IDs) to summaries
  * Body: { evidenceIds: string[] }
- * Returns: { directions: Record<string, DirectionSummary | null> }
  */
 async function handlePost(request: NextRequest) {
   try {
@@ -251,75 +149,73 @@ async function handlePatch(request: NextRequest) {
       );
     }
 
-    const reflection = brainReflectionDb.getById(reflectionId);
-    if (!reflection) {
-      return NextResponse.json({ error: 'Reflection not found' }, { status: 404 });
-    }
+    // Search directly in the reflection's insights
+    const reflectionInsights = brainInsightDb.getByReflection(reflectionId);
+    const insightRow = reflectionInsights.find(i => i.title === insightTitle);
 
-    let insights: LearningInsight[] = [];
-    try {
-      insights = JSON.parse(reflection.insights_generated || '[]');
-    } catch {
-      return NextResponse.json({ error: 'Failed to parse insights' }, { status: 500 });
-    }
-
-    const insightIndex = insights.findIndex(i => i.title === insightTitle);
-    if (insightIndex === -1) {
+    if (!insightRow) {
       return NextResponse.json({ error: 'Insight not found' }, { status: 404 });
     }
 
-    const insight = insights[insightIndex];
-    const conflictTitle = conflictingInsightTitle || insight.conflict_with;
+    const conflictTitle = conflictingInsightTitle || insightRow.conflict_with_title;
 
     if (resolution === 'keep_both') {
-      // Mark conflict as resolved, keep both insights
-      insights[insightIndex] = {
-        ...insight,
-        conflict_resolved: true,
+      // Mark both as resolved
+      brainInsightDb.update(insightRow.id, {
+        conflict_resolved: 1,
         conflict_resolution: 'keep_both',
-      };
-      // Also update the conflicting insight if it's in the same reflection
-      const conflictIndex = insights.findIndex(i => i.title === conflictTitle);
-      if (conflictIndex !== -1) {
-        insights[conflictIndex] = {
-          ...insights[conflictIndex],
-          conflict_resolved: true,
-          conflict_resolution: 'keep_both',
-        };
+      });
+      // Also find and resolve the other side
+      if (conflictTitle) {
+        const otherInsight = reflectionInsights.find(i => i.title === conflictTitle);
+        if (otherInsight) {
+          brainInsightDb.update(otherInsight.id, {
+            conflict_resolved: 1,
+            conflict_resolution: 'keep_both',
+          });
+        }
       }
     } else if (resolution === 'keep_this') {
-      // Mark this insight as resolved, delete the other
-      insights[insightIndex] = {
-        ...insight,
-        conflict_resolved: true,
+      // Resolve this, delete the other
+      brainInsightDb.update(insightRow.id, {
+        conflict_resolved: 1,
         conflict_resolution: 'keep_this',
-        conflict_with: undefined, // Clear conflict marker
-        conflict_type: undefined,
-      };
-      // Remove the conflicting insight if it's in the same reflection
-      insights = insights.filter(i => i.title !== conflictTitle);
+        conflict_with_id: null,
+        conflict_with_title: null,
+        conflict_type: null,
+      });
+      if (conflictTitle) {
+        const otherInsight = reflectionInsights.find(i => i.title === conflictTitle);
+        if (otherInsight) {
+          brainInsightDb.delete(otherInsight.id);
+        }
+      }
     } else if (resolution === 'keep_other') {
-      // Delete this insight, keep the other
-      insights = insights.filter(i => i.title !== insightTitle);
-      // Mark the other insight's conflict as resolved
-      const conflictIndex = insights.findIndex(i => i.title === conflictTitle);
-      if (conflictIndex !== -1) {
-        insights[conflictIndex] = {
-          ...insights[conflictIndex],
-          conflict_resolved: true,
-          conflict_resolution: 'keep_other',
-          conflict_with: undefined,
-          conflict_type: undefined,
-        };
+      // Delete this, resolve the other
+      const insightId = insightRow.id;
+      brainInsightDb.delete(insightId);
+      if (conflictTitle) {
+        const otherInsight = reflectionInsights.find(i => i.title === conflictTitle);
+        if (otherInsight) {
+          brainInsightDb.update(otherInsight.id, {
+            conflict_resolved: 1,
+            conflict_resolution: 'keep_other',
+            conflict_with_id: null,
+            conflict_with_title: null,
+            conflict_type: null,
+          });
+        }
       }
     }
 
-    brainReflectionDb.updateInsights(reflectionId, JSON.stringify(insights));
+    // Keep JSON blob in sync
+    brainInsightDb.syncToReflectionJson(reflectionId);
 
+    const remaining = brainInsightDb.countByReflection(reflectionId);
     return NextResponse.json({
       success: true,
       resolution,
-      remaining: insights.length,
+      remaining,
     });
   } catch (error) {
     console.error('[Brain Insights PATCH] Error:', error);

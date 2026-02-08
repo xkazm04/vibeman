@@ -10,6 +10,7 @@ import { fireAndForgetGoalAnalysis } from '@/lib/goals';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
+import type { GoalResponse, GoalsListResponse, GoalMutationResponse, GoalDeleteResponse } from '@/lib/api-types/goals';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
 async function handleGet(request: NextRequest) {
@@ -25,7 +26,7 @@ async function handleGet(request: NextRequest) {
         return notFoundResponse('Goal');
       }
 
-      return NextResponse.json({ goal });
+      return NextResponse.json({ goal } satisfies GoalResponse);
     }
 
     // Parse project filter (supports single, multi, or all)
@@ -33,12 +34,12 @@ async function handleGet(request: NextRequest) {
 
     if (projectFilter.mode === 'single') {
       const goals = goalDb.getGoalsByProject(projectFilter.projectId!);
-      return NextResponse.json({ goals });
+      return NextResponse.json({ goals } satisfies GoalsListResponse);
     }
 
     if (projectFilter.mode === 'multi') {
       const goals = projectFilter.projectIds!.flatMap(pid => goalDb.getGoalsByProject(pid));
-      return NextResponse.json({ goals });
+      return NextResponse.json({ goals } satisfies GoalsListResponse);
     }
 
     // 'all' mode - projectId required for goals unless multi-project
@@ -163,7 +164,7 @@ async function handlePost(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ goal });
+    return NextResponse.json({ goal } satisfies GoalMutationResponse);
   } catch (error) {
     logger.error('Error in POST /api/goals:', { error });
     return createErrorResponse('Internal server error', 500);
@@ -211,7 +212,7 @@ async function handlePut(request: NextRequest) {
       `Update goal ${goal.id} in GitHub`
     );
 
-    return NextResponse.json({ goal });
+    return NextResponse.json({ goal } satisfies GoalMutationResponse);
   } catch (error) {
     logger.error('Error in PUT /api/goals:', { error });
     return createErrorResponse('Internal server error', 500);
@@ -250,7 +251,7 @@ async function handleDelete(request: NextRequest) {
       `Delete goal ${id} from GitHub`
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true } satisfies GoalDeleteResponse);
   } catch (error) {
     logger.error('Error in DELETE /api/goals:', { error });
     return createErrorResponse('Internal server error', 500);

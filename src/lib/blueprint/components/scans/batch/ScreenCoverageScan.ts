@@ -3,7 +3,7 @@
  * Finds contexts without test scenarios and generates coverage requirements in batch
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/blueprintScreenCoverage.ts
+ * src/app/features/Onboarding/blueprint/lib/blueprintScreenCoverage.ts
  *
  * Execution flow:
  * 1. Fetch all contexts for project (pre-scan)

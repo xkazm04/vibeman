@@ -31,23 +31,32 @@ export interface StatusConfig {
   shadow: string;
 }
 
-export interface EffortConfig {
+// ---------------------------------------------------------------------------
+// ScaleMetric — generic 1-10 metric abstraction
+// ---------------------------------------------------------------------------
+
+/** A single entry on a 1-10 scale (e.g. effort=3 → "Small - few days") */
+export interface ScaleEntry {
   label: string;
   color: string;
   description: string;
 }
 
-export interface ImpactConfig {
-  label: string;
-  color: string;
-  description: string;
+/** A fully-configured scale metric. */
+export interface ScaleMetric {
+  /** Human-readable name (e.g. "Effort") */
+  name: string;
+  /** If true, lower values are better (green→red). If false, higher is better (red→green). */
+  inverse: boolean;
+  /** The 10 entries keyed 1-10. */
+  entries: Record<number, ScaleEntry>;
+  /** Shortcut: get the color class for a value. */
+  colorOf: (value: number) => string;
 }
 
-export interface RiskConfig {
-  label: string;
-  color: string;
-  description: string;
-}
+// Color bands shared by all scale metrics
+const SCALE_COLORS_NORMAL = ['text-red-400', 'text-orange-400', 'text-yellow-400', 'text-lime-400', 'text-emerald-400'];
+const SCALE_COLORS_INVERSE = ['text-emerald-400', 'text-lime-400', 'text-yellow-400', 'text-orange-400', 'text-red-400'];
 
 /**
  * Helper function to get color based on scale value
@@ -56,23 +65,48 @@ export interface RiskConfig {
  * @returns Tailwind color class
  */
 export function getScoreColor(value: number, inverse: boolean = false): string {
-  // For inverse (effort/risk): 1-2 green, 3-4 lime, 5-6 yellow, 7-8 orange, 9-10 red
-  // For normal (impact): 1-2 red, 3-4 orange, 5-6 yellow, 7-8 lime, 9-10 green
-
-  if (inverse) {
-    if (value <= 2) return 'text-emerald-400';
-    if (value <= 4) return 'text-lime-400';
-    if (value <= 6) return 'text-yellow-400';
-    if (value <= 8) return 'text-orange-400';
-    return 'text-red-400';
-  } else {
-    if (value <= 2) return 'text-red-400';
-    if (value <= 4) return 'text-orange-400';
-    if (value <= 6) return 'text-yellow-400';
-    if (value <= 8) return 'text-lime-400';
-    return 'text-emerald-400';
-  }
+  const colors = inverse ? SCALE_COLORS_INVERSE : SCALE_COLORS_NORMAL;
+  const idx = Math.min(Math.floor((value - 1) / 2), 4);
+  return colors[idx];
 }
+
+/**
+ * Create a 1-10 scale metric from a list of description pairs.
+ *
+ * @param name    - Human label ("Effort", "Impact", "Risk")
+ * @param inverse - true → low=green/high=red (effort, risk); false → low=red/high=green (impact)
+ * @param descriptions - Array of 5 description strings, one per 2-value band:
+ *                       [1-2, 3-4, 5-6, 7-8, 9-10]
+ */
+export function createScaleConfig(
+  name: string,
+  inverse: boolean,
+  descriptions: [string, string, string, string, string],
+): ScaleMetric {
+  const colors = inverse ? SCALE_COLORS_INVERSE : SCALE_COLORS_NORMAL;
+  const entries: Record<number, ScaleEntry> = {};
+  for (let i = 1; i <= 10; i++) {
+    const band = Math.min(Math.floor((i - 1) / 2), 4);
+    entries[i] = {
+      label: String(i),
+      color: colors[band],
+      description: descriptions[band],
+    };
+  }
+  return {
+    name,
+    inverse,
+    entries,
+    colorOf: (v) => getScoreColor(v, inverse),
+  };
+}
+
+/** @deprecated Use ScaleEntry instead */
+export type EffortConfig = ScaleEntry;
+/** @deprecated Use ScaleEntry instead */
+export type ImpactConfig = ScaleEntry;
+/** @deprecated Use ScaleEntry instead */
+export type RiskConfig = ScaleEntry;
 
 /**
  * Category configuration
@@ -111,56 +145,39 @@ export const statusConfig: Record<string, StatusConfig> = {
   implemented: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', shadow: 'shadow-amber-500/10' },
 };
 
-/**
- * Effort configuration (1-10 scale)
- * Lower is better (less effort required)
- */
-export const effortConfig: Record<number, EffortConfig> = {
-  1: { label: '1', color: 'text-emerald-400', description: 'Trivial - few hours' },
-  2: { label: '2', color: 'text-emerald-400', description: 'Trivial - < 1 day' },
-  3: { label: '3', color: 'text-lime-400', description: 'Small - few days' },
-  4: { label: '4', color: 'text-lime-400', description: 'Small - < 1 week' },
-  5: { label: '5', color: 'text-yellow-400', description: 'Medium - 1-2 weeks' },
-  6: { label: '6', color: 'text-yellow-400', description: 'Medium - 2-3 weeks' },
-  7: { label: '7', color: 'text-orange-400', description: 'Large - 1 month' },
-  8: { label: '8', color: 'text-orange-400', description: 'Large - 1-2 months' },
-  9: { label: '9', color: 'text-red-400', description: 'Massive - multi-month' },
-  10: { label: '10', color: 'text-red-400', description: 'Massive - dedicated team' },
-};
+/** Effort: inverse (low=green, high=red). Lower is better. */
+export const effortScale = createScaleConfig('Effort', true, [
+  'Trivial - hours',
+  'Small - days',
+  'Medium - weeks',
+  'Large - 1-2 months',
+  'Massive - multi-month',
+]);
 
-/**
- * Impact configuration (1-10 scale)
- * Higher is better (more business value)
- */
-export const impactConfig: Record<number, ImpactConfig> = {
-  1: { label: '1', color: 'text-red-400', description: 'Negligible impact' },
-  2: { label: '2', color: 'text-red-400', description: 'Negligible impact' },
-  3: { label: '3', color: 'text-orange-400', description: 'Minor improvement' },
-  4: { label: '4', color: 'text-orange-400', description: 'Minor improvement' },
-  5: { label: '5', color: 'text-yellow-400', description: 'Moderate value' },
-  6: { label: '6', color: 'text-yellow-400', description: 'Moderate value' },
-  7: { label: '7', color: 'text-lime-400', description: 'High value' },
-  8: { label: '8', color: 'text-lime-400', description: 'High value' },
-  9: { label: '9', color: 'text-emerald-400', description: 'Critical value' },
-  10: { label: '10', color: 'text-emerald-400', description: 'Critical/transformational' },
-};
+/** Impact: normal (low=red, high=green). Higher is better. */
+export const impactScale = createScaleConfig('Impact', false, [
+  'Negligible impact',
+  'Minor improvement',
+  'Moderate value',
+  'High value',
+  'Critical/transformational',
+]);
 
-/**
- * Risk configuration (1-10 scale)
- * Lower is better (safer to implement)
- */
-export const riskConfig: Record<number, RiskConfig> = {
-  1: { label: '1', color: 'text-emerald-400', description: 'Very safe' },
-  2: { label: '2', color: 'text-emerald-400', description: 'Very safe' },
-  3: { label: '3', color: 'text-lime-400', description: 'Low risk' },
-  4: { label: '4', color: 'text-lime-400', description: 'Low risk' },
-  5: { label: '5', color: 'text-yellow-400', description: 'Moderate risk' },
-  6: { label: '6', color: 'text-yellow-400', description: 'Moderate risk' },
-  7: { label: '7', color: 'text-orange-400', description: 'High risk' },
-  8: { label: '8', color: 'text-orange-400', description: 'High risk' },
-  9: { label: '9', color: 'text-red-400', description: 'Critical risk' },
-  10: { label: '10', color: 'text-red-400', description: 'Critical risk' },
-};
+/** Risk: inverse (low=green, high=red). Lower is better. */
+export const riskScale = createScaleConfig('Risk', true, [
+  'Very safe',
+  'Low risk',
+  'Moderate risk',
+  'High risk',
+  'Critical risk',
+]);
+
+/** @deprecated Use effortScale.entries instead */
+export const effortConfig = effortScale.entries;
+/** @deprecated Use impactScale.entries instead */
+export const impactConfig = impactScale.entries;
+/** @deprecated Use riskScale.entries instead */
+export const riskConfig = riskScale.entries;
 
 /**
  * Effort icon (for visual display)

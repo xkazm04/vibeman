@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferColumn from './BufferColumn';
-import { GroupedIdeas } from '../lib/ideasUtils';
+import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
+
+const ideaStagingBuffer = createIdeaStagingBuffer<DbIdea>();
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import {
   useBufferIdeas,
@@ -55,37 +57,15 @@ export default function BufferView({
     return ideas.filter((idea) => idea.project_id === filterProject);
   }, [ideas, filterProject]);
 
-  // Group ideas by project and context
-  const groupedIdeas = React.useMemo(() => {
-    const grouped: GroupedIdeas = {};
-
-    filteredIdeas.forEach((idea) => {
-      const projectId = idea.project_id;
-      const contextId = idea.context_id || 'no-context';
-
-      if (!grouped[projectId]) {
-        grouped[projectId] = {};
-      }
-
-      if (!grouped[projectId][contextId]) {
-        grouped[projectId][contextId] = [];
-      }
-
-      grouped[projectId][contextId].push(idea);
-    });
-
-    return grouped;
-  }, [filteredIdeas]);
-
-  // Memoize sorted context entries
+  // Group and sort ideas using the staging buffer abstraction
   const sortedGroupedIdeas = React.useMemo(() => {
-    return Object.entries(groupedIdeas).map(([projectId, contexts]) => ({
+    const projectGroups = ideaStagingBuffer.groupSorted(filteredIdeas);
+    // Map to the shape expected by the template (array of [contextId, ideas] tuples)
+    return projectGroups.map(({ projectId, contexts }) => ({
       projectId,
-      contexts: Object.entries(contexts).sort(
-        ([, ideasA], [, ideasB]) => ideasB.length - ideasA.length
-      ),
+      contexts: contexts.map(({ contextId, items }) => [contextId, items] as [string, DbIdea[]]),
     }));
-  }, [groupedIdeas]);
+  }, [filteredIdeas]);
 
   const handleIdeaDelete = React.useCallback(
     async (ideaId: string) => {
@@ -290,11 +270,11 @@ export default function BufferView({
         >
           {/* Project Header */}
           <div className="mb-4 flex items-center space-x-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full" />
+            <div className="w-2 h-2 bg-blue-400 rounded-full shadow-sm shadow-blue-400/50" />
             <h2 className="text-lg font-semibold text-white">
               {getProjectName(projectId)}
             </h2>
-            <span className="text-sm text-gray-500 font-mono">
+            <span className="text-sm text-gray-500 font-mono tabular-nums">
               ({contexts.reduce((sum, [, ideas]) => sum + ideas.length, 0)}{' '}
               ideas)
             </span>

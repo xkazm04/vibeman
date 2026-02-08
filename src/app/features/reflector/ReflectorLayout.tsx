@@ -47,7 +47,7 @@ const ReflectorLayout = () => {
       <ReflectorHeader stats={stats} />
 
       {/* View Mode Tabs - inside header section */}
-      <div className="border-b border-yellow-700/40 bg-gray-900/60 backdrop-blur-xl">
+      <div className="border-b border-yellow-700/40 bg-gray-900/60 backdrop-blur-xl shadow-sm shadow-black/20">
         <div className="max-w-7xl mx-auto px-6 pb-4">
           <ReflectorViewTabs viewMode={viewMode} onViewModeChange={setViewMode} />
         </div>
@@ -57,7 +57,7 @@ const ReflectorLayout = () => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {loading && viewMode === 'weekly' ? (
           <div className="flex items-center justify-center py-24">
-            <div className="text-gray-400">Loading...</div>
+            <div className="text-gray-400 animate-pulse">Loading...</div>
           </div>
         ) : viewMode === 'weekly' ? (
           <WeeklyDashboard />

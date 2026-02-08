@@ -16,6 +16,7 @@ import { goalDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
+import type { GitHubSyncStatusResponse, GitHubBatchSyncResponse } from '@/lib/api-types/goals';
 
 /**
  * POST - Sync goals to GitHub Projects
@@ -60,7 +61,7 @@ async function handlePost(request: NextRequest) {
         failed: 0,
         errors: ['GitHub Project not configured. Set GITHUB_TOKEN, GITHUB_PROJECT_ID, and GITHUB_PROJECT_OWNER.'],
         configured: false,
-      });
+      } satisfies GitHubBatchSyncResponse);
     }
 
     const result = await batchSyncGoalsToGitHub(projectId);
@@ -115,7 +116,7 @@ async function handleGet() {
         'GITHUB_STATUS_IN_PROGRESS_ID',
         'GITHUB_STATUS_DONE_ID',
       ],
-    });
+    } satisfies GitHubSyncStatusResponse);
 
   } catch (error) {
     logger.error('Error in GET /api/goals/github-sync:', { error });

@@ -112,19 +112,3 @@ export async function executeScan(params: {
   const data = await response.json();
   return data.count || 0;
 }
-
-/**
- * Delete all ideas from the database
- */
-export async function deleteAllIdeas(): Promise<{ success: boolean; deletedCount: number }> {
-  const response = await fetch('/api/ideas?all=true', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' }
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to delete ideas');
-  }
-
-  return response.json();
-}

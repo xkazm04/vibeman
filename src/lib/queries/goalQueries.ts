@@ -1,4 +1,6 @@
 import { Goal } from '../../types';
+import type { GoalResponse, GoalsListResponse, GoalMutationResponse } from '@/lib/api-types/goals';
+import type { DbGoal } from '@/app/db/models/types';
 
 // Query Keys
 export const goalKeys = {
@@ -7,8 +9,6 @@ export const goalKeys = {
 };
 
 /**
- * Database goal structure (as returned by the API)
- *
  * NAMING CONVENTION:
  * - Database layer uses snake_case: `order_index`, `project_id`, `context_id`
  * - Frontend layer uses camelCase: `order`, `projectId`, `contextId`
@@ -17,23 +17,10 @@ export const goalKeys = {
  * The mapping happens in two places:
  * 1. API route (route.ts): `orderIndex` param → `order_index` for DB
  * 2. This file: `order_index` from DB → `order` for frontend
+ *
+ * Response shapes are defined in `@/lib/api-types/goals` and shared
+ * between the API routes and this consumer.
  */
-interface DbGoal {
-  id: string;
-  project_id: string;
-  context_id: string | null;
-  order_index: number;
-  title: string;
-  description: string | null;
-  status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
-  progress?: number;
-  target_date?: string | null;
-  started_at?: string | null;
-  completed_at?: string | null;
-  github_item_id?: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 /**
  * API request types for Goal operations
@@ -145,7 +132,7 @@ export const goalApi = {
       throw new Error('Failed to fetch goals');
     }
 
-    const data = await response.json();
+    const data: GoalsListResponse = await response.json();
     return data.goals.map(convertDbGoalToGoal);
   },
 
@@ -157,7 +144,7 @@ export const goalApi = {
       throw new Error('Failed to fetch goal');
     }
 
-    const data = await response.json();
+    const data: GoalResponse = await response.json();
     return convertDbGoalToGoal(data.goal);
   },
 
@@ -176,7 +163,7 @@ export const goalApi = {
       throw new Error('Failed to create goal');
     }
 
-    const data = await response.json();
+    const data: GoalMutationResponse = await response.json();
     return convertDbGoalToGoal(data.goal);
   },
 
@@ -195,7 +182,7 @@ export const goalApi = {
       throw new Error('Failed to update goal');
     }
 
-    const data = await response.json();
+    const data: GoalMutationResponse = await response.json();
     return convertDbGoalToGoal(data.goal);
   },
 

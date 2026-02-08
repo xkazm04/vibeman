@@ -786,14 +786,14 @@ import { Sparkles } from 'lucide-react';
         defaultValue: false,
       },
     ],
-    codeSnippet: `import { ScreenThumbnail } from '@/app/features/Goals/sub_ScreenCatalog/ScreenThumbnail';
+    codeSnippet: `import { ScreenThumbnail } from '@/app/features/Goals/screen-catalog/ScreenThumbnail';
 
 <ScreenThumbnail
   context={{ id: '1', name: 'Dashboard', preview: '/preview.png', groupColor: '#06b6d4' }}
   onClick={() => {}}
   index={0}
 />`,
-    sourcePath: 'src/app/features/Goals/sub_ScreenCatalog/ScreenThumbnail.tsx',
+    sourcePath: 'src/app/features/Goals/screen-catalog/ScreenThumbnail.tsx',
   },
   {
     id: 'candidate-card',
@@ -1169,14 +1169,14 @@ import { Sparkles } from 'lucide-react';
         defaultValue: '#06b6d4',
       },
     ],
-    codeSnippet: `import { GradientPalettePicker } from '@/app/features/Context/sub_ContextGroups/components/GradientPalettePicker';
+    codeSnippet: `import { GradientPalettePicker } from '@/app/features/Context/context-groups/components/GradientPalettePicker';
 
 <GradientPalettePicker
   primaryColor="#06b6d4"
   accentColor="#a855f7"
   onAccentChange={(color) => {}}
 />`,
-    sourcePath: 'src/app/features/Context/sub_ContextGroups/components/GradientPalettePicker.tsx',
+    sourcePath: 'src/app/features/Context/context-groups/components/GradientPalettePicker.tsx',
   },
 
   // --- ReflectorLayout Components ---
@@ -1206,10 +1206,10 @@ import { Sparkles } from 'lucide-react';
         defaultValue: true,
       },
     ],
-    codeSnippet: `import { WeeklyKPICards } from '@/app/features/reflector/sub_Weekly/components/WeeklyKPICards';
+    codeSnippet: `import { WeeklyKPICards } from '@/app/features/reflector/weekly/components/WeeklyKPICards';
 
 <WeeklyKPICards stats={{ total: 45, accepted: 32, implemented: 18, pending: 13 }} />`,
-    sourcePath: 'src/app/features/reflector/sub_Weekly/components/WeeklyKPICards.tsx',
+    sourcePath: 'src/app/features/reflector/weekly/components/WeeklyKPICards.tsx',
   },
   {
     id: 'kpi-summary-cards',
@@ -1243,7 +1243,7 @@ import { Sparkles } from 'lucide-react';
   stats={{ totalReflections: 100, acceptanceRate: 75 }}
   animationConfig={{ confettiEnabled: true }}
 />`,
-    sourcePath: 'src/app/features/reflector/sub_Reflection/components/KPISummaryCards.tsx',
+    sourcePath: 'src/app/features/reflector/reflection/components/KPISummaryCards.tsx',
   },
 
   // --- SocialLayout Components ---

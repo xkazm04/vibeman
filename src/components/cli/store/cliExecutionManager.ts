@@ -217,7 +217,6 @@ function startPollingFallback(
       );
 
       if (!response.ok) {
-        console.warn('[CLI] Status check failed, will retry');
         return;
       }
 
@@ -228,8 +227,7 @@ function startPollingFallback(
         activePolling.delete(sessionId);
         handleTaskComplete(sessionId, task, status.success);
       }
-    } catch (error) {
-      console.warn('[CLI] Polling error, will retry:', error);
+    } catch {
       // Continue polling on error
     }
   }, 10000); // Poll every 10 seconds
@@ -344,11 +342,8 @@ export async function recoverCLISessions(): Promise<void> {
   const sessionsToRecover = store.getSessionsNeedingRecovery();
 
   if (sessionsToRecover.length === 0) {
-    console.log('[CLI] No sessions need recovery');
     return;
   }
-
-  console.log(`[CLI] Recovering ${sessionsToRecover.length} session(s)`);
 
   for (const session of sessionsToRecover) {
     // Check if we have a running task that needs monitoring
@@ -360,11 +355,9 @@ export async function recoverCLISessions(): Promise<void> {
 
       if (exists) {
         // Task was interrupted - restart it
-        console.log(`[CLI] Session ${session.id}: Restarting interrupted task ${runningTask.requirementName}`);
         store.updateTaskStatus(session.id, runningTask.id, 'pending');
       } else {
         // Requirement file was deleted - task completed successfully
-        console.log(`[CLI] Session ${session.id}: Task ${runningTask.requirementName} already completed`);
         store.updateTaskStatus(session.id, runningTask.id, 'completed');
         // Remove from queue after short delay
         setTimeout(() => {
@@ -378,12 +371,10 @@ export async function recoverCLISessions(): Promise<void> {
     const hasPendingTasks = updatedSession.queue.some((t) => t.status === 'pending');
 
     if (session.autoStart && hasPendingTasks) {
-      console.log(`[CLI] Session ${session.id}: Resuming queue execution`);
       store.setRunning(session.id, true);
       setTimeout(() => executeNextTask(session.id), 1000);
     } else if (!hasPendingTasks) {
       // No more pending tasks - clear autoStart
-      console.log(`[CLI] Session ${session.id}: No pending tasks, clearing autoStart`);
       store.setAutoStart(session.id, false);
       store.setRunning(session.id, false);
     }
@@ -426,11 +417,8 @@ export async function abortSessionExecution(sessionId: CLISessionId): Promise<bo
         { method: 'DELETE' }
       );
 
-      if (response.ok) {
-        console.log(`[CLI] Aborted execution ${session.currentExecutionId}`);
-      } else {
-        console.warn(`[CLI] Failed to abort execution ${session.currentExecutionId}`);
-      }
+      // Abort request sent - response indicates success/failure
+      // No action needed either way as we clear state below
     } catch (error) {
       console.error('[CLI] Error aborting execution:', error);
     }

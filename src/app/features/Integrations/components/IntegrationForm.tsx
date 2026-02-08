@@ -164,7 +164,7 @@ export function IntegrationForm({
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+        className="bg-gray-900 border border-gray-700/80 rounded-xl shadow-2xl shadow-black/40 w-full max-w-2xl max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -195,10 +195,10 @@ export function IntegrationForm({
                     key={p.value}
                     type="button"
                     onClick={() => setProvider(p.value)}
-                    className={`p-3 rounded-lg border text-left transition-colors ${
+                    className={`p-3 rounded-lg border text-left transition-all duration-200 ${
                       provider === p.value
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-gray-700 hover:border-gray-600'
+                        ? 'border-purple-500 bg-purple-500/10 shadow-sm shadow-purple-500/10'
+                        : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/30'
                     }`}
                     data-testid={`provider-${p.value}-btn`}
                   >
@@ -388,7 +388,7 @@ export function IntegrationForm({
           <button
             onClick={handleSubmit}
             disabled={saving || !name}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25"
             data-testid="save-integration-btn"
           >
             {saving ? (

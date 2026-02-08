@@ -7,13 +7,13 @@ import DualBatchPanel from './components/DualBatchPanel';
 import { CLIBatchPanel } from '@/components/cli';
 import ConfigurationToolbar from './lib/ConfigurationToolbar';
 import TaskMonitor from './components/TaskMonitor';
+import { CollectiveMemoryPanel } from './components/CollectiveMemoryPanel';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import {
   type BatchId,
-  useAllBatches,
   useCreateBatch,
   useStartBatchExecution,
-  useBatch,
   useStoreRecovery,
   useOverallProgress,
   useTaskRunnerStore,
@@ -64,7 +64,6 @@ export default function TaskRunnerHeader({
   const { updateTaskerProgress, resetTaskerProgress } = useBlueprintStore();
 
   // Store hooks
-  const batches = useAllBatches();
   const createBatch = useCreateBatch();
   const startBatchExecution = useStartBatchExecution();
 
@@ -81,6 +80,10 @@ export default function TaskRunnerHeader({
     targetDeviceName,
     toggleRemoteMode,
   } = useRemoteTaskRunner();
+
+  // Collective Memory panel
+  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
+  const activeProject = useClientProjectStore(s => s.activeProject);
 
   // Sync tasker progress to blueprint store
   useEffect(() => {
@@ -193,7 +196,16 @@ export default function TaskRunnerHeader({
 
       {/* Configuration Toolbar and Mode Toggle */}
       <div className="flex items-center justify-between">
-        <div className="flex-1" />
+        <div className="flex-1 flex items-center gap-2">
+          {/* Collective Memory Toggle */}
+          {activeProject && (
+            <CollectiveMemoryPanel
+              projectId={activeProject.id}
+              isOpen={memoryPanelOpen}
+              onToggle={() => setMemoryPanelOpen(p => !p)}
+            />
+          )}
+        </div>
         {/* Configuration Toolbar - only visible in Batch mode */}
         <AnimatePresence mode="wait">
           {executionMode === 'batch' && (
@@ -268,10 +280,6 @@ export default function TaskRunnerHeader({
       <div className="relative bg-gradient-to-br from-gray-900/40 to-gray-950/30 backdrop-blur-sm border border-gray-800/30 rounded-lg p-4 shadow-lg shadow-black/10">
         {executionMode === 'batch' ? (
           <DualBatchPanel
-            batch1={batches.batch1}
-            batch2={batches.batch2}
-            batch3={batches.batch3}
-            batch4={batches.batch4}
             onStartBatch={handleStartBatch}
             onPauseBatch={handlePauseBatch}
             onResumeBatch={handleResumeBatch}

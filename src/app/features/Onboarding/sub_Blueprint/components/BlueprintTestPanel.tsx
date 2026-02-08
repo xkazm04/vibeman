@@ -137,7 +137,7 @@ export function BlueprintTestPanel() {
     >
       {/* Header - Always visible */}
       <div
-        className="bg-slate-950/90 backdrop-blur-md border border-cyan-500/30 rounded-t-lg p-4 cursor-pointer hover:border-cyan-400/50 transition-colors"
+        className="bg-slate-950/90 backdrop-blur-md border border-cyan-500/30 rounded-t-lg p-4 cursor-pointer hover:border-cyan-400/50 transition-all duration-200 hover:shadow-lg hover:shadow-cyan-500/5"
         onClick={() => setExpanded(!expanded)}
         data-testid="test-panel-header"
       >
@@ -149,7 +149,7 @@ export function BlueprintTestPanel() {
             >
               <ChevronDown className="w-5 h-5 text-cyan-400" />
             </motion.div>
-            <h3 className="text-sm font-mono text-cyan-400 uppercase tracking-wider">
+            <h3 className="text-sm font-mono text-cyan-400 uppercase tracking-widest">
               Test Results
             </h3>
           </div>

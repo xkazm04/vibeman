@@ -10,7 +10,7 @@
  * - Behavioral pattern shift → suggestion
  */
 
-import { brainReflectionDb, directionOutcomeDb, behavioralSignalDb, directionDb } from '@/app/db';
+import { brainReflectionDb, brainInsightDb, directionOutcomeDb, behavioralSignalDb, directionDb } from '@/app/db';
 import { consumeTaskEvents, TaskNotificationEvent } from '@/lib/brain/taskNotificationEmitter';
 import { logger } from '@/lib/logger';
 
@@ -81,12 +81,7 @@ function checkReflectionCompleted(projectId: string): AnnetteNotification | null
   // Only notify if completed in last 5 minutes
   if (completedAt < fiveMinAgo) return null;
 
-  let insightCount = 0;
-  try {
-    if (latest.insights_generated) {
-      insightCount = JSON.parse(latest.insights_generated).length;
-    }
-  } catch {}
+  const insightCount = brainInsightDb.countByReflection(latest.id);
 
   return {
     id: `reflection-${latest.id}`,

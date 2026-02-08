@@ -28,15 +28,26 @@ export interface CLIExecutionInfo {
   autoStart: boolean;
 }
 
+/** Payload attached to system messages that represent decision events */
+export interface DecisionEvent {
+  action: 'accepted' | 'dismissed' | 'snoozed' | 'arrived';
+  notificationType: AnnetteNotification['type'];
+  notificationTitle: string;
+  notificationMessage: string;
+  suggestedAction?: string;
+}
+
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   toolCalls?: Array<{ name: string; input: Record<string, unknown>; result?: string }>;
   tokensUsed?: { input: number; output: number; total: number };
   quickOptions?: QuickOption[];
   /** CLI executions to display inline (parsed from tool results) */
   cliExecutions?: CLIExecutionInfo[];
+  /** Decision event metadata for system messages */
+  decisionEvent?: DecisionEvent;
   timestamp: string;
   isStreaming?: boolean;
 }
@@ -196,11 +207,14 @@ export const useAnnetteStore = create<AnnetteStore>()(
         }));
 
         try {
-          // Build conversation history from recent messages
-          const conversationHistory = messages.slice(-10).map(m => ({
-            role: m.role,
-            content: m.content,
-          }));
+          // Build conversation history from recent messages (exclude system messages)
+          const conversationHistory = messages
+            .filter(m => m.role !== 'system')
+            .slice(-10)
+            .map(m => ({
+              role: m.role,
+              content: m.content,
+            }));
 
           const response = await fetch('/api/annette/chat', {
             method: 'POST',
@@ -254,6 +268,29 @@ export const useAnnetteStore = create<AnnetteStore>()(
             isLoading: false,
           }));
 
+          // Auto-surface actionable assistant responses as DecisionCards
+          if (data.quickOptions && data.quickOptions.length > 0) {
+            const { addNotification: addNotif } = get();
+            // Create a suggestion card from the first actionable quick option
+            const firstOpt = data.quickOptions[0];
+            const notif: AnnetteNotification = {
+              id: `chat-action-${Date.now()}`,
+              type: 'suggestion',
+              priority: 'low',
+              title: 'Suggested Next Step',
+              message: data.response.length > 120
+                ? data.response.substring(0, 120) + '...'
+                : data.response,
+              actionable: true,
+              suggestedAction: {
+                tool: 'chat_suggestion',
+                description: firstOpt.message,
+              },
+              timestamp: new Date().toISOString(),
+            };
+            addNotif(notif);
+          }
+
           // Auto-play TTS if audio mode is on
           if (audioEnabled && data.response) {
             try {
@@ -306,15 +343,61 @@ export const useAnnetteStore = create<AnnetteStore>()(
         const { notificationsMuted, isWidgetOpen } = get();
         if (notificationsMuted) return;
 
-        set((state) => ({
-          notifications: [notification, ...state.notifications].slice(0, 10),
-          unreadCount: isWidgetOpen ? state.unreadCount : state.unreadCount + 1,
-        }));
+        // Skip arrival system message for chat-surfaced suggestions (response is already visible)
+        const isChatSurfaced = notification.id.startsWith('chat-action-');
+
+        if (isChatSurfaced) {
+          set((state) => ({
+            notifications: [notification, ...state.notifications].slice(0, 10),
+            unreadCount: isWidgetOpen ? state.unreadCount : state.unreadCount + 1,
+          }));
+        } else {
+          // Inject a system message so the chat reflects the new decision card
+          const sysMsg: ChatMessage = {
+            id: `sys-arrival-${notification.id}-${Date.now()}`,
+            role: 'system',
+            content: `${notification.title}: ${notification.message}`,
+            decisionEvent: {
+              action: 'arrived',
+              notificationType: notification.type,
+              notificationTitle: notification.title,
+              notificationMessage: notification.message,
+              suggestedAction: notification.suggestedAction?.description,
+            },
+            timestamp: new Date().toISOString(),
+          };
+
+          set((state) => ({
+            notifications: [notification, ...state.notifications].slice(0, 10),
+            unreadCount: isWidgetOpen ? state.unreadCount : state.unreadCount + 1,
+            messages: [...state.messages, sysMsg],
+          }));
+        }
       },
 
       dismissNotification: (id) => {
+        const { notifications } = get();
+        const notification = notifications.find(n => n.id === id);
+
+        // Inject a system message noting the dismissal
+        const sysMsg: ChatMessage = {
+          id: `sys-dismiss-${id}-${Date.now()}`,
+          role: 'system',
+          content: notification
+            ? `Dismissed: ${notification.title}`
+            : `Dismissed notification`,
+          decisionEvent: {
+            action: 'dismissed',
+            notificationType: notification?.type ?? 'status',
+            notificationTitle: notification?.title ?? 'Notification',
+            notificationMessage: notification?.message ?? '',
+          },
+          timestamp: new Date().toISOString(),
+        };
+
         set((state) => ({
           notifications: state.notifications.filter(n => n.id !== id),
+          messages: [...state.messages, sysMsg],
         }));
       },
 
@@ -334,17 +417,58 @@ export const useAnnetteStore = create<AnnetteStore>()(
 
       snoozeNotification: (id) => {
         const expiry = Date.now() + 30 * 60 * 1000; // 30 minutes
+        const { notifications } = get();
+        const notification = notifications.find(n => n.id === id);
+
+        const sysMsg: ChatMessage = {
+          id: `sys-snooze-${id}-${Date.now()}`,
+          role: 'system',
+          content: notification
+            ? `Snoozed: ${notification.title} (30 min)`
+            : `Snoozed notification (30 min)`,
+          decisionEvent: {
+            action: 'snoozed',
+            notificationType: notification?.type ?? 'status',
+            notificationTitle: notification?.title ?? 'Notification',
+            notificationMessage: notification?.message ?? '',
+          },
+          timestamp: new Date().toISOString(),
+        };
+
         set((state) => ({
           snoozedIds: [...state.snoozedIds, id],
           snoozeExpiry: { ...state.snoozeExpiry, [id]: expiry },
+          messages: [...state.messages, sysMsg],
         }));
       },
 
       executeAction: async (notification) => {
         if (!notification.suggestedAction) return;
-        const { sendMessage, dismissNotification: dismiss } = get();
+
+        // Inject acceptance system message before executing
+        const sysMsg: ChatMessage = {
+          id: `sys-accept-${notification.id}-${Date.now()}`,
+          role: 'system',
+          content: `Accepted: ${notification.title} — ${notification.suggestedAction.description}`,
+          decisionEvent: {
+            action: 'accepted',
+            notificationType: notification.type,
+            notificationTitle: notification.title,
+            notificationMessage: notification.message,
+            suggestedAction: notification.suggestedAction.description,
+          },
+          timestamp: new Date().toISOString(),
+        };
+        set((state) => ({
+          messages: [...state.messages, sysMsg],
+        }));
+
+        const { sendMessage } = get();
         await sendMessage(notification.suggestedAction.description);
-        dismiss(notification.id);
+        // Silently remove the notification (no extra "dismissed" system message)
+        set((state) => ({
+          notifications: state.notifications.filter(n => n.id !== notification.id),
+        }));
       },
 
       getActiveNotifications: () => {

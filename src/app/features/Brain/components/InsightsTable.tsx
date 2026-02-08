@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Lightbulb,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   GitMerge,
   Check,
   X,
+  Zap,
 } from 'lucide-react';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import InsightEvidenceLinks from './InsightEvidenceLinks';
@@ -105,13 +106,14 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
             const isExpanded = expandedRow === rowKey;
             const hasEvidence = insight.evidence.length > 0;
             const hasConflict = insight.conflict_with && !insight.conflict_resolved;
+            const isAutoResolved = insight.conflict_with && insight.conflict_resolved && insight.auto_pruned;
+            const isAutoPruned = insight.auto_pruned;
             const isResolvingThis = resolvingConflict === rowKey;
 
             return (
-              <>
+              <React.Fragment key={rowKey}>
                 <tr
-                  key={rowKey}
-                  className={`border-b border-zinc-800/30 hover:bg-zinc-800/20 group ${isExpanded ? 'bg-zinc-800/10' : ''} ${hasConflict ? 'border-l-2 border-l-red-500/50' : ''}`}
+                  className={`border-b border-zinc-800/30 hover:bg-zinc-800/20 group ${isExpanded ? 'bg-zinc-800/10' : ''} ${hasConflict ? 'border-l-2 border-l-red-500/50' : ''} ${isAutoPruned ? 'opacity-60' : ''}`}
                 >
                   <td className="py-2 pr-3">
                     <span className={`flex items-center gap-1.5 ${config.color}`}>
@@ -136,6 +138,24 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
                           <span className="text-zinc-600 text-[10px]">({insight.conflict_type})</span>
                         </div>
                       )}
+                      {/* Auto-resolved conflict indicator */}
+                      {isAutoResolved && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Zap className="w-3 h-3 text-amber-400" />
+                          <span className="text-amber-400/70 text-[10px] font-mono truncate" title={insight.auto_prune_reason}>
+                            AUTO-RESOLVED: {insight.conflict_with}
+                          </span>
+                        </div>
+                      )}
+                      {/* Auto-pruned confidence indicator */}
+                      {isAutoPruned && !isAutoResolved && insight.auto_prune_reason && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Zap className="w-3 h-3 text-amber-400" />
+                          <span className="text-amber-400/70 text-[10px] font-mono truncate" title={insight.auto_prune_reason}>
+                            DEMOTED{insight.original_confidence ? ` (was ${insight.original_confidence}%)` : ''}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </td>
                   {scope === 'global' && (
@@ -146,12 +166,18 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
                     </td>
                   )}
                   <td className="py-2 pr-3">
-                    <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-mono ${
-                      insight.confidence >= 80 ? 'bg-green-500/15 text-green-400'
-                        : insight.confidence >= 50 ? 'bg-amber-500/15 text-amber-400'
-                        : 'bg-zinc-700/40 text-zinc-400'
-                    }`}>
+                    <span
+                      className={`inline-block px-1.5 py-0.5 rounded text-xs font-mono ${
+                        insight.confidence >= 80 ? 'bg-green-500/15 text-green-400'
+                          : insight.confidence >= 50 ? 'bg-amber-500/15 text-amber-400'
+                          : 'bg-zinc-700/40 text-zinc-400'
+                      }`}
+                      title={isAutoPruned && insight.original_confidence ? `Auto-pruned from ${insight.original_confidence}%` : undefined}
+                    >
                       {insight.confidence}%
+                      {isAutoPruned && insight.original_confidence && (
+                        <span className="text-zinc-600 line-through ml-1">{insight.original_confidence}</span>
+                      )}
                     </span>
                   </td>
                   <td className="py-2 pr-3">
@@ -204,8 +230,8 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
                     </div>
                   </td>
                 </tr>
-                {/* Conflict resolution row */}
-                {isResolvingThis && hasConflict && onResolveConflict && (
+                {/* Conflict resolution row - only for unresolved manual conflicts */}
+                {isResolvingThis && hasConflict && !isAutoResolved && onResolveConflict && (
                   <tr key={`${rowKey}-conflict`} className="border-b border-zinc-800/30 bg-red-500/5">
                     <td colSpan={colCount} className="py-3 px-4">
                       <div className="flex items-center justify-between">
@@ -269,7 +295,7 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </tbody>

@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ContextGroup, Context } from '@/lib/queries/contextQueries';
 import { Check } from 'lucide-react';
+import { getRGBFromHex } from '@/lib/design-tokens/colors';
 
 interface ContextGroupSelectorProps {
   contextGroups: ContextGroup[];
@@ -14,20 +15,6 @@ interface ContextGroupSelectorProps {
   /** Toggle callback with optional shift key indicator */
   onToggleGroup: (groupId: string, isShiftClick?: boolean) => void;
   onClearAll: () => void;
-}
-
-/**
- * Helper to extract RGB values from hex color
- */
-function getRGBFromHex(hex: string): { r: number; g: number; b: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
-    : { r: 107, g: 114, b: 128 };
 }
 
 export default function ContextGroupSelector({

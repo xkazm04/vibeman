@@ -31,7 +31,7 @@ export const annetteSessionRepository = {
 
   getById(id: string): DbAnnetteSession | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_sessions WHERE id = ?').get(id) as DbAnnetteSession | null;
+    return db.prepare('SELECT * FROM annette_sessions WHERE id = ?').get(id) as unknown as DbAnnetteSession | null;
   },
 
   getByProject(projectId: string, limit = 20): DbAnnetteSession[] {
@@ -41,7 +41,7 @@ export const annetteSessionRepository = {
       WHERE project_id = ?
       ORDER BY last_activity_at DESC
       LIMIT ?
-    `).all(projectId, limit) as DbAnnetteSession[];
+    `).all(projectId, limit) as unknown as DbAnnetteSession[];
   },
 
   getActiveSession(projectId: string): DbAnnetteSession | null {
@@ -51,7 +51,7 @@ export const annetteSessionRepository = {
       WHERE project_id = ? AND status = 'active'
       ORDER BY last_activity_at DESC
       LIMIT 1
-    `).get(projectId) as DbAnnetteSession | null;
+    `).get(projectId) as unknown as DbAnnetteSession | null;
   },
 
   updateActivity(id: string, tokensUsed: number): void {
@@ -115,7 +115,7 @@ export const annetteMessageRepository = {
       input.tokensOutput || 0
     );
 
-    return db.prepare('SELECT * FROM annette_messages WHERE id = ?').get(id) as DbAnnetteMessage;
+    return db.prepare('SELECT * FROM annette_messages WHERE id = ?').get(id) as unknown as DbAnnetteMessage;
   },
 
   getBySession(sessionId: string, limit = 50): DbAnnetteMessage[] {
@@ -125,7 +125,7 @@ export const annetteMessageRepository = {
       WHERE session_id = ?
       ORDER BY created_at ASC
       LIMIT ?
-    `).all(sessionId, limit) as DbAnnetteMessage[];
+    `).all(sessionId, limit) as unknown as DbAnnetteMessage[];
   },
 
   getRecentBySession(sessionId: string, limit = 20): DbAnnetteMessage[] {
@@ -137,7 +137,7 @@ export const annetteMessageRepository = {
         ORDER BY created_at DESC
         LIMIT ?
       ) sub ORDER BY created_at ASC
-    `).all(sessionId, limit) as DbAnnetteMessage[];
+    `).all(sessionId, limit) as unknown as DbAnnetteMessage[];
   },
 
   countBySession(sessionId: string): number {
@@ -163,7 +163,7 @@ export const annetteMemoryTopicRepository = {
     const existing = db.prepare(`
       SELECT * FROM annette_memory_topics
       WHERE project_id = ? AND topic = ?
-    `).get(projectId, topic) as DbAnnetteMemoryTopic | null;
+    `).get(projectId, topic) as unknown as DbAnnetteMemoryTopic | null;
 
     if (existing) {
       db.prepare(`
@@ -189,7 +189,7 @@ export const annetteMemoryTopicRepository = {
 
   getById(id: string): DbAnnetteMemoryTopic | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_memory_topics WHERE id = ?').get(id) as DbAnnetteMemoryTopic | null;
+    return db.prepare('SELECT * FROM annette_memory_topics WHERE id = ?').get(id) as unknown as DbAnnetteMemoryTopic | null;
   },
 
   getByProject(projectId: string, limit = 10): DbAnnetteMemoryTopic[] {
@@ -199,7 +199,7 @@ export const annetteMemoryTopicRepository = {
       WHERE project_id = ?
       ORDER BY relevance_score DESC, last_mentioned_at DESC
       LIMIT ?
-    `).all(projectId, limit) as DbAnnetteMemoryTopic[];
+    `).all(projectId, limit) as unknown as DbAnnetteMemoryTopic[];
   },
 
   decayRelevance(projectId: string, factor = 0.95): number {
@@ -235,7 +235,7 @@ export const annettePreferenceRepository = {
     const existing = db.prepare(`
       SELECT * FROM annette_user_preferences
       WHERE project_id = ? AND category = ? AND preference_key = ?
-    `).get(projectId, category, key) as DbAnnetteUserPreference | null;
+    `).get(projectId, category, key) as unknown as DbAnnetteUserPreference | null;
 
     if (existing) {
       db.prepare(`
@@ -261,7 +261,7 @@ export const annettePreferenceRepository = {
 
   getById(id: string): DbAnnetteUserPreference | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_user_preferences WHERE id = ?').get(id) as DbAnnetteUserPreference | null;
+    return db.prepare('SELECT * FROM annette_user_preferences WHERE id = ?').get(id) as unknown as DbAnnetteUserPreference | null;
   },
 
   getByProject(projectId: string): DbAnnetteUserPreference[] {
@@ -270,7 +270,7 @@ export const annettePreferenceRepository = {
       SELECT * FROM annette_user_preferences
       WHERE project_id = ?
       ORDER BY confidence DESC, observed_count DESC
-    `).all(projectId) as DbAnnetteUserPreference[];
+    `).all(projectId) as unknown as DbAnnetteUserPreference[];
   },
 
   getByCategory(projectId: string, category: string): DbAnnetteUserPreference[] {
@@ -279,7 +279,7 @@ export const annettePreferenceRepository = {
       SELECT * FROM annette_user_preferences
       WHERE project_id = ? AND category = ?
       ORDER BY confidence DESC
-    `).all(projectId, category) as DbAnnetteUserPreference[];
+    `).all(projectId, category) as unknown as DbAnnetteUserPreference[];
   },
 
   getHighConfidence(projectId: string, minConfidence = 0.7): DbAnnetteUserPreference[] {
@@ -288,7 +288,7 @@ export const annettePreferenceRepository = {
       SELECT * FROM annette_user_preferences
       WHERE project_id = ? AND confidence >= ?
       ORDER BY confidence DESC
-    `).all(projectId, minConfidence) as DbAnnetteUserPreference[];
+    `).all(projectId, minConfidence) as unknown as DbAnnetteUserPreference[];
   },
 
   delete(id: string): boolean {
@@ -311,7 +311,7 @@ export const annetteAudioCacheRepository = {
     const db = getConnection();
     const existing = db.prepare(
       'SELECT * FROM annette_audio_cache WHERE cache_key = ?'
-    ).get(input.cacheKey) as DbAnnetteAudioCache | null;
+    ).get(input.cacheKey) as unknown as DbAnnetteAudioCache | null;
 
     if (existing) {
       db.prepare(`
@@ -334,14 +334,14 @@ export const annetteAudioCacheRepository = {
 
   getById(id: string): DbAnnetteAudioCache | null {
     const db = getConnection();
-    return db.prepare('SELECT * FROM annette_audio_cache WHERE id = ?').get(id) as DbAnnetteAudioCache | null;
+    return db.prepare('SELECT * FROM annette_audio_cache WHERE id = ?').get(id) as unknown as DbAnnetteAudioCache | null;
   },
 
   getByKey(cacheKey: string): DbAnnetteAudioCache | null {
     const db = getConnection();
     const entry = db.prepare(
       'SELECT * FROM annette_audio_cache WHERE cache_key = ?'
-    ).get(cacheKey) as DbAnnetteAudioCache | null;
+    ).get(cacheKey) as unknown as DbAnnetteAudioCache | null;
 
     if (entry) {
       // Update LRU access
@@ -370,7 +370,7 @@ export const annetteAudioCacheRepository = {
       SELECT * FROM annette_audio_cache
       ORDER BY last_accessed_at ASC
       LIMIT ?
-    `).all(limit) as DbAnnetteAudioCache[];
+    `).all(limit) as unknown as DbAnnetteAudioCache[];
   },
 
   delete(id: string): boolean {

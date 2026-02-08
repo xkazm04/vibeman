@@ -191,7 +191,7 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
           {/* Add Integration Button */}
           <button
             onClick={handleCreateNew}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 active:scale-[0.97] text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25"
             data-testid="add-integration-btn"
           >
             <Plus className="w-4 h-4" />
@@ -244,20 +244,21 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
             {/* Empty State */}
             {integrations.length === 0 && !isCreating && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
                 className="flex flex-col items-center justify-center h-64 text-center"
               >
-                <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mb-4 shadow-lg shadow-purple-500/10">
                   <Plug className="w-8 h-8 text-purple-400" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-300 mb-2">No integrations configured</h3>
-                <p className="text-gray-500 max-w-md mb-4">
+                <h3 className="text-lg font-medium text-gray-300 mb-2 tracking-tight">No integrations configured</h3>
+                <p className="text-gray-500 max-w-md mb-4 leading-relaxed">
                   Connect Vibeman to external services like GitHub, Slack, Discord, Supabase, or PostgreSQL
                 </p>
                 <button
                   onClick={handleCreateNew}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 active:scale-[0.97] text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25"
                   data-testid="empty-state-add-btn"
                 >
                   <Plus className="w-4 h-4" />

@@ -8,7 +8,7 @@
 
 import { LucideIcon } from 'lucide-react';
 import { Context } from '../../../../stores/contextStore';
-import { normalizePath } from '../../../../utils/pathUtils';
+import { normalizePath, FilePath } from '../../../../utils/pathUtils';
 import {
   GROUP_ICON_MAPPING,
   DATE_FORMAT_OPTIONS,
@@ -87,8 +87,7 @@ export function getGridLayout(itemCount: number): string {
  * Extract filename from full path
  */
 export function extractFileName(path: string): string {
-  const normalizedPath = normalizePath(path);
-  return normalizedPath.split('/').pop() || normalizedPath;
+  return FilePath.from(path).fileName;
 }
 
 /**

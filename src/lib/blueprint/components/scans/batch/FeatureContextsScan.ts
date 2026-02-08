@@ -3,8 +3,8 @@
  * Discovers feature folders and creates context requirements for each feature
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/blueprintContextsScan.ts
- * src/app/features/Onboarding/sub_Blueprint/lib/featureBasedContextsScan.ts
+ * src/app/features/Onboarding/blueprint/lib/blueprintContextsScan.ts
+ * src/app/features/Onboarding/blueprint/lib/featureBasedContextsScan.ts
  *
  * Execution flow:
  * 1. Discover feature folders based on project type (pre-scan)

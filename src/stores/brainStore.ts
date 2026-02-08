@@ -431,6 +431,18 @@ export const useBrainStore = create<BrainStore>()(
             globalRunningReflectionId: data.runningReflection?.id || null,
             // Don't overwrite globalPromptContent from GET
           });
+
+          // Restore globalPromptContent from sessionStorage if running but no prompt in memory
+          const currentPrompt = get().globalPromptContent;
+          const runId = data.runningReflection?.id;
+          if (status === 'running' && !currentPrompt && runId && typeof window !== 'undefined') {
+            try {
+              const savedPrompt = sessionStorage.getItem(`brain-prompt-global-${runId}`);
+              if (savedPrompt) {
+                set({ globalPromptContent: savedPrompt });
+              }
+            } catch { /* sessionStorage unavailable */ }
+          }
         } catch (error) {
           console.error('Failed to fetch global reflection status:', error);
           set({ globalReflectionStatus: 'idle', lastGlobalReflection: null });
@@ -473,6 +485,16 @@ export const useBrainStore = create<BrainStore>()(
             globalRunningReflectionId: data.reflectionId || null,
             globalPromptContent: data.promptContent || null,
           });
+
+          // Persist globalPromptContent to sessionStorage for refresh recovery
+          if (typeof window !== 'undefined' && data.promptContent && data.reflectionId) {
+            try {
+              sessionStorage.setItem(
+                `brain-prompt-global-${data.reflectionId}`,
+                data.promptContent
+              );
+            } catch { /* sessionStorage full or unavailable */ }
+          }
         } catch (error) {
           set({
             globalReflectionStatus: 'failed',

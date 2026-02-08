@@ -2,7 +2,7 @@
  * Brain Tools - Implementation for Annette's brain-related tool calls
  */
 
-import { behavioralSignalDb, directionOutcomeDb, brainReflectionDb, directionDb } from '@/app/db';
+import { behavioralSignalDb, directionOutcomeDb, brainReflectionDb, brainInsightDb, directionDb } from '@/app/db';
 import { BehavioralSignalType } from '@/app/db';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 
@@ -128,19 +128,19 @@ export async function executeBrainTools(
     }
 
     case 'get_insights': {
-      const lastReflection = brainReflectionDb.getLatestCompleted(projectId);
-      if (!lastReflection || !lastReflection.insights_generated) {
+      const insights = brainInsightDb.getAllInsights(projectId, 20);
+      if (insights.length === 0) {
         return JSON.stringify({
           hasInsights: false,
           message: 'No reflection insights available yet. Trigger a reflection after accumulating decisions.',
         });
       }
 
-      const insights = JSON.parse(lastReflection.insights_generated);
+      const lastReflection = brainReflectionDb.getLatestCompleted(projectId);
       return JSON.stringify({
         hasInsights: true,
-        reflectionDate: lastReflection.completed_at,
-        directionsAnalyzed: lastReflection.directions_analyzed,
+        reflectionDate: lastReflection?.completed_at ?? null,
+        directionsAnalyzed: lastReflection?.directions_analyzed ?? 0,
         insights,
       });
     }

@@ -3,7 +3,7 @@
  * Generates and executes automated Playwright tests using Claude Code
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintTestScan.ts
+ * src/app/features/Onboarding/blueprint/lib/context-scans/blueprintTestScan.ts
  *
  * Execution flow:
  * 1. Fetch context information

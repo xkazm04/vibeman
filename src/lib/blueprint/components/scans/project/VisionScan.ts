@@ -3,7 +3,7 @@
  * Generates high-level project documentation using Claude Code
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/blueprintVisionScan.ts
+ * src/app/features/Onboarding/blueprint/lib/blueprintVisionScan.ts
  *
  * Execution flow:
  * 1. Build requirement content via API (server-side prompt building)

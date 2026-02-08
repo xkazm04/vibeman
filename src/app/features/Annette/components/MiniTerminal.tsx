@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Terminal,
@@ -28,8 +28,15 @@ import type {
   LogEntry,
   ExecutionInfo,
   ExecutionResult,
-  CLISSEEvent,
 } from '@/components/cli/types';
+import {
+  createEventProtocol,
+  decodeEvent,
+  messageToLog,
+  toolUseToLog,
+  toolResultToLog,
+  errorToLog,
+} from '@/components/cli/protocol';
 
 // Static icon maps for O(1) lookup instead of switch statement per render
 const MINI_LOG_ICON_SIZE = 'w-2.5 h-2.5';
@@ -148,81 +155,46 @@ export function MiniTerminal({
     }
   }, [flushLogs]);
 
-  // Handle SSE event
-  const handleSSEEvent = useCallback((event: CLISSEEvent) => {
-    switch (event.type) {
-      case 'connected': {
-        const data = event.data as ExecutionInfo & { executionId?: string };
-        if (data.sessionId) setSessionId(data.sessionId);
-        setExecutionInfo(data);
-        setError(null);
-        break;
-      }
-      case 'message': {
-        const data = event.data as { type: string; content: string; model?: string };
-        if (data.type === 'assistant' && data.content) {
-          addLog({
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            type: 'assistant',
-            content: data.content,
-            timestamp: event.timestamp,
-            model: data.model,
-          });
-        }
-        break;
-      }
-      case 'tool_use': {
-        const data = event.data as { toolUseId: string; toolName: string; toolInput: Record<string, unknown> };
-        addLog({
-          id: `tool-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          type: 'tool_use',
-          content: data.toolName,
-          timestamp: event.timestamp,
-          toolName: data.toolName,
-          toolInput: data.toolInput,
-        });
-
-        // Track file changes
-        if (data.toolName === 'Edit') {
-          setFileStats(prev => ({ ...prev, edits: prev.edits + 1 }));
-        } else if (data.toolName === 'Write') {
-          setFileStats(prev => ({ ...prev, writes: prev.writes + 1 }));
-        }
-        break;
-      }
-      case 'tool_result': {
-        const data = event.data as { toolUseId: string; content: string };
-        addLog({
-          id: `result-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          type: 'tool_result',
-          content: typeof data.content === 'string' ? data.content.slice(0, 100) : JSON.stringify(data.content).slice(0, 100),
-          timestamp: event.timestamp,
-        });
-        break;
-      }
-      case 'result': {
-        const data = event.data as ExecutionResult;
-        if (data.sessionId) setSessionId(data.sessionId);
-        setLastResult(data);
-        setIsStreaming(false);
-        onComplete?.(!data.isError, data);
-        break;
-      }
-      case 'error': {
-        const data = event.data as { error: string };
-        setError(data.error);
-        setIsStreaming(false);
-        addLog({
-          id: `error-${Date.now()}`,
-          type: 'error',
-          content: data.error,
-          timestamp: event.timestamp,
-        });
-        onComplete?.(false);
-        break;
-      }
-    }
-  }, [addLog, onComplete]);
+  // Protocol handler - typed event dispatch replacing the switch statement
+  const protocol = useMemo(
+    () =>
+      createEventProtocol({
+        connected: (event) => {
+          if (event.data.sessionId) setSessionId(event.data.sessionId);
+          setExecutionInfo(event.data);
+          setError(null);
+        },
+        message: (event) => {
+          const log = messageToLog(event);
+          if (log) addLog(log);
+        },
+        tool_use: (event) => {
+          addLog(toolUseToLog(event));
+          // Track file change stats
+          if (event.data.toolName === 'Edit') {
+            setFileStats(prev => ({ ...prev, edits: prev.edits + 1 }));
+          } else if (event.data.toolName === 'Write') {
+            setFileStats(prev => ({ ...prev, writes: prev.writes + 1 }));
+          }
+        },
+        tool_result: (event) => {
+          addLog(toolResultToLog(event, 100));
+        },
+        result: (event) => {
+          if (event.data.sessionId) setSessionId(event.data.sessionId);
+          setLastResult(event.data);
+          setIsStreaming(false);
+          onComplete?.(!event.data.isError, event.data);
+        },
+        error: (event) => {
+          setError(event.data.error);
+          setIsStreaming(false);
+          addLog(errorToLog(event));
+          onComplete?.(false);
+        },
+      }),
+    [addLog, onComplete],
+  );
 
   // Connect to SSE stream
   const connectToStream = useCallback((streamUrl: string) => {
@@ -233,16 +205,15 @@ export function MiniTerminal({
     const eventSource = new EventSource(streamUrl);
     eventSourceRef.current = eventSource;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as CLISSEEvent;
-        handleSSEEvent(data);
-        if (data.type === 'result' || data.type === 'error') {
-          eventSource.close();
-          eventSourceRef.current = null;
-        }
-      } catch (e) {
-        console.error('Failed to parse SSE:', e);
+    eventSource.onmessage = (raw) => {
+      const event = decodeEvent(raw.data);
+      if (!event) return;
+
+      protocol.handle(event);
+
+      if (protocol.isTerminal(event)) {
+        eventSource.close();
+        eventSourceRef.current = null;
       }
     };
 
@@ -250,7 +221,7 @@ export function MiniTerminal({
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [handleSSEEvent]);
+  }, [protocol]);
 
   // Start execution
   const startExecution = useCallback(async () => {

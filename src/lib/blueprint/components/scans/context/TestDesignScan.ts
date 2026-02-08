@@ -3,7 +3,7 @@
  * Analyzes a context and generates/updates test scenarios and steps for comprehensive test coverage
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintTestDesign.ts
+ * src/app/features/Onboarding/blueprint/lib/context-scans/blueprintTestDesign.ts
  *
  * Execution flow:
  * 1. Fetch context details and existing test scenarios (pre-scan)

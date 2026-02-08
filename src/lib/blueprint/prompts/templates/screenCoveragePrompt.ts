@@ -3,7 +3,7 @@
  * Generates Claude Code requirements for creating test scenarios for contexts
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/prompts/screenCoveragePrompt.ts
+ * src/app/features/Onboarding/blueprint/lib/prompts/screenCoveragePrompt.ts
  */
 
 export interface ScreenCoveragePromptParams {

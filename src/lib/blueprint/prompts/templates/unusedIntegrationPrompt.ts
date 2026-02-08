@@ -3,7 +3,7 @@
  * Analyzes unused components and determines integration opportunities
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/prompts/unusedIntegration.ts
+ * src/app/features/Onboarding/blueprint/lib/prompts/unusedIntegration.ts
  */
 
 import { UnusedFile } from './unusedCleanupPrompt';

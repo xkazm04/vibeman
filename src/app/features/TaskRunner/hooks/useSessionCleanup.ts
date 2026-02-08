@@ -1,7 +1,16 @@
 'use client';
 
+/**
+ * Session cleanup hook for detecting and cleaning up orphaned Claude Code sessions.
+ *
+ * Heartbeat functionality delegates to the unified session lifecycle module
+ * (@/lib/session-lifecycle). The hook itself handles UI-specific concerns
+ * (state, polling, REST API calls for scan/cleanup) that callers depend on.
+ */
+
 import { useState, useCallback } from 'react';
 import { usePolling } from '@/hooks/usePolling';
+import { createClaudeCodeLifecycle } from '@/lib/session-lifecycle';
 import type {
   OrphanedSession,
   CleanupStats,
@@ -9,6 +18,15 @@ import type {
   CleanupSessionsResponse,
 } from '../lib/sessionCleanup.types';
 import { ORPHAN_THRESHOLDS } from '../lib/sessionCleanup.types';
+
+// Singleton lifecycle manager for Claude Code sessions (lazy-initialized)
+let _lifecycle: ReturnType<typeof createClaudeCodeLifecycle> | null = null;
+function getLifecycle() {
+  if (!_lifecycle) {
+    _lifecycle = createClaudeCodeLifecycle();
+  }
+  return _lifecycle;
+}
 
 interface UseSessionCleanupOptions {
   projectId?: string;
@@ -195,20 +213,13 @@ export function useSessionCleanup(
 }
 
 /**
- * Send a heartbeat for a session
+ * Send a heartbeat for a session.
+ * Delegates to the unified session lifecycle manager.
  */
 export async function sendSessionHeartbeat(sessionId: string): Promise<boolean> {
   try {
-    const response = await fetch('/api/claude-code/sessions/heartbeat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    });
-
-    if (!response.ok) return false;
-
-    const data = await response.json();
-    return data.success;
+    await getLifecycle().heartbeat(sessionId);
+    return true;
   } catch (err) {
     console.error('Failed to send session heartbeat:', err);
     return false;

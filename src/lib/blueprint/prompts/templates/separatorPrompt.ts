@@ -3,7 +3,7 @@
  * Generates Claude Code requirement for intelligent context separation
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/context-scans/prompts/separator.ts
+ * src/app/features/Onboarding/blueprint/lib/context-scans/prompts/separator.ts
  */
 
 export interface SeparatorPromptParams {

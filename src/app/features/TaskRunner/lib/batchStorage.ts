@@ -13,13 +13,10 @@ export interface BatchState {
   completedCount: number;
 }
 
-export type BatchId = 'batch1' | 'batch2' | 'batch3' | 'batch4';
+export type BatchId = string;
 
 export interface MultiBatchState {
-  batch1: BatchState | null;
-  batch2: BatchState | null;
-  batch3: BatchState | null;
-  batch4: BatchState | null;
+  batches: Record<string, BatchState>;
   activeBatch: BatchId | null;
 }
 
@@ -74,13 +71,13 @@ export class BatchStorage {
     const current = this.load();
     if (!current) return;
 
-    const batch = current[batchId];
+    const batch = current.batches[batchId];
     if (!batch) return;
 
     const updatedBatch = { ...batch, ...updates };
-    const newState = {
+    const newState: MultiBatchState = {
       ...current,
-      [batchId]: updatedBatch,
+      batches: { ...current.batches, [batchId]: updatedBatch },
     };
 
     this.save(newState);

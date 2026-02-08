@@ -60,10 +60,6 @@ function LazyQueueItem({ children, height = 36 }: { children: React.ReactNode; h
 }
 
 interface DualBatchPanelProps {
-  batch1: BatchState | null;
-  batch2: BatchState | null;
-  batch3?: BatchState | null;
-  batch4?: BatchState | null;
   onStartBatch: (batchId: BatchId) => void;
   onPauseBatch: (batchId: BatchId) => void;
   onResumeBatch: (batchId: BatchId) => void;
@@ -433,10 +429,6 @@ function BatchDisplay({
 }
 
 export default function DualBatchPanel({
-  batch1,
-  batch2,
-  batch3,
-  batch4,
   onStartBatch,
   onPauseBatch,
   onResumeBatch,
@@ -447,81 +439,59 @@ export default function DualBatchPanel({
   requirements,
   getRequirementId,
 }: DualBatchPanelProps) {
-  // Session batch state - get batches with projectPath set (session mode)
+  // Read all batches from the store dynamically
   const batches = useTaskRunnerStore((state) => state.batches);
   const getSessionBatches = useTaskRunnerStore((state) => state.getSessionBatches);
+  const getNextAvailableBatchId = useTaskRunnerStore((state) => state.getNextAvailableBatchId);
 
-  // NOTE: Remote batch delegation removed - will be added via Supabase in Phase 5
+  // Separate regular batches (no projectPath) from session batches (has projectPath)
+  const regularBatchIds = Object.keys(batches).filter(
+    id => !batches[id]?.projectPath
+  );
+  const sessionBatchIds = getSessionBatches();
+  const hasSessionBatches = sessionBatchIds.length > 0;
+
+  const anyBatchRunning = Object.values(batches).some(
+    b => b && isBatchRunning(b.status)
+  );
 
   // Auto-reset completed batches after 3 seconds
   useEffect(() => {
-    const batches = [
-      { batch: batch1, id: 'batch1' as BatchId },
-      { batch: batch2, id: 'batch2' as BatchId },
-      { batch: batch3, id: 'batch3' as BatchId },
-      { batch: batch4, id: 'batch4' as BatchId },
-    ];
-
     const timers: NodeJS.Timeout[] = [];
 
-    batches.forEach(({ batch, id }) => {
+    for (const batchId of Object.keys(batches)) {
+      const batch = batches[batchId];
       if (batch && isBatchCompleted(batch.status)) {
         const timer = setTimeout(() => {
-          onClearBatch(id);
+          onClearBatch(batchId);
         }, 3000);
         timers.push(timer);
       }
-    });
+    }
 
     return () => {
       timers.forEach(timer => clearTimeout(timer));
     };
-  }, [batch1, batch2, batch3, batch4, onClearBatch]);
+  }, [batches, onClearBatch]);
 
-  // Determine which batches to show based on running state
-  const anyBatchRunning = [batch1, batch2, batch3, batch4].some(
-    (b: BatchState | null | undefined) => b && isBatchRunning(b.status)
-  );
-
-  // Show batch2 if: batch1 is running, batch2 exists, or any batch is running
-  const showBatch2 = (batch1 && isBatchRunning(batch1.status)) || batch2 !== null || anyBatchRunning;
-
-  // Show batch3 if: any batch is running or batch3 exists
-  const showBatch3 = anyBatchRunning || batch3 !== null;
-
-  // Show batch4 if: any batch is running or batch4 exists
-  const showBatch4 = anyBatchRunning || batch4 !== null;
-
-  // Check if there are any session batches to show (batches with projectPath set)
-  const sessionBatchIds = getSessionBatches();
-  const hasSessionBatches = sessionBatchIds.length > 0;
+  // Generate label from batch ID (e.g. 'batch3' -> 'Batch 3')
+  const batchLabel = (id: string) => {
+    const num = id.replace('batch', '');
+    return `Batch ${num}`;
+  };
 
   return (
     <div className="space-y-3 w-full">
       {/* Task Monitor - Shows all running tasks for transparency */}
       {anyBatchRunning && <TaskMonitor autoRefresh={true} refreshInterval={5000} />}
 
-      {/* Batch 1 - Always shown */}
-      <BatchDisplay
-        batch={batch1}
-        batchId="batch1"
-        label="Batch 1"
-        requirements={requirements}
-        getRequirementId={getRequirementId}
-        onStartBatch={onStartBatch}
-        onPauseBatch={onPauseBatch}
-        onResumeBatch={onResumeBatch}
-        onClearBatch={onClearBatch}
-        onCreateBatch={onCreateBatch}
-        selectedCount={selectedCount}
-      />
-
-      {/* Batch 2 - Show when conditions met */}
-      {showBatch2 && (
+      {/* Dynamic batch list */}
+      {regularBatchIds.map(batchId => (
         <BatchDisplay
-          batch={batch2}
-          batchId="batch2"
-          label="Batch 2"
+          key={batchId}
+          batch={batches[batchId]}
+          batchId={batchId}
+          label={batches[batchId]?.name || batchLabel(batchId)}
           requirements={requirements}
           getRequirementId={getRequirementId}
           onStartBatch={onStartBatch}
@@ -531,43 +501,46 @@ export default function DualBatchPanel({
           onCreateBatch={onCreateBatch}
           selectedCount={selectedCount}
         />
+      ))}
+
+      {/* Create New Batch button */}
+      {selectedCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full"
+        >
+          <div className="relative bg-gray-800/30 border border-dashed border-gray-700/50 rounded-lg p-3 hover:border-cyan-500/30 hover:bg-gray-800/40 transition-all duration-300 group">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-700/20 rounded-lg group-hover:bg-cyan-500/10 transition-colors duration-300">
+                  <Plus className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors duration-300" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-400">New Batch</h3>
+                  <p className="text-[10px] text-gray-600">Create batch from selected tasks</p>
+                </div>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onCreateBatch(getNextAvailableBatchId())}
+                className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded-md text-xs font-medium text-cyan-400 transition-all duration-200 hover:shadow-sm hover:shadow-cyan-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/30"
+                data-testid="create-new-batch-btn"
+              >
+                Create from {selectedCount} selected
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
       )}
 
-      {/* Batch 3 - Show when conditions met */}
-      {showBatch3 && (
-        <BatchDisplay
-          batch={batch3 ?? null}
-          batchId="batch3"
-          label="Batch 3"
-          requirements={requirements}
-          getRequirementId={getRequirementId}
-          onStartBatch={onStartBatch}
-          onPauseBatch={onPauseBatch}
-          onResumeBatch={onResumeBatch}
-          onClearBatch={onClearBatch}
-          onCreateBatch={onCreateBatch}
-          selectedCount={selectedCount}
-        />
+      {/* Empty state when no batches and no selection */}
+      {regularBatchIds.length === 0 && selectedCount === 0 && (
+        <div className="text-center py-6 text-gray-600 text-xs">
+          Select tasks and create a batch to start execution
+        </div>
       )}
-
-      {/* Batch 4 - Show when conditions met */}
-      {showBatch4 && (
-        <BatchDisplay
-          batch={batch4 ?? null}
-          batchId="batch4"
-          label="Batch 4"
-          requirements={requirements}
-          getRequirementId={getRequirementId}
-          onStartBatch={onStartBatch}
-          onPauseBatch={onPauseBatch}
-          onResumeBatch={onResumeBatch}
-          onClearBatch={onClearBatch}
-          onCreateBatch={onCreateBatch}
-          selectedCount={selectedCount}
-        />
-      )}
-
-      {/* Remote Batches - Coming in Phase 5 via Supabase Realtime */}
 
       {/* Claude Code Sessions Section */}
       {hasSessionBatches && (

@@ -56,13 +56,20 @@ export const contextRepository = {
     has_context_file?: boolean;
     context_file_path?: string;
     preview?: string | null;
+    test_scenario?: string;
+    entry_points?: string;
+    db_tables?: string;
+    keywords?: string;
+    api_surface?: string;
+    cross_refs?: string;
+    tech_stack?: string;
   }): DbContext => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
-      INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, preview, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, preview, test_scenario, entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -75,6 +82,13 @@ export const contextRepository = {
       context.has_context_file ? 1 : 0,
       context.context_file_path || null,
       context.preview || null,
+      context.test_scenario || null,
+      context.entry_points || null,
+      context.db_tables || null,
+      context.keywords || null,
+      context.api_surface || null,
+      context.cross_refs || null,
+      context.tech_stack || null,
       now,
       now
     );
@@ -128,6 +142,12 @@ export const contextRepository = {
     target?: string | null;
     target_fulfillment?: string | null;
     target_rating?: number | null;
+    entry_points?: string | null;
+    db_tables?: string | null;
+    keywords?: string | null;
+    api_surface?: string | null;
+    cross_refs?: string | null;
+    tech_stack?: string | null;
   }): DbContext | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -183,6 +203,30 @@ export const contextRepository = {
     if (updates.target_rating !== undefined) {
       updateFields.push('target_rating = ?');
       values.push(updates.target_rating);
+    }
+    if (updates.entry_points !== undefined) {
+      updateFields.push('entry_points = ?');
+      values.push(updates.entry_points);
+    }
+    if (updates.db_tables !== undefined) {
+      updateFields.push('db_tables = ?');
+      values.push(updates.db_tables);
+    }
+    if (updates.keywords !== undefined) {
+      updateFields.push('keywords = ?');
+      values.push(updates.keywords);
+    }
+    if (updates.api_surface !== undefined) {
+      updateFields.push('api_surface = ?');
+      values.push(updates.api_surface);
+    }
+    if (updates.cross_refs !== undefined) {
+      updateFields.push('cross_refs = ?');
+      values.push(updates.cross_refs);
+    }
+    if (updates.tech_stack !== undefined) {
+      updateFields.push('tech_stack = ?');
+      values.push(updates.tech_stack);
     }
 
     if (updateFields.length === 0) {

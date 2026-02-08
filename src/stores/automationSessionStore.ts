@@ -9,6 +9,13 @@
 
 import { create } from 'zustand';
 import { createActivityAwarePoller, type ActivityAwarePoller } from '@/hooks/usePolling';
+// Session lifecycle is managed by the unified session-lifecycle module.
+// This store provides the Zustand reactive layer on top.
+// See: src/lib/session-lifecycle/presets.ts (createAutomationLifecycle)
+import { createAutomationLifecycle } from '@/lib/session-lifecycle';
+
+// Lifecycle manager instance - available for cleanup/staleness operations
+export const automationLifecycle = createAutomationLifecycle();
 
 // ============ Types ============
 

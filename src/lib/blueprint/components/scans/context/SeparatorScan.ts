@@ -3,7 +3,7 @@
  * Intelligently separates large contexts into smaller, focused contexts (max 10 files each)
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintSeparatorScan.ts
+ * src/app/features/Onboarding/blueprint/lib/context-scans/blueprintSeparatorScan.ts
  *
  * Execution flow:
  * 1. Fetch context details (pre-scan)

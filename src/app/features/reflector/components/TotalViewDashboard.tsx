@@ -204,7 +204,7 @@ export default function TotalViewDashboard({ ideas, directions = [], suggestionT
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-gradient-to-br from-cyan-500/5 to-teal-600/5 border border-cyan-500/30 rounded-lg p-4"
+                className="bg-gradient-to-br from-cyan-500/5 to-teal-600/5 border border-cyan-500/30 rounded-xl p-4 transition-all duration-200 hover:border-cyan-500/40 hover:shadow-md hover:shadow-cyan-500/5"
               >
                 <div className="flex items-center gap-3 mb-4">
                   <Compass className="w-5 h-5 text-cyan-400" />
@@ -215,7 +215,7 @@ export default function TotalViewDashboard({ ideas, directions = [], suggestionT
                   {projectGroup.directions.map(dir => (
                     <div
                       key={dir.id}
-                      className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3"
+                      className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 transition-all duration-200 hover:bg-gray-800/70 hover:border-gray-600/50"
                     >
                       <p className="text-sm text-gray-300 font-medium">{dir.summary || 'No summary'}</p>
                       {dir.context_map_title && (

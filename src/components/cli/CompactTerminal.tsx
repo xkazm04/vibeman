@@ -28,8 +28,16 @@ import type {
   LogEntry,
   ExecutionInfo,
   ExecutionResult,
-  CLISSEEvent,
 } from './types';
+import {
+  createEventProtocol,
+  decodeEvent,
+  messageToLog,
+  toolUseToLog,
+  toolResultToLog,
+  errorToLog,
+  toolUseToFileChange,
+} from './protocol';
 import { buildSkillsPrompt } from './skills';
 import {
   registerTaskStart,
@@ -166,8 +174,6 @@ export function CompactTerminal({
 
   // Task queue state
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-  const [retryTrigger, setRetryTrigger] = useState(0);
-
   // Ref for currentTaskId to avoid stale closure issues in SSE handler
   // The SSE handler callback is created when connectToStream is called,
   // but setCurrentTaskId is async - so the closure may have stale value.
@@ -278,125 +284,61 @@ export function CompactTerminal({
     });
   }, []);
 
-  // Handle SSE event
-  const handleSSEEvent = useCallback((event: CLISSEEvent) => {
-    switch (event.type) {
-      case 'connected': {
-        const data = event.data as ExecutionInfo & { executionId?: string };
-        if (data.sessionId) setSessionId(data.sessionId);
-        setExecutionInfo(data);
-        setError(null);
-        break;
-      }
-      case 'message': {
-        const data = event.data as { type: string; content: string; model?: string };
-        if (data.type === 'assistant' && data.content) {
-          addLog({
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            type: 'assistant',
-            content: data.content,
-            timestamp: event.timestamp,
-            model: data.model,
-          });
-        }
-        break;
-      }
-      case 'tool_use': {
-        const data = event.data as { toolUseId: string; toolName: string; toolInput: Record<string, unknown> };
-        addLog({
-          id: `tool-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          type: 'tool_use',
-          content: data.toolName,
-          timestamp: event.timestamp,
-          toolName: data.toolName,
-          toolInput: data.toolInput,
-        });
+  // Cleanup heartbeat + task on stream end (shared by result/error handlers)
+  const finalizeTask = useCallback((success: boolean) => {
+    setIsStreaming(false);
 
-        // Track file changes
-        if (['Edit', 'Write', 'Read'].includes(data.toolName)) {
-          const filePath = data.toolInput.file_path as string;
-          if (filePath) {
-            addFileChange({
-              id: `fc-${Date.now()}`,
-              sessionId: instanceId,
-              filePath,
-              changeType: data.toolName === 'Edit' ? 'edit' : data.toolName === 'Write' ? 'write' : 'read',
-              timestamp: event.timestamp,
-              toolUseId: data.toolUseId,
-            });
-          }
-        }
-        break;
-      }
-      case 'tool_result': {
-        const data = event.data as { toolUseId: string; content: string };
-        addLog({
-          id: `result-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          type: 'tool_result',
-          content: typeof data.content === 'string' ? data.content.slice(0, 200) : JSON.stringify(data.content).slice(0, 200),
-          timestamp: event.timestamp,
-        });
-        break;
-      }
-      case 'result': {
-        const data = event.data as ExecutionResult;
-        if (data.sessionId) setSessionId(data.sessionId);
-        setLastResult(data);
-        setIsStreaming(false);
-
-        // Stop heartbeat
-        if (heartbeatIntervalRef.current) {
-          clearInterval(heartbeatIntervalRef.current);
-          heartbeatIntervalRef.current = null;
-        }
-
-        // Handle task completion - use ref to avoid stale closure
-        const taskId = currentTaskIdRef.current;
-        if (taskId) {
-          const success = !data.isError;
-          // Register completion with server registry (fire-and-forget)
-          registerTaskComplete(taskId, instanceId, success);
-          onTaskComplete?.(taskId, success);
-          // Clear execution ID for background processing
-          onExecutionChange?.(null, null);
-          currentTaskIdRef.current = null;
-          setCurrentTaskId(null);
-        }
-        break;
-      }
-      case 'error': {
-        const data = event.data as { error: string };
-        setError(data.error);
-        setIsStreaming(false);
-
-        // Stop heartbeat
-        if (heartbeatIntervalRef.current) {
-          clearInterval(heartbeatIntervalRef.current);
-          heartbeatIntervalRef.current = null;
-        }
-
-        addLog({
-          id: `error-${Date.now()}`,
-          type: 'error',
-          content: data.error,
-          timestamp: event.timestamp,
-        });
-
-        // Handle task failure - use ref to avoid stale closure
-        const taskId = currentTaskIdRef.current;
-        if (taskId) {
-          // Register failure with server registry (fire-and-forget)
-          registerTaskComplete(taskId, instanceId, false);
-          onTaskComplete?.(taskId, false);
-          // Clear execution ID for background processing
-          onExecutionChange?.(null, null);
-          currentTaskIdRef.current = null;
-          setCurrentTaskId(null);
-        }
-        break;
-      }
+    // Stop heartbeat
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
     }
-  }, [addLog, addFileChange, instanceId, onTaskComplete, onExecutionChange]);
+
+    // Handle task completion - use ref to avoid stale closure
+    const taskId = currentTaskIdRef.current;
+    if (taskId) {
+      registerTaskComplete(taskId, instanceId, success);
+      onTaskComplete?.(taskId, success);
+      onExecutionChange?.(null, null);
+      currentTaskIdRef.current = null;
+      setCurrentTaskId(null);
+    }
+  }, [instanceId, onTaskComplete, onExecutionChange]);
+
+  // Protocol handler - typed event dispatch replacing the switch statement
+  const protocol = useMemo(
+    () =>
+      createEventProtocol({
+        connected: (event) => {
+          if (event.data.sessionId) setSessionId(event.data.sessionId);
+          setExecutionInfo(event.data);
+          setError(null);
+        },
+        message: (event) => {
+          const log = messageToLog(event);
+          if (log) addLog(log);
+        },
+        tool_use: (event) => {
+          addLog(toolUseToLog(event));
+          const fc = toolUseToFileChange(event, instanceId);
+          if (fc) addFileChange(fc);
+        },
+        tool_result: (event) => {
+          addLog(toolResultToLog(event));
+        },
+        result: (event) => {
+          if (event.data.sessionId) setSessionId(event.data.sessionId);
+          setLastResult(event.data);
+          finalizeTask(!event.data.isError);
+        },
+        error: (event) => {
+          setError(event.data.error);
+          addLog(errorToLog(event));
+          finalizeTask(false);
+        },
+      }),
+    [addLog, addFileChange, instanceId, finalizeTask],
+  );
 
   // Connect to SSE stream
   const connectToStream = useCallback((streamUrl: string) => {
@@ -407,16 +349,15 @@ export function CompactTerminal({
     const eventSource = new EventSource(streamUrl);
     eventSourceRef.current = eventSource;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as CLISSEEvent;
-        handleSSEEvent(data);
-        if (data.type === 'result' || data.type === 'error') {
-          eventSource.close();
-          eventSourceRef.current = null;
-        }
-      } catch (e) {
-        console.error('Failed to parse SSE:', e);
+    eventSource.onmessage = (raw) => {
+      const event = decodeEvent(raw.data);
+      if (!event) return;
+
+      protocol.handle(event);
+
+      if (protocol.isTerminal(event)) {
+        eventSource.close();
+        eventSourceRef.current = null;
       }
     };
 
@@ -424,7 +365,7 @@ export function CompactTerminal({
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [handleSSEEvent]);
+  }, [protocol]);
 
   // Reconnect to active execution on mount (background processing support)
   useEffect(() => {

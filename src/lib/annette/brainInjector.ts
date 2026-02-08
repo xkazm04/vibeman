@@ -4,7 +4,7 @@
  */
 
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
-import { directionOutcomeDb, brainReflectionDb, contextDb } from '@/app/db';
+import { directionOutcomeDb, brainInsightDb, contextDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 
 export interface BrainSnapshot {
@@ -105,20 +105,14 @@ function getOutcomesSummary(projectId: string): string {
 
 function getReflectionInsights(projectId: string): string {
   try {
-    const lastReflection = brainReflectionDb.getLatestCompleted(projectId);
-    if (!lastReflection || !lastReflection.insights_generated) return '';
-
-    const insights = JSON.parse(lastReflection.insights_generated) as Array<{
-      type: string;
-      insight: string;
-    }>;
+    const insights = brainInsightDb.getAllInsights(projectId, 3);
 
     if (insights.length === 0) return '';
 
     // Take top 3 most relevant insights
     return insights
       .slice(0, 3)
-      .map(i => `- [${i.type}] ${i.insight}`)
+      .map(i => `- [${i.type}] ${i.title}: ${i.description}`)
       .join('\n');
   } catch {
     return '';

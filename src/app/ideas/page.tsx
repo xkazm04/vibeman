@@ -16,7 +16,6 @@ import ScanInitiator from '@/app/features/Ideas/sub_IdeasSetup/ScanInitiator';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 // Handlers and utilities
-import { getProjectName } from '@/app/features/Ideas/lib/ideasUtils';
 import {
   fetchContextsForProjects,
   getContextNameFromMap
@@ -104,7 +103,7 @@ export default function IdeasPage() {
 
   // Memoize getProjectName callback to prevent re-creating on every render
   const getProjectNameCallback = React.useCallback((projectId: string) => {
-    return getProjectName(projectId, projects);
+    return projects.find(p => p.id === projectId)?.name || projectId;
   }, [projects]);
 
   return (

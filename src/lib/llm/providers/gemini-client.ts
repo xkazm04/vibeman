@@ -4,7 +4,7 @@ import { BaseLLMClient } from '../base-client';
 import { LLMRequest, LLMResponse, LLMProgress } from '../types';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+const DEFAULT_MODEL = 'gemini-3-flash-preview';
 
 interface GeminiRequest {
   contents: Array<{

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Trash2, Code, Database, Layers, Grid, Activity, Cpu } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
-import { normalizePath } from '../../../../utils/pathUtils';
+import { normalizePath, FilePath } from '../../../../utils/pathUtils';
 import ActionButton from './ActionButton';
 import StatCard from './StatCard';
 
@@ -282,8 +282,9 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                                 {/* 3 columns x 5 rows grid for up to 15 files */}
                                 <div className="grid grid-cols-3 gap-1">
                                   {context.filePaths.slice(0, 15).map((path, pathIndex) => {
-                                    const normalizedPath = normalizePath(path);
-                                    const fileName = normalizedPath.split('/').pop() || normalizedPath;
+                                    const fp = FilePath.from(path);
+                                    const normalizedPath = fp.normalized;
+                                    const fileName = fp.fileName;
                                     return (
                                       <div key={pathIndex} className="flex items-center space-x-1 min-w-0">
                                         <div className="w-1 h-1 bg-gray-500 rounded-full flex-shrink-0"></div>

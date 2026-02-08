@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
     // Create FormData for ElevenLabs API
     const elevenLabsFormData = new FormData();
     elevenLabsFormData.append('file', audioFile);
-    elevenLabsFormData.append('model_id', 'scribe_v1');
-    elevenLabsFormData.append('language', 'en'); // English only
+    elevenLabsFormData.append('model_id', 'scribe_v2');
+    elevenLabsFormData.append('language_code', 'en');
 
     const response = await fetch(ELEVENLABS_STT_URL, {
       method: 'POST',

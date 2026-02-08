@@ -3,7 +3,7 @@
  * Generates requirement for analyzing ONE feature folder and creating contexts
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/prompts/singleFeatureContextsScanPrompt.ts
+ * src/app/features/Onboarding/blueprint/lib/prompts/singleFeatureContextsScanPrompt.ts
  */
 
 export interface FeatureContextsPromptParams {

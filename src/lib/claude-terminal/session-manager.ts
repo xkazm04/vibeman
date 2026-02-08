@@ -1,10 +1,16 @@
 /**
  * Claude Terminal Session Manager
- * Manages terminal session lifecycle and coordinates with SDK service
+ * Manages terminal session lifecycle and coordinates with SDK service.
+ *
+ * Storage and cleanup are delegated to the unified session-lifecycle module.
+ * All public function signatures are unchanged for backward compatibility.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import * as sdkService from './sdk-service';
+import { createTerminalLifecycle } from '@/lib/session-lifecycle';
+import type { InMemoryPersistence } from '@/lib/session-lifecycle';
+import type { TerminalSessionEntry } from '@/lib/session-lifecycle';
 import type {
   TerminalSession,
   TerminalQueryOptions,
@@ -14,8 +20,22 @@ import type {
   SessionStatus,
 } from './types';
 
-// In-memory session store (will be replaced with database in production)
-const sessions = new Map<string, TerminalSession>();
+// Singleton lifecycle manager (pre-configured with InMemoryPersistence + maxAge rule)
+const lifecycle = createTerminalLifecycle({
+  beforeCleanup: (session) => {
+    // Abort any running query before cleaning up
+    sdkService.abortQuery(session.id);
+    return true;
+  },
+});
+
+// Direct reference to the underlying persistence store for synchronous access
+const persistence = lifecycle.persistence as InMemoryPersistence<TerminalSessionEntry>;
+
+/**
+ * Expose the lifecycle manager for advanced usage (e.g. staleness detection, recovery).
+ */
+export { lifecycle as terminalLifecycle };
 
 /**
  * Create a new terminal session
@@ -36,7 +56,7 @@ export function createSession(projectPath: string): TerminalSession {
     totalCostUsd: 0,
   };
 
-  sessions.set(id, session);
+  persistence.save(session as TerminalSessionEntry);
   return session;
 }
 
@@ -44,14 +64,16 @@ export function createSession(projectPath: string): TerminalSession {
  * Get a session by ID
  */
 export function getSession(sessionId: string): TerminalSession | null {
-  return sessions.get(sessionId) || null;
+  return (persistence.getById(sessionId) as TerminalSession | null) ?? null;
 }
 
 /**
  * Get all sessions for a project
  */
 export function getSessionsByProject(projectPath: string): TerminalSession[] {
-  return Array.from(sessions.values()).filter((s) => s.projectPath === projectPath);
+  return (persistence.getAll() as TerminalSession[]).filter(
+    (s) => s.projectPath === projectPath
+  );
 }
 
 /**
@@ -61,7 +83,7 @@ export function updateSession(
   sessionId: string,
   updates: Partial<Omit<TerminalSession, 'id' | 'createdAt'>>
 ): TerminalSession | null {
-  const session = sessions.get(sessionId);
+  const session = persistence.getById(sessionId);
   if (!session) {
     return null;
   }
@@ -70,10 +92,10 @@ export function updateSession(
     ...session,
     ...updates,
     updatedAt: Date.now(),
-  };
+  } as TerminalSessionEntry;
 
-  sessions.set(sessionId, updated);
-  return updated;
+  persistence.save(updated);
+  return updated as TerminalSession;
 }
 
 /**
@@ -82,7 +104,7 @@ export function updateSession(
 export function deleteSession(sessionId: string): boolean {
   // Abort any running query first
   sdkService.abortQuery(sessionId);
-  return sessions.delete(sessionId);
+  return persistence.delete(sessionId);
 }
 
 /**
@@ -94,7 +116,7 @@ export async function startSessionQuery(
   options: TerminalQueryOptions,
   onEvent: (event: SSEEvent) => void
 ): Promise<void> {
-  const session = sessions.get(sessionId);
+  const session = persistence.getById(sessionId);
   if (!session) {
     throw new Error(`Session not found: ${sessionId}`);
   }
@@ -195,7 +217,7 @@ export function sessionHasActiveQuery(sessionId: string): boolean {
  * Get session status
  */
 export function getSessionStatus(sessionId: string): SessionStatus | null {
-  const session = sessions.get(sessionId);
+  const session = persistence.getById(sessionId);
   if (!session) {
     return null;
   }
@@ -213,22 +235,21 @@ export function getSessionStatus(sessionId: string): SessionStatus | null {
  * List all sessions
  */
 export function listSessions(): TerminalSession[] {
-  return Array.from(sessions.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+  return (persistence.getAll() as TerminalSession[]).sort(
+    (a, b) => b.updatedAt - a.updatedAt
+  );
 }
 
 /**
- * Clean up old sessions
+ * Clean up old sessions.
+ * Delegates to the lifecycle manager's cleanupOld() which respects activeStatuses
+ * (running, waiting_approval) and the configured maxSessionAgeMs (1 day).
+ *
+ * The maxAgeMs parameter is accepted for backward compatibility but ignored --
+ * the lifecycle manager uses its pre-configured DAYS(1) threshold.
  */
-export function cleanupOldSessions(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
-  const cutoff = Date.now() - maxAgeMs;
-  let deleted = 0;
-
-  for (const [id, session] of sessions) {
-    if (session.updatedAt < cutoff && session.status !== 'running') {
-      deleteSession(id);
-      deleted++;
-    }
-  }
-
-  return deleted;
+export async function cleanupOldSessions(
+  _maxAgeMs: number = 24 * 60 * 60 * 1000
+): Promise<number> {
+  return lifecycle.cleanupOld();
 }

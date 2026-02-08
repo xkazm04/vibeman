@@ -23,8 +23,8 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               // Font sources - allow self and data URIs
               "font-src 'self' data:",
-              // Media sources - allow self and blob URIs
-              "media-src 'self' blob:",
+              // Media sources - allow self, blob URIs, and data URIs (for TTS audio playback)
+              "media-src 'self' blob: data:",
               // Connect sources - allow self, localhost (for remotes), and Supabase
               "connect-src 'self' http://localhost:* https://*.supabase.co wss://*.supabase.co",
               // Frame sources - disallow all frames
@@ -59,7 +59,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+            value: 'camera=(), microphone=(self), geolocation=(), interest-cohort=()',
           },
         ],
       },

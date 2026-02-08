@@ -72,7 +72,7 @@ export function ProviderStatus({
       animate={{ opacity: 1, y: 0 }}
       className={`
         flex items-center gap-3 px-3 py-2 rounded-lg ${config.bgColor}
-        border border-gray-700/50 ${className}
+        border border-gray-700/50 transition-all duration-200 hover:border-gray-600/60 ${className}
       `}
     >
       {/* Status Icon */}

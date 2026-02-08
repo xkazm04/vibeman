@@ -1,6 +1,6 @@
 import React from 'react';
 import { RefreshCw, AlertCircle, FolderTree } from 'lucide-react';
-import { TreeNode as TreeNodeType, Project } from '../../../../types';
+import { TreeNode as TreeNodeType, Project } from '@/types';
 import TreeNode from './TreeNode';
 
 interface TreeViewProps {

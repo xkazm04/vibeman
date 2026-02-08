@@ -47,6 +47,13 @@ export interface Context {
   target?: string | null;
   target_fulfillment?: string | null;
   target_rating?: number | null; // Rating 1-5 for target progress visualization
+  // AI Navigation Metadata
+  entryPoints?: Array<{ path: string; type: 'page' | 'api' | 'component' | 'config' }>;
+  dbTables?: string[];
+  keywords?: string[];
+  apiSurface?: Array<{ path: string; methods: string; description: string }>;
+  crossRefs?: Array<{ contextId: string; relationship: 'depends_on' | 'depended_by' | 'shares_data' }>;
+  techStack?: string[];
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
@@ -102,6 +109,12 @@ function dbRelationshipToRelationship(dbRel: DbContextGroupRelationship): Contex
   };
 }
 
+// Safe JSON parse helper - returns undefined for null/invalid JSON
+function safeJsonParse<T>(value: string | null | undefined): T | undefined {
+  if (!value) return undefined;
+  try { return JSON.parse(value) as T; } catch { return undefined; }
+}
+
 // Helper function to convert DB context to app context
 function dbContextToContext(dbContext: DbContext & { group_name?: string; group_color?: string }): Context {
   return {
@@ -119,6 +132,12 @@ function dbContextToContext(dbContext: DbContext & { group_name?: string; group_
     target: dbContext.target || undefined,
     target_fulfillment: dbContext.target_fulfillment || undefined,
     target_rating: dbContext.target_rating || undefined,
+    entryPoints: safeJsonParse(dbContext.entry_points),
+    dbTables: safeJsonParse(dbContext.db_tables),
+    keywords: safeJsonParse(dbContext.keywords),
+    apiSurface: safeJsonParse(dbContext.api_surface),
+    crossRefs: safeJsonParse(dbContext.cross_refs),
+    techStack: safeJsonParse(dbContext.tech_stack),
     createdAt: new Date(dbContext.created_at),
     updatedAt: new Date(dbContext.updated_at),
     groupName: dbContext.group_name,
@@ -328,6 +347,12 @@ export const contextQueries = {
     description?: string;
     filePaths: string[];
     testScenario?: string;
+    entryPoints?: Array<{ path: string; type: string }>;
+    dbTables?: string[];
+    keywords?: string[];
+    apiSurface?: Array<{ path: string; methods: string; description: string }>;
+    crossRefs?: Array<{ contextId: string; relationship: string }>;
+    techStack?: string[];
   }): Promise<Context> => {
     return handleAsyncOperation(
       async () => {
@@ -339,6 +364,12 @@ export const contextQueries = {
           description: data.description,
           file_paths: data.filePaths,
           test_scenario: data.testScenario,
+          entry_points: data.entryPoints ? JSON.stringify(data.entryPoints) : undefined,
+          db_tables: data.dbTables ? JSON.stringify(data.dbTables) : undefined,
+          keywords: data.keywords ? JSON.stringify(data.keywords) : undefined,
+          api_surface: data.apiSurface ? JSON.stringify(data.apiSurface) : undefined,
+          cross_refs: data.crossRefs ? JSON.stringify(data.crossRefs) : undefined,
+          tech_stack: data.techStack ? JSON.stringify(data.techStack) : undefined,
         };
 
         const dbContext = contextDb.createContext(contextData);
@@ -357,6 +388,12 @@ export const contextQueries = {
     testScenario?: string;
     target?: string | null;
     target_rating?: number | null;
+    entryPoints?: Array<{ path: string; type: string }>;
+    dbTables?: string[];
+    keywords?: string[];
+    apiSurface?: Array<{ path: string; methods: string; description: string }>;
+    crossRefs?: Array<{ contextId: string; relationship: string }>;
+    techStack?: string[];
   }): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
@@ -368,6 +405,12 @@ export const contextQueries = {
           test_scenario: updates.testScenario,
           target: updates.target,
           target_rating: updates.target_rating,
+          entry_points: updates.entryPoints ? JSON.stringify(updates.entryPoints) : undefined,
+          db_tables: updates.dbTables ? JSON.stringify(updates.dbTables) : undefined,
+          keywords: updates.keywords ? JSON.stringify(updates.keywords) : undefined,
+          api_surface: updates.apiSurface ? JSON.stringify(updates.apiSurface) : undefined,
+          cross_refs: updates.crossRefs ? JSON.stringify(updates.crossRefs) : undefined,
+          tech_stack: updates.techStack ? JSON.stringify(updates.techStack) : undefined,
         };
 
         const dbContext = contextDb.updateContext(contextId, updateData);

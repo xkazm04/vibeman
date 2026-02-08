@@ -9,6 +9,13 @@ import {
 } from '@/lib/remote/deviceTypes';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
 
+// Unified session lifecycle manager for remote device sessions.
+// Provides shared heartbeat and staleness infrastructure.
+// Device registration and emulator store coupling remain in this hook.
+import { createRemoteDeviceLifecycle } from '@/lib/session-lifecycle';
+
+export const remoteDeviceLifecycle = createRemoteDeviceLifecycle();
+
 interface UseDeviceDiscoveryOptions {
   autoRegister?: boolean;
   autoRefresh?: boolean;

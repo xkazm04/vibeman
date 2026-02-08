@@ -3,7 +3,7 @@
  * Instructs Claude Code to verify and safely remove unused code files
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/prompts/unusedCleanup.ts
+ * src/app/features/Onboarding/blueprint/lib/prompts/unusedCleanup.ts
  */
 
 export interface UnusedFile {

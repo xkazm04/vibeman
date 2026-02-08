@@ -71,6 +71,7 @@ import { xrayRepository } from './repositories/xray.repository';
 import { behavioralSignalRepository } from './repositories/behavioral-signal.repository';
 import { directionOutcomeRepository } from './repositories/direction-outcome.repository';
 import { brainReflectionRepository } from './repositories/brain-reflection.repository';
+import { brainInsightRepository } from './repositories/brain-insight.repository';
 import {
   annetteSessionRepository,
   annetteMessageRepository,
@@ -93,6 +94,7 @@ import {
 } from './repositories/cross-project-architecture.repository';
 import { crossTaskPlanRepository } from './repositories/cross-task.repository';
 import { groupHealthRepository } from './repositories/group-health.repository';
+import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
 
 // Export types
 export * from './models/types';
@@ -119,6 +121,7 @@ export * from './models/reflector.types';
 export * from './models/cross-project-architecture.types';
 export * from './models/cross-task.types';
 export * from './models/group-health.types';
+export * from './models/collective-memory.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -581,6 +584,14 @@ export const brainReflectionDb = {
 };
 
 /**
+ * Brain Insight Database Operations (first-class insights table)
+ */
+export const brainInsightDb = {
+  ...brainInsightRepository,
+  close: closeDatabase,
+};
+
+/**
  * Annette 2.0 Database Operations
  * Manages conversation sessions, messages, memory, preferences, and audio cache
  */
@@ -658,6 +669,15 @@ export const crossTaskPlanDb = {
  */
 export const groupHealthDb = {
   ...groupHealthRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Collective Memory Database Operations
+ * Cross-session knowledge graph for learned patterns and approaches
+ */
+export const collectiveMemoryDb = {
+  ...collectiveMemoryRepository,
   close: closeDatabase,
 };
 

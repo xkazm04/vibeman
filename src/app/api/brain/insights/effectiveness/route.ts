@@ -9,9 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/app/db';
+import { getDatabase, brainInsightDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
-import type { LearningInsight } from '@/app/db/models/brain.types';
 
 export interface InsightEffectiveness {
   insightTitle: string;
@@ -60,13 +59,8 @@ async function handleGet(request: NextRequest) {
   try {
     const db = getDatabase();
 
-    // 1. Get all completed reflections with insights for this project
-    const reflections = db.prepare(`
-      SELECT id, insights_generated, completed_at
-      FROM brain_reflections
-      WHERE project_id = ? AND status = 'completed' AND insights_generated IS NOT NULL
-      ORDER BY completed_at ASC
-    `).all(projectId) as Array<{ id: string; insights_generated: string; completed_at: string }>;
+    // 1. Get all insights for this project from the brain_insights table
+    const insights = brainInsightDb.getForEffectiveness(projectId);
 
     // 2. Get all non-pending directions for this project (accepted or rejected)
     const directions = db.prepare(`
@@ -85,60 +79,52 @@ async function handleGet(request: NextRequest) {
     // 3. For each insight, compute before/after acceptance rates
     const results: InsightEffectiveness[] = [];
 
-    for (const reflection of reflections) {
-      let insights: LearningInsight[] = [];
-      try {
-        insights = JSON.parse(reflection.insights_generated);
-        if (!Array.isArray(insights)) continue;
-      } catch { continue; }
-
-      const insightDate = reflection.completed_at;
+    for (const insight of insights) {
+      const insightDate = insight.completed_at;
       if (!insightDate) continue;
 
       // Count directions before and after this insight's creation
       const before = countDirections(directions, null, insightDate);
       const after = countDirections(directions, insightDate, null);
 
-      for (const insight of insights) {
-        const preRate = before.total > 0 ? before.accepted / before.total : 0;
-        const postRate = after.total > 0 ? after.accepted / after.total : 0;
+      const preRate = before.total > 0 ? before.accepted / before.total : 0;
+      const postRate = after.total > 0 ? after.accepted / after.total : 0;
 
-        // Score: percentage improvement relative to pre-rate
-        const denominator = Math.max(preRate, 0.01);
-        const score = before.total > 0 && after.total > 0
-          ? ((postRate - preRate) / denominator) * 100
-          : 0;
+      // Score: percentage improvement relative to pre-rate
+      const denominator = Math.max(preRate, 0.01);
+      const score = before.total > 0 && after.total > 0
+        ? ((postRate - preRate) / denominator) * 100
+        : 0;
 
-        // Reliability: need enough directions in both periods
-        const reliable = before.total >= minDirections && after.total >= minDirections;
+      // Reliability: need enough directions in both periods
+      const reliable = before.total >= minDirections && after.total >= minDirections;
 
-        // Verdict thresholds
-        let verdict: 'helpful' | 'neutral' | 'misleading';
-        if (!reliable) {
-          verdict = 'neutral';
-        } else if (score > 10) {
-          verdict = 'helpful';
-        } else if (score < -10) {
-          verdict = 'misleading';
-        } else {
-          verdict = 'neutral';
-        }
-
-        results.push({
-          insightTitle: insight.title,
-          insightType: insight.type,
-          confidence: insight.confidence,
-          reflectionId: reflection.id,
-          insightDate,
-          preRate: Math.round(preRate * 1000) / 1000,
-          postRate: Math.round(postRate * 1000) / 1000,
-          preTotal: before.total,
-          postTotal: after.total,
-          score: Math.round(score * 10) / 10,
-          verdict,
-          reliable,
-        });
+      // Verdict thresholds
+      let verdict: 'helpful' | 'neutral' | 'misleading';
+      if (!reliable) {
+        verdict = 'neutral';
+      } else if (score > 10) {
+        verdict = 'helpful';
+      } else if (score < -10) {
+        verdict = 'misleading';
+      } else {
+        verdict = 'neutral';
       }
+
+      results.push({
+        insightTitle: insight.title,
+        insightType: insight.type,
+        confidence: insight.confidence,
+        reflectionId: insight.reflection_id,
+        insightDate,
+        preRate: Math.round(preRate * 1000) / 1000,
+        postRate: Math.round(postRate * 1000) / 1000,
+        preTotal: before.total,
+        postTotal: after.total,
+        score: Math.round(score * 10) / 10,
+        verdict,
+        reliable,
+      });
     }
 
     // 4. Compute summary

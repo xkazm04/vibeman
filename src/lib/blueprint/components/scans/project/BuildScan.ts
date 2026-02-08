@@ -3,7 +3,7 @@
  * Scans project for build errors using Web Workers and adapter system
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/blueprintBuildScan.ts
+ * src/app/features/Onboarding/blueprint/lib/blueprintBuildScan.ts
  *
  * Execution flow:
  * 1. Execute build scan via Web Worker (offloads to background thread)

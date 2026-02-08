@@ -32,15 +32,80 @@ function cleanTTSCache(): void {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    if (!ELEVENLABS_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: 'ElevenLabs API key not configured' },
-        { status: 500 }
-      );
+export interface SynthesizeSpeechResult {
+  audio: Uint8Array;
+  cached: boolean;
+  durationMs: number;
+}
+
+/**
+ * Core TTS synthesis logic. Reusable by both the route handler and test-session endpoint.
+ * Returns the audio bytes, cache status, and time taken.
+ */
+export async function synthesizeSpeech(text: string): Promise<SynthesizeSpeechResult> {
+  if (!ELEVENLABS_API_KEY) {
+    throw new Error('ElevenLabs API key not configured');
+  }
+
+  const start = Date.now();
+
+  // Check TTS cache
+  const cacheKey = getTTSCacheKey(text);
+  const cached = ttsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiry) {
+    return { audio: cached.audio, cached: true, durationMs: Date.now() - start };
+  }
+
+  // Split long text into sentence chunks for better TTS quality
+  const chunks = text.length > 500 ? splitIntoSentences(text) : [text];
+  const audioBuffers: ArrayBuffer[] = [];
+
+  for (const chunk of chunks) {
+    if (!chunk.trim()) continue;
+
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY,
+      },
+      body: JSON.stringify({
+        text: chunk.trim(),
+        model_id: "eleven_flash_v2_5",
+        voice_settings: {
+          stability: 0.8,
+          similarity_boost: 0.5
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`ElevenLabs TTS error (${response.status}): ${errorText}`);
     }
 
+    audioBuffers.push(await response.arrayBuffer());
+  }
+
+  // Concatenate all audio chunks
+  const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const buf of audioBuffers) {
+    combined.set(new Uint8Array(buf), offset);
+    offset += buf.byteLength;
+  }
+
+  // Store in cache
+  ttsCache.set(cacheKey, { audio: combined, expiry: Date.now() + TTS_CACHE_TTL });
+  cleanTTSCache();
+
+  return { audio: combined, cached: false, durationMs: Date.now() - start };
+}
+
+export async function POST(request: NextRequest) {
+  try {
     const { text } = await request.json();
 
     if (!text) {
@@ -50,74 +115,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check TTS cache
-    const cacheKey = getTTSCacheKey(text);
-    const cached = ttsCache.get(cacheKey);
-    if (cached && Date.now() < cached.expiry) {
-      return new NextResponse(cached.audio.buffer as ArrayBuffer, {
-        headers: {
-          'Content-Type': 'audio/mpeg',
-          'Content-Length': cached.audio.byteLength.toString(),
-          'X-TTS-Cache': 'hit',
-        },
-      });
-    }
+    const result = await synthesizeSpeech(text);
 
-    // Split long text into sentence chunks for better TTS quality
-    const chunks = text.length > 500 ? splitIntoSentences(text) : [text];
-    const audioBuffers: ArrayBuffer[] = [];
-
-    for (const chunk of chunks) {
-      if (!chunk.trim()) continue;
-
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': ELEVENLABS_API_KEY,
-        },
-        body: JSON.stringify({
-          text: chunk.trim(),
-          model_id: "eleven_flash_v2_5",
-          voice_settings: {
-            stability: 0.8,
-            similarity_boost: 0.5
-          }
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        return NextResponse.json(
-          {
-            success: false,
-            error: `ElevenLabs TTS error (${response.status}): ${errorText}`
-          },
-          { status: response.status }
-        );
-      }
-
-      audioBuffers.push(await response.arrayBuffer());
-    }
-
-    // Concatenate all audio chunks
-    const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.byteLength, 0);
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const buf of audioBuffers) {
-      combined.set(new Uint8Array(buf), offset);
-      offset += buf.byteLength;
-    }
-
-    // Store in cache
-    ttsCache.set(cacheKey, { audio: combined, expiry: Date.now() + TTS_CACHE_TTL });
-    cleanTTSCache();
-
-    return new NextResponse(combined.buffer, {
+    return new NextResponse(result.audio.buffer as ArrayBuffer, {
       headers: {
         'Content-Type': 'audio/mpeg',
-        'Content-Length': totalLength.toString(),
+        'Content-Length': result.audio.byteLength.toString(),
+        ...(result.cached ? { 'X-TTS-Cache': 'hit' } : {}),
       },
     });
   } catch (error) {

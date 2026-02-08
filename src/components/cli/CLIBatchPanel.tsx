@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { Terminal, RotateCcw, Github } from 'lucide-react';
+import { Terminal, RotateCcw } from 'lucide-react';
 import { CLISession } from './CLISession';
 import type { CLIBatchPanelProps } from './types';
 import { requirementToQueuedTask } from './types';
@@ -139,7 +139,7 @@ export function CLIBatchPanel({
             session.gitConfig.commands,
             commitMessage
           );
-          console.log(`[Git] Committed: ${task.requirementName}`);
+          // Git commit succeeded
         } catch (error) {
           console.error('[Git] Failed:', error);
           // Don't block - git failure is non-fatal

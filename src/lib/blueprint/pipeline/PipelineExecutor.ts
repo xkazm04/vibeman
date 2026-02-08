@@ -6,7 +6,7 @@
  * 3. Poll for completion (optional)
  *
  * This is the core logic migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/pipeline/claudeCodePipeline.ts
+ * src/app/features/Onboarding/blueprint/lib/pipeline/claudeCodePipeline.ts
  */
 
 import {

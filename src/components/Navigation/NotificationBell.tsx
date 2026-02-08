@@ -18,7 +18,11 @@ export default function NotificationBell() {
   const activeProject = useClientProjectStore(s => s.activeProject);
   const bellRef = useRef<HTMLDivElement>(null);
   const [sseConnected, setSseConnected] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Defer store-derived UI to avoid hydration mismatch (server renders 0, client may differ)
+  useEffect(() => { setMounted(true); }, []);
 
   // SSE connection management
   useEffect(() => {
@@ -97,8 +101,8 @@ export default function NotificationBell() {
       >
         <Bell className="w-4 h-4" />
 
-        {/* Unread badge */}
-        {unreadCount > 0 && (
+        {/* Unread badge — only render after mount to avoid hydration mismatch */}
+        {mounted && unreadCount > 0 && (
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}

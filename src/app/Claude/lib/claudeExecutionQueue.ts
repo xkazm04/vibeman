@@ -12,6 +12,7 @@ import {
   emitTaskSessionLimit,
 } from '@/lib/brain/taskNotificationEmitter';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { onTaskCompleted } from '@/lib/collective-memory/taskCompletionHook';
 
 export interface GitExecutionConfig {
   enabled: boolean;
@@ -167,6 +168,15 @@ class ClaudeExecutionQueue {
       } catch {
         // Signal recording must never break the main flow
       }
+
+      // Record learning in collective memory
+      onTaskCompleted({
+        projectId: task.projectId,
+        taskId: task.id,
+        requirementName: task.requirementName,
+        success: true,
+        durationMs: duration,
+      });
     }
   }
 
@@ -221,6 +231,16 @@ class ClaudeExecutionQueue {
       } catch {
         // Signal recording must never break the main flow
       }
+
+      // Record learning in collective memory
+      onTaskCompleted({
+        projectId: task.projectId,
+        taskId: task.id,
+        requirementName: task.requirementName,
+        success: false,
+        errorMessage: error,
+        durationMs: duration,
+      });
     }
   }
 

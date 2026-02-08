@@ -39,12 +39,14 @@ Analyze this codebase and create context groups and contexts by business feature
 
 ## Key Principles
 - Group by BUSINESS DOMAIN, not architecture layer
-- Each context represents a USER CAPABILITY
-- Target 5-15 files per context, 3-6 contexts per group
+- Each context represents a USER CAPABILITY as a full-stack vertical slice (UI + API + DB + store)
+- Target 10-25 files per context (ideal ~20), 2-4 contexts per group
+- Merge sub-features that share the same DB table or API namespace into ONE context
 
 ## API Endpoints
 - Create group: POST http://localhost:3000/api/context-groups
 - Create context: POST http://localhost:3000/api/contexts
+  Include AI navigation fields: entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack
 - Create relationship: POST http://localhost:3000/api/context-group-relationships
 `;
 }

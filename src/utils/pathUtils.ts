@@ -11,6 +11,55 @@ export function normalizePath(path: string): string {
 }
 
 /**
+ * FilePath value object — parse once, access semantic properties via getters.
+ * Immutable: all properties derived at construction time from a normalized path string.
+ */
+export class FilePath {
+  readonly normalized: string;
+  readonly fileName: string;
+  readonly extension: string | undefined;
+  readonly directory: string;
+  readonly isAbsolute: boolean;
+
+  constructor(raw: string) {
+    this.normalized = normalizePath(raw);
+    const lastSlash = this.normalized.lastIndexOf('/');
+    this.fileName = lastSlash >= 0 ? this.normalized.slice(lastSlash + 1) : this.normalized;
+    const dotIdx = this.fileName.lastIndexOf('.');
+    this.extension = dotIdx > 0 ? this.fileName.slice(dotIdx + 1) : undefined;
+    this.directory = lastSlash >= 0 ? this.normalized.slice(0, lastSlash) : '';
+    this.isAbsolute = isAbsolutePath(raw);
+  }
+
+  get parentFolder(): string {
+    const parts = this.normalized.split('/');
+    return parts.length > 1 ? parts[parts.length - 2] : '';
+  }
+
+  get stem(): string {
+    const dotIdx = this.fileName.lastIndexOf('.');
+    return dotIdx > 0 ? this.fileName.slice(0, dotIdx) : this.fileName;
+  }
+
+  matches(other: string | FilePath): boolean {
+    const otherNorm = other instanceof FilePath ? other.normalized : normalizePath(other);
+    return this.normalized === otherNorm;
+  }
+
+  toString(): string {
+    return this.normalized;
+  }
+
+  static from(raw: string): FilePath {
+    return new FilePath(raw);
+  }
+
+  static fromMany(paths: string[]): FilePath[] {
+    return paths.map(p => new FilePath(p));
+  }
+}
+
+/**
  * Browser-compatible path join
  * Joins path segments and normalizes slashes
  */

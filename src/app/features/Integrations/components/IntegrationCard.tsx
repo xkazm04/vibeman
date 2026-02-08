@@ -85,7 +85,9 @@ export function IntegrationCard({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className={`relative overflow-hidden rounded-xl border border-gray-700/50 bg-gradient-to-br ${providerColor}`}
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      className={`relative overflow-hidden rounded-xl border border-gray-700/50 hover:border-gray-600/60 bg-gradient-to-br ${providerColor} shadow-md shadow-black/20 hover:shadow-lg hover:shadow-black/30 transition-[border-color,box-shadow] duration-300`}
       data-testid={`integration-card-${integration.id}`}
     >
       {/* Header */}
@@ -155,7 +157,7 @@ export function IntegrationCard({
         <button
           onClick={handleTest}
           disabled={testing}
-          className="px-3 py-1.5 text-xs bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          className="px-3 py-1.5 text-xs bg-gray-700/50 hover:bg-gray-600/50 active:scale-[0.96] text-gray-300 rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5"
           data-testid={`test-integration-${integration.id}-btn`}
         >
           {testing ? (
@@ -176,7 +178,7 @@ export function IntegrationCard({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onEdit(integration)}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 active:scale-90 rounded-lg transition-all duration-200"
             data-testid={`edit-integration-${integration.id}-btn`}
             title="Edit"
           >
@@ -187,7 +189,7 @@ export function IntegrationCard({
 
           <button
             onClick={() => onDelete(integration.id)}
-            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 active:scale-90 rounded-lg transition-all duration-200"
             data-testid={`delete-integration-${integration.id}-btn`}
             title="Delete"
           >

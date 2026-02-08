@@ -11,7 +11,7 @@ import TotalViewDashboard from '@/app/features/reflector/components/TotalViewDas
 import ActiveFiltersDisplay from '@/app/features/reflector/components/ActiveFiltersDisplay';
 import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
-import { IdeaFilterState, getEmptyFilterState, applyFilters } from '@/app/features/reflector/lib/filterIdeas';
+import { FilterState, getEmptyFilterState, applyFilters } from '@/app/features/reflector/lib/filterIdeas';
 
 export default function ReflectorPage() {
   return (
@@ -25,7 +25,7 @@ function ReflectorPageContent() {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'ideas_stats' | 'dependencies'>('weekly');
-  const [filters, setFilters] = useState<IdeaFilterState>(getEmptyFilterState());
+  const [filters, setFilters] = useState<FilterState>(getEmptyFilterState());
 
   const { projects, initializeProjects } = useProjectConfigStore();
   const searchParams = useSearchParams();
@@ -129,7 +129,7 @@ function ReflectorPageContent() {
   }, [ideas]);
 
   // Update URL when filters change
-  const handleFilterChange = React.useCallback((newFilters: IdeaFilterState) => {
+  const handleFilterChange = React.useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
 
     const params = new URLSearchParams();
@@ -157,7 +157,7 @@ function ReflectorPageContent() {
   }, [router]);
 
   // Remove individual filter
-  const handleRemoveFilter = React.useCallback((filterType: keyof IdeaFilterState, value?: string) => {
+  const handleRemoveFilter = React.useCallback((filterType: keyof FilterState, value?: string) => {
     const newFilters = { ...filters };
 
     if (filterType === 'projectIds' && value) {

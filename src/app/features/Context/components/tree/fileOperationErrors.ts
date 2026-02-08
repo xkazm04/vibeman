@@ -3,6 +3,8 @@
  * Provides user-friendly error messages for common file operation failures
  */
 
+import { FilePath } from '../../../../../utils/pathUtils';
+
 export type FileOperationErrorType =
   | 'file_not_found'
   | 'permission_denied'
@@ -119,7 +121,7 @@ export function getFileOperationErrorDetails(
   filePath: string,
   operation: 'read' | 'write'
 ): FileOperationError {
-  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+  const fileName = FilePath.from(filePath).fileName;
 
   switch (errorType) {
     case 'file_not_found':

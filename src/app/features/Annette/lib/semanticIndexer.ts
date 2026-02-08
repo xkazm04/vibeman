@@ -188,7 +188,7 @@ export const semanticIndexer = {
     const memories = db.prepare(`
       SELECT * FROM annette_memories
       WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
-    `).all(projectId) as DbAnnetteMemory[];
+    `).all(projectId) as unknown as DbAnnetteMemory[];
 
     const results: SimilarityResult<DbAnnetteMemory>[] = [];
 
@@ -227,7 +227,7 @@ export const semanticIndexer = {
     const nodes = db.prepare(`
       SELECT * FROM annette_knowledge_nodes
       WHERE project_id = ? AND embedding IS NOT NULL
-    `).all(projectId) as DbAnnetteKnowledgeNode[];
+    `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
 
     const results: SimilarityResult<DbAnnetteKnowledgeNode>[] = [];
 
@@ -292,7 +292,7 @@ export const semanticIndexer = {
       SELECT * FROM annette_memories
       WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
       ORDER BY created_at DESC
-    `).all(projectId) as DbAnnetteMemory[];
+    `).all(projectId) as unknown as DbAnnetteMemory[];
 
     if (memories.length === 0) return [];
 

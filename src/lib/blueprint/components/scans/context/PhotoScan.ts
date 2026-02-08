@@ -3,7 +3,7 @@
  * Takes screenshots based on context test scenarios
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintPhotoScan.ts
+ * src/app/features/Onboarding/blueprint/lib/context-scans/blueprintPhotoScan.ts
  *
  * Execution flow:
  * 1. Check if context has a test scenario (scanOnly: true)

@@ -6,7 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb, contextDb } from '@/app/db';
+import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb, brainInsightDb, contextDb } from '@/app/db';
 import type { DbDirection, DbDirectionOutcome } from '@/app/db';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import { GitManager } from '@/lib/gitManager';
@@ -91,8 +91,8 @@ export async function gatherReflectionData(
     currentBrainGuide = fs.readFileSync(brainGuidePath, 'utf-8');
   }
 
-  // Get previous insights to prevent duplicates
-  const previousInsights = brainReflectionDb.getAllInsights(projectId, 20);
+  // Get previous insights to prevent duplicates (from brain_insights table)
+  const previousInsights = brainInsightDb.getAllInsights(projectId, 100);
 
   // Get git history for correlation analysis with timeout protection
   let gitHistory: GitCommitInfo[] = [];
@@ -486,8 +486,8 @@ export async function gatherGlobalReflectionData(
     });
   }
 
-  // Get previous global insights
-  const previousGlobalInsights = brainReflectionDb.getAllInsightsGlobal(20)
+  // Get previous global insights (from brain_insights table)
+  const previousGlobalInsights = brainInsightDb.getAllInsightsGlobal(100)
     .map(({ project_id: _pid, ...insight }) => insight);
 
   // Read global brain-guide.md

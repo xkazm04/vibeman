@@ -9,8 +9,6 @@ import { loadRequirements, loadRequirementsBatch, deleteRequirement } from '@/ap
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import {
   taskStatusToLegacy,
-  isTaskRunning,
-  isTaskQueued,
   isRequirementRunning,
   isRequirementQueued,
   isRequirementCompleted,

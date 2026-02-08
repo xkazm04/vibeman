@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { OllamaClient } from '@/lib/llm/providers/ollama-client';
+import { llmManager } from '@/lib/llm/llm-manager';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
+const EVAL_MODEL = 'gemini-3-flash-preview';
+
 /**
- * Evaluate conversation quality using Ollama
- * Uses ministral-3:14b model for evaluation
+ * Evaluate conversation quality using Gemini 3 Flash
  */
 export async function POST(request: NextRequest) {
   try {
@@ -19,38 +20,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize Ollama client with fixed model
-    const ollamaClient = new OllamaClient({
-      baseUrl: 'http://localhost:11434',
-      defaultModel: 'ministral-3:14b'
-    });
-
-    // Check if Ollama is available
-    const isAvailable = await ollamaClient.checkAvailability();
-    if (!isAvailable) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Ollama is not available. Please ensure Ollama is running at http://localhost:11434' 
-        },
-        { status: 503 }
-      );
-    }
-
-    // Generate evaluation
-    const response = await ollamaClient.generate({
+    const response = await llmManager.generate({
       prompt,
-      model: 'ministral-3:14b',
-      stream: false,
+      provider: 'gemini',
+      model: EVAL_MODEL,
+      temperature: 0.7,
+      maxTokens: 1024,
+      systemPrompt: 'You are an AI conversation evaluator. Provide concise, structured evaluations.',
       taskType: 'conversation-evaluation',
       taskDescription: 'Evaluate voicebot conversation quality'
     });
 
     if (!response.success) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: response.error || 'Evaluation failed' 
+        {
+          success: false,
+          error: response.error || 'Evaluation failed'
         },
         { status: 500 }
       );

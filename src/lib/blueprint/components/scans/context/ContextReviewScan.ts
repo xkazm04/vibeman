@@ -3,7 +3,7 @@
  * Reviews a context to detect dead/new files and optionally split large contexts
  *
  * Migrated from:
- * src/app/features/Onboarding/sub_Blueprint/lib/context-scans/blueprintContextReviewScan.ts
+ * src/app/features/Onboarding/blueprint/lib/context-scans/blueprintContextReviewScan.ts
  *
  * Execution flow:
  * 1. Fetch context details and untested implementation logs

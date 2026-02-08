@@ -3,12 +3,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Folder, Layers, CheckCircle2, Calendar } from 'lucide-react';
-import { IdeaFilterState } from '../lib/filterIdeas';
+import { FilterState } from '../lib/filterIdeas';
 
 interface ActiveFiltersDisplayProps {
-  filters: IdeaFilterState;
+  filters: FilterState;
   projects: Array<{ id: string; name: string }>;
-  onRemoveFilter: (filterType: keyof IdeaFilterState, value?: string) => void;
+  onRemoveFilter: (filterType: keyof FilterState, value?: string) => void;
 }
 
 export default function ActiveFiltersDisplay({

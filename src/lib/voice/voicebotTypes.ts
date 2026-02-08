@@ -110,7 +110,7 @@ export const DEFAULT_LLM_MODELS: Record<LLMProvider, string> = {
   ollama: 'ministral-3:14b',
   openai: 'gpt-5-mini-2025-08-07',
   anthropic: 'claude-4-5-haiku-latest',
-  gemini: 'gemini-flash-latest'
+  gemini: 'gemini-3-flash-preview'
 };
 
 /**
@@ -129,6 +129,7 @@ export const AVAILABLE_LLM_MODELS: Record<LLMProvider, Array<{ value: string; la
     { value: 'claude-sonnet-4-5', label: 'Claude Sonnet' }
   ],
   gemini: [
+    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' },
     { value: 'gemini-flash-latest', label: 'Gemini Flash (Latest)' },
     { value: 'gemini-flash-lite-latest', label: 'Gemini Flash Lite (Latest)' }
   ]

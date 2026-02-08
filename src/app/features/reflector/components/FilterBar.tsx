@@ -7,12 +7,11 @@ import {
   Calendar, Sparkles, RefreshCw
 } from 'lucide-react';
 import {
-  UnifiedFilterState,
+  FilterState,
   FilterBarConfig,
-  getEmptyUnifiedFilterState,
+  getEmptyFilterState,
   countActiveFilters,
   getSuggestedFilters,
-  IdeaFilterState
 } from '../lib/filterIdeas';
 import { getWeekRange } from '../sub_Weekly/lib/weeklyApi';
 import ProjectFilter from './ProjectFilter';
@@ -25,8 +24,8 @@ import { DbIdea } from '@/app/db';
 
 interface FilterBarProps {
   projects: Array<{ id: string; name: string }>;
-  filters: UnifiedFilterState;
-  onChange: (filters: UnifiedFilterState) => void;
+  filters: FilterState;
+  onChange: (filters: FilterState) => void;
   config: FilterBarConfig;
   ideas?: DbIdea[];
   onRefresh?: () => void;
@@ -50,12 +49,12 @@ export default function FilterBar({
     ? getSuggestedFilters(ideas)
     : [];
 
-  const weekRange = config.showWeekNavigation ? getWeekRange(filters.weekOffset) : null;
+  const weekRange = config.showWeekNavigation ? getWeekRange(filters.weekOffset ?? 0) : null;
 
   const handleClearAll = useCallback(() => {
-    const empty = getEmptyUnifiedFilterState();
+    const empty = getEmptyFilterState();
     // Preserve weekOffset when clearing filters
-    onChange({ ...empty, weekOffset: filters.weekOffset });
+    onChange({ ...empty, weekOffset: filters.weekOffset ?? 0 });
   }, [filters.weekOffset, onChange]);
 
   const handleProjectChange = useCallback((projectIds: string[]) => {
@@ -87,12 +86,12 @@ export default function FilterBar({
   }, [filters, onChange]);
 
   const handlePreviousWeek = useCallback(() => {
-    onChange({ ...filters, weekOffset: filters.weekOffset - 1 });
+    onChange({ ...filters, weekOffset: (filters.weekOffset ?? 0) - 1 });
   }, [filters, onChange]);
 
   const handleNextWeek = useCallback(() => {
-    if (filters.weekOffset < 0) {
-      onChange({ ...filters, weekOffset: filters.weekOffset + 1 });
+    if ((filters.weekOffset ?? 0) < 0) {
+      onChange({ ...filters, weekOffset: (filters.weekOffset ?? 0) + 1 });
     }
   }, [filters, onChange]);
 
@@ -100,7 +99,7 @@ export default function FilterBar({
     onChange({ ...filters, weekOffset: 0 });
   }, [filters, onChange]);
 
-  const applySuggestion = useCallback((suggestion: Partial<IdeaFilterState>) => {
+  const applySuggestion = useCallback((suggestion: Partial<FilterState>) => {
     onChange({ ...filters, ...suggestion });
     setShowSuggestions(false);
   }, [filters, onChange]);
@@ -138,9 +137,9 @@ export default function FilterBar({
 
             <button
               onClick={handleNextWeek}
-              disabled={filters.weekOffset >= 0}
+              disabled={(filters.weekOffset ?? 0) >= 0}
               className={`p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 transition-all duration-200 ${
-                filters.weekOffset >= 0
+                (filters.weekOffset ?? 0) >= 0
                   ? 'text-gray-600 cursor-not-allowed opacity-50'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/60 hover:shadow-md hover:shadow-black/20 active:scale-95'
               }`}
@@ -150,7 +149,7 @@ export default function FilterBar({
               <ChevronRight className="w-5 h-5" />
             </button>
 
-            {filters.weekOffset !== 0 && (
+            {(filters.weekOffset ?? 0) !== 0 && (
               <button
                 onClick={handleCurrentWeek}
                 className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all duration-200 hover:shadow-md hover:shadow-amber-500/20 active:scale-95"

@@ -16,6 +16,7 @@ const ICON_MAP = {
   warning: AlertTriangle,
   suggestion: Lightbulb,
   status: Info,
+  task_execution: Activity,
 };
 
 const COLOR_MAP = {
@@ -24,6 +25,7 @@ const COLOR_MAP = {
   warning: 'border-amber-500/30 bg-amber-500/5',
   suggestion: 'border-green-500/30 bg-green-500/5',
   status: 'border-slate-500/30 bg-slate-500/5',
+  task_execution: 'border-blue-500/30 bg-blue-500/5',
 };
 
 const ICON_COLOR_MAP = {
@@ -32,6 +34,7 @@ const ICON_COLOR_MAP = {
   warning: 'text-amber-400',
   suggestion: 'text-green-400',
   status: 'text-slate-400',
+  task_execution: 'text-blue-400',
 };
 
 const PRIORITY_COLOR = {
