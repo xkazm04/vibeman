@@ -709,6 +709,7 @@ export interface DbDiscoveredTemplate {
   template_id: string;
   template_name: string;
   description: string | null;
+  category: string; // Subfolder category (e.g., "research", "feed")
   config_json: string; // JSON string of full TemplateConfig
   content_hash: string; // SHA-256 hash for change detection
   discovered_at: string;

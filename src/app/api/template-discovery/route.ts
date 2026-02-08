@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { stat } from 'fs/promises';
-import { discoverTemplateFiles, parseTemplateConfigs } from '@/lib/template-discovery';
+import { discoverTemplateFiles, parseTemplateConfig } from '@/lib/template-discovery';
 import { discoveredTemplateRepository } from '@/app/db/repositories/discovered-template.repository';
 
 export interface ScanRequest {
@@ -80,15 +80,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
       });
     }
 
-    // Step 2: Parse template configs
-    const parseResults = await parseTemplateConfigs(scanResult.files);
-
-    // Step 3: Upsert to database
+    // Step 2: Parse template configs and upsert to database
     const templates: ScanResponse['templates'] = [];
     const errors: string[] = [];
     let created = 0, updated = 0, unchanged = 0;
 
-    for (const parseResult of parseResults) {
+    for (const discoveredFile of scanResult.files) {
+      const parseResult = await parseTemplateConfig(discoveredFile.filePath);
+
       if (parseResult.error) {
         errors.push(`${parseResult.filePath}: ${parseResult.error}`);
         continue;
@@ -101,6 +100,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
           template_id: config.templateId,
           template_name: config.templateName,
           description: config.description || null,
+          category: discoveredFile.category,
           config_json: config.configJson,
           content_hash: config.contentHash,
         });

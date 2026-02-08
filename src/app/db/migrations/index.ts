@@ -235,7 +235,10 @@ export function runMigrations() {
     migrateCollectiveMemory();
     // Migration 85: Brain Insights Table - extract insights from JSON blobs to proper table
     migrateBrainInsightsTable();
-
+    // Migration 86: Fix Generation History FK - remove invalid foreign key constraint
+    migrateFixGenerationHistoryFk();
+    // Migration 87: Template Category - add category column for grouping
+    migrateTemplateCategory();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4602,5 +4605,29 @@ function migrateBrainInsightsTable() {
   safeMigration('brain_insights_table', () => {
     const db = getConnection();
     migrate071BrainInsightsTable(db, migrationLogger);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 86: Fix Generation History FK
+ * Removes invalid foreign key constraint from generation_history table
+ */
+function migrateFixGenerationHistoryFk() {
+  safeMigration('fix_generation_history_fk', () => {
+    const db = getConnection();
+    const { migrate069FixGenerationHistoryFk } = require('./069_fix_generation_history_fk');
+    migrate069FixGenerationHistoryFk(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 87: Template Category
+ * Adds category column to discovered_templates for grouping
+ */
+function migrateTemplateCategory() {
+  safeMigration('template_category', () => {
+    const db = getConnection();
+    const { migrate070TemplateCategory } = require('./070_template_category');
+    migrate070TemplateCategory(db);
   }, migrationLogger);
 }

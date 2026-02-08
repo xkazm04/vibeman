@@ -55,6 +55,11 @@ export async function parseTemplateConfig(filePath: string): Promise<ParseResult
     const exportedDeclarations = sourceFile.getExportedDeclarations();
 
     for (const [exportName, declarations] of exportedDeclarations) {
+      // Skip default exports (they duplicate named exports)
+      if (exportName === 'default') {
+        continue;
+      }
+
       for (const decl of declarations) {
         // Check if it's a variable declaration
         if (decl.getKind() === SyntaxKind.VariableDeclaration) {

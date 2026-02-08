@@ -3,7 +3,7 @@
  * Scans external projects and extracts TemplateConfig exports
  */
 
-export { discoverTemplateFiles, type ScanResult } from './scanner';
+export { discoverTemplateFiles, type ScanResult, type DiscoveredFile } from './scanner';
 export {
   parseTemplateConfig,
   parseTemplateConfigs,
