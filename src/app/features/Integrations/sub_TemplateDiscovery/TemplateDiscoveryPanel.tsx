@@ -1,36 +1,42 @@
 /**
  * Template Discovery Panel
- * UI for scanning external projects and viewing discovered templates
+ * Auto-discovers templates from the active project and generates Claude Code requirement files.
  *
- * Progress indication (DISC-05): Uses scan status state ('idle' | 'scanning' | 'complete' | 'error')
- * to show operation progress. For the initial implementation scanning ~10 template files,
- * a simple status indicator is sufficient - the scan completes in <2 seconds.
+ * Uses the active project from the SPA header - no manual path input needed.
+ * Templates are auto-scanned on render when a project is selected.
  */
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { scanProject, getTemplates, type ScanResult } from './lib/discoveryApi';
 import { TemplateVariableForm } from './TemplateVariableForm';
 import { PromptPreviewModal } from './PromptPreviewModal';
 import { GenerationHistoryPanel, type GenerationHistoryPanelRef } from './GenerationHistoryPanel';
+import TemplateColumn from './TemplateColumn';
 import { toast } from '@/stores/toastStore';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 
 // UI Components
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import UnifiedButton from '@/components/ui/buttons/UnifiedButton';
 import EmptyState from '@/components/DecisionPanel/EmptyState';
-import { FolderSearch, Scan, Search, FileText, Calendar, CheckCircle } from 'lucide-react';
+import { FolderSearch, Search, CheckCircle, RefreshCw } from 'lucide-react';
 
 type ScanStatus = 'idle' | 'scanning' | 'complete' | 'error';
 
 export function TemplateDiscoveryPanel() {
-  // Form state
-  const [projectPath, setProjectPath] = useState('');
+  // Get active project from store
+  const { activeProject } = useActiveProjectStore();
+  const projectPath = activeProject?.path || '';
+
+  // Scan state
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasAutoScanned, setHasAutoScanned] = useState(false);
 
   // Templates list
   const [templates, setTemplates] = useState<DbDiscoveredTemplate[]>([]);
@@ -40,7 +46,6 @@ export function TemplateDiscoveryPanel() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [targetProjectPath, setTargetProjectPath] = useState('');
 
   // Store pending generation params for confirm from modal
   const [pendingGeneration, setPendingGeneration] = useState<{
@@ -55,26 +60,32 @@ export function TemplateDiscoveryPanel() {
   // Ref to history panel for refreshing after generation
   const historyPanelRef = useRef<GenerationHistoryPanelRef>(null);
 
-  // Load existing templates on mount
-  useEffect(() => {
-    loadTemplates();
-  }, []);
+  // Track last scanned project to detect changes
+  const lastScannedProjectRef = useRef<string | null>(null);
 
-  const loadTemplates = async () => {
+  // Load templates callback
+  const loadTemplates = useCallback(async () => {
+    if (!projectPath) {
+      setTemplates([]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const data = await getTemplates();
+      // Filter by current project path
+      const data = await getTemplates(projectPath.replace(/\\/g, '/'));
       setTemplates(data);
     } catch (err) {
       console.error('Failed to load templates:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectPath]);
 
   const handleScan = useCallback(async () => {
-    if (!projectPath.trim()) {
-      setError('Please enter a project path');
+    if (!projectPath) {
+      setError('No project selected. Please select a project from the header.');
       return;
     }
 
@@ -83,9 +94,10 @@ export function TemplateDiscoveryPanel() {
     setScanResult(null);
 
     try {
-      const result = await scanProject(projectPath.trim());
+      const result = await scanProject(projectPath);
       setScanResult(result);
       setScanStatus('complete');
+      setHasAutoScanned(true);
 
       // Refresh templates list
       await loadTemplates();
@@ -93,20 +105,7 @@ export function TemplateDiscoveryPanel() {
       setError(err instanceof Error ? err.message : 'Scan failed');
       setScanStatus('error');
     }
-  }, [projectPath]);
-
-  const getStatusBadge = (action: 'created' | 'updated' | 'unchanged') => {
-    const styles = {
-      created: 'bg-green-500/20 text-green-400 border border-green-500/30',
-      updated: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-      unchanged: 'bg-gray-500/20 text-gray-400 border border-white/10',
-    };
-    return (
-      <span className={`px-2 py-0.5 text-xs rounded-full ${styles[action]}`}>
-        {action}
-      </span>
-    );
-  };
+  }, [projectPath, loadTemplates]);
 
   const handleTemplateClick = (templateId: string) => {
     setSelectedTemplateId(selectedTemplateId === templateId ? null : templateId);
@@ -171,13 +170,13 @@ export function TemplateDiscoveryPanel() {
       return;
     }
 
-    if (!targetProjectPath.trim()) {
-      toast.error('Please enter a target project path');
+    if (!projectPath) {
+      toast.error('No project selected');
       return;
     }
 
     const result = await generateRequirementViaApi({
-      targetProjectPath: targetProjectPath.trim(),
+      targetProjectPath: projectPath,
       templateId: template.template_id,
       query: params.query,
       content: params.content,
@@ -191,7 +190,7 @@ export function TemplateDiscoveryPanel() {
       );
       if (confirmOverwrite) {
         const overwriteResult = await generateRequirementViaApi({
-          targetProjectPath: targetProjectPath.trim(),
+          targetProjectPath: projectPath,
           templateId: template.template_id,
           query: params.query,
           content: params.content,
@@ -232,142 +231,123 @@ export function TemplateDiscoveryPanel() {
     }
   };
 
+  // Group templates by category for column display
+  const groupedTemplates = useMemo(() => {
+    const grouped: Record<string, DbDiscoveredTemplate[]> = {};
+
+    for (const template of templates) {
+      const category = template.category || 'general';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(template);
+    }
+
+    // Convert to array and sort by category name (but put 'general' last)
+    return Object.entries(grouped)
+      .sort(([a], [b]) => {
+        if (a === 'general') return 1;
+        if (b === 'general') return -1;
+        return a.localeCompare(b);
+      })
+      .map(([category, templates]) => ({ category, templates }));
+  }, [templates]);
+
+  // Get currently selected template
+  const selectedTemplate = useMemo(() => {
+    return templates.find((t) => t.id === selectedTemplateId) || null;
+  }, [templates, selectedTemplateId]);
+
+  // Load existing templates when project changes
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
+
+  // Auto-scan when active project changes
+  useEffect(() => {
+    if (projectPath && projectPath !== lastScannedProjectRef.current) {
+      lastScannedProjectRef.current = projectPath;
+      handleScan();
+    }
+  }, [projectPath, handleScan]);
+
+  // No project selected state
+  if (!activeProject) {
+    return (
+      <div className="p-6">
+        <EmptyState
+          icon={FolderSearch}
+          headline="No Project Selected"
+          subtext="Select a project from the header dropdown to discover templates"
+          height="h-64"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-gray-100">
-          Template Discovery
-        </h2>
-        <p className="text-sm text-gray-400">
-          Scan external projects to discover TemplateConfig exports
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold text-gray-100">
+            Template Discovery
+          </h2>
+          <p className="text-sm text-gray-400">
+            Templates from <span className="text-cyan-400">{activeProject.name}</span>
+          </p>
+        </div>
+        <UnifiedButton
+          icon={RefreshCw}
+          colorScheme="cyan"
+          variant="outline"
+          size="sm"
+          onClick={handleScan}
+          disabled={scanStatus === 'scanning'}
+          loading={scanStatus === 'scanning'}
+        >
+          {scanStatus === 'scanning' ? 'Scanning...' : 'Rescan'}
+        </UnifiedButton>
       </div>
 
-      {/* Scanner Section - Elevated Card */}
-      <Card variant="elevated" padding="lg">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-              <FolderSearch className="w-5 h-5 text-cyan-400" />
-            </div>
-            <div>
-              <CardTitle>Project Scanner</CardTitle>
-              <CardDescription>
-                Enter a project path to discover available templates
-              </CardDescription>
+      {/* Project Info Card */}
+      <Card variant="elevated" padding="md">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+            <FolderSearch className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-gray-200">{activeProject.name}</div>
+            <div className="text-xs text-gray-500 truncate" title={projectPath}>
+              {projectPath}
             </div>
           </div>
-        </CardHeader>
+          {scanStatus === 'complete' && scanResult && (
+            <div className="flex items-center gap-1 text-xs text-green-400">
+              <CheckCircle className="w-3 h-3" />
+              <span>{scanResult.results.created + scanResult.results.updated + scanResult.results.unchanged} templates</span>
+            </div>
+          )}
+        </div>
 
-        <CardContent className="mt-4 space-y-4">
-          {/* Input Row */}
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={projectPath}
-              onChange={(e) => setProjectPath(e.target.value)}
-              placeholder="Enter project path (e.g., C:/Users/mkdol/dolla/res)"
-              className="flex-1 px-4 py-2.5 bg-gray-800/40 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/30 transition-all duration-200"
-              disabled={scanStatus === 'scanning'}
-              onKeyDown={(e) => e.key === 'Enter' && handleScan()}
-            />
-            <UnifiedButton
-              icon={Scan}
-              colorScheme="cyan"
-              variant="gradient"
-              onClick={handleScan}
-              disabled={scanStatus === 'scanning'}
-              loading={scanStatus === 'scanning'}
-            >
-              {scanStatus === 'scanning' ? 'Scanning...' : 'Scan'}
-            </UnifiedButton>
+        {/* Error message */}
+        {error && (
+          <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg text-sm">
+            {error}
           </div>
+        )}
 
-          {/* Error message */}
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg text-sm">
-              {error}
+        {/* Scan progress indicator */}
+        {scanStatus === 'scanning' && (
+          <div className="mt-3 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+            <div className="flex items-center gap-2 text-cyan-300">
+              <span className="animate-pulse">Scanning project for templates...</span>
             </div>
-          )}
-
-          {/* Scan progress indicator */}
-          {scanStatus === 'scanning' && (
-            <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
-              <div className="flex items-center gap-2 text-cyan-300">
-                <span className="animate-pulse">Scanning project for templates...</span>
-              </div>
-            </div>
-          )}
-
-          {/* Scan result - Success Card */}
-          {scanResult && (
-            <Card variant="default" padding="md" className="border-green-500/30 bg-green-500/5">
-              <div className="flex items-center gap-2 text-green-400 mb-2">
-                <CheckCircle className="w-4 h-4" />
-                <span className="font-medium">Scan complete</span>
-              </div>
-              <div className="text-sm text-green-300/80 space-y-1">
-                <p>Files scanned: {scanResult.filesScanned}</p>
-                <p>
-                  Results: {scanResult.results.created} created,{' '}
-                  {scanResult.results.updated} updated,{' '}
-                  {scanResult.results.unchanged} unchanged
-                </p>
-              </div>
-            </Card>
-          )}
-        </CardContent>
+          </div>
+        )}
       </Card>
 
-      {/* Recent scan templates */}
-      {scanResult && scanResult.templates.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-100">
-            Scan Results
-          </h3>
-          <Card variant="default" padding="none">
-            <div className="divide-y divide-white/5">
-              {scanResult.templates.map((t) => (
-                <div
-                  key={t.templateId}
-                  className="p-4 flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-medium text-gray-100">
-                      {t.templateName}
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {t.templateId}
-                    </div>
-                  </div>
-                  {getStatusBadge(t.action)}
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Target Project Path */}
-      <div className="space-y-2">
-        <label htmlFor="target-project" className="block text-sm font-medium text-gray-200">
-          Target Project Path
-        </label>
-        <input
-          id="target-project"
-          type="text"
-          value={targetProjectPath}
-          onChange={(e) => setTargetProjectPath(e.target.value)}
-          placeholder="Enter target project path for generated files"
-          className="w-full px-4 py-2.5 bg-gray-800/40 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/30 transition-all duration-200"
-        />
-        <p className="text-xs text-gray-500">
-          Generated requirement files will be placed in this project&apos;s .claude/commands/ directory
-        </p>
-      </div>
-
-      {/* All discovered templates - Responsive Grid */}
+      {/* Templates by Category - Column Layout */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-gray-100">
           Discovered Templates ({templates.length})
@@ -385,95 +365,35 @@ export function TemplateDiscoveryPanel() {
             height="h-48"
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {templates.map((t) => (
-              <div key={t.id}>
-                <Card
-                  variant="glass"
-                  padding="md"
-                  hover
-                  clickable
-                  onClick={() => handleTemplateClick(t.id)}
-                  className={selectedTemplateId === t.id ? 'ring-2 ring-cyan-500/40' : ''}
-                >
-                  <CardHeader
-                    actions={
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(t.discovered_at).toLocaleDateString()}
-                      </div>
-                    }
-                  >
-                    <div className="flex items-start gap-2">
-                      <FileText className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <CardTitle className="truncate">{t.template_name}</CardTitle>
-                        <p className="text-xs text-gray-500 mt-0.5 truncate">{t.template_id}</p>
-                      </div>
-                    </div>
-                  </CardHeader>
+          <>
+            {/* Category Columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <AnimatePresence mode="popLayout">
+                {groupedTemplates.map(({ category, templates: categoryTemplates }) => (
+                  <TemplateColumn
+                    key={category}
+                    category={category}
+                    templates={categoryTemplates}
+                    selectedTemplateId={selectedTemplateId}
+                    onTemplateClick={handleTemplateClick}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
 
-                  <CardContent className="mt-3">
-                    {t.description && (
-                      <p className="text-sm text-gray-400 line-clamp-2 mb-3">
-                        {t.description}
-                      </p>
-                    )}
-
-                    {/* Search angles preview - parse from config_json */}
-                    {(() => {
-                      try {
-                        const config = JSON.parse(t.config_json || '{}');
-                        const angles = config.searchAngles as string[] | undefined;
-                        if (angles && angles.length > 0) {
-                          return (
-                            <div className="flex flex-wrap gap-1">
-                              {angles.slice(0, 3).map((angle, idx) => (
-                                <span
-                                  key={idx}
-                                  className="px-2 py-0.5 text-xs bg-gray-700/50 text-gray-400 rounded-full border border-white/5 truncate max-w-[100px]"
-                                  title={angle}
-                                >
-                                  {angle}
-                                </span>
-                              ))}
-                              {angles.length > 3 && (
-                                <span className="px-2 py-0.5 text-xs text-gray-500">
-                                  +{angles.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
-                      } catch {
-                        return null;
-                      }
-                    })()}
-
-                    <p className="mt-2 text-xs text-gray-500 truncate" title={t.source_project_path}>
-                      {t.source_project_path}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {/* Inline Form Expansion */}
-                {selectedTemplateId === t.id && (
-                  <div className="mt-2">
-                    <TemplateVariableForm
-                      template={t}
-                      flashSuccess={flashSuccess}
-                      onPreview={(content) => {
-                        handlePreview(content);
-                      }}
-                      onGenerate={handleGenerate}
-                      onCancel={() => setSelectedTemplateId(null)}
-                    />
-                  </div>
-                )}
+            {/* Selected Template Form - Below columns */}
+            {selectedTemplate && (
+              <div className="mt-4">
+                <TemplateVariableForm
+                  template={selectedTemplate}
+                  flashSuccess={flashSuccess}
+                  onPreview={handlePreview}
+                  onGenerate={handleGenerate}
+                  onCancel={() => setSelectedTemplateId(null)}
+                />
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 

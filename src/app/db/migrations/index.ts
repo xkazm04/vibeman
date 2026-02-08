@@ -223,6 +223,10 @@ export function runMigrations() {
     migrateDiscoveredTemplates();
     // Migration 81: Generation History - track template generation history
     migrateGenerationHistory();
+    // Migration 82: Fix Generation History FK - remove invalid foreign key constraint
+    migrateFixGenerationHistoryFk();
+    // Migration 83: Template Category - add category column for grouping
+    migrateTemplateCategory();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4568,5 +4572,29 @@ function migrateGenerationHistory() {
     const db = getConnection();
     const { migrate068GenerationHistory } = require('./068_generation_history');
     migrate068GenerationHistory(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 82: Fix Generation History FK
+ * Removes invalid foreign key constraint from generation_history table
+ */
+function migrateFixGenerationHistoryFk() {
+  safeMigration('fix_generation_history_fk', () => {
+    const db = getConnection();
+    const { migrate069FixGenerationHistoryFk } = require('./069_fix_generation_history_fk');
+    migrate069FixGenerationHistoryFk(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 83: Template Category
+ * Adds category column to discovered_templates for grouping
+ */
+function migrateTemplateCategory() {
+  safeMigration('template_category', () => {
+    const db = getConnection();
+    const { migrate070TemplateCategory } = require('./070_template_category');
+    migrate070TemplateCategory(db);
   }, migrationLogger);
 }

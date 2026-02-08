@@ -91,18 +91,22 @@ export const discoveredTemplateRepository = {
     ) as DbDiscoveredTemplate | undefined;
 
     if (existing) {
-      // Template exists - check content hash
-      if (existing.content_hash === contentHash) {
-        // Unchanged
+      // Template exists - check if content or category changed
+      const contentChanged = existing.content_hash !== contentHash;
+      const categoryChanged = existing.category !== template.category;
+
+      if (!contentChanged && !categoryChanged) {
+        // Truly unchanged
         return { template: existing, action: 'unchanged' };
       }
 
-      // Content changed - update
+      // Something changed - update
       const updateStmt = db.prepare(`
         UPDATE discovered_templates
         SET file_path = ?,
             template_name = ?,
             description = ?,
+            category = ?,
             config_json = ?,
             content_hash = ?,
             updated_at = ?
@@ -113,6 +117,7 @@ export const discoveredTemplateRepository = {
         template.file_path,
         template.template_name,
         template.description,
+        template.category,
         template.config_json,
         contentHash,
         now,
@@ -128,10 +133,10 @@ export const discoveredTemplateRepository = {
     const insertStmt = db.prepare(`
       INSERT INTO discovered_templates (
         id, source_project_path, file_path, template_id,
-        template_name, description, config_json, content_hash,
+        template_name, description, category, config_json, content_hash,
         discovered_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     insertStmt.run(
@@ -141,6 +146,7 @@ export const discoveredTemplateRepository = {
       template.template_id,
       template.template_name,
       template.description,
+      template.category,
       template.config_json,
       contentHash,
       now,
