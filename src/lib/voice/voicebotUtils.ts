@@ -3,7 +3,7 @@
  * Pure helper functions for voicebot operations
  */
 
-import { SessionLog, AudioConfig, AudioProcessingConfig, ConversationMessage, LLMProvider } from './voicebotTypes';
+import { SessionLog, AudioConfig, AudioProcessingConfig, ConversationMessage, LLMProvider, VoiceProvider } from './voicebotTypes';
 
 /**
  * Default audio configuration for media stream
@@ -286,6 +286,64 @@ export async function processTextMessage(
       totalMs,
     },
   };
+}
+
+/**
+ * Nova Sonic processing result
+ */
+export interface ProcessNovaSonicResult {
+  assistantText: string;
+  audioUrl?: string;
+  timing: {
+    novaConnectMs?: number;
+    novaMs?: number;
+    firstAudioChunkMs?: number | null;
+    totalMs: number;
+  };
+}
+
+/**
+ * Process a text message through Nova Sonic (unified speech-to-speech).
+ * Uses text mode: sends text via system prompt with silence audio.
+ */
+export async function processTextMessageNovaSonic(
+  text: string,
+  voiceId: string = 'tiffany'
+): Promise<ProcessNovaSonicResult> {
+  const startTime = performance.now();
+
+  try {
+    const response = await fetch('/api/voicebot/nova-sonic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        voiceId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `Nova Sonic API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const totalMs = Math.round(performance.now() - startTime);
+
+    return {
+      assistantText: data.assistantText || 'No response generated',
+      audioUrl: data.audioUrl,
+      timing: {
+        novaConnectMs: data.timing?.novaConnectMs,
+        novaMs: data.timing?.novaMs,
+        firstAudioChunkMs: data.timing?.firstAudioChunkMs,
+        totalMs,
+      },
+    };
+  } catch (error) {
+    console.error('Nova Sonic processing error:', error);
+    throw error;
+  }
 }
 
 /**

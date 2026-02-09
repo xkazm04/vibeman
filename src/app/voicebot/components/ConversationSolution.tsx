@@ -1,7 +1,7 @@
 /**
  * Conversation Testing Solution Component
  * Automated conversation testing with predefined sentences
- * Refactored into smaller components for better organization
+ * Supports ElevenLabs pipeline and Nova Sonic unified S2S
  */
 
 'use client';
@@ -17,9 +17,11 @@ import {
   SessionLog,
   SessionState,
   LLMProvider,
+  VoiceProvider,
   DEFAULT_LLM_MODELS,
   createLog,
   processTextMessage,
+  processTextMessageNovaSonic,
   ConversationMessage,
   generateEvaluationPrompt
 } from '../lib';
@@ -54,13 +56,16 @@ export default function ConversationSolution() {
   const [isMultiModel, setIsMultiModel] = useState(false);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const [monitoring, setMonitoring] = useState(false);
-  
+  // Nova Sonic state
+  const [voiceProvider, setVoiceProvider] = useState<VoiceProvider>('elevenlabs');
+  const [novaVoiceId, setNovaVoiceId] = useState('tiffany');
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
   const questionsRef = useRef<string[]>([]);
   const responsesRef = useRef<string[]>([]);
   const multiModelResponsesRef = useRef<Record<string, string[]>>({});
-  const timingsRef = useRef<Array<{ llmMs?: number; ttsMs?: number; totalMs?: number }>>([]);
+  const timingsRef = useRef<Array<{ llmMs?: number; ttsMs?: number; novaMs?: number; totalMs?: number }>>([]);
   const callStartTimeRef = useRef<string | null>(null);
 
   // Load test questions on mount
@@ -93,7 +98,7 @@ export default function ConversationSolution() {
     setModel(DEFAULT_LLM_MODELS[newProvider]);
   }, []);
 
-  const addLog = useCallback((type: SessionLog['type'], message: string, audioUrl?: string, timing?: { llmMs?: number; ttsMs?: number; totalMs?: number }) => {
+  const addLog = useCallback((type: SessionLog['type'], message: string, audioUrl?: string, timing?: { llmMs?: number; ttsMs?: number; novaMs?: number; totalMs?: number }) => {
     const log = createLog(type, message, audioUrl, timing);
     setLogs(prev => [...prev, log]);
   }, []);
@@ -192,7 +197,7 @@ export default function ConversationSolution() {
       isPlayingRef.current = false;
       setSessionState('idle');
       addLog('system', 'Multi-model conversation test completed');
-      
+
       // Run multi-model evaluation
       if (currentSentenceIndex >= testQuestions.length && questionsRef.current.length > 0) {
         await runMultiModelEvaluation();
@@ -201,7 +206,7 @@ export default function ConversationSolution() {
     }
 
     const sentence = testQuestions[currentSentenceIndex];
-    
+
     try {
       setSessionState('processing');
       addLog('user', sentence);
@@ -293,7 +298,7 @@ export default function ConversationSolution() {
       isPlayingRef.current = false;
       setSessionState('idle');
       addLog('system', 'Conversation test completed');
-      
+
       // Run evaluation after all questions
       if (currentSentenceIndex >= testQuestions.length && questionsRef.current.length > 0) {
         await runEvaluation();
@@ -302,7 +307,7 @@ export default function ConversationSolution() {
     }
 
     const sentence = testQuestions[currentSentenceIndex];
-    
+
     try {
       setSessionState('processing');
       addLog('user', sentence);
@@ -310,29 +315,46 @@ export default function ConversationSolution() {
       // Track question
       questionsRef.current.push(sentence);
 
-      // Build conversation history from logs
-      const conversationHistory: ConversationMessage[] = logs
-        .filter(log => log.type === 'user' || log.type === 'assistant')
-        .map(log => ({
-          role: log.type,
-          content: log.message
-        }));
+      let assistantText: string;
+      let audioUrl: string | undefined;
+      let timing: { llmMs?: number; ttsMs?: number; novaMs?: number; totalMs?: number };
 
-      // Process text message through pipeline with timing
-      const result = await processTextMessage(sentence, conversationHistory, provider, model);
+      if (voiceProvider === 'nova-sonic') {
+        // Nova Sonic unified path
+        const result = await processTextMessageNovaSonic(sentence, novaVoiceId);
+        assistantText = result.assistantText;
+        audioUrl = result.audioUrl;
+        timing = {
+          novaMs: result.timing.novaMs,
+          totalMs: result.timing.totalMs,
+        };
+      } else {
+        // ElevenLabs pipeline path (STT → LLM → TTS)
+        const conversationHistory: ConversationMessage[] = logs
+          .filter(log => log.type === 'user' || log.type === 'assistant')
+          .map(log => ({
+            role: log.type,
+            content: log.message
+          }));
+
+        const result = await processTextMessage(sentence, conversationHistory, provider, model);
+        assistantText = result.assistantText;
+        audioUrl = result.audioUrl;
+        timing = {
+          llmMs: result.timing.llmMs,
+          ttsMs: result.timing.ttsMs,
+          totalMs: result.timing.totalMs,
+        };
+      }
 
       // Track response and timing
-      responsesRef.current.push(result.assistantText);
-      timingsRef.current.push({
-        llmMs: result.timing.llmMs,
-        ttsMs: result.timing.ttsMs,
-        totalMs: result.timing.totalMs
-      });
+      responsesRef.current.push(assistantText);
+      timingsRef.current.push(timing);
 
       // Track messages if monitoring is enabled
       if (currentCallId) {
         const timestamp = new Date().toISOString();
-        
+
         // Track user message (question)
         fetch('/api/monitor/messages', {
           method: 'POST',
@@ -346,7 +368,7 @@ export default function ConversationSolution() {
             metadata: { questionIndex: currentSentenceIndex }
           })
         }).catch(error => console.error('Failed to track user message:', error));
-        
+
         // Track assistant message (response)
         fetch('/api/monitor/messages', {
           method: 'POST',
@@ -355,31 +377,32 @@ export default function ConversationSolution() {
             messageId: generateMessageId(),
             callId: currentCallId,
             role: 'assistant',
-            content: result.assistantText,
+            content: assistantText,
             timestamp: new Date().toISOString(),
-            latencyMs: result.timing.totalMs,
+            latencyMs: timing.totalMs,
             metadata: {
-              llmMs: result.timing.llmMs,
-              ttsMs: result.timing.ttsMs,
-              provider,
-              model
+              ...timing,
+              voiceProvider,
+              provider: voiceProvider === 'nova-sonic' ? 'nova-sonic' : provider,
+              model: voiceProvider === 'nova-sonic' ? 'amazon.nova-2-sonic-v1:0' : model,
             }
           })
         }).catch(error => console.error('Failed to track assistant message:', error));
       }
 
-      addLog('assistant', result.assistantText, result.audioUrl, {
-        llmMs: result.timing.llmMs,
-        ttsMs: result.timing.ttsMs,
-        totalMs: result.timing.totalMs
-      });
+      const providerLabel = voiceProvider === 'nova-sonic' ? 'Nova Sonic' : provider;
+      const timingDisplay = voiceProvider === 'nova-sonic'
+        ? `[Nova: ${timing.novaMs}ms | Total: ${timing.totalMs}ms]`
+        : `[LLM: ${timing.llmMs}ms | TTS: ${timing.ttsMs}ms | Total: ${timing.totalMs}ms]`;
+
+      addLog('assistant', `${assistantText}\n\n${timingDisplay} (${providerLabel})`, audioUrl, timing);
 
       // Reset to active state after receiving message
       setSessionState('active');
 
       // Play audio response
-      if (result.audioUrl) {
-        const audio = new Audio(result.audioUrl);
+      if (audioUrl) {
+        const audio = new Audio(audioUrl);
         audioRef.current = audio;
 
         await new Promise<void>((resolve, reject) => {
@@ -399,7 +422,7 @@ export default function ConversationSolution() {
       setIsPlaying(false);
       isPlayingRef.current = false;
     }
-  }, [currentSentenceIndex, logs, provider, model, addLog, runEvaluation, testQuestions, currentCallId]);
+  }, [currentSentenceIndex, logs, provider, model, addLog, runEvaluation, testQuestions, currentCallId, voiceProvider, novaVoiceId]);
 
   const startConversation = useCallback(() => {
     setCurrentSentenceIndex(0);
@@ -412,15 +435,15 @@ export default function ConversationSolution() {
     responsesRef.current = [];
     timingsRef.current = [];
     multiModelResponsesRef.current = {};
-    
+
     // Create monitoring call if enabled
     if (monitoring && isMonitoringEnabled()) {
       const callId = generateCallId();
       const startTime = new Date().toISOString();
-      
+
       callStartTimeRef.current = startTime;
       setCurrentCallId(callId);
-      
+
       fetch('/api/monitor/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -430,44 +453,50 @@ export default function ConversationSolution() {
           startTime,
           status: 'active',
           intent: 'conversation-test',
-          promptVersionId: isMultiModel ? 'multi-model' : `${provider}:${model}`,
+          promptVersionId: voiceProvider === 'nova-sonic'
+            ? `nova-sonic:${novaVoiceId}`
+            : isMultiModel ? 'multi-model' : `${provider}:${model}`,
           metadata: {
-            provider,
-            model,
+            voiceProvider,
+            provider: voiceProvider === 'nova-sonic' ? 'nova-sonic' : provider,
+            model: voiceProvider === 'nova-sonic' ? 'amazon.nova-2-sonic-v1:0' : model,
             type: 'conversation-test',
-            isMultiModel,
+            isMultiModel: voiceProvider === 'elevenlabs' && isMultiModel,
             questionCount: testQuestions.length
           }
         })
       }).catch(error => console.error('Failed to create monitoring call:', error));
     }
-    
-    if (isMultiModel) {
+
+    if (voiceProvider === 'nova-sonic') {
+      addLog('system', `Starting conversation test with Nova Sonic (voice: ${novaVoiceId})`);
+      playNextSentence();
+    } else if (isMultiModel) {
       addLog('system', 'Starting MULTI-MODEL conversation test (Ollama, OpenAI, Anthropic, Gemini)');
       playNextSentenceMultiModel();
     } else {
       addLog('system', `Starting conversation test with ${provider} (${model})`);
       playNextSentence();
     }
-  }, [provider, model, isMultiModel, addLog, playNextSentence, playNextSentenceMultiModel, monitoring, testQuestions.length]);
+  }, [provider, model, isMultiModel, addLog, playNextSentence, playNextSentenceMultiModel, monitoring, testQuestions.length, voiceProvider, novaVoiceId]);
 
   const stopConversation = useCallback(() => {
     setIsPlaying(false);
     isPlayingRef.current = false;
     setSessionState('idle');
-    
+
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    
+
     // Update monitoring call if enabled
     if (currentCallId && callStartTimeRef.current) {
       const endTime = new Date().toISOString();
       const startMs = new Date(callStartTimeRef.current).getTime();
       const endMs = new Date(endTime).getTime();
       const duration = endMs - startMs;
-      
+
       fetch('/api/monitor/calls', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -483,11 +512,11 @@ export default function ConversationSolution() {
           }
         })
       }).catch(error => console.error('Failed to update monitoring call:', error));
-      
+
       setCurrentCallId(null);
       callStartTimeRef.current = null;
     }
-    
+
     addLog('system', 'Conversation test stopped');
   }, [addLog, currentCallId]);
 
@@ -506,7 +535,7 @@ export default function ConversationSolution() {
   useEffect(() => {
     if (isPlaying && currentSentenceIndex > 0 && currentSentenceIndex < testQuestions.length) {
       const timer = setTimeout(() => {
-        if (isMultiModel) {
+        if (voiceProvider === 'elevenlabs' && isMultiModel) {
           playNextMultiRef.current();
         } else {
           playNextRef.current();
@@ -514,7 +543,7 @@ export default function ConversationSolution() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [currentSentenceIndex, isPlaying, isMultiModel, testQuestions.length]);
+  }, [currentSentenceIndex, isPlaying, isMultiModel, testQuestions.length, voiceProvider]);
 
   return (
     <div className="space-y-4">
@@ -522,7 +551,9 @@ export default function ConversationSolution() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 border-2 border-cyan-500/30 shadow-lg shadow-cyan-500/20"
+        className={`bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 border-2 ${
+          voiceProvider === 'nova-sonic' ? 'border-orange-500/30 shadow-lg shadow-orange-500/10' : 'border-cyan-500/30 shadow-lg shadow-cyan-500/20'
+        }`}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ConvModelSelector
@@ -530,9 +561,13 @@ export default function ConversationSolution() {
             model={model}
             isMultiModel={isMultiModel}
             isPlaying={isPlaying}
+            voiceProvider={voiceProvider}
+            novaVoiceId={novaVoiceId}
             onProviderChange={handleProviderChange}
             onModelChange={setModel}
             onMultiModelChange={setIsMultiModel}
+            onVoiceProviderChange={setVoiceProvider}
+            onNovaVoiceChange={setNovaVoiceId}
           />
 
           <ConvControls
@@ -555,7 +590,7 @@ export default function ConversationSolution() {
 
       {/* Full-Width Session Logs */}
       <div className="space-y-4">
-        {isMultiModel ? (
+        {voiceProvider === 'elevenlabs' && isMultiModel ? (
           <MultiModelSessionLogs
             logs={multiModelLogs}
             sessionState={sessionState}
@@ -568,7 +603,7 @@ export default function ConversationSolution() {
             onClearLogs={clearLogs}
           />
         ) : (
-          <VoicebotSessionLogs 
+          <VoicebotSessionLogs
             logs={logs}
             sessionState={sessionState}
             isListening={isPlaying}
@@ -590,7 +625,7 @@ export default function ConversationSolution() {
                 <span className="text-sm text-slate-400 animate-pulse">(Analyzing...)</span>
               )}
             </h3>
-            
+
             {isEvaluating ? (
               <div className="flex items-center justify-center p-8">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>

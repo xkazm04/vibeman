@@ -281,7 +281,7 @@ export default function VoicebotPage() {
                     ? 'Voice input with multi-model LLM selection. Uses sequential API calls: Speech-to-Text (ElevenLabs) → LLM Processing (Ollama/OpenAI/Claude/Gemini) → Text-to-Speech (ElevenLabs).'
                     : activeSolution === 'websocket'
                     ? 'Uses POST endpoint for audio processing. WebSocket connection available for future real-time streaming features.'
-                    : 'Automated conversation testing with predefined sentences. Tests text → LLM → TTS pipeline with multi-model support.'
+                    : 'Automated conversation testing with predefined sentences. Switch between ElevenLabs (STT+LLM+TTS pipeline) and Nova Sonic (unified speech-to-speech) to compare.'
                   }
                 </p>
                 <div className="mt-2 flex items-center space-x-2">
@@ -402,25 +402,25 @@ export default function VoicebotPage() {
               <div className="space-y-2 text-sm font-mono text-gray-400">
                 <div className="flex items-start space-x-2">
                   <span className={colors.textDark}>1.</span>
-                  <span>Load 5 predefined test sentences</span>
+                  <span>Load predefined test sentences</span>
                 </div>
                 <div className="flex items-start space-x-2">
                   <span className={colors.textDark}>2.</span>
-                  <span>Auto-send each sentence to LLM</span>
+                  <span>Select voice provider (ElevenLabs / Nova Sonic)</span>
                 </div>
                 <div className="flex items-start space-x-2">
                   <span className={colors.textDark}>3.</span>
-                  <span>Response → ElevenLabs TTS</span>
+                  <span>ElevenLabs: Text → LLM → TTS</span>
                 </div>
                 <div className="flex items-start space-x-2">
                   <span className={colors.textDark}>4.</span>
-                  <span>Play audio & continue to next</span>
+                  <span>Nova Sonic: Text → Unified S2S (LLM built-in)</span>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-gray-700">
-                <div className="text-sm text-blue-400">+ Automated testing</div>
-                <div className="text-sm text-blue-400">+ Multi-model selection</div>
-                <div className="text-sm text-blue-400">+ No voice input needed</div>
+                <div className="text-sm text-blue-400">+ A/B voice provider comparison</div>
+                <div className="text-sm text-orange-400">+ AWS Nova 2 Sonic (eu-north-1)</div>
+                <div className="text-sm text-green-400">+ Timing metrics per provider</div>
               </div>
             </div>
           </div>
@@ -448,6 +448,11 @@ export default function VoicebotPage() {
                 <span className="text-yellow-400">POST</span>
                 <span className="text-gray-400 ml-2">/api/voicebot/realtime</span>
                 <div className="text-gray-600 ml-6">All-in-one pipeline</div>
+              </div>
+              <div>
+                <span className="text-orange-400">POST</span>
+                <span className="text-gray-400 ml-2">/api/voicebot/nova-sonic</span>
+                <div className="text-gray-600 ml-6">AWS Nova 2 Sonic S2S</div>
               </div>
             </div>
           </div>

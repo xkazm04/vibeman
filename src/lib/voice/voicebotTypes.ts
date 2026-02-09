@@ -95,6 +95,28 @@ export interface ConversationMessage {
 export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini';
 
 /**
+ * Voice provider types for STT/TTS pipeline selection
+ */
+export type VoiceProvider = 'elevenlabs' | 'nova-sonic';
+
+/**
+ * Available Nova Sonic voices
+ */
+export const NOVA_SONIC_VOICES: Array<{ value: string; label: string; language: string }> = [
+  { value: 'tiffany', label: 'Tiffany', language: 'English (US)' },
+  { value: 'matthew', label: 'Matthew', language: 'English (US)' },
+  { value: 'amy', label: 'Amy', language: 'English (GB)' },
+  { value: 'olivia', label: 'Olivia', language: 'English (US)' },
+  { value: 'tina', label: 'Tina', language: 'English (US)' },
+  { value: 'lupe', label: 'Lupe', language: 'Spanish' },
+  { value: 'carlos', label: 'Carlos', language: 'Spanish' },
+  { value: 'ambre', label: 'Ambre', language: 'French' },
+  { value: 'florian', label: 'Florian', language: 'French' },
+  { value: 'greta', label: 'Greta', language: 'German' },
+  { value: 'lennart', label: 'Lennart', language: 'German' },
+];
+
+/**
  * LLM Model configuration
  */
 export interface LLMModelConfig {
