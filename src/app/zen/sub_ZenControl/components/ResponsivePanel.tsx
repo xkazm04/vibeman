@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, ChevronLeft, ChevronRight, Smartphone, Tablet, Monitor, Tv } from 'lucide-react';
-import { useEmulatorStore } from '@/stores/emulatorStore';
+import { useBreakpointStore } from '@/stores/breakpointStore';
 import BreakpointRuler from './BreakpointRuler';
 import BreakpointGuide from './BreakpointGuide';
 import type { Breakpoint } from '@/lib/emulator/mediaQueryDetector';
@@ -25,7 +25,7 @@ export default function ResponsivePanel() {
     addCustomBreakpoint,
     removeCustomBreakpoint,
     jumpToBreakpoint,
-  } = useEmulatorStore();
+  } = useBreakpointStore();
 
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Project } from '@/types';
-import { useAnalysisStore } from '@/stores/analysisStore';
 import ProjectTabMenu from './ProjectTabMenu';
 
 interface PreviewTabProps {
@@ -19,12 +18,11 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
   disabled = false,
   compact = false
 }) => {
-  const { isActive: analysisActive } = useAnalysisStore();
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
   const handleTabClick = () => {
-    if (!analysisActive && !disabled) {
+    if (!disabled) {
       onTabClick(project.id);
     }
   };
@@ -32,19 +30,17 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
   const handleRightClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!disabled && !analysisActive) {
+
+    if (!disabled) {
       setMenuPosition({ x: e.clientX, y: e.clientY });
       setShowMenu(true);
     }
   };
 
-  const isDisabled = analysisActive || disabled;
-
   return (
     <>
       <motion.div
-        whileTap={{ scale: !isDisabled ? 0.98 : 1 }}
+        whileTap={{ scale: !disabled ? 0.98 : 1 }}
         onClick={handleTabClick}
         onContextMenu={handleRightClick}
         className={`flex items-center gap-2 ${
@@ -52,44 +48,40 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
         } ${
           compact ? 'rounded-md' : 'rounded-t-lg border-b-2'
         } transition-all whitespace-nowrap ${
-          isDisabled 
-            ? 'cursor-not-allowed opacity-50' 
+          disabled
+            ? 'cursor-not-allowed opacity-50'
             : 'cursor-pointer'
         } ${
           isActive
             ? 'bg-cyan-600/10 hover:brightness-125 text-cyan-400'
             : 'bg-gray-900/50 border-transparent text-gray-500 hover:bg-gray-800 hover:text-gray-300'
         } ${
-          disabled && !analysisActive
+          disabled
             ? 'border-blue-500/30 bg-blue-900/20'
             : ''
         }`}
         title={
-          analysisActive 
-            ? "Tab switching disabled during analysis" 
-            : disabled 
-              ? "Tab switching disabled in prototype mode"
-              : "Right-click for options"
+          disabled
+            ? "Tab switching disabled in prototype mode"
+            : "Right-click for options"
         }
       >
         <div className={`${compact ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full ${
-          analysisActive 
-            ? 'bg-blue-500/50 animate-pulse' 
-            : disabled && !isActive
-              ? 'bg-blue-500/30'
-              : isActive 
-                ? 'bg-cyan-500 animate-pulse' 
-                : 'bg-gray-600'
+          disabled && !isActive
+            ? 'bg-blue-500/30'
+            : isActive
+              ? 'bg-cyan-500 animate-pulse'
+              : 'bg-gray-600'
         }`} />
-        
+
         <span className={`font-medium ${compact ? 'text-sm' : 'text-sm'}`}>
           {project.name}
         </span>
         <span className={`${compact ? 'text-sm' : 'text-sm'} opacity-70`}>
           :{project.port}
         </span>
-        
-        {disabled && !analysisActive && (
+
+        {disabled && (
           <motion.div
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}

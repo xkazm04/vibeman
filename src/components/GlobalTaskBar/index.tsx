@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, Zap, CheckCircle, XCircle, Sparkles, Pause, Play, Trash2, Terminal, Clock } from 'lucide-react';
+import { ChevronUp, ChevronDown, Zap, CheckCircle, XCircle, Terminal, Clock } from 'lucide-react';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
-import { useAutomationSessionStore } from '@/stores/automationSessionStore';
 import { useAllSessions, type CLISessionId } from '@/components/cli/store';
 import TaskProgressItem from './TaskProgressItem';
 import type { TaskState } from '@/app/features/TaskRunner/store/taskRunnerStore';
@@ -30,14 +29,6 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
 
   // Subscribe to TaskRunner store
   const { tasks, batches } = useTaskRunnerStore();
-
-  // Subscribe to Automation Session store
-  const {
-    sessions: automationSessions,
-    pauseSession,
-    resumeSession,
-    deleteSession,
-  } = useAutomationSessionStore();
 
   // Subscribe to CLI Session store
   const cliSessions = useAllSessions();
@@ -95,15 +86,6 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
   const hasCompletedTasks = completedTasks.length > 0;
   const hasFailedTasks = failedTasks.length > 0;
 
-  // Filter automation sessions
-  const activeAutomationSessions = useMemo(() =>
-    automationSessions.filter(s =>
-      s.phase !== 'complete' && s.phase !== 'failed'
-    ),
-    [automationSessions]
-  );
-  const hasActiveAutomation = activeAutomationSessions.length > 0;
-
   // CLI session stats
   const cliStats = useMemo(() => {
     const sessionIds: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
@@ -129,7 +111,7 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
 
   const hasActiveCLI = cliStats.running > 0 || cliStats.pending > 0;
 
-  const hasAnyTasks = hasRunningTasks || hasCompletedTasks || hasFailedTasks || hasActiveAutomation || hasActiveCLI;
+  const hasAnyTasks = hasRunningTasks || hasCompletedTasks || hasFailedTasks || hasActiveCLI;
 
   // Parse task ID to get project name and requirement name
   const parseTaskId = (taskId: string | undefined) => {
@@ -157,11 +139,11 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
 
   // Auto-collapse when no running tasks, automation sessions, or CLI sessions (after delay)
   useEffect(() => {
-    if (!hasRunningTasks && !hasActiveAutomation && !hasActiveCLI && isExpanded) {
+    if (!hasRunningTasks && !hasActiveCLI && isExpanded) {
       const timer = setTimeout(() => setIsExpanded(false), 5000); // 5 seconds
       return () => clearTimeout(timer);
     }
-  }, [hasRunningTasks, hasActiveAutomation, hasActiveCLI, isExpanded]);
+  }, [hasRunningTasks, hasActiveCLI, isExpanded]);
 
   // Show toast notifications for recently completed/failed tasks
   useEffect(() => {
@@ -336,15 +318,6 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                 </div>
               )}
 
-              {hasActiveAutomation && (
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">
-                    {activeAutomationSessions.length} automation{activeAutomationSessions.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              )}
-
               {hasActiveCLI && (
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-cyan-400" />
@@ -401,12 +374,6 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                       <span className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 text-red-400 rounded">
                         <XCircle className="w-3 h-3" />
                         {failedTasks.length}
-                      </span>
-                    )}
-                    {hasActiveAutomation && (
-                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded">
-                        <Sparkles className="w-3 h-3" />
-                        {activeAutomationSessions.length}
                       </span>
                     )}
                     {hasActiveCLI && (
@@ -532,96 +499,6 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                   );
                 })}
               </div>
-
-              {/* Automation Sessions Section */}
-              {hasActiveAutomation && (
-                <div className="px-4 pb-4">
-                  <div className="border border-purple-500/30 rounded-lg bg-purple-500/5 overflow-hidden">
-                    <div className="px-3 py-2 border-b border-purple-500/20 bg-purple-500/10">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-purple-400" />
-                        <span className="text-sm font-medium text-purple-300">
-                          Standup Automation
-                        </span>
-                        <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded">
-                          {activeAutomationSessions.length} active
-                        </span>
-                      </div>
-                    </div>
-                    <div className="divide-y divide-purple-500/10">
-                      {activeAutomationSessions.map((session) => (
-                        <div
-                          key={session.sessionId}
-                          className="px-3 py-2 flex items-center justify-between gap-3"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-gray-200 truncate">
-                                {session.projectName || session.projectId.slice(0, 8)}
-                              </span>
-                              <span className={`px-1.5 py-0.5 text-[10px] rounded ${
-                                session.phase === 'running' || session.phase === 'exploring'
-                                  ? 'bg-cyan-500/20 text-cyan-400'
-                                  : session.phase === 'generating'
-                                  ? 'bg-purple-500/20 text-purple-400'
-                                  : session.phase === 'evaluating'
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : session.phase === 'paused'
-                                  ? 'bg-yellow-500/20 text-yellow-400'
-                                  : 'bg-gray-500/20 text-gray-400'
-                              }`}>
-                                {session.phase}
-                              </span>
-                            </div>
-                            {session.message && (
-                              <p className="text-xs text-gray-500 mt-0.5 truncate">
-                                {session.message}
-                              </p>
-                            )}
-                            {/* Progress bar */}
-                            {session.progress > 0 && (
-                              <div className="mt-1 h-1 bg-gray-700 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-purple-500 transition-all"
-                                  style={{ width: `${session.progress}%` }}
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-1">
-                            {session.phase === 'paused' ? (
-                              <button
-                                onClick={() => resumeSession(session.sessionId)}
-                                className="p-1.5 hover:bg-green-500/20 rounded transition-colors"
-                                title="Resume session"
-                              >
-                                <Play className="w-3.5 h-3.5 text-green-400" />
-                              </button>
-                            ) : session.phase !== 'complete' && session.phase !== 'failed' ? (
-                              <button
-                                onClick={() => pauseSession(session.sessionId)}
-                                className="p-1.5 hover:bg-yellow-500/20 rounded transition-colors"
-                                title="Pause session"
-                              >
-                                <Pause className="w-3.5 h-3.5 text-yellow-400" />
-                              </button>
-                            ) : null}
-                            <button
-                              onClick={() => deleteSession(session.sessionId)}
-                              className="p-1.5 hover:bg-red-500/20 rounded transition-colors"
-                              title="Delete session"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* CLI Sessions Section */}
               {hasActiveCLI && (

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { GitBranch, Play, Loader2 } from 'lucide-react';
+import { GitBranch, Play, Loader2, AlertTriangle, X } from 'lucide-react';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
 
@@ -17,11 +17,13 @@ export default function ArchitectureAnalysisPanel({
   const [analysisTask, setAnalysisTask] = useState<QueuedTask | null>(null);
   const [autoStart, setAutoStart] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleTriggerAnalysis = useCallback(async () => {
     if (projects.length === 0) return;
 
     setIsLoading(true);
+    setError(null);
 
     try {
       // Call the API to create an analysis session with proper callback URL
@@ -43,7 +45,7 @@ export default function ArchitectureAnalysisPanel({
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        console.error('Failed to start analysis:', result.error);
+        setError(result.error || 'Failed to start analysis');
         return;
       }
 
@@ -62,8 +64,8 @@ export default function ArchitectureAnalysisPanel({
 
       setAnalysisTask(task);
       setAutoStart(true);
-    } catch (error) {
-      console.error('Error triggering analysis:', error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to trigger analysis');
     } finally {
       setIsLoading(false);
     }
@@ -123,6 +125,27 @@ export default function ArchitectureAnalysisPanel({
           </button>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-red-500/20 bg-red-500/10 text-xs">
+          <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+          <span className="text-red-400 flex-1">Analysis failed: {error}</span>
+          <button
+            onClick={handleTriggerAnalysis}
+            disabled={!hasProjects || isLoading}
+            className="px-2 py-0.5 text-[10px] font-medium text-red-300 bg-red-500/20 rounded border border-red-500/30 hover:bg-red-500/30 disabled:opacity-40 transition-colors"
+          >
+            Retry
+          </button>
+          <button
+            onClick={() => setError(null)}
+            className="p-0.5 text-red-400/60 hover:text-red-400 transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Status bar */}
       {analysisTask && (

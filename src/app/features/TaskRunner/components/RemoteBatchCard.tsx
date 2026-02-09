@@ -7,7 +7,7 @@
 
 import { motion } from 'framer-motion';
 import { Play, Pause, CheckCircle2, XCircle, Clock, Loader2 } from 'lucide-react';
-import type { RemoteBatchInfo } from '@/stores/emulatorStore';
+import type { RemoteBatchInfo } from '@/stores/remoteWorkStore';
 
 interface RemoteBatchCardProps {
   batch: RemoteBatchInfo;

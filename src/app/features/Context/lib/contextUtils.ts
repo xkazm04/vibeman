@@ -1,9 +1,6 @@
 /**
  * Context Utility Functions
  * Pure helper functions for context operations
- *
- * Note: For validation and health analysis, prefer using ContextEntity
- * from '@/stores/context/ContextEntity' which centralizes domain logic.
  */
 
 import { LucideIcon } from 'lucide-react';
@@ -15,7 +12,6 @@ import {
   GRID_LAYOUT_CONFIG,
   FILE_DISPLAY_CONFIG
 } from './constants';
-import { ContextEntity, type NameValidationResult } from '../../../../stores/context/ContextEntity';
 
 /**
  * Format date with specified format option
@@ -167,27 +163,6 @@ export function getRelatedContexts(contexts: Context[], currentContextId: string
   if (!groupId) return [];
   
   return contexts.filter(c => c.groupId === groupId && c.id !== currentContextId);
-}
-
-/**
- * Validate context name
- * @deprecated Use ContextEntity.validateName() for new code
- */
-export function validateContextName(name: string): NameValidationResult {
-  return ContextEntity.validateName(name);
-}
-
-/**
- * Check if context name already exists in group
- * @deprecated Use ContextEntity.isNameDuplicateInGroup() for new code
- */
-export function isContextNameDuplicate(
-  contexts: Context[],
-  name: string,
-  groupId: string,
-  excludeContextId?: string
-): boolean {
-  return ContextEntity.isNameDuplicateInGroup(contexts, name, groupId, excludeContextId);
 }
 
 /**

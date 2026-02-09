@@ -7,12 +7,12 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useDeviceMeshStore, useSelectedDevice } from '@/stores/deviceMeshStore';
 import {
-  useEmulatorStore,
-  useSelectedDevice,
+  useRemoteWorkStore,
   type RemoteRequirement,
   type RemoteBatchInfo,
-} from '@/stores/emulatorStore';
+} from '@/stores/remoteWorkStore';
 
 const BATCH_POLL_INTERVAL_MS = 10_000; // 10 seconds
 
@@ -91,6 +91,9 @@ export function useRemoteTaskRunner(): UseRemoteTaskRunnerResult {
     localDeviceName,
     isRegistered,
     selectedDeviceId,
+  } = useDeviceMeshStore();
+
+  const {
     isRemoteTaskRunnerMode,
     remoteRequirements,
     selectedRequirementIds,
@@ -110,7 +113,7 @@ export function useRemoteTaskRunner(): UseRemoteTaskRunnerResult {
     setLoadingBatches,
     setBatchError,
     updateBatchStatus,
-  } = useEmulatorStore();
+  } = useRemoteWorkStore();
 
   const selectedDevice = useSelectedDevice();
   const batchPollIntervalRef = useRef<NodeJS.Timeout | null>(null);

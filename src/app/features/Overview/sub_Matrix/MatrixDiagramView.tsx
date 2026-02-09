@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Grid3X3 } from 'lucide-react';
-import type { WorkspaceProjectNode, CrossProjectRelationship, TierConfig } from '../sub_WorkspaceArchitecture/lib/types';
+import type { WorkspaceProjectNode, TierConfig } from '../sub_WorkspaceArchitecture/lib/types';
 import type { GraphEdge } from '../sub_WorkspaceArchitecture/lib/Graph';
 import MatrixConnectionLine from './MatrixConnectionLine';
 import MatrixNode from './MatrixNode';
@@ -10,13 +10,11 @@ import MatrixTierAggregate from './MatrixTierAggregate';
 import { ZoomableCanvas, type ZoomTransform } from '@/components/ZoomableCanvas';
 import { HighlightRule, isHighlighted, isDimmed, type HighlightRule as HighlightRuleType } from './lib/highlightAlgebra';
 import { getDetailFlagsFromScale, calculateTierAggregates } from './lib/semanticZoom';
+import { archTheme } from './lib/archTheme';
 
 interface MatrixDiagramViewProps {
   nodes: WorkspaceProjectNode[];
-  /** Legacy: Raw connections (requires O(n) node lookup) */
-  connections: CrossProjectRelationship[];
-  /** Resolved edges with direct node references (O(1) access - preferred) */
-  resolvedEdges?: GraphEdge[];
+  resolvedEdges: GraphEdge[];
   tierConfigs: TierConfig[];
   width: number;
   height: number;
@@ -30,7 +28,6 @@ interface MatrixDiagramViewProps {
 
 export default function MatrixDiagramView({
   nodes,
-  connections,
   resolvedEdges,
   tierConfigs,
   width,
@@ -41,9 +38,6 @@ export default function MatrixDiagramView({
   onShowMatrix,
   highlightRule: customHighlightRule,
 }: MatrixDiagramViewProps) {
-  // Prefer resolved edges for O(1) node access, fall back to legacy connections
-  const useResolvedEdges = resolvedEdges && resolvedEdges.length > 0;
-
   /**
    * Declarative highlight rule based on selection state.
    * Uses the highlight algebra to compute visual emphasis for elements.
@@ -68,10 +62,10 @@ export default function MatrixDiagramView({
     <>
       <defs>
         <pattern id="matrix-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-          <circle cx="12" cy="12" r="0.5" fill="#1a1a20" />
+          <circle cx="12" cy="12" r="0.5" fill={archTheme.surface.muted} />
         </pattern>
       </defs>
-      <rect width="100%" height="100%" fill="#0a0a0c" />
+      <rect width="100%" height="100%" fill={archTheme.surface.canvas} />
       <rect width="100%" height="100%" fill="url(#matrix-grid)" />
     </>
   );
@@ -143,26 +137,14 @@ export default function MatrixDiagramView({
               })}
 
               {/* MEDIUM+ ZOOM: Connection lines */}
-              {detailFlags.showConnections && (
-                useResolvedEdges
-                  ? resolvedEdges!.map((edge) => (
-                      <MatrixConnectionLine
-                        key={edge.id}
-                        edge={edge}
-                        isHighlighted={isHighlighted(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
-                        isDimmed={isDimmed(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
-                      />
-                    ))
-                  : connections.map((conn) => (
-                      <MatrixConnectionLine
-                        key={conn.id}
-                        connection={conn}
-                        nodes={nodes}
-                        isHighlighted={isHighlighted(highlightRule, conn.sourceProjectId, 'connection', conn.targetProjectId)}
-                        isDimmed={isDimmed(highlightRule, conn.sourceProjectId, 'connection', conn.targetProjectId)}
-                      />
-                    ))
-              )}
+              {detailFlags.showConnections && resolvedEdges.map((edge) => (
+                <MatrixConnectionLine
+                  key={edge.id}
+                  edge={edge}
+                  isHighlighted={isHighlighted(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
+                  isDimmed={isDimmed(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
+                />
+              ))}
 
               {/* MEDIUM+ ZOOM: Individual nodes with progressive detail */}
               {detailFlags.showNodes && nodes.map((node) => (

@@ -43,7 +43,7 @@ async function handleGet(request: NextRequest) {
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, project_id, requirement_name, title, overview, overview_bullets, tested } = body;
+    const { id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested } = body;
 
     if (!id || !project_id || !requirement_name || !title || !overview) {
       return NextResponse.json(
@@ -55,6 +55,7 @@ async function handlePost(request: NextRequest) {
     const log = implementationLogDb.createLog({
       id,
       project_id,
+      context_id: context_id || undefined,
       requirement_name,
       title,
       overview,
@@ -67,7 +68,7 @@ async function handlePost(request: NextRequest) {
       signalCollector.recordImplementation(project_id, {
         requirementId: id,
         requirementName: requirement_name,
-        contextId: null,
+        contextId: context_id || null,
         filesCreated: [],
         filesModified: [],
         filesDeleted: [],
@@ -76,6 +77,15 @@ async function handlePost(request: NextRequest) {
       });
     } catch {
       // Signal recording must never break the main flow
+    }
+
+    // Fire-and-forget: check if this log matches any active goals
+    if (context_id) {
+      fetch(new URL('/api/goals/check-completion', request.url).toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contextId: context_id, projectId: project_id }),
+      }).catch(() => {});
     }
 
     return NextResponse.json({ log });

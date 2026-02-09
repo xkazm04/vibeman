@@ -7,7 +7,7 @@
 
 import { Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { RemoteBatchInfo } from '@/stores/emulatorStore';
+import type { RemoteBatchInfo } from '@/stores/remoteWorkStore';
 import RemoteBatchCard from './RemoteBatchCard';
 
 interface RemoteBatchMonitorProps {

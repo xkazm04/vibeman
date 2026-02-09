@@ -171,19 +171,32 @@ export const behavioralSignalRepository = {
 
   /**
    * Apply decay to old signals (reduce weight over time)
+   * Batches updates in chunks of 1000 to avoid locking SQLite for extended periods.
    */
   applyDecay: (projectId: string, decayFactor: number = 0.9, olderThanDays: number = 7): number => {
     const db = getDatabase();
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+    const BATCH_SIZE = 1000;
 
-    const stmt = db.prepare(`
+    const batchStmt = db.prepare(`
       UPDATE behavioral_signals
       SET weight = weight * ?
-      WHERE project_id = ? AND timestamp < ? AND weight > 0.01
+      WHERE id IN (
+        SELECT id FROM behavioral_signals
+        WHERE project_id = ? AND timestamp < ? AND weight > 0.01
+        LIMIT ?
+      )
     `);
 
-    const result = stmt.run(decayFactor, projectId, cutoff);
-    return result.changes;
+    let totalChanges = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const result = batchStmt.run(decayFactor, projectId, cutoff, BATCH_SIZE);
+      totalChanges += result.changes;
+      if (result.changes < BATCH_SIZE) break;
+    }
+
+    return totalChanges;
   },
 
   /**

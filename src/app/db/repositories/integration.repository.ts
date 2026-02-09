@@ -12,7 +12,7 @@ import {
   IntegrationStatus,
   IntegrationEventType,
 } from '../models/integration.types';
-import { generateId, getCurrentTimestamp } from './repository.utils';
+import { generateId, getCurrentTimestamp, withTableCheck } from './repository.utils';
 
 /**
  * Integration Repository
@@ -22,7 +22,7 @@ export const integrationRepository = {
   /**
    * Get all integrations for a project
    */
-  getByProject: (projectId: string): DbIntegration[] => {
+  getByProject: (projectId: string): DbIntegration[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM integrations
@@ -30,12 +30,12 @@ export const integrationRepository = {
       ORDER BY created_at DESC
     `);
     return stmt.all(projectId) as DbIntegration[];
-  },
+  }),
 
   /**
    * Get active integrations for a project
    */
-  getActiveByProject: (projectId: string): DbIntegration[] => {
+  getActiveByProject: (projectId: string): DbIntegration[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM integrations
@@ -43,12 +43,12 @@ export const integrationRepository = {
       ORDER BY provider, name
     `);
     return stmt.all(projectId) as DbIntegration[];
-  },
+  }),
 
   /**
    * Get integrations by provider
    */
-  getByProvider: (projectId: string, provider: IntegrationProvider): DbIntegration[] => {
+  getByProvider: (projectId: string, provider: IntegrationProvider): DbIntegration[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM integrations
@@ -56,22 +56,22 @@ export const integrationRepository = {
       ORDER BY created_at DESC
     `);
     return stmt.all(projectId, provider) as DbIntegration[];
-  },
+  }),
 
   /**
    * Get integration by ID
    */
-  getById: (id: string): DbIntegration | null => {
+  getById: (id: string): DbIntegration | null => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare('SELECT * FROM integrations WHERE id = ?');
     const result = stmt.get(id) as DbIntegration | undefined;
     return result || null;
-  },
+  }),
 
   /**
    * Get integrations subscribed to a specific event type
    */
-  getByEventType: (projectId: string, eventType: IntegrationEventType): DbIntegration[] => {
+  getByEventType: (projectId: string, eventType: IntegrationEventType): DbIntegration[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM integrations
@@ -80,14 +80,14 @@ export const integrationRepository = {
         AND enabled_events LIKE ?
     `);
     return stmt.all(projectId, `%"${eventType}"%`) as DbIntegration[];
-  },
+  }),
 
   /**
    * Create a new integration
    */
   create: (
     integration: Omit<DbIntegration, 'id' | 'error_count' | 'created_at' | 'updated_at'>
-  ): DbIntegration => {
+  ): DbIntegration => withTableCheck('integrations', () => {
     const db = getDatabase();
     const id = generateId('int');
     const now = getCurrentTimestamp();
@@ -119,7 +119,7 @@ export const integrationRepository = {
     );
 
     return integrationRepository.getById(id)!;
-  },
+  }),
 
   /**
    * Update an integration
@@ -127,7 +127,7 @@ export const integrationRepository = {
   update: (
     id: string,
     updates: Partial<Omit<DbIntegration, 'id' | 'project_id' | 'created_at'>>
-  ): DbIntegration | null => {
+  ): DbIntegration | null => withTableCheck('integrations', () => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
@@ -185,12 +185,12 @@ export const integrationRepository = {
     stmt.run(...values);
 
     return integrationRepository.getById(id);
-  },
+  }),
 
   /**
    * Update integration status
    */
-  updateStatus: (id: string, status: IntegrationStatus, error?: string): void => {
+  updateStatus: (id: string, status: IntegrationStatus, error?: string): void => withTableCheck('integrations', () => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
@@ -209,12 +209,12 @@ export const integrationRepository = {
       `);
       stmt.run(status, now, id);
     }
-  },
+  }),
 
   /**
    * Record successful sync
    */
-  recordSync: (id: string): void => {
+  recordSync: (id: string): void => withTableCheck('integrations', () => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
@@ -224,27 +224,27 @@ export const integrationRepository = {
       WHERE id = ?
     `);
     stmt.run(now, now, id);
-  },
+  }),
 
   /**
    * Delete an integration
    */
-  delete: (id: string): boolean => {
+  delete: (id: string): boolean => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM integrations WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
-  },
+  }),
 
   /**
    * Delete all integrations for a project
    */
-  deleteByProject: (projectId: string): number => {
+  deleteByProject: (projectId: string): number => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM integrations WHERE project_id = ?');
     const result = stmt.run(projectId);
     return result.changes;
-  },
+  }),
 };
 
 /**
@@ -255,7 +255,7 @@ export const integrationEventRepository = {
   /**
    * Get events by integration
    */
-  getByIntegration: (integrationId: string, limit: number = 100): DbIntegrationEvent[] => {
+  getByIntegration: (integrationId: string, limit: number = 100): DbIntegrationEvent[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM integration_events
@@ -264,12 +264,12 @@ export const integrationEventRepository = {
       LIMIT ?
     `);
     return stmt.all(integrationId, limit) as DbIntegrationEvent[];
-  },
+  }),
 
   /**
    * Get events by project
    */
-  getByProject: (projectId: string, limit: number = 100): DbIntegrationEvent[] => {
+  getByProject: (projectId: string, limit: number = 100): DbIntegrationEvent[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM integration_events
@@ -278,12 +278,12 @@ export const integrationEventRepository = {
       LIMIT ?
     `);
     return stmt.all(projectId, limit) as DbIntegrationEvent[];
-  },
+  }),
 
   /**
    * Get pending events for retry
    */
-  getPendingEvents: (limit: number = 50): DbIntegrationEvent[] => {
+  getPendingEvents: (limit: number = 50): DbIntegrationEvent[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT ie.* FROM integration_events ie
@@ -293,12 +293,12 @@ export const integrationEventRepository = {
       LIMIT ?
     `);
     return stmt.all(limit) as DbIntegrationEvent[];
-  },
+  }),
 
   /**
    * Get failed events for retry
    */
-  getFailedEvents: (maxRetries: number = 3, limit: number = 50): DbIntegrationEvent[] => {
+  getFailedEvents: (maxRetries: number = 3, limit: number = 50): DbIntegrationEvent[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT ie.* FROM integration_events ie
@@ -310,14 +310,14 @@ export const integrationEventRepository = {
       LIMIT ?
     `);
     return stmt.all(maxRetries, limit) as DbIntegrationEvent[];
-  },
+  }),
 
   /**
    * Create an event
    */
   create: (
     event: Omit<DbIntegrationEvent, 'id' | 'retry_count' | 'processed_at' | 'created_at'>
-  ): DbIntegrationEvent => {
+  ): DbIntegrationEvent => withTableCheck('integrations', () => {
     const db = getDatabase();
     const id = generateId('iev');
     const now = getCurrentTimestamp();
@@ -345,7 +345,7 @@ export const integrationEventRepository = {
 
     const selectStmt = db.prepare('SELECT * FROM integration_events WHERE id = ?');
     return selectStmt.get(id) as DbIntegrationEvent;
-  },
+  }),
 
   /**
    * Update event status
@@ -355,7 +355,7 @@ export const integrationEventRepository = {
     status: 'pending' | 'sent' | 'failed' | 'skipped',
     response?: string,
     errorMessage?: string
-  ): void => {
+  ): void => withTableCheck('integrations', () => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
@@ -374,7 +374,7 @@ export const integrationEventRepository = {
       `);
       stmt.run(status, response || null, now, id);
     }
-  },
+  }),
 
   /**
    * Get event statistics for an integration
@@ -385,7 +385,7 @@ export const integrationEventRepository = {
     failed: number;
     pending: number;
     skipped: number;
-  } => {
+  } => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT
@@ -413,12 +413,12 @@ export const integrationEventRepository = {
       pending: result.pending || 0,
       skipped: result.skipped || 0,
     };
-  },
+  }),
 
   /**
    * Clean up old events
    */
-  cleanupOldEvents: (daysToKeep: number = 30): number => {
+  cleanupOldEvents: (daysToKeep: number = 30): number => withTableCheck('integrations', () => {
     const db = getDatabase();
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
@@ -429,7 +429,7 @@ export const integrationEventRepository = {
     `);
     const result = stmt.run(cutoffDate.toISOString());
     return result.changes;
-  },
+  }),
 };
 
 /**
@@ -440,17 +440,17 @@ export const webhookRepository = {
   /**
    * Get webhook by integration
    */
-  getByIntegration: (integrationId: string): DbWebhook | null => {
+  getByIntegration: (integrationId: string): DbWebhook | null => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare('SELECT * FROM webhooks WHERE integration_id = ?');
     const result = stmt.get(integrationId) as DbWebhook | undefined;
     return result || null;
-  },
+  }),
 
   /**
    * Get webhooks by project
    */
-  getByProject: (projectId: string): DbWebhook[] => {
+  getByProject: (projectId: string): DbWebhook[] => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM webhooks
@@ -458,14 +458,14 @@ export const webhookRepository = {
       ORDER BY created_at DESC
     `);
     return stmt.all(projectId) as DbWebhook[];
-  },
+  }),
 
   /**
    * Create a webhook
    */
   create: (
     webhook: Omit<DbWebhook, 'id' | 'created_at' | 'updated_at'>
-  ): DbWebhook => {
+  ): DbWebhook => withTableCheck('integrations', () => {
     const db = getDatabase();
     const id = generateId('whk');
     const now = getCurrentTimestamp();
@@ -496,7 +496,7 @@ export const webhookRepository = {
 
     const selectStmt = db.prepare('SELECT * FROM webhooks WHERE id = ?');
     return selectStmt.get(id) as DbWebhook;
-  },
+  }),
 
   /**
    * Update a webhook
@@ -504,7 +504,7 @@ export const webhookRepository = {
   update: (
     id: string,
     updates: Partial<Omit<DbWebhook, 'id' | 'integration_id' | 'project_id' | 'created_at'>>
-  ): DbWebhook | null => {
+  ): DbWebhook | null => withTableCheck('integrations', () => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
@@ -551,15 +551,15 @@ export const webhookRepository = {
 
     const selectStmt = db.prepare('SELECT * FROM webhooks WHERE id = ?');
     return selectStmt.get(id) as DbWebhook | null;
-  },
+  }),
 
   /**
    * Delete a webhook
    */
-  delete: (id: string): boolean => {
+  delete: (id: string): boolean => withTableCheck('integrations', () => {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM webhooks WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
-  },
+  }),
 };

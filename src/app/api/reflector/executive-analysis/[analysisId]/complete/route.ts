@@ -5,10 +5,19 @@
  * Called by Claude Code when analysis is complete
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { executiveAnalysisAgent } from '@/lib/reflector/executiveAnalysisAgent';
 import { executiveAnalysisDb } from '@/app/db';
 import type { ExecutiveAIInsight, CompleteExecutiveAnalysisData } from '@/app/db/models/reflector.types';
+import {
+  successResponse,
+  validationError,
+  notFoundError,
+  operationFailedError,
+  handleApiError,
+  createApiErrorResponse,
+  ApiErrorCode,
+} from '@/lib/api-errors';
 
 interface CompletionRequestBody {
   ideasAnalyzed: number;
@@ -45,48 +54,37 @@ export async function POST(
     const { analysisId } = await params;
 
     if (!analysisId) {
-      return NextResponse.json(
-        { success: false, error: 'analysisId is required' },
-        { status: 400 }
-      );
+      return validationError('analysisId is required');
     }
 
-    // Get the analysis record
     const analysis = executiveAnalysisDb.getById(analysisId);
     if (!analysis) {
-      return NextResponse.json(
-        { success: false, error: 'Analysis not found' },
-        { status: 404 }
-      );
+      return notFoundError('Analysis');
     }
 
     if (analysis.status !== 'running') {
-      return NextResponse.json(
-        { success: false, error: `Analysis is not running (status: ${analysis.status})` },
-        { status: 400 }
+      return createApiErrorResponse(
+        ApiErrorCode.RESOURCE_CONFLICT,
+        `Analysis is not running (status: ${analysis.status})`,
+        { details: { analysisId, status: analysis.status } }
       );
     }
 
-    // Parse and validate the request body
     const body = await request.json();
 
     if (!validateCompletionBody(body)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid request body. Required: ideasAnalyzed, directionsAnalyzed, insights, narrative, recommendations' },
-        { status: 400 }
+      return validationError(
+        'Invalid request body. Required: ideasAnalyzed (number), directionsAnalyzed (number), insights (array), narrative (string), recommendations (array)'
       );
     }
 
     // Validate insights structure
     for (const insight of body.insights) {
       if (!insight.type || !insight.title || !insight.description) {
-        return NextResponse.json(
-          { success: false, error: 'Each insight must have type, title, and description' },
-          { status: 400 }
-        );
+        return validationError('Each insight must have type, title, and description');
       }
       if (typeof insight.confidence !== 'number' || insight.confidence < 0 || insight.confidence > 100) {
-        insight.confidence = 50; // Default confidence if invalid
+        insight.confidence = 50;
       }
       if (!Array.isArray(insight.evidence)) {
         insight.evidence = [];
@@ -96,7 +94,6 @@ export async function POST(
       }
     }
 
-    // Complete the analysis
     const completionData: CompleteExecutiveAnalysisData = {
       ideasAnalyzed: body.ideasAnalyzed,
       directionsAnalyzed: body.directionsAnalyzed,
@@ -108,23 +105,15 @@ export async function POST(
     const success = executiveAnalysisAgent.completeAnalysis(analysisId, completionData);
 
     if (!success) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to complete analysis' },
-        { status: 500 }
-      );
+      return operationFailedError('Complete analysis');
     }
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       analysisId,
       insightsCount: body.insights.length,
       recommendationsCount: body.recommendations.length,
     });
   } catch (error) {
-    console.error('[API] Executive Analysis Complete error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'executive analysis completion');
   }
 }

@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Power, PowerOff, Loader2, RefreshCw, ChevronLeft, ChevronRight, Ruler } from 'lucide-react';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
-import { useEmulatorStore } from '@/stores/emulatorStore';
+import { useBreakpointStore } from '@/stores/breakpointStore';
 import { BreakpointGuideInline } from './BreakpointGuide';
 import {
   DEFAULT_BREAKPOINTS,
@@ -58,7 +58,7 @@ export default function EmulatorHeader({
     setViewportWidth,
     jumpToBreakpoint,
     toggleBreakpointRuler,
-  } = useEmulatorStore();
+  } = useBreakpointStore();
 
   const allBreakpoints = mergeBreakpoints(breakpoints, customBreakpoints);
 

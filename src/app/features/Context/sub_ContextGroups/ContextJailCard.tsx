@@ -1,9 +1,16 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FolderOpen, Copy, MousePointer, CheckSquare, Square, FileText, Edit, Trash2 } from 'lucide-react';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
-import ContextMenu from '../ContextMenu/ContextMenu';
+import ContextMenu, { type ContextMenuItem } from '@/components/ContextMenu/ContextMenu';
 import { useTooltipStore } from '../../../../stores/tooltipStore';
-import { Context, ContextGroup } from '../../../../stores/contextStore';
+import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
+import { useStore } from '../../../../stores/nodeStore';
+import { useGlobalModal } from '../../../../hooks/useGlobalModal';
+import { MultiFileEditor } from '../../../../components/editor';
+import { saveFileContent } from '../../../../components/editor/fileApi';
+import ContextEditModal from '../sub_ContextGen/ContextEditModal';
+import ContextFileModal from '../sub_ContextFile/ContextFileModal';
 import MoveToGroupMenu from './components/MoveToGroupMenu';
 import { useDraggableItem } from '@/hooks/dnd';
 
@@ -48,10 +55,15 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [moveMenuPosition, setMoveMenuPosition] = useState({ x: 0, y: 0 });
   const [isPendingDrag, setIsPendingDrag] = useState(false);
+  const [showFileEditor, setShowFileEditor] = useState(false);
+  const [showContextFileModal, setShowContextFileModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const pendingDragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { toggleTooltip } = useTooltipStore();
+  const { removeContext, selectedContextIds, toggleContextSelection, setSelectedContext } = useContextStore();
+  const { clearSelection } = useStore();
+  const { showFullScreenModal } = useGlobalModal();
 
   // DnD Draggable - using reusable hook
   const {
@@ -216,6 +228,82 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
     (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
   }, [setNodeRef]);
 
+  // Menu action handlers
+  const handleOpenFiles = useCallback(() => {
+    setShowFileEditor(true);
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(JSON.stringify(context, null, 2));
+  }, [context]);
+
+  const handleSelect = useCallback(() => {
+    clearSelection();
+    setSelectedContext(context.id);
+  }, [clearSelection, setSelectedContext, context.id]);
+
+  const handleToggleForBacklog = useCallback(() => {
+    toggleContextSelection(context.id);
+  }, [toggleContextSelection, context.id]);
+
+  const handleContextFile = useCallback(() => {
+    setShowContextFileModal(true);
+  }, []);
+
+  const handleEdit = useCallback(() => {
+    showFullScreenModal(
+      `Edit Context: ${context.name}`,
+      <ContextEditModal
+        context={context}
+        availableGroups={availableGroups}
+        onSave={() => {}}
+      />,
+      {
+        icon: Edit,
+        iconBgColor: "from-cyan-500/20 to-blue-500/20",
+        iconColor: "text-cyan-400",
+        maxWidth: "max-w-[95vw]",
+        maxHeight: "max-h-[95vh]"
+      }
+    );
+  }, [showFullScreenModal, context, availableGroups]);
+
+  const handleDelete = useCallback(async () => {
+    try {
+      await removeContext(context.id);
+    } catch {
+      // Context deletion failed - error handled by store
+    }
+  }, [removeContext, context.id]);
+
+  const handleFileEditorClose = useCallback(() => {
+    setShowFileEditor(false);
+  }, []);
+
+  const handleContextFileModalClose = useCallback(() => {
+    setShowContextFileModal(false);
+  }, []);
+
+  const handleFileSave = useCallback(async (filePath: string, content: string) => {
+    await saveFileContent(filePath, content);
+  }, []);
+
+  const contextMenuItems: ContextMenuItem[] = useMemo(() => [
+    { id: 'open-files', label: 'Open Neural Files', icon: FolderOpen, iconColor: 'text-cyan-400', action: handleOpenFiles },
+    { id: 'clone', label: 'Clone Context', icon: Copy, iconColor: 'text-slate-400', action: handleCopy },
+    { id: 'select', label: 'Select', icon: MousePointer, iconColor: 'text-blue-400', action: handleSelect },
+    {
+      id: 'toggle-queue',
+      label: selectedContextIds.has(context.id) ? 'Remove from Queue' : 'Add to Queue',
+      icon: selectedContextIds.has(context.id) ? CheckSquare : Square,
+      iconColor: 'text-green-400',
+      action: handleToggleForBacklog,
+    },
+    { id: 'context-matrix', label: 'Context Matrix', icon: FileText, iconColor: 'text-blue-400', action: handleContextFile },
+    { id: 'modify', label: 'Modify Node', icon: Edit, iconColor: 'text-yellow-400', action: handleEdit },
+    { id: 'delete', label: 'Delete Context', icon: Trash2, isDanger: true, action: handleDelete },
+  ], [handleOpenFiles, handleCopy, handleSelect, handleToggleForBacklog, handleContextFile, handleEdit, handleDelete, selectedContextIds, context.id]);
+
   // Show ghost placeholder when dragging - using hook's ghostStyle
   if (isDragging) {
     return (
@@ -314,11 +402,27 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
 
       {/* Context Menu */}
       <ContextMenu
-        context={context}
         isVisible={contextMenu.isVisible}
         position={contextMenu.position}
+        items={contextMenuItems}
         onClose={handleCloseContextMenu}
-        availableGroups={availableGroups}
+      />
+
+      {/* File Editor Modal */}
+      <MultiFileEditor
+        isOpen={showFileEditor}
+        onClose={handleFileEditorClose}
+        filePaths={context.filePaths}
+        title={`${context.name} - Files`}
+        readOnly={false}
+        onSave={handleFileSave}
+      />
+
+      {/* Context File Modal */}
+      <ContextFileModal
+        isOpen={showContextFileModal}
+        onClose={handleContextFileModalClose}
+        context={context}
       />
 
       {/* Move to Group Menu (keyboard accessible) */}

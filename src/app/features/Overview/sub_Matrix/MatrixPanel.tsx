@@ -7,6 +7,7 @@ import type { WorkspaceProjectNode, CrossProjectRelationship, IntegrationType } 
 import MatrixFilterChips from './MatrixFilterChips';
 import MatrixGrid from './MatrixGrid';
 import MatrixCellInfo from './MatrixCellInfo';
+import { archTheme } from './lib/archTheme';
 
 interface MatrixPanelProps {
   sortedNodes: WorkspaceProjectNode[];
@@ -45,8 +46,8 @@ export default function MatrixPanel({
       animate={{ width: panelWidth, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="h-full border-r border-cyan-500/20 bg-[#0a0a0c]/80 backdrop-blur-sm overflow-auto flex-shrink-0 relative z-10"
-      style={{ maxWidth: '60%' }}
+      className="h-full border-r border-cyan-500/20 backdrop-blur-sm overflow-auto flex-shrink-0 relative z-10"
+      style={{ maxWidth: '60%', backgroundColor: `${archTheme.surface.canvas}cc` }}
     >
       <div className="p-3">
         <div className="flex items-center justify-between mb-3">

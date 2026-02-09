@@ -3,7 +3,7 @@
  * Builds Claude Code prompt for AI-driven executive insight analysis
  */
 
-import { ideaDb, directionDb } from '@/app/db';
+import { ideaDb, directionDb, architectureAnalysisDb } from '@/app/db';
 import type { DbIdea, DbDirection } from '@/app/db';
 import type { ScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import type { TimeWindow } from '@/app/features/reflector/sub_Reflection/lib/types';
@@ -55,6 +55,14 @@ export interface ExecutiveAnalysisData {
 
   // Context map breakdown (for directions)
   contextMapPerformance: ContextMapPerformance[];
+
+  // Architecture context (from latest completed architecture analysis)
+  architectureSummary: {
+    projectsAnalyzed: number;
+    relationshipsDiscovered: number;
+    detectedPatterns: string[];
+    completedAt: string;
+  } | null;
 
   // Metadata
   projectName: string | null;
@@ -219,6 +227,28 @@ export async function gatherExecutiveAnalysisData(
     }))
     .sort((a, b) => b.total - a.total);
 
+  // Get latest completed architecture analysis
+  let architectureSummary: ExecutiveAnalysisData['architectureSummary'] = null;
+  try {
+    const scope = projectId ? 'project' : 'workspace';
+    const scopeId = projectId || null;
+    const latestArch = architectureAnalysisDb.getLatestCompleted(scope, scopeId);
+    if (latestArch) {
+      let patterns: string[] = [];
+      if (latestArch.detected_patterns) {
+        try { patterns = JSON.parse(latestArch.detected_patterns); } catch { /* ignore parse errors */ }
+      }
+      architectureSummary = {
+        projectsAnalyzed: latestArch.projects_analyzed,
+        relationshipsDiscovered: latestArch.relationships_discovered,
+        detectedPatterns: Array.isArray(patterns) ? patterns : [],
+        completedAt: latestArch.completed_at || latestArch.created_at,
+      };
+    }
+  } catch {
+    // Architecture analysis table may not exist yet - gracefully skip
+  }
+
   return {
     ideasTotal,
     ideasAccepted,
@@ -235,6 +265,7 @@ export async function gatherExecutiveAnalysisData(
     directionsPending,
     directionsAcceptanceRate,
     contextMapPerformance,
+    architectureSummary,
     projectName: projectName || null,
     contextName: contextName || null,
     timeWindow,
@@ -324,6 +355,28 @@ ${data.contextMapPerformance.map(c =>
 ).join('\n')}
 `);
     }
+  }
+
+  // Architecture Context (from latest architecture analysis)
+  if (data.architectureSummary) {
+    const arch = data.architectureSummary;
+    sections.push(`## Architecture Context
+
+Latest architecture analysis completed ${arch.completedAt}:
+
+| Metric | Value |
+|--------|-------|
+| Projects Analyzed | ${arch.projectsAnalyzed} |
+| Relationships Discovered | ${arch.relationshipsDiscovered} |
+| Detected Patterns | ${arch.detectedPatterns.length} |
+
+${arch.detectedPatterns.length > 0
+  ? `### Detected Patterns\n${arch.detectedPatterns.map(p => `- ${p}`).join('\n')}`
+  : ''}
+
+Use this architecture context to enrich your analysis. Cross-project dependencies
+and patterns may explain idea acceptance/rejection trends.
+`);
   }
 
   // Analysis Tasks

@@ -5,11 +5,7 @@ export {
   HighlightRule,
   isHighlighted,
   isDimmed,
-  createHighlightContext,
-  createHighlightRule,
-  type HighlightWeight,
   type HighlightElementType,
-  type HighlightContext,
   type HighlightRule as HighlightRuleType,
 } from './highlightAlgebra';
 
@@ -23,3 +19,5 @@ export {
   type ZoomDetailFlags,
   type TierAggregate,
 } from './semanticZoom';
+
+export { archTheme, type ArchTheme } from './archTheme';

@@ -8,6 +8,38 @@ import { implementationLogRepository } from '@/app/db/repositories/implementatio
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
+async function handleGet(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'Log ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const log = implementationLogRepository.getLogById(id);
+    if (!log) {
+      return NextResponse.json(
+        { success: false, error: 'Implementation log not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, data: log });
+  } catch (error) {
+    logger.error('Error fetching implementation log:', { error });
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Failed to fetch log' },
+      { status: 500 }
+    );
+  }
+}
+
 async function handlePatch(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,4 +85,5 @@ async function handlePatch(
   }
 }
 
+export const GET = withObservability(handleGet, '/api/implementation-logs/[id]');
 export const PATCH = withObservability(handlePatch, '/api/implementation-logs/[id]');

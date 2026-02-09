@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { AlertCircle, Sparkles } from 'lucide-react';
 import EmulatorHeader from './EmulatorHeader';
-import EmulatorTabs, { type EmulatorTab } from './EmulatorTabs';
+import EmulatorTabs from './EmulatorTabs';
 import DeviceGrid from './DeviceGrid';
 import RemoteBatchPanel from './RemoteBatchPanel';
 import RemoteMonitorPanel from './RemoteMonitorPanel';
@@ -11,7 +11,8 @@ import ResponsivePanel from './ResponsivePanel';
 import TopologyMap from './TopologyMap';
 import FleetDashboard from './FleetDashboard';
 import { useDeviceDiscovery } from '../hooks/useDeviceDiscovery';
-import { useSelectedDevice } from '@/stores/emulatorStore';
+import { useSelectedDevice } from '@/stores/deviceMeshStore';
+import { useEmulatorTabFromNav, useZenNavigation, canNavigate } from '../../lib/zenNavigationStore';
 import type { NetworkTopology } from '@/lib/remote/topologyBuilder';
 // Note: RemoteTriagePanel removed - triage now done via Tinder module
 
@@ -40,7 +41,8 @@ export default function EmulatorPanel({ isConfigured }: EmulatorPanelProps) {
   });
 
   const selectedDevice = useSelectedDevice();
-  const [activeTab, setActiveTab] = useState<EmulatorTab>('devices');
+  const activeTab = useEmulatorTabFromNav() ?? 'devices';
+  const navigateTab = useZenNavigation((s) => s.navigateEmulatorTab);
 
   // Topology state
   const [topology, setTopology] = useState<NetworkTopology | null>(null);
@@ -128,7 +130,7 @@ export default function EmulatorPanel({ isConfigured }: EmulatorPanelProps) {
       {/* Tab Navigation */}
       <EmulatorTabs
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={navigateTab}
         isConnected={isRegistered}
         hasSelectedDevice={!!selectedDeviceId}
         onlineDevices={otherDevices.length}

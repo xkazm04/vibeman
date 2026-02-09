@@ -7,7 +7,6 @@
  *
  * Key features:
  * - Edges reference node objects directly (not IDs), eliminating O(n) lookups
- * - Spatial queries: find nodes near a point, find connected nodes near a point
  * - Multiple visual projections: matrix view, node-link diagram, and future layouts
  *
  * The data model is the constant; visualizations are interchangeable views.
@@ -32,23 +31,6 @@ export interface GraphEdge extends CrossProjectRelationship {
   sourceNode: WorkspaceProjectNode;
   /** Direct reference to target node (no lookup required) */
   targetNode: WorkspaceProjectNode;
-}
-
-/**
- * Spatial query result for nodes near a point
- */
-export interface SpatialQueryResult {
-  node: WorkspaceProjectNode;
-  distance: number;
-}
-
-/**
- * Combined spatial-relational query result
- */
-export interface SpatialRelationalResult {
-  node: WorkspaceProjectNode;
-  distance: number;
-  edges: GraphEdge[];
 }
 
 /**
@@ -200,126 +182,6 @@ export class Graph {
     const outgoing = this._outgoingEdges.get(nodeId) || [];
     const incoming = this._incomingEdges.get(nodeId) || [];
     return [...outgoing, ...incoming];
-  }
-
-  // === Spatial Queries ===
-
-  /**
-   * Find all nodes within a given distance from a point.
-   * Uses the center of each node for distance calculation.
-   */
-  findNodesNear(x: number, y: number, maxDistance: number): SpatialQueryResult[] {
-    const results: SpatialQueryResult[] = [];
-
-    for (const node of this._nodes) {
-      const centerX = node.x + node.width / 2;
-      const centerY = node.y + node.height / 2;
-      const dx = centerX - x;
-      const dy = centerY - y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance <= maxDistance) {
-        results.push({ node, distance });
-      }
-    }
-
-    return results.sort((a, b) => a.distance - b.distance);
-  }
-
-  /**
-   * Find nodes spatially near point X that are also logically connected to node Y.
-   * This is the core spatial-relational query mentioned in the requirement.
-   */
-  findConnectedNodesNear(
-    x: number,
-    y: number,
-    maxDistance: number,
-    connectedToNodeId: string
-  ): SpatialRelationalResult[] {
-    const nearbyNodes = this.findNodesNear(x, y, maxDistance);
-    const connectedEdges = this.getConnectedEdges(connectedToNodeId);
-    const connectedNodeIds = new Set<string>();
-
-    for (const edge of connectedEdges) {
-      connectedNodeIds.add(edge.sourceNode.id);
-      connectedNodeIds.add(edge.targetNode.id);
-    }
-
-    return nearbyNodes
-      .filter(result => connectedNodeIds.has(result.node.id))
-      .map(result => ({
-        node: result.node,
-        distance: result.distance,
-        edges: connectedEdges.filter(
-          e => e.sourceNode.id === result.node.id || e.targetNode.id === result.node.id
-        ),
-      }));
-  }
-
-  /**
-   * Find edges that cross through a rectangular region (useful for detecting visual conflicts).
-   * An edge "crosses" if it passes through the region without having its endpoints inside.
-   */
-  findEdgesCrossingRegion(
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ): GraphEdge[] {
-    const crossingEdges: GraphEdge[] = [];
-
-    for (const edge of this._resolvedEdges) {
-      const sx = edge.sourceNode.x + edge.sourceNode.width / 2;
-      const sy = edge.sourceNode.y + edge.sourceNode.height;
-      const tx = edge.targetNode.x + edge.targetNode.width / 2;
-      const ty = edge.targetNode.y;
-
-      // Check if line segment (sx,sy)-(tx,ty) intersects with the region
-      if (this.lineIntersectsRect(sx, sy, tx, ty, x, y, width, height)) {
-        crossingEdges.push(edge);
-      }
-    }
-
-    return crossingEdges;
-  }
-
-  /**
-   * Check if a line segment intersects a rectangle
-   */
-  private lineIntersectsRect(
-    x1: number, y1: number, x2: number, y2: number,
-    rx: number, ry: number, rw: number, rh: number
-  ): boolean {
-    // Check if either endpoint is inside the rectangle
-    if (this.pointInRect(x1, y1, rx, ry, rw, rh) ||
-        this.pointInRect(x2, y2, rx, ry, rw, rh)) {
-      return true;
-    }
-
-    // Check if line intersects any of the rectangle's edges
-    return (
-      this.lineIntersectsLine(x1, y1, x2, y2, rx, ry, rx + rw, ry) ||           // top
-      this.lineIntersectsLine(x1, y1, x2, y2, rx, ry + rh, rx + rw, ry + rh) || // bottom
-      this.lineIntersectsLine(x1, y1, x2, y2, rx, ry, rx, ry + rh) ||           // left
-      this.lineIntersectsLine(x1, y1, x2, y2, rx + rw, ry, rx + rw, ry + rh)    // right
-    );
-  }
-
-  private pointInRect(px: number, py: number, rx: number, ry: number, rw: number, rh: number): boolean {
-    return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
-  }
-
-  private lineIntersectsLine(
-    x1: number, y1: number, x2: number, y2: number,
-    x3: number, y3: number, x4: number, y4: number
-  ): boolean {
-    const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
-    if (Math.abs(denom) < 0.0001) return false;
-
-    const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
-    const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
-
-    return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
   }
 
   // === Graph Operations ===

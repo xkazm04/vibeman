@@ -3,8 +3,16 @@
  * POST - Called by Claude Code after analysis completes
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { architectureAnalysisAgent } from '@/lib/architecture/analysisAgent';
+import {
+  successResponse,
+  validationError,
+  notFoundError,
+  handleApiError,
+  createApiErrorResponse,
+  ApiErrorCode,
+} from '@/lib/api-errors';
 
 interface RouteParams {
   params: Promise<{
@@ -13,67 +21,80 @@ interface RouteParams {
 }
 
 /**
+ * Validate the architecture analysis completion body.
+ * Must contain relationships array, patterns array, recommendations array, and narrative string.
+ */
+function validateCompletionBody(body: unknown): body is {
+  relationships: unknown[];
+  patterns: unknown[];
+  recommendations: unknown[];
+  narrative: string;
+  project_metadata?: Record<string, unknown>;
+} {
+  if (!body || typeof body !== 'object') return false;
+  const b = body as Record<string, unknown>;
+
+  return (
+    Array.isArray(b.relationships) &&
+    Array.isArray(b.patterns) &&
+    Array.isArray(b.recommendations) &&
+    typeof b.narrative === 'string'
+  );
+}
+
+/**
  * POST /api/architecture/analyze/[analysisId]/complete
  * Complete an architecture analysis with results
- *
- * Body should contain:
- * {
- *   relationships: [...],
- *   patterns: [...],
- *   recommendations: [...],
- *   narrative: "...",
- *   project_metadata?: { tier, framework, ... } // For project onboarding
- * }
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { analysisId } = await params;
 
-    // Check if analysis exists
     const analysis = architectureAnalysisAgent.getAnalysis(analysisId);
     if (!analysis) {
-      return NextResponse.json(
-        { error: 'Analysis session not found' },
-        { status: 404 }
-      );
+      return notFoundError('Analysis session');
     }
 
-    // Check if already completed
     if (analysis.status === 'completed') {
-      return NextResponse.json(
-        { error: 'Analysis already completed', analysis },
-        { status: 409 }
+      return createApiErrorResponse(
+        ApiErrorCode.RESOURCE_CONFLICT,
+        'Analysis already completed',
+        { details: { analysisId, status: analysis.status } }
       );
     }
 
     if (analysis.status === 'failed') {
-      return NextResponse.json(
-        { error: 'Analysis has failed', analysis },
-        { status: 409 }
+      return createApiErrorResponse(
+        ApiErrorCode.RESOURCE_CONFLICT,
+        'Analysis has failed',
+        { details: { analysisId, status: analysis.status } }
       );
     }
 
-    // Parse request body
     const body = await request.json();
 
-    // Complete the analysis
+    if (!validateCompletionBody(body)) {
+      return validationError(
+        'Invalid request body. Required: relationships (array), patterns (array), recommendations (array), narrative (string)'
+      );
+    }
+
     const result = await architectureAnalysisAgent.completeAnalysis(analysisId, body);
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error, analysis: result.analysis },
-        { status: 400 }
+      return createApiErrorResponse(
+        ApiErrorCode.OPERATION_FAILED,
+        result.error || 'Failed to complete analysis',
+        { details: { analysisId } }
       );
     }
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
+      analysisId,
       analysis: result.analysis,
       relationshipsCreated: result.relationshipsCreated,
     });
   } catch (error) {
-    console.error('Complete analysis error:', error);
-
     // Try to mark analysis as failed
     try {
       const { analysisId } = await params;
@@ -81,13 +102,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         analysisId,
         error instanceof Error ? error.message : 'Unknown error'
       );
-    } catch (e) {
+    } catch {
       // Ignore failure to mark as failed
     }
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to complete analysis' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'complete architecture analysis');
   }
 }

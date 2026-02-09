@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Monitor, Wifi, Tablet } from 'lucide-react';
-import { useZenStore, ZenMode } from '../../lib/zenStore';
+import { useZenNavigation, useZenMode, type ZenMode } from '../../lib/zenNavigationStore';
 
 interface ModeToggleProps {
   onModeChange?: (mode: ZenMode) => void;
@@ -22,10 +22,11 @@ const modes: { value: ZenMode; label: string; icon: typeof Monitor; color: strin
  * - Emulator: Multi-device mesh control (tablet UI)
  */
 export default function ModeToggle({ onModeChange }: ModeToggleProps) {
-  const { mode, setMode } = useZenStore();
+  const mode = useZenMode();
+  const navigate = useZenNavigation((s) => s.navigate);
 
   const handleModeChange = (newMode: ZenMode) => {
-    setMode(newMode);
+    navigate(newMode);
     onModeChange?.(newMode);
   };
 

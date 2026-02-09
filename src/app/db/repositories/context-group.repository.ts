@@ -216,6 +216,18 @@ export const contextGroupRepository = {
   },
 
   /**
+   * Get all context groups across all projects
+   */
+  getAllGroups: (): DbContextGroup[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM context_groups
+      ORDER BY project_id, position ASC
+    `);
+    return stmt.all() as DbContextGroup[];
+  },
+
+  /**
    * Get all context groups for multiple projects in a single query
    * Uses SQL IN clause for efficient batching
    */

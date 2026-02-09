@@ -1,5 +1,5 @@
 import { ReflectionStats, ComparisonStats, DateRange, AggregatedStatsResponse, TimeWindow, DirectionStats, ContextMapStats } from './types';
-import { ExecutiveInsightReport, ExecutiveInsightRequest, ExecutiveInsightResponse } from './executiveInsightTypes';
+import { ExecutiveInsightReport, ExecutiveInsightRequest, ExecutiveInsightResponse } from './RuleBasedInsightTypes';
 import { SuggestionFilter } from '@/app/features/reflector/lib/unifiedTypes';
 
 /**

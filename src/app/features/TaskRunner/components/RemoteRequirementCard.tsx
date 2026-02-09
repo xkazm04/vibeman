@@ -7,7 +7,7 @@
 
 import { motion } from 'framer-motion';
 import { Check, FileText, Lightbulb, ArrowRight } from 'lucide-react';
-import type { RemoteRequirement } from '@/stores/emulatorStore';
+import type { RemoteRequirement } from '@/stores/remoteWorkStore';
 
 interface RemoteRequirementCardProps {
   requirement: RemoteRequirement;

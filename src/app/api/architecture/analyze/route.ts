@@ -4,10 +4,18 @@
  * GET - Get analysis status and history
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { architectureAnalysisAgent } from '@/lib/architecture/analysisAgent';
 import { architectureAnalysisDb } from '@/app/db';
 import type { AnalysisTriggerType } from '@/app/db/models/cross-project-architecture.types';
+import {
+  successResponse,
+  validationError,
+  notFoundError,
+  handleApiError,
+  createApiErrorResponse,
+  ApiErrorCode,
+} from '@/lib/api-errors';
 
 interface AnalyzeRequestBody {
   scope: 'project' | 'workspace';
@@ -32,26 +40,17 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as AnalyzeRequestBody;
     const { scope, workspaceId, projectId, projects, triggerType = 'manual' } = body;
 
-    // Validate request
     if (!scope) {
-      return NextResponse.json(
-        { error: 'Scope is required (project or workspace)' },
-        { status: 400 }
-      );
+      return validationError('Scope is required (project or workspace)');
     }
 
     if (scope === 'workspace' && !projects?.length) {
-      return NextResponse.json(
-        { error: 'Projects array is required for workspace analysis' },
-        { status: 400 }
-      );
+      return validationError('Projects array is required for workspace analysis');
     }
 
-    // Get base URL for callback
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
 
     if (scope === 'workspace') {
-      // Workspace-level analysis
       const result = await architectureAnalysisAgent.analyzeWorkspace({
         workspaceId: workspaceId || null,
         projects: projects!,
@@ -60,32 +59,25 @@ export async function POST(request: NextRequest) {
       });
 
       if (!result.success) {
-        return NextResponse.json(
-          { error: result.error, analysisId: result.analysisId },
-          { status: 409 }
+        return createApiErrorResponse(
+          ApiErrorCode.RESOURCE_CONFLICT,
+          result.error || 'Analysis already in progress',
+          { details: { analysisId: result.analysisId } }
         );
       }
 
-      return NextResponse.json({
-        success: true,
+      return successResponse({
         analysisId: result.analysisId,
         promptContent: result.promptContent,
       });
     } else {
-      // Single project analysis (onboarding)
       if (!projectId || !projects?.length) {
-        return NextResponse.json(
-          { error: 'projectId and projects array required for project analysis' },
-          { status: 400 }
-        );
+        return validationError('projectId and projects array required for project analysis');
       }
 
       const newProject = projects.find(p => p.id === projectId);
       if (!newProject) {
-        return NextResponse.json(
-          { error: 'New project not found in projects array' },
-          { status: 400 }
-        );
+        return validationError('New project not found in projects array');
       }
 
       const existingProjects = projects.filter(p => p.id !== projectId);
@@ -98,24 +90,20 @@ export async function POST(request: NextRequest) {
       });
 
       if (!result.success) {
-        return NextResponse.json(
-          { error: result.error, analysisId: result.analysisId },
-          { status: 409 }
+        return createApiErrorResponse(
+          ApiErrorCode.RESOURCE_CONFLICT,
+          result.error || 'Analysis already in progress',
+          { details: { analysisId: result.analysisId } }
         );
       }
 
-      return NextResponse.json({
-        success: true,
+      return successResponse({
         analysisId: result.analysisId,
         promptContent: result.promptContent,
       });
     }
   } catch (error) {
-    console.error('Architecture analysis error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Analysis failed' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'architecture analysis');
   }
 }
 
@@ -131,23 +119,21 @@ export async function GET(request: NextRequest) {
     const workspaceId = searchParams.get('workspaceId');
     const projectId = searchParams.get('projectId');
 
-    // Get specific analysis
     if (analysisId) {
       const analysis = architectureAnalysisDb.getById(analysisId);
       if (!analysis) {
-        return NextResponse.json({ error: 'Analysis not found' }, { status: 404 });
+        return notFoundError('Analysis');
       }
-      return NextResponse.json({ analysis });
+      return successResponse({ analysis });
     }
 
-    // Get workspace analysis status and history
     if (workspaceId !== null) {
-      const wsId = workspaceId || null; // Convert empty string to null
+      const wsId = workspaceId || null;
       const running = architectureAnalysisDb.getRunning('workspace', wsId);
       const latest = architectureAnalysisDb.getLatestCompleted('workspace', wsId);
       const history = architectureAnalysisDb.getHistory('workspace', wsId, 10);
 
-      return NextResponse.json({
+      return successResponse({
         isRunning: !!running,
         running,
         latest,
@@ -155,13 +141,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get project analysis status and history
     if (projectId) {
       const running = architectureAnalysisDb.getRunning('project', projectId);
       const latest = architectureAnalysisDb.getLatestCompleted('project', projectId);
       const history = architectureAnalysisDb.getHistory('project', projectId, 10);
 
-      return NextResponse.json({
+      return successResponse({
         isRunning: !!running,
         running,
         latest,
@@ -169,15 +154,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      { error: 'analysisId, workspaceId, or projectId required' },
-      { status: 400 }
-    );
+    return validationError('analysisId, workspaceId, or projectId required');
   } catch (error) {
-    console.error('Get analysis error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to get analysis' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'get architecture analysis');
   }
 }

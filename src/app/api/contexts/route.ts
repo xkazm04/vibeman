@@ -49,55 +49,15 @@ async function handleGet(request: NextRequest) {
       });
     }
 
-    // All projects: get everything (should rarely be used, but ensure consistent format)
-    // Note: This returns all contexts without group info - consider adding groups if needed
-    const { getDatabase } = await import('@/app/db/connection');
-    const db = getDatabase();
-    const allContextsRaw = db.prepare(`
-      SELECT * FROM contexts
-      ORDER BY created_at DESC
-    `).all() as Array<{
-      id: string;
-      project_id: string;
-      group_id: string | null;
-      name: string;
-      description: string | null;
-      file_paths: string;
-      has_context_file: number;
-      context_file_path: string | null;
-      preview: string | null;
-      test_scenario: string | null;
-      test_updated: string | null;
-      target: string | null;
-      target_fulfillment: string | null;
-      target_rating: number | null;
-      created_at: string;
-      updated_at: string;
-    }>;
-
-    // Transform to camelCase for consistent API response format
-    const allContexts = allContextsRaw.map(ctx => ({
-      id: ctx.id,
-      projectId: ctx.project_id,
-      groupId: ctx.group_id,
-      name: ctx.name,
-      description: ctx.description || undefined,
-      filePaths: JSON.parse(ctx.file_paths),
-      hasContextFile: Boolean(ctx.has_context_file),
-      contextFilePath: ctx.context_file_path || undefined,
-      preview: ctx.preview || undefined,
-      testScenario: ctx.test_scenario || undefined,
-      testUpdated: ctx.test_updated || undefined,
-      target: ctx.target || undefined,
-      target_fulfillment: ctx.target_fulfillment || undefined,
-      target_rating: ctx.target_rating || undefined,
-      createdAt: new Date(ctx.created_at),
-      updatedAt: new Date(ctx.updated_at),
-    }));
+    // All projects: get everything
+    const [allContexts, allGroups] = await Promise.all([
+      contextQueries.getAllContexts(),
+      contextGroupQueries.getAllGroups(),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data: { contexts: allContexts, groups: [] }
+      data: { contexts: allContexts, groups: allGroups }
     });
   } catch (error) {
     logger.error('Failed to fetch contexts:', { error });

@@ -134,6 +134,9 @@ export function useCanvasInteraction({
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
+    // Cached bounding rect — updated on resize, read in event handlers
+    let cachedRect = canvas.getBoundingClientRect();
+
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       const w = container.clientWidth; const h = container.clientHeight;
@@ -141,6 +144,7 @@ export function useCanvasInteraction({
       canvas.width = w * dpr; canvas.height = h * dpr;
       canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
       dimRef.current = { width: w, height: h };
+      cachedRect = canvas.getBoundingClientRect();
       const currentGroups = groupsRef.current;
       if (currentGroups.length > 0) {
         if (focusedGroupRef.current) {
@@ -203,8 +207,7 @@ export function useCanvasInteraction({
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      zoomCenterRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      zoomCenterRef.current = { x: e.clientX - cachedRect.left, y: e.clientY - cachedRect.top };
       const rawDelta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1.0 : 0.002);
       if (momentumRef.current !== 0 && Math.sign(rawDelta) !== Math.sign(momentumRef.current)) momentumRef.current = 0;
       applyZoomDelta(rawDelta * IMMEDIATE_FRACTION);
@@ -215,8 +218,7 @@ export function useCanvasInteraction({
     canvas.addEventListener('wheel', handleWheel, { passive: false });
 
     const handleClick = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+      const mx = e.clientX - cachedRect.left; const my = e.clientY - cachedRect.top;
       if (!focusedGroupRef.current) {
         const t = transformRef.current;
         const dataX = (mx - t.x) / t.k; const dataY = (my - t.y) / t.k;
@@ -237,13 +239,18 @@ export function useCanvasInteraction({
 
     canvas.addEventListener('click', handleClick);
 
+    let mouseMoveRafPending = false;
     const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      cursorRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      const found = findEventAt(cursorRef.current.x, cursorRef.current.y);
-      if (found) canvas.style.cursor = 'pointer';
-      else if (!focusedGroupRef.current) canvas.style.cursor = findGroupAtCursor() ? 'pointer' : 'grab';
-      else canvas.style.cursor = 'grab';
+      cursorRef.current = { x: e.clientX - cachedRect.left, y: e.clientY - cachedRect.top };
+      if (mouseMoveRafPending) return;
+      mouseMoveRafPending = true;
+      requestAnimationFrame(() => {
+        mouseMoveRafPending = false;
+        const found = findEventAt(cursorRef.current.x, cursorRef.current.y);
+        if (found) canvas.style.cursor = 'pointer';
+        else if (!focusedGroupRef.current) canvas.style.cursor = findGroupAtCursor() ? 'pointer' : 'grab';
+        else canvas.style.cursor = 'grab';
+      });
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);

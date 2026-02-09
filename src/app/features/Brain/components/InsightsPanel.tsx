@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -22,6 +22,19 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [typeFilter, setTypeFilter] = useState<InsightType | 'all' | 'conflicts'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(value), 300);
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(searchTimerRef.current);
+  }, []);
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const projects = useServerProjectStore((state) => state.projects);
@@ -128,8 +141,8 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     } else {
       list = insights.filter(i => i.type === typeFilter);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       list = list.filter(i => i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q));
     }
     list = [...list].sort((a, b) => {
@@ -143,7 +156,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [insights, typeFilter, sortField, sortDir, searchQuery]);
+  }, [insights, typeFilter, sortField, sortDir, debouncedSearch]);
 
   const baseCardStyle = {
     background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
@@ -201,7 +214,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
                 textShadow: `0 0 10px ${GLOW_COLOR}`
               }}
             >
-              {displayed.length}{typeFilter !== 'all' || searchQuery.trim() ? ` / ${insights.length}` : ''}
+              {displayed.length}{typeFilter !== 'all' || debouncedSearch.trim() ? ` / ${insights.length}` : ''}
             </span>
           </div>
 
@@ -212,7 +225,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 placeholder="Search insights..."
                 className="rounded-lg text-xs text-zinc-300 pl-8 pr-3 py-1.5 outline-none font-mono w-44 placeholder:text-zinc-600 focus:ring-1 focus:ring-amber-500/40 transition-all"
                 style={{

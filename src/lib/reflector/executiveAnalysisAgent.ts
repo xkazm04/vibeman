@@ -1,23 +1,27 @@
 /**
  * Executive Analysis Agent
- * Orchestrates AI-driven executive insight analysis sessions
+ * Orchestrates AI-driven executive insight analysis sessions.
+ * Uses BaseAnalysisAgent for shared lifecycle (completeAnalysis / failAnalysis).
  */
 
 import { executiveAnalysisDb } from '@/app/db';
 import type {
   DbExecutiveAnalysis,
-  ExecutiveAIInsight,
   CompleteExecutiveAnalysisData,
 } from '@/app/db/models/reflector.types';
 import {
   gatherExecutiveAnalysisData,
   buildExecutiveAnalysisPrompt,
 } from './executiveAnalysisPromptBuilder';
+import { createBaseAgentLifecycle } from '@/lib/analysis/BaseAnalysisAgent';
+import type { AnalysisStartResult } from '@/lib/analysis/BaseAnalysisAgent';
 import type { TimeWindow } from '@/app/features/reflector/sub_Reflection/lib/types';
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+export type { AnalysisStartResult };
 
 export interface StartAnalysisOptions {
   projectId: string | null;
@@ -25,13 +29,6 @@ export interface StartAnalysisOptions {
   contextId: string | null;
   contextName?: string;
   timeWindow?: TimeWindow;
-}
-
-export interface StartAnalysisResult {
-  success: boolean;
-  analysisId?: string;
-  promptContent?: string;
-  error?: string;
 }
 
 export interface AnalysisStatus {
@@ -45,12 +42,19 @@ export interface AnalysisStatus {
 // HELPERS
 // ============================================================================
 
-/**
- * Generate a unique analysis ID
- */
 function generateAnalysisId(): string {
   return `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
+
+// ============================================================================
+// SHARED LIFECYCLE
+// ============================================================================
+
+const lifecycle = createBaseAgentLifecycle<DbExecutiveAnalysis>({
+  label: 'ExecutiveAnalysisAgent',
+  getById: (id) => executiveAnalysisDb.getById(id),
+  failAnalysis: (id, msg) => executiveAnalysisDb.failAnalysis(id, msg),
+});
 
 // ============================================================================
 // AGENT
@@ -83,7 +87,7 @@ export const executiveAnalysisAgent = {
   /**
    * Start a new analysis session
    */
-  async startAnalysis(options: StartAnalysisOptions): Promise<StartAnalysisResult> {
+  async startAnalysis(options: StartAnalysisOptions): Promise<AnalysisStartResult> {
     const {
       projectId,
       projectName,
@@ -111,10 +115,8 @@ export const executiveAnalysisAgent = {
     }
 
     try {
-      // Generate analysis ID
       const analysisId = generateAnalysisId();
 
-      // Create analysis record
       executiveAnalysisDb.create({
         id: analysisId,
         project_id: projectId,
@@ -123,7 +125,6 @@ export const executiveAnalysisAgent = {
         time_window: timeWindow,
       });
 
-      // Gather data
       const data = await gatherExecutiveAnalysisData(
         projectId,
         contextId,
@@ -132,22 +133,16 @@ export const executiveAnalysisAgent = {
         contextName
       );
 
-      // Build prompt
       const promptContent = buildExecutiveAnalysisPrompt({
         analysisId,
         data,
         projectId,
-        apiBaseUrl: '', // Will be relative URL
+        apiBaseUrl: '',
       });
 
-      // Mark as running
       executiveAnalysisDb.startAnalysis(analysisId);
 
-      return {
-        success: true,
-        analysisId,
-        promptContent,
-      };
+      return { success: true, analysisId, promptContent };
     } catch (error) {
       console.error('[ExecutiveAnalysisAgent] Error starting analysis:', error);
       return {
@@ -161,38 +156,16 @@ export const executiveAnalysisAgent = {
    * Complete an analysis (called by Claude Code via API)
    */
   completeAnalysis(analysisId: string, data: CompleteExecutiveAnalysisData): boolean {
-    try {
-      const analysis = executiveAnalysisDb.getById(analysisId);
-      if (!analysis) {
-        console.error('[ExecutiveAnalysisAgent] Analysis not found:', analysisId);
-        return false;
-      }
-
-      if (analysis.status !== 'running') {
-        console.error('[ExecutiveAnalysisAgent] Analysis not in running state:', analysis.status);
-        return false;
-      }
-
+    return lifecycle.completeAnalysis(analysisId, () => {
       executiveAnalysisDb.completeAnalysis(analysisId, data);
       return true;
-    } catch (error) {
-      console.error('[ExecutiveAnalysisAgent] Error completing analysis:', error);
-      return false;
-    }
+    }) as boolean;
   },
 
   /**
-   * Mark analysis as failed
+   * Mark analysis as failed – delegates to shared lifecycle
    */
-  failAnalysis(analysisId: string, error: string): boolean {
-    try {
-      executiveAnalysisDb.failAnalysis(analysisId, error);
-      return true;
-    } catch (err) {
-      console.error('[ExecutiveAnalysisAgent] Error failing analysis:', err);
-      return false;
-    }
-  },
+  failAnalysis: lifecycle.failAnalysis,
 
   /**
    * Get analysis history
@@ -201,34 +174,4 @@ export const executiveAnalysisAgent = {
     return executiveAnalysisDb.getHistory(projectId, limit);
   },
 
-  /**
-   * Get all AI insights from completed analyses
-   */
-  getAllInsights(projectId: string | null, limit: number = 20): ExecutiveAIInsight[] {
-    return executiveAnalysisDb.getAllInsights(projectId, limit);
-  },
-
-  /**
-   * Parse insights from a completed analysis record
-   */
-  parseInsights(analysis: DbExecutiveAnalysis): ExecutiveAIInsight[] {
-    if (!analysis.ai_insights) return [];
-    try {
-      return JSON.parse(analysis.ai_insights);
-    } catch {
-      return [];
-    }
-  },
-
-  /**
-   * Parse recommendations from a completed analysis record
-   */
-  parseRecommendations(analysis: DbExecutiveAnalysis): string[] {
-    if (!analysis.ai_recommendations) return [];
-    try {
-      return JSON.parse(analysis.ai_recommendations);
-    } catch {
-      return [];
-    }
-  },
 };

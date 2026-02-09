@@ -3,7 +3,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Monitor, Wifi, Tablet, Clock, Rocket } from 'lucide-react';
-import { useZenStore, type ZenMode } from '../lib/zenStore';
+import { useZenStore } from '../lib/zenStore';
+import { useZenNavigation, useZenMode, type ZenMode } from '../lib/zenNavigationStore';
 
 interface ZenHeaderProps {
   embedded?: boolean;
@@ -17,7 +18,9 @@ const modes: { value: ZenMode; label: string; icon: typeof Monitor; color: strin
 ];
 
 export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
-  const { mode, setMode, stats } = useZenStore();
+  const mode = useZenMode();
+  const navigate = useZenNavigation((s) => s.navigate);
+  const { stats } = useZenStore();
   const [currentTime, setCurrentTime] = React.useState(new Date());
 
   // Update clock every second
@@ -85,7 +88,7 @@ export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
           return (
             <button
               key={m.value}
-              onClick={() => setMode(m.value)}
+              onClick={() => navigate(m.value)}
               className={`
                 relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md
                 transition-colors duration-200

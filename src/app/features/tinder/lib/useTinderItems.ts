@@ -5,7 +5,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useEmulatorStore, type RemoteDirection } from '@/stores/emulatorStore';
+import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
+import { type RemoteDirection } from '@/stores/remoteWorkStore';
 import {
   TinderItem,
   TinderFilterMode,
@@ -115,7 +116,7 @@ export function useTinderItems(
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   const { getProject } = useProjectConfigStore();
-  const { localDeviceId, localDeviceName } = useEmulatorStore();
+  const { localDeviceId, localDeviceName } = useDeviceMeshStore();
   const pendingCommandRef = useRef<string | null>(null);
 
   // Compute combined stats

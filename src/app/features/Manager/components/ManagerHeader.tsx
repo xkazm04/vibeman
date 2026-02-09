@@ -7,13 +7,13 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Loader2, LayoutGrid, Network, Filter } from 'lucide-react';
+import { CheckCircle2, Loader2, LayoutGrid, Network, GitBranch, Filter } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 import { toast } from 'sonner';
 import { batchAcceptImplementations } from '@/lib/tools';
 import type { EnrichedImplementationLog } from '../lib/types';
 
-export type ViewMode = 'cards' | 'map';
+export type ViewMode = 'cards' | 'map' | 'flow';
 
 interface ManagerHeaderProps {
   implementationLogs: EnrichedImplementationLog[];
@@ -136,6 +136,18 @@ export default function ManagerHeader({
               data-testid="view-map-btn"
             >
               <Network className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('flow')}
+              className={`px-3 py-2 flex items-center gap-1 text-sm transition-all ${
+                viewMode === 'flow'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+              data-testid="view-flow-btn"
+              title="Development Flow Map"
+            >
+              <GitBranch className="w-4 h-4" />
             </button>
           </div>
 

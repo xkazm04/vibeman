@@ -239,6 +239,10 @@ export function runMigrations() {
     migrateFixGenerationHistoryFk();
     // Migration 87: Template Category - add category column for grouping
     migrateTemplateCategory();
+    // Migration 88: Behavioral Signals Indexes - compound indexes for query performance
+    migrateBehavioralSignalsIndexes();
+    // Migration 89: Template Source Column - consolidate prompt_templates into discovered_templates
+    migrateTemplateSourceColumn();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4629,5 +4633,31 @@ function migrateTemplateCategory() {
     const db = getConnection();
     const { migrate070TemplateCategory } = require('./070_template_category');
     migrate070TemplateCategory(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 88: Behavioral Signals Indexes
+ * Adds compound indexes for the two hottest query paths:
+ * - (project_id, timestamp DESC) for getByProject, applyDecay, getByTypeAndWindow
+ * - (project_id, context_id, timestamp) partial for getContextActivity GROUP BY
+ */
+function migrateBehavioralSignalsIndexes() {
+  safeMigration('behavioral_signals_indexes', () => {
+    const db = getConnection();
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_signals_project_timestamp ON behavioral_signals(project_id, timestamp DESC)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_signals_context_activity ON behavioral_signals(project_id, context_id, timestamp) WHERE context_id IS NOT NULL`);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 89: Template Source Column
+ * Adds source column to discovered_templates to support user-created templates
+ */
+function migrateTemplateSourceColumn() {
+  safeMigration('template_source_column', () => {
+    const db = getConnection();
+    const { migrate072TemplateSourceColumn } = require('./072_template_source_column');
+    migrate072TemplateSourceColumn(db);
   }, migrationLogger);
 }

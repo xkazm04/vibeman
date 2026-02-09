@@ -4,7 +4,8 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useEmulatorStore, type RemoteBatchInfo, type RemoteEvent } from '@/stores/emulatorStore';
+import { useRemoteWorkStore, type RemoteBatchInfo, type RemoteEvent } from '@/stores/remoteWorkStore';
+import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
 
 interface UseRemoteMonitorResult {
   // State
@@ -41,9 +42,12 @@ export function useRemoteMonitor(
     setEventFeed,
     addEvent,
     setLoadingEvents,
+  } = useRemoteWorkStore();
+
+  const {
     localDeviceId,
     localDeviceName,
-  } = useEmulatorStore();
+  } = useDeviceMeshStore();
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 

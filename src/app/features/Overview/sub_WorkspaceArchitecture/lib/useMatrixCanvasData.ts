@@ -36,12 +36,6 @@ export function useMatrixCanvasData({
     [graph]
   );
 
-  // Create filtered graph based on selected integration types
-  const filteredGraph = useMemo(
-    () => graph.filterByIntegrationType(filterTypes),
-    [graph, filterTypes]
-  );
-
   // Matrix projection - adjacency matrix representation
   const matrixProjection = useMemo(() => graph.toMatrix(), [graph]);
 
@@ -88,10 +82,7 @@ export function useMatrixCanvasData({
     nodes: diagramProjection.nodes,
     tierConfigs: diagramProjection.tierConfigs,
 
-    // Filtered connections for diagram view (legacy - raw relationships)
-    filteredConnections: filteredGraph.edges as typeof data.relationships,
-
-    // Resolved edges with direct node references (optimized - O(1) access)
+    // Resolved edges with direct node references (O(1) access)
     filteredResolvedEdges,
 
     // Integration type filter options

@@ -1,5 +1,5 @@
 import type { Requirement } from '@/app/Claude/lib/requirementApi';
-import type { BatchId } from './batchStorage';
+import type { BatchId } from '../store/taskRunnerStore';
 import { RequirementId, type RequirementIdString, type ParsedRequirementId } from './requirementId';
 
 // Re-export RequirementId for consumers

@@ -4,6 +4,7 @@ import React from 'react';
 import type { WorkspaceProjectNode } from '../sub_WorkspaceArchitecture/lib/types';
 import { TIER_CONFIG } from '../sub_WorkspaceArchitecture/lib/types';
 import type { ZoomDetailFlags } from './lib/semanticZoom';
+import { archTheme } from './lib/archTheme';
 
 interface MatrixNodeProps {
   node: WorkspaceProjectNode;
@@ -37,7 +38,7 @@ export default function MatrixNode({ node, isHighlighted, detailFlags }: MatrixN
 
   // Branch display (full name)
   const branchName = node.branch || '';
-  const branchColor = node.branchDirty ? '#f59e0b' : '#6b7280'; // amber if dirty, gray otherwise
+  const branchColor = node.branchDirty ? archTheme.indicator.dirty : archTheme.text.dim;
 
   return (
     <g transform={`translate(${node.x}, ${node.y})`}>
@@ -58,21 +59,21 @@ export default function MatrixNode({ node, isHighlighted, detailFlags }: MatrixN
         width={node.width}
         height={node.height}
         rx={6}
-        fill="#141418"
-        stroke="#2a2a35"
+        fill={archTheme.surface.card}
+        stroke={archTheme.border.card}
       />
       <rect width={node.width} height={2} fill={tierConfig.color} />
 
       {/* Node name - always shown when node is visible */}
       {flags.showNodeName && (
-        <text x={10} y={20} fill="#ffffff" fontSize={11} fontWeight={600}>
+        <text x={10} y={20} fill={archTheme.text.primary} fontSize={11} fontWeight={600}>
           {displayName}
         </text>
       )}
 
       {/* Framework label - medium+ zoom */}
       {flags.showFramework && node.framework && (
-        <text x={10} y={34} fill="#6b7280" fontSize={9}>
+        <text x={10} y={34} fill={archTheme.text.dim} fontSize={9}>
           {node.framework}
         </text>
       )}
@@ -92,7 +93,7 @@ export default function MatrixNode({ node, isHighlighted, detailFlags }: MatrixN
             {branchName}
           </text>
           {node.branchDirty && (
-            <text x={9 + branchName.length * 4.5} y={5.5} fill="#f59e0b" fontSize={8}>
+            <text x={9 + branchName.length * 4.5} y={5.5} fill={archTheme.indicator.dirty} fontSize={8}>
               *
             </text>
           )}
@@ -102,7 +103,7 @@ export default function MatrixNode({ node, isHighlighted, detailFlags }: MatrixN
       {/* File/context counts - high zoom only */}
       {flags.showCounts && (node.contextCount > 0 || node.contextGroupCount > 0) && (
         <g transform={`translate(10, ${flags.showGitBranch && node.branch ? 60 : 44})`}>
-          <text x={0} y={5.5} fill="#4b5563" fontSize={8}>
+          <text x={0} y={5.5} fill={archTheme.text.faint} fontSize={8}>
             {node.contextGroupCount > 0 && `${node.contextGroupCount} groups`}
             {node.contextGroupCount > 0 && node.contextCount > 0 && ' · '}
             {node.contextCount > 0 && `${node.contextCount} contexts`}

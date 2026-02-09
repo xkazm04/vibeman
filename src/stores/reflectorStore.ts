@@ -29,11 +29,6 @@ interface ReflectorState {
   // Loading states
   isLoading: boolean;
   error: string | null;
-
-  // Current filters
-  projectId: string | null;
-  contextId: string | null;
-  timeWindow: TimeWindow;
 }
 
 interface ReflectorActions {
@@ -49,15 +44,8 @@ interface ReflectorActions {
   fetchAnalysisStatus: (projectId: string | null) => Promise<void>;
   cancelAnalysis: (analysisId: string) => Promise<void>;
 
-  // Filter actions
-  setProjectId: (projectId: string | null) => void;
-  setContextId: (contextId: string | null) => void;
-  setTimeWindow: (timeWindow: TimeWindow) => void;
-
   // Utilities
-  clearPromptContent: () => void;
   clearError: () => void;
-  reset: () => void;
 }
 
 type ReflectorStore = ReflectorState & ReflectorActions;
@@ -76,9 +64,6 @@ const initialState: ReflectorState = {
   aiRecommendations: [],
   isLoading: false,
   error: null,
-  projectId: null,
-  contextId: null,
-  timeWindow: 'all',
 };
 
 // ============================================================================
@@ -133,9 +118,6 @@ export const useReflectorStore = create<ReflectorStore>()(
             runningAnalysisId: data.analysisId,
             promptContent: data.promptContent,
             isLoading: false,
-            projectId,
-            contextId,
-            timeWindow,
           });
         } catch (error) {
           set({
@@ -185,7 +167,6 @@ export const useReflectorStore = create<ReflectorStore>()(
             aiInsights,
             aiNarrative,
             aiRecommendations,
-            projectId,
           });
         } catch (error) {
           console.error('[ReflectorStore] Error fetching status:', error);
@@ -213,20 +194,10 @@ export const useReflectorStore = create<ReflectorStore>()(
       },
 
       // ========================================
-      // FILTER ACTIONS
-      // ========================================
-
-      setProjectId: (projectId) => set({ projectId }),
-      setContextId: (contextId) => set({ contextId }),
-      setTimeWindow: (timeWindow) => set({ timeWindow }),
-
-      // ========================================
       // UTILITIES
       // ========================================
 
-      clearPromptContent: () => set({ promptContent: null }),
       clearError: () => set({ error: null }),
-      reset: () => set(initialState),
     }),
     { name: 'reflector-store' }
   )

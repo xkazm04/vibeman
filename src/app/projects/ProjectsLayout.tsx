@@ -1,7 +1,6 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useAnalysisStore } from '../../stores/analysisStore';
 import { useActiveProjectStore } from '../../stores/activeProjectStore';
 import { useProjectsToolbarStore } from '../../stores/projectsToolbarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
@@ -15,7 +14,6 @@ import StructureTemplateEditor from '../Claude/sub_ClaudeStructureScan/component
 import WorkspaceManager from './sub_Workspaces/WorkspaceManager';
 
 export default function ProjectsLayout() {
-  const { isActive } = useAnalysisStore();
   const { activeProject } = useActiveProjectStore();
   const { syncWithServer } = useProjectConfigStore();
   const { notifyProjectAdded, notifyProjectUpdated } = useProjectUpdatesStore();
@@ -58,10 +56,8 @@ export default function ProjectsLayout() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`w-full py-5 flex flex-row wrap-normal
-          bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30 ${
-            isActive ? 'shadow-lg shadow-blue-500/20' : ''
-          }`}
+        className="w-full py-5 flex flex-row wrap-normal
+          bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/30"
       >
         {/* Unified Project Toolbar */}
         <ProjectToolbar />

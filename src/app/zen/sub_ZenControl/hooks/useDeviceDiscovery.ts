@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useEmulatorStore } from '@/stores/emulatorStore';
+import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
 import {
   getOrCreateDeviceId,
   getDeviceName,
@@ -50,24 +50,24 @@ export function useDeviceDiscovery(options: UseDeviceDiscoveryOptions = {}): Use
   } = options;
 
   // Use individual selectors to avoid unnecessary re-renders
-  const localDeviceId = useEmulatorStore((s) => s.localDeviceId);
-  const localDeviceName = useEmulatorStore((s) => s.localDeviceName);
-  const isRegistered = useEmulatorStore((s) => s.isRegistered);
-  const isConnecting = useEmulatorStore((s) => s.isConnecting);
-  const connectionError = useEmulatorStore((s) => s.connectionError);
-  const devices = useEmulatorStore((s) => s.devices);
-  const isLoadingDevices = useEmulatorStore((s) => s.isLoadingDevices);
-  const selectedDeviceId = useEmulatorStore((s) => s.selectedDeviceId);
+  const localDeviceId = useDeviceMeshStore((s) => s.localDeviceId);
+  const localDeviceName = useDeviceMeshStore((s) => s.localDeviceName);
+  const isRegistered = useDeviceMeshStore((s) => s.isRegistered);
+  const isConnecting = useDeviceMeshStore((s) => s.isConnecting);
+  const connectionError = useDeviceMeshStore((s) => s.connectionError);
+  const devices = useDeviceMeshStore((s) => s.devices);
+  const isLoadingDevices = useDeviceMeshStore((s) => s.isLoadingDevices);
+  const selectedDeviceId = useDeviceMeshStore((s) => s.selectedDeviceId);
 
   // Get store actions (these are stable references)
-  const setLocalDevice = useEmulatorStore((s) => s.setLocalDevice);
-  const setRegistered = useEmulatorStore((s) => s.setRegistered);
-  const setConnecting = useEmulatorStore((s) => s.setConnecting);
-  const setConnectionError = useEmulatorStore((s) => s.setConnectionError);
-  const setDevices = useEmulatorStore((s) => s.setDevices);
-  const setLoadingDevices = useEmulatorStore((s) => s.setLoadingDevices);
-  const selectDeviceAction = useEmulatorStore((s) => s.selectDevice);
-  const updateDeviceNameAction = useEmulatorStore((s) => s.updateDeviceName);
+  const setLocalDevice = useDeviceMeshStore((s) => s.setLocalDevice);
+  const setRegistered = useDeviceMeshStore((s) => s.setRegistered);
+  const setConnecting = useDeviceMeshStore((s) => s.setConnecting);
+  const setConnectionError = useDeviceMeshStore((s) => s.setConnectionError);
+  const setDevices = useDeviceMeshStore((s) => s.setDevices);
+  const setLoadingDevices = useDeviceMeshStore((s) => s.setLoadingDevices);
+  const selectDeviceAction = useDeviceMeshStore((s) => s.selectDevice);
+  const updateDeviceNameAction = useDeviceMeshStore((s) => s.updateDeviceName);
 
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);

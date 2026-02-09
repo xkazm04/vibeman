@@ -26,7 +26,7 @@ import {
   statusToColor,
   suggestImprovements,
 } from '@/lib/remote/topologyBuilder';
-import { useEmulatorStore } from '@/stores/emulatorStore';
+
 
 interface TopologyMapProps {
   /** Topology data to render */

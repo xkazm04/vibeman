@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Calendar, Compass, MapPin, Wifi } from 'lucide-react';
-import type { RemoteDirection } from '@/stores/emulatorStore';
+import type { RemoteDirection } from '@/stores/remoteWorkStore';
 
 interface DirectionCardRemoteProps {
   direction: RemoteDirection;

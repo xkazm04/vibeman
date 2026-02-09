@@ -22,9 +22,7 @@ import {
   focusTargetToCell,
 } from '@/hooks/useFocusHighlight';
 
-import MatrixLoadingState from '../../sub_Matrix/MatrixLoadingState';
-import MatrixErrorState from '../../sub_Matrix/MatrixErrorState';
-import MatrixEmptyState from '../../sub_Matrix/MatrixEmptyState';
+import MatrixState from '../../sub_Matrix/MatrixState';
 import MatrixPanel from '../../sub_Matrix/MatrixPanel';
 import MatrixDiagramView from '../../sub_Matrix/MatrixDiagramView';
 import MatrixBackground from '../../sub_Matrix/MatrixBackground';
@@ -82,7 +80,7 @@ export default function MatrixDiagramCanvas({
 
   const {
     data, loading, error, refresh,
-    sortedNodes, matrix, filteredConnections, filteredResolvedEdges,
+    sortedNodes, matrix, filteredResolvedEdges,
     nodes, tierConfigs, availableIntegrationTypes,
     matrixContentWidth, matrixContentHeight, matrixPanelWidth,
   } = useMatrixCanvasData({ workspaceId, filterTypes, showMatrix, dimensionsWidth: dimensions.width });
@@ -106,12 +104,13 @@ export default function MatrixDiagramCanvas({
     });
   };
 
-  if (loading) return <MatrixLoadingState ref={containerRef} />;
-  if (error) return <MatrixErrorState ref={containerRef} error={error} onRetry={refresh} />;
+  if (loading) return <MatrixState ref={containerRef} variant="loading" />;
+  if (error) return <MatrixState ref={containerRef} variant="error" error={error} onRetry={refresh} />;
   if (data.projects.length === 0) {
     return (
-      <MatrixEmptyState
+      <MatrixState
         ref={containerRef}
+        variant="empty"
         activeWorkspace={activeWorkspace}
         onBatchOnboarding={onBatchOnboarding}
         onRefresh={refresh}
@@ -151,7 +150,6 @@ export default function MatrixDiagramCanvas({
         </AnimatePresence>
         <MatrixDiagramView
           nodes={nodes}
-          connections={filteredConnections}
           resolvedEdges={filteredResolvedEdges}
           tierConfigs={tierConfigs}
           width={diagramWidth}

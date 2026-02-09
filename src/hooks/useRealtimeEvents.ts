@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { EventLogEntry } from '@/types';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import useAnalysisStore from '@/stores/analysisStore';
 
 // Database event from local SQLite
 export interface DbEvent {
@@ -47,7 +46,6 @@ export function useRealtimeEvents(options?: {
 }) {
   const queryClient = useQueryClient();
   const { activeProject } = useActiveProjectStore();
-  const { isActive } = useAnalysisStore();
   const { sessionId, flowId, limit = 50, autoRefresh = false, refreshInterval = 5000 } = options || {};
   const realtimeChannelRef = useRef<NodeJS.Timeout | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);

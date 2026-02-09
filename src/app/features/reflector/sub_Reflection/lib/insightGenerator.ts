@@ -10,7 +10,7 @@ import {
   NarrativeSummary,
   ScanTypeRecommendation,
   SpecialistRanking,
-} from './executiveInsightTypes';
+} from './RuleBasedInsightTypes';
 
 const DEFAULT_CONFIG: InsightGeneratorConfig = {
   enableAI: false,

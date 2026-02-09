@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { TierAggregate } from './lib/semanticZoom';
+import { archTheme } from './lib/archTheme';
 
 interface MatrixTierAggregateProps {
   aggregate: TierAggregate;
@@ -34,7 +35,7 @@ export default function MatrixTierAggregate({
         width={badgeWidth}
         height={badgeHeight}
         rx={8}
-        fill="#1a1a20"
+        fill={archTheme.surface.muted}
         stroke={aggregate.tierColor}
         strokeWidth={2}
         opacity={0.9}
@@ -52,7 +53,7 @@ export default function MatrixTierAggregate({
       <text
         x={badgeWidth / 2}
         y={22}
-        fill="#ffffff"
+        fill={archTheme.text.primary}
         fontSize={12}
         fontWeight={600}
         textAnchor="middle"
@@ -77,7 +78,7 @@ export default function MatrixTierAggregate({
         <text
           x={badgeWidth / 2}
           y={54}
-          fill="#6b7280"
+          fill={archTheme.text.dim}
           fontSize={9}
           textAnchor="middle"
         >

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import RemoteSetupPanel from './components/RemoteSetupPanel';
 import EmulatorPanel from './components/EmulatorPanel';
-import { useZenStore } from '../lib/zenStore';
+import { useZenMode } from '../lib/zenNavigationStore';
 
 /**
  * Zen Control Panel
@@ -12,7 +12,7 @@ import { useZenStore } from '../lib/zenStore';
  * Modes: offline, online, emulator
  */
 export default function ZenControlPanel() {
-  const { mode } = useZenStore();
+  const mode = useZenMode();
   const [remoteConfigured, setRemoteConfigured] = useState(false);
 
   // Fetch remote config status from database

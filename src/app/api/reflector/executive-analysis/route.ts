@@ -3,11 +3,19 @@
  *
  * GET /api/reflector/executive-analysis - Get analysis status or history
  * POST /api/reflector/executive-analysis - Trigger new analysis
+ * PATCH /api/reflector/executive-analysis - Cancel running analysis
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { executiveAnalysisAgent } from '@/lib/reflector/executiveAnalysisAgent';
 import type { TimeWindow } from '@/app/features/reflector/sub_Reflection/lib/types';
+import {
+  successResponse,
+  validationError,
+  handleApiError,
+  createApiErrorResponse,
+  ApiErrorCode,
+} from '@/lib/api-errors';
 
 /**
  * GET - Get analysis status or history
@@ -21,24 +29,14 @@ export async function GET(request: NextRequest) {
     if (mode === 'history') {
       const limit = parseInt(searchParams.get('limit') || '10', 10);
       const history = executiveAnalysisAgent.getHistory(projectId, limit);
-      return NextResponse.json({
-        success: true,
-        history,
-      });
+      return successResponse({ history });
     }
 
     // Default: return status
     const status = executiveAnalysisAgent.getStatus(projectId);
-    return NextResponse.json({
-      success: true,
-      ...status,
-    });
+    return successResponse({ ...status });
   } catch (error) {
-    console.error('[API] Executive Analysis GET error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'executive analysis GET');
   }
 }
 
@@ -65,23 +63,19 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error, analysisId: result.analysisId },
-        { status: result.analysisId ? 409 : 400 } // 409 if already running
+      return createApiErrorResponse(
+        result.analysisId ? ApiErrorCode.RESOURCE_CONFLICT : ApiErrorCode.VALIDATION_ERROR,
+        result.error || 'Failed to start analysis',
+        { details: result.analysisId ? { analysisId: result.analysisId } : undefined }
       );
     }
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       analysisId: result.analysisId,
       promptContent: result.promptContent,
     });
   } catch (error) {
-    console.error('[API] Executive Analysis POST error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'executive analysis POST');
   }
 }
 
@@ -94,20 +88,13 @@ export async function PATCH(request: NextRequest) {
     const { analysisId, error = 'Cancelled by user' } = body;
 
     if (!analysisId) {
-      return NextResponse.json(
-        { success: false, error: 'analysisId is required' },
-        { status: 400 }
-      );
+      return validationError('analysisId is required');
     }
 
-    const success = executiveAnalysisAgent.failAnalysis(analysisId, error);
+    const cancelled = executiveAnalysisAgent.failAnalysis(analysisId, error);
 
-    return NextResponse.json({ success });
+    return successResponse({ cancelled });
   } catch (error) {
-    console.error('[API] Executive Analysis PATCH error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'executive analysis PATCH');
   }
 }

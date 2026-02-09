@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { integrationDb, webhookDb } from '@/app/db';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
+import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 
 /**
  * GET /api/integrations
@@ -42,6 +43,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, integrations: parsed });
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error fetching integrations:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch integrations' },
@@ -130,6 +137,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error creating integration:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create integration' },
@@ -190,6 +203,12 @@ export async function PUT(request: Request) {
       } : null,
     });
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error updating integration:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update integration' },
@@ -218,6 +237,12 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true, deleted });
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error deleting integration:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete integration' },

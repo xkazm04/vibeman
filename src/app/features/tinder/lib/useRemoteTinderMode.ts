@@ -1,11 +1,11 @@
 /**
  * Hook for remote tinder mode
- * Checks device connection status from emulatorStore
+ * Checks device connection status from deviceMeshStore
  * Provides remote mode state and device info
  */
 
 import { useCallback } from 'react';
-import { useEmulatorStore, useSelectedDevice } from '@/stores/emulatorStore';
+import { useDeviceMeshStore, useSelectedDevice } from '@/stores/deviceMeshStore';
 
 export interface RemoteTinderModeState {
   // Is a remote device available to triage?
@@ -41,10 +41,10 @@ function setRemoteModeEnabled(enabled: boolean) {
 
 export function useRemoteTinderMode(): RemoteTinderModeState {
   // Get emulator store state
-  const isRegistered = useEmulatorStore(s => s.isRegistered);
-  const localDeviceId = useEmulatorStore(s => s.localDeviceId);
-  const localDeviceName = useEmulatorStore(s => s.localDeviceName);
-  const selectedDeviceId = useEmulatorStore(s => s.selectedDeviceId);
+  const isRegistered = useDeviceMeshStore(s => s.isRegistered);
+  const localDeviceId = useDeviceMeshStore(s => s.localDeviceId);
+  const localDeviceName = useDeviceMeshStore(s => s.localDeviceName);
+  const selectedDeviceId = useDeviceMeshStore(s => s.selectedDeviceId);
   const selectedDevice = useSelectedDevice();
 
   // Check if remote triage is available
@@ -93,7 +93,7 @@ export function useRemoteTinderMode(): RemoteTinderModeState {
  * Selector hook: is remote triage available?
  */
 export function useIsRemoteAvailable(): boolean {
-  const isRegistered = useEmulatorStore(s => s.isRegistered);
-  const selectedDeviceId = useEmulatorStore(s => s.selectedDeviceId);
+  const isRegistered = useDeviceMeshStore(s => s.isRegistered);
+  const selectedDeviceId = useDeviceMeshStore(s => s.selectedDeviceId);
   return isRegistered && !!selectedDeviceId;
 }

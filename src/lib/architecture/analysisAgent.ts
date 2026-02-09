@@ -1,6 +1,7 @@
 /**
  * Architecture Analysis Agent
- * Coordinates cross-project architecture analysis using Claude Code
+ * Coordinates cross-project architecture analysis using Claude Code.
+ * Uses BaseAnalysisAgent for shared lifecycle (completeAnalysis / failAnalysis).
  */
 
 import {
@@ -9,10 +10,8 @@ import {
   projectArchitectureMetadataDb,
 } from '@/app/db';
 import type {
-  AnalysisResult,
-  AnalysisTriggerType,
-  DbCrossProjectRelationship,
   DbArchitectureAnalysisSession,
+  AnalysisTriggerType,
   ProjectTier,
   FrameworkCategory,
 } from '@/app/db/models/cross-project-architecture.types';
@@ -23,6 +22,14 @@ import {
   parseAnalysisResult,
   type ProjectInfo,
 } from './promptBuilder';
+import { createBaseAgentLifecycle } from '@/lib/analysis/BaseAnalysisAgent';
+import type { AnalysisStartResult } from '@/lib/analysis/BaseAnalysisAgent';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export type { AnalysisStartResult };
 
 export interface AnalyzeWorkspaceConfig {
   workspaceId: string | null;
@@ -38,13 +45,6 @@ export interface AnalyzeProjectConfig {
   baseUrl: string;
 }
 
-export interface AnalysisStartResult {
-  success: boolean;
-  analysisId: string;
-  promptContent: string;
-  error?: string;
-}
-
 export interface AnalysisCompleteResult {
   success: boolean;
   analysis: DbArchitectureAnalysisSession | null;
@@ -52,19 +52,27 @@ export interface AnalysisCompleteResult {
   error?: string;
 }
 
-/**
- * Architecture Analysis Agent
- * Manages the lifecycle of architecture analysis sessions
- */
+// ============================================================================
+// SHARED LIFECYCLE
+// ============================================================================
+
+const lifecycle = createBaseAgentLifecycle<DbArchitectureAnalysisSession>({
+  label: 'ArchitectureAnalysisAgent',
+  getById: (id) => architectureAnalysisDb.getById(id),
+  failAnalysis: (id, msg) => architectureAnalysisDb.failAnalysis(id, msg),
+});
+
+// ============================================================================
+// AGENT
+// ============================================================================
+
 export const architectureAnalysisAgent = {
   /**
    * Start workspace-level architecture analysis
-   * Returns prompt content to be sent to Claude Code
    */
   analyzeWorkspace: async (config: AnalyzeWorkspaceConfig): Promise<AnalysisStartResult> => {
     const { workspaceId, projects, triggerType, baseUrl } = config;
 
-    // Check for running analysis
     const running = architectureAnalysisDb.getRunning('workspace', workspaceId);
     if (running) {
       return {
@@ -75,7 +83,6 @@ export const architectureAnalysisAgent = {
       };
     }
 
-    // Create analysis session
     const analysisId = generateId('arch-analysis');
     architectureAnalysisDb.create({
       id: analysisId,
@@ -84,7 +91,6 @@ export const architectureAnalysisAgent = {
       trigger_type: triggerType,
     });
 
-    // Get existing relationships for context
     const existingRels = crossProjectRelationshipDb.getByWorkspace(workspaceId);
     const existingRelationships = existingRels.map(r => ({
       sourceId: r.source_project_id,
@@ -93,10 +99,8 @@ export const architectureAnalysisAgent = {
       label: r.label || '',
     }));
 
-    // Build callback URL
     const callbackUrl = `${baseUrl}/api/architecture/analyze/${analysisId}/complete`;
 
-    // Build prompt
     const promptContent = buildWorkspaceAnalysisPrompt({
       analysisId,
       scope: 'workspace',
@@ -106,21 +110,15 @@ export const architectureAnalysisAgent = {
       existingRelationships,
     });
 
-    return {
-      success: true,
-      analysisId,
-      promptContent,
-    };
+    return { success: true, analysisId, promptContent };
   },
 
   /**
    * Start analysis for a newly added project
-   * Discovers connections to existing projects
    */
   analyzeNewProject: async (config: AnalyzeProjectConfig): Promise<AnalysisStartResult> => {
     const { newProject, existingProjects, workspaceId, baseUrl } = config;
 
-    // Create analysis session
     const analysisId = generateId('arch-analysis');
     architectureAnalysisDb.create({
       id: analysisId,
@@ -130,10 +128,8 @@ export const architectureAnalysisAgent = {
       trigger_type: 'onboarding',
     });
 
-    // Build callback URL
     const callbackUrl = `${baseUrl}/api/architecture/analyze/${analysisId}/complete`;
 
-    // Build prompt
     const promptContent = buildProjectAnalysisPrompt({
       analysisId,
       project: newProject,
@@ -141,11 +137,7 @@ export const architectureAnalysisAgent = {
       callbackUrl,
     });
 
-    return {
-      success: true,
-      analysisId,
-      promptContent,
-    };
+    return { success: true, analysisId, promptContent };
   },
 
   /**
@@ -172,10 +164,9 @@ export const architectureAnalysisAgent = {
       };
     }
 
-    // Parse the result
     const result = parseAnalysisResult(rawResult);
     if (!result) {
-      architectureAnalysisDb.failAnalysis(analysisId, 'Failed to parse analysis result');
+      lifecycle.failAnalysis(analysisId, 'Failed to parse analysis result');
       return {
         success: false,
         analysis: architectureAnalysisDb.getById(analysisId),
@@ -184,13 +175,11 @@ export const architectureAnalysisAgent = {
       };
     }
 
-    // Store relationships
     const relationshipsCreated = crossProjectRelationshipDb.upsertMany(
       analysis.workspace_id,
       result.relationships
     );
 
-    // Handle project metadata if present (for onboarding analysis)
     const rawData = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
     if (rawData?.project_metadata && analysis.project_id) {
       const meta = rawData.project_metadata;
@@ -205,7 +194,6 @@ export const architectureAnalysisAgent = {
       });
     }
 
-    // Complete the analysis
     const completed = architectureAnalysisDb.completeAnalysis(analysisId, {
       projects_analyzed: analysis.scope === 'workspace'
         ? new Set([
@@ -219,18 +207,15 @@ export const architectureAnalysisAgent = {
       detected_patterns: JSON.stringify(result.patterns),
     });
 
-    return {
-      success: true,
-      analysis: completed,
-      relationshipsCreated,
-    };
+    return { success: true, analysis: completed, relationshipsCreated };
   },
 
   /**
-   * Fail analysis with error
+   * Fail analysis with error – delegates to shared lifecycle
    */
   failAnalysis: (analysisId: string, error: string): DbArchitectureAnalysisSession | null => {
-    return architectureAnalysisDb.failAnalysis(analysisId, error);
+    lifecycle.failAnalysis(analysisId, error);
+    return architectureAnalysisDb.getById(analysisId);
   },
 
   /**

@@ -105,47 +105,7 @@ export function createCLILifecycle(
 }
 
 // ============================================================================
-// 3. AUTOMATION SESSIONS (Database-backed via API)
-// ============================================================================
-
-export interface AutomationSessionEntry extends BaseSession {
-  status: 'pending' | 'running' | 'exploring' | 'generating' | 'evaluating' | 'complete' | 'failed' | 'paused';
-  projectId: string;
-  progress: number;
-  message: string;
-}
-
-export function createAutomationLifecycle(
-  hooks?: LifecycleHooks<AutomationSessionEntry>
-): SessionLifecycleManager<AutomationSessionEntry> {
-  const config: SessionLifecycleConfig<AutomationSessionEntry> = {
-    name: 'automation',
-    persistence: new ApiPersistence<AutomationSessionEntry>({
-      baseUrl: '/api/standup/automation/sessions',
-      queryParams: { status: 'active' },
-      parseResponse: (data) => {
-        const d = data as { sessions?: AutomationSessionEntry[] };
-        return d.sessions ?? [];
-      },
-    }),
-    stalenessRules: [
-      // Automation sessions don't use time-based staleness;
-      // they rely on explicit phase transitions.
-      // But we can detect stuck sessions:
-      noHeartbeat('stuck_running', ['running', 'exploring', 'generating', 'evaluating'], HOURS(2)),
-    ],
-    heartbeatIntervalMs: 0, // Implicit via polling
-    scanIntervalMs: 0, // Managed by adaptive poller
-    maxSessionAgeMs: DAYS(7),
-    activeStatuses: ['pending', 'running', 'exploring', 'generating', 'evaluating'],
-    hooks,
-  };
-
-  return new SessionLifecycleManager(config);
-}
-
-// ============================================================================
-// 4. TERMINAL SESSIONS (In-memory Map)
+// 3. TERMINAL SESSIONS (In-memory Map)
 // ============================================================================
 
 export interface TerminalSessionEntry extends BaseSession {
@@ -178,7 +138,7 @@ export function createTerminalLifecycle(
 }
 
 // ============================================================================
-// 5. REMOTE DEVICE SESSIONS (External registry via API)
+// 4. REMOTE DEVICE SESSIONS (External registry via API)
 // ============================================================================
 
 export interface RemoteDeviceSession extends BaseSession {

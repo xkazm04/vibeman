@@ -18,7 +18,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useRemoteMonitor } from '../hooks/useRemoteMonitor';
-import type { RemoteBatchInfo, RemoteEvent } from '@/stores/emulatorStore';
+import type { RemoteBatchInfo, RemoteEvent } from '@/stores/remoteWorkStore';
 
 interface RemoteMonitorPanelProps {
   targetDeviceId: string | null;

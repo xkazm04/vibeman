@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stat } from 'fs/promises';
 import { discoverTemplateFiles, parseTemplateConfig } from '@/lib/template-discovery';
 import { discoveredTemplateRepository } from '@/app/db/repositories/discovered-template.repository';
+import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 
 export interface ScanRequest {
   projectPath: string;
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
           category: discoveredFile.category,
           config_json: config.configJson,
           content_hash: config.contentHash,
+          source: 'scanned',
         });
 
         templates.push({
@@ -135,6 +137,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
     });
 
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { error: 'Template discovery feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('[Template Discovery] Scan failed:', error);
     return NextResponse.json(
       { error: 'Scan failed', details: (error as Error).message },
@@ -162,6 +170,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { error: 'Template discovery feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('[Template Discovery] List failed:', error);
     return NextResponse.json(
       { error: 'Failed to list templates' },

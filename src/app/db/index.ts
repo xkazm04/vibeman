@@ -33,7 +33,6 @@ import {
   scanPredictionRepository,
   fileChangePatternRepository,
 } from './repositories/scan-prediction.repository';
-import { promptTemplateRepository } from './repositories/prompt-template.repository';
 // Adaptive learning repositories removed - feature deprecated
 import {
   debtPatternRepository,
@@ -49,14 +48,11 @@ import {
 import { standupRepository } from './repositories/standup.repository';
 // Red Team repositories removed - feature deprecated
 // Focus Mode repositories removed - feature deprecated
-import { goalHubExtensions } from './repositories/goal-hub.repository';
 // Offload repository removed - migrated to Supabase
 import {
   sessionRepository,
   sessionTaskRepository,
 } from './repositories/session.repository';
-import { automationSessionRepository } from './repositories/automation-session.repository';
-import { automationSessionEventRepository } from './repositories/automation-session-event.repository';
 import {
   integrationRepository,
   integrationEventRepository,
@@ -87,11 +83,9 @@ import {
 } from './repositories/annette-memory.repository';
 import { workspaceRepository } from './repositories/workspace.repository';
 import { executiveAnalysisRepository } from './repositories/executive-analysis.repository';
-import {
-  crossProjectRelationshipRepository,
-  architectureAnalysisRepository,
-  projectArchitectureMetadataRepository,
-} from './repositories/cross-project-architecture.repository';
+import { crossProjectRelationshipRepository } from './repositories/cross-project-relationship.repository';
+import { architectureAnalysisRepository } from './repositories/architecture-analysis.repository';
+import { projectArchitectureMetadataRepository } from './repositories/project-architecture-metadata.repository';
 import { crossTaskPlanRepository } from './repositories/cross-task.repository';
 import { groupHealthRepository } from './repositories/group-health.repository';
 import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
@@ -104,15 +98,9 @@ export * from './models/test-scenario.types';
 export * from './models/scan-prediction.types';
 export * from './models/debt-prediction.types';
 // Security Intelligence types removed - feature deprecated
-// NOTE: hypothesis-testing.types removed - use goal-hub.types instead
 export * from './models/standup.types';
-// NOTE: red-team.types removed - feature deprecated
-// NOTE: focus-mode.types removed - feature deprecated
-export * from './models/goal-hub.types';
 // Offload types removed - migrated to Supabase
 export * from './models/session.types';
-export * from './models/automation-session.types';
-export * from './models/automation-event.types';
 export * from './models/integration.types';
 export * from './models/observability.types';
 export * from './models/brain.types';
@@ -145,15 +133,6 @@ ensureInitialized();
  */
 export const goalDb = {
   ...goalRepository,
-  close: closeDatabase
-};
-
-/**
- * Goal Hub Database Operations
- * Handles extended goal features
- */
-export const goalHubDb = {
-  extensions: goalHubExtensions,
   close: closeDatabase
 };
 
@@ -347,17 +326,6 @@ export const fileChangePatternDb = {
 };
 
 /**
- * Prompt Template Database Operations
- * Handles reusable prompt templates for requirement generation
- */
-export const promptTemplateDb = {
-  ...promptTemplateRepository,
-  close: closeDatabase
-};
-
-// Adaptive Learning DB exports removed - feature deprecated
-
-/**
  * Debt Pattern Database Operations
  * Manages learned patterns that predict technical debt
  */
@@ -454,23 +422,6 @@ export const sessionDb = {
   close: closeDatabase,
 };
 
-/**
- * Automation Session Database Operations
- * Manages standup automation sessions executed via Claude Code
- */
-export const automationSessionDb = {
-  ...automationSessionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Automation Session Event Database Operations
- * Manages real-time events during automation sessions (file reads, findings, progress)
- */
-export const automationSessionEventDb = {
-  ...automationSessionEventRepository,
-  close: closeDatabase,
-};
 
 /**
  * Integration Database Operations

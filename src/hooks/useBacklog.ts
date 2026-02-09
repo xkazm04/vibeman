@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BacklogProposal, CustomBacklogItem, ImpactedFile } from '@/types';
-import { useAnalysisStore } from '@/stores/analysisStore';
 
 // API response item structure (converted by the API route)
 interface ApiBacklogItem {
@@ -94,7 +93,6 @@ export const useBacklog = (projectId: string | null) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
-  const { isActive } = useAnalysisStore();
 
   const fetchBacklogItems = useCallback(async () => {
     if (!projectId) {
@@ -273,19 +271,6 @@ export const useBacklog = (projectId: string | null) => {
   useEffect(() => {
     fetchBacklogItems();
   }, [fetchBacklogItems]);
-
-  // Polling for new backlog items during analysis (replaces real-time subscription)
-  useEffect(() => {
-    if (!projectId || !isActive) return;
-
-    const pollInterval = setInterval(() => {
-      fetchBacklogItems();
-    }, 3000); // Poll every 3 seconds during analysis
-
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [projectId, isActive, fetchBacklogItems]);
 
   return {
     backlogProposals,

@@ -16,7 +16,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Rocket, Volume2, VolumeX, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import { useCLISessionStore, type CLISessionId } from '@/components/cli/store';
-import { useEmulatorStore } from '@/stores/emulatorStore';
+import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
 import TopologyGlobe from './components/TopologyGlobe';
 import MiniTerminalCard from './components/MiniTerminalCard';
 import MissionControlStats from './components/MissionControlStats';
@@ -27,9 +27,9 @@ const SESSION_IDS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3'
 
 export default function MissionControl() {
   const sessions = useCLISessionStore((state) => state.sessions);
-  const devices = useEmulatorStore((s) => s.devices);
-  const localDeviceId = useEmulatorStore((s) => s.localDeviceId);
-  const localDeviceName = useEmulatorStore((s) => s.localDeviceName);
+  const devices = useDeviceMeshStore((s) => s.devices);
+  const localDeviceId = useDeviceMeshStore((s) => s.localDeviceId);
+  const localDeviceName = useDeviceMeshStore((s) => s.localDeviceName);
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);

@@ -678,30 +678,9 @@ export interface DbPendingApproval {
   created_at: string;
 }
 
-// Prompt Template types (for reusable prompt composition and requirement generation)
-export type PromptTemplateCategory = 'storywriting' | 'research' | 'code_generation' | 'analysis' | 'review' | 'custom';
+// Discovered Template types (for template discovery and user-created templates)
+export type TemplateSource = 'scanned' | 'manual';
 
-export interface PromptTemplateVariable {
-  name: string;
-  type: 'string' | 'number' | 'boolean' | 'text';
-  required: boolean;
-  default_value?: string;
-  description?: string;
-}
-
-export interface DbPromptTemplate {
-  id: string;
-  project_id: string;
-  name: string;
-  description: string | null;
-  category: PromptTemplateCategory;
-  template_content: string;
-  variables: string; // JSON array of PromptTemplateVariable
-  created_at: string;
-  updated_at: string;
-}
-
-// Discovered Template types (for external template discovery)
 export interface DbDiscoveredTemplate {
   id: string;
   source_project_path: string;
@@ -712,6 +691,7 @@ export interface DbDiscoveredTemplate {
   category: string; // Subfolder category (e.g., "research", "feed")
   config_json: string; // JSON string of full TemplateConfig
   content_hash: string; // SHA-256 hash for change detection
+  source: TemplateSource; // 'scanned' for auto-discovered, 'manual' for user-created
   discovered_at: string;
   updated_at: string;
 }

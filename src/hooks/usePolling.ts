@@ -5,7 +5,7 @@
  *
  * Single adaptive polling primitive that covers all polling use cases:
  * 1. Fixed-interval polling (useSessionCleanup)
- * 2. Activity-aware adaptive polling (automationSessionStore)
+ * 2. Activity-aware adaptive polling
  * 3. Task-keyed polling with maxAttempts (TaskRunner pollingManager)
  *
  * Core primitive: createUnifiedPoller()
@@ -72,7 +72,7 @@ export interface UnifiedPoller {
  *   { activeIntervalMs: 60000 }
  * );
  *
- * @example Activity-aware (like automationSessionStore)
+ * @example Activity-aware adaptive polling
  * const poller = createUnifiedPoller(
  *   async () => {
  *     const sessions = await fetchSessions();

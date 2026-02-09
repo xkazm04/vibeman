@@ -12,7 +12,7 @@ import { useTinderItems, useTinderItemsKeyboardShortcuts } from '@/app/features/
 import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTestMode';
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
 import { Context } from '@/lib/queries/contextQueries';
-import { useEmulatorStore, useSelectedDevice } from '@/stores/emulatorStore';
+import { useDeviceMeshStore, useSelectedDevice } from '@/stores/deviceMeshStore';
 
 const TinderLayout = () => {
   const { initializeProjects, projects } = useProjectConfigStore();
@@ -21,8 +21,8 @@ const TinderLayout = () => {
 
   // Remote mode state
   const [isRemoteMode, setIsRemoteMode] = useState(false);
-  const isRegistered = useEmulatorStore(s => s.isRegistered);
-  const selectedDeviceId = useEmulatorStore(s => s.selectedDeviceId);
+  const isRegistered = useDeviceMeshStore(s => s.isRegistered);
+  const selectedDeviceId = useDeviceMeshStore(s => s.selectedDeviceId);
   const selectedDevice = useSelectedDevice();
   const isRemoteAvailable = isRegistered && !!selectedDeviceId;
 

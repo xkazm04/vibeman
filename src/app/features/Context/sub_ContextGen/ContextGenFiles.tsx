@@ -2,7 +2,7 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
 import { GlowCard } from '@/components/GlowCard';
-import FileTreeSelector from '../ContextMenu/FileTreeSelector';
+import FileTreeSelector from '../sub_ContextMenu/FileTreeSelector';
 import SelectedFilesList from './SelectedFilesList';
 import { TreeNode } from '@/types';
 

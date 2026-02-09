@@ -29,7 +29,7 @@ import {
   ScanTypeRecommendation,
   InsightSeverity,
   InsightCategory,
-} from '../lib/executiveInsightTypes';
+} from '../lib/RuleBasedInsightTypes';
 import { SCAN_TYPE_CONFIG } from '../lib/config';
 import { useReflectorStore } from '@/stores/reflectorStore';
 import { ExecutiveAnalysisTrigger } from './ExecutiveAnalysisTrigger';

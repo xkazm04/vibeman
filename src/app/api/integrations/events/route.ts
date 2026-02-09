@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { integrationEventDb, integrationDb } from '@/app/db';
 import { dispatchIntegrationEvent, integrationEngine } from '@/lib/integrations';
 import type { IntegrationEventType } from '@/app/db/models/integration.types';
+import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 
 /**
  * GET /api/integrations/events
@@ -40,6 +41,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, events: parsed });
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error fetching integration events:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch events' },
@@ -88,6 +95,12 @@ export async function POST(request: Request) {
       result,
     });
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error dispatching event:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to dispatch event' },

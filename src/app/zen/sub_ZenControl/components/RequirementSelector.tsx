@@ -12,7 +12,7 @@ import {
   Compass,
   Sparkles,
 } from 'lucide-react';
-import type { RemoteRequirement } from '@/stores/emulatorStore';
+import type { RemoteRequirement } from '@/stores/remoteWorkStore';
 
 interface RequirementSelectorProps {
   requirements: RemoteRequirement[];

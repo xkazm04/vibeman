@@ -111,6 +111,35 @@ export const goalRepository = {
   },
 
   /**
+   * Get in-progress goals that match a specific context_id
+   */
+  getActiveGoalsByContextId: (contextId: string): DbGoal[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM goals
+      WHERE context_id = ? AND status IN ('open', 'in_progress')
+      ORDER BY order_index ASC
+    `);
+    return stmt.all(contextId) as DbGoal[];
+  },
+
+  /**
+   * Update goal progress metadata
+   */
+  updateGoalProgress: (goalId: string, progress: number): DbGoal | null => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const stmt = db.prepare(`
+      UPDATE goals
+      SET progress = ?, updated_at = ?
+      WHERE id = ?
+    `);
+    const result = stmt.run(progress, now, goalId);
+    if (result.changes === 0) return null;
+    return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', goalId);
+  },
+
+  /**
    * Get the maximum order index for a project
    */
   getMaxOrderIndex: (projectId: string): number => {

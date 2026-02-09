@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { integrationDb, integrationEventDb } from '@/app/db';
+import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 
 /**
  * GET /api/integrations/stats
@@ -77,6 +78,12 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error fetching integration stats:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch stats' },

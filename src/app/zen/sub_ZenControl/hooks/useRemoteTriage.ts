@@ -4,7 +4,8 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { useEmulatorStore, type RemoteDirection } from '@/stores/emulatorStore';
+import { useRemoteWorkStore, type RemoteDirection } from '@/stores/remoteWorkStore';
+import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
 
 interface UseRemoteTriageResult {
   // State
@@ -37,9 +38,12 @@ export function useRemoteTriage(targetDeviceId: string | null): UseRemoteTriageR
     setDirectionsError,
     updateTriageStats,
     removeDirection,
+  } = useRemoteWorkStore();
+
+  const {
     localDeviceId,
     localDeviceName,
-  } = useEmulatorStore();
+  } = useDeviceMeshStore();
 
   // Track pending commands to avoid duplicates
   const pendingCommandRef = useRef<string | null>(null);

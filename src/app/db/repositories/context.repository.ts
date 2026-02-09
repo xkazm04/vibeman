@@ -323,6 +323,20 @@ export const contextRepository = {
   },
 
   /**
+   * Get all contexts across all projects
+   */
+  getAllContexts: (): DbContext[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT c.*, cg.name as group_name, cg.color as group_color
+      FROM contexts c
+      LEFT JOIN context_groups cg ON c.group_id = cg.id
+      ORDER BY c.created_at DESC
+    `);
+    return stmt.all() as DbContext[];
+  },
+
+  /**
    * Get all contexts for multiple projects in a single query
    * Uses SQL IN clause for efficient batching
    */

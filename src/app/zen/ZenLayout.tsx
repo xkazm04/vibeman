@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import ZenHeader from './components/ZenHeader';
 import { ZenControlPanel } from './sub_ZenControl';
-import { useZenStore } from './lib/zenStore';
+import { useZenMode } from './lib/zenNavigationStore';
 import { MissionControl } from './sub_MissionControl';
 
 /**
@@ -13,7 +13,7 @@ import { MissionControl } from './sub_MissionControl';
  * Includes Mission Control cinematic visualization mode.
  */
 export default function ZenLayout() {
-  const mode = useZenStore((s) => s.mode);
+  const mode = useZenMode();
 
   // Mission Control gets full-width rendering without the standard container
   if (mode === 'mission-control') {

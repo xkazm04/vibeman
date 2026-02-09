@@ -228,7 +228,7 @@
           "src/app/features/Context/ContextCard.tsx",
           "src/app/features/Context/components/ContextCardContent.tsx",
           "src/app/features/Context/components/ContextCardHeader.tsx",
-          "src/app/features/Context/ContextMenu/ContextMenu.tsx"
+          "src/app/features/Context/sub_ContextMenu/ContextMenu.tsx"
         ],
         "logic": [
           "src/app/features/Context/lib/contextApi.ts",
@@ -686,14 +686,14 @@
       "summary": "Goal management dashboard with list, detail panels, and progress tracking. Create goals, track hypotheses, and view activity feed.",
       "filepaths": {
         "ui": [
-          "src/app/features/Manager/GoalHub/GoalHubLayout.tsx",
-          "src/app/features/Manager/GoalHub/components/GoalHubHeader.tsx",
-          "src/app/features/Manager/GoalHub/components/GoalListPanel.tsx",
-          "src/app/features/Manager/GoalHub/components/GoalListItem.tsx",
-          "src/app/features/Manager/GoalHub/components/GoalDetailPanel.tsx",
-          "src/app/features/Manager/GoalHub/components/GoalProgress.tsx",
-          "src/app/features/Manager/GoalHub/components/NewGoalModal.tsx",
-          "src/app/features/Manager/GoalHub/components/GoalAddDrawer.tsx"
+          "src/app/features/Manager/sub_GoalHub/GoalHubLayout.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/GoalHubHeader.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/GoalListPanel.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/GoalListItem.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/GoalDetailPanel.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/GoalProgress.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/NewGoalModal.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/GoalAddDrawer.tsx"
         ],
         "logic": [
           "src/stores/goalHubStore.ts",
@@ -711,12 +711,12 @@
       "summary": "Track and validate hypotheses related to goals. Hypothesis cards, tracker panel, and modal for creating new hypotheses.",
       "filepaths": {
         "ui": [
-          "src/app/features/Manager/GoalHub/components/HypothesisTracker.tsx",
-          "src/app/features/Manager/GoalHub/components/HypothesisCard.tsx",
-          "src/app/features/Manager/GoalHub/components/HypothesisRow.tsx",
-          "src/app/features/Manager/GoalHub/components/NewHypothesisModal.tsx",
-          "src/app/features/Manager/GoalHub/components/BreakdownPanel.tsx",
-          "src/app/features/Manager/GoalHub/components/ActivityFeed.tsx"
+          "src/app/features/Manager/sub_GoalHub/components/HypothesisTracker.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/HypothesisCard.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/HypothesisRow.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/NewHypothesisModal.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/BreakdownPanel.tsx",
+          "src/app/features/Manager/sub_GoalHub/components/ActivityFeed.tsx"
         ],
         "logic": [
           "src/app/features/Manager/lib/promptTemplates.ts",
@@ -760,19 +760,19 @@
       "summary": "Daily standup workflow with project review, goal updates, and automation controls. Stepper navigation through standup phases.",
       "filepaths": {
         "ui": [
-          "src/app/features/Manager/Standup/StandupWizard.tsx",
-          "src/app/features/Manager/Standup/ProjectGoalReview.tsx",
-          "src/app/features/Manager/Standup/components/StandupHeader.tsx",
-          "src/app/features/Manager/Standup/components/WizardHeader.tsx",
-          "src/app/features/Manager/Standup/components/StepperNavigation.tsx",
-          "src/app/features/Manager/Standup/components/FooterNavigation.tsx",
-          "src/app/features/Manager/Standup/components/GoalsList.tsx",
-          "src/app/features/Manager/Standup/components/GoalCard.tsx"
+          "src/app/features/Manager/sub_Standup/StandupWizard.tsx",
+          "src/app/features/Manager/sub_Standup/ProjectGoalReview.tsx",
+          "src/app/features/Manager/sub_Standup/components/StandupHeader.tsx",
+          "src/app/features/Manager/sub_Standup/components/WizardHeader.tsx",
+          "src/app/features/Manager/sub_Standup/components/StepperNavigation.tsx",
+          "src/app/features/Manager/sub_Standup/components/FooterNavigation.tsx",
+          "src/app/features/Manager/sub_Standup/components/GoalsList.tsx",
+          "src/app/features/Manager/sub_Standup/components/GoalCard.tsx"
         ],
         "logic": [
-          "src/app/features/Manager/Standup/hooks/useStandupWizard.ts",
-          "src/app/features/Manager/Standup/hooks/useProjectGoals.ts",
-          "src/app/features/Manager/Standup/lib/standupConfig.ts"
+          "src/app/features/Manager/sub_Standup/hooks/useStandupWizard.ts",
+          "src/app/features/Manager/sub_Standup/hooks/useProjectGoals.ts",
+          "src/app/features/Manager/sub_Standup/lib/standupConfig.ts"
         ],
         "server": [],
         "data": []
@@ -784,19 +784,19 @@
       "summary": "Automated standup execution with server control, session dashboard, and candidate selection. Run standups with AI assistance.",
       "filepaths": {
         "ui": [
-          "src/app/features/Manager/Standup/components/SessionDashboard.tsx",
-          "src/app/features/Manager/Standup/components/AutomationPanel.tsx",
-          "src/app/features/Manager/Standup/components/AutomationControls.tsx",
-          "src/app/features/Manager/Standup/components/AutomationStats.tsx",
-          "src/app/features/Manager/Standup/components/ServerControlBar.tsx",
-          "src/app/features/Manager/Standup/components/CandidateCard.tsx",
-          "src/app/features/Manager/Standup/components/GoalCandidatesModal.tsx"
+          "src/app/features/Manager/sub_Standup/components/SessionDashboard.tsx",
+          "src/app/features/Manager/sub_Standup/components/AutomationPanel.tsx",
+          "src/app/features/Manager/sub_Standup/components/AutomationControls.tsx",
+          "src/app/features/Manager/sub_Standup/components/AutomationStats.tsx",
+          "src/app/features/Manager/sub_Standup/components/ServerControlBar.tsx",
+          "src/app/features/Manager/sub_Standup/components/CandidateCard.tsx",
+          "src/app/features/Manager/sub_Standup/components/GoalCandidatesModal.tsx"
         ],
         "logic": [
-          "src/app/features/Manager/Standup/hooks/useAutomation.ts",
-          "src/app/features/Manager/Standup/hooks/useAutomationSession.ts",
-          "src/app/features/Manager/Standup/hooks/useServerControl.ts",
-          "src/app/features/Manager/Standup/hooks/useStandupAutomation.ts"
+          "src/app/features/Manager/sub_Standup/hooks/useAutomation.ts",
+          "src/app/features/Manager/sub_Standup/hooks/useAutomationSession.ts",
+          "src/app/features/Manager/sub_Standup/hooks/useServerControl.ts",
+          "src/app/features/Manager/sub_Standup/hooks/useStandupAutomation.ts"
         ],
         "server": [],
         "data": [

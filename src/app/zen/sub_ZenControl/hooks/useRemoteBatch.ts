@@ -4,7 +4,8 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { useEmulatorStore, type RemoteRequirement, type RemoteBatchInfo } from '@/stores/emulatorStore';
+import { useRemoteWorkStore, type RemoteRequirement, type RemoteBatchInfo } from '@/stores/remoteWorkStore';
+import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
 
 interface UseRemoteBatchResult {
   // State
@@ -45,9 +46,12 @@ export function useRemoteBatch(targetDeviceId: string | null): UseRemoteBatchRes
     setLoadingBatches,
     setBatchError,
     updateBatchStatus,
+  } = useRemoteWorkStore();
+
+  const {
     localDeviceId,
     localDeviceName,
-  } = useEmulatorStore();
+  } = useDeviceMeshStore();
 
   const pendingCommandRef = useRef<string | null>(null);
 

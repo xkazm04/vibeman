@@ -259,6 +259,17 @@ export const contextGroupQueries = {
       'Failed to fetch context groups for multiple projects'
     );
   },
+
+  // Get all context groups across all projects
+  getAllGroups: async (): Promise<ContextGroup[]> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbGroups = contextGroupDb.getAllGroups();
+        return dbGroups.map(dbContextGroupToContextGroup);
+      },
+      'Failed to fetch all context groups'
+    );
+  },
 };
 
 // Context Group Relationship Queries
@@ -483,6 +494,17 @@ export const contextQueries = {
         return dbContexts.map(dbContextToContext);
       },
       'Failed to fetch contexts for multiple projects'
+    );
+  },
+
+  // Get all contexts across all projects
+  getAllContexts: async (): Promise<Context[]> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbContexts = contextDb.getAllContexts();
+        return dbContexts.map(dbContextToContext);
+      },
+      'Failed to fetch all contexts'
     );
   },
 };

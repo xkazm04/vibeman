@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { integrationDb, webhookDb } from '@/app/db';
 import { integrationEngine } from '@/lib/integrations';
 import type { IntegrationProvider } from '@/app/db/models/integration.types';
+import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 
 /**
  * POST /api/integrations/test
@@ -107,6 +108,12 @@ export async function POST(request: Request) {
       message: result.message,
     });
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('Error testing integration:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to test integration' },

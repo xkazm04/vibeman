@@ -52,30 +52,6 @@ export async function executeStandupTools(
       }
     }
 
-    case 'run_automation': {
-      try {
-        const response = await fetch('http://localhost:3000/api/standup/automation/run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId }),
-        });
-
-        if (!response.ok) {
-          const error = await response.text();
-          return JSON.stringify({ success: false, error });
-        }
-
-        const data = await response.json();
-        return JSON.stringify({
-          success: true,
-          message: 'Standup automation completed.',
-          results: data,
-        });
-      } catch (error) {
-        return JSON.stringify({ success: false, error: 'Failed to run automation' });
-      }
-    }
-
     default:
       return JSON.stringify({ error: `Unknown standup tool: ${name}` });
   }

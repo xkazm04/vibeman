@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { discoveredTemplateRepository } from '@/app/db/repositories/discovered-template.repository';
+import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,6 +41,12 @@ export async function GET(
     return NextResponse.json({ template });
 
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { error: 'Template discovery feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('[Template Discovery] Get failed:', error);
     return NextResponse.json(
       { error: 'Failed to get template' },
@@ -71,6 +78,12 @@ export async function DELETE(
     return NextResponse.json({ success: true });
 
   } catch (error) {
+    if (isTableMissingError(error)) {
+      return NextResponse.json(
+        { error: 'Template discovery feature requires database setup. Run migrations and restart the app.' },
+        { status: 503 }
+      );
+    }
     console.error('[Template Discovery] Delete failed:', error);
     return NextResponse.json(
       { error: 'Failed to delete template' },

@@ -9,6 +9,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
+import { useZenNavigation, getModeFromPath } from './zenNavigationStore';
+import type { ZenMode } from './zenNavigationStore';
 
 export interface ActivityItem {
   id: string;
@@ -26,12 +28,9 @@ export interface ZenStats {
   sessionStart: Date;
 }
 
-export type ZenMode = 'offline' | 'online' | 'emulator' | 'mission-control';
+export type { ZenMode };
 
 interface ZenState {
-  // Mode: offline (monitoring) or online (accepting tasks)
-  mode: ZenMode;
-
   // Selected batch to monitor
   selectedBatchId: BatchId | null;
 
@@ -51,7 +50,16 @@ interface ZenState {
   // Session statistics
   stats: ZenStats;
 
-  // Actions
+  /**
+   * @deprecated Read mode from useZenNavigation() or useZenMode() instead.
+   * Kept for backward compatibility — derives from navigation store.
+   */
+  mode: ZenMode;
+
+  /**
+   * @deprecated Use useZenNavigation().navigate() instead.
+   * Kept for backward compatibility — delegates to navigation store.
+   */
   setMode: (mode: ZenMode) => void;
   selectBatch: (batchId: BatchId | null) => void;
   setConnected: (connected: boolean) => void;
@@ -67,8 +75,8 @@ interface ZenState {
 export const useZenStore = create<ZenState>()(
   persist(
     (set) => ({
-      // Initial state
-      mode: 'offline',
+      // Mode is derived from zenNavigationStore (getter computed on read via subscribe below)
+      mode: getModeFromPath(useZenNavigation.getState().viewPath),
       selectedBatchId: null,
       isConnected: false,
       currentTask: null,
@@ -81,7 +89,10 @@ export const useZenStore = create<ZenState>()(
       },
 
       // Actions
-      setMode: (mode) => set({ mode }),
+      setMode: (mode) => {
+        // Delegate to navigation store (source of truth)
+        useZenNavigation.getState().navigate(mode);
+      },
 
       selectBatch: (batchId) => set({ selectedBatchId: batchId }),
 
@@ -125,9 +136,15 @@ export const useZenStore = create<ZenState>()(
     }),
     {
       name: 'zen-store',
-      partialize: (state) => ({
-        mode: state.mode,
-      }),
+      partialize: () => ({}), // mode now persisted via zen-navigation store
     }
   )
 );
+
+// Sync mode from navigation store → zen store for backward compat
+useZenNavigation.subscribe((navState) => {
+  const derivedMode = getModeFromPath(navState.viewPath);
+  if (useZenStore.getState().mode !== derivedMode) {
+    useZenStore.setState({ mode: derivedMode });
+  }
+});

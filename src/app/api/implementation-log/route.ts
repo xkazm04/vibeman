@@ -67,6 +67,15 @@ export async function POST(request: NextRequest) {
       title,
     });
 
+    // Fire-and-forget: check if this log matches any active goals
+    if (contextId) {
+      fetch(new URL('/api/goals/check-completion', request.url).toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contextId, projectId }),
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ 
       success: true,
       message: 'Implementation log created successfully',

@@ -1,11 +1,11 @@
 /**
  * Discovered Template Repository
- * Handles all database operations for discovered templates from external projects
+ * Handles all database operations for discovered and user-created templates
  */
 
 import { getDatabase } from '../connection';
-import { DbDiscoveredTemplate } from '../models/types';
-import { generateId, getCurrentTimestamp } from './repository.utils';
+import { DbDiscoveredTemplate, TemplateSource } from '../models/types';
+import { generateId, getCurrentTimestamp, withTableCheck } from './repository.utils';
 import crypto from 'crypto';
 
 /**
@@ -23,7 +23,7 @@ export const discoveredTemplateRepository = {
   /**
    * Get all templates for a source project path
    */
-  getBySourcePath: (sourcePath: string): DbDiscoveredTemplate[] => {
+  getBySourcePath: (sourcePath: string): DbDiscoveredTemplate[] => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM discovered_templates
@@ -31,12 +31,12 @@ export const discoveredTemplateRepository = {
       ORDER BY template_name
     `);
     return stmt.all(sourcePath) as DbDiscoveredTemplate[];
-  },
+  }),
 
   /**
    * Get template by template_id (across all sources)
    */
-  getByTemplateId: (templateId: string): DbDiscoveredTemplate | null => {
+  getByTemplateId: (templateId: string): DbDiscoveredTemplate | null => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM discovered_templates
@@ -45,29 +45,42 @@ export const discoveredTemplateRepository = {
     `);
     const result = stmt.get(templateId) as DbDiscoveredTemplate | undefined;
     return result || null;
-  },
+  }),
 
   /**
    * Get template by primary key id
    */
-  getById: (id: string): DbDiscoveredTemplate | null => {
+  getById: (id: string): DbDiscoveredTemplate | null => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const stmt = db.prepare('SELECT * FROM discovered_templates WHERE id = ?');
     const result = stmt.get(id) as DbDiscoveredTemplate | undefined;
     return result || null;
-  },
+  }),
 
   /**
    * Get all discovered templates
    */
-  getAll: (): DbDiscoveredTemplate[] => {
+  getAll: (): DbDiscoveredTemplate[] => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM discovered_templates
       ORDER BY source_project_path, template_name
     `);
     return stmt.all() as DbDiscoveredTemplate[];
-  },
+  }),
+
+  /**
+   * Get templates by source type (scanned or manual)
+   */
+  getBySource: (source: TemplateSource): DbDiscoveredTemplate[] => withTableCheck('template discovery', () => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM discovered_templates
+      WHERE source = ?
+      ORDER BY template_name
+    `);
+    return stmt.all(source) as DbDiscoveredTemplate[];
+  }),
 
   /**
    * Upsert template with change detection
@@ -75,7 +88,7 @@ export const discoveredTemplateRepository = {
    */
   upsert: (
     template: Omit<DbDiscoveredTemplate, 'id' | 'discovered_at' | 'updated_at'>
-  ): { template: DbDiscoveredTemplate; action: 'created' | 'updated' | 'unchanged' } => {
+  ): { template: DbDiscoveredTemplate; action: 'created' | 'updated' | 'unchanged' } => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
     const contentHash = calculateContentHash(template.config_json);
@@ -134,9 +147,9 @@ export const discoveredTemplateRepository = {
       INSERT INTO discovered_templates (
         id, source_project_path, file_path, template_id,
         template_name, description, category, config_json, content_hash,
-        discovered_at, updated_at
+        source, discovered_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     insertStmt.run(
@@ -149,20 +162,21 @@ export const discoveredTemplateRepository = {
       template.category,
       template.config_json,
       contentHash,
+      template.source || 'scanned',
       now,
       now
     );
 
     const created = discoveredTemplateRepository.getById(id)!;
     return { template: created, action: 'created' };
-  },
+  }),
 
   /**
    * Batch upsert with aggregated results
    */
   upsertMany: (
     templates: Array<Omit<DbDiscoveredTemplate, 'id' | 'discovered_at' | 'updated_at'>>
-  ): { created: number; updated: number; unchanged: number } => {
+  ): { created: number; updated: number; unchanged: number } => withTableCheck('template discovery', () => {
     const results = { created: 0, updated: 0, unchanged: 0 };
 
     for (const template of templates) {
@@ -171,33 +185,33 @@ export const discoveredTemplateRepository = {
     }
 
     return results;
-  },
+  }),
 
   /**
    * Delete template by primary key id
    */
-  delete: (id: string): boolean => {
+  delete: (id: string): boolean => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM discovered_templates WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
-  },
+  }),
 
   /**
    * Delete all templates for a source project path
    */
-  deleteBySourcePath: (sourcePath: string): number => {
+  deleteBySourcePath: (sourcePath: string): number => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM discovered_templates WHERE source_project_path = ?');
     const result = stmt.run(sourcePath);
     return result.changes;
-  },
+  }),
 
   /**
    * Delete stale templates not in current template IDs list
    * Useful after re-scanning a project to remove templates that no longer exist
    */
-  deleteStale: (sourcePath: string, currentTemplateIds: string[]): number => {
+  deleteStale: (sourcePath: string, currentTemplateIds: string[]): number => withTableCheck('template discovery', () => {
     const db = getDatabase();
 
     if (currentTemplateIds.length === 0) {
@@ -215,5 +229,5 @@ export const discoveredTemplateRepository = {
 
     const result = stmt.run(sourcePath, ...currentTemplateIds);
     return result.changes;
-  },
+  }),
 };

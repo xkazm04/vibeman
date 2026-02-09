@@ -5,6 +5,7 @@ import type { WorkspaceProjectNode, CrossProjectRelationship, IntegrationType } 
 import { TIER_CONFIG } from '../sub_WorkspaceArchitecture/lib/types';
 import { MATRIX_CONSTANTS } from '../sub_WorkspaceArchitecture/lib/matrixLayoutUtils';
 import { INTEGRATION_COLORS } from './constants';
+import { archTheme } from './lib/archTheme';
 
 interface MatrixGridProps {
   sortedNodes: WorkspaceProjectNode[];
@@ -180,7 +181,7 @@ export default function MatrixGrid({
                       y={0}
                       width={cellSize - 2}
                       height={cellSize - 2}
-                      fill="#1a1a1a"
+                      fill={archTheme.surface.muted}
                       rx={3}
                     />
                   );
@@ -215,8 +216,8 @@ export default function MatrixGrid({
                       y={0}
                       width={cellSize - 2}
                       height={cellSize - 2}
-                      fill={isActive ? '#1e293b' : '#141418'}
-                      stroke={isActive ? '#3b82f6' : 'transparent'}
+                      fill={isActive ? archTheme.surface.active : archTheme.surface.card}
+                      stroke={isActive ? archTheme.indicator.activeBorder : 'transparent'}
                       strokeWidth={isActive ? 1.5 : 0}
                       rx={3}
                     />

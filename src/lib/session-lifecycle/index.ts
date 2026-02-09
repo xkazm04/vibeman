@@ -4,7 +4,6 @@
  * Unified session lifecycle abstraction for all 5 session subsystems:
  * - Claude Code sessions (DB-backed)
  * - CLI sessions (localStorage-backed)
- * - Automation sessions (DB-backed)
  * - Terminal sessions (in-memory)
  * - Remote Device sessions (remote API-backed)
  *
@@ -35,7 +34,6 @@ export { statusTimeout, noHeartbeat, maxAge, MINUTES, HOURS, DAYS } from './rule
 export {
   createClaudeCodeLifecycle,
   createCLILifecycle,
-  createAutomationLifecycle,
   createTerminalLifecycle,
   createRemoteDeviceLifecycle,
 } from './presets';
@@ -43,7 +41,6 @@ export {
 export type {
   ClaudeCodeSession,
   CLISession,
-  AutomationSessionEntry,
   TerminalSessionEntry,
   RemoteDeviceSession,
 } from './presets';

@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, brainInsightDb } from '@/app/db';
+import { getDatabase } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 
 export interface InsightEffectiveness {
@@ -38,12 +38,6 @@ export interface EffectivenessSummary {
   baselineAcceptanceRate: number; // Overall project acceptance rate
 }
 
-interface DirectionCounts {
-  accepted: number;
-  rejected: number;
-  total: number;
-}
-
 async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get('projectId');
@@ -59,47 +53,92 @@ async function handleGet(request: NextRequest) {
   try {
     const db = getDatabase();
 
-    // 1. Get all insights for this project from the brain_insights table
-    const insights = brainInsightDb.getForEffectiveness(projectId);
-
-    // 2. Get all non-pending directions for this project (accepted or rejected)
-    const directions = db.prepare(`
-      SELECT status, created_at
+    // 1. Compute baseline acceptance rate in a single query
+    const baseline = db.prepare(`
+      SELECT
+        COUNT(CASE WHEN status = 'accepted' THEN 1 END) AS accepted,
+        COUNT(*) AS total
       FROM directions
       WHERE project_id = ? AND status IN ('accepted', 'rejected')
-      ORDER BY created_at ASC
-    `).all(projectId) as Array<{ status: string; created_at: string }>;
+    `).get(projectId) as { accepted: number; total: number } | undefined;
 
-    // Compute baseline acceptance rate
-    const baselineAccepted = directions.filter(d => d.status === 'accepted').length;
-    const baselineAcceptanceRate = directions.length > 0
-      ? baselineAccepted / directions.length
+    const baselineAcceptanceRate = baseline && baseline.total > 0
+      ? baseline.accepted / baseline.total
       : 0;
 
-    // 3. For each insight, compute before/after acceptance rates
+    // 2. Single SQL query: compute pre/post direction counts for every insight at once.
+    //    Uses a CROSS JOIN between insights and directions, with conditional aggregation
+    //    to bucket directions into "before" and "after" each insight's completion date.
+    //    This moves O(insights × directions) filtering from JS into SQLite's C engine.
+    const rows = db.prepare(`
+      SELECT
+        bi.id AS insight_id,
+        bi.title,
+        bi.type,
+        bi.confidence,
+        bi.reflection_id,
+        br.completed_at AS insight_date,
+        COUNT(CASE WHEN d.created_at <= br.completed_at AND d.status = 'accepted' THEN 1 END) AS pre_accepted,
+        COUNT(CASE WHEN d.created_at <= br.completed_at THEN 1 END) AS pre_total,
+        COUNT(CASE WHEN d.created_at > br.completed_at AND d.status = 'accepted' THEN 1 END) AS post_accepted,
+        COUNT(CASE WHEN d.created_at > br.completed_at THEN 1 END) AS post_total
+      FROM brain_insights bi
+      JOIN brain_reflections br ON bi.reflection_id = br.id
+      CROSS JOIN directions d
+      WHERE bi.project_id = ?
+        AND br.status = 'completed'
+        AND br.completed_at IS NOT NULL
+        AND d.project_id = ?
+        AND d.status IN ('accepted', 'rejected')
+      GROUP BY bi.id
+      ORDER BY br.completed_at ASC
+    `).all(projectId, projectId) as Array<{
+      insight_id: string;
+      title: string;
+      type: string;
+      confidence: number;
+      reflection_id: string;
+      insight_date: string;
+      pre_accepted: number;
+      pre_total: number;
+      post_accepted: number;
+      post_total: number;
+    }>;
+
+    // 3. Also fetch insights that may have no matching directions (they get score 0)
+    const insightsWithNoDirections = db.prepare(`
+      SELECT bi.id, bi.title, bi.type, bi.confidence, bi.reflection_id, br.completed_at AS insight_date
+      FROM brain_insights bi
+      JOIN brain_reflections br ON bi.reflection_id = br.id
+      WHERE bi.project_id = ? AND br.status = 'completed' AND br.completed_at IS NOT NULL
+    `).all(projectId) as Array<{
+      id: string; title: string; type: string; confidence: number;
+      reflection_id: string; insight_date: string;
+    }>;
+
+    // Build a lookup from the aggregated rows
+    const aggregated = new Map(rows.map(r => [r.insight_id, r]));
+
+    // 4. Build results from the aggregated data
     const results: InsightEffectiveness[] = [];
 
-    for (const insight of insights) {
-      const insightDate = insight.completed_at;
-      if (!insightDate) continue;
+    for (const insight of insightsWithNoDirections) {
+      const agg = aggregated.get(insight.id);
+      const preTotal = agg?.pre_total ?? 0;
+      const postTotal = agg?.post_total ?? 0;
+      const preAccepted = agg?.pre_accepted ?? 0;
+      const postAccepted = agg?.post_accepted ?? 0;
 
-      // Count directions before and after this insight's creation
-      const before = countDirections(directions, null, insightDate);
-      const after = countDirections(directions, insightDate, null);
+      const preRate = preTotal > 0 ? preAccepted / preTotal : 0;
+      const postRate = postTotal > 0 ? postAccepted / postTotal : 0;
 
-      const preRate = before.total > 0 ? before.accepted / before.total : 0;
-      const postRate = after.total > 0 ? after.accepted / after.total : 0;
-
-      // Score: percentage improvement relative to pre-rate
       const denominator = Math.max(preRate, 0.01);
-      const score = before.total > 0 && after.total > 0
+      const score = preTotal > 0 && postTotal > 0
         ? ((postRate - preRate) / denominator) * 100
         : 0;
 
-      // Reliability: need enough directions in both periods
-      const reliable = before.total >= minDirections && after.total >= minDirections;
+      const reliable = preTotal >= minDirections && postTotal >= minDirections;
 
-      // Verdict thresholds
       let verdict: 'helpful' | 'neutral' | 'misleading';
       if (!reliable) {
         verdict = 'neutral';
@@ -116,18 +155,18 @@ async function handleGet(request: NextRequest) {
         insightType: insight.type,
         confidence: insight.confidence,
         reflectionId: insight.reflection_id,
-        insightDate,
+        insightDate: insight.insight_date,
         preRate: Math.round(preRate * 1000) / 1000,
         postRate: Math.round(postRate * 1000) / 1000,
-        preTotal: before.total,
-        postTotal: after.total,
+        preTotal: preTotal,
+        postTotal: postTotal,
         score: Math.round(score * 10) / 10,
         verdict,
         reliable,
       });
     }
 
-    // 4. Compute summary
+    // 5. Compute summary
     const scored = results.filter(r => r.reliable);
     const summary: EffectivenessSummary = {
       overallScore: scored.length > 0
@@ -154,23 +193,5 @@ async function handleGet(request: NextRequest) {
   }
 }
 
-/**
- * Count accepted/rejected directions in a date range
- */
-function countDirections(
-  directions: Array<{ status: string; created_at: string }>,
-  afterDate: string | null,
-  beforeDate: string | null
-): DirectionCounts {
-  const filtered = directions.filter(d => {
-    if (afterDate && d.created_at <= afterDate) return false;
-    if (beforeDate && d.created_at > beforeDate) return false;
-    return true;
-  });
-
-  const accepted = filtered.filter(d => d.status === 'accepted').length;
-  const rejected = filtered.filter(d => d.status === 'rejected').length;
-  return { accepted, rejected, total: accepted + rejected };
-}
 
 export const GET = withObservability(handleGet, '/api/brain/insights/effectiveness');

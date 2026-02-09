@@ -13,19 +13,6 @@ interface ContextHealthIndicatorProps {
   className?: string;
 }
 
-/**
- * Analyzes context health using the centralized ContextEntity domain logic.
- * The ContextEntity enforces these business rules:
- * - File count (too few = warning, none = critical)
- * - Description presence
- *
- * @deprecated For new code, use ContextEntity.analyzeHealth() directly
- */
-function analyzeHealth(context: Context): { level: HealthLevel; issues: string[] } {
-  const health = ContextEntity.analyzeHealth(context);
-  return { level: health.level, issues: health.issues };
-}
-
 const healthConfig: Record<HealthLevel, { icon: React.ElementType; color: string; bgColor: string; label: string }> = {
   healthy: {
     icon: CheckCircle,
@@ -59,7 +46,7 @@ export function ContextHealthIndicator({
   size = 'sm',
   className = '',
 }: ContextHealthIndicatorProps) {
-  const { level, issues } = analyzeHealth(context);
+  const { level, issues } = ContextEntity.analyzeHealth(context);
   const config = healthConfig[level];
   const Icon = config.icon;
 
@@ -95,7 +82,7 @@ export function ContextHealthDot({
   context: Context;
   className?: string;
 }) {
-  const { level, issues } = analyzeHealth(context);
+  const { level, issues } = ContextEntity.analyzeHealth(context);
 
   const dotColors: Record<HealthLevel, string> = {
     healthy: 'bg-green-400',

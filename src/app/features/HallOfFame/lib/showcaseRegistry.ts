@@ -1064,48 +1064,6 @@ import { Sparkles } from 'lucide-react';
 />`,
     sourcePath: 'src/app/features/Manager/components/ImplementationLogCard.tsx',
   },
-  {
-    id: 'hypothesis-row',
-    name: 'HypothesisRow',
-    description: 'Expandable row with 5 status states, 9 category colors, and evidence type selector',
-    categoryId: 'data-display',
-    variantCount: 45,
-    propsConfig: [
-      {
-        name: 'status',
-        type: 'select',
-        label: 'Status',
-        options: [
-          { label: 'Unverified', value: 'unverified' },
-          { label: 'In Progress', value: 'in_progress' },
-          { label: 'Verified', value: 'verified' },
-          { label: 'Completed', value: 'completed' },
-          { label: 'Disproven', value: 'disproven' },
-        ],
-        defaultValue: 'unverified',
-      },
-      {
-        name: 'category',
-        type: 'select',
-        label: 'Category',
-        options: [
-          { label: 'Behavior', value: 'behavior' },
-          { label: 'Performance', value: 'performance' },
-          { label: 'Security', value: 'security' },
-          { label: 'UX', value: 'ux' },
-        ],
-        defaultValue: 'behavior',
-      },
-    ],
-    codeSnippet: `import { HypothesisRow } from '@/app/features/Manager/GoalHub/components/HypothesisRow';
-
-<HypothesisRow
-  hypothesis={{ title: 'Users prefer dark mode', status: 'unverified' }}
-  projectPath="/project"
-/>`,
-    sourcePath: 'src/app/features/Manager/GoalHub/components/HypothesisRow.tsx',
-  },
-
   // --- ContextLayout Components ---
   {
     id: 'context-jail-card',
