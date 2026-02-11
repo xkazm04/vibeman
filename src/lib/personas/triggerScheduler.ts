@@ -19,6 +19,7 @@ import {
 } from '@/app/db/repositories/persona.repository';
 import { personaToolRepository } from '@/app/db/repositories/persona.repository';
 import { personaExecutionQueue } from './executionQueue';
+import { personaEventBus } from './eventBus';
 
 const POLL_INTERVALS = {
   BASE_MS: 10000,    // 10 seconds when active
@@ -35,12 +36,14 @@ class TriggerScheduler {
     if (this.isRunning) return;
     this.isRunning = true;
     this.consecutiveEmpty = 0;
+    personaEventBus.start();
     this.poll();
   }
 
   stop(): void {
     if (!this.isRunning) return;
     this.isRunning = false;
+    personaEventBus.stop();
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;

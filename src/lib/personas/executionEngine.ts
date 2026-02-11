@@ -23,7 +23,7 @@ import {
   writeTempCredentialFile,
   deleteTempCredentialFile,
 } from './credentialCrypto';
-import { personaCredentialRepository, manualReviewRepository, personaMessageRepository, personaToolUsageRepository } from '@/app/db/repositories/persona.repository';
+import { personaCredentialRepository, manualReviewRepository, personaMessageRepository, personaToolUsageRepository, personaRepository } from '@/app/db/repositories/persona.repository';
 import { deliverMessage } from './messageDelivery';
 
 // ============================================================================
@@ -275,6 +275,47 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
                   if (block.type === 'text' && block.text) {
                     for (const textLine of block.text.split('\n')) {
                       userLog(textLine);
+
+                      // Mid-stream event detection: persona_action and emit_event
+                      try {
+                        const trimmed = textLine.trim();
+                        if (trimmed.startsWith('{"persona_action":')) {
+                          const actionData = JSON.parse(trimmed);
+                          if (actionData.persona_action?.target) {
+                            const targetName = actionData.persona_action.target;
+                            const allPersonas = personaRepository.getAll();
+                            const targetPersona = allPersonas.find(p => p.name === targetName);
+                            if (targetPersona) {
+                              const { personaEventBus } = require('./eventBus');
+                              personaEventBus.publish({
+                                event_type: 'persona_action' as const,
+                                source_type: 'persona' as const,
+                                source_id: input.persona.id,
+                                target_persona_id: targetPersona.id,
+                                project_id: input.persona.project_id,
+                                payload: actionData.persona_action,
+                              });
+                              log(`[EVENT] Published persona_action targeting "${targetName}" (${targetPersona.id})`);
+                            } else {
+                              log(`[EVENT] persona_action target "${targetName}" not found`);
+                            }
+                          }
+                        } else if (trimmed.startsWith('{"emit_event":')) {
+                          const eventData = JSON.parse(trimmed);
+                          if (eventData.emit_event) {
+                            const { personaEventBus } = require('./eventBus');
+                            personaEventBus.publish({
+                              event_type: 'custom' as const,
+                              source_type: 'persona' as const,
+                              source_id: input.persona.id,
+                              target_persona_id: null,
+                              project_id: input.persona.project_id,
+                              payload: eventData.emit_event,
+                            });
+                            log(`[EVENT] Published custom event: ${eventData.emit_event.type || 'unknown'}`);
+                          }
+                        }
+                      } catch { /* event parsing not critical */ }
                     }
                   } else if (block.type === 'tool_use') {
                     userLog(`> Using tool: ${block.name}`);
@@ -327,6 +368,19 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
           parseUserMessages(stdout, input.executionId, input.persona.id);
           // Record tool usage for analytics
           recordToolUsage(toolUseCounts, input.executionId, input.persona.id);
+
+          // Publish execution_completed event
+          try {
+            const { personaEventBus } = require('./eventBus');
+            personaEventBus.publish({
+              event_type: 'execution_completed' as const,
+              source_type: 'execution' as const,
+              source_id: input.executionId,
+              target_persona_id: input.persona.id,
+              project_id: input.persona.project_id,
+              payload: { status: code === 0 ? 'completed' : 'failed', duration_ms: durationMs },
+            });
+          } catch { /* event bus not critical */ }
 
           if (code === 0) {
             resolve({

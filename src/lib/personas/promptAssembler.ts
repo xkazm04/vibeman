@@ -45,6 +45,21 @@ When you want to send a notification or message to the user, output a JSON block
 Use this for status updates, results summaries, alerts, or any communication to the user.
 Messages are delivered to all configured notification channels.`;
 
+const EVENT_ACTION_PROTOCOL = `## Event Action Protocol
+To trigger another persona agent or emit a custom event, output a JSON block:
+\`\`\`json
+{"persona_action": {"target": "persona_name", "action": "execute", "input": {"key": "value"}}}
+\`\`\`
+To delegate a task to another persona:
+\`\`\`json
+{"persona_action": {"target": "persona_name", "action": "task", "input": {"title": "Task title", "description": "What needs to be done"}}}
+\`\`\`
+To emit a custom event for any subscribed persona to pick up:
+\`\`\`json
+{"emit_event": {"type": "custom_event_name", "data": {"key": "value"}}}
+\`\`\`
+Actions are processed IMMEDIATELY during execution. The target persona will be triggered automatically.`;
+
 /**
  * Assemble the full prompt for a persona execution.
  *
@@ -143,6 +158,9 @@ function assembleStructuredPrompt(
   // 11. User Message Protocol
   sections.push(USER_MESSAGE_PROTOCOL);
 
+  // 11b. Event Action Protocol
+  sections.push(EVENT_ACTION_PROTOCOL);
+
   // 12. Output format instructions
   sections.push('## Output Requirements');
   sections.push('After completing your task, output a JSON summary of what you did:');
@@ -207,6 +225,9 @@ function assembleFlatPrompt(input: PromptAssemblyInput): string {
 
   // 5. User Message Protocol
   sections.push(USER_MESSAGE_PROTOCOL);
+
+  // 5b. Event Action Protocol
+  sections.push(EVENT_ACTION_PROTOCOL);
 
   // 6. Output format instructions
   sections.push('## Output Requirements');
