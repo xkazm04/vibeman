@@ -6,11 +6,14 @@ interface DesignCheckboxProps {
   checked: boolean;
   onChange: () => void;
   disabled?: boolean;
-  color?: 'primary' | 'blue';
+  color?: 'primary' | 'blue' | 'purple';
 }
 
 export function DesignCheckbox({ checked, onChange, disabled = false, color = 'primary' }: DesignCheckboxProps) {
-  const isPrimary = color === 'primary';
+  const checkedColor =
+    color === 'blue' ? 'bg-blue-500 border border-blue-500' :
+    color === 'purple' ? 'bg-purple-500 border border-purple-500' :
+    'bg-primary border border-primary';
 
   return (
     <button
@@ -23,9 +26,7 @@ export function DesignCheckbox({ checked, onChange, disabled = false, color = 'p
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
       } ${
         checked
-          ? isPrimary
-            ? 'bg-primary border border-primary'
-            : 'bg-blue-500 border border-blue-500'
+          ? checkedColor
           : `bg-secondary/40 border ${
               disabled ? 'border-primary/10' : 'border-primary/20 hover:border-primary/40'
             }`

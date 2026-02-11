@@ -36,9 +36,12 @@ interface DesignResultPreviewProps {
   selectedTools: Set<string>;
   selectedTriggerIndices: Set<number>;
   selectedChannelIndices?: Set<number>;
+  suggestedSubscriptions?: Array<{ event_type: string; source_filter?: object; description: string }>;
+  selectedSubscriptionIndices?: Set<number>;
   onToolToggle: (toolName: string) => void;
   onTriggerToggle: (index: number) => void;
   onChannelToggle?: (index: number) => void;
+  onSubscriptionToggle?: (idx: number) => void;
   onConnectorClick?: (connector: SuggestedConnector) => void;
   readOnly?: boolean;
   actualTriggers?: DbPersonaTrigger[];
@@ -89,9 +92,12 @@ export function DesignResultPreview({
   selectedTools,
   selectedTriggerIndices,
   selectedChannelIndices = new Set(),
+  suggestedSubscriptions,
+  selectedSubscriptionIndices = new Set(),
   onToolToggle,
   onTriggerToggle,
   onChannelToggle,
+  onSubscriptionToggle,
   onConnectorClick,
   readOnly = false,
   actualTriggers = [],
@@ -190,6 +196,41 @@ export function DesignResultPreview({
               onTriggerEnabledToggle={onTriggerEnabledToggle}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── Event Subscriptions (persona-level) ─────────────────── */}
+      {suggestedSubscriptions && suggestedSubscriptions.length > 0 && (
+        <div className="bg-secondary/30 border border-primary/10 rounded-xl p-3.5 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground/70 tracking-wide">
+            <Zap className="w-4 h-4 text-purple-400" />
+            Event Subscriptions
+          </div>
+          {suggestedSubscriptions.map((sub, subIdx) => {
+            const isSelected = selectedSubscriptionIndices.has(subIdx);
+            return (
+              <div key={`sub-${subIdx}`} className="flex items-start gap-2">
+                {!readOnly && (
+                  <div className="mt-0.5">
+                    <DesignCheckbox
+                      checked={!!isSelected}
+                      onChange={() => onSubscriptionToggle?.(subIdx)}
+                      color="purple"
+                    />
+                  </div>
+                )}
+                <Zap className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-foreground/70 truncate block">
+                    {sub.event_type}
+                  </span>
+                  <span className="text-sm text-muted-foreground/40 leading-snug block">
+                    {sub.description}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
