@@ -20,6 +20,11 @@ import type {
   CredentialServiceType,
   ManualReviewSeverity,
   ManualReviewStatus,
+  DbPersonaEvent,
+  DbPersonaEventSubscription,
+  PersonaEventType,
+  PersonaEventSourceType,
+  PersonaEventStatus,
 } from '@/app/db/models/persona.types';
 
 // Re-export DB types for convenience
@@ -41,6 +46,11 @@ export type {
   CredentialServiceType,
   ManualReviewSeverity,
   ManualReviewStatus,
+  DbPersonaEvent,
+  DbPersonaEventSubscription,
+  PersonaEventType,
+  PersonaEventSourceType,
+  PersonaEventStatus,
 };
 
 /** Persona with associated tools and triggers */

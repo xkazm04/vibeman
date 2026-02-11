@@ -515,3 +515,47 @@ export async function fetchToolUsage(
   const qs = params.toString() ? `?${params}` : '';
   return fetchJson<{ summary: ToolUsageSummary[]; overTime: ToolUsageOverTime[]; byPersona: PersonaUsageSummary[] }>(`${BASE}/usage${qs}`);
 }
+
+// ============================================================================
+// Events
+// ============================================================================
+
+export async function fetchEvents(params?: { limit?: number; event_type?: string }): Promise<{ events: any[]; pendingCount: number; total: number }> {
+  const sp = new URLSearchParams();
+  if (params?.limit) sp.set('limit', String(params.limit));
+  if (params?.event_type) sp.set('event_type', params.event_type);
+  const res = await fetch(`/api/personas/events?${sp.toString()}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function publishEvent(input: { event_type: string; source_type: string; source_id?: string; target_persona_id?: string; payload?: object; project_id?: string }): Promise<{ ok: boolean; event_id: string }> {
+  const res = await fetch('/api/personas/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchEventSubscriptions(personaId?: string): Promise<{ subscriptions: any[]; total: number }> {
+  const sp = new URLSearchParams();
+  if (personaId) sp.set('persona_id', personaId);
+  const res = await fetch(`/api/personas/events/subscriptions?${sp.toString()}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function createEventSubscription(input: { persona_id: string; event_type: string; source_filter?: object; enabled?: boolean }): Promise<any> {
+  const res = await fetch('/api/personas/events/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function updateEventSubscription(id: string, input: { event_type?: string; source_filter?: object; enabled?: boolean }): Promise<any> {
+  const res = await fetch(`/api/personas/events/subscriptions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function deleteEventSubscription(id: string): Promise<void> {
+  const res = await fetch(`/api/personas/events/subscriptions/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(await res.text());
+}

@@ -72,6 +72,10 @@ interface PersonaState {
   toolUsageOverTime: ToolUsageOverTime[];
   toolUsageByPersona: PersonaUsageSummary[];
 
+  // Events
+  recentEvents: any[];
+  pendingEventCount: number;
+
   // Design Analysis
   designPhase: DesignPhase;
   activeDesignSession: ActiveDesignSession | null;
@@ -146,6 +150,9 @@ interface PersonaActions {
   // Tool Usage Analytics
   fetchToolUsage: (days?: number, personaId?: string) => Promise<void>;
 
+  // Events
+  fetchRecentEvents: (limit?: number, eventType?: string) => Promise<void>;
+
   // Design
   setDesignPhase: (phase: DesignPhase) => void;
   setActiveDesignSession: (session: ActiveDesignSession | null) => void;
@@ -191,6 +198,8 @@ export const usePersonaStore = create<PersonaStore>()(
       toolUsageSummary: [],
       toolUsageOverTime: [],
       toolUsageByPersona: [],
+      recentEvents: [],
+      pendingEventCount: 0,
       designPhase: 'idle' as DesignPhase,
       activeDesignSession: null,
       sidebarSection: 'personas' as SidebarSection,
@@ -657,6 +666,16 @@ export const usePersonaStore = create<PersonaStore>()(
           });
         } catch (err) {
           set({ error: err instanceof Error ? err.message : 'Failed to fetch tool usage' });
+        }
+      },
+
+      // ── Events ──────────────────────────────────────────────────────
+      fetchRecentEvents: async (limit?: number, eventType?: string) => {
+        try {
+          const data = await api.fetchEvents({ limit, event_type: eventType });
+          set({ recentEvents: data.events, pendingEventCount: data.pendingCount });
+        } catch (err) {
+          console.error('Failed to fetch events:', err);
         }
       },
 

@@ -53,6 +53,7 @@ export interface DesignAnalysisResult {
   suggested_notification_channels?: SuggestedNotificationChannel[];
   /** Inline feasibility assessment produced during design analysis */
   feasibility?: DesignTestResult;
+  suggested_event_subscriptions?: SuggestedEventSubscription[];
 }
 
 /** A notification channel suggestion from design analysis */
@@ -78,6 +79,13 @@ export interface DesignTestResult {
   confirmed_capabilities: string[];
   issues: string[];
   overall_feasibility: 'ready' | 'partial' | 'blocked';
+}
+
+/** An event subscription suggestion from design analysis */
+export interface SuggestedEventSubscription {
+  event_type: string;
+  source_filter?: Record<string, unknown>;
+  description: string;
 }
 
 /** Status of a running design analysis */
