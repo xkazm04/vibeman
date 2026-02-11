@@ -2,18 +2,20 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, BarChart3, ClipboardCheck, MessageSquare } from 'lucide-react';
+import { Activity, BarChart3, ClipboardCheck, MessageSquare, Zap } from 'lucide-react';
 import { usePersonaStore } from '@/stores/personaStore';
 import type { OverviewTab } from '@/app/features/Personas/lib/types';
 import GlobalExecutionList from './GlobalExecutionList';
 import ManualReviewList from './ManualReviewList';
 import MessageList from './MessageList';
+import EventLogList from './EventLogList';
 import UsageDashboard from './UsageDashboard';
 
 const tabs: Array<{ id: OverviewTab; label: string; icon: typeof Activity }> = [
   { id: 'executions', label: 'Executions', icon: Activity },
   { id: 'manual-review', label: 'Manual Review', icon: ClipboardCheck },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
+  { id: 'events', label: 'Events', icon: Zap },
   { id: 'usage', label: 'Usage', icon: BarChart3 },
 ];
 
@@ -24,11 +26,14 @@ export default function OverviewPage() {
   const fetchPendingReviewCount = usePersonaStore((s) => s.fetchPendingReviewCount);
   const unreadMessageCount = usePersonaStore((s) => s.unreadMessageCount);
   const fetchUnreadMessageCount = usePersonaStore((s) => s.fetchUnreadMessageCount);
+  const pendingEventCount = usePersonaStore((s) => s.pendingEventCount);
+  const fetchRecentEvents = usePersonaStore((s) => s.fetchRecentEvents);
 
   useEffect(() => {
     fetchPendingReviewCount();
     fetchUnreadMessageCount();
-  }, [fetchPendingReviewCount, fetchUnreadMessageCount]);
+    fetchRecentEvents();
+  }, [fetchPendingReviewCount, fetchUnreadMessageCount, fetchRecentEvents]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -67,6 +72,11 @@ export default function OverviewPage() {
                     {unreadMessageCount}
                   </span>
                 )}
+                {tab.id === 'events' && pendingEventCount > 0 && (
+                  <span className="relative z-10 ml-1 px-1.5 py-0.5 text-[10px] font-bold leading-none rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                    {pendingEventCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -84,6 +94,7 @@ export default function OverviewPage() {
         {overviewTab === 'executions' ? <GlobalExecutionList /> :
          overviewTab === 'manual-review' ? <ManualReviewList /> :
          overviewTab === 'messages' ? <MessageList /> :
+         overviewTab === 'events' ? <EventLogList /> :
          overviewTab === 'usage' ? <UsageDashboard /> :
          <MessageList />}
       </motion.div>
