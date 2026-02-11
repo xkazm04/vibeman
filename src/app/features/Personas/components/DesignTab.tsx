@@ -45,6 +45,7 @@ export function DesignTab() {
   const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
   const [selectedTriggerIndices, setSelectedTriggerIndices] = useState<Set<number>>(new Set());
   const [selectedChannelIndices, setSelectedChannelIndices] = useState<Set<number>>(new Set());
+  const [selectedSubscriptionIndices, setSelectedSubscriptionIndices] = useState<Set<number>>(new Set());
   const [credentialModalConnector, setCredentialModalConnector] = useState<SuggestedConnector | null>(null);
 
   // Parse saved design result from persona DB
@@ -79,6 +80,9 @@ export function DesignTab() {
       setSelectedChannelIndices(
         new Set((result.suggested_notification_channels || []).map((_, i) => i))
       );
+      if (result.suggested_event_subscriptions?.length) {
+        setSelectedSubscriptionIndices(new Set(result.suggested_event_subscriptions.map((_: any, i: number) => i)));
+      }
     }
   }, [resultId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,7 +102,8 @@ export function DesignTab() {
       selectedPersona.id,
       Array.from(selectedTools),
       Array.from(selectedTriggerIndices),
-      Array.from(selectedChannelIndices)
+      Array.from(selectedChannelIndices),
+      Array.from(selectedSubscriptionIndices)
     );
   };
 
@@ -194,6 +199,8 @@ export function DesignTab() {
                   selectedTools={new Set(savedDesignResult.suggested_tools)}
                   selectedTriggerIndices={new Set(savedDesignResult.suggested_triggers.map((_, i) => i))}
                   selectedChannelIndices={new Set((savedDesignResult.suggested_notification_channels || []).map((_, i) => i))}
+                  suggestedSubscriptions={savedDesignResult.suggested_event_subscriptions}
+                  selectedSubscriptionIndices={new Set((savedDesignResult.suggested_event_subscriptions || []).map((_: any, i: number) => i))}
                   onToolToggle={() => {}}
                   onTriggerToggle={() => {}}
                   onChannelToggle={() => {}}
@@ -350,9 +357,19 @@ export function DesignTab() {
               selectedTools={selectedTools}
               selectedTriggerIndices={selectedTriggerIndices}
               selectedChannelIndices={selectedChannelIndices}
+              suggestedSubscriptions={result.suggested_event_subscriptions}
+              selectedSubscriptionIndices={selectedSubscriptionIndices}
               onToolToggle={handleToolToggle}
               onTriggerToggle={handleTriggerToggle}
               onChannelToggle={handleChannelToggle}
+              onSubscriptionToggle={(idx) => {
+                setSelectedSubscriptionIndices(prev => {
+                  const next = new Set(prev);
+                  if (next.has(idx)) next.delete(idx);
+                  else next.add(idx);
+                  return next;
+                });
+              }}
               onConnectorClick={setCredentialModalConnector}
               feasibility={result.feasibility}
             />
