@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Wrench, Check, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Wrench, Check, AlertTriangle, Pencil } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import type { DbPersonaToolDefinition, CredentialMetadata } from '@/app/features/Personas/lib/types';
 
@@ -20,6 +20,7 @@ export function ToolGuidanceVisual({
   onGuidanceChange,
   readOnly = false,
 }: ToolGuidanceVisualProps) {
+  const [isEditing, setIsEditing] = useState(false);
   const credentialTypes = new Set(credentials.map((c) => c.service_type));
 
   return (
@@ -67,10 +68,27 @@ export function ToolGuidanceVisual({
 
       {/* Guidance Section */}
       <div className="space-y-2">
-        <h4 className="text-xs font-mono text-muted-foreground/40 uppercase tracking-wider">
-          Tool Usage Guidance
-        </h4>
-        {readOnly ? (
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-mono text-muted-foreground/40 uppercase tracking-wider">
+            Tool Usage Guidance
+          </h4>
+          {readOnly && (
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground/60 hover:text-foreground/80 bg-secondary/30 hover:bg-secondary/50 border border-border/30 rounded-lg transition-colors"
+            >
+              {isEditing ? (
+                'Done'
+              ) : (
+                <>
+                  <Pencil className="w-3 h-3" />
+                  Edit
+                </>
+              )}
+            </button>
+          )}
+        </div>
+        {readOnly && !isEditing ? (
           <div className="px-4 py-3 bg-background/50 border border-border/50 rounded-2xl min-h-[100px]">
             {guidanceText ? (
               <MarkdownRenderer content={guidanceText} />

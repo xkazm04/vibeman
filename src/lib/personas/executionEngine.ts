@@ -23,7 +23,7 @@ import {
   writeTempCredentialFile,
   deleteTempCredentialFile,
 } from './credentialCrypto';
-import { personaCredentialRepository, manualReviewRepository, personaMessageRepository } from '@/app/db/repositories/persona.repository';
+import { personaCredentialRepository, manualReviewRepository, personaMessageRepository, personaToolUsageRepository } from '@/app/db/repositories/persona.repository';
 import { deliverMessage } from './messageDelivery';
 
 // ============================================================================
@@ -243,6 +243,7 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
         let stdout = '';
         let stderr = '';
         let claudeSessionId: string | undefined;
+        const toolUseCounts = new Map<string, number>();
 
         childProcess.stdout.on('data', (data: Buffer) => {
           const text = data.toString();
@@ -277,6 +278,7 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
                     }
                   } else if (block.type === 'tool_use') {
                     userLog(`> Using tool: ${block.name}`);
+                    toolUseCounts.set(block.name, (toolUseCounts.get(block.name) || 0) + 1);
                   }
                 }
               } else if (parsed.type === 'tool_result' || parsed.type === 'tool') {
@@ -323,6 +325,8 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
           parseManualReviews(stdout, input.executionId, input.persona.id);
           // Parse user message blocks from output
           parseUserMessages(stdout, input.executionId, input.persona.id);
+          // Record tool usage for analytics
+          recordToolUsage(toolUseCounts, input.executionId, input.persona.id);
 
           if (code === 0) {
             resolve({
@@ -453,6 +457,19 @@ function parseManualReviews(output: string, executionId: string, personaId: stri
     }
   } catch {
     // Don't let review parsing errors affect execution
+  }
+}
+
+/**
+ * Record tool usage counts to the database for analytics.
+ */
+function recordToolUsage(toolCounts: Map<string, number>, executionId: string, personaId: string): void {
+  try {
+    for (const [toolName, count] of toolCounts) {
+      personaToolUsageRepository.record(executionId, personaId, toolName, count);
+    }
+  } catch {
+    // Don't let tool usage recording errors affect execution
   }
 }
 

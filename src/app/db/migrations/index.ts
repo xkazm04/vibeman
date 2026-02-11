@@ -17,6 +17,12 @@ import { migrate067FixCheckConstraints } from './067_fix_check_constraints';
 import { migrate069ContextAiNavigation } from './069_context_ai_navigation';
 import { migrate070CollectiveMemory } from './070_collective_memory';
 import { migrate071BrainInsightsTable } from './071_brain_insights_table';
+import { migrate090Personas } from './090_personas';
+import { migrate091PersonaUpgrades } from './091_persona_upgrades';
+import { migrate092ConnectorDefinitions } from './092_connector_definitions';
+import { migrate093PersonaMessages } from './093_persona_messages';
+import { migrate094PersonaDesignResult } from './094_persona_design_result';
+import { migrate095PersonaToolUsage } from './095_persona_tool_usage';
 
 /**
  * Migration logger utility
@@ -243,6 +249,17 @@ export function runMigrations() {
     migrateBehavioralSignalsIndexes();
     // Migration 89: Template Source Column - consolidate prompt_templates into discovered_templates
     migrateTemplateSourceColumn();
+    // Migration 90: Persona Agent System - AI persona agents with tools, triggers, and executions
+    migratePersonas();
+    // Migration 91: Persona UX Upgrades - credential events, manual reviews, structured prompts
+    migratePersonaUpgrades();
+    // Migration 92: Connector Definitions - dynamic connector registry with seed data
+    migrateConnectorDefinitions();
+    // Migration 93: Persona Messages & Notification Channels
+    migratePersonaMessages();
+    migratePersonaDesignResult();
+    // Migration 95: Persona Tool Usage tracking for analytics
+    migratePersonaToolUsage();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4659,5 +4676,51 @@ function migrateTemplateSourceColumn() {
     const db = getConnection();
     const { migrate072TemplateSourceColumn } = require('./072_template_source_column');
     migrate072TemplateSourceColumn(db);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 90: Persona Agent System
+ * Creates tables for AI persona agents, tools, triggers, executions, and credentials
+ */
+function migratePersonas() {
+  safeMigration('personas', () => {
+    const db = getConnection();
+    migrate090Personas(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migratePersonaUpgrades() {
+  safeMigration('personaUpgrades091', () => {
+    const db = getConnection();
+    migrate091PersonaUpgrades(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migrateConnectorDefinitions() {
+  safeMigration('connectorDefinitions092', () => {
+    const db = getConnection();
+    migrate092ConnectorDefinitions(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migratePersonaMessages() {
+  safeMigration('personaMessages093', () => {
+    const db = getConnection();
+    migrate093PersonaMessages(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migratePersonaDesignResult() {
+  safeMigration('personaDesignResult094', () => {
+    const db = getConnection();
+    migrate094PersonaDesignResult(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migratePersonaToolUsage() {
+  safeMigration('personaToolUsage095', () => {
+    const db = getConnection();
+    migrate095PersonaToolUsage(db, migrationLogger);
   }, migrationLogger);
 }

@@ -13,6 +13,8 @@ import type { StructuredPrompt } from '@/lib/personas/promptMigration';
 import { PromptSectionTab } from './PromptSectionTab';
 import { ToolGuidanceVisual } from './ToolGuidanceVisual';
 import { DesignTab } from './DesignTab';
+import type { DesignAnalysisResult, DesignHighlight } from '@/app/features/Personas/lib/designTypes';
+import { DesignHighlightsGrid } from './DesignHighlightsGrid';
 
 type SubTab = 'design' | 'identity' | 'instructions' | 'toolGuidance' | 'examples' | 'errorHandling' | string;
 
@@ -45,6 +47,10 @@ export function PersonaPromptEditor() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const spRef = useRef(sp);
   spRef.current = sp;
+  const lastSavedJsonRef = useRef<string | null>(null);
+  // Track the raw structured_prompt string last loaded from the persona,
+  // so we can detect external updates (e.g. design apply)
+  const lastLoadedPromptRef = useRef<string | null>(null);
 
   // Build dynamic tab list: standard tabs + one per custom section + add button
   const allTabs = useMemo(() => {
@@ -62,22 +68,58 @@ export function PersonaPromptEditor() {
     return tabs;
   }, [sp.customSections]);
 
+  const highlightsBySection = useMemo<Record<string, DesignHighlight[]>>(() => {
+    if (!selectedPersona?.last_design_result) return {};
+    try {
+      const parsed = JSON.parse(selectedPersona.last_design_result) as DesignAnalysisResult;
+      const highlights = parsed.design_highlights ?? [];
+      const grouped: Record<string, DesignHighlight[]> = {};
+      for (const h of highlights) {
+        const section = h.section || 'instructions';
+        if (!grouped[section]) grouped[section] = [];
+        grouped[section].push(h);
+      }
+      return grouped;
+    } catch {
+      return {};
+    }
+  }, [selectedPersona?.last_design_result]);
+
   // Initialize structured prompt from persona data
   useEffect(() => {
     if (!selectedPersona) {
       setSp(createEmptyStructuredPrompt());
       personaIdRef.current = null;
+      lastLoadedPromptRef.current = null;
       return;
     }
 
-    // Only reinitialize when persona changes
-    if (personaIdRef.current === selectedPersona.id) return;
+    const currentPromptRaw = selectedPersona.structured_prompt ?? null;
+    const isNewPersona = personaIdRef.current !== selectedPersona.id;
+
+    // Detect external update: same persona, but structured_prompt changed from what we last loaded
+    // AND different from what we last saved (to avoid re-loading our own debounced saves)
+    const isExternalUpdate =
+      !isNewPersona &&
+      currentPromptRaw !== lastLoadedPromptRef.current &&
+      currentPromptRaw !== lastSavedJsonRef.current;
+
+    if (!isNewPersona && !isExternalUpdate) return;
+
     personaIdRef.current = selectedPersona.id;
+    lastLoadedPromptRef.current = currentPromptRaw;
+
+    // Cancel any pending debounced save to prevent it from overwriting the new data
+    if (isExternalUpdate && saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
 
     // Try to parse existing structured_prompt
-    const parsed = parseStructuredPrompt(selectedPersona.structured_prompt ?? null);
+    const parsed = parseStructuredPrompt(currentPromptRaw);
     if (parsed) {
       setSp(parsed);
+      lastSavedJsonRef.current = JSON.stringify(parsed);
       return;
     }
 
@@ -85,24 +127,33 @@ export function PersonaPromptEditor() {
     if (selectedPersona.system_prompt) {
       const migrated = migratePromptToStructured(selectedPersona.system_prompt);
       setSp(migrated);
+      lastSavedJsonRef.current = JSON.stringify(migrated);
       return;
     }
 
-    setSp(createEmptyStructuredPrompt());
+    const empty = createEmptyStructuredPrompt();
+    setSp(empty);
+    lastSavedJsonRef.current = JSON.stringify(empty);
   }, [selectedPersona]);
 
-  // Debounced auto-save
+  // Debounced auto-save — uses refs to avoid dependency on selectedPersona
   const doSave = useCallback(async () => {
-    if (!selectedPersona) return;
+    const pid = personaIdRef.current;
+    if (!pid) return;
+
+    const jsonStr = JSON.stringify(spRef.current);
+
+    // Skip save if nothing changed (prevents infinite loop)
+    if (jsonStr === lastSavedJsonRef.current) return;
 
     setIsSaving(true);
     try {
-      const jsonStr = JSON.stringify(spRef.current);
-      await updatePersona(selectedPersona.id, {
+      await updatePersona(pid, {
         structured_prompt: jsonStr,
-        // Keep system_prompt in sync for backward compatibility
-        system_prompt: spRef.current.instructions || selectedPersona.system_prompt,
+        system_prompt: spRef.current.instructions || '',
       });
+      lastSavedJsonRef.current = jsonStr;
+      lastLoadedPromptRef.current = jsonStr; // Track our own save so it doesn't trigger re-init
       setShowSaved(true);
       setTimeout(() => setShowSaved(false), 2000);
     } catch (error) {
@@ -110,13 +161,15 @@ export function PersonaPromptEditor() {
     } finally {
       setIsSaving(false);
     }
-  }, [selectedPersona, updatePersona]);
+  }, [updatePersona]);
 
   // Trigger debounced save when sp changes
   useEffect(() => {
-    if (!selectedPersona) return;
-    // Don't save on initial load
-    if (personaIdRef.current !== selectedPersona.id) return;
+    if (!personaIdRef.current) return;
+
+    // Skip if content hasn't actually changed from last save
+    const jsonStr = JSON.stringify(sp);
+    if (jsonStr === lastSavedJsonRef.current) return;
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
@@ -126,7 +179,8 @@ export function PersonaPromptEditor() {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [sp, doSave, selectedPersona]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp]);
 
   // Update a field in the structured prompt
   const updateField = useCallback((field: keyof Omit<StructuredPrompt, 'customSections'>, value: string) => {
@@ -182,7 +236,7 @@ export function PersonaPromptEditor() {
     <div className="space-y-4">
       {/* Sub-tab bar */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-xl overflow-x-auto">
+        <div className="flex items-center gap-1 p-1 bg-secondary/40 border border-primary/15 rounded-xl overflow-x-auto">
           {allTabs.map((tab) => (
             <button
               key={tab.key}
@@ -245,6 +299,8 @@ export function PersonaPromptEditor() {
             value={sp.identity}
             onChange={(v) => updateField('identity', v)}
             placeholder="Who is this persona? What role does it play?"
+            viewMode
+            highlights={highlightsBySection['identity']}
           />
         )}
 
@@ -255,16 +311,22 @@ export function PersonaPromptEditor() {
             value={sp.instructions}
             onChange={(v) => updateField('instructions', v)}
             placeholder="Core instructions and behavioral guidelines..."
+            viewMode
+            highlights={highlightsBySection['instructions']}
           />
         )}
 
         {activeTab === 'toolGuidance' && (
           <div className="space-y-4">
+            {highlightsBySection['toolGuidance'] && highlightsBySection['toolGuidance'].length > 0 && (
+              <DesignHighlightsGrid highlights={highlightsBySection['toolGuidance']} />
+            )}
             <ToolGuidanceVisual
               tools={tools}
               credentials={credentials}
               guidanceText={sp.toolGuidance}
               onGuidanceChange={(v) => updateField('toolGuidance', v)}
+              readOnly
             />
           </div>
         )}
@@ -277,6 +339,8 @@ export function PersonaPromptEditor() {
             onChange={(v) => updateField('examples', v)}
             placeholder="Example interactions or outputs..."
             codeStyle
+            viewMode
+            highlights={highlightsBySection['examples']}
           />
         )}
 
@@ -287,6 +351,8 @@ export function PersonaPromptEditor() {
             value={sp.errorHandling}
             onChange={(v) => updateField('errorHandling', v)}
             placeholder="How should errors be handled?"
+            viewMode
+            highlights={highlightsBySection['errorHandling']}
           />
         )}
 
@@ -298,7 +364,7 @@ export function PersonaPromptEditor() {
                 type="text"
                 value={customSection.title}
                 onChange={(e) => updateCustomSection(customIndex, 'title', e.target.value)}
-                className="flex-1 px-3 py-1.5 text-sm font-medium bg-transparent border border-border/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                className="flex-1 px-3 py-1.5 text-sm font-medium bg-transparent border border-primary/15 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                 placeholder="Section title..."
               />
               <button
@@ -315,6 +381,8 @@ export function PersonaPromptEditor() {
               value={customSection.content}
               onChange={(v) => updateCustomSection(customIndex, 'content', v)}
               placeholder="Section content..."
+              viewMode
+              highlights={highlightsBySection[customSection.title]}
             />
           </div>
         )}

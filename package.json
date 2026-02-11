@@ -42,6 +42,7 @@
     "framer-motion": "^12.23.0",
     "fs": "^0.0.1-security",
     "glob": "^11.0.3",
+    "googleapis": "^171.4.0",
     "lucide-react": "^0.548.0",
     "madge": "^8.0.0",
     "minimatch": "^10.0.3",

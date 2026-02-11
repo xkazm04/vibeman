@@ -29,11 +29,11 @@ export function DesignTerminal({ lines, isRunning }: DesignTerminalProps) {
   };
 
   return (
-    <div className="border border-border/30 rounded-2xl overflow-hidden bg-background shadow-[0_0_15px_rgba(0,0,0,0.2)]">
+    <div className="border border-primary/15 rounded-2xl overflow-hidden bg-background shadow-[0_0_15px_rgba(0,0,0,0.2)]">
       {/* Terminal Header */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center justify-between w-full px-4 py-2 bg-secondary/40 border-b border-border/20 cursor-pointer hover:bg-secondary/50 transition-colors"
+        className="flex items-center justify-between w-full px-4 py-2 bg-primary/5 border-b border-primary/10 cursor-pointer hover:bg-secondary/50 transition-colors"
       >
         <div className="flex items-center gap-2.5">
           {isCollapsed ? (

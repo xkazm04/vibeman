@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { DesignHighlightsGrid } from './DesignHighlightsGrid';
+import type { DesignHighlight } from '@/app/features/Personas/lib/designTypes';
 
 interface PromptSectionTabProps {
   title: string;
@@ -12,6 +14,7 @@ interface PromptSectionTabProps {
   placeholder?: string;
   codeStyle?: boolean;
   viewMode?: boolean;
+  highlights?: DesignHighlight[];
 }
 
 export function PromptSectionTab({
@@ -22,6 +25,7 @@ export function PromptSectionTab({
   placeholder,
   codeStyle = false,
   viewMode = false,
+  highlights,
 }: PromptSectionTabProps) {
   const charCount = value.length;
   const [isEditing, setIsEditing] = useState(false);
@@ -70,14 +74,19 @@ export function PromptSectionTab({
           </div>
         </div>
       ) : (
-        <div className="px-4 py-3 bg-background/50 border border-border/50 rounded-2xl min-h-[100px]">
-          {value ? (
-            <MarkdownRenderer content={value} />
-          ) : (
-            <p className="text-sm text-muted-foreground/30 italic">
-              {placeholder || 'No content yet...'}
-            </p>
+        <div className="space-y-3">
+          {highlights && highlights.length > 0 && !isEditing && (
+            <DesignHighlightsGrid highlights={highlights} />
           )}
+          <div className="px-4 py-3 bg-background/50 border border-border/50 rounded-2xl min-h-[100px]">
+            {value ? (
+              <MarkdownRenderer content={value} />
+            ) : (
+              <p className="text-sm text-muted-foreground/30 italic">
+                {placeholder || 'No content yet...'}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

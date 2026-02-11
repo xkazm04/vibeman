@@ -89,6 +89,20 @@ import { projectArchitectureMetadataRepository } from './repositories/project-ar
 import { crossTaskPlanRepository } from './repositories/cross-task.repository';
 import { groupHealthRepository } from './repositories/group-health.repository';
 import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
+import {
+  personaRepository,
+  personaToolDefRepository,
+  personaToolRepository,
+  personaTriggerRepository,
+  personaExecutionRepository,
+  personaCredentialRepository,
+  credentialEventRepository,
+  manualReviewRepository,
+  connectorDefinitionRepository,
+  personaMessageRepository,
+  personaMessageDeliveryRepository,
+  personaToolUsageRepository,
+} from './repositories/persona.repository';
 
 // Export types
 export * from './models/types';
@@ -110,6 +124,7 @@ export * from './models/cross-project-architecture.types';
 export * from './models/cross-task.types';
 export * from './models/group-health.types';
 export * from './models/collective-memory.types';
+export * from './models/persona.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
@@ -629,6 +644,26 @@ export const groupHealthDb = {
  */
 export const collectiveMemoryDb = {
   ...collectiveMemoryRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Persona Agent System Database Operations
+ * Manages AI persona agents, tools, triggers, executions, and credentials
+ */
+export const personaDb = {
+  personas: personaRepository,
+  toolDefs: personaToolDefRepository,
+  tools: personaToolRepository,
+  triggers: personaTriggerRepository,
+  executions: personaExecutionRepository,
+  credentials: personaCredentialRepository,
+  credentialEvents: credentialEventRepository,
+  manualReviews: manualReviewRepository,
+  connectors: connectorDefinitionRepository,
+  messages: personaMessageRepository,
+  messageDeliveries: personaMessageDeliveryRepository,
+  toolUsage: personaToolUsageRepository,
   close: closeDatabase,
 };
 

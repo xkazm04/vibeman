@@ -289,3 +289,84 @@ export function generateCommunityScoreId(): string {
 export function generateLlmRequestId(providerName: string): string {
   return `${providerName}_${Date.now()}_${generateRandomString()}`;
 }
+
+// ============================================================================
+// Persona Agent System IDs
+// ============================================================================
+
+/**
+ * Generate persona ID
+ */
+export function generatePersonaId(): string {
+  return generateId('persona');
+}
+
+/**
+ * Generate persona tool definition ID
+ */
+export function generatePersonaToolDefId(): string {
+  return generateId('ptooldef');
+}
+
+/**
+ * Generate persona trigger ID
+ */
+export function generatePersonaTriggerId(): string {
+  return generateId('ptrigger');
+}
+
+/**
+ * Generate persona execution ID
+ */
+export function generatePersonaExecutionId(): string {
+  return generateId('pexec');
+}
+
+/**
+ * Generate persona credential ID
+ */
+export function generatePersonaCredentialId(): string {
+  return generateId('pcred');
+}
+
+/**
+ * Generate credential event ID
+ */
+export function generateCredentialEventId(): string {
+  return generateId('cevent');
+}
+
+/**
+ * Generate manual review ID
+ */
+export function generateManualReviewId(): string {
+  return generateId('mreview');
+}
+
+/**
+ * Generate design analysis ID
+ */
+export function generateDesignId(): string {
+  return generateId('pdesign');
+}
+
+/**
+ * Generate connector definition ID
+ */
+export function generateConnectorId(): string {
+  return generateId('conn');
+}
+
+/**
+ * Generate persona message ID
+ */
+export function generatePersonaMessageId(): string {
+  return generateId('pmsg');
+}
+
+/**
+ * Generate message delivery ID
+ */
+export function generateMessageDeliveryId(): string {
+  return generateId('pmdel');
+}
