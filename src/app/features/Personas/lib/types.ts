@@ -53,10 +53,11 @@ export type {
   PersonaEventStatus,
 };
 
-/** Persona with associated tools and triggers */
+/** Persona with associated tools, triggers, and event subscriptions */
 export interface PersonaWithDetails extends DbPersona {
   tools: DbPersonaToolDefinition[];
   triggers: DbPersonaTrigger[];
+  subscriptions?: DbPersonaEventSubscription[];
 }
 
 /** Input for creating a persona */

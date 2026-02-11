@@ -48,13 +48,15 @@ export default function PersonaEditor() {
     }
   }, [selectedPersona?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Compute readiness: persona can only be enabled if it has triggers and all tool credentials
+  // Compute readiness: persona can only be enabled if it has triggers/subscriptions and all tool credentials
   const readiness = useMemo(() => {
     if (!selectedPersona) return { canEnable: false, reasons: [] as string[] };
     const reasons: string[] = [];
     const triggers = selectedPersona.triggers || [];
-    if (triggers.length === 0) {
-      reasons.push('No triggers configured');
+    const subscriptions = selectedPersona.subscriptions || [];
+    const hasActivation = triggers.length > 0 || subscriptions.length > 0;
+    if (!hasActivation) {
+      reasons.push('No triggers or event subscriptions configured');
     }
     const tools = selectedPersona.tools || [];
     const credTypes = new Set(credentials.map((c) => c.service_type));

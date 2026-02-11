@@ -26,11 +26,13 @@ export async function GET(
 
     const tools = personaDb.tools.getToolDefsForPersona(personaId);
     const triggers = personaDb.triggers.getByPersonaId(personaId);
+    const subscriptions = personaDb.eventSubscriptions.getByPersonaId(personaId);
 
     return NextResponse.json({
       persona,
       tools,
-      triggers
+      triggers,
+      subscriptions,
     });
   } catch (error) {
     return NextResponse.json(

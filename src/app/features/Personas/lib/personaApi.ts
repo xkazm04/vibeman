@@ -8,6 +8,7 @@ import type {
   DbPersonaToolDefinition,
   DbPersonaTrigger,
   DbPersonaExecution,
+  DbPersonaEventSubscription,
   PersonaWithDetails,
   CredentialMetadata,
   CreatePersonaInput,
@@ -46,8 +47,9 @@ export async function fetchPersonaDetail(id: string): Promise<PersonaWithDetails
     persona: DbPersona;
     tools: DbPersonaToolDefinition[];
     triggers: DbPersonaTrigger[];
+    subscriptions?: DbPersonaEventSubscription[];
   }>(`${BASE}/${id}`);
-  return { ...data.persona, tools: data.tools, triggers: data.triggers };
+  return { ...data.persona, tools: data.tools, triggers: data.triggers, subscriptions: data.subscriptions };
 }
 
 export async function createPersona(input: CreatePersonaInput): Promise<DbPersona> {

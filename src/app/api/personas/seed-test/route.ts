@@ -1,42 +1,54 @@
 /**
  * POST /api/personas/seed-test
  * Seeds two test personas for smoke testing the complete event bus cycle.
+ * Creates personas with the same structure as those created via the UI + Design tab.
  * - Persona A: "Event Publisher" -- schedule trigger, emits custom events
  * - Persona B: "Event Listener" -- subscribes to custom events, sends messages
  */
 import { NextResponse } from 'next/server';
 import { personaDb } from '@/app/db';
 import { triggerScheduler } from '@/lib/personas/triggerScheduler';
+import type { StructuredPrompt } from '@/lib/personas/promptMigration';
 
-const PUBLISHER_PROMPT = `# Event Publisher (Smoke Test)
+// ── Structured Prompts (matches Design tab output format) ───────────────
 
-You are a test persona that verifies the event bus is working correctly.
-
-## Instructions
-Every time you run, you MUST output exactly this JSON block on its own line:
+const PUBLISHER_STRUCTURED: StructuredPrompt = {
+  identity: 'You are Event Publisher, a smoke-test persona that verifies the event bus is working correctly by periodically emitting ping events.',
+  instructions: `Every time you run, output exactly this JSON block on its own line:
 
 {"emit_event": {"type": "ping", "data": {"message": "Hello from Event Publisher", "timestamp": "CURRENT_TIMESTAMP", "test_run": true}}}
 
-After emitting the event, output a brief confirmation message:
+After emitting the event, output a brief confirmation:
 "Event emitted successfully. The event bus should deliver this to any subscribed personas."
 
-Do NOT use any tools. Do NOT perform any other actions. Just emit the event and confirm.`;
+Do NOT use any tools. Do NOT perform any other actions. Just emit the event and confirm.`,
+  toolGuidance: 'This persona does not use any tools. All output is via JSON protocol blocks.',
+  examples: `Example output:
+{"emit_event": {"type": "ping", "data": {"message": "Hello from Event Publisher", "timestamp": "2026-02-11T20:00:00.000Z", "test_run": true}}}
+Event emitted successfully. The event bus should deliver this to any subscribed personas.`,
+  errorHandling: 'If you encounter any issue, still attempt to emit the event. Do not use tools or ask questions.',
+  customSections: [],
+};
 
-const LISTENER_PROMPT = `# Event Listener (Smoke Test)
+const LISTENER_STRUCTURED: StructuredPrompt = {
+  identity: 'You are Event Listener, a smoke-test persona that reacts to events from the event bus by sending confirmation messages.',
+  instructions: `You were triggered by an event. Check your trigger context for the event payload.
 
-You are a test persona that reacts to events from the event bus.
+Based on the event data, send a message to the user by outputting this JSON block on its own line:
 
-## Instructions
-You were triggered by an event. Check your input data for the event payload (under _event.payload).
-
-Based on the event data, send a message to the user by outputting this JSON block:
-
-{"user_message": {"title": "Pong! Event Received", "content": "Successfully received event from the event bus. Event type: [read from _event.event_type]. Payload: [summarize _event.payload]. The persona event bus is working end-to-end!", "priority": "normal"}}
+{"user_message": {"title": "Pong! Event Received", "content": "Successfully received event from the event bus. Event type: [read from trigger context]. Payload: [summarize the payload]. The persona event bus is working end-to-end!", "priority": "normal"}}
 
 After sending the message, output a brief confirmation:
 "Message sent. The event bus smoke test is complete."
 
-Do NOT use any tools. Do NOT perform any other actions. Just read the event and send the message.`;
+Do NOT use any tools. Do NOT perform any other actions. Just read the event and send the message.`,
+  toolGuidance: 'This persona does not use any tools. All output is via JSON protocol blocks.',
+  examples: `Example output when triggered by a ping event:
+{"user_message": {"title": "Pong! Event Received", "content": "Successfully received event from the event bus. Event type: custom. Payload: A ping from Event Publisher with test_run=true. The persona event bus is working end-to-end!", "priority": "normal"}}
+Message sent. The event bus smoke test is complete.`,
+  errorHandling: 'If the event payload is missing or malformed, still send a user_message describing what you received.',
+  customSections: [],
+};
 
 export async function POST() {
   try {
@@ -54,18 +66,18 @@ export async function POST() {
     }
 
     // Create Persona A: Event Publisher
+    const publisherPrompt = JSON.stringify(PUBLISHER_STRUCTURED);
     const publisher = personaDb.personas.create({
       name: 'Event Publisher (Test)',
-      description: 'Smoke test persona that periodically emits events to the event bus',
-      system_prompt: PUBLISHER_PROMPT,
+      description: 'Smoke-test persona that periodically emits ping events to the event bus.',
+      system_prompt: PUBLISHER_STRUCTURED.instructions,
+      structured_prompt: publisherPrompt,
       icon: '📡',
       color: '#8b5cf6',
       enabled: true,
-      max_concurrent: 1,
-      timeout_ms: 60000,
     });
 
-    // Create schedule trigger for publisher (60 second interval)
+    // Create schedule trigger for publisher (60-second interval)
     const trigger = personaDb.triggers.create({
       persona_id: publisher.id,
       trigger_type: 'schedule',
@@ -79,15 +91,15 @@ export async function POST() {
     });
 
     // Create Persona B: Event Listener
+    const listenerPrompt = JSON.stringify(LISTENER_STRUCTURED);
     const listener = personaDb.personas.create({
       name: 'Event Listener (Test)',
-      description: 'Smoke test persona that subscribes to events and sends confirmation messages',
-      system_prompt: LISTENER_PROMPT,
+      description: 'Smoke-test persona that subscribes to events and sends confirmation messages.',
+      system_prompt: LISTENER_STRUCTURED.instructions,
+      structured_prompt: listenerPrompt,
       icon: '👂',
       color: '#06b6d4',
       enabled: true,
-      max_concurrent: 1,
-      timeout_ms: 60000,
     });
 
     // Create event subscription for listener (listens for custom events)
