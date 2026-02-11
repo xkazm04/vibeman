@@ -101,7 +101,7 @@ export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials';
 export type EditorTab = 'prompt' | 'executions' | 'settings';
 
 /** Overview sub-tab types */
-export type OverviewTab = 'executions' | 'manual-review' | 'messages' | 'usage';
+export type OverviewTab = 'executions' | 'manual-review' | 'messages' | 'usage' | 'events';
 
 /** Tool usage summary row */
 export interface ToolUsageSummary {
