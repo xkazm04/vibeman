@@ -242,6 +242,7 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
 
         let stdout = '';
         let stderr = '';
+        let assistantText = ''; // Extracted text from assistant blocks (unescaped)
         let claudeSessionId: string | undefined;
         const toolUseCounts = new Map<string, number>();
 
@@ -275,11 +276,27 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
                   if (block.type === 'text' && block.text) {
                     for (const textLine of block.text.split('\n')) {
                       userLog(textLine);
+                      assistantText += textLine + '\n';
 
-                      // Mid-stream event detection: persona_action and emit_event
+                      // Mid-stream detection: persona_action, emit_event, user_message
                       try {
                         const trimmed = textLine.trim();
-                        if (trimmed.startsWith('{"persona_action":')) {
+                        if (trimmed.startsWith('{"user_message":')) {
+                          const msgData = JSON.parse(trimmed);
+                          if (msgData.user_message && typeof msgData.user_message === 'object') {
+                            const msg = msgData.user_message;
+                            const created = personaMessageRepository.create({
+                              persona_id: input.persona.id,
+                              execution_id: input.executionId,
+                              title: msg.title || undefined,
+                              content: msg.content || 'No content',
+                              content_type: msg.content_type || 'text',
+                              priority: ['low', 'normal', 'high'].includes(msg.priority) ? msg.priority : 'normal',
+                            });
+                            deliverMessage(created.id, input.persona.id).catch(() => {});
+                            log(`[MESSAGE] Created message "${msg.title || 'untitled'}" (${created.id})`);
+                          }
+                        } else if (trimmed.startsWith('{"persona_action":')) {
                           const actionData = JSON.parse(trimmed);
                           if (actionData.persona_action?.target) {
                             const targetName = actionData.persona_action.target;
@@ -362,10 +379,11 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
           closeLog();
           executionProcesses.delete(input.executionId);
 
-          // Parse manual review blocks from output
-          parseManualReviews(stdout, input.executionId, input.persona.id);
-          // Parse user message blocks from output
-          parseUserMessages(stdout, input.executionId, input.persona.id);
+          // Parse manual review blocks from extracted assistant text
+          // (NOT raw stdout which contains escaped JSON stream data)
+          parseManualReviews(assistantText, input.executionId, input.persona.id);
+          // Parse user message blocks (backup for multi-line JSON not caught mid-stream)
+          parseUserMessages(assistantText, input.executionId, input.persona.id);
           // Record tool usage for analytics
           recordToolUsage(toolUseCounts, input.executionId, input.persona.id);
 
@@ -529,11 +547,17 @@ function recordToolUsage(toolCounts: Map<string, number>, executionId: string, p
 
 /**
  * Parse output for user_message JSON blocks and create message records + trigger delivery.
+ * This is a post-mortem fallback for multi-line JSON that mid-stream detection missed.
+ * Skips creation if messages already exist for this execution (created mid-stream).
  */
 function parseUserMessages(output: string, executionId: string, personaId: string): void {
   if (!output) return;
 
   try {
+    // Skip if mid-stream detection already created messages for this execution
+    const existing = personaMessageRepository.getByExecution(executionId);
+    if (existing.length > 0) return;
+
     const regex = /\{[\s\S]*?"user_message"[\s\S]*?\{[\s\S]*?\}[\s\S]*?\}/g;
     const matches = output.match(regex);
     if (!matches) return;

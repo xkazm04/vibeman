@@ -1034,6 +1034,15 @@ export const personaMessageRepository = {
     );
   },
 
+  getByExecution: (executionId: string): DbPersonaMessage[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaMessage>(
+      db,
+      'SELECT * FROM persona_messages WHERE execution_id = ?',
+      executionId
+    );
+  },
+
   getUnreadCount: (): number => {
     const db = getDatabase();
     const row = selectOne<{ count: number }>(
