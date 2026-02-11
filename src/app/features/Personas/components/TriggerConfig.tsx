@@ -31,6 +31,7 @@ export function TriggerConfig() {
   const [interval, setInterval] = useState('3600');
   const [endpoint, setEndpoint] = useState('');
   const [selectedEventId, setSelectedEventId] = useState('');
+  const [hmacSecret, setHmacSecret] = useState('');
   const [credentialEvents, setCredentialEvents] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
@@ -62,6 +63,10 @@ export function TriggerConfig() {
       } else {
         config.endpoint = endpoint;
       }
+    } else if (triggerType === 'webhook') {
+      if (hmacSecret) {
+        config.hmac_secret = hmacSecret;
+      }
     }
 
     await createTrigger(personaId, {
@@ -74,6 +79,7 @@ export function TriggerConfig() {
     setInterval('3600');
     setEndpoint('');
     setSelectedEventId('');
+    setHmacSecret('');
   };
 
   const handleToggleEnabled = async (triggerId: string, currentEnabled: number) => {
@@ -177,6 +183,27 @@ export function TriggerConfig() {
               </>
             )}
 
+            {triggerType === 'webhook' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-foreground/80 mb-1.5">
+                    HMAC Secret (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={hmacSecret}
+                    onChange={(e) => setHmacSecret(e.target.value)}
+                    placeholder="Leave empty for no signature verification"
+                    className="w-full px-3 py-2 bg-background/50 border border-primary/15 rounded-xl text-foreground placeholder-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground/40 mt-1">If set, incoming webhooks must include x-hub-signature-256 header</p>
+                </div>
+                <div className="p-3 bg-background/30 rounded-xl border border-primary/10">
+                  <p className="text-xs text-muted-foreground/50">Webhook URL will be generated after creation</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowAddForm(false)}
@@ -229,7 +256,7 @@ export function TriggerConfig() {
 
                     {trigger.config && (() => {
                       const config = typeof trigger.config === 'string' ? JSON.parse(trigger.config) : trigger.config;
-                      return Object.keys(config).length > 0 ? (
+                      return (Object.keys(config).length > 0 || trigger.trigger_type === 'webhook') ? (
                         <div className="mt-2 text-xs text-muted-foreground/50 space-y-1">
                           {config.interval_seconds && (
                             <div>Interval: {config.interval_seconds}s</div>
@@ -242,6 +269,29 @@ export function TriggerConfig() {
                           )}
                           {config.endpoint && (
                             <div className="truncate">Endpoint: {config.endpoint}</div>
+                          )}
+                          {trigger.trigger_type === 'webhook' && (
+                            <div className="mt-2 space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground/50 font-mono truncate flex-1">
+                                  {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/personas/webhooks/${trigger.id}`}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`${window.location.origin}/api/personas/webhooks/${trigger.id}`);
+                                  }}
+                                  className="text-xs px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors flex-shrink-0"
+                                  title="Copy webhook URL"
+                                >
+                                  Copy URL
+                                </button>
+                              </div>
+                              {config.hmac_secret && (
+                                <div className="text-xs text-muted-foreground/40">
+                                  HMAC: {'••••••••'}{config.hmac_secret.slice(-4)}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       ) : null;
