@@ -13,12 +13,35 @@ export type CredentialServiceType = string;
 export type ManualReviewSeverity = 'info' | 'warning' | 'critical';
 export type ManualReviewStatus = 'pending' | 'approved' | 'rejected' | 'deferred';
 
+export type PersonaEventType =
+  | 'webhook_received'
+  | 'execution_completed'
+  | 'persona_action'
+  | 'credential_event'
+  | 'task_created'
+  | 'custom';
+
+export type PersonaEventSourceType =
+  | 'webhook'
+  | 'execution'
+  | 'persona'
+  | 'trigger'
+  | 'system';
+
+export type PersonaEventStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'skipped';
+
 // ============================================================================
 // Database Models
 // ============================================================================
 
 export interface DbPersona {
   id: string;
+  project_id: string;
   name: string;
   description: string | null;
   system_prompt: string;
@@ -102,6 +125,7 @@ export interface DbPersonaCredential {
 
 export interface CreatePersonaInput {
   id?: string;
+  project_id?: string;
   name: string;
   description?: string;
   system_prompt: string;
@@ -330,4 +354,56 @@ export interface CreateMessageInput {
   content_type?: string;
   priority?: string;
   metadata?: object;
+}
+
+// ============================================================================
+// Event Bus Models
+// ============================================================================
+
+export interface DbPersonaEvent {
+  id: string;
+  project_id: string;
+  event_type: PersonaEventType;
+  source_type: PersonaEventSourceType;
+  source_id: string | null;
+  target_persona_id: string | null;
+  payload: string | null;
+  status: PersonaEventStatus;
+  error_message: string | null;
+  processed_at: string | null;
+  created_at: string;
+}
+
+export interface DbPersonaEventSubscription {
+  id: string;
+  persona_id: string;
+  event_type: string;
+  source_filter: string | null;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePersonaEventInput {
+  id?: string;
+  project_id?: string;
+  event_type: PersonaEventType;
+  source_type: PersonaEventSourceType;
+  source_id?: string;
+  target_persona_id?: string;
+  payload?: object;
+}
+
+export interface CreateEventSubscriptionInput {
+  id?: string;
+  persona_id: string;
+  event_type: string;
+  source_filter?: object;
+  enabled?: boolean;
+}
+
+export interface UpdateEventSubscriptionInput {
+  event_type?: string;
+  source_filter?: object;
+  enabled?: boolean;
 }

@@ -102,6 +102,8 @@ import {
   personaMessageRepository,
   personaMessageDeliveryRepository,
   personaToolUsageRepository,
+  personaEventRepository,
+  eventSubscriptionRepository,
 } from './repositories/persona.repository';
 
 // Export types
@@ -664,6 +666,8 @@ export const personaDb = {
   messages: personaMessageRepository,
   messageDeliveries: personaMessageDeliveryRepository,
   toolUsage: personaToolUsageRepository,
+  events: personaEventRepository,
+  eventSubscriptions: eventSubscriptionRepository,
   close: closeDatabase,
 };
 

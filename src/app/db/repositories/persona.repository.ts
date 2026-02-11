@@ -33,6 +33,12 @@ import type {
   CreateMessageInput,
   PersonaExecutionStatus,
   ManualReviewStatus,
+  DbPersonaEvent,
+  DbPersonaEventSubscription,
+  CreatePersonaEventInput,
+  CreateEventSubscriptionInput,
+  UpdateEventSubscriptionInput,
+  PersonaEventStatus,
 } from '../models/persona.types';
 
 // ============================================================================
@@ -1306,5 +1312,218 @@ export const personaToolUsageRepository = {
       GROUP BY ptu.persona_id
       ORDER BY total_invocations DESC
     `, ...params);
+  },
+};
+
+// ============================================================================
+// Event Bus Repository
+// ============================================================================
+
+export const personaEventRepository = {
+  publish: (input: CreatePersonaEventInput): DbPersonaEvent => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const id = input.id || generateId('pevt');
+
+    db.prepare(`
+      INSERT INTO persona_events (id, project_id, event_type, source_type, source_id, target_persona_id, payload, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+    `).run(
+      id,
+      input.project_id || 'default',
+      input.event_type,
+      input.source_type,
+      input.source_id || null,
+      input.target_persona_id || null,
+      input.payload ? JSON.stringify(input.payload) : null,
+      now
+    );
+
+    return selectOne<DbPersonaEvent>(db, 'SELECT * FROM persona_events WHERE id = ?', id)!;
+  },
+
+  getById: (id: string): DbPersonaEvent | null => {
+    const db = getDatabase();
+    return selectOne<DbPersonaEvent>(db, 'SELECT * FROM persona_events WHERE id = ?', id);
+  },
+
+  getPending: (limit: number = 20, projectId?: string): DbPersonaEvent[] => {
+    const db = getDatabase();
+    if (projectId) {
+      return selectAll<DbPersonaEvent>(
+        db,
+        "SELECT * FROM persona_events WHERE status = 'pending' AND project_id = ? ORDER BY created_at ASC LIMIT ?",
+        projectId,
+        limit
+      );
+    }
+    return selectAll<DbPersonaEvent>(
+      db,
+      "SELECT * FROM persona_events WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?",
+      limit
+    );
+  },
+
+  updateStatus: (id: string, status: PersonaEventStatus, extra?: { error_message?: string; processed_at?: string }): void => {
+    const db = getDatabase();
+    const sets = ['status = ?'];
+    const values: unknown[] = [status];
+
+    if (extra?.error_message !== undefined) {
+      sets.push('error_message = ?');
+      values.push(extra.error_message);
+    }
+    if (extra?.processed_at !== undefined) {
+      sets.push('processed_at = ?');
+      values.push(extra.processed_at);
+    }
+
+    values.push(id);
+    db.prepare(`UPDATE persona_events SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+  },
+
+  getRecent: (limit: number = 50, projectId?: string): DbPersonaEvent[] => {
+    const db = getDatabase();
+    if (projectId) {
+      return selectAll<DbPersonaEvent>(
+        db,
+        'SELECT * FROM persona_events WHERE project_id = ? ORDER BY created_at DESC LIMIT ?',
+        projectId,
+        limit
+      );
+    }
+    return selectAll<DbPersonaEvent>(
+      db,
+      'SELECT * FROM persona_events ORDER BY created_at DESC LIMIT ?',
+      limit
+    );
+  },
+
+  getByType: (eventType: string, limit: number = 50): DbPersonaEvent[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaEvent>(
+      db,
+      'SELECT * FROM persona_events WHERE event_type = ? ORDER BY created_at DESC LIMIT ?',
+      eventType,
+      limit
+    );
+  },
+
+  getBySourceId: (sourceId: string): DbPersonaEvent[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaEvent>(
+      db,
+      'SELECT * FROM persona_events WHERE source_id = ? ORDER BY created_at DESC',
+      sourceId
+    );
+  },
+
+  countPending: (projectId?: string): number => {
+    const db = getDatabase();
+    if (projectId) {
+      const row = selectOne<{ count: number }>(
+        db,
+        "SELECT COUNT(*) as count FROM persona_events WHERE status = 'pending' AND project_id = ?",
+        projectId
+      );
+      return row?.count ?? 0;
+    }
+    const row = selectOne<{ count: number }>(
+      db,
+      "SELECT COUNT(*) as count FROM persona_events WHERE status = 'pending'"
+    );
+    return row?.count ?? 0;
+  },
+
+  cleanup: (olderThanDays: number = 30): number => {
+    const db = getDatabase();
+    const result = db.prepare(
+      "DELETE FROM persona_events WHERE status IN ('completed', 'skipped', 'failed') AND created_at < datetime('now', '-' || ? || ' days')"
+    ).run(olderThanDays);
+    return result.changes;
+  },
+};
+
+// ============================================================================
+// Event Subscription Repository
+// ============================================================================
+
+export const eventSubscriptionRepository = {
+  getById: (id: string): DbPersonaEventSubscription | null => {
+    const db = getDatabase();
+    return selectOne<DbPersonaEventSubscription>(db, 'SELECT * FROM persona_event_subscriptions WHERE id = ?', id);
+  },
+
+  getByPersonaId: (personaId: string): DbPersonaEventSubscription[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaEventSubscription>(
+      db,
+      'SELECT * FROM persona_event_subscriptions WHERE persona_id = ? ORDER BY created_at DESC',
+      personaId
+    );
+  },
+
+  getByEventType: (eventType: string): DbPersonaEventSubscription[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaEventSubscription>(
+      db,
+      'SELECT * FROM persona_event_subscriptions WHERE event_type = ? AND enabled = 1',
+      eventType
+    );
+  },
+
+  getEnabled: (): DbPersonaEventSubscription[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaEventSubscription>(
+      db,
+      'SELECT * FROM persona_event_subscriptions WHERE enabled = 1 ORDER BY created_at DESC'
+    );
+  },
+
+  create: (input: CreateEventSubscriptionInput): DbPersonaEventSubscription => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const id = input.id || generateId('pesub');
+
+    db.prepare(`
+      INSERT INTO persona_event_subscriptions (id, persona_id, event_type, source_filter, enabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      input.persona_id,
+      input.event_type,
+      input.source_filter ? JSON.stringify(input.source_filter) : null,
+      input.enabled !== undefined ? (input.enabled ? 1 : 0) : 1,
+      now,
+      now
+    );
+
+    return selectOne<DbPersonaEventSubscription>(db, 'SELECT * FROM persona_event_subscriptions WHERE id = ?', id)!;
+  },
+
+  update: (id: string, updates: UpdateEventSubscriptionInput): DbPersonaEventSubscription | null => {
+    const db = getDatabase();
+    const mapped: Record<string, unknown> = {};
+
+    if (updates.event_type !== undefined) mapped.event_type = updates.event_type;
+    if (updates.source_filter !== undefined) mapped.source_filter = updates.source_filter ? JSON.stringify(updates.source_filter) : null;
+    if (updates.enabled !== undefined) mapped.enabled = updates.enabled ? 1 : 0;
+
+    const result = buildUpdateStatement(db, 'persona_event_subscriptions', mapped);
+    if (!result) return eventSubscriptionRepository.getById(id);
+
+    result.values.push(id);
+    result.stmt.run(...result.values);
+
+    const now = getCurrentTimestamp();
+    db.prepare('UPDATE persona_event_subscriptions SET updated_at = ? WHERE id = ?').run(now, id);
+
+    return selectOne<DbPersonaEventSubscription>(db, 'SELECT * FROM persona_event_subscriptions WHERE id = ?', id);
+  },
+
+  delete: (id: string): boolean => {
+    const db = getDatabase();
+    const result = db.prepare('DELETE FROM persona_event_subscriptions WHERE id = ?').run(id);
+    return result.changes > 0;
   },
 };

@@ -19,7 +19,8 @@ interface UseDesignAnalysisReturn {
     personaId: string,
     selectedTools: string[],
     selectedTriggerIndices: number[],
-    selectedChannelIndices?: number[]
+    selectedChannelIndices?: number[],
+    selectedSubscriptionIndices?: number[]
   ) => Promise<void>;
   reset: () => void;
 }
@@ -250,7 +251,8 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
       personaId: string,
       selectedTools: string[],
       selectedTriggerIndices: number[],
-      selectedChannelIndices?: number[]
+      selectedChannelIndices?: number[],
+      selectedSubscriptionIndices?: number[]
     ) => {
       const currentResult = usePersonaStore.getState().activeDesignSession?.result;
       if (!currentResult) return;
@@ -319,6 +321,22 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
               body: JSON.stringify({ channels: newChannels }),
             });
           } catch { /* continue */ }
+        }
+
+        // 3.7 Apply event subscriptions (if suggested)
+        if (currentResult.suggested_event_subscriptions?.length && selectedSubscriptionIndices?.length) {
+          for (const idx of selectedSubscriptionIndices) {
+            const sub = currentResult.suggested_event_subscriptions[idx];
+            if (sub) {
+              try {
+                await api.createEventSubscription({
+                  persona_id: personaId,
+                  event_type: sub.event_type,
+                  source_filter: sub.source_filter,
+                });
+              } catch { /* continue */ }
+            }
+          }
         }
 
         // 4. Refresh persona detail to pick up all changes

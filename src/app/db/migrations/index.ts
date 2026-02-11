@@ -23,6 +23,7 @@ import { migrate092ConnectorDefinitions } from './092_connector_definitions';
 import { migrate093PersonaMessages } from './093_persona_messages';
 import { migrate094PersonaDesignResult } from './094_persona_design_result';
 import { migrate095PersonaToolUsage } from './095_persona_tool_usage';
+import { migrate096PersonaEventBus } from './096_persona_event_bus';
 
 /**
  * Migration logger utility
@@ -260,6 +261,8 @@ export function runMigrations() {
     migratePersonaDesignResult();
     // Migration 95: Persona Tool Usage tracking for analytics
     migratePersonaToolUsage();
+    // Migration 96: Persona Event Bus - central pub/sub for webhooks and inter-persona actions
+    migratePersonaEventBus();
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4722,5 +4725,12 @@ function migratePersonaToolUsage() {
   safeMigration('personaToolUsage095', () => {
     const db = getConnection();
     migrate095PersonaToolUsage(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migratePersonaEventBus() {
+  safeMigration('personaEventBus096', () => {
+    const db = getConnection();
+    migrate096PersonaEventBus(db, migrationLogger);
   }, migrationLogger);
 }

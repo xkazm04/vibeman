@@ -61,6 +61,29 @@ To emit a custom event for any subscribed persona to pick up:
 Actions are processed IMMEDIATELY during execution. The target persona will be triggered automatically.`;
 
 /**
+ * Build an event trigger context section when the persona was triggered by an event.
+ */
+function buildEventContext(inputData?: object): string | null {
+  if (!inputData) return null;
+  const data = inputData as Record<string, unknown>;
+  const eventInfo = data._event as Record<string, unknown> | undefined;
+  if (!eventInfo) return null;
+
+  const lines = ['## Trigger Context', 'You were triggered by an event from the event bus:'];
+  if (eventInfo.event_type) lines.push(`- **Event Type**: ${eventInfo.event_type}`);
+  if (eventInfo.source_type) lines.push(`- **Source**: ${eventInfo.source_type}${eventInfo.source_id ? ` / ${eventInfo.source_id}` : ''}`);
+  if (eventInfo.payload) {
+    lines.push('- **Payload**:');
+    lines.push('```json');
+    lines.push(JSON.stringify(eventInfo.payload, null, 2));
+    lines.push('```');
+  }
+  lines.push('');
+  lines.push('Use this event information to determine what action to take.');
+  return lines.join('\n');
+}
+
+/**
  * Assemble the full prompt for a persona execution.
  *
  * If the persona has a structured_prompt (JSON), it uses the structured sections.
@@ -152,6 +175,10 @@ function assembleStructuredPrompt(
     sections.push('```');
   }
 
+  // 9b. Event trigger context (when triggered by event bus)
+  const eventCtx = buildEventContext(input.inputData);
+  if (eventCtx) sections.push(eventCtx);
+
   // 10. Manual Review Protocol
   sections.push(MANUAL_REVIEW_PROTOCOL);
 
@@ -219,6 +246,10 @@ function assembleFlatPrompt(input: PromptAssemblyInput): string {
     sections.push(JSON.stringify(input.inputData, null, 2));
     sections.push('```');
   }
+
+  // 3b. Event trigger context (when triggered by event bus)
+  const eventCtxFlat = buildEventContext(input.inputData);
+  if (eventCtxFlat) sections.push(eventCtxFlat);
 
   // 4. Manual Review Protocol
   sections.push(MANUAL_REVIEW_PROTOCOL);

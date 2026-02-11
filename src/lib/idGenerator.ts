@@ -370,3 +370,17 @@ export function generatePersonaMessageId(): string {
 export function generateMessageDeliveryId(): string {
   return generateId('pmdel');
 }
+
+/**
+ * Generate persona event ID
+ */
+export function generatePersonaEventId(): string {
+  return generateId('pevt');
+}
+
+/**
+ * Generate event subscription ID
+ */
+export function generateEventSubscriptionId(): string {
+  return generateId('pesub');
+}
