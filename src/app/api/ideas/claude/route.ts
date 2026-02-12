@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ScanType, SCAN_TYPE_CONFIGS, getScanTypeAbbr } from '@/app/features/Ideas/lib/scanTypes';
 import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/prompts';
-import { buildContextSection, buildExistingIdeasSection, buildGoalsSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
+import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
 import { contextDb, contextGroupDb, goalDb, ideaDb, DbContext, DbContextGroup } from '@/app/db';
 import { logger } from '@/lib/logger';
 
@@ -89,6 +89,7 @@ function buildClaudeIdeaRequirement(config: {
     existingIdeasSection,
     codeSection: '', // Claude Code will analyze files directly
     hasContext: context !== null,
+    behavioralSection: buildBehavioralSection(projectId),
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
@@ -341,6 +342,7 @@ function buildClaudeIdeaRequirementForGroup(config: {
     existingIdeasSection,
     codeSection: '',
     hasContext: true,
+    behavioralSection: buildBehavioralSection(projectId),
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
