@@ -75,9 +75,25 @@ async function handlePost(request: NextRequest) {
     const validationError = validateRequiredFields({ projectId, name, filePaths }, ['projectId', 'name', 'filePaths']);
     if (validationError) return validationError;
 
+    // Validate group exists if groupId provided - prevents FK constraint failure
+    let validGroupId = groupId || null;
+    if (validGroupId) {
+      try {
+        const { contextGroupRepository } = await import('@/app/db/repositories/context-group.repository');
+        const group = contextGroupRepository.getGroupById(validGroupId);
+        if (!group) {
+          logger.warn(`Group ${validGroupId} not found for context "${name}", creating without group`);
+          validGroupId = null;
+        }
+      } catch {
+        logger.warn(`Could not validate group ${validGroupId}, creating without group`);
+        validGroupId = null;
+      }
+    }
+
     const context = await contextQueries.createContext({
       projectId,
-      groupId,
+      groupId: validGroupId,
       name,
       description,
       filePaths,

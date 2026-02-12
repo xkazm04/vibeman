@@ -130,7 +130,13 @@ export function useContextGenerationStream({ streamUrl }: UseContextGenerationSt
           });
         } else if (data.type === 'tool_result') {
           // Tool result - show truncated preview
-          const resultContent = data.data?.content || '';
+          // Defensive: content may arrive as object/array if normalization was bypassed
+          const rawContent = data.data?.content;
+          const resultContent = typeof rawContent === 'string'
+            ? rawContent
+            : Array.isArray(rawContent)
+              ? rawContent.map((b: { text?: string }) => b.text || '').join('\n')
+              : String(rawContent || '');
           if (resultContent && resultContent.length > 0) {
             const preview = resultContent.length > 100
               ? resultContent.substring(0, 100) + '...'

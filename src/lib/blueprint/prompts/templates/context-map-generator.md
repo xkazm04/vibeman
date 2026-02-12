@@ -390,24 +390,7 @@ Dashboard: Infrastructure → B2B Management SDK (uses)
 
 ---
 
-## Cleaning Up Existing Data
-
-Before regenerating contexts for a project:
-
-```bash
-PROJECT_ID="your-project-id"
-
-# Delete all contexts
-curl -s -X DELETE "http://localhost:3000/api/contexts?projectId=$PROJECT_ID"
-
-# Delete all context groups (get IDs first)
-for group_id in $(curl -s "http://localhost:3000/api/context-groups?projectId=$PROJECT_ID" | grep -o '"id":"group_[^"]*"' | cut -d'"' -f4); do
-  curl -s -X DELETE "http://localhost:3000/api/context-groups?groupId=$group_id"
-done
-
-# Delete context_map.json if it exists
-rm context_map.json 2>/dev/null
-```
+**IMPORTANT: Do NOT delete or clean up existing data.** Data cleanup is handled automatically before this process starts. Focus only on CREATING new groups and contexts. If you encounter errors during creation, skip that item and continue with the next one. Do NOT retry by deleting and recreating.
 
 ---
 
