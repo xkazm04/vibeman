@@ -6,7 +6,7 @@
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { DbContext, DbIdea, goalDb } from '@/app/db';
 import { buildPrompt, PromptOptions as NewPromptOptions } from '../prompts';
-import { buildContextSection, buildExistingIdeasSection, buildGoalsSection } from './sectionBuilders';
+import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from './sectionBuilders';
 
 interface BuildPromptOptions {
   projectId: string;
@@ -43,6 +43,7 @@ export function buildIdeaGenerationPrompt(
   const contextSection = buildContextSection(context);
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
   const goalsSection = buildGoalsSection(openGoals);
+  const behavioralSection = buildBehavioralSection(projectId);
 
   // Create prompt options for new system
   const promptOptions: NewPromptOptions = {
@@ -52,6 +53,7 @@ export function buildIdeaGenerationPrompt(
     existingIdeasSection,
     codeSection: '', // Removed - file paths already in context section
     hasContext: context !== null,
+    behavioralSection,
   };
 
   // Use the new prompt builder

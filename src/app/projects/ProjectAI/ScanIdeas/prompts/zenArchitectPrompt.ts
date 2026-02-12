@@ -13,6 +13,7 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
 }
 
 /**
@@ -80,7 +81,8 @@ export function buildZenArchitectPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection
   } = options;
 
   // Build project structure section
@@ -140,6 +142,8 @@ ${projectStructureSection}
 ${aiDocsSection}
 
 ${contextSection}
+
+${behavioralSection}
 
 ${existingIdeasSection}
 

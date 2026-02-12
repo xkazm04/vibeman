@@ -39,6 +39,7 @@ export interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
 }
 
 export type PromptBuilder = (options: PromptOptions) => string;

@@ -4,6 +4,7 @@
  */
 
 import { DbIdea, DbContext, DbGoal } from '@/app/db';
+import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
 
 /**
  * Truncate long descriptions to save tokens
@@ -127,4 +128,27 @@ export function buildGoalsSection(goals: DbGoal[]): string {
   section += `- Only match ideas to goals when there is a clear, meaningful connection\n\n`;
 
   return section;
+}
+
+/**
+ * Build behavioral context section from Brain signals.
+ * Injects user activity patterns, learned insights, and suggested priorities
+ * so idea generation is informed by what the user has been working on.
+ */
+export function buildBehavioralSection(projectId: string): string {
+  try {
+    const ctx = getBehavioralContext(projectId);
+    if (!ctx.hasData) return '';
+
+    const formatted = formatBehavioralForPrompt(ctx);
+    if (!formatted) return '';
+
+    // Reframe the behavioral context for idea generation (not direction generation)
+    return formatted.replace(
+      'Apply these learnings when generating new directions:',
+      'Apply these learnings when generating new ideas:'
+    );
+  } catch {
+    return ''; // Never break idea generation if behavioral context fails
+  }
 }

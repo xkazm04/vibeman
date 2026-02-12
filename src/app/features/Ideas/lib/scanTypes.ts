@@ -77,6 +77,7 @@ export type AgentPromptBuilder = (options: {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
 }) => string;
 
 /**
