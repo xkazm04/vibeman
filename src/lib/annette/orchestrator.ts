@@ -236,6 +236,36 @@ export async function orchestrate(input: OrchestratorInput): Promise<Orchestrato
           );
           toolResults.push(result);
 
+          // Publish Annette tool action to persona event bus
+          try {
+            const actionTools = new Set([
+              'accept_idea', 'reject_idea', 'generate_ideas',
+              'accept_direction', 'reject_direction', 'generate_directions',
+              'execute_now', 'execute_requirement',
+            ]);
+            if (actionTools.has(block.name)) {
+              const { personaEventBus } = require('@/lib/personas/eventBus');
+              if (personaEventBus && typeof personaEventBus.publish === 'function') {
+                personaEventBus.publish({
+                  event_type: 'custom' as const,
+                  source_type: 'system' as const,
+                  source_id: `annette_${block.id}`,
+                  target_persona_id: undefined,
+                  project_id: input.projectId,
+                  payload: {
+                    type: 'voice_command_executed',
+                    tool_name: block.name,
+                    tool_input: block.input,
+                    success: !result.is_error,
+                    timestamp: new Date().toISOString(),
+                  },
+                });
+              }
+            }
+          } catch {
+            // Event bus publishing must never break Annette
+          }
+
           toolsUsed.push({
             name: block.name,
             input: block.input,

@@ -69,6 +69,12 @@ export function formatBrainForPrompt(projectId: string): string {
     parts.push(`### Context Map\n${contextMapSummary}`);
   }
 
+  // Persona Activity Summary (~100 tokens)
+  const personaActivity = getPersonaActivitySummary();
+  if (personaActivity) {
+    parts.push(`### Persona Activity\n${personaActivity}`);
+  }
+
   if (parts.length === 0) {
     return 'No brain data available yet. The system will learn from your decisions over time.';
   }
@@ -149,4 +155,35 @@ function getContextMapSummary(projectId: string): string {
   } catch {
     return '';
   }
+}
+
+function getPersonaActivitySummary(): string {
+  try {
+    const { personaDb } = require('@/app/db');
+    if (!personaDb?.messages?.getAll) return '';
+
+    const recentMessages = personaDb.messages.getAll(5);
+    if (!recentMessages || recentMessages.length === 0) return '';
+
+    const lines = recentMessages.slice(0, 3).map((m: { title: string | null; content: string; created_at: string }) => {
+      const title = m.title || 'Notification';
+      const preview = m.content.length > 80 ? m.content.slice(0, 80) + '...' : m.content;
+      const ago = getRelativeTime(m.created_at);
+      return `- **${title}** (${ago}): ${preview}`;
+    });
+
+    return lines.join('\n');
+  } catch {
+    return '';
+  }
+}
+
+function getRelativeTime(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }

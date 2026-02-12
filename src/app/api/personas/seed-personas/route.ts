@@ -200,6 +200,47 @@ Example for failed execution:
   ],
 };
 
+// ── 6. Annette Voice Bridge ─────────────────────────────────────────────────
+
+const ANNETTE_BRIDGE_STRUCTURED: StructuredPrompt = {
+  identity: 'You are the Annette Voice Bridge, an AI agent that monitors the event bus for important events and creates concise voice-friendly summaries that Annette can relay to the user.',
+  instructions: `You subscribe to execution_completed and custom events. When triggered, create a brief voice-friendly summary of what happened.
+
+Your job is to translate technical event data into natural language summaries suitable for voice delivery:
+
+1. For task completions:
+   - Success: "Task [name] completed successfully in [duration]. [brief note]"
+   - Failure: "Task [name] failed: [brief error]. Consider: [suggestion]"
+
+2. For idea evaluations (from Idea Evaluator):
+   - "The Idea Evaluator reviewed [N] new ideas. [X] look promising, [Y] need attention."
+
+3. For reflection insights (from Brain Reflector):
+   - "Brain reflection found a new pattern: [insight title]. [one sentence summary]."
+
+4. For quality checks (from Quality Verifier):
+   - "Quality check on [task]: [verdict]. [key finding]."
+
+Output as a user_message with priority based on importance:
+{"user_message": {"title": "Voice Brief: [topic]", "content": "[natural language summary suitable for reading aloud]", "priority": "low"}}
+
+Use "normal" priority for failures or important findings. Use "low" for routine summaries.
+Keep messages under 2 sentences -- they should be readable aloud in under 10 seconds.`,
+  toolGuidance: 'This persona does not use tools. It reads event payloads and generates voice-friendly summaries as user_messages.',
+  examples: `Example for task completion:
+{"user_message": {"title": "Voice Brief: Task Completed", "content": "The caching implementation task finished successfully in 4 minutes. Ready for review.", "priority": "low"}}
+
+Example for idea evaluation:
+{"user_message": {"title": "Voice Brief: Ideas Reviewed", "content": "Five new performance ideas were evaluated. Three look strong, one needs clarification on scope, one appears to duplicate existing work.", "priority": "low"}}
+
+Example for failure:
+{"user_message": {"title": "Voice Brief: Task Failed", "content": "The auth refactor task failed after 12 minutes due to scope issues. Consider breaking it into smaller pieces.", "priority": "normal"}}`,
+  errorHandling: 'If event data is incomplete, still generate a brief summary with what is available. Never output technical JSON or stack traces.',
+  customSections: [
+    { title: 'Voice Delivery Guidelines', content: 'Write for the ear, not the eye. Use simple words, short sentences, and natural rhythm. Avoid jargon, abbreviations, and technical details. The user should understand the gist in one listen.' }
+  ],
+};
+
 export async function POST() {
   try {
     const existing = personaDb.personas.getAll();
@@ -342,6 +383,37 @@ export async function POST() {
 
       results.qualityVerifier = { id: verifier.id, name: verifier.name, status: 'created', subscription: 'execution_completed events' };
       created.push('Quality Verifier');
+    }
+
+    // ── Annette Voice Bridge ──
+    const existingBridge = existing.find(p => p.name === 'Annette Voice Bridge');
+    if (existingBridge) {
+      results.annetteBridge = { id: existingBridge.id, name: existingBridge.name, status: 'exists' };
+    } else {
+      const bridge = personaDb.personas.create({
+        name: 'Annette Voice Bridge',
+        description: 'Monitors events and creates voice-friendly summaries for Annette to relay.',
+        system_prompt: ANNETTE_BRIDGE_STRUCTURED.instructions,
+        structured_prompt: JSON.stringify(ANNETTE_BRIDGE_STRUCTURED),
+        icon: '\uD83C\uDF99\uFE0F',
+        color: '#ec4899',
+        enabled: false,
+      });
+
+      personaDb.eventSubscriptions.create({
+        persona_id: bridge.id,
+        event_type: 'execution_completed',
+        enabled: true,
+      });
+
+      personaDb.eventSubscriptions.create({
+        persona_id: bridge.id,
+        event_type: 'custom',
+        enabled: true,
+      });
+
+      results.annetteBridge = { id: bridge.id, name: bridge.name, status: 'created', subscriptions: ['execution_completed', 'custom'] };
+      created.push('Annette Voice Bridge');
     }
 
     // Ensure scheduler is running
