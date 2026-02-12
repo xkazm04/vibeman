@@ -6,6 +6,7 @@ import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { parseAIJsonResponse } from '@/lib/aiJsonParser';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 
 export interface IdeaGenerationOptions {
@@ -240,6 +241,44 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       });
 
     logger.info('Successfully saved ideas', { count: savedIdeas.length });
+
+    // Record Brain signal for idea generation activity
+    try {
+      signalCollector.recordApiFocus(projectId, {
+        endpoint: '/api/ideas/generate',
+        method: 'POST',
+        callCount: 1,
+        avgResponseTime: 0,
+        errorRate: 0,
+      }, contextId || undefined, context?.name || undefined);
+    } catch {
+      // Signal recording must never break idea generation
+    }
+
+    // Publish event to persona event bus for reactive personas
+    try {
+      const { personaEventBus } = require('@/lib/personas/eventBus');
+      if (personaEventBus && typeof personaEventBus.publish === 'function') {
+        personaEventBus.publish({
+          event_type: 'custom' as const,
+          source_type: 'system' as const,
+          source_id: scanId,
+          target_persona_id: null,
+          project_id: projectId,
+          payload: {
+            type: 'ideas_batch_generated',
+            scan_type: effectiveScanType,
+            idea_count: savedIdeas.length,
+            context_id: contextId || null,
+            context_name: context?.name || null,
+            scan_id: scanId,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    } catch {
+      // Event bus publishing must never break idea generation
+    }
 
     return {
       success: true,

@@ -55,6 +55,32 @@ class ClaudeExecutionQueue {
   }
 
   /**
+   * Publish task lifecycle event to persona event bus (fire-and-forget)
+   */
+  private publishToEventBus(
+    eventType: 'task_created' | 'execution_completed',
+    taskId: string,
+    projectId: string,
+    payload: Record<string, unknown>
+  ): void {
+    try {
+      // Lazy require to avoid circular dependencies (same pattern as executionEngine.ts)
+      const { personaEventBus } = require('@/lib/personas/eventBus');
+      if (personaEventBus && typeof personaEventBus.publish === 'function') {
+        personaEventBus.publish({
+          event_type: eventType,
+          source_type: 'system' as const,
+          source_id: taskId,
+          project_id: projectId,
+          payload,
+        });
+      }
+    } catch {
+      // Event bus publishing must never break CLI execution
+    }
+  }
+
+  /**
    * Add a new task to the queue
    */
   addTask(
@@ -153,6 +179,13 @@ class ClaudeExecutionQueue {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskCompleted(task.id, task.requirementName, task.projectId, undefined, duration);
 
+      this.publishToEventBus('execution_completed', task.id, task.projectId, {
+        requirement_name: task.requirementName,
+        status: 'completed',
+        duration_ms: duration || 0,
+        timestamp: new Date().toISOString(),
+      });
+
       // Auto-record implementation signal
       try {
         signalCollector.recordImplementation(task.projectId, {
@@ -196,6 +229,13 @@ class ClaudeExecutionQueue {
     if (task.projectId) {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskSessionLimit(task.id, task.requirementName, task.projectId, duration);
+
+      this.publishToEventBus('execution_completed', task.id, task.projectId, {
+        requirement_name: task.requirementName,
+        status: 'session_limit',
+        duration_ms: duration || 0,
+        timestamp: new Date().toISOString(),
+      });
     }
   }
 
@@ -214,6 +254,14 @@ class ClaudeExecutionQueue {
     if (task.projectId) {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskFailed(task.id, task.requirementName, task.projectId, error, duration);
+
+      this.publishToEventBus('execution_completed', task.id, task.projectId, {
+        requirement_name: task.requirementName,
+        status: 'failed',
+        error: error,
+        duration_ms: duration || 0,
+        timestamp: new Date().toISOString(),
+      });
 
       // Auto-record implementation signal (failure)
       try {
@@ -279,6 +327,12 @@ class ClaudeExecutionQueue {
     // Emit task started notification
     if (task.projectId) {
       emitTaskStarted(task.id, task.requirementName, task.projectId);
+
+      this.publishToEventBus('task_created', task.id, task.projectId, {
+        requirement_name: task.requirementName,
+        status: 'started',
+        timestamp: new Date().toISOString(),
+      });
     }
 
     try {
