@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle, Plug, Brain, Bot, Compass } from 'lucide-react';
+import { MoreHorizontal, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle, Plug, Brain, Bot, Compass, Sparkles } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import AnnetteTopBarWidget from '@/app/features/Commander/components/AnnetteTopBarWidget';
@@ -29,6 +29,7 @@ const mainNavigationItems: NavigationItem[] = [
 const otherNavigationItems: NavigationItem[] = [
   { module: 'commander', label: 'Annette', icon: Bot },
   { module: 'brain', label: 'Brain', icon: Brain },
+  { module: 'personas', label: 'Personas', icon: Sparkles },
   { module: 'halloffame', label: 'Hall of Fame', icon: Component },
   { module: 'integrations', label: 'Integrations', icon: Plug },
   { module: 'questions', label: 'Questions', icon: HelpCircle },
