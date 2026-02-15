@@ -1,6 +1,7 @@
 import { Goal } from '../../types';
 import type { GoalResponse, GoalsListResponse, GoalMutationResponse } from '@/lib/api-types/goals';
 import type { DbGoal } from '@/app/db/models/types';
+import { safeResponseJson, parseApiResponse, GoalsListResponseSchema, GoalResponseSchema, GoalMutationResponseSchema } from '@/lib/apiResponseGuard';
 
 // Query Keys
 export const goalKeys = {
@@ -132,8 +133,9 @@ export const goalApi = {
       throw new Error('Failed to fetch goals');
     }
 
-    const data: GoalsListResponse = await response.json();
-    return data.goals.map(convertDbGoalToGoal);
+    const raw = await safeResponseJson(response, '/api/goals');
+    const data = parseApiResponse(raw, GoalsListResponseSchema, '/api/goals');
+    return (data.goals as unknown as DbGoal[]).map(convertDbGoalToGoal);
   },
 
   // Fetch a single goal by ID
@@ -144,8 +146,9 @@ export const goalApi = {
       throw new Error('Failed to fetch goal');
     }
 
-    const data: GoalResponse = await response.json();
-    return convertDbGoalToGoal(data.goal);
+    const raw = await safeResponseJson(response, '/api/goals');
+    const data = parseApiResponse(raw, GoalResponseSchema, '/api/goals');
+    return convertDbGoalToGoal(data.goal as unknown as DbGoal);
   },
 
   // Create a new goal
@@ -163,8 +166,9 @@ export const goalApi = {
       throw new Error('Failed to create goal');
     }
 
-    const data: GoalMutationResponse = await response.json();
-    return convertDbGoalToGoal(data.goal);
+    const raw = await safeResponseJson(response, '/api/goals POST');
+    const data = parseApiResponse(raw, GoalMutationResponseSchema, '/api/goals POST');
+    return convertDbGoalToGoal(data.goal as unknown as DbGoal);
   },
 
   // Update a goal
@@ -182,8 +186,9 @@ export const goalApi = {
       throw new Error('Failed to update goal');
     }
 
-    const data: GoalMutationResponse = await response.json();
-    return convertDbGoalToGoal(data.goal);
+    const raw = await safeResponseJson(response, '/api/goals PUT');
+    const data = parseApiResponse(raw, GoalMutationResponseSchema, '/api/goals PUT');
+    return convertDbGoalToGoal(data.goal as unknown as DbGoal);
   },
 
   // Delete a goal

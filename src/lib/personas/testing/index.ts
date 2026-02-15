@@ -7,3 +7,4 @@ export * from './patternExtractor';
 export * from './adjustmentSuggester';
 export * from './flowTypes';
 export { extractUseCaseFlows } from './flowExtractor';
+export * from './duplicateDetector';

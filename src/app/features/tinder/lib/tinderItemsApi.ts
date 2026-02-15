@@ -10,6 +10,10 @@ import {
   isDirectionItem
 } from './tinderTypes';
 
+// In-flight accept tracking to prevent double-submission for directions.
+// Key is directionId, value is the pending promise.
+const inflightTinderAccepts = new Map<string, Promise<{ success: boolean; requirementName?: string; error?: string }>>();
+
 /**
  * Handle API response errors
  */
@@ -94,8 +98,11 @@ export async function fetchIdeaCategories(
 }
 
 /**
- * Accept a tinder item (idea or direction)
- * Dispatches to the correct endpoint based on item type
+ * Accept a tinder item (idea or direction).
+ * Dispatches to the correct endpoint based on item type.
+ *
+ * For directions: concurrent calls for the same ID coalesce into one request.
+ * 409 Conflict (already accepted) is treated as success.
  */
 export async function acceptTinderItem(
   item: TinderItem,
@@ -115,21 +122,45 @@ export async function acceptTinderItem(
 
     return response.json();
   } else if (isDirectionItem(item)) {
-    // Accept direction via directions endpoint
-    const response = await fetch(`/api/directions/${item.data.id}/accept`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectPath }),
-    });
+    const directionId = item.data.id;
 
-    if (!response.ok) {
-      await handleApiError(response, 'Failed to accept direction');
+    // Deduplicate concurrent calls for the same direction
+    const existing = inflightTinderAccepts.get(directionId);
+    if (existing) return existing;
+
+    const promise = performAcceptDirection(directionId, projectPath);
+    inflightTinderAccepts.set(directionId, promise);
+
+    try {
+      return await promise;
+    } finally {
+      inflightTinderAccepts.delete(directionId);
     }
-
-    return response.json();
   }
 
   throw new Error('Unknown item type');
+}
+
+async function performAcceptDirection(
+  directionId: string,
+  projectPath: string
+): Promise<{ success: boolean; requirementName?: string; error?: string }> {
+  const response = await fetch(`/api/directions/${directionId}/accept`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectPath }),
+  });
+
+  // 409 Conflict means direction was already accepted — treat as success
+  if (response.status === 409) {
+    return { success: true };
+  }
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to accept direction');
+  }
+
+  return response.json();
 }
 
 /**
@@ -203,25 +234,47 @@ export async function deleteTinderItem(item: TinderItem): Promise<{ success: boo
   throw new Error('Unknown item type');
 }
 
+// In-flight pair accept tracking to prevent double-submission.
+const inflightPairAccepts = new Map<string, Promise<{ success: boolean; requirementName?: string; error?: string }>>();
+
 /**
- * Accept one variant from a direction pair
+ * Accept one variant from a direction pair.
+ * Concurrent calls for the same pairId coalesce into one request.
+ * 409 Conflict (already processed) is treated as success.
  */
 export async function acceptPairVariant(
   pairId: string,
   variant: 'A' | 'B',
   projectPath: string
 ): Promise<{ success: boolean; requirementName?: string; error?: string }> {
-  const response = await fetch(`/api/directions/pair/${pairId}/accept`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ variant, projectPath }),
-  });
+  const key = `${pairId}:${variant}`;
+  const existing = inflightPairAccepts.get(key);
+  if (existing) return existing;
 
-  if (!response.ok) {
-    await handleApiError(response, 'Failed to accept direction variant');
+  const promise = (async () => {
+    const response = await fetch(`/api/directions/pair/${pairId}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variant, projectPath }),
+    });
+
+    if (response.status === 409) {
+      return { success: true };
+    }
+
+    if (!response.ok) {
+      await handleApiError(response, 'Failed to accept direction variant');
+    }
+
+    return response.json();
+  })();
+
+  inflightPairAccepts.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    inflightPairAccepts.delete(key);
   }
-
-  return response.json();
 }
 
 /**

@@ -26,6 +26,8 @@ export default function DeviceGrid({
   const localDevice = devices.find((d) => d.device_id === localDeviceId);
   const otherDevices = devices.filter((d) => d.device_id !== localDeviceId);
 
+  const onlineCount = otherDevices.filter((d) => d.status === 'online' || d.status === 'busy').length;
+
   // Sort other devices: online first, then by name
   const sortedDevices = otherDevices.sort((a, b) => {
     // Online devices first
@@ -43,7 +45,7 @@ export default function DeviceGrid({
           <Monitor className="w-4 h-4 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-300">Mesh Network</h3>
           <span className="text-xs text-gray-500">
-            {otherDevices.length} device{otherDevices.length !== 1 ? 's' : ''} online
+            {onlineCount} device{onlineCount !== 1 ? 's' : ''} online
           </span>
         </div>
         <button

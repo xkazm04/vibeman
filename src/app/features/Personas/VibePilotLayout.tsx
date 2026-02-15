@@ -8,10 +8,8 @@ import type { DbPersona } from '@/app/db/models/persona.types';
 
 /** Names of the seeded Vibeman personas (must match seed-personas route) */
 const VIBEMAN_PERSONA_NAMES = [
-  'Idea Evaluator',
   'Brain Reflector',
   'Smart Scheduler',
-  'Direction Critic',
   'Quality Verifier',
   'Annette Voice Bridge',
 ];

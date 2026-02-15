@@ -22,6 +22,7 @@ import MiniTerminalCard from './components/MiniTerminalCard';
 import MissionControlStats from './components/MissionControlStats';
 import LaunchSequence from './components/LaunchSequence';
 import { playCompletionChime, playFailuretone, playSessionPing } from './lib/audioManager';
+import { zen, zenSpacing } from '../lib/zenTheme';
 
 const SESSION_IDS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
 
@@ -177,12 +178,12 @@ export default function MissionControl() {
           className="relative flex items-center justify-between px-6 py-3 border-b border-gray-800/40"
         >
           <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-              <Rocket className="w-4 h-4 text-cyan-400" />
+            <div className={`p-1.5 ${zen.accentBg} rounded-lg border ${zen.accentBorder}`}>
+              <Rocket className={`w-4 h-4 ${zen.accent}`} />
             </div>
             <div>
               <h1 className="text-sm font-semibold text-white tracking-wide uppercase">Mission Control</h1>
-              <p className="text-[10px] text-gray-500 font-mono">Fleet Execution Monitor</p>
+              <p className="text-xs text-gray-400 font-mono">Fleet Execution Monitor</p>
             </div>
           </div>
 
@@ -202,7 +203,7 @@ export default function MissionControl() {
               whileTap={{ scale: 0.95 }}
               onClick={triggerLaunch}
               disabled={stats.pending === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-700 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-all shadow-lg shadow-cyan-500/10"
+              className={`flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r ${zen.gradient} hover:${zen.gradientHover} disabled:${zen.gradientDisabled} disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-all ${zen.accentShadow}`}
             >
               <Rocket className="w-3.5 h-3.5" />
               Launch
@@ -213,7 +214,7 @@ export default function MissionControl() {
               onClick={() => setAudioEnabled(!audioEnabled)}
               className={`p-1.5 rounded-lg border transition-colors ${
                 audioEnabled
-                  ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+                  ? zen.accentSurface
                   : 'bg-gray-800/50 border-gray-700/40 text-gray-500 hover:text-gray-300'
               }`}
               title={audioEnabled ? 'Mute audio cues' : 'Enable audio cues'}
@@ -233,7 +234,7 @@ export default function MissionControl() {
         </motion.header>
 
         {/* Main content */}
-        <div className="relative flex gap-4 p-6">
+        <div className={`relative flex ${zenSpacing.gapSection} p-6`}>
           {/* Left: Topology Globe */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -242,20 +243,20 @@ export default function MissionControl() {
             className="w-[340px] flex-shrink-0"
           >
             <div className="mb-3">
-              <h2 className="text-[10px] font-mono uppercase tracking-widest text-gray-500">Network Topology</h2>
+              <h2 className="text-xs font-mono uppercase tracking-widest text-gray-400">Network Topology</h2>
             </div>
             <TopologyGlobe
               nodes={globeData.nodes}
               edges={globeData.edges}
             />
             {/* Topology legend */}
-            <div className="flex items-center gap-3 mt-3 px-2">
+            <div className={`flex items-center ${zenSpacing.gapComponent} mt-3 px-2`}>
               {[
                 { color: 'bg-green-500', label: 'Online' },
                 { color: 'bg-amber-500', label: 'Busy' },
                 { color: 'bg-gray-500', label: 'Offline' },
               ].map(({ color, label }) => (
-                <div key={label} className="flex items-center gap-1.5 text-[9px] text-gray-500">
+                <div key={label} className="flex items-center gap-1.5 text-xs text-gray-400">
                   <span className={`w-2 h-2 rounded-full ${color}`} />
                   {label}
                 </div>
@@ -271,14 +272,14 @@ export default function MissionControl() {
             className="flex-1"
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[10px] font-mono uppercase tracking-widest text-gray-500">Session Terminals</h2>
-              <span className="text-[10px] font-mono text-gray-600">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-gray-400">Session Terminals</h2>
+              <span className="text-xs font-mono text-gray-400">
                 {stats.active} active / {stats.total} total
               </span>
             </div>
 
             {/* Adaptive grid: 2x2 for 4, scales up for more */}
-            <div className={`grid gap-3 ${
+            <div className={`grid ${zenSpacing.gapComponent} ${
               SESSION_IDS.length <= 4 ? 'grid-cols-2' :
               SESSION_IDS.length <= 9 ? 'grid-cols-3' :
               'grid-cols-4'
@@ -299,10 +300,10 @@ export default function MissionControl() {
             {/* Remote device sessions (if any devices are busy) */}
             {devices.filter(d => d.status === 'busy').length > 0 && (
               <div className="mt-6">
-                <h2 className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-3">
+                <h2 className="text-xs font-mono uppercase tracking-widest text-gray-400 mb-3">
                   Remote Sessions
                 </h2>
-                <div className="grid grid-cols-3 gap-3">
+                <div className={`grid grid-cols-3 ${zenSpacing.gapComponent}`}>
                   {devices
                     .filter(d => d.status === 'busy' || d.status === 'online')
                     .map((device, i) => (
@@ -325,7 +326,7 @@ export default function MissionControl() {
                             {device.device_name || device.device_id.slice(0, 12)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-[9px] text-gray-500">
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
                           <span>{device.active_sessions || 0} sessions</span>
                           <span className="text-gray-700">|</span>
                           <span>{device.device_type || 'unknown'}</span>

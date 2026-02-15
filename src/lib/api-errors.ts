@@ -6,6 +6,7 @@
  */
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { sanitizeErrorDetails, sanitizeErrorMessage } from '@/lib/api-helpers/errorSanitizer';
 
 /**
  * API Error Codes - Typed enum for all possible API error conditions
@@ -192,11 +193,14 @@ export function createApiErrorResponse(
     });
   }
 
+  // Sanitize details to prevent leaking stack traces, file paths, SQL, etc.
+  const safeDetails = sanitizeErrorDetails(options?.details);
+
   const response: ApiErrorResponse = {
     success: false,
-    error: message,
+    error: sanitizeErrorMessage(message),
     code,
-    ...(options?.details && { details: options.details }),
+    ...(safeDetails && { details: safeDetails }),
     ...(options?.fieldErrors && { fieldErrors: options.fieldErrors }),
   };
 
@@ -268,22 +272,31 @@ export function handleApiError(
 
   // Handle standard Error instances
   if (error instanceof Error) {
+    // Log full stack trace server-side only; never send to client
+    logger.error(`[handleApiError] ${operation}: ${error.message}`, {
+      stack: error.stack,
+      operation,
+    });
     return createApiErrorResponse(
       defaultCode,
-      error.message,
+      'An internal error occurred',
       {
-        details: error.stack,
+        logError: false, // Already logged above
         logContext: { operation },
       }
     );
   }
 
   // Handle unknown errors
+  logger.error(`[handleApiError] ${operation}: Unknown error`, {
+    error: String(error),
+    operation,
+  });
   return createApiErrorResponse(
     ApiErrorCode.UNKNOWN_ERROR,
-    `Unknown error occurred during ${operation}`,
+    'An internal error occurred',
     {
-      details: String(error),
+      logError: false, // Already logged above
       logContext: { operation },
     }
   );
@@ -307,10 +320,14 @@ export function databaseError(
   message: string,
   details?: string | Record<string, unknown>
 ): NextResponse<ApiErrorResponse> {
+  // Log raw details server-side; client gets generic message
+  if (details) {
+    logger.error(`[databaseError] ${message}`, { details });
+  }
   return createApiErrorResponse(
     ApiErrorCode.DATABASE_ERROR,
-    message,
-    { details }
+    'A database error occurred',
+    { logError: false } // Already logged above
   );
 }
 
@@ -346,10 +363,14 @@ export function operationFailedError(
   operation: string,
   details?: string | Record<string, unknown>
 ): NextResponse<ApiErrorResponse> {
+  // Log raw details server-side; client gets sanitized operation name only
+  if (details) {
+    logger.error(`[operationFailedError] ${operation}`, { details });
+  }
   return createApiErrorResponse(
     ApiErrorCode.OPERATION_FAILED,
     `${operation} failed`,
-    { details }
+    { logError: false } // Already logged above
   );
 }
 
@@ -413,14 +434,18 @@ export const successResponse = (data: Record<string, unknown>, message?: string)
 
 /** @deprecated Use createApiErrorResponse instead */
 export const errorResponse = (error: unknown, defaultMessage: string, status = 500) => {
-  const message = error instanceof Error ? error.message : defaultMessage;
+  // Log the original error server-side; send generic message to client for 5xx
+  if (error instanceof Error) {
+    logger.error(`[errorResponse] ${defaultMessage}: ${error.message}`, { stack: error.stack });
+  }
+  const clientMessage = status >= 500 ? 'An internal error occurred' : defaultMessage;
   return createApiErrorResponse(
     status === 404 ? ApiErrorCode.RESOURCE_NOT_FOUND :
     status === 400 ? ApiErrorCode.VALIDATION_ERROR :
     ApiErrorCode.INTERNAL_ERROR,
-    message,
+    clientMessage,
     {
-      details: error instanceof Error ? error.message : 'Unknown error',
+      logError: false, // Already logged above
       status,
     }
   );

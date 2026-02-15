@@ -9,6 +9,27 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
+/** Keys whose values should be redacted in log output */
+const SENSITIVE_KEYS = /^(password|secret|token|apikey|api_key|authorization|cookie|credential|private_key|access_token|refresh_token|client_secret)$/i;
+
+/** Redact sensitive values from log context objects */
+function redactSensitive(obj: unknown): unknown {
+  if (typeof obj !== 'object' || obj === null) return obj;
+  if (Array.isArray(obj)) return obj.map(redactSensitive);
+
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (SENSITIVE_KEYS.test(key) && typeof value === 'string') {
+      result[key] = '[REDACTED]';
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = redactSensitive(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 class Logger {
   private isDevelopment = process.env.NODE_ENV === 'development';
   private enabledLevels: Set<LogLevel>;
@@ -26,7 +47,7 @@ class Logger {
     if (context !== undefined) {
       try {
         if (typeof context === 'object' && context !== null) {
-          contextStr = ` ${JSON.stringify(context)}`;
+          contextStr = ` ${JSON.stringify(redactSensitive(context))}`;
         } else {
           contextStr = ` ${String(context)}`;
         }

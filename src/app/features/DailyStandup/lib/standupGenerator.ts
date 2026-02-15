@@ -12,6 +12,7 @@ import {
   StandupFocusArea,
   DbStandupSummary,
 } from '@/app/db/models/standup.types';
+import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
 
 interface GenerationResult {
   success: boolean;
@@ -307,11 +308,41 @@ export async function generateStandupSummary(
 
   const prompt = buildStandupPrompt(sourceData, periodType, periodLabel);
 
+  // Inject predictive intelligence into the prompt
+  let prescriptiveSection = '';
+  try {
+    const predictions = generatePredictiveStandup(projectId);
+    if (predictions.goalsAtRisk.length > 0 || predictions.predictedBlockers.length > 0) {
+      const riskGoals = predictions.goalsAtRisk
+        .filter(g => g.riskLevel !== 'low')
+        .map(g => `- ${g.goalTitle}: ${g.riskReason} (${g.riskLevel} risk)`)
+        .join('\n');
+      const blockerList = predictions.predictedBlockers
+        .map(b => `- ${b.title}: ${b.preventiveAction}`)
+        .join('\n');
+      const taskList = predictions.recommendedTaskOrder
+        .slice(0, 3)
+        .map((t, i) => `${i + 1}. ${t.title} (${t.suggestedSlot})`)
+        .join('\n');
+
+      prescriptiveSection = `\n\n## Predictive Intelligence
+Velocity: ${predictions.velocityComparison.trend} (${predictions.velocityComparison.percentChange > 0 ? '+' : ''}${predictions.velocityComparison.percentChange}% vs last week)
+
+${riskGoals ? `Goals at risk:\n${riskGoals}\n` : ''}
+${blockerList ? `Predicted blockers:\n${blockerList}\n` : ''}
+${taskList ? `Recommended task order:\n${taskList}` : ''}
+
+IMPORTANT: Incorporate these predictions into your summary. Mention at-risk goals as blockers. Use the velocity trend to inform your velocityTrend assessment. Include recommended tasks in your focusAreas.`;
+    }
+  } catch {
+    // Predictive intelligence is supplementary - never block generation
+  }
+
   try {
     const response = await llmManager.generate({
-      prompt,
+      prompt: prompt + prescriptiveSection,
       systemPrompt:
-        'You are a technical project manager assistant generating concise development standup summaries. Always respond with valid JSON only.',
+        'You are a technical project manager assistant generating prescriptive development standup summaries. Go beyond retrospective reporting - predict what should happen next, identify risks before they become blockers, and recommend task ordering. Always respond with valid JSON only.',
       maxTokens: 2000,
       temperature: 0.7,
     });

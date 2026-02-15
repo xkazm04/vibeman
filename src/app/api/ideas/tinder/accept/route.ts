@@ -10,7 +10,9 @@ import {
 import { createErrorResponse, createSuccessResponse } from '../utils';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 interface AcceptIdeaRequest {
   ideaId: string;
@@ -94,6 +96,12 @@ async function handlePost(request: NextRequest) {
     // Validate required idea fields
     if (!idea.title || typeof idea.title !== 'string') {
       return createErrorResponse('Idea is missing required title field', undefined, 400);
+    }
+
+    // Verify project access
+    if (idea.project_id) {
+      const accessDenied = checkProjectAccess(idea.project_id, request);
+      if (accessDenied) return accessDenied;
     }
 
     // Validate project path
@@ -180,17 +188,15 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    // Record brain signal: idea accepted
+    // Record brain signal: idea accepted (context preference)
     try {
-      signalCollector.recordImplementation(idea.project_id, {
-        requirementId: requirementName,
-        requirementName,
+      signalCollector.recordIdeaDecision(idea.project_id, {
+        ideaId: idea.id,
+        ideaTitle: idea.title || 'Untitled',
+        category: idea.category || 'general',
+        accepted: true,
         contextId: idea.context_id || null,
-        filesCreated: [],
-        filesModified: [],
-        filesDeleted: [],
-        success: true,
-        executionTimeMs: 0,
+        contextName: context?.name || null,
       });
     } catch {
       // Signal recording must never break the main flow
@@ -212,4 +218,4 @@ async function handlePost(request: NextRequest) {
 }
 
 // Export with observability tracking
-export const POST = withObservability(handlePost, '/api/ideas/tinder/accept');
+export const POST = withObservability(withRateLimit(handlePost, '/api/ideas/tinder/accept', 'strict'), '/api/ideas/tinder/accept');

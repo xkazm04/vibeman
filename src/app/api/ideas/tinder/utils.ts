@@ -5,18 +5,16 @@
 import { NextResponse } from 'next/server';
 
 /**
- * Create error response with consistent format
+ * Create error response with consistent format.
+ * For 5xx errors, internal details are NOT sent to the client.
  */
 export function createErrorResponse(
   message: string,
-  details?: unknown,
+  _details?: unknown,
   status = 500
 ): NextResponse {
   return NextResponse.json(
-    {
-      error: message,
-      details: details instanceof Error ? details.message : (typeof details === 'string' ? details : 'Unknown error')
-    },
+    { error: message },
     { status }
   );
 }

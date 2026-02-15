@@ -7,6 +7,7 @@
 
 import { motion } from 'framer-motion';
 import { Monitor, Zap, CheckCircle, XCircle, Clock, Activity } from 'lucide-react';
+import { zen, zenSpacing } from '../../lib/zenTheme';
 
 interface MissionControlStatsProps {
   totalSessions: number;
@@ -68,7 +69,7 @@ export default function MissionControlStats({
   ];
 
   const colorMap: Record<string, string> = {
-    cyan: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+    cyan: zen.accentSurface,
     amber: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
     green: 'text-green-400 bg-green-500/10 border-green-500/20',
     red: 'text-red-400 bg-red-500/10 border-red-500/20',
@@ -76,12 +77,12 @@ export default function MissionControlStats({
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center ${zenSpacing.gapComponent}`}>
       {/* System status indicator */}
-      <div className="flex items-center gap-1.5 mr-2">
-        <Activity className={`w-3.5 h-3.5 ${activeSessions > 0 ? 'text-green-400' : 'text-gray-600'}`} />
-        <span className={`text-[10px] uppercase tracking-widest font-mono font-semibold ${
-          activeSessions > 0 ? 'text-green-400' : 'text-gray-600'
+      <div className={`flex items-center ${zenSpacing.gapInline} mr-2`}>
+        <Activity className={`w-3.5 h-3.5 ${activeSessions > 0 ? 'text-green-400' : 'text-gray-400'}`} />
+        <span className={`text-xs uppercase tracking-widest font-mono font-semibold ${
+          activeSessions > 0 ? 'text-green-400' : 'text-gray-400'
         }`}>
           {activeSessions > 0 ? 'LIVE' : 'STANDBY'}
         </span>
@@ -97,11 +98,11 @@ export default function MissionControlStats({
         >
           {stat.icon}
           <span className="font-semibold">{stat.value}</span>
-          <span className="text-[9px] opacity-60 uppercase">{stat.label}</span>
+          <span className="text-xs opacity-60 uppercase">{stat.label}</span>
           {stat.pulse && (
             <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${zen.accentDot} opacity-75`} />
+              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${zen.accentDotDeep}`} />
             </span>
           )}
         </motion.div>

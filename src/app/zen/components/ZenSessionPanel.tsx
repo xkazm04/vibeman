@@ -5,6 +5,7 @@ import { Square, Loader2, Clock, CheckCircle, XCircle, Play } from 'lucide-react
 import { cn } from '@/lib/utils';
 import { type CLISessionState, type CLISessionId, abortSessionExecution } from '@/components/cli/store';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
+import { zen, zenSpacing } from '../lib/zenTheme';
 
 interface ZenSessionPanelProps {
   sessionId: CLISessionId;
@@ -41,11 +42,11 @@ export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelPr
   return (
     <div className={cn(
       "flex flex-col h-full rounded-lg border bg-gray-900/50 overflow-hidden",
-      session.isRunning ? "border-green-500/30" : "border-gray-700/50"
+      session.isRunning ? "border-green-500/30" : zen.surfaceBorder
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className={`flex items-center justify-between px-3 py-2 border-b ${zen.surfaceDivider} shrink-0`}>
+        <div className={`flex items-center ${zenSpacing.gapInline}`}>
           <div className={cn(
             "w-2 h-2 rounded-full",
             session.isRunning ? "bg-green-500 animate-pulse" : "bg-gray-600"
@@ -53,7 +54,7 @@ export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelPr
           <span className="text-sm font-medium text-gray-300">Session {index + 1}</span>
           {/* Claude session ID */}
           {session.claudeSessionId && (
-            <span className="text-[9px] text-purple-400/70 font-mono">
+            <span className="text-xs text-purple-400/70 font-mono">
               {session.claudeSessionId.slice(0, 6)}
             </span>
           )}
@@ -70,7 +71,7 @@ export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelPr
       </div>
 
       {/* Status */}
-      <div className="px-3 py-2 border-b border-gray-800/50 shrink-0">
+      <div className={`px-3 py-2 border-b ${zen.surfaceDividerSubtle} shrink-0`}>
         {runningTask ? (
           <div className="flex items-center gap-2 text-xs">
             <Loader2 className="w-3 h-3 animate-spin text-blue-400 shrink-0" />
@@ -81,7 +82,7 @@ export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelPr
         )}
 
         {/* Queue stats */}
-        <div className="flex items-center gap-2 text-[10px] text-gray-600 mt-1">
+        <div className={`flex items-center ${zenSpacing.gapInline} text-xs text-gray-400 mt-1`}>
           {stats.pending > 0 && (
             <span className="flex items-center gap-0.5 text-amber-400">
               <Clock className="w-2.5 h-2.5" />
@@ -107,7 +108,7 @@ export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelPr
             </span>
           )}
           {!hasActivity && (
-            <span className="text-gray-600">No activity</span>
+            <span className="text-gray-400">No activity</span>
           )}
         </div>
       </div>
@@ -127,7 +128,7 @@ export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelPr
             currentStoredTaskId={session.currentTaskId}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-600 text-xs">
+          <div className="flex items-center justify-center h-full text-gray-400 text-xs">
             No project
           </div>
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckSquare, Square, Trash2, XCircle, Layers, RotateCcw } from 'lucide-react';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
 
@@ -24,6 +24,79 @@ interface TaskColumnHeaderProps {
   onResetAllFailed: () => void;
   canBulkDelete: boolean;
   canReset: boolean;
+}
+
+/**
+ * Inline delete button with 3-second armed confirmation state.
+ * First click arms the button, second click within 3s confirms deletion.
+ */
+function InlineDeleteButton({
+  count,
+  onConfirm,
+  projectId,
+}: {
+  count: number;
+  onConfirm: () => void;
+  projectId: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  // Auto-disarm after 3 seconds
+  useEffect(() => {
+    if (armed) {
+      timerRef.current = setTimeout(() => setArmed(false), 3000);
+    }
+    return clearTimer;
+  }, [armed, clearTimer]);
+
+  // Disarm if count changes (selection changed)
+  useEffect(() => {
+    setArmed(false);
+  }, [count]);
+
+  const handleClick = useCallback(() => {
+    if (armed) {
+      clearTimer();
+      setArmed(false);
+      onConfirm();
+    } else {
+      setArmed(true);
+    }
+  }, [armed, onConfirm, clearTimer]);
+
+  if (armed) {
+    return (
+      <button
+        onClick={handleClick}
+        className="text-red-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/30 border border-red-500/50 transition-colors animate-pulse"
+        title="Click again to confirm deletion"
+        data-testid={`bulk-delete-confirm-btn-${projectId}`}
+      >
+        <Trash2 className="w-3 h-3" />
+        <span>Confirm {count}?</span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="text-red-400 hover:text-red-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
+      title={`Delete ${count} selected`}
+      data-testid={`bulk-delete-selected-btn-${projectId}`}
+    >
+      <Trash2 className="w-3 h-3" />
+      <span>{count}</span>
+    </button>
+  );
 }
 
 export default function TaskColumnHeader({
@@ -88,17 +161,13 @@ export default function TaskColumnHeader({
             </button>
           )}
 
-          {/* Delete selected button */}
+          {/* Delete selected button with inline confirmation */}
           {selectedInColumnCount > 0 && canBulkDelete && (
-            <button
-              onClick={onBulkDeleteSelected}
-              className="text-red-400 hover:text-red-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
-              title={`Delete ${selectedInColumnCount} selected`}
-              data-testid={`bulk-delete-selected-btn-${projectId}`}
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>{selectedInColumnCount}</span>
-            </button>
+            <InlineDeleteButton
+              count={selectedInColumnCount}
+              onConfirm={onBulkDeleteSelected}
+              projectId={projectId}
+            />
           )}
 
           {/* Reset all failed button */}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile, readdir } from 'fs/promises';
 import { join, extname, relative } from 'path';
 import { withObservability } from '@/lib/observability/middleware';
+import { validateProjectPath, validateFilePathArray } from '@/lib/pathSecurity';
+import { withAccessControl } from '@/lib/api-helpers/accessControl';
 
 function createErrorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -18,6 +20,20 @@ async function handlePost(request: NextRequest) {
 
     if (!projectPath) {
       return createErrorResponse('projectPath is required', 400);
+    }
+
+    // Validate project path for traversal attacks
+    const pathError = validateProjectPath(projectPath);
+    if (pathError) {
+      return createErrorResponse(pathError, 403);
+    }
+
+    // Validate individual file paths if provided
+    if (filePaths && Array.isArray(filePaths)) {
+      const invalidPaths = validateFilePathArray(filePaths);
+      if (invalidPaths.length > 0) {
+        return createErrorResponse(`Invalid file path: ${invalidPaths[0].error}`, 403);
+      }
     }
 
     let files: Array<{ path: string; content: string; type: string }> = [];
@@ -147,4 +163,4 @@ function getFileType(ext: string): string {
   return typeMap[ext] || 'text';
 }
 
-export const POST = withObservability(handlePost, '/api/project/files');
+export const POST = withObservability(withAccessControl(handlePost, '/api/project/files', { skipProjectCheck: true, minRole: 'viewer' }), '/api/project/files');

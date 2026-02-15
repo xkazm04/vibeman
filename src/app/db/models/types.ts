@@ -21,8 +21,52 @@ export interface DbGoal {
   target_date?: string | null;
   started_at?: string | null;
   completed_at?: string | null;
+  // Lifecycle Engine fields
+  lifecycle_status?: 'manual' | 'auto_tracking' | 'auto_completed';
+  inferred_progress?: number;
+  last_signal_at?: string | null;
+  auto_started_at?: string | null;
+  auto_completed_at?: string | null;
+  signal_count?: number;
   // GitHub sync
   github_item_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Goal Lifecycle types
+export type GoalSignalType =
+  | 'implementation_log'
+  | 'requirement_completed'
+  | 'git_commit'
+  | 'scan_completed'
+  | 'idea_implemented'
+  | 'context_updated'
+  | 'manual_update';
+
+export interface DbGoalSignal {
+  id: string;
+  goal_id: string;
+  project_id: string;
+  signal_type: GoalSignalType;
+  source_id: string | null;
+  source_title: string | null;
+  description: string | null;
+  progress_delta: number;
+  metadata: string | null;
+  created_at: string;
+}
+
+export interface DbGoalSubGoal {
+  id: string;
+  parent_goal_id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: 'open' | 'in_progress' | 'done' | 'skipped';
+  order_index: number;
+  progress: number;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }

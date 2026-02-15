@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateWithLLM } from '@/lib/llm'
 import { logger } from '@/lib/logger'
 import { withObservability } from '@/lib/observability/middleware'
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter'
 
 interface PromptOption {
   label: string
@@ -222,11 +223,11 @@ async function handlePost(request: NextRequest): Promise<NextResponse<ComposePro
         success: false,
         prompt: '',
         truncated: false,
-        error: error instanceof Error ? error.message : 'Failed to compose prompt',
+        error: 'Failed to compose prompt',
       },
       { status: 500 }
     )
   }
 }
 
-export const POST = withObservability(handlePost, '/api/ai/compose-prompt')
+export const POST = withObservability(withRateLimit(handlePost, '/api/ai/compose-prompt', 'expensive'), '/api/ai/compose-prompt')

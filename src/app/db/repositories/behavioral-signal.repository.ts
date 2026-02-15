@@ -11,6 +11,18 @@ import type {
 } from '../models/brain.types';
 import { getCurrentTimestamp, selectOne, selectAll, buildUpdateQuery } from './repository.utils';
 
+/**
+ * Get the start of the current week (Monday 00:00 UTC) as ISO string.
+ * Used to identify decay cycles so signals are only decayed once per week.
+ */
+function getWeekStart(): string {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun, 1=Mon, ...
+  const diff = day === 0 ? 6 : day - 1; // days since Monday
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff));
+  return monday.toISOString();
+}
+
 export const behavioralSignalRepository = {
   /**
    * Create a new behavioral signal
@@ -170,20 +182,37 @@ export const behavioralSignalRepository = {
   },
 
   /**
-   * Apply decay to old signals (reduce weight over time)
-   * Batches updates in chunks of 1000 to avoid locking SQLite for extended periods.
+   * Apply decay to old signals (reduce weight over time).
+   * Uses batched updates with decay_applied_at tracking to:
+   * - Skip signals already decayed in the current cycle
+   * - Process in 1000-row chunks with separate transactions to avoid table locks
+   * - Leave reads unblocked during the decay process
+   *
+   * @param projectId - Project to decay signals for
+   * @param decayFactor - Multiplier for weight (0.8-0.99, default 0.9)
+   * @param olderThanDays - Only decay signals older than this (default 7)
+   * @returns Number of signals updated
    */
   applyDecay: (projectId: string, decayFactor: number = 0.9, olderThanDays: number = 7): number => {
     const db = getDatabase();
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+    const now = getCurrentTimestamp();
     const BATCH_SIZE = 1000;
+
+    // Use decay_applied_at to skip already-decayed signals in this cycle.
+    // A "cycle" is identified by the current week boundary (Monday 00:00 UTC).
+    const weekStart = getWeekStart();
 
     const batchStmt = db.prepare(`
       UPDATE behavioral_signals
-      SET weight = weight * ?
+      SET weight = weight * ?,
+          decay_applied_at = ?
       WHERE id IN (
         SELECT id FROM behavioral_signals
-        WHERE project_id = ? AND timestamp < ? AND weight > 0.01
+        WHERE project_id = ?
+          AND timestamp < ?
+          AND weight > 0.01
+          AND (decay_applied_at IS NULL OR decay_applied_at < ?)
         LIMIT ?
       )
     `);
@@ -191,7 +220,7 @@ export const behavioralSignalRepository = {
     let totalChanges = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const result = batchStmt.run(decayFactor, projectId, cutoff, BATCH_SIZE);
+      const result = batchStmt.run(decayFactor, now, projectId, cutoff, weekStart, BATCH_SIZE);
       totalChanges += result.changes;
       if (result.changes < BATCH_SIZE) break;
     }

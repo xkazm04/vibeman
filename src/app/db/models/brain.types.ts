@@ -35,6 +35,7 @@ export interface DbBehavioralSignal {
   weight: number;
   timestamp: string;
   created_at: string;
+  decay_applied_at: string | null;
 }
 
 /**

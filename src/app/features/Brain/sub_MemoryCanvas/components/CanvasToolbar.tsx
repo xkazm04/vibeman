@@ -11,6 +11,8 @@ interface CanvasToolbarProps {
   focusedGroup: Group | null;
   selectedGroupId: string | null;
   onFitToView: () => void;
+  visibleTypes: Set<SignalType>;
+  onToggleType: (type: SignalType) => void;
 }
 
 export function CanvasToolbar({
@@ -20,9 +22,11 @@ export function CanvasToolbar({
   focusedGroup,
   selectedGroupId,
   onFitToView,
+  visibleTypes,
+  onToggleType,
 }: CanvasToolbarProps) {
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-900/70 backdrop-blur-md border-t border-zinc-700/30 text-xs">
+    <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-900/60 backdrop-blur-xl border-t border-zinc-700/20 text-xs">
       <div className="flex items-center gap-4">
         <span className="text-zinc-500">
           <span className="text-zinc-300 font-medium">{Math.round(zoomLevel * 100)}%</span>
@@ -62,12 +66,27 @@ export function CanvasToolbar({
         )}
       </div>
       <div className="flex items-center gap-3">
-        {Object.entries(COLORS).map(([type, color]) => (
-          <div key={type} className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: color, boxShadow: `0 0 4px ${color}40` }} />
-            <span className="text-zinc-500 hidden lg:inline">{LABELS[type as SignalType]}</span>
-          </div>
-        ))}
+        {Object.entries(COLORS).map(([type, color]) => {
+          const isVisible = visibleTypes.has(type as SignalType);
+          return (
+            <button
+              key={type}
+              onClick={() => onToggleType(type as SignalType)}
+              className={`flex items-center gap-1.5 transition-all duration-200 hover:scale-110 ${
+                isVisible ? 'opacity-100' : 'opacity-30'
+              }`}
+              title={`${isVisible ? 'Hide' : 'Show'} ${LABELS[type as SignalType]}`}
+            >
+              <div
+                className="w-2 h-2 rounded-full shadow-sm"
+                style={{ backgroundColor: color, boxShadow: isVisible ? `0 0 4px ${color}40` : 'none' }}
+              />
+              <span className={`hidden lg:inline ${isVisible ? 'text-zinc-500' : 'text-zinc-600 line-through'}`}>
+                {LABELS[type as SignalType]}
+              </span>
+            </button>
+          );
+        })}
         {!focusedGroup && (
           <button
             onClick={onFitToView}

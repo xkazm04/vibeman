@@ -98,13 +98,23 @@ class TriggerScheduler {
           continue;
         }
 
+        // Guard: skip if persona already has a running/queued execution (prevent overlap)
+        const recentExecs = personaExecutionRepository.getByPersonaId(trigger.persona_id, 5);
+        const hasActiveExec = recentExecs.some(e => e.status === 'running' || e.status === 'queued');
+        if (hasActiveExec) {
+          // Reschedule but don't enqueue — previous run hasn't finished yet
+          const nextTriggerAt = this.calculateNextTrigger(trigger.trigger_type, trigger.config);
+          personaTriggerRepository.markTriggered(trigger.id, nextTriggerAt);
+          continue;
+        }
+
         // Get tools for persona
         const tools = personaToolRepository.getToolDefsForPersona(trigger.persona_id);
 
-        // Get last completed execution for temporal context
-        const recentExecs = personaExecutionRepository.getByPersonaId(trigger.persona_id, 1);
-        const lastExecution = recentExecs.length > 0 && recentExecs[0].status === 'completed'
-          ? { completed_at: recentExecs[0].completed_at!, duration_ms: recentExecs[0].duration_ms, status: recentExecs[0].status }
+        // Get last completed execution for temporal context (reuse recentExecs from guard above)
+        const lastCompletedExec = recentExecs.find(e => e.status === 'completed');
+        const lastExecution = lastCompletedExec
+          ? { completed_at: lastCompletedExec.completed_at!, duration_ms: lastCompletedExec.duration_ms, status: lastCompletedExec.status }
           : null;
 
         // Build trigger context

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { validateProjectPath, validateSubfolder, validateFilename } from '@/lib/pathSecurity';
+import { withAccessControl } from '@/lib/api-helpers/accessControl';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { content, projectPath, filename, subfolder } = await request.json();
 
@@ -13,10 +15,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Security check - ensure the project path is valid
-    if (projectPath.includes('..') || projectPath.includes('~')) {
+    // Validate all path components for traversal attacks
+    const pathError = validateProjectPath(projectPath);
+    if (pathError) {
       return NextResponse.json(
-        { success: false, error: 'Invalid project path' },
+        { success: false, error: pathError },
+        { status: 403 }
+      );
+    }
+
+    const subfolderError = validateSubfolder(subfolder);
+    if (subfolderError) {
+      return NextResponse.json(
+        { success: false, error: subfolderError },
+        { status: 403 }
+      );
+    }
+
+    const filenameError = validateFilename(filename);
+    if (filenameError) {
+      return NextResponse.json(
+        { success: false, error: filenameError },
         { status: 403 }
       );
     }
@@ -38,9 +57,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to save file'
+        error: 'Failed to save file'
       },
       { status: 500 }
     );
   }
 }
+
+export const POST = withAccessControl(handlePost, '/api/projects/save-file', { skipProjectCheck: true, minRole: 'developer' });

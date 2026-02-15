@@ -59,10 +59,15 @@ export function TaskProgress({ status, className = '' }: TaskProgressProps) {
   const styles = getProgressStyles();
 
   if (status === 'running') {
-    // Static progress bar for running state
+    // Indeterminate shimmer for running state
     return (
       <div className={`h-1 w-full overflow-hidden rounded-full ${styles.barColor} ${className}`}>
-        <div className={`h-full ${styles.animatedColor} rounded-full w-1/2`} />
+        <div
+          className="h-full w-2/5 rounded-full animate-[shimmer-slide_1.5s_ease-in-out_infinite]"
+          style={{
+            background: 'linear-gradient(90deg, transparent, #60a5fa, transparent)',
+          }}
+        />
       </div>
     );
   }

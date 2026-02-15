@@ -1,0 +1,152 @@
+src/app/api/social/classify/route.ts(103,17): error TS2322: Type '{ score: number; sentiment: Sentiment; } | undefined' is not assignable to type 'SentimentAnalysisResult | undefined'.
+src/app/api/social/classify/route.ts(106,11): error TS2322: Type '{ level: UrgencyLevel; score: number; } | undefined' is not assignable to type 'UrgencyAnalysisResult | undefined'.
+src/app/api/tinder/items/route.ts(137,23): error TS2339: Property 'created_at' does not exist on type 'DbIdea | DbDirection | { pairId: string; problemStatement: string | null; directionA: DbDirection; directionB: DbDirection; }'.
+src/app/api/tinder/items/route.ts(137,63): error TS2339: Property 'created_at' does not exist on type 'DbIdea | DbDirection | { pairId: string; problemStatement: string | null; directionA: DbDirection; directionB: DbDirection; }'.
+src/app/db/migrations/066_cleanup_stale_context_paths.ts(60,22): error TS2352: Conversion of type 'Record<string, unknown>[]' to type 'ContextRow[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/app/db/migrations/index.ts(4757,37): error TS2345: Argument of type 'DbConnection' is not assignable to parameter of type '{ prepare: (sql: string) => { run: (...args: unknown[]) => unknown; }; }'.
+src/app/db/migrations/index.ts(4764,34): error TS2345: Argument of type 'DbConnection' is not assignable to parameter of type '{ prepare: (sql: string) => { run: (...args: unknown[]) => unknown; }; }'.
+src/app/db/repositories/behavioral-signal.repository.ts(158,11): error TS2739: Type '{ git_activity: number; api_focus: number; context_focus: number; implementation: number; }' is missing the following properties from type 'Record<BehavioralSignalType, number>': cross_task_analysis, cross_task_selection, cli_memory
+src/app/features/Brain/components/InsightSparkline.tsx(49,9): error TS2322: Type '{ children: Element; width: number; height: number; className: string; title: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+src/app/features/Context/components/index.ts(8,10): error TS2614: Module '"./ErrorDisplay"' has no exported member 'ErrorDisplay'. Did you mean to use 'import ErrorDisplay from "./ErrorDisplay"' instead?
+src/app/features/Context/components/index.ts(10,10): error TS2614: Module '"./MiniFileTree"' has no exported member 'MiniFileTree'. Did you mean to use 'import MiniFileTree from "./MiniFileTree"' instead?
+src/app/features/Context/ContextCard.tsx(14,28): error TS2614: Module '"@/components/ContextMenu"' has no exported member 'ContextMenuItem'. Did you mean to use 'import ContextMenuItem from "@/components/ContextMenu"' instead?
+src/app/features/DebtPrediction/lib/predictionEngine.ts(261,7): error TS2322: Type 'DetectorMatch' is not assignable to type 'number'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(272,19): error TS2339: Property 'type' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(275,26): error TS2339: Property 'details' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(276,25): error TS2339: Property 'type' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(288,20): error TS2339: Property 'complexity' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(289,100): error TS2339: Property 'complexity' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(300,7): error TS2322: Type '"critical" | "high" | "medium" | "low" | undefined' is not assignable to type '"critical" | "high" | "medium" | "low"'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(301,39): error TS2339: Property 'number' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(301,59): error TS2339: Property 'context' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(302,22): error TS2339: Property 'suggestedName' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(303,44): error TS2339: Property 'suggestedName' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(303,66): error TS2339: Property 'number' does not exist on type 'DetectorMatch'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(313,7): error TS2322: Type 'DetectorMatch' is not assignable to type 'number'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(325,7): error TS2322: Type 'DetectorMatch' is not assignable to type 'number'.
+src/app/features/DebtPrediction/lib/predictionEngine.ts(339,39): error TS2339: Property 'type' does not exist on type 'DetectorMatch'.
+src/app/features/Onboarding/sub_Blueprint/lib/blueprintContextsScan.ts(359,9): error TS2345: Argument of type 'number | null | undefined' is not assignable to parameter of type 'number'.
+src/app/features/Onboarding/sub_Blueprint/lib/featureBasedContextsScan.ts(355,9): error TS2345: Argument of type 'number | null | undefined' is not assignable to parameter of type 'number'.
+src/app/features/Questions/components/ContextMapSelector.tsx(127,11): error TS2345: Argument of type 'Context' is not assignable to parameter of type 'DbContext'.
+src/app/features/Questions/QuestionsLayout.tsx(311,15): error TS2322: Type 'Context[]' is not assignable to type 'DbContext[]'.
+src/app/features/Questions/QuestionsLayout.tsx(324,17): error TS2322: Type 'Context[]' is not assignable to type 'DbContext[]'.
+src/app/features/Questions/QuestionsLayout.tsx(342,17): error TS2322: Type '(directionId: string) => void' is not assignable to type '(directionId: string) => Promise<void>'.
+src/app/features/Questions/QuestionsLayout.tsx(343,17): error TS2322: Type '(directionId: string) => void' is not assignable to type '(directionId: string) => Promise<void>'.
+src/app/features/Questions/QuestionsLayout.tsx(344,17): error TS2322: Type '(questionId: string) => void' is not assignable to type '(questionId: string) => Promise<void>'.
+src/app/features/Questions/QuestionsLayout.tsx(345,17): error TS2322: Type '(directionId: string) => void' is not assignable to type '(directionId: string) => Promise<void>'.
+src/app/features/reflector/lib/unifiedTypes.ts(134,5): error TS2322: Type '"pending" | "rejected" | "accepted" | "processing"' is not assignable to type '"pending" | "rejected" | "accepted" | "implemented"'.
+src/app/features/reflector/sub_Reflection/components/ExecutiveSummary.tsx(590,15): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+src/app/features/Social/components/RoutingConfig.tsx(375,29): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/app/features/Social/index.ts(18,8): error TS2307: Cannot find module './unified-inbox' or its corresponding type declarations.
+src/app/features/Social/index.ts(31,8): error TS2307: Cannot find module './unified-inbox' or its corresponding type declarations.
+src/app/features/Social/lib/feedbackRouter.ts(431,31): error TS2345: Argument of type 'FeedbackAuthor' is not assignable to parameter of type 'Record<string, unknown>'.
+src/app/features/Social/lib/feedbackRouter.ts(437,31): error TS2345: Argument of type 'FeedbackEngagement' is not assignable to parameter of type 'Record<string, unknown>'.
+src/app/features/TaskRunner/components/DualBatchPanel.tsx(494,46): error TS2345: Argument of type '"queued" | "running" | "completed" | "failed" | "idle" | "session-limit"' is not assignable to parameter of type 'TaskStatusType'.
+src/app/features/TaskRunner/components/DualBatchPanel.tsx(503,73): error TS2345: Argument of type '"queued" | "running" | "completed" | "failed" | "idle" | "session-limit"' is not assignable to parameter of type 'TaskStatusType'.
+src/app/features/TaskRunner/components/RemoteBatchCard.tsx(76,22): error TS2339: Property 'iconClass' does not exist on type '{ icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; label: string; color: string; bgColor: string; borderColor: string; } | { ...; } | { ...; } | { ...; } | { ...; }'.
+src/app/features/tinder/index.ts(23,1): error TS2308: Module './lib/tinderTypes' has already exported a member named 'CategoryCount'. Consider explicitly re-exporting to resolve the ambiguity.
+src/app/features/tinder/lib/useTinderItems.ts(44,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+src/app/projects/sub_ProjectSetting/components/ProjectForm.tsx(245,13): error TS2322: Type 'import("C:/Users/kazda/kiro/vibeman/src/types/index").Project[]' is not assignable to type 'Project[]'.
+src/app/runner/components/RunnerConfig.tsx(50,25): error TS2322: Type 'number | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/app/zen/sub_ZenControl/components/RemoteMonitorPanel.tsx(389,9): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/app/zen/sub_ZenControl/components/RemoteTriagePanel.tsx(208,17): error TS2353: Object literal may only specify known properties, and 'y' does not exist in type 'Properties<string | number, string & {}>'.
+src/app/zen/sub_ZenControl/components/TopologyMap.tsx(111,11): error TS2322: Type '{ source: SimulationNode; target: SimulationNode; id: string; quality: ConnectionQuality; latencyMs: number | null; throughputKbps: number | null; packetLoss: number | null; isActive: boolean; lastActivity: string | null; dataFlowDirection: "none" | ... 2 more ... | "bidirectional"; }[]' is not assignable to type 'SimulationLink[]'.
+src/app/zen/sub_ZenControl/components/TopologyMap.tsx(157,26): error TS2769: No overload matches this call.
+src/app/zen/sub_ZenControl/components/TopologyMap.tsx(162,26): error TS2769: No overload matches this call.
+src/app/zen/sub_ZenControl/components/TopologyMap.tsx(169,33): error TS18046: 'd' is of type 'unknown'.
+src/app/zen/sub_ZenControl/components/TopologyMap.tsx(170,33): error TS18046: 'd' is of type 'unknown'.
+src/app/zen/sub_ZenControl/components/TopologyMap.tsx(293,23): error TS2345: Argument of type 'DragBehavior<SVGGElement, SimulationNode, SimulationNode | SubjectPosition>' is not assignable to parameter of type '(selection: Selection<SVGGElement | BaseType, SimulationNode, SVGGElement, unknown>) => void'.
+src/components/cli/CompactTerminal.tsx(184,26): error TS2749: 'List' refers to a value, but is being used as a type here. Did you mean 'typeof List'?
+src/components/cli/CompactTerminal.tsx(919,17): error TS2322: Type 'MemoExoticComponent<({ index, style, logs }: RowComponentProps<LogRowData>) => Element>' is not assignable to type '(props: { ariaAttributes: { "aria-posinset": number; "aria-setsize": number; role: "listitem"; }; index: number; style: CSSProperties; } & LogRowData) => ReactElement<unknown, string | JSXElementConstructor<...>>'.
+src/components/cli/index.ts(18,3): error TS2305: Module '"./store"' has no exported member 'useCLIRecovery'.
+src/components/cli/index.ts(19,3): error TS2305: Module '"./store"' has no exported member 'useCLIRecoveryStatus'.
+src/components/cli/types.ts(99,19): error TS2304: Cannot find name 'SkillId'.
+src/components/idea/IdeaDetailContent.tsx(90,35): error TS2322: Type '(updates: Partial<DbIdea>) => Promise<boolean | void>' is not assignable to type '(updates: Partial<DbIdea>) => Promise<void>'.
+src/components/onboarding/ModuleProgressBar.tsx(24,3): error TS2561: Object literal may only specify known properties, but 'refactor' does not exist in type 'Record<AppModule, OnboardingStep | null>'. Did you mean to write 'reflector'?
+src/components/QuickActionBar/index.tsx(43,107): error TS2322: Type '"composer"' is not assignable to type 'AppModule'.
+src/components/QuickActionBar/index.tsx(70,93): error TS2820: Type '"refactor"' is not assignable to type 'AppModule'. Did you mean '"reflector"'?
+src/components/QuickActionBar/index.tsx(75,10): error TS2678: Type '"refactor"' is not comparable to type 'AppModule'.
+src/components/QuickActionBar/index.tsx(89,10): error TS2678: Type '"composer"' is not comparable to type 'AppModule'.
+src/hooks/useGlobalModal.tsx(107,13): error TS2304: Cannot find name 'ModalOptions'.
+src/hooks/useRAFSmoothing.ts(131,29): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'Parameters<T>'.
+src/hooks/useRAFSmoothing.ts(131,32): error TS2488: Type 'NonNullable<Parameters<T>>' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/hooks/useRAFSmoothing.ts(174,18): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'Parameters<T>'.
+src/hooks/useRAFSmoothing.ts(174,21): error TS2488: Type 'NonNullable<Parameters<T>>' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/hooks/useUnifiedNavigation.ts(23,3): error TS2322: Type '"composer"' is not assignable to type 'AppModule'.
+src/lib/brain/behavioralContext.ts(393,5): error TS2322: Type '{ path: string; trend: "stable" | "increasing" | "decreasing"; changePercent: number; }[]' is not assignable to type '{ path: string; trend: "stable" | "up" | "down"; changePercent: number; }[]'.
+src/lib/emulator/mediaQueryDetector.ts(165,17): error TS2531: Object is possibly 'null'.
+src/lib/integrations/connectors/supabase.ts(176,3): error TS2322: Type '"supabase"' is not assignable to type 'IntegrationProvider'.
+src/lib/integrations/engine.ts(38,10): error TS2678: Type '"supabase"' is not comparable to type 'IntegrationProvider'.
+src/lib/integrations/registry.ts(328,3): error TS2353: Object literal may only specify known properties, and 'supabase' does not exist in type 'Record<IntegrationProvider, IntegrationRegistryEntry>'.
+src/lib/processManager.ts(56,50): error TS2345: Argument of type 'number | null | undefined' is not assignable to parameter of type 'number'.
+src/lib/processManager.ts(63,48): error TS2345: Argument of type 'number | null | undefined' is not assignable to parameter of type 'number'.
+src/lib/processManager.ts(71,15): error TS2322: Type 'number | null | undefined' is not assignable to type 'number'.
+src/lib/project_database.ts(255,54): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(256,54): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(262,34): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string | number | boolean | undefined'.
+src/lib/project_database.ts(263,54): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(264,82): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(265,74): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(266,66): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(267,66): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(268,94): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/project_database.ts(269,64): error TS2345: Argument of type '(string | number | null)[]' is not assignable to parameter of type '(string | number)[]'.
+src/lib/remote/commandHandlers.ts(61,21): error TS2352: Conversion of type 'Record<string, unknown>' to type 'CreateGoalPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(74,7): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+src/lib/remote/commandHandlers.ts(75,7): error TS2322: Type '"active"' is not assignable to type '"undecided" | "open" | "in_progress" | "done" | "rejected"'.
+src/lib/remote/commandHandlers.ts(93,21): error TS2352: Conversion of type 'Record<string, unknown>' to type 'UpdateGoalPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(149,21): error TS2352: Conversion of type 'Record<string, unknown>' to type 'IdeaActionPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(172,21): error TS2352: Conversion of type 'Record<string, unknown>' to type 'IdeaActionPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(195,21): error TS2352: Conversion of type 'Record<string, unknown>' to type 'IdeaActionPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(219,19): error TS2352: Conversion of type 'Record<string, unknown>' to type 'StartBatchPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(236,13): error TS2339: Property 'projectDb' does not exist on type 'typeof import("C:/Users/kazda/kiro/vibeman/src/app/db/index")'.
+src/lib/remote/commandHandlers.ts(374,19): error TS2352: Conversion of type 'Record<string, unknown>' to type 'BatchControlPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(391,19): error TS2352: Conversion of type 'Record<string, unknown>' to type 'BatchControlPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(408,19): error TS2352: Conversion of type 'Record<string, unknown>' to type 'BatchControlPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(429,19): error TS2352: Conversion of type 'Record<string, unknown>' to type 'TriggerScanPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(596,21): error TS2352: Conversion of type 'Record<string, unknown>' to type 'TriageIdeaPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(602,21): error TS2339: Property 'projectDb' does not exist on type 'typeof import("C:/Users/kazda/kiro/vibeman/src/app/db/index")'.
+src/lib/remote/commandHandlers.ts(618,15): error TS2339: Property 'createRequirement' does not exist on type 'typeof import("C:/Users/kazda/kiro/vibeman/src/app/Claude/lib/requirementApi")'.
+src/lib/remote/commandHandlers.ts(691,21): error TS2352: Conversion of type 'Record<string, unknown>' to type 'TriageDirectionPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/commandHandlers.ts(712,15): error TS2339: Property 'projectDb' does not exist on type 'typeof import("C:/Users/kazda/kiro/vibeman/src/app/db/index")'.
+src/lib/remote/commandHandlers.ts(784,13): error TS2339: Property 'projectDb' does not exist on type 'typeof import("C:/Users/kazda/kiro/vibeman/src/app/db/index")'.
+src/lib/remote/commandHandlers.ts(885,19): error TS2352: Conversion of type 'Record<string, unknown>' to type 'StartRemoteBatchPayload' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/remote/eventPublisher.ts(84,8): error TS2339: Property 'catch' does not exist on type 'PromiseLike<void>'.
+src/lib/remote/eventPublisher.ts(84,15): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/lib/remote/eventPublisher.ts(116,8): error TS2339: Property 'catch' does not exist on type 'PromiseLike<void>'.
+src/lib/remote/eventPublisher.ts(116,15): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/lib/scan/ScanStrategy.ts(204,15): error TS2353: Object literal may only specify known properties, and 'lines' does not exist in type 'FileAnalysis'.
+src/lib/scan/strategies/FastAPIScanStrategy.ts(164,14): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/FastAPIScanStrategy.ts(171,14): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/FastAPIScanStrategy.ts(175,21): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/FastAPIScanStrategy.ts(179,21): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/FastAPIScanStrategy.ts(189,31): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/ReactNativeScanStrategy.ts(167,14): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/ReactNativeScanStrategy.ts(174,14): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/ReactNativeScanStrategy.ts(178,21): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/ReactNativeScanStrategy.ts(182,21): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/strategies/ReactNativeScanStrategy.ts(192,31): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/techniques/nextjs/dynamic-imports.ts(13,24): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/techniques/nextjs/large-file.ts(13,12): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/techniques/nextjs/large-file.ts(20,12): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/techniques/nextjs/large-file.ts(24,19): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/techniques/nextjs/large-file.ts(28,19): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/lib/scan/techniques/nextjs/large-file.ts(37,40): error TS2339: Property 'lines' does not exist on type 'FileAnalysis'.
+src/stores/contextStore.ts(171,7): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+src/stores/slices/refactor/packagesSlice.ts(57,29): error TS2339: Property 'dependsOn' does not exist on type 'RefactoringPackage'.
+src/stores/slices/refactor/packagesSlice.ts(102,24): error TS2339: Property 'category' does not exist on type 'RefactoringPackage'.
+src/stores/slices/refactor/packagesSlice.ts(111,24): error TS2339: Property 'executionOrder' does not exist on type 'RefactoringPackage'.
+src/stores/slices/refactor/packagesSlice.ts(111,50): error TS2339: Property 'dependsOn' does not exist on type 'RefactoringPackage'.
+src/stores/slices/refactor/wizardSlice.ts(51,49): error TS2339: Property 'recommendedGroups' does not exist on type 'WizardPlan'.
+src/stores/slices/refactor/wizardSlice.ts(51,71): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/stores/slices/refactor/wizardSlice.ts(55,74): error TS2339: Property 'SCAN_TECHNIQUE_GROUPS' does not exist on type 'typeof import("C:/Users/kazda/kiro/vibeman/src/app/features/RefactorWizard/lib/scanTechniques")'.
+src/stores/slices/refactor/wizardSlice.ts(56,63): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/stores/slices/refactor/wizardSlice.ts(57,15): error TS2322: Type 'Set<unknown>' is not assignable to type 'Set<string>'.
+src/stores/slices/refactor/wizardSlice.ts(82,74): error TS2339: Property 'SCAN_TECHNIQUE_GROUPS' does not exist on type 'typeof import("C:/Users/kazda/kiro/vibeman/src/app/features/RefactorWizard/lib/scanTechniques")'.
+src/stores/slices/refactor/wizardSlice.ts(83,63): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/stores/slices/refactor/wizardSlice.ts(84,15): error TS2322: Type 'Set<unknown>' is not assignable to type 'Set<string>'.
+src/stores/workflowStore.ts(75,13): error TS2820: Type '"refactor"' is not assignable to type 'AppModule'. Did you mean '"reflector"'?
+src/stores/workflowStore.ts(89,3): error TS2561: Object literal may only specify known properties, but 'refactor' does not exist in type 'Record<AppModule, { label: string; description: string; keywords: string[]; icon: string; }>'. Did you mean to write 'reflector'?
+src/stores/workflowStore.ts(266,104): error TS2322: Type '"composer"' is not assignable to type 'AppModule'.
+src/stores/workflowStore.ts(293,113): error TS2820: Type '"refactor"' is not assignable to type 'AppModule'. Did you mean '"reflector"'?
+src/stores/workflowStore.ts(377,7): error TS2322: Type '"composer"' is not assignable to type 'AppModule | undefined'.

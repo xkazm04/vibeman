@@ -5,9 +5,41 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withObservability } from '@/lib/observability/middleware';
-import { directionOutcomeDb } from '@/app/db';
+import { directionOutcomeDb, behavioralSignalDb } from '@/app/db';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Compute outcome-like stats from behavioral signals (implementation type)
+ * when direction_outcomes table has sparse data
+ */
+function computeSignalStats(projectId: string, days?: number) {
+  const windowDays = days || 30;
+  const signals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', windowDays);
+
+  let successful = 0;
+  let failed = 0;
+
+  for (const signal of signals) {
+    try {
+      const data = JSON.parse(signal.data);
+      if (data.success === true) {
+        successful++;
+      } else if (data.success === false) {
+        failed++;
+      }
+    } catch {
+      // Skip unparseable signals
+    }
+  }
+
+  return {
+    total: signals.length,
+    successful,
+    failed,
+  };
+}
 
 async function handleGET(request: NextRequest) {
   try {
@@ -23,22 +55,39 @@ async function handleGET(request: NextRequest) {
       );
     }
 
+    // Verify project exists and caller has access
+    const accessDenied = checkProjectAccess(projectId, request);
+    if (accessDenied) return accessDenied;
+
     // Get recent outcomes
     const outcomes = directionOutcomeDb.getByProject(projectId, { limit });
 
     // Get statistics
     const stats = directionOutcomeDb.getStats(projectId, days);
 
+    // Supplement with behavioral signal stats when direction outcomes are sparse
+    const signalStats = computeSignalStats(projectId, days);
+
+    // Merge: use whichever source has more data
+    const mergedStats = {
+      total: Math.max(stats.total, signalStats.total),
+      successful: Math.max(stats.successful, signalStats.successful),
+      failed: Math.max(stats.failed, signalStats.failed),
+      reverted: stats.reverted, // Only direction outcomes track reverts
+      pending: stats.pending,   // Only direction outcomes track pending
+      avgSatisfaction: stats.avgSatisfaction,
+    };
+
     return NextResponse.json({
       success: true,
       outcomes,
       stats: {
-        total: stats.total,
-        successful: stats.successful,
-        failed: stats.failed,
-        reverted: stats.reverted,
-        pending: stats.pending,
-        avgSatisfaction: stats.avgSatisfaction,
+        total: mergedStats.total,
+        successful: mergedStats.successful,
+        failed: mergedStats.failed,
+        reverted: mergedStats.reverted,
+        pending: mergedStats.pending,
+        avgSatisfaction: mergedStats.avgSatisfaction,
       },
     });
   } catch (error) {

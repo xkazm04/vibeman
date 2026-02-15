@@ -102,10 +102,11 @@ export async function POST() {
       enabled: true,
     });
 
-    // Create event subscription for listener (listens for custom events)
+    // Create event subscription for listener — only ping subtype from publisher
     personaDb.eventSubscriptions.create({
       persona_id: listener.id,
       event_type: 'custom',
+      source_filter: { payload_type: 'ping' },
       enabled: true,
     });
 

@@ -1326,30 +1326,6 @@ import { Sparkles } from 'lucide-react';
 
   // --- ZenLayout Components ---
   {
-    id: 'zen-stats',
-    name: 'ZenStats',
-    description: 'Color-coded stat cards with staggered animations and glassmorphism effect',
-    categoryId: 'data-display',
-    variantCount: 3,
-    propsConfig: [
-      {
-        name: 'variant',
-        type: 'select',
-        label: 'Status',
-        options: [
-          { label: 'Completed', value: 'completed' },
-          { label: 'Pending', value: 'pending' },
-          { label: 'Failed', value: 'failed' },
-        ],
-        defaultValue: 'completed',
-      },
-    ],
-    codeSnippet: `import { ZenStats } from '@/app/zen/components/ZenStats';
-
-<ZenStats /> // Uses useZenStore internally`,
-    sourcePath: 'src/app/zen/components/ZenStats.tsx',
-  },
-  {
     id: 'mode-toggle',
     name: 'ModeToggle',
     description: 'Spring-animated toggle with gradient backgrounds, icon swap, and pulsing status dot',

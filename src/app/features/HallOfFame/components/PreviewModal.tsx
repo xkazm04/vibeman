@@ -49,7 +49,6 @@ import {
   AIProcessingPanelPreview,
   ChainBuilderPreview,
   DecisionNodeConfigPreview,
-  ZenStatsPreview,
   ModeTogglePreview,
   ContextMapSelectorPreview,
   DirectionCardPreview,
@@ -149,7 +148,6 @@ export function PreviewModal({ componentId, onClose }: PreviewModalProps) {
       case 'chain-builder': return <ChainBuilderPreview props={props} />;
       case 'decision-node-config': return <DecisionNodeConfigPreview props={props} />;
       // ZenLayout
-      case 'zen-stats': return <ZenStatsPreview props={props} />;
       case 'mode-toggle': return <ModeTogglePreview props={props} />;
       // QuestionsLayout
       case 'context-map-selector': return <ContextMapSelectorPreview props={props} />;

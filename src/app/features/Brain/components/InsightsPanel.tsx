@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap } from 'lucide-react';
+import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useBrainStore } from '@/stores/brainStore';
 import { InsightsTable } from './InsightsTable';
 import type { InsightWithMeta, InsightType, SortField, SortDir } from './InsightsTable';
 
@@ -14,6 +15,170 @@ interface Props {
 
 const ACCENT_COLOR = '#f59e0b'; // Amber
 const GLOW_COLOR = 'rgba(245, 158, 11, 0.15)';
+
+function BrainSvg() {
+  return (
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Brain outline */}
+      <path
+        d="M40 12C30 12 22 18 20 26C16 27 12 32 12 38C12 43 14 47 18 49C18 56 24 62 32 64C34 66 37 68 40 68C43 68 46 66 48 64C56 62 62 56 62 49C66 47 68 43 68 38C68 32 64 27 60 26C58 18 50 12 40 12Z"
+        stroke={ACCENT_COLOR}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.4"
+      />
+      {/* Center dividing line */}
+      <path
+        d="M40 18V62"
+        stroke={ACCENT_COLOR}
+        strokeWidth="0.8"
+        opacity="0.2"
+        strokeDasharray="2 3"
+      />
+      {/* Neural pulse paths — left hemisphere */}
+      <motion.path
+        d="M28 30C32 28 36 32 40 30"
+        stroke={ACCENT_COLOR}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.7, 0.7, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.path
+        d="M22 40C28 38 34 42 40 40"
+        stroke={ACCENT_COLOR}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.6, 0.6, 0] }}
+        transition={{ duration: 3, delay: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.path
+        d="M26 52C30 48 35 52 40 50"
+        stroke={ACCENT_COLOR}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.5, 0.5, 0] }}
+        transition={{ duration: 3, delay: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Neural pulse paths — right hemisphere */}
+      <motion.path
+        d="M52 34C48 32 44 36 40 34"
+        stroke="#a855f7"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.7, 0.7, 0] }}
+        transition={{ duration: 3, delay: 0.4, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.path
+        d="M58 44C52 42 46 46 40 44"
+        stroke="#a855f7"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.6, 0.6, 0] }}
+        transition={{ duration: 3, delay: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.path
+        d="M54 56C50 52 44 54 40 52"
+        stroke="#a855f7"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.5, 0.5, 0] }}
+        transition={{ duration: 3, delay: 2.0, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Neural nodes */}
+      {[
+        [28, 30], [22, 40], [26, 52],
+        [52, 34], [58, 44], [54, 56],
+        [40, 30], [40, 40], [40, 50],
+      ].map(([cx, cy], i) => (
+        <motion.circle
+          key={i}
+          cx={cx}
+          cy={cy}
+          r="1.5"
+          fill={i < 3 ? ACCENT_COLOR : i < 6 ? '#a855f7' : '#10b981'}
+          initial={{ opacity: 0.2 }}
+          animate={{ opacity: [0.2, 0.8, 0.2] }}
+          transition={{ duration: 2, delay: i * 0.3, repeat: Infinity }}
+        />
+      ))}
+    </svg>
+  );
+}
+
+function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
+  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const triggerReflection = useBrainStore((s) => s.triggerReflection);
+  const [isTriggering, setIsTriggering] = useState(false);
+
+  const handleTrigger = async () => {
+    if (!activeProject?.id || !activeProject?.name || !activeProject?.path) return;
+    setIsTriggering(true);
+    try {
+      await triggerReflection(activeProject.id, activeProject.name, activeProject.path);
+    } finally {
+      setIsTriggering(false);
+    }
+  };
+
+  return (
+    <div className="text-center py-10">
+      <motion.div
+        className="mx-auto mb-5 w-24 h-24 rounded-2xl flex items-center justify-center relative"
+        style={{
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, rgba(168, 85, 247, 0.06) 100%)',
+          border: '1px solid rgba(245, 158, 11, 0.15)',
+        }}
+        animate={{ scale: [1, 1.02, 1] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <BrainSvg />
+        {/* Subtle ambient ring */}
+        <motion.div
+          className="absolute inset-0 rounded-2xl"
+          style={{ border: '1px solid rgba(168, 85, 247, 0.1)' }}
+          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        />
+      </motion.div>
+
+      <h3 className="text-zinc-300 text-sm font-medium mb-1">No Learning Insights Yet</h3>
+      <p className="text-zinc-600 text-xs max-w-xs mx-auto mb-5 leading-relaxed">
+        Insights are patterns, preferences, and recommendations discovered when the Brain
+        reflects on your development decisions.
+      </p>
+
+      {scope === 'project' && activeProject?.id && (
+        <motion.button
+          onClick={handleTrigger}
+          disabled={isTriggering}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all disabled:opacity-50"
+          style={{
+            background: `linear-gradient(135deg, ${ACCENT_COLOR}18 0%, rgba(168, 85, 247, 0.08) 100%)`,
+            border: `1px solid ${ACCENT_COLOR}30`,
+            color: ACCENT_COLOR,
+          }}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          {isTriggering ? (
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5" />
+          )}
+          {isTriggering ? 'REFLECTING...' : 'TRIGGER REFLECTION'}
+        </motion.button>
+      )}
+    </div>
+  );
+}
 
 export default function InsightsPanel({ scope = 'project' }: Props) {
   const [insights, setInsights] = useState<InsightWithMeta[]>([]);
@@ -302,23 +467,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
             <p className="text-xs text-zinc-500 font-mono">LOADING_INSIGHTS...</p>
           </div>
         ) : insights.length === 0 ? (
-          <div className="text-center py-12">
-            <motion.div
-              className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-              style={{
-                background: `${ACCENT_COLOR}10`,
-                border: `1px solid ${ACCENT_COLOR}20`
-              }}
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <Lightbulb className="w-8 h-8" style={{ color: `${ACCENT_COLOR}60` }} />
-            </motion.div>
-            <p className="text-zinc-500 text-sm">No insights yet.</p>
-            <p className="text-zinc-600 text-xs mt-1 font-mono">
-              Trigger a reflection to generate learning insights.
-            </p>
-          </div>
+          <InsightsEmptyState scope={scope} />
         ) : (
           <InsightsTable
             insights={displayed}

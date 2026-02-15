@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
+import { withAccessControl } from '@/lib/api-helpers/accessControl';
+import { validateFilePath } from '@/lib/pathSecurity';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { filePath, content, contextName } = await request.json();
     
@@ -14,17 +16,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the provided file path directly if it's absolute, otherwise join with project root
-    const isAbsolutePath = filePath.match(/^[A-Za-z]:\\/) || filePath.startsWith('/');
-    const fullPath = isAbsolutePath ? filePath : join(process.cwd(), filePath);
-    
-    // Basic security check - ensure the path doesn't contain dangerous patterns
-    if (filePath.includes('..') || filePath.includes('~')) {
+    // Validate file path for traversal attacks
+    const validation = validateFilePath(filePath);
+    if (!validation.valid) {
       return NextResponse.json(
-        { success: false, error: 'Invalid file path' },
+        { success: false, error: validation.error },
         { status: 403 }
       );
     }
+    const fullPath = validation.resolvedPath;
 
     try {
       // Ensure the directory exists
@@ -58,3 +58,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withAccessControl(handlePost, '/api/disk/save-context-file', { skipProjectCheck: true, minRole: 'developer' });

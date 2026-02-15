@@ -1,17 +1,17 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Monitor, Wifi, Tablet } from 'lucide-react';
 import { useZenNavigation, useZenMode, type ZenMode } from '../../lib/zenNavigationStore';
+import ModeToggleGroup, { type ModeOption } from '../../components/ModeToggleGroup';
 
 interface ModeToggleProps {
   onModeChange?: (mode: ZenMode) => void;
 }
 
-const modes: { value: ZenMode; label: string; icon: typeof Monitor; color: string }[] = [
-  { value: 'offline', label: 'Offline', icon: Monitor, color: 'gray' },
-  { value: 'online', label: 'Online', icon: Wifi, color: 'cyan' },
-  { value: 'emulator', label: 'Emulator', icon: Tablet, color: 'purple' },
+const CONTROL_MODES: ModeOption<ZenMode>[] = [
+  { value: 'offline', label: 'Offline', icon: Monitor, gradient: 'linear-gradient(to right, #374151, #4b5563)' },
+  { value: 'online', label: 'Online', icon: Wifi, gradient: 'linear-gradient(to right, #06b6d4, #3b82f6)' },
+  { value: 'emulator', label: 'Emulator', icon: Tablet, gradient: 'linear-gradient(to right, #a855f7, #7c3aed)' },
 ];
 
 /**
@@ -30,50 +30,15 @@ export default function ModeToggle({ onModeChange }: ModeToggleProps) {
     onModeChange?.(newMode);
   };
 
-  const currentModeIndex = modes.findIndex((m) => m.value === mode);
-
   return (
     <div className="flex flex-col items-center gap-2">
-      {/* Segmented Button Group */}
-      <div className="relative flex bg-gray-800 rounded-lg p-1 border border-gray-700">
-        {/* Sliding Background */}
-        <motion.div
-          className="absolute top-1 bottom-1 rounded-md"
-          style={{
-            width: `calc(${100 / modes.length}% - 4px)`,
-            background:
-              mode === 'offline'
-                ? 'linear-gradient(to right, #374151, #4b5563)'
-                : mode === 'online'
-                ? 'linear-gradient(to right, #06b6d4, #3b82f6)'
-                : 'linear-gradient(to right, #a855f7, #7c3aed)',
-          }}
-          animate={{
-            left: `calc(${currentModeIndex * (100 / modes.length)}% + 4px)`,
-          }}
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        />
-
-        {/* Mode Buttons */}
-        {modes.map((m) => {
-          const Icon = m.icon;
-          const isActive = mode === m.value;
-          return (
-            <button
-              key={m.value}
-              onClick={() => handleModeChange(m.value)}
-              className={`
-                relative z-10 flex items-center gap-2 px-4 py-2 rounded-md
-                transition-colors duration-200
-                ${isActive ? 'text-white' : 'text-gray-400 hover:text-gray-300'}
-              `}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="text-xs font-medium">{m.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <ModeToggleGroup
+        modes={CONTROL_MODES}
+        activeMode={mode}
+        onModeChange={handleModeChange}
+        size="md"
+        className="relative flex bg-gray-800 rounded-lg p-1 border border-gray-700"
+      />
 
       {/* Status Text */}
       <div className="flex items-center gap-2">

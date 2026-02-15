@@ -10,6 +10,12 @@ import {
   Requirement,
 } from './requirementApi';
 
+/** Result type for operations that can fail with a message. */
+export interface RequirementOpResult {
+  success: boolean;
+  error?: string;
+}
+
 /**
  * Load requirements from API
  */
@@ -17,7 +23,7 @@ export async function loadRequirements(
   projectPath: string,
   setRequirements: (reqs: Requirement[]) => void,
   setIsLoading: (loading: boolean) => void
-): Promise<void> {
+): Promise<RequirementOpResult> {
   setIsLoading(true);
   try {
     const requirementNames = await apiLoadRequirements(projectPath);
@@ -30,7 +36,12 @@ export async function loadRequirements(
       status: 'idle' as const,
     }));
     setRequirements(reqs);
-  } catch (err) {  } finally {
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to load requirements';
+    console.error('[requirementHandlers] loadRequirements failed:', message);
+    return { success: false, error: message };
+  } finally {
     setIsLoading(false);
   }
 }
@@ -43,10 +54,10 @@ export async function deleteRequirement(
   name: string,
   requirements: Requirement[],
   setRequirements: (reqs: Requirement[]) => void
-): Promise<boolean> {
+): Promise<RequirementOpResult> {
   const req = requirements.find((r) => r.name === name);
   if (req?.status === 'queued') {
-    return false; // Cannot delete queued items
+    return { success: false, error: 'Cannot delete queued requirement' };
   }
 
   try {
@@ -54,8 +65,11 @@ export async function deleteRequirement(
     if (success) {
       setRequirements(requirements.filter((r) => r.name !== name));
     }
-    return success;
-  } catch (err) {    return false;
+    return { success };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete requirement';
+    console.error(`[requirementHandlers] deleteRequirement '${name}' failed:`, message);
+    return { success: false, error: message };
   }
 }
 
@@ -67,12 +81,17 @@ export async function generateRequirements(
   projectId: string,
   setIsGenerating: (generating: boolean) => void,
   onComplete: () => Promise<void>
-): Promise<void> {
+): Promise<RequirementOpResult> {
   setIsGenerating(true);
   try {
     await apiGenerateRequirements(projectPath, projectId);
     await onComplete();
-  } catch (err) {  } finally {
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to generate requirements';
+    console.error('[requirementHandlers] generateRequirements failed:', message);
+    return { success: false, error: message };
+  } finally {
     setIsGenerating(false);
   }
 }

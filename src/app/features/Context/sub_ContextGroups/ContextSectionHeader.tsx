@@ -45,7 +45,7 @@ const ContextSectionHeader = React.memo(({ group, contexts, projectId, openGroup
                 openGroupDetail(group.id);
               }
             }}
-            className={`text-left absolute left-5 top-2 flex flex-row gap-3 transition-all duration-300 ${group && group.id !== SYNTHETIC_GROUP_ID
+            className={`text-left absolute left-5 top-2 flex flex-row gap-3 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded-xl ${group && group.id !== SYNTHETIC_GROUP_ID
               ? 'hover:opacity-80 cursor-pointer group'
               : 'cursor-default'
               }`}

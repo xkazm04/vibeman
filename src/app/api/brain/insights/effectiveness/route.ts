@@ -3,14 +3,21 @@
  * GET: Computes effectiveness scores for insights by correlating
  *      insight creation dates with direction acceptance rate changes.
  *
+ * Uses a 24-hour cache (insight_effectiveness_cache table) to avoid
+ * expensive O(insights × directions) cross-join recalculation per request.
+ * Cache is invalidated when directions are accepted.
+ *
  * Query params:
  *   - projectId: string (required)
  *   - minDirections: number (optional, default 3) - minimum directions needed for scoring
+ *   - noCache: boolean (optional) - bypass cache and force recalculation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/app/db';
+import { getDatabase, insightEffectivenessCache } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
+import { logger } from '@/lib/logger';
 
 export interface InsightEffectiveness {
   insightTitle: string;
@@ -42,6 +49,7 @@ async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get('projectId');
   const minDirections = parseInt(searchParams.get('minDirections') || '3', 10);
+  const noCache = searchParams.get('noCache') === 'true';
 
   if (!projectId) {
     return NextResponse.json(
@@ -51,6 +59,25 @@ async function handleGet(request: NextRequest) {
   }
 
   try {
+    // Check cache first (unless explicitly bypassed)
+    if (!noCache) {
+      try {
+        const cached = insightEffectivenessCache.get(projectId, minDirections);
+        if (cached) {
+          logger.debug('[Effectiveness] Cache hit', { projectId, cachedAt: cached.cachedAt });
+          return NextResponse.json({
+            success: true,
+            insights: JSON.parse(cached.insightsJson),
+            summary: JSON.parse(cached.summaryJson),
+            cached: true,
+            cachedAt: cached.cachedAt,
+          });
+        }
+      } catch {
+        // Cache table might not exist yet (migration pending), fall through to compute
+      }
+    }
+
     const db = getDatabase();
 
     // 1. Compute baseline acceptance rate in a single query
@@ -179,19 +206,33 @@ async function handleGet(request: NextRequest) {
       baselineAcceptanceRate: Math.round(baselineAcceptanceRate * 1000) / 1000,
     };
 
+    // 6. Store in cache for future requests
+    try {
+      insightEffectivenessCache.set(
+        projectId,
+        minDirections,
+        JSON.stringify(results),
+        JSON.stringify(summary)
+      );
+      logger.debug('[Effectiveness] Cached results', { projectId, insightCount: results.length });
+    } catch {
+      // Cache write failure is non-critical - just skip caching
+    }
+
     return NextResponse.json({
       success: true,
       insights: results,
       summary,
+      cached: false,
     });
   } catch (error) {
-    console.error('[Brain Insights Effectiveness] Error:', error);
+    logger.error('[Brain Insights Effectiveness] Error:', { error });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to compute insight effectiveness' },
       { status: 500 }
     );
   }
 }
 
 
-export const GET = withObservability(handleGet, '/api/brain/insights/effectiveness');
+export const GET = withObservability(withRateLimit(handleGet, '/api/brain/insights/effectiveness', 'strict'), '/api/brain/insights/effectiveness');

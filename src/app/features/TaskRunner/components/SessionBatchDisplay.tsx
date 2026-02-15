@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Layers,
   CheckCircle2,
@@ -69,6 +69,7 @@ export default function SessionBatchDisplay({
     updateBatchClaudeSessionId,
   } = useTaskRunnerStore();
 
+  const prefersReducedMotion = useReducedMotion();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(session?.name || '');
   const [isExecuting, setIsExecuting] = useState(false);
@@ -292,9 +293,9 @@ export default function SessionBatchDisplay({
           ? 'border-amber-500/50 shadow-sm shadow-amber-500/20'
           : 'border-purple-700/50'
       }`}>
-        {/* Animated background for running state */}
+        {/* Background for running state */}
         {isRunning && (
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-pink-500/5 to-purple-500/5 animate-pulse" />
+          <div className={`absolute inset-0 bg-gradient-to-r from-purple-500/5 via-pink-500/5 to-purple-500/5 ${prefersReducedMotion ? '' : 'animate-pulse'}`} />
         )}
 
         <div className="relative p-3 flex items-center gap-4">
@@ -474,10 +475,10 @@ export default function SessionBatchDisplay({
                 {displayItems.map((item) => (
                   <motion.div
                     key={item.id}
-                    initial={{ opacity: 0, scale: 0.8, x: -10 }}
+                    initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8, x: -10 }}
                     animate={{ opacity: 1, scale: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, x: 10 }}
-                    transition={{ duration: 0.2 }}
+                    exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8, x: 10 }}
+                    transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
                     className={`
                       relative flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded border
                       transition-all duration-200
@@ -496,20 +497,24 @@ export default function SessionBatchDisplay({
                       </div>
                     </div>
 
-                    {/* Running pulse effect */}
+                    {/* Running indicator: pulse animation or static border */}
                     {item.status === 'running' && (
-                      <motion.div
-                        className="absolute inset-0 rounded border border-purple-500/30"
-                        animate={{
-                          opacity: [0.3, 0.6, 0.3],
-                          scale: [1, 1.01, 1],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: 'easeInOut',
-                        }}
-                      />
+                      prefersReducedMotion ? (
+                        <div className="absolute inset-0 rounded border-2 border-purple-500/60" />
+                      ) : (
+                        <motion.div
+                          className="absolute inset-0 rounded border border-purple-500/30"
+                          animate={{
+                            opacity: [0.3, 0.6, 0.3],
+                            scale: [1, 1.01, 1],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                          }}
+                        />
+                      )
                     )}
                   </motion.div>
                 ))}

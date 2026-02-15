@@ -27,3 +27,16 @@ export interface UndoEntry {
   event: BrainEvent;
   timeout: ReturnType<typeof setTimeout>;
 }
+
+export interface FilterState {
+  visibleTypes: Set<SignalType>;
+}
+
+export interface LabelRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  priority: number;
+  label: string;
+}

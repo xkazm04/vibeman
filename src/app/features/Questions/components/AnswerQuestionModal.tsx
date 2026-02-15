@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, X, Loader2, Save } from 'lucide-react';
 import { DbQuestion } from '@/app/db';

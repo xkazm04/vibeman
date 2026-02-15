@@ -5,6 +5,7 @@ import { createErrorResponse, notFoundResponse, validateRequiredFields } from '@
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
+import { validateFilePathArray } from '@/lib/pathSecurity';
 
 // GET /api/contexts - Get all contexts (optionally filtered by project or group)
 async function handleGet(request: NextRequest) {
@@ -75,6 +76,17 @@ async function handlePost(request: NextRequest) {
     const validationError = validateRequiredFields({ projectId, name, filePaths }, ['projectId', 'name', 'filePaths']);
     if (validationError) return validationError;
 
+    // Validate file paths for directory traversal
+    if (Array.isArray(filePaths)) {
+      const pathErrors = validateFilePathArray(filePaths);
+      if (pathErrors.length > 0) {
+        return NextResponse.json(
+          { error: 'Invalid file paths detected', details: pathErrors },
+          { status: 400 }
+        );
+      }
+    }
+
     const context = await contextQueries.createContext({
       projectId,
       groupId,
@@ -109,7 +121,7 @@ async function handlePost(request: NextRequest) {
   } catch (error) {
     logger.error('Failed to create context:', { error });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create context' },
+      { error: 'Failed to create context' },
       { status: 500 }
     );
   }
@@ -144,6 +156,17 @@ async function handlePut(request: NextRequest) {
       techStack: updates.tech_stack ?? updates.techStack,
     };
 
+    // Validate file paths for directory traversal if provided
+    if (Array.isArray(transformedUpdates.filePaths)) {
+      const pathErrors = validateFilePathArray(transformedUpdates.filePaths);
+      if (pathErrors.length > 0) {
+        return NextResponse.json(
+          { error: 'Invalid file paths detected', details: pathErrors },
+          { status: 400 }
+        );
+      }
+    }
+
     const context = await contextQueries.updateContext(contextId, transformedUpdates);
 
     if (!context) {
@@ -171,7 +194,7 @@ async function handlePut(request: NextRequest) {
   } catch (error) {
     logger.error('Failed to update context:', { error });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update context' },
+      { error: 'Failed to update context' },
       { status: 500 }
     );
   }
@@ -212,7 +235,7 @@ async function handleDelete(request: NextRequest) {
   } catch (error) {
     logger.error('Failed to delete context:', { error });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to delete context' },
+      { error: 'Failed to delete context' },
       { status: 500 }
     );
   }

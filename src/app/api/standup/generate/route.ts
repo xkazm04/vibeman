@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { standupDb, implementationLogDb, ideaDb, scanDb, contextDb } from '@/app/db';
 import { StandupSourceData, StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
 import { generateStandupSummary, getPeriodDateRange } from '@/app/features/DailyStandup/lib/standupGenerator';
+import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 
 /**
  * POST /api/standup/generate
@@ -75,7 +77,11 @@ async function handlePost(request: NextRequest) {
         generatedAt: existing.generated_at,
       };
 
-      return NextResponse.json({ success: true, summary, cached: true });
+      // Attach predictive intelligence (always fresh, not cached)
+      let predictions = null;
+      try { predictions = generatePredictiveStandup(projectId); } catch { /* supplementary */ }
+
+      return NextResponse.json({ success: true, summary, predictions, cached: true });
     }
 
     // Gather source data
@@ -188,7 +194,11 @@ async function handlePost(request: NextRequest) {
       ideas: saved.ideas_generated,
     });
 
-    return NextResponse.json({ success: true, summary, cached: false });
+    // Attach predictive intelligence
+    let predictions = null;
+    try { predictions = generatePredictiveStandup(projectId); } catch { /* supplementary */ }
+
+    return NextResponse.json({ success: true, summary, predictions, cached: false });
   } catch (error) {
     logger.error('Error generating standup summary:', { error });
     return NextResponse.json(
@@ -202,4 +212,4 @@ async function handlePost(request: NextRequest) {
   }
 }
 
-export const POST = withObservability(handlePost, '/api/standup/generate');
+export const POST = withObservability(withRateLimit(handlePost, '/api/standup/generate', 'expensive'), '/api/standup/generate');

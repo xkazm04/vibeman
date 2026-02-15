@@ -36,6 +36,8 @@ export interface ReflectionData {
   previousInsights: LearningInsight[];
   gitHistory: GitCommitInfo[];
   gitRepoUrl: string | null;
+  ideaDecisions: Array<{ ideaTitle: string; category: string; accepted: boolean; contextName: string | null; timestamp: string }>;
+  implementationHistory: Array<{ requirementName: string; success: boolean; filesModified: string[]; executionTimeMs: number; timestamp: string }>;
 }
 
 export interface GlobalReflectionData {
@@ -84,6 +86,20 @@ export async function gatherReflectionData(
   // Get signal counts
   const signalCounts = behavioralSignalDb.getCountByType(projectId, 30);
 
+  // Get idea decision signals (Tinder swipes) for preference analysis
+  const ideaDecisionSignals = behavioralSignalDb.getByProject(projectId, {
+    signalType: 'context_focus',
+    limit: 100,
+  }).filter(s => {
+    try {
+      const data = JSON.parse(s.data);
+      return data.ideaId !== undefined; // Only idea decisions, not other context_focus signals
+    } catch { return false; }
+  });
+
+  // Get implementation signals for execution pattern analysis
+  const implementationSignals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', 30);
+
   // Read current brain-guide.md if it exists
   let currentBrainGuide: string | null = null;
   const brainGuidePath = path.join(projectPath, '.claude', 'skills', 'brain-guide.md');
@@ -130,6 +146,34 @@ export async function gatherReflectionData(
     console.warn('[ReflectionPromptBuilder] Git history unavailable:', error instanceof Error ? error.message : error);
   }
 
+  // Parse idea decisions from signals
+  const ideaDecisions = ideaDecisionSignals.map(s => {
+    try {
+      const data = JSON.parse(s.data);
+      return {
+        ideaTitle: data.ideaTitle || 'Unknown',
+        category: data.category || 'general',
+        accepted: data.accepted === true,
+        contextName: data.contextName || s.context_name || null,
+        timestamp: s.timestamp,
+      };
+    } catch { return null; }
+  }).filter(Boolean) as ReflectionData['ideaDecisions'];
+
+  // Parse implementation history from signals
+  const implementationHistory = implementationSignals.map(s => {
+    try {
+      const data = JSON.parse(s.data);
+      return {
+        requirementName: data.requirementName || 'Unknown task',
+        success: data.success === true,
+        filesModified: data.filesModified || [],
+        executionTimeMs: data.executionTimeMs || 0,
+        timestamp: s.timestamp,
+      };
+    } catch { return null; }
+  }).filter(Boolean) as ReflectionData['implementationHistory'];
+
   return {
     acceptedDirections,
     rejectedDirections,
@@ -139,6 +183,8 @@ export async function gatherReflectionData(
     previousInsights,
     gitHistory,
     gitRepoUrl: detectedRepoUrl,
+    ideaDecisions,
+    implementationHistory,
   };
 }
 
@@ -231,6 +277,55 @@ ${data.gitRepoUrl ? `**Repository**: ${data.gitRepoUrl}` : ''}
 ---`
     : '';
 
+  // Build idea preferences section
+  const ideaPreferencesSection = data.ideaDecisions.length > 0
+    ? `## Idea Review Patterns (Tinder Swipes)
+
+The user has reviewed ${data.ideaDecisions.length} ideas. Analyze these preferences:
+
+### Accepted Ideas (${data.ideaDecisions.filter(d => d.accepted).length})
+${data.ideaDecisions.filter(d => d.accepted).map(d =>
+  `- **"${d.ideaTitle}"** (${d.category})${d.contextName ? ` — ${d.contextName}` : ''}`
+).join('\n') || '*None*'}
+
+### Rejected Ideas (${data.ideaDecisions.filter(d => !d.accepted).length})
+${data.ideaDecisions.filter(d => !d.accepted).map(d =>
+  `- **"${d.ideaTitle}"** (${d.category})${d.contextName ? ` — ${d.contextName}` : ''}`
+).join('\n') || '*None*'}
+
+### Category Preferences
+${(() => {
+  const cats = new Map<string, { accepted: number; rejected: number }>();
+  for (const d of data.ideaDecisions) {
+    const c = cats.get(d.category) || { accepted: 0, rejected: 0 };
+    if (d.accepted) c.accepted++; else c.rejected++;
+    cats.set(d.category, c);
+  }
+  return Array.from(cats.entries()).map(([cat, counts]) =>
+    `- **${cat}**: ${counts.accepted} accepted, ${counts.rejected} rejected (${Math.round(counts.accepted / (counts.accepted + counts.rejected) * 100)}% acceptance rate)`
+  ).join('\n');
+})()}
+
+---`
+    : '';
+
+  // Build implementation history section
+  const implementationSection = data.implementationHistory.length > 0
+    ? `## Task Execution History
+
+${data.implementationHistory.length} tasks executed in last 30 days:
+- Successful: ${data.implementationHistory.filter(t => t.success).length}
+- Failed: ${data.implementationHistory.filter(t => !t.success).length}
+- Avg execution time: ${Math.round(data.implementationHistory.reduce((sum, t) => sum + t.executionTimeMs, 0) / data.implementationHistory.length / 1000)}s
+
+### Recent Tasks
+${data.implementationHistory.slice(0, 15).map(t =>
+  `- ${t.success ? '\u2713' : '\u2717'} **${t.requirementName}** (${t.filesModified.length} files, ${Math.round(t.executionTimeMs / 1000)}s)`
+).join('\n')}
+
+---`
+    : '';
+
   // Build context architecture section from active contexts
   const contextArchitectureSection = buildContextArchitectureSection(projectId);
 
@@ -274,6 +369,8 @@ Analyze patterns in accepted vs rejected directions to understand what resonates
   - Failed: ${data.outcomeStats.failed}
   - Reverted: ${data.outcomeStats.reverted}
 - **Behavioral signals**: ${Object.values(data.signalCounts).reduce((a, b) => a + b, 0)} total
+- **Idea decisions reviewed**: ${data.ideaDecisions.length} (${data.ideaDecisions.filter(d => d.accepted).length} accepted, ${data.ideaDecisions.filter(d => !d.accepted).length} rejected)
+- **Task executions**: ${data.implementationHistory.length} (${data.implementationHistory.filter(t => t.success).length} successful)
 - **Git commits analyzed**: ${data.gitHistory.length}
 - **Previous insights on record**: ${data.previousInsights.length}
 
@@ -284,6 +381,10 @@ ${previousInsightsSection}
 ${contextArchitectureSection}
 
 ${gitSection}
+
+${ideaPreferencesSection}
+
+${implementationSection}
 
 ## Accepted Directions (Last 30 Days)
 

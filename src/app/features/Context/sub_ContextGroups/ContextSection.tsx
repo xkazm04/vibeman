@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context, ContextGroup } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
@@ -40,6 +40,10 @@ const ContextSection = React.memo(({
   const { getActiveScan } = useGroupHealthStore();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Stable callbacks to prevent child re-renders
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
   // Check for active scan on this group
   const activeScan = group ? getActiveScan(group.id) : null;
@@ -85,8 +89,8 @@ const ContextSection = React.memo(({
             ? 'border-cyan-500/30 bg-cyan-500/5 border-dashed scale-[0.98] opacity-80'
             : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]'
         }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       initial={{ opacity: 0, y: 20 }}
       animate={{
         opacity: 1,
@@ -182,6 +186,36 @@ const ContextSection = React.memo(({
       </AnimatePresence>
     </motion.div>
   );
+}, (prevProps, nextProps) => {
+  // Custom shallow comparison that handles array identity changes
+  if (prevProps.group?.id !== nextProps.group?.id) return false;
+  if (prevProps.group?.color !== nextProps.group?.color) return false;
+  if (prevProps.group?.accentColor !== nextProps.group?.accentColor) return false;
+  if (prevProps.group?.name !== nextProps.group?.name) return false;
+  if (prevProps.group?.lastScanAt !== nextProps.group?.lastScanAt) return false;
+  if (prevProps.projectId !== nextProps.projectId) return false;
+  if (prevProps.className !== nextProps.className) return false;
+  if (prevProps.isEmpty !== nextProps.isEmpty) return false;
+  if (prevProps.isDragActive !== nextProps.isDragActive) return false;
+  if (prevProps.openGroupDetail !== nextProps.openGroupDetail) return false;
+  if (prevProps.onMoveContext !== nextProps.onMoveContext) return false;
+  if (prevProps.onCreateGroup !== nextProps.onCreateGroup) return false;
+
+  // Compare contexts by length + IDs to avoid re-render on identical content
+  if (prevProps.contexts.length !== nextProps.contexts.length) return false;
+  for (let i = 0; i < prevProps.contexts.length; i++) {
+    const prev = prevProps.contexts[i];
+    const next = nextProps.contexts[i];
+    if (prev.id !== next.id || prev.groupId !== next.groupId || prev.updatedAt !== next.updatedAt) return false;
+  }
+
+  // Compare availableGroups by length + IDs
+  if (prevProps.availableGroups.length !== nextProps.availableGroups.length) return false;
+  for (let i = 0; i < prevProps.availableGroups.length; i++) {
+    if (prevProps.availableGroups[i].id !== nextProps.availableGroups[i].id) return false;
+  }
+
+  return true;
 });
 
 ContextSection.displayName = 'ContextSection';

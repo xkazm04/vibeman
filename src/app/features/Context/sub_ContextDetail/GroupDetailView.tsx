@@ -4,6 +4,7 @@ import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Trash2, Code, Data
 import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { normalizePath, FilePath } from '../../../../utils/pathUtils';
+import { useFocusTrap } from '../../../../lib/accessibility';
 import ActionButton from './ActionButton';
 import StatCard from './StatCard';
 
@@ -12,11 +13,14 @@ interface GroupDetailViewProps {
   onClose: () => void;
 }
 
+const TITLE_ID = 'group-detail-title';
+
 export default function GroupDetailView({ groupId, onClose }: GroupDetailViewProps) {
   const { contexts, groups, removeGroup } = useContextStore();
   const { showConfirmModal } = useGlobalModal();
   const [selectedGroup, setSelectedGroup] = useState<ContextGroup | null>(null);
   const [groupContexts, setGroupContexts] = useState<Context[]>([]);
+  const { containerRef, handleKeyDown } = useFocusTrap(true);
 
   // Find the group and its contexts
   useEffect(() => {
@@ -106,6 +110,11 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={TITLE_ID}
+        onKeyDown={handleKeyDown}
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
@@ -148,10 +157,10 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
               </div>
               
               <div>
-                <h1 className="text-3xl font-bold text-white font-mono">
+                <h1 id={TITLE_ID} className="text-3xl font-bold text-white font-mono">
                   {selectedGroup.name}
                 </h1>
-                <div className="flex items-center space-x-4 text-sm text-gray-400 font-mono">
+                <div className="flex items-center space-x-4 text-sm text-gray-300 font-mono">
                   <span>{groupContexts.length} contexts</span>
                   <span>•</span>
                   <span>{totalFiles} files</span>
@@ -168,6 +177,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
               onClick={handleDeleteGroup}
               icon={Trash2}
               variant="danger"
+              aria-label="Delete group"
             />
 
             <ActionButton
@@ -175,6 +185,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
               icon={X}
               variant="secondary"
               className="w-6 h-6"
+              aria-label="Close"
             />
           </div>
         </div>
@@ -268,7 +279,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
 
                             {/* Description */}
                             {context.description && (
-                              <p className="text-sm text-gray-400 line-clamp-2" title={context.description}>
+                              <p className="text-sm text-gray-300 line-clamp-2" title={context.description}>
                                 {context.description}
                               </p>
                             )}
@@ -288,7 +299,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                                     return (
                                       <div key={pathIndex} className="flex items-center space-x-1 min-w-0">
                                         <div className="w-1 h-1 bg-gray-500 rounded-full flex-shrink-0"></div>
-                                        <p className="text-sm text-gray-400 font-mono truncate" title={normalizedPath}>
+                                        <p className="text-sm text-gray-300 font-mono truncate" title={normalizedPath}>
                                           {fileName}
                                         </p>
                                       </div>

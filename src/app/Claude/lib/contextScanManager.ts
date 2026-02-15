@@ -53,15 +53,18 @@ export function pollContextScanStatus(
   let pollCount = 0;
   const maxPolls = 600; // 10 minutes max (60 * 10 seconds)
 
+  let isPolling = false;
   const pollInterval = setInterval(async () => {
-    pollCount++;
-    // Timeout safeguard
-    if (pollCount >= maxPolls) {      clearInterval(pollInterval);
-      callbacks?.onError?.('Execution timeout - task did not complete within 10 minutes');
-      return;
-    }
-
+    if (isPolling) return;
+    isPolling = true;
     try {
+      pollCount++;
+      // Timeout safeguard
+      if (pollCount >= maxPolls) {        clearInterval(pollInterval);
+        callbacks?.onError?.('Execution timeout - task did not complete within 10 minutes');
+        return;
+      }
+
       const task = await getTaskStatus(taskId);
 
       // Report progress
@@ -75,7 +78,11 @@ export function pollContextScanStatus(
         } else if (task.status === 'session-limit') {          callbacks?.onError?.('Session limit reached');
         }
       }
-    } catch (pollErr) {      // Don't stop polling on error, retry
+    } catch (pollErr) {
+      // Log error but continue polling — transient network errors should not stop the scan
+      console.warn('[contextScanManager] Poll error (will retry):', pollErr instanceof Error ? pollErr.message : pollErr);
+    } finally {
+      isPolling = false;
     }
   }, 10000); // Poll every 10 seconds
 

@@ -505,16 +505,19 @@ export class ClaudeCodeExecutor extends BaseExecutor<
     return new Promise((resolve) => {
       let attempts = 0;
 
+      let isPolling = false;
       const poll = async () => {
-        attempts++;
-
-        if (attempts > maxPollingAttempts) {
-          this.stopPolling(requirementName);
-          resolve({ status: 'failed', error: 'Polling timeout' });
-          return;
-        }
-
+        if (isPolling) return;
+        isPolling = true;
         try {
+          attempts++;
+
+          if (attempts > maxPollingAttempts) {
+            this.stopPolling(requirementName);
+            resolve({ status: 'failed', error: 'Polling timeout' });
+            return;
+          }
+
           const response = await fetch(
             `/api/claude-code/requirement?projectPath=${encodeURIComponent(this.config.projectPath)}&requirementName=${encodeURIComponent(requirementName)}&action=status`
           );
@@ -536,6 +539,8 @@ export class ClaudeCodeExecutor extends BaseExecutor<
           }
         } catch {
           // Continue polling on error
+        } finally {
+          isPolling = false;
         }
       };
 

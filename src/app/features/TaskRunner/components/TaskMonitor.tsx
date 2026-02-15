@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, memo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, memo, useCallback, useRef } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Activity,
   AlertTriangle,
@@ -131,13 +131,14 @@ function formatDuration(startTime?: string, endTime?: string): string {
  * Single task item in the monitor
  */
 const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
+  const prefersReducedMotion = useReducedMotion();
   const [showDetails, setShowDetails] = useState(false);
   const progressCount = task.progress?.length || 0;
   const isStuck = task.status === 'running' && progressCount === 0;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -5 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: -5 }}
       animate={{ opacity: 1, y: 0 }}
       className={`border rounded-lg overflow-hidden ${getStatusColor(task.status, progressCount)}`}
     >
@@ -178,10 +179,10 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
       <AnimatePresence>
         {showDetails && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={prefersReducedMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
             className="overflow-hidden"
           >
             <div className="px-2 pb-2 text-[10px] font-mono text-gray-500 max-h-32 overflow-y-auto bg-gray-900/50">
@@ -211,6 +212,7 @@ export const TaskMonitor = memo(function TaskMonitor({
   refreshInterval = 5000,
   showOrphanCleanup = true,
 }: TaskMonitorProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [tasks, setTasks] = useState<ExecutionTask[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -227,12 +229,20 @@ export const TaskMonitor = memo(function TaskMonitor({
     cleanupAll,
   } = useSessionCleanup({ projectId, autoScan: showOrphanCleanup });
 
+  const isRefreshingRef = useRef(false);
+
   const refresh = useCallback(async () => {
+    if (isRefreshingRef.current) return; // Skip if previous refresh still running
+    isRefreshingRef.current = true;
     setIsRefreshing(true);
-    const fetchedTasks = await fetchAllTasks();
-    setTasks(fetchedTasks);
-    setLastRefresh(new Date());
-    setIsRefreshing(false);
+    try {
+      const fetchedTasks = await fetchAllTasks();
+      setTasks(fetchedTasks);
+      setLastRefresh(new Date());
+    } finally {
+      setIsRefreshing(false);
+      isRefreshingRef.current = false;
+    }
   }, []);
 
   // Auto-refresh effect
@@ -287,7 +297,7 @@ export const TaskMonitor = memo(function TaskMonitor({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       className={`border rounded-lg overflow-hidden ${
         hasIssues
@@ -380,10 +390,10 @@ export const TaskMonitor = memo(function TaskMonitor({
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={prefersReducedMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
             className="overflow-hidden"
           >
             <div className="px-2.5 pb-2.5 space-y-3 max-h-72 overflow-y-auto">

@@ -1,5 +1,6 @@
 import { SupportedProvider } from '../llm';
 import { parseAIJsonResponse } from '../aiJsonParser';
+import { safeResponseJson, safeGet } from '@/lib/apiResponseGuard';
 
 export type AIReviewMode = 'docs' | 'tasks' | 'goals' | 'context' | 'code' | 'file-scanner';
 
@@ -23,15 +24,18 @@ export interface BackgroundTaskRequest {
  * Helper to extract data from AI response with fallback JSON parsing
  */
 function extractDataWithFallback<T>(
-  result: any,
+  result: unknown,
   dataKey: string,
   errorMessage: string
 ): T {
-  if (result[dataKey]) {
-    return result[dataKey] as T;
-  } else if (result.rawResponse) {
+  const value = safeGet(result, dataKey, null);
+  if (value !== null) {
+    return value as T;
+  }
+  const rawResponse = safeGet(result, 'rawResponse', null);
+  if (rawResponse) {
     try {
-      return parseAIJsonResponse(result.rawResponse) as T;
+      return parseAIJsonResponse(rawResponse as string) as T;
     } catch (parseError) {
       throw new Error(errorMessage);
     }
@@ -49,10 +53,10 @@ export async function callAIReviewAPI(request: AIReviewRequest): Promise<any> {
     body: JSON.stringify(request),
   });
 
-  const result = await response.json();
+  const result = await safeResponseJson<Record<string, unknown>>(response, `AI review (${request.mode})`);
 
-  if (!result.success) {
-    throw new Error(result.error || `Failed to generate ${request.mode}`);
+  if (!safeGet(result, 'success', false)) {
+    throw new Error(safeGet(result, 'error', `Failed to generate ${request.mode}`) as string);
   }
 
   return result;
@@ -87,7 +91,7 @@ export async function generateDocs(
   provider: SupportedProvider
 ): Promise<string> {
   const result = await callReviewWithMode(projectId, projectPath, projectName, provider, 'docs');
-  return result.analysis;
+  return safeGet(result, 'analysis', '') as string;
 }
 
 /**
@@ -127,8 +131,9 @@ export async function generateContexts(
 ): Promise<Array<{ filename: string; content: string }>> {
   const result = await callReviewWithMode(projectId, projectPath, projectName, provider, 'context');
 
-  if (result.contexts) {
-    return result.contexts;
+  const contexts = safeGet<Array<{ filename: string; content: string }> | null>(result, 'contexts', null);
+  if (contexts) {
+    return contexts;
   }
 
   throw new Error('No context files were generated');

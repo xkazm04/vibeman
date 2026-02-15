@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb } from '@/app/db';
+import { directionDb, insightEffectivenessCache } from '@/app/db';
 import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
@@ -45,6 +45,19 @@ export async function POST(
 
     const selectedDirection = variant === 'A' ? pair.directionA : pair.directionB;
     const rejectedDirection = variant === 'A' ? pair.directionB : pair.directionA;
+
+    // Atomically claim the selected direction (prevents double-click duplicates)
+    const claimed = directionDb.claimDirectionForProcessing(selectedDirection.id);
+    if (!claimed) {
+      return NextResponse.json(
+        {
+          error: 'Direction pair has already been processed',
+          accepted: selectedDirection,
+          rejected: rejectedDirection,
+        },
+        { status: 409 }
+      );
+    }
 
     // Create requirement file for the selected direction
     const normalizedProjectPath = path.normalize(projectPath);
@@ -87,6 +100,9 @@ ${selectedDirection.direction}
       rejectedId: rejectedDirection.id,
       requirementId,
     });
+
+    // Invalidate effectiveness cache since direction data changed
+    try { insightEffectivenessCache.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
 
     return NextResponse.json({
       success: true,

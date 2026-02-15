@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { Terminal, RotateCcw } from 'lucide-react';
+import { Terminal } from 'lucide-react';
 import { CLISession } from './CLISession';
 import type { CLIBatchPanelProps } from './types';
 import { requirementToQueuedTask } from './types';
@@ -11,7 +11,8 @@ import {
   performTaskCleanup,
   type CLISessionId,
 } from './store';
-import { useCLIRecovery, useCLIRecoveryStatus } from './store/useCLIRecovery';
+import { useCLIRecovery } from './store/useCLIRecovery';
+import { RecoveryBanner } from './RecoveryBanner';
 import type { SkillId } from './skills';
 import {
   useTaskRunnerStore,
@@ -63,7 +64,6 @@ export function CLIBatchPanel({
 
   // Recovery hook - recovers sessions on mount
   useCLIRecovery();
-  const { isRecovering, sessionsToRecover } = useCLIRecoveryStatus();
 
   // Get selected requirements
   const selectedRequirements = useMemo(() => {
@@ -208,15 +208,11 @@ export function CLIBatchPanel({
           <span className="text-xs text-gray-500 tabular-nums">
             ({selectedTaskIds.length} selected)
           </span>
-          {/* Recovery indicator */}
-          {isRecovering && sessionsToRecover > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-amber-400 px-1.5 py-0.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-md border border-amber-500/20">
-              <RotateCcw className="w-3 h-3 animate-spin" />
-              Recovering {sessionsToRecover}
-            </span>
-          )}
         </div>
       </div>
+
+      {/* Recovery Banner */}
+      <RecoveryBanner />
 
       {/* Session Grid - 2x2 */}
       <div className="grid grid-cols-2 gap-3">

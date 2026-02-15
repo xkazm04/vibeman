@@ -8,7 +8,8 @@ import OverviewPage from './components/OverviewPage';
 import PersonaEditor from './components/PersonaEditor';
 import { TriggerList } from './components/TriggerList';
 import { CredentialManager } from './components/CredentialManager';
-import EmptyState from './components/EmptyState';
+import PersonaOverviewPage from './components/PersonaOverviewPage';
+import DesignReviewsPage from './components/DesignReviewsPage';
 
 export default function PersonasPage() {
   const sidebarSection = usePersonaStore((s) => s.sidebarSection);
@@ -29,8 +30,9 @@ export default function PersonasPage() {
     if (sidebarSection === 'overview') return <OverviewPage />;
     if (sidebarSection === 'credentials') return <CredentialManager />;
     if (sidebarSection === 'events') return <TriggerList />;
+    if (sidebarSection === 'design-reviews') return <DesignReviewsPage />;
     if (selectedPersonaId) return <PersonaEditor />;
-    return <EmptyState />;
+    return <PersonaOverviewPage />;
   };
 
   return (

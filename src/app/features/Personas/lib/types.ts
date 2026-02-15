@@ -96,7 +96,7 @@ export interface CredentialMetadata {
 }
 
 /** Sidebar section types */
-export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials';
+export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' | 'design-reviews';
 
 /** Editor tab types */
 export type EditorTab = 'prompt' | 'executions' | 'settings';

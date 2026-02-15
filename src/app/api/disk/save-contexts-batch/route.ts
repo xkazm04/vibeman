@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { withAccessControl, verifyProjectExists } from '@/lib/api-helpers/accessControl';
+import { validateProjectPath, validateFilename } from '@/lib/pathSecurity';
 import { contextDb } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -13,7 +15,7 @@ interface ContextToSave {
   description?: string;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const { contexts, projectPath, projectId } = await request.json();
     
@@ -21,6 +23,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Contexts array, project path, and project ID are required' },
         { status: 400 }
+      );
+    }
+
+    // Validate project path for traversal attacks
+    const pathError = validateProjectPath(projectPath);
+    if (pathError) {
+      return NextResponse.json(
+        { success: false, error: pathError },
+        { status: 403 }
+      );
+    }
+
+    // Verify project exists in database
+    if (!verifyProjectExists(projectId)) {
+      return NextResponse.json(
+        { success: false, error: 'Project not found', projectId },
+        { status: 404 }
       );
     }
 
@@ -81,7 +100,7 @@ export async function POST(request: NextRequest) {
         savedContexts.push({
           filename: context.filename,
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: 'Failed to save context file'
         });
       }
     }
@@ -103,3 +122,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withAccessControl(handlePost, '/api/disk/save-contexts-batch', { skipProjectCheck: true, minRole: 'developer' });

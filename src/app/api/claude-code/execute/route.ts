@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateRequired, errorResponse } from '../helpers';
 import { queueExecution, executeSync } from '../executionHandlers';
 import { withObservability } from '@/lib/observability/middleware';
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 
 /**
  * POST /api/claude-code/execute - Execute a requirement
@@ -47,4 +48,4 @@ async function handlePost(request: NextRequest) {
   }
 }
 
-export const POST = withObservability(handlePost, '/api/claude-code/execute');
+export const POST = withObservability(withRateLimit(handlePost, '/api/claude-code/execute', 'expensive'), '/api/claude-code/execute');

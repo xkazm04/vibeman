@@ -943,29 +943,6 @@ export function DecisionNodeConfigPreview({ props }: PreviewProps) {
 
 // --- ZenLayout Components ---
 
-export function ZenStatsPreview({ props }: PreviewProps) {
-  const variant = (props.variant as string) || 'completed';
-
-  const variants: Record<string, { label: string; value: number; color: string; bg: string }> = {
-    completed: { label: 'Completed', value: 24, color: 'text-green-400', bg: 'from-green-900/20 to-emerald-900/20' },
-    pending: { label: 'Pending', value: 8, color: 'text-yellow-400', bg: 'from-yellow-900/20 to-amber-900/20' },
-    failed: { label: 'Failed', value: 2, color: 'text-red-400', bg: 'from-red-900/20 to-rose-900/20' },
-  };
-
-  const v = variants[variant] || variants.completed;
-
-  return (
-    <motion.div
-      className={`w-32 p-4 rounded-xl bg-gradient-to-br ${v.bg} border border-gray-700/30 backdrop-blur-sm`}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <span className="text-xs text-gray-400 block mb-1">{v.label}</span>
-      <span className={`text-2xl font-bold ${v.color}`}>{v.value}</span>
-    </motion.div>
-  );
-}
-
 export function ModeTogglePreview({ props }: PreviewProps) {
   const mode = (props.mode as string) || 'offline';
   const isOnline = mode === 'online';

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { dirname } from 'path';
+import { validatePathTraversal } from '@/lib/pathSecurity';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,9 +24,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Security: prevent directory traversal
-    if (filePath.includes('..')) {
+    const traversalError = validatePathTraversal(filePath);
+    if (traversalError) {
       return NextResponse.json(
-        { success: false, error: 'Invalid file path' },
+        { success: false, error: traversalError },
         { status: 403 }
       );
     }
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to save file',
+        error: 'Failed to save file',
       },
       { status: 500 }
     );

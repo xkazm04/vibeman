@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import type { SignalType, BrainEvent, Group } from './types';
 import { COLORS, BUBBLE_SCALE, BUBBLE_PADDING, GOLDEN_ANGLE, LANE_TYPES } from './constants';
+import { getEventRadius } from './helpers';
 
 export function formGroups(events: BrainEvent[]): Group[] {
   const map = new Map<string, BrainEvent[]>();
@@ -61,6 +62,7 @@ export function packEventsInGroup(group: Group): void {
   if (events.length === 0) return;
   if (events.length === 1) { events[0].x = cx; events[0].y = cy; return; }
 
+  // Phase 1: Golden-angle spiral seeding
   const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp);
   sorted.forEach((evt, i) => {
     const r = radius * 0.75 * Math.sqrt((i + 1) / sorted.length);
@@ -68,6 +70,43 @@ export function packEventsInGroup(group: Group): void {
     evt.x = cx + r * Math.cos(theta);
     evt.y = cy + r * Math.sin(theta);
   });
+
+  // Phase 2: 8-pass iterative pairwise repulsion
+  const maxBoundary = radius * 0.85;
+  for (let pass = 0; pass < 8; pass++) {
+    for (let i = 0; i < events.length; i++) {
+      for (let j = i + 1; j < events.length; j++) {
+        const a = events[i];
+        const b = events[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = getEventRadius(a.weight, a.timestamp) + getEventRadius(b.weight, b.timestamp) + 2;
+
+        if (dist < minDist && dist > 0) {
+          const overlap = (minDist - dist) / 2;
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          a.x -= nx * overlap;
+          a.y -= ny * overlap;
+          b.x += nx * overlap;
+          b.y += ny * overlap;
+
+          // Clamp both to group radius boundary
+          for (const evt of [a, b]) {
+            const ex = evt.x - cx;
+            const ey = evt.y - cy;
+            const eDist = Math.sqrt(ex * ex + ey * ey);
+            if (eDist > maxBoundary) {
+              evt.x = cx + (ex / eDist) * maxBoundary;
+              evt.y = cy + (ey / eDist) * maxBoundary;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 export function layoutFocusedGroup(group: Group, width: number, height: number): void {
@@ -101,10 +140,7 @@ export function layoutFocusedGroup(group: Group, width: number, height: number):
     evt.y = laneCenterY + jitter;
   }
 
-  // Collision resolution
-  const MIN_DIST_X = 28;
-  const MIN_DIST_Y = 22;
-
+  // Multi-pass 2D collision resolution with radius-aware distances
   for (let li = 0; li < LANE_TYPES.length; li++) {
     const laneType = LANE_TYPES[li];
     const laneEvents = events.filter(e => e.type === laneType);
@@ -115,19 +151,34 @@ export function layoutFocusedGroup(group: Group, width: number, height: number):
     const laneTop = yTop + li * laneHeight + laneHeight * 0.15;
     const laneBot = yTop + (li + 1) * laneHeight - laneHeight * 0.15;
 
-    for (let i = 1; i < laneEvents.length; i++) {
-      const curr = laneEvents[i];
-      for (let j = Math.max(0, i - 5); j < i; j++) {
-        const prev = laneEvents[j];
-        const dx = Math.abs(curr.x - prev.x);
-        if (dx > MIN_DIST_X) continue;
-        const dy = Math.abs(curr.y - prev.y);
-        if (dy >= MIN_DIST_Y) continue;
-        const nudge = MIN_DIST_Y - dy + 2;
-        if (curr.y >= prev.y) {
-          curr.y = Math.min(laneBot, curr.y + nudge);
-        } else {
-          curr.y = Math.max(laneTop, curr.y - nudge);
+    for (let pass = 0; pass < 6; pass++) {
+      for (let i = 0; i < laneEvents.length; i++) {
+        const curr = laneEvents[i];
+        const windowEnd = Math.min(laneEvents.length, i + 8);
+        for (let j = i + 1; j < windowEnd; j++) {
+          const other = laneEvents[j];
+          const minDist = getEventRadius(curr.weight, curr.timestamp) + getEventRadius(other.weight, other.timestamp) + 2;
+          const dx = other.x - curr.x;
+          const dy = other.y - curr.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < minDist && dist > 0) {
+            const overlap = minDist - dist;
+            // 80% Y nudge, 20% X nudge
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const yNudge = overlap * 0.8 / 2;
+            const xNudge = overlap * 0.2 / 2;
+
+            curr.y -= ny * yNudge;
+            other.y += ny * yNudge;
+            curr.x -= nx * xNudge;
+            other.x += nx * xNudge;
+
+            // Clamp Y to lane bounds
+            curr.y = Math.max(laneTop, Math.min(laneBot, curr.y));
+            other.y = Math.max(laneTop, Math.min(laneBot, other.y));
+          }
         }
       }
     }

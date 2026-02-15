@@ -4,6 +4,7 @@ import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { createErrorResponse, createSuccessResponse } from '../utils';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 interface RejectIdeaRequest {
   ideaId: string;
@@ -53,25 +54,28 @@ async function handlePost(request: NextRequest) {
       return createErrorResponse('Idea not found', undefined, 404);
     }
 
+    // Verify project access
+    if (idea.project_id) {
+      const accessDenied = checkProjectAccess(idea.project_id, request);
+      if (accessDenied) return accessDenied;
+    }
+
     // Delete requirement file if it exists
     tryDeleteRequirementFile(projectPath, idea.requirement_id);
 
     // Update idea status to rejected and clear requirement_id
     ideaDb.updateIdea(ideaId, { status: 'rejected', requirement_id: null });
 
-    // Record brain signal: idea rejected (negative signal)
+    // Record brain signal: idea rejected (low-weight context preference)
     try {
       if (idea.project_id) {
-        signalCollector.recordImplementation(idea.project_id, {
-          requirementId: ideaId,
-          requirementName: idea.title || ideaId,
+        signalCollector.recordIdeaDecision(idea.project_id, {
+          ideaId: idea.id,
+          ideaTitle: idea.title || 'Untitled',
+          category: idea.category || 'general',
+          accepted: false,
           contextId: idea.context_id || null,
-          filesCreated: [],
-          filesModified: [],
-          filesDeleted: [],
-          success: false,
-          executionTimeMs: 0,
-          error: 'rejected_by_user',
+          contextName: null,
         });
       }
     } catch {

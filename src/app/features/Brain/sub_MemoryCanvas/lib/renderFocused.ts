@@ -1,6 +1,6 @@
-import type { Group } from './types';
-import { COLORS, LABELS, LANE_TYPES } from './constants';
-import { hexToRgba, getEventAlpha, relTime } from './helpers';
+import type { Group, FilterState } from './types';
+import { COLORS, LABELS, LANE_TYPES, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
+import { hexToRgba, getEventAlpha, getEventRadius, computeLabelRects, relTime } from './helpers';
 
 interface RenderFocusedParams {
   ctx: CanvasRenderingContext2D;
@@ -9,9 +9,10 @@ interface RenderFocusedParams {
   height: number;
   transform: { x: number; y: number; k: number };
   dpr: number;
+  filterState?: FilterState;
 }
 
-export function renderFocused({ ctx, group, width, height, transform, dpr }: RenderFocusedParams): void {
+export function renderFocused({ ctx, group, width, height, transform, dpr, filterState }: RenderFocusedParams): void {
   const k = transform.k;
   const yTop = height * 0.06;
   const yBottom = height * 0.08;
@@ -23,10 +24,12 @@ export function renderFocused({ ctx, group, width, height, transform, dpr }: Ren
   for (let i = 0; i < LANE_TYPES.length; i++) {
     const laneY = yTop + i * laneHeight;
     const laneColor = COLORS[LANE_TYPES[i]];
+    const laneVisible = !filterState || filterState.visibleTypes.has(LANE_TYPES[i]);
+    const midAlpha = laneVisible ? 0.06 : 0.02;
 
     const laneGrad = ctx.createLinearGradient(0, laneY, 0, laneY + laneHeight);
     laneGrad.addColorStop(0, hexToRgba(laneColor, 0.03));
-    laneGrad.addColorStop(0.5, hexToRgba(laneColor, 0.06));
+    laneGrad.addColorStop(0.5, hexToRgba(laneColor, midAlpha));
     laneGrad.addColorStop(1, hexToRgba(laneColor, 0.02));
     ctx.fillStyle = laneGrad;
     ctx.fillRect(0, laneY, width, laneHeight);
@@ -79,7 +82,7 @@ export function renderFocused({ ctx, group, width, height, transform, dpr }: Ren
   }
 
   // Events
-  renderFocusedEvents(ctx, group, width, transform);
+  renderFocusedEvents(ctx, group, width, transform, filterState);
 
   // Frosted header
   const headerGrad = ctx.createLinearGradient(0, 0, 0, 48);
@@ -187,12 +190,17 @@ function renderTimeAxis(
 
 function renderFocusedEvents(
   ctx: CanvasRenderingContext2D, group: Group,
-  width: number, transform: { x: number; y: number; k: number }
+  width: number, transform: { x: number; y: number; k: number },
+  filterState?: FilterState,
 ): void {
   const k = transform.k;
   const now = Date.now();
+  const labelCandidates: Array<{ x: number; y: number; radius: number; label: string; priority: number }> = [];
 
   for (const evt of group.events) {
+    // Skip filtered-out events
+    if (filterState && !filterState.visibleTypes.has(evt.type)) continue;
+
     const alpha = getEventAlpha(evt.timestamp);
     const evtColor = COLORS[evt.type];
     const screenX = evt.x * k + transform.x;
@@ -201,7 +209,7 @@ function renderFocusedEvents(
     if (screenX < -80 || screenX > width + 80) continue;
 
     if (k < 1.5) {
-      const dotRadius = (4 + evt.weight * 4) * Math.min(k, 1.3);
+      const dotRadius = getEventRadius(evt.weight, evt.timestamp) * Math.min(k, 1.3);
       const isRecent = (now - evt.timestamp) < 86400000;
 
       if (isRecent || evt.weight > 1.5) {
@@ -220,14 +228,27 @@ function renderFocusedEvents(
         ctx.fill();
       }
 
-      if (k > 0.6) {
-        ctx.fillStyle = 'rgba(228,228,231,0.8)';
-        ctx.font = `500 ${Math.max(9, Math.round(11 * Math.min(k, 1.2)))}px Inter, system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        const label = evt.summary.length > 20 ? evt.summary.slice(0, 19) + '..' : evt.summary;
-        ctx.fillText(label, screenX, screenY + dotRadius + 5);
+      // Animated pulse ring for recent events
+      const ageHours = (now - evt.timestamp) / 3600000;
+      if (ageHours < RECENCY_GLOW_HOURS) {
+        const pulsePhase = (now % 2000) / 2000;
+        const pulseRadius = dotRadius * (1.5 + pulsePhase * 0.8);
+        const pulseAlpha = 0.3 * (1 - pulsePhase);
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, pulseRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(evtColor, pulseAlpha);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       }
+
+      // Collect label candidates for collision-aware placement
+      labelCandidates.push({
+        x: screenX,
+        y: screenY,
+        radius: dotRadius,
+        label: evt.summary,
+        priority: evt.weight * alpha,
+      });
     } else {
       const cardScale = Math.min(k * 0.7, 1.4);
       const cardW = 180 * cardScale;
@@ -262,6 +283,27 @@ function renderFocusedEvents(
       ctx.fillRect(cx + 14 * cardScale, barY, 80 * cardScale, 3 * cardScale);
       ctx.fillStyle = evtColor;
       ctx.fillRect(cx + 14 * cardScale, barY, (evt.weight / 2) * 80 * cardScale, 3 * cardScale);
+    }
+  }
+
+  // Collision-aware labels at sufficient zoom (dot view only, k < 1.5)
+  if (k < 1.5 && k >= LABEL_MIN_ZOOM && labelCandidates.length > 0) {
+    const labelFont = `500 ${Math.max(9, Math.round(11 * Math.min(k, 1.2)))}px Inter, system-ui, sans-serif`;
+    const maxLabels = Math.min(12, Math.ceil(group.events.length * 0.4));
+    const rects = computeLabelRects(labelCandidates, ctx, labelFont, maxLabels);
+
+    for (const rect of rects) {
+      // Frosted background pill
+      ctx.fillStyle = 'rgba(15,15,17,0.75)';
+      ctx.beginPath();
+      ctx.roundRect(rect.x - 3, rect.y - 1, rect.width + 6, rect.height + 2, 3);
+      ctx.fill();
+      // Label text
+      ctx.fillStyle = 'rgba(228,228,231,0.85)';
+      ctx.font = labelFont;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(rect.label, rect.x, rect.y);
     }
   }
 }

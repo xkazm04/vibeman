@@ -117,6 +117,7 @@ export function useRemoteTaskRunner(): UseRemoteTaskRunnerResult {
 
   const selectedDevice = useSelectedDevice();
   const batchPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isBatchPollingRef = useRef(false);
 
   const isRemoteAvailable = isRegistered && !!selectedDeviceId;
 
@@ -346,9 +347,15 @@ export function useRemoteTaskRunner(): UseRemoteTaskRunnerResult {
         clearInterval(batchPollIntervalRef.current);
       }
 
-      // Start polling
-      batchPollIntervalRef.current = setInterval(() => {
-        refreshBatchStatus();
+      // Start polling with async overlap guard
+      batchPollIntervalRef.current = setInterval(async () => {
+        if (isBatchPollingRef.current) return; // Skip if previous poll still running
+        isBatchPollingRef.current = true;
+        try {
+          await refreshBatchStatus();
+        } finally {
+          isBatchPollingRef.current = false;
+        }
       }, BATCH_POLL_INTERVAL_MS);
 
       // Initial refresh

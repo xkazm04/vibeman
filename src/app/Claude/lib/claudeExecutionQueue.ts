@@ -13,6 +13,7 @@ import {
 } from '@/lib/brain/taskNotificationEmitter';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { onTaskCompleted } from '@/lib/collective-memory/taskCompletionHook';
+import { emitTaskChange } from './taskChangeEmitter';
 
 export interface GitExecutionConfig {
   enabled: boolean;
@@ -55,6 +56,22 @@ class ClaudeExecutionQueue {
   }
 
   /**
+   * Notify SSE subscribers of a task state change
+   */
+  private notifyTaskChange(task: ExecutionTask): void {
+    try {
+      emitTaskChange({
+        taskId: task.id,
+        status: task.status,
+        progressCount: task.progress.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // Notification must never break execution flow
+    }
+  }
+
+  /**
    * Publish task lifecycle event to persona event bus (fire-and-forget)
    */
   private publishToEventBus(
@@ -72,11 +89,31 @@ class ClaudeExecutionQueue {
           source_type: 'system' as const,
           source_id: taskId,
           project_id: projectId,
-          payload,
+          payload: {
+            ...payload,
+            _system: true,
+            _meta: { depth: 0, source_persona_id: null },
+          },
         });
       }
     } catch {
       // Event bus publishing must never break CLI execution
+    }
+  }
+
+  /**
+   * Get list of files changed by the most recent git commit
+   */
+  private getChangedFiles(projectPath?: string): string[] {
+    if (!projectPath) return [];
+    try {
+      const { execSync } = require('child_process');
+      const output = execSync('git diff --name-only HEAD~1', {
+        cwd: projectPath, encoding: 'utf-8', timeout: 5000,
+      });
+      return output.trim().split('\n').filter(Boolean);
+    } catch {
+      return [];
     }
   }
 
@@ -117,6 +154,7 @@ class ClaudeExecutionQueue {
     };
 
     this.tasks.set(taskId, task);
+    this.notifyTaskChange(task);
     logger.debug('Task added, starting processing...');
     this.processQueue();
     return taskId;
@@ -172,6 +210,7 @@ class ClaudeExecutionQueue {
     task.logFilePath = logFilePath;
     task.endTime = new Date();
     task.progress.push(this.createProgressEntry('✓ Execution completed successfully'));
+    this.notifyTaskChange(task);
     logger.info('Task completed successfully', { taskId: task.id });
 
     // Emit task completed notification
@@ -188,12 +227,13 @@ class ClaudeExecutionQueue {
 
       // Auto-record implementation signal
       try {
+        const changedFiles = this.getChangedFiles(task.projectPath);
         signalCollector.recordImplementation(task.projectId, {
           requirementId: task.id,
           requirementName: task.requirementName,
           contextId: null,
           filesCreated: [],
-          filesModified: [],
+          filesModified: changedFiles,
           filesDeleted: [],
           success: true,
           executionTimeMs: duration || 0,
@@ -222,6 +262,7 @@ class ClaudeExecutionQueue {
     task.sessionLimitReached = true;
     task.logFilePath = logFilePath;
     task.endTime = new Date();
+    this.notifyTaskChange(task);
     task.progress.push(this.createProgressEntry('✗ Session limit reached'));
     logger.warn('Task hit session limit', { taskId: task.id });
 
@@ -247,6 +288,7 @@ class ClaudeExecutionQueue {
     task.error = error;
     task.logFilePath = logFilePath;
     task.endTime = new Date();
+    this.notifyTaskChange(task);
     task.progress.push(this.createProgressEntry('✗ Execution failed'));
     logger.error('Task failed', { taskId: task.id, error });
 
@@ -265,12 +307,13 @@ class ClaudeExecutionQueue {
 
       // Auto-record implementation signal (failure)
       try {
+        const changedFiles = this.getChangedFiles(task.projectPath);
         signalCollector.recordImplementation(task.projectId, {
           requirementId: task.id,
           requirementName: task.requirementName,
           contextId: null,
           filesCreated: [],
-          filesModified: [],
+          filesModified: changedFiles,
           filesDeleted: [],
           success: false,
           executionTimeMs: duration || 0,
@@ -322,6 +365,7 @@ class ClaudeExecutionQueue {
     // Update task to running
     task.status = 'running';
     task.startTime = new Date();
+    this.notifyTaskChange(task);
     task.progress.push(this.createProgressEntry('Execution started'));
 
     // Emit task started notification
@@ -351,6 +395,7 @@ class ClaudeExecutionQueue {
         (progressMsg: string) => {
           // Capture progress messages
           task.progress.push(this.createProgressEntry(progressMsg));
+          this.notifyTaskChange(task);
         },
         task.gitConfig, // Pass git configuration as 5th parameter
         task.sessionConfig // Pass session configuration as 6th parameter
@@ -402,6 +447,7 @@ class ClaudeExecutionQueue {
         task.error = 'Execution did not complete properly';
         task.endTime = new Date();
         task.progress.push(this.createProgressEntry('✗ Task stuck in running state, marked as failed'));
+        this.notifyTaskChange(task);
         logger.error('Task stuck in running state, marked as failed', { taskId: task.id });
       }
 

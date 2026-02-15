@@ -105,6 +105,10 @@ import {
   personaEventRepository,
   eventSubscriptionRepository,
 } from './repositories/persona.repository';
+import { designReviewRepository } from './repositories/designReviewRepository';
+import { designPatternRepository } from './repositories/designPatternRepository';
+import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
+import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
 
 // Export types
 export * from './models/types';
@@ -159,6 +163,24 @@ export const goalDb = {
  */
 export const goalCandidateDb = {
   ...goalCandidateRepository,
+  close: closeDatabase
+};
+
+/**
+ * Goal Signal Database Operations
+ * Tracks evidence of goal progress for lifecycle engine
+ */
+export const goalSignalDb = {
+  ...goalSignalRepository,
+  close: closeDatabase
+};
+
+/**
+ * Goal Sub-Goal Database Operations
+ * AI-decomposed sub-objectives within goals
+ */
+export const goalSubGoalDb = {
+  ...goalSubGoalRepository,
   close: closeDatabase
 };
 
@@ -560,6 +582,14 @@ export const brainInsightDb = {
 };
 
 /**
+ * Insight Effectiveness Cache
+ * Caches computed scores to avoid O(n*m) recalculation per request
+ */
+export const insightEffectivenessCache = {
+  ...insightEffectivenessCacheRepository,
+};
+
+/**
  * Annette 2.0 Database Operations
  * Manages conversation sessions, messages, memory, preferences, and audio cache
  */
@@ -668,6 +698,8 @@ export const personaDb = {
   toolUsage: personaToolUsageRepository,
   events: personaEventRepository,
   eventSubscriptions: eventSubscriptionRepository,
+  designReviews: designReviewRepository,
+  designPatterns: designPatternRepository,
   close: closeDatabase,
 };
 

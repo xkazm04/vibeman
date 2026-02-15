@@ -53,7 +53,9 @@ export function claudeFolderExists(projectPath: string): boolean {
 
   try {
     return fs.existsSync(claudePath) && fs.statSync(claudePath).isDirectory();
-  } catch (error) {    return false;
+  } catch (error) {
+    console.warn('[folderManager] claudeFolderExists check failed:', error instanceof Error ? error.message : error);
+    return false;
   }
 }
 
@@ -316,7 +318,8 @@ export function requirementExists(
     const fileName = requirementName.endsWith('.md') ? requirementName : `${requirementName}.md`;
     const filePath = path.join(structure.commands, fileName);
     return fs.existsSync(filePath);
-  } catch {
+  } catch (error) {
+    console.warn(`[folderManager] requirementExists check failed for '${requirementName}':`, error instanceof Error ? error.message : error);
     return false;
   }
 }

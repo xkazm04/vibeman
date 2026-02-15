@@ -9,12 +9,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { goalDb, implementationLogDb, contextDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { processSignal } from '@/lib/goals/goalLifecycleEngine';
+import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
 
 /**
  * POST - Check and update goal progress when an implementation log is created
  * Called as a fire-and-forget hook after implementation log creation
  */
 export async function POST(request: NextRequest) {
+  const rateLimited = checkRateLimit(request, '/api/goals/check-completion', 'strict');
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
     const { contextId, projectId } = body;
@@ -56,6 +61,21 @@ export async function POST(request: NextRequest) {
       updatedGoals.push(goal.id);
     }
 
+    // Feed into lifecycle engine for autonomous progress tracking
+    try {
+      processSignal({
+        projectId,
+        signalType: 'implementation_log',
+        contextId,
+        sourceTitle: body.logTitle,
+        description: `Implementation log created in context`,
+        metadata: { totalLogs: totalCount, testedLogs: testedCount },
+      });
+    } catch (e) {
+      // Lifecycle engine errors should not block the main flow
+      logger.warn('Lifecycle engine signal failed:', { error: e });
+    }
+
     logger.info('Goal-implementation link updated', {
       contextId,
       matchedGoals: updatedGoals.length,
@@ -82,6 +102,9 @@ export async function POST(request: NextRequest) {
  * in their linked context, suggesting they may be ready for completion.
  */
 export async function GET(request: NextRequest) {
+  const rateLimited = checkRateLimit(request, '/api/goals/check-completion', 'strict');
+  if (rateLimited) return rateLimited;
+
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');

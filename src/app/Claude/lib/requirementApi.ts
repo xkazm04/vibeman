@@ -1,6 +1,7 @@
 /**
  * API layer for Claude Code requirements
  */
+import { safeResponseJson, safeGet } from '@/lib/apiResponseGuard';
 
 export interface Requirement {
   name: string;
@@ -45,8 +46,8 @@ export async function loadRequirements(projectPath: string): Promise<string[]> {
       );
 
       if (response.ok) {
-        const data = await response.json();
-        const requirements = data.requirements || [];
+        const data = await safeResponseJson(response, 'loadRequirements');
+        const requirements = safeGet<string[]>(data, 'requirements', []);
         requirementCache.set(projectPath, {
           data: requirements,
           expiry: Date.now() + REQUIREMENT_CACHE_TTL,
@@ -96,8 +97,8 @@ export async function loadRequirementsBatch(
   });
 
   if (response.ok) {
-    const data = await response.json();
-    return data.requirements || {};
+    const data = await safeResponseJson(response, 'loadRequirementsBatch');
+    return safeGet<Record<string, string[]>>(data, 'requirements', {});
   }
 
   throw new Error('Failed to load requirements batch');
@@ -134,15 +135,9 @@ export async function executeRequirementAsync(
       }),
     });
 
-    // Check if response is JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();      throw new Error(`Server returned non-JSON response (${response.status}). This may be a temporary Next.js build error - will retry.`);
-    }
+    const data = await safeResponseJson<{ success: boolean; taskId: string; error?: string }>(response, 'executeRequirementAsync');
 
-    const data = await response.json();
-
-    if (!response.ok) {      throw new Error(data.error || 'Failed to queue execution');
+    if (!response.ok) {      throw new Error(safeGet(data, 'error', 'Failed to queue execution') as string);
     }    return data;
   } catch (error) {
     if (error instanceof SyntaxError) {      throw new Error('Server error - received invalid response format. This may be a temporary Next.js build error - will retry.');
@@ -161,16 +156,10 @@ export async function getTaskStatus(taskId: string): Promise<any> {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    // Check if response is JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();      throw new Error(`Server returned non-JSON response (${response.status})`);
-    }
+    const data = await safeResponseJson<Record<string, unknown>>(response, 'getTaskStatus');
 
-    const data = await response.json();
-
-    if (!response.ok) {      throw new Error(data.error || 'Failed to get task status');
-    }    return data.task;
+    if (!response.ok) {      throw new Error(safeGet(data, 'error', 'Failed to get task status') as string);
+    }    return safeGet(data, 'task', data);
   } catch (error) {
     if (error instanceof SyntaxError) {      throw new Error('Server error - received invalid response format');
     }
@@ -191,13 +180,13 @@ export async function listExecutionTasks(projectPath: string): Promise<any[]> {
     headers: { 'Content-Type': 'application/json' },
   });
 
-  const data = await response.json();
+  const data = await safeResponseJson<Record<string, unknown>>(response, 'listExecutionTasks');
 
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to list tasks');
+    throw new Error(safeGet(data, 'error', 'Failed to list tasks') as string);
   }
 
-  return data.tasks || [];
+  return safeGet<any[]>(data, 'tasks', []);
 }
 
 /**
@@ -219,18 +208,18 @@ export async function executeRequirement(
     }),
   });
 
-  const data = await response.json();
+  const data = await safeResponseJson<Record<string, unknown>>(response, 'executeRequirement');
 
   if (!response.ok) {
-    const error = new Error(data.error || 'Execution failed') as Error & { sessionLimitReached?: boolean };
-    error.sessionLimitReached = data.sessionLimitReached || false;
+    const error = new Error(safeGet(data, 'error', 'Execution failed') as string) as Error & { sessionLimitReached?: boolean };
+    error.sessionLimitReached = safeGet(data, 'sessionLimitReached', false) as boolean;
     throw error;
   }
 
   // Log context update results if available
-  if (data.contextUpdates && data.contextUpdates.length > 0) {  }
+  const contextUpdates = safeGet<any[]>(data, 'contextUpdates', []);
 
-  return data;
+  return data as { success: boolean; output?: string; error?: string; sessionLimitReached?: boolean; contextUpdates?: any[]; logFilePath?: string };
 }
 
 /**
@@ -270,10 +259,10 @@ export async function generateRequirements(
     }),
   });
 
-  const data = await response.json();
+  const data = await safeResponseJson<{ success: boolean; count: number; error?: string }>(response, 'generateRequirements');
 
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to generate requirements');
+    throw new Error(safeGet(data, 'error', 'Failed to generate requirements') as string);
   }
 
   return data;
@@ -291,8 +280,8 @@ export async function readRequirement(
   );
 
   if (response.ok) {
-    const data = await response.json();
-    return data.content || '';
+    const data = await safeResponseJson(response, 'readRequirement');
+    return safeGet(data, 'content', '') as string;
   }
 
   throw new Error('Failed to read requirement');
@@ -318,10 +307,10 @@ export async function generateRequirementForGoal(
     }),
   });
 
-  const data = await response.json();
+  const data = await safeResponseJson<{ success: boolean; message?: string; error?: string }>(response, 'generateRequirementForGoal');
 
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to generate requirement for goal');
+    throw new Error(safeGet(data, 'error', 'Failed to generate requirement for goal') as string);
   }
 
   return data;
@@ -347,8 +336,8 @@ export async function updateRequirement(
   });
 
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || 'Failed to update requirement');
+    const data = await safeResponseJson(response, 'updateRequirement');
+    throw new Error(safeGet(data, 'error', 'Failed to update requirement') as string);
   }
 
   return true;
@@ -374,8 +363,8 @@ export async function saveRequirement(
   });
 
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || 'Failed to save requirement');
+    const data = await safeResponseJson(response, 'saveRequirement');
+    throw new Error(safeGet(data, 'error', 'Failed to save requirement') as string);
   }
 
   requirementCache.delete(projectPath);
@@ -389,6 +378,8 @@ export async function hasContextScanRequirement(projectPath: string): Promise<bo
   try {
     const requirements = await loadRequirements(projectPath);
     return requirements.includes('scan-contexts');
-  } catch (err) {    return false;
+  } catch (err) {
+    console.warn('[requirementApi] hasContextScanRequirement check failed:', err instanceof Error ? err.message : err);
+    return false;
   }
 }

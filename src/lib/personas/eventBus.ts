@@ -30,15 +30,18 @@ import { personaToolRepository } from '@/app/db/repositories/persona.repository'
 // Types
 // ============================================================================
 
-export type EventHandler = (event: {
-  id: string;
-  event_type: PersonaEventType;
-  source_type: PersonaEventSourceType;
-  source_id: string | null;
-  target_persona_id: string | null;
-  payload: Record<string, unknown> | null;
-  project_id: string;
-}) => void | Promise<void>;
+export type EventHandler = (
+  event: {
+    id: string;
+    event_type: PersonaEventType;
+    source_type: PersonaEventSourceType;
+    source_id: string | null;
+    target_persona_id: string | null;
+    payload: Record<string, unknown> | null;
+    project_id: string;
+  },
+  alreadyEnqueued: Set<string>,
+) => void | Promise<void>;
 
 // ============================================================================
 // Constants
@@ -49,6 +52,12 @@ const POLL_INTERVALS = {
   IDLE_MS: 30000,     // 30 seconds when idle
   MAX_BACKOFF: 4,     // Consecutive empty polls before switching to idle
 } as const;
+
+/** Maximum depth for event chains to prevent infinite loops (A→B→C→stop) */
+const MAX_EVENT_DEPTH = 3;
+
+/** Cooldown period: don't re-trigger same persona for same event type within this window */
+const PERSONA_COOLDOWN_MS = 60_000;
 
 const GLOBAL_KEY = '__vibeman_personaEventBus__';
 
@@ -61,6 +70,8 @@ class PersonaEventBus {
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private consecutiveEmpty = 0;
   private handlers = new Map<PersonaEventType, EventHandler[]>();
+  /** Cooldown tracker: `personaId:eventType` → last enqueue timestamp */
+  private recentEnqueues = new Map<string, number>();
 
   constructor() {
     // Register built-in handlers
@@ -175,14 +186,18 @@ class PersonaEventBus {
           project_id: event.project_id,
         };
 
-        // 1. Run built-in handlers
+        // Track which personas are enqueued by built-in handlers to avoid
+        // double-enqueue when matchSubscriptions also matches them
+        const alreadyEnqueued = new Set<string>();
+
+        // 1. Run built-in handlers (may enqueue direct targets)
         const handlers = this.handlers.get(eventData.event_type) || [];
         for (const handler of handlers) {
-          await handler(eventData);
+          await handler(eventData, alreadyEnqueued);
         }
 
-        // 2. Check subscriptions and trigger matching personas
-        await this.matchSubscriptions(eventData);
+        // 2. Check subscriptions and trigger matching personas (skips alreadyEnqueued)
+        await this.matchSubscriptions(eventData, alreadyEnqueued);
 
         // Mark completed
         personaEventRepository.updateStatus(event.id, 'completed', { processed_at: new Date().toISOString() });
@@ -203,36 +218,101 @@ class PersonaEventBus {
 
   /**
    * Find subscriptions that match this event and trigger corresponding personas.
+   * Includes multiple loop-prevention guards:
+   *  1. Depth limit — reject events deeper than MAX_EVENT_DEPTH
+   *  2. Self-loop — skip if the completing persona is the subscriber
+   *  3. Chain cycle — skip if the originating persona in the chain matches
+   *  4. Direct-target dedup — skip subscription if built-in handler already enqueued this persona
+   *  5. Cooldown — don't re-trigger same persona+eventType within PERSONA_COOLDOWN_MS
+   *  6. Payload-type filter — match event.payload.type against source_filter.payload_type
+   *  7. System-event filter — skip system-sourced events when source_filter.exclude_system is set
    */
-  private async matchSubscriptions(event: {
-    id: string;
-    event_type: PersonaEventType;
-    source_type: PersonaEventSourceType;
-    source_id: string | null;
-    target_persona_id: string | null;
-    payload: Record<string, unknown> | null;
-    project_id: string;
-  }): Promise<void> {
-    // Get enabled subscriptions for this event type
+  private async matchSubscriptions(
+    event: {
+      id: string;
+      event_type: PersonaEventType;
+      source_type: PersonaEventSourceType;
+      source_id: string | null;
+      target_persona_id: string | null;
+      payload: Record<string, unknown> | null;
+      project_id: string;
+    },
+    alreadyEnqueued: Set<string>,
+  ): Promise<void> {
+    // Extract chain metadata from payload
+    const meta = (event.payload as Record<string, unknown> | null)?._meta as
+      | { depth?: number; source_persona_id?: string }
+      | undefined;
+    const eventDepth = meta?.depth ?? 0;
+    const chainSourcePersonaId = meta?.source_persona_id ?? null;
+
+    // GUARD 1: Depth limit — hard stop for deep event chains
+    if (eventDepth >= MAX_EVENT_DEPTH) return;
+
     const subscriptions = eventSubscriptionRepository.getByEventType(event.event_type);
 
     for (const sub of subscriptions) {
       if (!sub.enabled) continue;
 
-      // Skip if this subscription's persona was the source (prevent loops)
+      // GUARD 2: Self-loop (original) — source persona can't trigger itself
       if (event.source_id === sub.persona_id) continue;
 
-      // Check source filter
+      // GUARD 3: Self-loop (execution_completed) — the persona that just finished
+      // can't re-trigger itself. For execution_completed events, target_persona_id
+      // is the persona that ran; for persona_action it's the intended recipient.
+      if (event.event_type === 'execution_completed' && event.target_persona_id === sub.persona_id) continue;
+
+      // GUARD 4: Chain cycle — the persona that originated this event chain can't
+      // be re-triggered downstream (prevents A→B→A loops)
+      if (chainSourcePersonaId && chainSourcePersonaId === sub.persona_id) continue;
+
+      // GUARD 5: Direct-target dedup — built-in handlers (persona_action, webhook_received)
+      // already enqueued explicit targets; skip them in subscription matching
+      if (alreadyEnqueued.has(sub.persona_id)) continue;
+
+      // GUARD 6: Cooldown — don't re-trigger same persona for same event type too quickly
+      const cooldownKey = `${sub.persona_id}:${event.event_type}`;
+      const lastEnqueue = this.recentEnqueues.get(cooldownKey);
+      if (lastEnqueue && (Date.now() - lastEnqueue) < PERSONA_COOLDOWN_MS) continue;
+
+      // Check source filter (existing + new payload_type and exclude_system)
       if (sub.source_filter) {
         try {
           const filter = JSON.parse(sub.source_filter);
           if (filter.source_type && filter.source_type !== event.source_type) continue;
           if (filter.source_id && filter.source_id !== event.source_id) continue;
+
+          // GUARD 7a: Payload-type filter — only match specific event subtypes
+          if (filter.payload_type) {
+            const allowedTypes = (filter.payload_type as string).split(',').map((t: string) => t.trim());
+            const payloadType = (event.payload as Record<string, unknown> | null)?.type as string | undefined;
+            if (!payloadType || !allowedTypes.includes(payloadType)) continue;
+          }
+
+          // GUARD 7b: System-event filter — skip events from system sources (CLI tasks)
+          if (filter.exclude_system && event.source_type === 'system') continue;
         } catch { /* no filter = match all */ }
       }
 
-      // Trigger the subscribed persona
+      // Record cooldown and enqueue
+      this.recentEnqueues.set(cooldownKey, Date.now());
+      alreadyEnqueued.add(sub.persona_id);
       this.enqueuePersonaExecution(sub.persona_id, event);
+    }
+
+    // Periodically clean up stale cooldown entries
+    this.cleanupCooldowns();
+  }
+
+  /**
+   * Remove expired cooldown entries to prevent memory leaks.
+   */
+  private cleanupCooldowns(): void {
+    const now = Date.now();
+    for (const [key, ts] of this.recentEnqueues) {
+      if (now - ts > PERSONA_COOLDOWN_MS * 2) {
+        this.recentEnqueues.delete(key);
+      }
     }
   }
 
@@ -242,28 +322,29 @@ class PersonaEventBus {
 
   /**
    * Handle persona_action events (one persona triggering another mid-execution).
+   * Enqueues the explicit target and records it in alreadyEnqueued to prevent
+   * matchSubscriptions from double-enqueueing the same persona.
    */
-  private async handlePersonaAction(event: Parameters<EventHandler>[0]): Promise<void> {
+  private async handlePersonaAction(event: Parameters<EventHandler>[0], alreadyEnqueued: Set<string>): Promise<void> {
     if (!event.target_persona_id) return;
-
-    // Enqueue is handled by matchSubscriptions or direct target
-    // For direct targets, we enqueue immediately
     this.enqueuePersonaExecution(event.target_persona_id, event);
+    alreadyEnqueued.add(event.target_persona_id);
   }
 
   /**
    * Handle webhook_received events (external HTTP POST to a webhook trigger).
+   * Enqueues the explicit target and records it in alreadyEnqueued.
    */
-  private async handleWebhookReceived(event: Parameters<EventHandler>[0]): Promise<void> {
+  private async handleWebhookReceived(event: Parameters<EventHandler>[0], alreadyEnqueued: Set<string>): Promise<void> {
     if (!event.target_persona_id) return;
-    // Webhook events with explicit target are handled directly
     this.enqueuePersonaExecution(event.target_persona_id, event);
+    alreadyEnqueued.add(event.target_persona_id);
   }
 
   /**
    * Handle execution_completed events (audit/logging, subscription matching handled separately).
    */
-  private async handleExecutionCompleted(_event: Parameters<EventHandler>[0]): Promise<void> {
+  private async handleExecutionCompleted(_event: Parameters<EventHandler>[0], _alreadyEnqueued: Set<string>): Promise<void> {
     // No built-in action needed — subscription matching handles triggering other personas.
     // This handler exists for future extensibility (metrics, cleanup, etc.)
   }

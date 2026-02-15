@@ -3,8 +3,7 @@ import * as path from 'path';
 import { readRequirement } from './folderManager';
 import { getLogFilePath, getLogsDirectory } from './logManager';
 import { buildExecutionPrompt } from './executionPrompt';
-import { signalCollector } from '@/lib/brain/signalCollector';
-
+import { validateProjectPath, validateRequirementName, secureTempPath, validateCommand, recordExecution, recordFailure } from '@/lib/command/commandSandbox';
 /**
  * Execution manager for Claude Code requirements
  * Handles spawning and managing Claude Code CLI processes
@@ -43,11 +42,25 @@ export async function executeRequirement(
   capturedClaudeSessionId?: string;  // Claude session ID captured from output
 }> {
   const { spawn } = require('child_process');
-  const logFilePath = getLogFilePath(projectPath, requirementName);
+
+  // Validate project path to prevent path traversal attacks
+  const pathCheck = validateProjectPath(projectPath);
+  if (!pathCheck.valid) {
+    return { success: false, error: `Invalid project path: ${pathCheck.error}` };
+  }
+  const safeProjectPath = pathCheck.resolved;
+
+  // Validate requirement name to prevent directory traversal via filenames
+  const nameCheck = validateRequirementName(requirementName);
+  if (!nameCheck.valid) {
+    return { success: false, error: `Invalid requirement name: ${nameCheck.error}` };
+  }
+
+  const logFilePath = getLogFilePath(safeProjectPath, requirementName);
 
   try {
     // First, verify the requirement exists
-    const readResult = readRequirement(projectPath, requirementName);
+    const readResult = readRequirement(safeProjectPath, requirementName);
     if (!readResult.success) {
       return {
         success: false,
@@ -67,7 +80,11 @@ export async function executeRequirement(
       if (!streamClosed) {
         try {
           logStream.write(logLine);
-        } catch (err) {        }
+        } catch (err) {
+          // Log write failure once, then close the stream to avoid repeated errors
+          console.error('[executionManager] Log stream write failed:', err instanceof Error ? err.message : err);
+          streamClosed = true;
+        }
       }
 
       if (onProgress) {
@@ -97,10 +114,10 @@ export async function executeRequirement(
         const requirementContent = readResult.content || '';
 
         // Build the enhanced prompt with logging instructions
-        const dbPath = path.join(projectPath, 'database', 'goals.db');
+        const dbPath = path.join(safeProjectPath, 'database', 'goals.db');
         const fullPrompt = buildExecutionPrompt({
           requirementContent,
-          projectPath,
+          projectPath: safeProjectPath,
           projectId,
           dbPath,
           gitEnabled: gitConfig?.enabled,
@@ -108,8 +125,8 @@ export async function executeRequirement(
           gitCommitMessage: gitConfig?.commitMessage,
         });
 
-        // Write prompt to temporary file to avoid shell escaping issues
-        const tempPromptFile = path.join(getLogsDirectory(projectPath), `prompt_${Date.now()}.txt`);
+        // Write prompt to temporary file with cryptographically random name
+        const tempPromptFile = secureTempPath(getLogsDirectory(safeProjectPath), 'prompt');
         fs.writeFileSync(tempPromptFile, fullPrompt, 'utf-8');
 
         logMessage(`Executing command: cat prompt | claude -p - --output-format stream-json`);
@@ -141,13 +158,23 @@ export async function executeRequirement(
         // Variable to capture session ID from output
         let capturedClaudeSessionId: string | undefined;
 
+        // Validate command against allowlist before spawning
+        const cmdCheck = validateCommand(command, args, { shell: isWindows });
+        if (!cmdCheck.valid) {
+          closeLogStream();
+          resolve({ success: false, error: `Command blocked: ${cmdCheck.error}` });
+          return;
+        }
+
         // Prepare environment - remove ANTHROPIC_API_KEY to force web auth usage
         const env = { ...process.env };
         delete env.ANTHROPIC_API_KEY; // Remove API key to use web subscription auth
 
-        // Spawn the process (non-blocking)
+        const spawnStartTime = Date.now();
+
+        // Spawn the process (non-blocking) with validated path
         const childProcess = spawn(command, args, {
-          cwd: projectPath,
+          cwd: safeProjectPath,
           stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr
           shell: isWindows, // Required on Windows for .cmd files
           env, // Use modified environment without API key
@@ -203,25 +230,17 @@ export async function executeRequirement(
 
         // Handle process completion
         childProcess.on('close', (code: number) => {
+          const durationMs = Date.now() - spawnStartTime;
           logMessage('');
-          logMessage(`Process exited with code: ${code}`);
+          logMessage(`Process exited with code: ${code} (${durationMs}ms)`);
           logMessage('=== Claude Code Execution Finished ===');
           closeLogStream();
 
-          // Record brain signal for git-enabled executions
-          if (projectId && gitConfig?.enabled) {
-            try {
-              signalCollector.recordGitActivity(projectId, {
-                filesChanged: [],
-                commitMessage: gitConfig.commitMessage || requirementName,
-                linesAdded: 0,
-                linesRemoved: 0,
-                branch: 'current',
-                commitSha: undefined,
-              });
-            } catch {
-              // Signal recording must never break execution flow
-            }
+          // Audit log
+          if (code === 0) {
+            recordExecution(command, args, durationMs);
+          } else {
+            recordFailure(command, args, `Exit code ${code}`);
           }
 
           if (code === 0) {

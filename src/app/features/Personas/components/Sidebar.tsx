@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { BarChart3, Bot, Zap, Key, Plus, Activity, ClipboardCheck, MessageSquare } from 'lucide-react';
+import { BarChart3, Bot, Zap, Key, Plus, Activity, ClipboardCheck, MessageSquare, FlaskConical, LayoutGrid } from 'lucide-react';
 import { usePersonaStore } from '@/stores/personaStore';
 import type { SidebarSection, OverviewTab } from '@/app/features/Personas/lib/types';
 import PersonaCard from './PersonaCard';
@@ -13,6 +13,7 @@ const sections: Array<{ id: SidebarSection; icon: typeof Bot; label: string }> =
   { id: 'personas', icon: Bot, label: 'Agents' },
   { id: 'events', icon: Zap, label: 'Events' },
   { id: 'credentials', icon: Key, label: 'Keys' },
+  { id: 'design-reviews', icon: FlaskConical, label: 'Templates' },
 ];
 
 export default function Sidebar() {
@@ -95,6 +96,30 @@ export default function Sidebar() {
     if (sidebarSection === 'personas') {
       return (
         <>
+          {/* All Agents overview button */}
+          <button
+            onClick={() => selectPersona(null)}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 mb-2 rounded-xl transition-all ${
+              selectedPersonaId === null
+                ? 'bg-primary/10 border border-primary/20'
+                : 'hover:bg-secondary/50 border border-transparent'
+            }`}
+          >
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${
+              selectedPersonaId === null
+                ? 'bg-primary/15 border-primary/25'
+                : 'bg-secondary/40 border-primary/15'
+            }`}>
+              <LayoutGrid className={`w-3.5 h-3.5 ${selectedPersonaId === null ? 'text-primary' : 'text-muted-foreground/50'}`} />
+            </div>
+            <span className={`text-sm font-medium ${selectedPersonaId === null ? 'text-foreground/90' : 'text-muted-foreground/60'}`}>
+              All Agents
+            </span>
+            <span className="ml-auto text-[10px] font-mono text-muted-foreground/40">
+              {personas.length}
+            </span>
+          </button>
+
           <button
             onClick={handleCreatePersona}
             className="w-full flex items-center gap-3 px-3 py-2.5 mb-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all group"
@@ -172,6 +197,18 @@ export default function Sidebar() {
             </div>
           )}
         </>
+      );
+    }
+
+    if (sidebarSection === 'design-reviews') {
+      return (
+        <div className="text-center py-12">
+          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+            <FlaskConical className="w-6 h-6 text-violet-400/60" />
+          </div>
+          <p className="text-sm text-muted-foreground/60">Agentic Templates</p>
+          <p className="text-xs text-muted-foreground/40 mt-1">Browse and adopt persona templates</p>
+        </div>
       );
     }
 

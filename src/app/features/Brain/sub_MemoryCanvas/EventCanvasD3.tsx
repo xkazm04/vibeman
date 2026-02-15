@@ -3,16 +3,19 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { ArrowLeft } from 'lucide-react';
-import type { BrainEvent, Group, UndoEntry } from './lib/types';
-import { BG } from './lib/constants';
+import type { BrainEvent, Group, UndoEntry, SignalType, FilterState } from './lib/types';
+import { BG, RECENCY_GLOW_HOURS } from './lib/constants';
 import { formGroups, runForceLayout, packEventsInGroup } from './lib/canvasLayout';
 import { useCanvasData } from './lib/useCanvasData';
 import { renderFocused } from './lib/renderFocused';
 import { renderOverview } from './lib/renderOverview';
+import { renderEmptyState, resetEmptyState } from './lib/renderEmptyState';
 import { useCanvasInteraction } from './lib/useCanvasInteraction';
 import { EventDetailDrawer } from './components/EventDetailDrawer';
 import { CanvasToolbar } from './components/CanvasToolbar';
 import { UndoToasts } from './components/UndoToasts';
+
+const ALL_TYPES: SignalType[] = ['git_activity', 'api_focus', 'context_focus', 'implementation'];
 
 export default function EventCanvasD3() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,8 +37,26 @@ export default function EventCanvasD3() {
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [visibleTypes, setVisibleTypes] = useState<Set<SignalType>>(new Set(ALL_TYPES));
+  const emptyFrameRef = useRef(0);
+  const emptyAnimRef = useRef<number>(0);
+  const filterStateRef = useRef<FilterState>({ visibleTypes: new Set(ALL_TYPES) });
 
-  // Fetch real behavioral signals (falls back to mock data if none exist)
+  const toggleType = useCallback((type: SignalType) => {
+    setVisibleTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        if (next.size <= 1) return prev; // prevent deselecting all
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      filterStateRef.current = { visibleTypes: next };
+      return next;
+    });
+  }, []);
+
+  // Fetch real behavioral signals
   const { events: fetchedEvents, isEmpty, isLoading } = useCanvasData();
   const [events, setEvents] = useState<BrainEvent[]>([]);
 
@@ -71,6 +92,15 @@ export default function EventCanvasD3() {
     const dpr = window.devicePixelRatio || 1;
     const transform = transformRef.current;
     const currentFocusId = focusedGroupRef.current;
+    const currentGroups = groupsRef.current;
+    const filterState = filterStateRef.current;
+
+    // Empty state: animated particles
+    if (currentGroups.length === 0) {
+      emptyFrameRef.current++;
+      renderEmptyState(ctx, width, height, dpr, emptyFrameRef.current);
+      return;
+    }
 
     // Background
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -96,10 +126,10 @@ export default function EventCanvasD3() {
     }
 
     if (currentFocusId) {
-      const fg = groupsRef.current.find(g => g.id === currentFocusId);
-      if (fg) renderFocused({ ctx, group: fg, width, height, transform, dpr });
+      const fg = currentGroups.find(g => g.id === currentFocusId);
+      if (fg) renderFocused({ ctx, group: fg, width, height, transform, dpr, filterState });
     } else {
-      renderOverview({ ctx, groups: groupsRef.current, width, height, transform, dpr, selectedGroupId: selectedGroupRef.current });
+      renderOverview({ ctx, groups: currentGroups, width, height, transform, dpr, selectedGroupId: selectedGroupRef.current, filterState });
     }
   }, []);
 
@@ -154,22 +184,31 @@ export default function EventCanvasD3() {
     requestRender, fitToView,
   });
 
-  // Re-render on group/focus changes
-  useEffect(() => { requestRender(); }, [groups, focusedGroupId, requestRender]);
+  // Re-render on group/focus/filter changes
+  useEffect(() => { requestRender(); }, [groups, focusedGroupId, visibleTypes, requestRender]);
+
+  // Empty state animation loop
+  useEffect(() => {
+    if (isEmpty && events.length === 0) {
+      resetEmptyState();
+      let running = true;
+      const loop = () => {
+        if (!running) return;
+        render();
+        emptyAnimRef.current = requestAnimationFrame(loop);
+      };
+      emptyAnimRef.current = requestAnimationFrame(loop);
+      return () => {
+        running = false;
+        cancelAnimationFrame(emptyAnimRef.current);
+      };
+    }
+  }, [isEmpty, events.length, render]);
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden" style={{ background: BG }}>
       <div ref={containerRef} className="relative flex-1" style={{ minHeight: 300 }}>
         <canvas ref={canvasRef} className="absolute inset-0" />
-
-        {/* Empty state overlay */}
-        {isEmpty && !isLoading && (
-          <div className="absolute top-4 left-4 z-40 px-3 py-2 rounded-lg bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/30">
-            <p className="text-xs text-zinc-400">
-              Showing sample data. Real signals will appear as you work on the project.
-            </p>
-          </div>
-        )}
 
         {focusedGroupId && (
           <button
@@ -197,6 +236,8 @@ export default function EventCanvasD3() {
         focusedGroup={focusedGroup}
         selectedGroupId={selectedGroupId}
         onFitToView={fitToView}
+        visibleTypes={visibleTypes}
+        onToggleType={toggleType}
       />
     </div>
   );

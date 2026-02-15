@@ -561,3 +561,52 @@ export async function deleteEventSubscription(id: string): Promise<void> {
   const res = await fetch(`/api/personas/events/subscriptions/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(await res.text());
 }
+
+// ============================================================================
+// Design Reviews
+// ============================================================================
+
+export async function fetchDesignReviews(filters?: {
+  latest?: boolean;
+  connectors?: string[];
+}): Promise<import('@/lib/personas/testing/testTypes').DbDesignReview[]> {
+  const params = new URLSearchParams();
+  if (filters?.latest) params.set('latest', 'true');
+  if (filters?.connectors?.length) params.set('connectors', filters.connectors.join(','));
+  const qs = params.toString() ? `?${params}` : '';
+  const data = await fetchJson<{ reviews: import('@/lib/personas/testing/testTypes').DbDesignReview[] }>(
+    `${BASE}/design-reviews${qs}`
+  );
+  return data.reviews;
+}
+
+export async function startDesignReviewRun(options?: {
+  useCaseIds?: string[];
+  customInstructions?: string[];
+}): Promise<{
+  testRunId: string;
+  status: string;
+  totalTests: number;
+}> {
+  return fetchJson<{ testRunId: string; status: string; totalTests: number }>(
+    `${BASE}/design-reviews`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        useCaseIds: options?.useCaseIds,
+        customInstructions: options?.customInstructions,
+      }),
+    }
+  );
+}
+
+export async function fetchDesignReviewRun(testRunId: string): Promise<{
+  reviews: import('@/lib/personas/testing/testTypes').DbDesignReview[];
+  testRunId: string;
+}> {
+  return fetchJson<{
+    reviews: import('@/lib/personas/testing/testTypes').DbDesignReview[];
+    testRunId: string;
+  }>(`${BASE}/design-reviews/${testRunId}`);
+}

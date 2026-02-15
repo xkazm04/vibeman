@@ -6,6 +6,7 @@ import ZenHeader from './components/ZenHeader';
 import { ZenControlPanel } from './sub_ZenControl';
 import { useZenMode } from './lib/zenNavigationStore';
 import { MissionControl } from './sub_MissionControl';
+import { zen } from './lib/zenTheme';
 
 /**
  * Zen Mode Layout - Embedded version for main page
@@ -18,7 +19,7 @@ export default function ZenLayout() {
   // Mission Control gets full-width rendering without the standard container
   if (mode === 'mission-control') {
     return (
-      <div className="min-h-[calc(100vh-120px)] bg-gray-950 text-white rounded-xl overflow-hidden">
+      <div className={`min-h-[calc(100vh-120px)] ${zen.bgSolid} text-white rounded-xl overflow-hidden`}>
         <ZenHeader embedded />
         <MissionControl />
       </div>
@@ -26,7 +27,7 @@ export default function ZenLayout() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-120px)] bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 text-white rounded-xl overflow-hidden">
+    <div className={`min-h-[calc(100vh-120px)] ${zen.bgGradient} text-white rounded-xl overflow-hidden`}>
       {/* Header */}
       <ZenHeader embedded />
 

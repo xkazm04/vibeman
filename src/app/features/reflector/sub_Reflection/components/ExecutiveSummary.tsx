@@ -19,6 +19,7 @@ import {
   Bot,
   CheckCircle2,
   XCircle,
+  LayoutDashboard,
 } from 'lucide-react';
 import { ComparisonFilterState } from '../lib/types';
 import { fetchExecutiveInsights } from '../lib/statsApi';
@@ -35,12 +36,13 @@ import { useReflectorStore } from '@/stores/reflectorStore';
 import { ExecutiveAnalysisTrigger } from './ExecutiveAnalysisTrigger';
 import { ExecutiveAnalysisTerminal } from './ExecutiveAnalysisTerminal';
 import type { ExecutiveAIInsight } from '@/app/db/models/reflector.types';
+import AnalyticsStudio from './analytics/AnalyticsStudio';
 
 interface ExecutiveSummaryProps {
   filters: ComparisonFilterState;
 }
 
-type TabId = 'narrative' | 'insights' | 'rankings' | 'recommendations' | 'ai_analysis';
+type TabId = 'narrative' | 'insights' | 'rankings' | 'recommendations' | 'ai_analysis' | 'studio';
 
 interface TabConfig {
   id: TabId;
@@ -214,6 +216,7 @@ const TAB_CONFIG: TabConfig[] = [
   { id: 'rankings', label: 'Rankings', icon: BarChart3, color: 'text-cyan-400', borderColor: 'border-cyan-500/40' },
   { id: 'recommendations', label: 'Actions', icon: Target, color: 'text-purple-400', borderColor: 'border-purple-500/40' },
   { id: 'ai_analysis', label: 'AI Analysis', icon: Bot, color: 'text-emerald-400', borderColor: 'border-emerald-500/40' },
+  { id: 'studio', label: 'Studio', icon: LayoutDashboard, color: 'text-pink-400', borderColor: 'border-pink-500/40' },
 ];
 
 function NarrativeContent({ report }: { report: ExecutiveInsightReport }) {
@@ -540,6 +543,13 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
             lastAnalysisDate={lastAnalysis?.completed_at || null}
           />
         );
+      case 'studio':
+        return (
+          <AnalyticsStudio
+            aiInsights={aiInsights}
+            report={report}
+          />
+        );
       default:
         return null;
     }
@@ -644,6 +654,11 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
                               </span>
                             ) : null}
                           </>
+                        )}
+                        {tab.id === 'studio' && (aiInsights.length > 0 || report.specialistRankings.length > 0) && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-pink-500/20' : 'bg-gray-700/50'}`}>
+                            {aiInsights.length + report.specialistRankings.length}
+                          </span>
                         )}
                       </button>
                     );

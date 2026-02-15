@@ -123,9 +123,16 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
   // Initialize output buffer
   executionBuffers.set(input.executionId, []);
 
+  const MAX_BUFFER_LINES = 1000;
   const appendOutput = (line: string) => {
     const buffer = executionBuffers.get(input.executionId);
-    if (buffer) buffer.push(line);
+    if (buffer) {
+      buffer.push(line);
+      // Cap buffer to prevent memory leak on long executions
+      if (buffer.length > MAX_BUFFER_LINES) {
+        buffer.splice(0, buffer.length - MAX_BUFFER_LINES);
+      }
+    }
   };
 
   // Set up log file
@@ -304,13 +311,19 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
                             const targetPersona = allPersonas.find(p => p.name === targetName);
                             if (targetPersona) {
                               const { personaEventBus } = require('./eventBus');
+                              const parentEvt = (input.inputData as Record<string, unknown> | undefined)?._event as
+                                | { _meta?: { depth?: number } } | undefined;
+                              const curDepth = (parentEvt?._meta?.depth as number) ?? 0;
                               personaEventBus.publish({
                                 event_type: 'persona_action' as const,
                                 source_type: 'persona' as const,
                                 source_id: input.persona.id,
                                 target_persona_id: targetPersona.id,
                                 project_id: input.persona.project_id,
-                                payload: actionData.persona_action,
+                                payload: {
+                                  ...actionData.persona_action,
+                                  _meta: { depth: curDepth + 1, source_persona_id: input.persona.id },
+                                },
                               });
                               log(`[EVENT] Published persona_action targeting "${targetName}" (${targetPersona.id})`);
                             } else {
@@ -321,13 +334,19 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
                           const eventData = JSON.parse(trimmed);
                           if (eventData.emit_event) {
                             const { personaEventBus } = require('./eventBus');
+                            const parentEvt = (input.inputData as Record<string, unknown> | undefined)?._event as
+                              | { _meta?: { depth?: number } } | undefined;
+                            const curDepth = (parentEvt?._meta?.depth as number) ?? 0;
                             personaEventBus.publish({
                               event_type: 'custom' as const,
                               source_type: 'persona' as const,
                               source_id: input.persona.id,
                               target_persona_id: null,
                               project_id: input.persona.project_id,
-                              payload: eventData.emit_event,
+                              payload: {
+                                ...eventData.emit_event,
+                                _meta: { depth: curDepth + 1, source_persona_id: input.persona.id },
+                              },
                             });
                             log(`[EVENT] Published custom event: ${eventData.emit_event.type || 'unknown'}`);
                           }
@@ -387,16 +406,23 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
           // Record tool usage for analytics
           recordToolUsage(toolUseCounts, input.executionId, input.persona.id);
 
-          // Publish execution_completed event
+          // Publish execution_completed event with depth metadata for loop prevention
           try {
             const { personaEventBus } = require('./eventBus');
+            const parentMeta = (input.inputData as Record<string, unknown> | undefined)?._event as
+              | { _meta?: { depth?: number } } | undefined;
+            const newDepth = ((parentMeta?._meta?.depth as number) ?? 0) + 1;
             personaEventBus.publish({
               event_type: 'execution_completed' as const,
               source_type: 'execution' as const,
               source_id: input.executionId,
               target_persona_id: input.persona.id,
               project_id: input.persona.project_id,
-              payload: { status: code === 0 ? 'completed' : 'failed', duration_ms: durationMs },
+              payload: {
+                status: code === 0 ? 'completed' : 'failed',
+                duration_ms: durationMs,
+                _meta: { depth: newDepth, source_persona_id: input.persona.id },
+              },
             });
           } catch { /* event bus not critical */ }
 
