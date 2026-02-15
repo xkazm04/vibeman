@@ -2,40 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { withObservability } from '@/lib/observability/middleware';
+import { withAccessControl } from '@/lib/api-helpers/accessControl';
+import { validateFilePath } from '@/lib/pathSecurity';
 
 async function handlePost(request: NextRequest) {
   try {
     const { filePath } = await request.json();
     
-    if (!filePath) {
+    // Validate file path for traversal attacks
+    const validation = validateFilePath(filePath);
+    if (!validation.valid) {
       return NextResponse.json(
-        { success: false, error: 'File path is required' },
-        { status: 400 }
+        { success: false, error: validation.error },
+        { status: validation.error.includes('required') ? 400 : 403 }
       );
     }
-
-    // Security check - prevent directory traversal (do this first)
-    if (filePath.includes('..') || filePath.includes('~')) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid file path' },
-        { status: 403 }
-      );
-    }
-
-    // Handle both absolute and relative paths
-    let fullPath: string;
-    const projectRoot = process.cwd();
-    
-    // Check if it's an absolute path (Windows: C:\ or D:\ or Unix: /)
-    const isAbsolutePath = /^[A-Za-z]:[\\\/]/.test(filePath) || filePath.startsWith('/');
-    
-    if (isAbsolutePath) {
-      // Use the absolute path directly, don't join with projectRoot
-      fullPath = filePath;
-    } else {
-      // Only join relative paths with project root
-      fullPath = join(projectRoot, filePath);
-    }
+    const fullPath = validation.resolvedPath;
 
     try {
       const content = await readFile(fullPath, 'utf-8');
@@ -77,4 +59,4 @@ async function handlePost(request: NextRequest) {
   }
 }
 
-export const POST = withObservability(handlePost, '/api/disk/read-file');
+export const POST = withObservability(withAccessControl(handlePost, '/api/disk/read-file', { skipProjectCheck: true, minRole: 'viewer' }), '/api/disk/read-file');

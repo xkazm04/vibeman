@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { personaDb } from '@/app/db';
 import { generateDesignId } from '@/lib/idGenerator';
 import { runDesignAnalysis } from '@/lib/personas/designEngine';
+import { getReferencePatternsSection, getLearnedPatternsSection } from '@/lib/personas/patternMatcher';
 import { personaToolDefRepository } from '@/app/db/repositories/persona.repository';
+import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const rateLimited = checkRateLimit(request, '/api/personas/[id]/design', 'expensive');
+  if (rateLimited) return rateLimited;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -42,6 +47,10 @@ export async function POST(
     // Generate design ID and start analysis
     const designId = generateDesignId();
 
+    // Build read-only reference sections from QA-validated designs
+    const referenceSection = getReferencePatternsSection(instruction.trim()) ?? undefined;
+    const learnedPatternsSection = getLearnedPatternsSection() ?? undefined;
+
     // Start analysis non-blocking
     runDesignAnalysis({
       designId,
@@ -50,6 +59,8 @@ export async function POST(
       allTools,
       currentTools,
       mode,
+      referenceSection,
+      learnedPatternsSection,
     });
 
     return NextResponse.json(

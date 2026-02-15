@@ -4,6 +4,7 @@ import { Wifi, WifiOff, Power } from 'lucide-react';
 import { useZenStore } from '../lib/zenStore';
 import { useCLISessionStore } from '@/components/cli/store';
 import { cn } from '@/lib/utils';
+import { zen, zenSpacing } from '../lib/zenTheme';
 
 /**
  * Zen Status Bar
@@ -25,7 +26,7 @@ export function ZenStatusBar() {
   };
 
   return (
-    <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-950/50 shrink-0">
+    <div className={`flex items-center justify-between px-6 py-3 border-b ${zen.surfaceDivider} bg-gray-950/50 shrink-0`}>
       {/* Left: Mode Toggle */}
       <button
         onClick={toggleMode}
@@ -43,7 +44,7 @@ export function ZenStatusBar() {
       </button>
 
       {/* Center: Session Status */}
-      <div className="flex items-center gap-4 text-xs text-gray-400">
+      <div className={`flex items-center ${zenSpacing.gapSection} text-xs text-gray-400`}>
         <div className="flex items-center gap-1.5">
           <span className={cn(
             "font-medium",
@@ -53,7 +54,7 @@ export function ZenStatusBar() {
           </span>
           <span>running</span>
         </div>
-        <span className="text-gray-600">|</span>
+        <span className="text-gray-400">|</span>
         <div className="flex items-center gap-1.5">
           <span className={cn(
             "font-medium",

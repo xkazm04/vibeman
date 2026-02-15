@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 /**
@@ -34,13 +34,13 @@ export const useContextDetail = () => {
     }
   }, [searchParams]);
 
-  const openGroupDetail = (groupId: string) => {
+  const openGroupDetail = useCallback((groupId: string) => {
     updateUrlParam(router, 'groupDetail', groupId);
-  };
+  }, [router]);
 
-  const closeGroupDetail = () => {
+  const closeGroupDetail = useCallback(() => {
     updateUrlParam(router, 'groupDetail', null);
-  };
+  }, [router]);
 
   return {
     isDetailOpen,

@@ -12,7 +12,7 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import type { BrainEvent } from './types';
 import type { DbBehavioralSignal } from '@/app/db/models/brain.types';
 import { mapSignalsToEvents } from './signalMapper';
-import { generateEvents } from './mockData';
+import { safeResponseJson, parseApiResponse, BrainSignalsResponseSchema } from '@/lib/apiResponseGuard';
 
 const REFRESH_INTERVAL_MS = 30_000;
 const MAX_SIGNALS = 200;
@@ -52,20 +52,20 @@ export function useCanvasData(): CanvasDataState & { refresh: () => void } {
         throw new Error(`API responded with status ${res.status}`);
       }
 
-      const data = await res.json();
+      const raw = await safeResponseJson(res, '/api/brain/signals');
+      const data = parseApiResponse(raw, BrainSignalsResponseSchema, '/api/brain/signals');
       if (!data.success) {
-        throw new Error(data.error || 'API returned failure');
+        throw new Error('API returned failure');
       }
 
-      const signals = data.signals as DbBehavioralSignal[];
+      const signals = data.signals as unknown as DbBehavioralSignal[];
       const events = mapSignalsToEvents(signals, MAX_SIGNALS);
 
       if (!mountedRef.current) return;
 
       if (events.length === 0) {
-        // No real signals yet — fall back to mock data for visual reference
         setState({
-          events: generateEvents(),
+          events: [],
           isLoading: false,
           isEmpty: true,
           error: null,
@@ -82,11 +82,10 @@ export function useCanvasData(): CanvasDataState & { refresh: () => void } {
       }
     } catch (err) {
       if (!mountedRef.current) return;
-      // On error, fall back to mock data so canvas isn't blank
       setState(prev => ({
-        events: prev.events.length > 0 ? prev.events : generateEvents(),
+        events: prev.events,
         isLoading: false,
-        isEmpty: prev.isEmpty,
+        isEmpty: prev.events.length === 0,
         error: err instanceof Error ? err.message : 'Unknown error',
         lastFetched: prev.lastFetched,
       }));
@@ -104,9 +103,8 @@ export function useCanvasData(): CanvasDataState & { refresh: () => void } {
     mountedRef.current = true;
 
     if (!activeProject?.id) {
-      // No project selected — show mock data
       setState({
-        events: generateEvents(),
+        events: [],
         isLoading: false,
         isEmpty: true,
         error: null,

@@ -5,16 +5,18 @@ import { motion } from 'framer-motion';
 import { Monitor, Wifi, Tablet, Clock, Rocket } from 'lucide-react';
 import { useZenStore } from '../lib/zenStore';
 import { useZenNavigation, useZenMode, type ZenMode } from '../lib/zenNavigationStore';
+import { zen, zenSpacing } from '../lib/zenTheme';
+import ModeToggleGroup, { type ModeOption } from './ModeToggleGroup';
 
 interface ZenHeaderProps {
   embedded?: boolean;
 }
 
-const modes: { value: ZenMode; label: string; icon: typeof Monitor; color: string }[] = [
-  { value: 'offline', label: 'Offline', icon: Monitor, color: 'gray' },
-  { value: 'online', label: 'Online', icon: Wifi, color: 'cyan' },
-  { value: 'emulator', label: 'Emulator', icon: Tablet, color: 'purple' },
-  { value: 'mission-control', label: 'Mission', icon: Rocket, color: 'blue' },
+const HEADER_MODES: ModeOption<ZenMode>[] = [
+  { value: 'offline', label: 'Offline', icon: Monitor, gradient: 'linear-gradient(to right, #374151, #4b5563)' },
+  { value: 'online', label: 'Online', icon: Wifi, gradient: zen.gradientCSS },
+  { value: 'emulator', label: 'Emulator', icon: Tablet, gradient: 'linear-gradient(to right, #a855f7, #7c3aed)' },
+  { value: 'mission-control', label: 'Mission', icon: Rocket, gradient: zen.gradientCSS },
 ];
 
 export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
@@ -44,68 +46,31 @@ export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
     return `${minutes}m ${seconds}s`;
   };
 
-  const currentModeIndex = modes.findIndex((m) => m.value === mode);
-
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between px-8 py-4 border-b border-gray-800/50"
+      className={`flex items-center justify-between ${zenSpacing.padSpacious} border-b ${zen.surfaceDividerSubtle}`}
     >
       {/* Left: Title */}
-      <div className="flex items-center gap-4">
+      <div className={`flex items-center ${zenSpacing.gapSection}`}>
         <h1 className="text-2xl font-light tracking-wider text-white">
           ZEN MODE
         </h1>
       </div>
 
       {/* Center: Mode Toggle */}
-      <div className="relative flex bg-gray-800/80 rounded-lg p-0.5 border border-gray-700/50">
-        {/* Sliding Background */}
-        <motion.div
-          className="absolute top-0.5 bottom-0.5 rounded-md"
-          style={{
-            width: `calc(${100 / modes.length}% - 2px)`,
-            background:
-              mode === 'offline'
-                ? 'linear-gradient(to right, #374151, #4b5563)'
-                : mode === 'online'
-                ? 'linear-gradient(to right, #06b6d4, #3b82f6)'
-                : mode === 'mission-control'
-                ? 'linear-gradient(to right, #3b82f6, #06b6d4)'
-                : 'linear-gradient(to right, #a855f7, #7c3aed)',
-          }}
-          animate={{
-            left: `calc(${currentModeIndex * (100 / modes.length)}% + 2px)`,
-          }}
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        />
-
-        {/* Mode Buttons */}
-        {modes.map((m) => {
-          const Icon = m.icon;
-          const isActive = mode === m.value;
-          return (
-            <button
-              key={m.value}
-              onClick={() => navigate(m.value)}
-              className={`
-                relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md
-                transition-colors duration-200
-                ${isActive ? 'text-white' : 'text-gray-400 hover:text-gray-300'}
-              `}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">{m.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <ModeToggleGroup
+        modes={HEADER_MODES}
+        activeMode={mode}
+        onModeChange={navigate}
+        size="sm"
+      />
 
       {/* Right: Status indicators */}
-      <div className="flex items-center gap-4">
+      <div className={`flex items-center ${zenSpacing.gapSection}`}>
         {/* Session duration */}
-        <div className="flex items-center gap-2 text-gray-400">
+        <div className={`flex items-center ${zenSpacing.gapInline} text-gray-400`}>
           <Clock className="w-4 h-4" />
           <span className="text-sm font-mono">{formatElapsed()}</span>
         </div>
@@ -123,7 +88,7 @@ export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
           className={`
             w-2 h-2 rounded-full
             ${mode === 'offline' ? 'bg-gray-600' : ''}
-            ${mode === 'online' ? 'bg-cyan-400 animate-pulse' : ''}
+            ${mode === 'online' ? `${zen.accentDot} animate-pulse` : ''}
             ${mode === 'emulator' ? 'bg-purple-400 animate-pulse' : ''}
             ${mode === 'mission-control' ? 'bg-blue-400 animate-pulse' : ''}
           `}

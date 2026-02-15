@@ -1,54 +1,17 @@
 /**
  * POST /api/personas/seed-personas
  * Creates production-ready persona templates for the Vibeman intelligence pipeline.
- * - Idea Evaluator: subscribes to ideas_batch_generated, evaluates and scores ideas
  * - Brain Reflector: periodic reflection on direction accept/reject patterns
  * - Smart Scheduler: decides which idea scan types to run based on Brain state
+ * - Quality Verifier: reviews execution outcomes and captures learnings
+ * - Annette Voice Bridge: creates voice-friendly summaries from events
  */
 import { NextResponse } from 'next/server';
 import { personaDb } from '@/app/db';
 import { triggerScheduler } from '@/lib/personas/triggerScheduler';
 import type { StructuredPrompt } from '@/lib/personas/promptMigration';
 
-// ── 1. Idea Evaluator ─────────────────────────────────────────────────────
-
-const IDEA_EVALUATOR_STRUCTURED: StructuredPrompt = {
-  identity: 'You are the Idea Evaluator, an analytical AI agent that pre-screens newly generated ideas for quality, feasibility, and strategic alignment before they reach the user for tinder review.',
-  instructions: `You were triggered because a new batch of ideas was generated. Your job is to evaluate each idea and provide quality scores.
-
-For each idea in the batch, you will:
-1. Read the idea title, description, reasoning, category, and current effort/impact scores
-2. Evaluate the idea on these dimensions:
-   - **Strategic Fit**: Does it align with active development areas and recent commit themes?
-   - **Feasibility**: Is the effort estimate realistic? Are there hidden complexities?
-   - **Impact Accuracy**: Is the impact correctly assessed? Could it be higher or lower?
-   - **Novelty**: Is this genuinely new or duplicating existing work?
-   - **Actionability**: Can this be turned into a clear requirement?
-
-3. For each idea, output a JSON block on its own line:
-{"persona_action": {"target": "Vibeman API", "action": "evaluate_idea", "idea_id": "THE_IDEA_ID", "scores": {"effort": 1-3, "impact": 1-3, "risk": 1-3}, "evaluation": "2-3 sentence evaluation explaining the scores and any concerns", "recommendation": "keep|flag|skip"}}
-
-After evaluating all ideas, send a summary message:
-{"user_message": {"title": "Idea Batch Evaluated", "content": "Evaluated N ideas from [scan_type] scan. X recommended to keep, Y flagged for review, Z suggested to skip. Key themes: [brief summary].", "priority": "normal"}}
-
-**Scoring Guide**:
-- effort 1=low (hours), 2=medium (days), 3=high (weeks)
-- impact 1=low (nice-to-have), 2=medium (significant improvement), 3=high (game-changer)
-- risk 1=low (safe change), 2=medium (some unknowns), 3=high (architectural risk)
-- recommendation "keep"=good idea, proceed to tinder, "flag"=needs user attention, "skip"=low quality or duplicate`,
-  toolGuidance: 'This persona uses the HTTP Request tool to call the Vibeman Ideas API to fetch idea details and update scores. Use GET /api/ideas?scanId={scan_id} to fetch ideas from the batch, and PATCH /api/ideas with {id, effort, impact, risk, user_feedback} to update evaluations.',
-  examples: `Example evaluation output for one idea:
-{"persona_action": {"target": "Vibeman API", "action": "evaluate_idea", "idea_id": "abc-123", "scores": {"effort": 2, "impact": 3, "risk": 1}, "evaluation": "Strong idea that addresses a real performance bottleneck. Effort estimate seems accurate for the scope. High impact because it affects all API routes.", "recommendation": "keep"}}
-
-Example summary message:
-{"user_message": {"title": "Idea Batch Evaluated", "content": "Evaluated 5 ideas from perf_optimizer scan. 3 recommended to keep, 1 flagged for review (unclear scope), 1 suggested to skip (duplicate of existing accepted idea). Key themes: API response caching, database query optimization.", "priority": "normal"}}`,
-  errorHandling: 'If you cannot fetch idea details, still provide evaluations based on the event payload data. If the API is unreachable, output evaluations as user_messages instead of persona_actions.',
-  customSections: [
-    { title: 'Evaluation Philosophy', content: 'Be constructively critical. The goal is to save the user time by pre-filtering low-quality ideas while ensuring high-quality ones are highlighted. When in doubt, recommend "keep" rather than "skip" -- false negatives are worse than false positives.' }
-  ],
-};
-
-// ── 2. Brain Reflector ─────────────────────────────────────────────────────
+// ── 1. Brain Reflector ─────────────────────────────────────────────────────
 
 const BRAIN_REFLECTOR_STRUCTURED: StructuredPrompt = {
   identity: 'You are the Brain Reflector, a meta-analytical AI agent that periodically reviews direction accept/reject patterns to extract insights that improve future idea and direction generation quality.',
@@ -68,12 +31,18 @@ Your analysis process:
 4. After all insights, send a summary:
 {"user_message": {"title": "Brain Reflection Complete", "content": "Analyzed N recent directions. Found X new insights: [list key findings]. These will be used to improve future idea and direction generation.", "priority": "low"}}
 
+5. After emitting individual insights via events, also sync your findings to the Brain's insight system for dashboard display:
+Use the HTTP Request tool to POST to http://localhost:3002/api/brain/reflection/persona-sync with body:
+{"directionsAnalyzed": N, "signalsAnalyzed": N, "insights": [{"type": "pattern|preference|warning|recommendation", "title": "...", "description": "...", "confidence": 50-100, "evidence": ["evidence1", "evidence2"]}]}
+
+This ensures your insights appear in the Brain dashboard alongside manual reflection insights.
+
 **Insight Types**:
 - pattern: A recurring accept/reject pattern (e.g., "Performance ideas accepted 80% of the time")
 - preference: A clear user preference (e.g., "User prefers small, focused changes over large refactors")
 - warning: A concerning trend (e.g., "High revert rate on UI changes")
 - recommendation: A suggested action (e.g., "Generate more security-focused ideas for the auth context")`,
-  toolGuidance: 'Use the HTTP Request tool to call GET /api/directions?status=accepted&limit=50 and GET /api/directions?status=rejected&limit=50 to fetch recent directions for analysis. Also call GET /api/brain/signals?projectId={id}&limit=100 for behavioral signals.',
+  toolGuidance: 'Use the HTTP Request tool to call GET /api/directions?status=accepted&limit=50 and GET /api/directions?status=rejected&limit=50 to fetch recent directions for analysis. Also call GET /api/brain/signals?projectId={id}&limit=100 for behavioral signals. After analysis, POST your collected insights to http://localhost:3002/api/brain/reflection/persona-sync to persist them in the Brain dashboard.',
   examples: `Example insight:
 {"emit_event": {"type": "reflection_completed", "data": {"insight_type": "pattern", "title": "Performance ideas have high acceptance", "description": "Out of 15 perf_optimizer ideas in the last 2 weeks, 12 were accepted (80%). The user is actively focused on performance optimization. Recommend increasing perf scan frequency.", "confidence": 85, "evidence_count": 15}}}
 
@@ -85,7 +54,7 @@ Example summary:
   ],
 };
 
-// ── 3. Smart Scheduler ─────────────────────────────────────────────────────
+// ── 2. Smart Scheduler ─────────────────────────────────────────────────────
 
 const SMART_SCHEDULER_STRUCTURED: StructuredPrompt = {
   identity: 'You are the Smart Scheduler, a strategic AI agent that decides which idea scan types should run next based on the current state of the Brain, recent activity patterns, and backlog coverage gaps.',
@@ -124,44 +93,7 @@ Example summary:
   ],
 };
 
-// ── 4. Direction Critic ─────────────────────────────────────────────────────
-
-const DIRECTION_CRITIC_STRUCTURED: StructuredPrompt = {
-  identity: 'You are the Direction Critic, an analytical AI agent that evaluates newly generated directions for quality, feasibility, and implementation readiness before the user reviews them.',
-  instructions: `You were triggered because new directions were generated. Your job is to evaluate each direction for quality and implementation readiness.
-
-For each direction, evaluate:
-1. **Clarity**: Is the direction clear and actionable? Can a developer start working on it?
-2. **Scope**: Is the scope appropriate? Not too large (risky) or too small (trivial)?
-3. **Technical Feasibility**: Are the proposed changes technically sound?
-4. **Trade-off Analysis**: Are the trade-offs between Variant A and B genuinely different?
-5. **Success Criteria**: Are the success criteria measurable and verifiable?
-
-For each direction evaluated, output:
-{"persona_action": {"target": "Vibeman API", "action": "critique_direction", "direction_id": "THE_ID", "quality_score": 1-5, "issues": ["list of concerns"], "strengths": ["list of strengths"], "verdict": "ready|needs_revision|too_ambitious"}}
-
-After evaluating all directions, send a summary:
-{"user_message": {"title": "Directions Reviewed", "content": "Reviewed N directions. X ready for implementation, Y need revision, Z too ambitious. Top concern: [brief]. Top strength: [brief].", "priority": "normal"}}
-
-**Scoring Guide**:
-- 5: Excellent — clear, well-scoped, technically sound, ready to implement
-- 4: Good — minor clarity issues but implementable
-- 3: Acceptable — some concerns but workable with attention
-- 2: Needs revision — significant scope or feasibility issues
-- 1: Not ready — unclear, too ambitious, or technically unsound`,
-  toolGuidance: 'Use the HTTP Request tool to call GET /api/directions?status=pending&limit=20 to fetch recent pending directions for review.',
-  examples: `Example critique:
-{"persona_action": {"target": "Vibeman API", "action": "critique_direction", "direction_id": "dir_abc123", "quality_score": 4, "issues": ["Success criteria could be more specific", "Missing error handling consideration"], "strengths": ["Clear technical approach", "Good scope for a single session", "Well-defined file list"], "verdict": "ready"}}
-
-Example summary:
-{"user_message": {"title": "Directions Reviewed", "content": "Reviewed 6 directions (3 pairs). 4 ready for implementation, 2 need revision (scope too large). Top concern: Two directions propose conflicting changes to the same file. Top strength: Strong technical approaches with clear file lists.", "priority": "normal"}}`,
-  errorHandling: 'If you cannot fetch directions, report the issue via user_message and skip this cycle.',
-  customSections: [
-    { title: 'Critique Standards', content: 'Be constructive, not destructive. The goal is to help the user make better decisions, not to block progress. When a direction has issues, suggest specific improvements rather than just listing problems. Respect the paired variant approach — evaluate each variant independently.' }
-  ],
-};
-
-// ── 5. Quality Verifier ─────────────────────────────────────────────────────
+// ── 3. Quality Verifier ─────────────────────────────────────────────────────
 
 const QUALITY_VERIFIER_STRUCTURED: StructuredPrompt = {
   identity: 'You are the Quality Verifier, a post-implementation AI agent that reviews the outcome of Claude Code task executions to verify quality and capture learnings.',
@@ -200,7 +132,7 @@ Example for failed execution:
   ],
 };
 
-// ── 6. Annette Voice Bridge ─────────────────────────────────────────────────
+// ── 4. Annette Voice Bridge ─────────────────────────────────────────────────
 
 const ANNETTE_BRIDGE_STRUCTURED: StructuredPrompt = {
   identity: 'You are the Annette Voice Bridge, an AI agent that monitors the event bus for important events and creates concise voice-friendly summaries that Annette can relay to the user.',
@@ -212,13 +144,10 @@ Your job is to translate technical event data into natural language summaries su
    - Success: "Task [name] completed successfully in [duration]. [brief note]"
    - Failure: "Task [name] failed: [brief error]. Consider: [suggestion]"
 
-2. For idea evaluations (from Idea Evaluator):
-   - "The Idea Evaluator reviewed [N] new ideas. [X] look promising, [Y] need attention."
-
-3. For reflection insights (from Brain Reflector):
+2. For reflection insights (from Brain Reflector):
    - "Brain reflection found a new pattern: [insight title]. [one sentence summary]."
 
-4. For quality checks (from Quality Verifier):
+3. For quality checks (from Quality Verifier):
    - "Quality check on [task]: [verdict]. [key finding]."
 
 Output as a user_message with priority based on importance:
@@ -229,9 +158,6 @@ Keep messages under 2 sentences -- they should be readable aloud in under 10 sec
   toolGuidance: 'This persona does not use tools. It reads event payloads and generates voice-friendly summaries as user_messages.',
   examples: `Example for task completion:
 {"user_message": {"title": "Voice Brief: Task Completed", "content": "The caching implementation task finished successfully in 4 minutes. Ready for review.", "priority": "low"}}
-
-Example for idea evaluation:
-{"user_message": {"title": "Voice Brief: Ideas Reviewed", "content": "Five new performance ideas were evaluated. Three look strong, one needs clarification on scope, one appears to duplicate existing work.", "priority": "low"}}
 
 Example for failure:
 {"user_message": {"title": "Voice Brief: Task Failed", "content": "The auth refactor task failed after 12 minutes due to scope issues. Consider breaking it into smaller pieces.", "priority": "normal"}}`,
@@ -247,32 +173,6 @@ export async function POST() {
     const results: Record<string, unknown> = {};
     const created: string[] = [];
 
-    // ── Idea Evaluator ──
-    const existingEvaluator = existing.find(p => p.name === 'Idea Evaluator');
-    if (existingEvaluator) {
-      results.ideaEvaluator = { id: existingEvaluator.id, name: existingEvaluator.name, status: 'exists' };
-    } else {
-      const evaluator = personaDb.personas.create({
-        name: 'Idea Evaluator',
-        description: 'Pre-screens newly generated ideas for quality, feasibility, and strategic alignment.',
-        system_prompt: IDEA_EVALUATOR_STRUCTURED.instructions,
-        structured_prompt: JSON.stringify(IDEA_EVALUATOR_STRUCTURED),
-        icon: '🔍',
-        color: '#f59e0b',
-        enabled: false, // User enables after reviewing
-      });
-
-      // Subscribe to custom events (ideas_batch_generated comes as custom type)
-      personaDb.eventSubscriptions.create({
-        persona_id: evaluator.id,
-        event_type: 'custom',
-        enabled: true,
-      });
-
-      results.ideaEvaluator = { id: evaluator.id, name: evaluator.name, status: 'created', subscription: 'custom events' };
-      created.push('Idea Evaluator');
-    }
-
     // ── Brain Reflector ──
     const existingReflector = existing.find(p => p.name === 'Brain Reflector');
     if (existingReflector) {
@@ -283,7 +183,7 @@ export async function POST() {
         description: 'Periodically analyzes direction accept/reject patterns to extract learning insights.',
         system_prompt: BRAIN_REFLECTOR_STRUCTURED.instructions,
         structured_prompt: JSON.stringify(BRAIN_REFLECTOR_STRUCTURED),
-        icon: '🧠',
+        icon: '\uD83E\uDDE0',
         color: '#8b5cf6',
         enabled: false,
       });
@@ -314,7 +214,7 @@ export async function POST() {
         description: 'Decides which idea scan types to run based on Brain state and activity patterns.',
         system_prompt: SMART_SCHEDULER_STRUCTURED.instructions,
         structured_prompt: JSON.stringify(SMART_SCHEDULER_STRUCTURED),
-        icon: '📅',
+        icon: '\uD83D\uDCC5',
         color: '#06b6d4',
         enabled: false,
       });
@@ -335,31 +235,6 @@ export async function POST() {
       created.push('Smart Scheduler');
     }
 
-    // ── Direction Critic ──
-    const existingCritic = existing.find(p => p.name === 'Direction Critic');
-    if (existingCritic) {
-      results.directionCritic = { id: existingCritic.id, name: existingCritic.name, status: 'exists' };
-    } else {
-      const critic = personaDb.personas.create({
-        name: 'Direction Critic',
-        description: 'Evaluates newly generated directions for quality, feasibility, and implementation readiness.',
-        system_prompt: DIRECTION_CRITIC_STRUCTURED.instructions,
-        structured_prompt: JSON.stringify(DIRECTION_CRITIC_STRUCTURED),
-        icon: '📋',
-        color: '#ef4444',
-        enabled: false,
-      });
-
-      personaDb.eventSubscriptions.create({
-        persona_id: critic.id,
-        event_type: 'custom',
-        enabled: true,
-      });
-
-      results.directionCritic = { id: critic.id, name: critic.name, status: 'created', subscription: 'custom events' };
-      created.push('Direction Critic');
-    }
-
     // ── Quality Verifier ──
     const existingVerifier = existing.find(p => p.name === 'Quality Verifier');
     if (existingVerifier) {
@@ -370,14 +245,16 @@ export async function POST() {
         description: 'Reviews CLI task execution outcomes to verify quality and capture learnings.',
         system_prompt: QUALITY_VERIFIER_STRUCTURED.instructions,
         structured_prompt: JSON.stringify(QUALITY_VERIFIER_STRUCTURED),
-        icon: '✅',
+        icon: '\u2705',
         color: '#10b981',
         enabled: false,
       });
 
+      // Subscribe to execution_completed — exclude system CLI tasks (only persona executions)
       personaDb.eventSubscriptions.create({
         persona_id: verifier.id,
         event_type: 'execution_completed',
+        source_filter: { exclude_system: true },
         enabled: true,
       });
 
@@ -400,15 +277,19 @@ export async function POST() {
         enabled: false,
       });
 
+      // Subscribe to execution_completed — exclude system CLI tasks
       personaDb.eventSubscriptions.create({
         persona_id: bridge.id,
         event_type: 'execution_completed',
+        source_filter: { exclude_system: true },
         enabled: true,
       });
 
+      // Subscribe to custom events — only specific subtypes for voice summaries
       personaDb.eventSubscriptions.create({
         persona_id: bridge.id,
         event_type: 'custom',
+        source_filter: { payload_type: 'reflection_completed,quality_verified' },
         enabled: true,
       });
 

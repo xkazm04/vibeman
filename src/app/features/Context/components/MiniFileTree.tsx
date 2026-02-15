@@ -54,7 +54,7 @@ const EXTENSION_COLORS: Record<string, string> = {
   sass: 'text-pink-400',
   less: 'text-pink-400',
   py: 'text-emerald-400',
-  md: 'text-gray-400',
+  md: 'text-gray-300',
   html: 'text-orange-400',
   vue: 'text-green-500',
   svelte: 'text-orange-500',
@@ -132,12 +132,12 @@ export default function MiniFileTree({
     <div className={`space-y-1 ${className}`}>
       {/* Folder summary */}
       {groupByFolder && folders.size > 0 && (
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1.5 py-1 px-1.5 rounded-md bg-gray-800/20 border border-gray-700/20 transition-colors duration-200 hover:bg-gray-800/40">
+        <div className="flex items-center gap-1.5 text-xs text-gray-300 mb-1.5 py-1 px-1.5 rounded-md bg-gray-800/20 border border-gray-700/20 transition-colors duration-200 hover:bg-gray-800/40">
           <Folder className="w-3 h-3 text-amber-500/70" />
           <span className="font-mono">
             {folders.size} folder{folders.size !== 1 ? 's' : ''}
           </span>
-          <ChevronRight className="w-3 h-3 text-gray-600" />
+          <ChevronRight className="w-3 h-3 text-gray-500" />
           <span className="font-mono">
             {filePaths.length} file{filePaths.length !== 1 ? 's' : ''}
           </span>

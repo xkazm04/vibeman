@@ -5,6 +5,8 @@ import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
 import { buildContextDescriptionPrompt } from '@/app/projects/ProjectAI/lib/promptBuilder';
 import { withObservability } from '@/lib/observability/middleware';
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
+import { validatePathTraversal, validatePathWithinBase } from '@/lib/pathSecurity';
 
 interface FileContent {
   path: string;
@@ -72,7 +74,7 @@ async function handlePost(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Failed to generate description',
+        error: 'Failed to generate description',
       },
       { status: 500 }
     );
@@ -116,9 +118,17 @@ async function readFileContents(
 
   for (const filePath of filePaths.slice(0, maxFiles)) {
     try {
+      // Validate path for directory traversal
+      const traversalError = validatePathTraversal(filePath);
+      if (traversalError) continue;
+
       const fullPath = path.isAbsolute(filePath)
         ? filePath
         : path.join(projectPath, filePath);
+
+      // Ensure resolved path stays within project directory
+      const baseError = validatePathWithinBase(fullPath, projectPath);
+      if (baseError) continue;
 
       if (!fs.existsSync(fullPath)) {
         continue;
@@ -224,4 +234,4 @@ function cleanFileStructure(fileStructure: string): string {
     .trim();
 }
 
-export const POST = withObservability(handlePost, '/api/contexts/generate-description');
+export const POST = withObservability(withRateLimit(handlePost, '/api/contexts/generate-description', 'expensive'), '/api/contexts/generate-description');

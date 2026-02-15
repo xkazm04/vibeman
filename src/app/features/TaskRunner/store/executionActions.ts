@@ -18,7 +18,7 @@ import {
 import { executeRequirementAsync, getTaskStatus, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import { getContextIdFromRequirement } from '../sub_Screenshot/screenshotApi';
 import {
-  startPolling,
+  startSSEPolling,
   PollingResults,
   type PollingCallback,
   type PollingResult,
@@ -261,8 +261,60 @@ export function createExecutionActions(set: Set, get: Get) {
 // ============================================================================
 
 /**
+ * Check whether the batch is still valid and active.
+ * Returns false if the batch was cleared, completed, or task removed,
+ * meaning the polling callback should stop to avoid stale state corruption.
+ */
+function isBatchStillActive(batchId: BatchId, requirementId: string): boolean {
+  const store = getStore();
+  const state = store.getState();
+  const batch = state.batches[batchId];
+
+  if (!batch) {
+    console.log(`⚠️ Batch ${batchId} no longer exists, stopping poll for ${requirementId}`);
+    return false;
+  }
+
+  if (!isBatchRunning(batch.status)) {
+    console.log(`⚠️ Batch ${batchId} no longer running (${batch.status}), stopping poll for ${requirementId}`);
+    return false;
+  }
+
+  if (!batch.taskIds.includes(requirementId)) {
+    console.log(`⚠️ Task ${requirementId} removed from batch ${batchId}, stopping poll`);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Clean up executing-task tracking and ephemeral state for an abandoned task.
+ */
+function cleanupAbandonedTask(requirementId: string): void {
+  const store = getStore();
+  store.setState((state: TaskRunnerState) => {
+    const newProgress = { ...state.taskProgress };
+    delete newProgress[requirementId];
+    const newActivity = { ...state.taskActivity };
+    delete newActivity[requirementId];
+    const newCheckpoints = { ...state.taskCheckpoints };
+    delete newCheckpoints[requirementId];
+    return {
+      executingTasks: new Set([...state.executingTasks].filter(id => id !== requirementId)),
+      taskProgress: newProgress,
+      taskActivity: newActivity,
+      taskCheckpoints: newCheckpoints,
+    };
+  });
+}
+
+/**
  * Create a polling callback for a task.
- * Uses storeRef (not closure state) for fresh state on each poll.
+ *
+ * Reads fresh state from storeRef on every poll tick to prevent stale-closure bugs.
+ * Stops polling immediately if the batch was cleared, paused, or completed
+ * during an async gap (e.g. while getTaskStatus was in-flight).
  */
 export function createPollingCallback(
   taskId: string,
@@ -272,6 +324,12 @@ export function createPollingCallback(
 ): PollingCallback {
   return async (): Promise<PollingResult> => {
     try {
+      // ── Pre-flight: bail out if batch was cleared/stopped ──
+      if (!isBatchStillActive(batchId, requirementId)) {
+        cleanupAbandonedTask(requirementId);
+        return PollingResults.success(); // stops the poller
+      }
+
       const taskStatus = await getTaskStatus(taskId);
 
       if (!taskStatus) {
@@ -282,6 +340,12 @@ export function createPollingCallback(
       if (taskStatus.status === 'pending') {
         console.warn(`⚠️ Task ${requirementId} still pending - execution may have failed to start`);
         return PollingResults.continue();
+      }
+
+      // ── Post-await: re-check after async gap (network call) ──
+      if (!isBatchStillActive(batchId, requirementId)) {
+        cleanupAbandonedTask(requirementId);
+        return PollingResults.success();
       }
 
       // Batch progress/activity/checkpoint updates
@@ -308,6 +372,9 @@ export function createPollingCallback(
       if (progressLines > 0 || mappedActivity) {
         const store = getStore();
         store.setState((state: TaskRunnerState) => {
+          // Guard: skip if batch disappeared between check and setState
+          if (!state.batches[batchId]) return state;
+
           const updates: Partial<TaskRunnerState> = {};
 
           if (progressLines > 0) {
@@ -352,6 +419,12 @@ export function createPollingCallback(
       if (taskStatus.status === 'completed') {
         console.log(`✅ Task ${requirementId} completed successfully`);
 
+        // ── Fresh state check before terminal update ──
+        if (!isBatchStillActive(batchId, requirementId)) {
+          cleanupAbandonedTask(requirementId);
+          return PollingResults.success();
+        }
+
         const store = getStore();
         const freshState = store.getState();
         freshState.updateTaskStatus(requirementId, createCompletedStatus());
@@ -386,13 +459,16 @@ export function createPollingCallback(
           title: requirement.requirementName,
         });
 
+        // Only emit batch progress if batch still exists after state update
         const currentState = store.getState();
-        const batchProgress = currentState.getBatchProgress(batchId);
-        remoteEvents.batchProgress(requirement.projectId, {
-          batchId,
-          completed: batchProgress.completed,
-          total: batchProgress.total,
-        });
+        if (currentState.batches[batchId]) {
+          const batchProgress = currentState.getBatchProgress(batchId);
+          remoteEvents.batchProgress(requirement.projectId, {
+            batchId,
+            completed: batchProgress.completed,
+            total: batchProgress.total,
+          });
+        }
 
         try {
           await fetch('/api/ideas/update-implementation-status', {
@@ -415,9 +491,13 @@ export function createPollingCallback(
           );
         }
 
+        // Only schedule next task if batch is still running and not paused
         setTimeout(() => {
           const nextState = store.getState();
-          nextState.executeNextTask(batchId, nextState.requirementsCache);
+          const nextBatch = nextState.batches[batchId];
+          if (nextBatch && isBatchRunning(nextBatch.status) && !nextState.isPaused) {
+            nextState.executeNextTask(batchId, nextState.requirementsCache);
+          }
         }, 500);
 
         return PollingResults.success();
@@ -425,6 +505,12 @@ export function createPollingCallback(
       } else if (taskStatus.status === 'failed' || taskStatus.status === 'session-limit') {
         console.error(`❌ Task ${requirementId} failed: ${taskStatus.error || 'Unknown error'}`);
         const isSessionLimit = taskStatus.status === 'session-limit';
+
+        // ── Fresh state check before terminal update ──
+        if (!isBatchStillActive(batchId, requirementId)) {
+          cleanupAbandonedTask(requirementId);
+          return PollingResults.failure(taskStatus.error || 'Task failed');
+        }
 
         const store = getStore();
         const freshFailedState = store.getState();
@@ -463,17 +549,24 @@ export function createPollingCallback(
           error: taskStatus.error || 'Task failed',
         });
 
+        // Only emit batch progress if batch still exists
         const failedState = store.getState();
-        const failedBatchProgress = failedState.getBatchProgress(batchId);
-        remoteEvents.batchProgress(requirement.projectId, {
-          batchId,
-          completed: failedBatchProgress.completed,
-          total: failedBatchProgress.total,
-        });
+        if (failedState.batches[batchId]) {
+          const failedBatchProgress = failedState.getBatchProgress(batchId);
+          remoteEvents.batchProgress(requirement.projectId, {
+            batchId,
+            completed: failedBatchProgress.completed,
+            total: failedBatchProgress.total,
+          });
+        }
 
+        // Only schedule next task if batch is still running and not paused
         setTimeout(() => {
           const nextState = store.getState();
-          nextState.executeNextTask(batchId, nextState.requirementsCache);
+          const nextBatch = nextState.batches[batchId];
+          if (nextBatch && isBatchRunning(nextBatch.status) && !nextState.isPaused) {
+            nextState.executeNextTask(batchId, nextState.requirementsCache);
+          }
         }, 1000);
 
         return PollingResults.failure(taskStatus.error || 'Task failed');
@@ -483,6 +576,11 @@ export function createPollingCallback(
 
     } catch (error) {
       console.error('Error polling task status:', error);
+      // Even on error, check if batch was cleared — don't keep retrying a dead batch
+      if (!isBatchStillActive(batchId, requirementId)) {
+        cleanupAbandonedTask(requirementId);
+        return PollingResults.success();
+      }
       return PollingResults.continue();
     }
   };
@@ -497,12 +595,13 @@ export function startTaskPolling(
   batchId: BatchId,
   requirement: ProjectRequirement
 ): void {
-  console.log(`🔄 Starting polling for task: ${requirementId}`);
+  console.log(`🔄 Starting SSE polling for task: ${requirementId}`);
 
   const callback = createPollingCallback(taskId, requirementId, batchId, requirement);
 
-  startPolling(requirementId, callback, {
-    intervalMs: 10000,
+  // Use SSE-first mode: connects to /api/claude-code/tasks/{taskId}/stream
+  // and fires callback on each server push. Falls back to 30s polling if SSE drops.
+  startSSEPolling(requirementId, taskId, callback, {
     onAttempt: (attempt) => {
       if (attempt % 6 === 0) {
         console.log(`⏳ Polling attempt #${attempt} for task: ${requirementId}`);

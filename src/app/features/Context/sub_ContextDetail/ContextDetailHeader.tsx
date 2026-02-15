@@ -37,6 +37,7 @@ export default function ContextDetailHeader({
           onClick={onClose}
           icon={ArrowLeft}
           variant="secondary"
+          aria-label="Go back"
         />
         
         <div className="flex items-center space-x-3">
@@ -57,7 +58,7 @@ export default function ContextDetailHeader({
             <h1 className="text-2xl font-bold text-white font-mono">
               {contextGroup?.name || 'Ungrouped'}
             </h1>
-            <p className="text-sm text-gray-400">Context Detail View</p>
+            <p className="text-sm text-gray-300">Context Detail View</p>
           </div>
         </div>
       </div>
@@ -68,18 +69,21 @@ export default function ContextDetailHeader({
           onClick={onEdit}
           icon={Edit3}
           variant="primary"
+          aria-label="Edit context"
         />
 
         <ActionButton
           onClick={onDelete}
           icon={Trash2}
           variant="danger"
+          aria-label="Delete context"
         />
 
         <ActionButton
           onClick={onClose}
           icon={X}
           variant="secondary"
+          aria-label="Close"
         />
       </div>
     </div>

@@ -4,6 +4,8 @@ import { withObservability } from '@/lib/observability/middleware';
 import { glob as globCallback } from 'glob';
 import { promisify } from 'util';
 import path from 'path';
+import { validateProjectPath } from '@/lib/pathSecurity';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 const glob = promisify(globCallback);
 import { contextQueries } from '@/lib/queries/contextQueries';
@@ -56,10 +58,22 @@ async function handlePost(request: NextRequest) {
       );
     }
 
+    const accessDenied = checkProjectAccess(projectId, request);
+    if (accessDenied) return accessDenied;
+
     if (!projectPath) {
       return NextResponse.json(
         { error: 'projectPath is required in request body' },
         { status: 400 }
+      );
+    }
+
+    // Validate project path for traversal attacks
+    const pathError = validateProjectPath(projectPath);
+    if (pathError) {
+      return NextResponse.json(
+        { error: pathError },
+        { status: 403 }
       );
     }
 
@@ -186,7 +200,7 @@ async function handlePost(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to perform scripted scan',
+        error: 'Failed to perform scripted scan',
       },
       { status: 500 }
     );

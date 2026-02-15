@@ -4,6 +4,8 @@ import fs from 'fs/promises';
 import { glob } from 'glob';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { withAccessControl } from '@/lib/api-helpers/accessControl';
+import { validateProjectPath } from '@/lib/pathSecurity';
 
 interface MatchedFile {
   path: string;
@@ -38,6 +40,15 @@ async function handlePost(request: NextRequest) {
       return NextResponse.json(
         { error: 'Project path is required' },
         { status: 400 }
+      );
+    }
+
+    // Validate project path for traversal attacks
+    const pathError = validateProjectPath(projectPath);
+    if (pathError) {
+      return NextResponse.json(
+        { error: pathError },
+        { status: 403 }
       );
     }
 
@@ -125,10 +136,10 @@ async function handlePost(request: NextRequest) {
   } catch (error) {
     logger.error('[Glob API] Error:', { error });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to search files' },
       { status: 500 }
     );
   }
 }
 
-export const POST = withObservability(handlePost, '/api/disk/glob');
+export const POST = withObservability(withAccessControl(handlePost, '/api/disk/glob', { skipProjectCheck: true, minRole: 'viewer' }), '/api/disk/glob');

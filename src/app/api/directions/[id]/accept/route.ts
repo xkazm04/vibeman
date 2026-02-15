@@ -6,11 +6,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, scanDb, ideaDb } from '@/app/db';
+import { directionDb, scanDb, ideaDb, insightEffectivenessCache } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { withObservability } from '@/lib/observability/middleware';
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { signalCollector } from '@/lib/brain/signalCollector';
 
 /**
@@ -91,10 +92,16 @@ async function handlePost(
           { status: 404 }
         );
       }
-      // Direction exists but is already processed or being processed
+      // Direction exists but is already processed or being processed.
+      // Return the existing direction data so clients can handle idempotently.
       return NextResponse.json(
-        { error: 'Direction has already been processed' },
-        { status: 409 } // 409 Conflict - more appropriate for idempotency violations
+        {
+          error: 'Direction has already been processed',
+          direction,
+          requirementName: direction.requirement_id ?? '',
+          requirementPath: direction.requirement_path ?? '',
+        },
+        { status: 409 }
       );
     }
 
@@ -123,8 +130,15 @@ async function handlePost(
     const result = createRequirement(projectPath, requirementId, requirementContent, true);
 
     if (!result.success) {
+      // Rollback: reset direction from 'processing' back to 'pending' so user can retry
+      directionDb.updateDirection(id, { status: 'pending' });
+      logger.error('[API] Requirement file creation failed, rolled back direction to pending:', {
+        directionId: id,
+        requirementId,
+        error: result.error,
+      });
       return NextResponse.json(
-        { error: result.error || 'Failed to create requirement file' },
+        { error: result.error || 'Failed to create requirement file. Direction has been reset — you can retry.' },
         { status: 500 }
       );
     }
@@ -137,8 +151,13 @@ async function handlePost(
     );
 
     if (!updatedDirection) {
+      logger.error('[API] Failed to update direction status after requirement creation:', {
+        directionId: id,
+        requirementId,
+        requirementPath: result.filePath,
+      });
       return NextResponse.json(
-        { error: 'Failed to update direction status' },
+        { error: 'Failed to update direction status. Requirement file was created but direction state is inconsistent.' },
         { status: 500 }
       );
     }
@@ -193,6 +212,9 @@ async function handlePost(
       // Signal recording must never break the main flow
     }
 
+    // Invalidate effectiveness cache since direction data changed
+    try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
+
     return NextResponse.json({
       success: true,
       direction: updatedDirection,
@@ -211,4 +233,4 @@ async function handlePost(
 }
 
 // Export with observability tracking
-export const POST = withObservability(handlePost, '/api/directions/[id]/accept');
+export const POST = withObservability(withRateLimit(handlePost, '/api/directions/[id]/accept', 'strict'), '/api/directions/[id]/accept');

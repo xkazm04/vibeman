@@ -233,14 +233,6 @@ const TaskRunnerLayout = () => {
   const handleBulkDelete = async (reqIds: string[]) => {
     if (reqIds.length === 0) return;
 
-    // Confirmation dialog for bulk delete (3+ items)
-    if (reqIds.length > 3) {
-      const confirmed = window.confirm(
-        `Delete ${reqIds.length} requirements? This cannot be undone.`
-      );
-      if (!confirmed) return;
-    }
-
     // Delete each requirement with concurrency limit to prevent overwhelming filesystem
     // Uses batched execution: processes up to CONCURRENCY_LIMIT items at a time
     const CONCURRENCY_LIMIT = 5;

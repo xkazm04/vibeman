@@ -7,6 +7,9 @@
  * - Comma-separated IDs → filter to multiple projects (workspace scope)
  */
 
+import { NextResponse } from 'next/server';
+import { verifyProjectExists, verifyProjectIds } from './accessControl';
+
 export interface ProjectFilter {
   mode: 'all' | 'single' | 'multi';
   projectId: string | null;
@@ -29,6 +32,48 @@ export function parseProjectIds(searchParams: URLSearchParams): ProjectFilter {
   }
 
   return { mode: 'single', projectId: raw, projectIds: null };
+}
+
+/**
+ * Parse and verify project IDs from URL search params.
+ * Returns a NextResponse error if any project ID is invalid, or null if OK.
+ *
+ * Usage:
+ *   const { filter, error } = parseAndVerifyProjectIds(searchParams);
+ *   if (error) return error;
+ *   // use filter...
+ */
+export function parseAndVerifyProjectIds(
+  searchParams: URLSearchParams
+): { filter: ProjectFilter; error: NextResponse | null } {
+  const filter = parseProjectIds(searchParams);
+
+  if (filter.mode === 'single' && filter.projectId) {
+    if (!verifyProjectExists(filter.projectId)) {
+      return {
+        filter,
+        error: NextResponse.json(
+          { error: 'Project not found', projectId: filter.projectId },
+          { status: 404 }
+        ),
+      };
+    }
+  }
+
+  if (filter.mode === 'multi' && filter.projectIds) {
+    const { invalid } = verifyProjectIds(filter.projectIds);
+    if (invalid.length > 0) {
+      return {
+        filter,
+        error: NextResponse.json(
+          { error: 'One or more projects not found', invalidIds: invalid },
+          { status: 404 }
+        ),
+      };
+    }
+  }
+
+  return { filter, error: null };
 }
 
 /**

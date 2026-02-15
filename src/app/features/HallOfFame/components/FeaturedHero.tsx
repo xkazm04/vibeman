@@ -47,7 +47,6 @@ import {
   AIProcessingPanelPreview,
   ChainBuilderPreview,
   DecisionNodeConfigPreview,
-  ZenStatsPreview,
   ModeTogglePreview,
   ContextMapSelectorPreview,
   DirectionCardPreview,
@@ -389,8 +388,6 @@ function renderComponentPreview(componentId: string) {
       return <DecisionNodeConfigPreview props={props} />;
 
     // ZenLayout
-    case 'zen-stats':
-      return <ZenStatsPreview props={props} />;
     case 'mode-toggle':
       return <ModeTogglePreview props={props} />;
 

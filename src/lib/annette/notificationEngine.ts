@@ -12,6 +12,7 @@
 
 import { brainReflectionDb, brainInsightDb, directionOutcomeDb, behavioralSignalDb, directionDb } from '@/app/db';
 import { consumeTaskEvents, TaskNotificationEvent } from '@/lib/brain/taskNotificationEmitter';
+import { personaMessageRepository } from '@/app/db/repositories/persona.repository';
 import { logger } from '@/lib/logger';
 
 export interface AnnetteNotification {
@@ -60,6 +61,10 @@ export function checkForNotifications(projectId: string): AnnetteNotification[] 
     // Check task execution events
     const taskNotifs = checkTaskExecutionEvents(projectId);
     notifications.push(...taskNotifs);
+
+    // Check unread persona messages (bridges Annette Voice Bridge → Annette UI badge)
+    const personaNotifs = checkPersonaMessages();
+    notifications.push(...personaNotifs);
   } catch (error) {
     logger.error('Notification check failed', { projectId, error });
   }
@@ -306,6 +311,46 @@ function formatDuration(ms: number): string {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return `${hours}h ${remainingMinutes}m`;
+}
+
+/**
+ * Check for unread persona messages and convert to Annette notifications.
+ * This bridges the persona messaging system → Annette UI badge.
+ * Only surfaces recent unread messages (last 5 minutes) to avoid flooding.
+ */
+function checkPersonaMessages(): AnnetteNotification[] {
+  const notifications: AnnetteNotification[] = [];
+
+  try {
+    const unread = personaMessageRepository.getGlobalWithPersonaInfo(10, 0, { is_read: 0 });
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+
+    for (const msg of unread) {
+      const createdAt = new Date(msg.created_at).getTime();
+      if (createdAt < fiveMinAgo) continue;
+
+      const personaName = msg.persona_name || 'Persona';
+      const priority: 'low' | 'medium' | 'high' =
+        msg.priority === 'high' ? 'high' :
+        msg.priority === 'normal' ? 'medium' : 'low';
+
+      notifications.push({
+        id: `persona-msg-${msg.id}`,
+        type: 'insight',
+        priority,
+        title: msg.title || `Message from ${personaName}`,
+        message: msg.content.length > 200
+          ? msg.content.substring(0, 200) + '...'
+          : msg.content,
+        actionable: false,
+        timestamp: msg.created_at,
+      });
+    }
+  } catch {
+    // Persona message check is non-critical
+  }
+
+  return notifications;
 }
 
 /**

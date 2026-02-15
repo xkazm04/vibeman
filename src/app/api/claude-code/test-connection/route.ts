@@ -80,9 +80,8 @@ export async function GET(request: NextRequest) {
       results.checks.push({
         name: 'API Connectivity Test',
         status: 'FAIL',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: 'API connectivity check failed',
         duration,
-        error: error instanceof Error ? error.stack : String(error)
       });
 
       return NextResponse.json({
@@ -120,8 +119,7 @@ export async function GET(request: NextRequest) {
     results.checks.push({
       name: 'Overall Test',
       status: 'FAIL',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      error: error instanceof Error ? error.stack : String(error)
+      message: 'Connection test failed',
     });
 
     return NextResponse.json({

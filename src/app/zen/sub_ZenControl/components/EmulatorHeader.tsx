@@ -1,17 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Power, PowerOff, Loader2, RefreshCw, ChevronLeft, ChevronRight, Ruler } from 'lucide-react';
+import { ChevronDown, Power, PowerOff, Loader2, RefreshCw } from 'lucide-react';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
-import { useBreakpointStore } from '@/stores/breakpointStore';
-import { BreakpointGuideInline } from './BreakpointGuide';
-import {
-  DEFAULT_BREAKPOINTS,
-  getNextBreakpoint,
-  getPreviousBreakpoint,
-  mergeBreakpoints,
-} from '@/lib/emulator/mediaQueryDetector';
+import BreakpointJumperBar from './BreakpointJumperBar';
 
 interface EmulatorHeaderProps {
   // Connection state
@@ -48,30 +41,6 @@ export default function EmulatorHeader({
   isLoadingDevices,
 }: EmulatorHeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  // Breakpoint store state
-  const {
-    viewportWidth,
-    breakpoints,
-    customBreakpoints,
-    isBreakpointRulerVisible,
-    setViewportWidth,
-    jumpToBreakpoint,
-    toggleBreakpointRuler,
-  } = useBreakpointStore();
-
-  const allBreakpoints = mergeBreakpoints(breakpoints, customBreakpoints);
-
-  // Handle jump to next/previous breakpoint
-  const handleJumpNext = useCallback(() => {
-    const next = getNextBreakpoint(viewportWidth, allBreakpoints);
-    if (next) jumpToBreakpoint(next);
-  }, [viewportWidth, allBreakpoints, jumpToBreakpoint]);
-
-  const handleJumpPrevious = useCallback(() => {
-    const prev = getPreviousBreakpoint(viewportWidth, allBreakpoints);
-    if (prev) jumpToBreakpoint(prev);
-  }, [viewportWidth, allBreakpoints, jumpToBreakpoint]);
 
   // Get selected device info
   const selectedDevice = devices.find((d) => d.device_id === selectedDeviceId);
@@ -257,54 +226,8 @@ export default function EmulatorHeader({
       )}
       </div>
 
-      {/* Breakpoint Jumper Row */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-800/30 border border-gray-700/50 rounded-lg">
-        <div className="flex items-center gap-2">
-          <Ruler className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-xs text-gray-400">Viewport:</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleJumpPrevious}
-              className="p-1 hover:bg-gray-700 rounded transition-colors"
-              title="Previous breakpoint"
-            >
-              <ChevronLeft className="w-3 h-3 text-gray-400" />
-            </button>
-            <span className="text-xs font-medium text-cyan-400 min-w-[50px] text-center">
-              {viewportWidth}px
-            </span>
-            <button
-              onClick={handleJumpNext}
-              className="p-1 hover:bg-gray-700 rounded transition-colors"
-              title="Next breakpoint"
-            >
-              <ChevronRight className="w-3 h-3 text-gray-400" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Inline breakpoint indicator */}
-          <BreakpointGuideInline
-            currentWidth={viewportWidth}
-            breakpoints={allBreakpoints}
-          />
-
-          {/* Toggle ruler visibility */}
-          <button
-            onClick={toggleBreakpointRuler}
-            className={`
-              px-2 py-1 text-[10px] rounded transition-all
-              ${isBreakpointRulerVisible
-                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                : 'bg-gray-700/50 text-gray-500 hover:text-gray-300 border border-gray-700'
-              }
-            `}
-          >
-            {isBreakpointRulerVisible ? 'Hide Ruler' : 'Show Ruler'}
-          </button>
-        </div>
-      </div>
+      {/* Breakpoint Jumper (standalone, no connection dependency) */}
+      <BreakpointJumperBar />
     </div>
   );
 }

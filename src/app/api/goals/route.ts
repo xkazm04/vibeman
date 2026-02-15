@@ -10,6 +10,7 @@ import { fireAndForgetGoalAnalysis } from '@/lib/goals';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 import type { GoalResponse, GoalsListResponse, GoalMutationResponse, GoalDeleteResponse } from '@/lib/api-types/goals';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
@@ -33,6 +34,9 @@ async function handleGet(request: NextRequest) {
     const projectFilter = parseProjectIds(searchParams);
 
     if (projectFilter.mode === 'single') {
+      const accessDenied = checkProjectAccess(projectFilter.projectId!, request);
+      if (accessDenied) return accessDenied;
+
       const goals = goalDb.getGoalsByProject(projectFilter.projectId!);
       return NextResponse.json({ goals } satisfies GoalsListResponse);
     }
@@ -68,6 +72,10 @@ async function handlePost(request: NextRequest) {
     if (!projectId || !title) {
       return createErrorResponse('Project ID and title are required', 400);
     }
+
+    // Verify project exists and caller has access
+    const accessDenied = checkProjectAccess(projectId, request);
+    if (accessDenied) return accessDenied;
 
     // If no order index provided, get the next available one
     let finalOrderIndex = orderIndex;
@@ -181,6 +189,13 @@ async function handlePut(request: NextRequest) {
       return createErrorResponse('Goal ID is required', 400);
     }
 
+    // Verify project access via goal's project
+    const existingGoal = goalDb.getGoalById(id);
+    if (existingGoal) {
+      const accessDenied = checkProjectAccess(existingGoal.project_id, request);
+      if (accessDenied) return accessDenied;
+    }
+
     const updateData: {
       title?: string;
       description?: string;
@@ -232,6 +247,12 @@ async function handleDelete(request: NextRequest) {
     // Get the goal first to capture github_item_id before deletion
     const goal = goalDb.getGoalById(id);
     const githubItemId = goal?.github_item_id || null;
+
+    // Verify project access via goal's project
+    if (goal) {
+      const accessDenied = checkProjectAccess(goal.project_id, request);
+      if (accessDenied) return accessDenied;
+    }
 
     const success = goalDb.deleteGoal(id);
 

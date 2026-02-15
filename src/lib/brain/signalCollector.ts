@@ -186,6 +186,72 @@ export const signalCollector = {
   },
 
   /**
+   * Record an idea decision (Tinder swipe) as a behavioral signal.
+   * Tracks which categories/contexts the user prefers.
+   */
+  recordIdeaDecision: (
+    projectId: string,
+    data: {
+      ideaId: string;
+      ideaTitle: string;
+      category: string;
+      accepted: boolean;
+      contextId: string | null;
+      contextName: string | null;
+    }
+  ): void => {
+    try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'context_focus', `idea_decision:${data.ideaId}`)) return;
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'context_focus',
+        context_id: data.contextId || null,
+        context_name: data.contextName || 'General',
+        data: dataStr,
+        weight: data.accepted ? 0.8 : 0.3,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record idea decision:', error);
+    }
+  },
+
+  /**
+   * Record a goal lifecycle signal (goal status transition detected)
+   */
+  recordGoalLifecycleSignal: (
+    projectId: string,
+    data: {
+      goalId: string;
+      goalTitle: string;
+      signalType: string;
+      transition?: { from: string; to: string };
+      progress: number;
+      contextId: string | null;
+      contextName: string | null;
+    }
+  ): void => {
+    try {
+      const dataStr = JSON.stringify(data);
+      if (isDuplicate(projectId, 'context_focus', `goal_lifecycle:${data.goalId}:${data.signalType}`)) return;
+      behavioralSignalDb.create({
+        id: generateSignalId(),
+        project_id: projectId,
+        signal_type: 'context_focus',
+        context_id: data.contextId || null,
+        context_name: data.contextName || 'General',
+        data: dataStr,
+        weight: data.transition ? 1.0 : 0.5,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SignalCollector] Failed to record goal lifecycle signal:', error);
+    }
+  },
+
+  /**
    * Record a cross-task analysis signal (cross-project requirement analysis completed)
    */
   recordCrossTaskAnalysis: (

@@ -4,11 +4,10 @@
  * A task-keyed registry of polling operations built on the unified poller.
  * Manages concurrent polling for multiple TaskRunner tasks with recovery support.
  *
- * This module is a thin wrapper around createUnifiedPoller from @/hooks/usePolling.
- * It adds:
- * - A Map to track multiple concurrent polling operations by taskId
- * - Recovery support for page refresh scenarios
- * - Bulk cleanup operations
+ * Supports two modes:
+ * 1. SSE-first (default): Connects to SSE stream for instant push notifications,
+ *    falls back to 30s polling if SSE disconnects.
+ * 2. Polling-only: Classic 10s interval polling (used as fallback).
  */
 
 import {
@@ -62,6 +61,8 @@ interface PollingEntry {
   startedAt: number;
   intervalMs: number;
   maxAttempts: number;
+  eventSource?: EventSource;
+  mode: 'sse' | 'polling';
 }
 
 const activePollingIntervals = new Map<string, PollingEntry>();
@@ -72,8 +73,134 @@ const DEFAULT_CONFIG = {
   onAttempt: () => {},
 };
 
+/** Fallback polling interval when SSE disconnects (30s instead of 10s) */
+const SSE_FALLBACK_INTERVAL_MS = 30_000;
+
 // ============================================================================
-// Public API
+// SSE Support
+// ============================================================================
+
+/**
+ * Start SSE-first polling for a task.
+ * Connects to the SSE stream endpoint; on each event, invokes the callback.
+ * If SSE fails to connect or disconnects, falls back to 30s polling.
+ *
+ * @param pollingTaskId - The task key used for polling registry (typically requirementId)
+ * @param sseTaskId - The actual task ID used for the SSE endpoint URL
+ * @param callback - The polling callback to invoke on each event
+ * @param config - Optional polling configuration
+ */
+export function startSSEPolling(
+  pollingTaskId: string,
+  sseTaskId: string,
+  callback: PollingCallback,
+  config: PollingConfig = {}
+): void {
+  // Stop any existing polling for this task
+  if (activePollingIntervals.has(pollingTaskId)) {
+    console.log(`[SSE] Already polling for ${pollingTaskId}, restarting...`);
+    stopPolling(pollingTaskId);
+  }
+
+  const startedAt = Date.now();
+
+  // Try SSE first
+  if (typeof EventSource !== 'undefined') {
+    try {
+      const es = new EventSource(`/api/claude-code/tasks/${encodeURIComponent(sseTaskId)}/stream`);
+      let callbackRunning = false;
+      let stopped = false;
+
+      // Create a minimal poller as backup (30s) - starts paused
+      const fallbackPoller = createUnifiedPoller(callback, {
+        activeIntervalMs: SSE_FALLBACK_INTERVAL_MS,
+        immediate: false,
+        maxAttempts: config.maxAttempts ?? Infinity,
+        onAttempt: config.onAttempt,
+        onTimeout: () => {
+          console.error(`[SSE] Fallback polling timeout for task: ${pollingTaskId}`);
+          activePollingIntervals.delete(pollingTaskId);
+        },
+      });
+
+      const entry: PollingEntry = {
+        poller: fallbackPoller,
+        startedAt,
+        intervalMs: SSE_FALLBACK_INTERVAL_MS,
+        maxAttempts: config.maxAttempts ?? Infinity,
+        eventSource: es,
+        mode: 'sse',
+      };
+      activePollingIntervals.set(pollingTaskId, entry);
+
+      console.log(`[SSE] Connected for task: ${pollingTaskId}`);
+
+      // On SSE message: invoke callback immediately
+      es.onmessage = async (event) => {
+        if (stopped || callbackRunning) return;
+        callbackRunning = true;
+        try {
+          const data = JSON.parse(event.data);
+
+          // On terminal events, run callback one final time
+          if (data.type === 'done') {
+            await callback();
+            stopPolling(pollingTaskId);
+            return;
+          }
+
+          // On change/status/final events, run the callback to fetch full status
+          if (data.type === 'change' || data.type === 'status' || data.type === 'final') {
+            const result = await callback();
+            // If callback says we're done, stop everything
+            if (result.done) {
+              stopPolling(pollingTaskId);
+              return;
+            }
+          }
+          // Heartbeat events: no action needed
+        } catch {
+          // Callback error - continue listening
+        } finally {
+          callbackRunning = false;
+        }
+      };
+
+      // On SSE error: fall back to polling
+      es.onerror = () => {
+        if (stopped) return;
+        console.warn(`[SSE] Connection lost for task: ${pollingTaskId}, falling back to ${SSE_FALLBACK_INTERVAL_MS / 1000}s polling`);
+
+        // Close EventSource
+        es.close();
+        entry.eventSource = undefined;
+        entry.mode = 'polling';
+
+        // Start fallback polling
+        fallbackPoller.start();
+      };
+
+      // Fire initial callback to get current state
+      setTimeout(() => {
+        if (!stopped) callback();
+      }, 100);
+
+      // Store stop hook
+      const origStop = () => { stopped = true; };
+      es.addEventListener('close', origStop);
+
+      return;
+    } catch {
+      console.warn('[SSE] Failed to create EventSource, using polling fallback');
+    }
+  }
+
+  // Fallback: use regular polling
+  startPolling(pollingTaskId, callback, config);
+}
+
+// ============================================================================
+// Public API (existing)
 // ============================================================================
 
 export function startPolling(
@@ -110,6 +237,7 @@ export function startPolling(
     startedAt,
     intervalMs: fullConfig.intervalMs,
     maxAttempts: fullConfig.maxAttempts,
+    mode: 'polling',
   });
 
   poller.start();
@@ -121,10 +249,17 @@ export function stopPolling(taskId: string): boolean {
 
   const state = entry.poller.getState();
   entry.poller.stop();
+
+  // Close SSE connection if active
+  if (entry.eventSource) {
+    entry.eventSource.close();
+    entry.eventSource = undefined;
+  }
+
   activePollingIntervals.delete(taskId);
 
   const duration = Date.now() - entry.startedAt;
-  console.log(`\u23f9\ufe0f Stopped polling for task: ${taskId} (duration: ${Math.round(duration / 1000)}s, attempts: ${state.attempts})`);
+  console.log(`\u23f9\ufe0f Stopped ${entry.mode} for task: ${taskId} (duration: ${Math.round(duration / 1000)}s, attempts: ${state.attempts})`);
 
   return true;
 }
@@ -137,6 +272,10 @@ export function cleanupAllPolling(): number {
 
   activePollingIntervals.forEach((entry, taskId) => {
     entry.poller.stop();
+    if (entry.eventSource) {
+      entry.eventSource.close();
+      entry.eventSource = undefined;
+    }
     console.log(`  \u23f9\ufe0f Stopped: ${taskId}`);
   });
 

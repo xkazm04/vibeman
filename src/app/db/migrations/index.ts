@@ -24,6 +24,12 @@ import { migrate093PersonaMessages } from './093_persona_messages';
 import { migrate094PersonaDesignResult } from './094_persona_design_result';
 import { migrate095PersonaToolUsage } from './095_persona_tool_usage';
 import { migrate096PersonaEventBus } from './096_persona_event_bus';
+import { migrate097PersonaDesignReviews } from './097_persona_design_reviews';
+import { migrate098PersonaDesignPatterns } from './098_persona_design_patterns';
+import { migrate099ReviewUseCaseFlows } from './099_review_use_case_flows';
+import { migrate100BehavioralSignalDecayTracking } from './100_behavioral_signal_decay_tracking';
+import { migrate101InsightEffectivenessCache } from './101_insight_effectiveness_cache';
+import { migrate103GoalLifecycle } from './103_goal_lifecycle';
 
 /**
  * Migration logger utility
@@ -263,6 +269,19 @@ export function runMigrations() {
     migratePersonaToolUsage();
     // Migration 96: Persona Event Bus - central pub/sub for webhooks and inter-persona actions
     migratePersonaEventBus();
+    // Migration 97: Persona Design Reviews - automated QA test results
+    migratePersonaDesignReviews097();
+    // Migration 98: Persona Design Patterns - learned patterns for self-improvement
+    migratePersonaDesignPatterns098();
+    // Migration 99: Review Use Case Flows - activity diagram visualization
+    migrateReviewUseCaseFlows099();
+    // Migration 100: Behavioral Signal Decay Tracking - batched weekly decay
+    migrateBehavioralSignalDecayTracking100();
+    // Migration 101: Insight Effectiveness Cache - avoid O(n*m) recalculation
+    migrate101InsightEffectivenessCache(migrationLogger);
+
+    // Migration 103: Goal Lifecycle Engine - autonomous progress tracking
+    migrate103GoalLifecycle(db, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4732,5 +4751,33 @@ function migratePersonaEventBus() {
   safeMigration('personaEventBus096', () => {
     const db = getConnection();
     migrate096PersonaEventBus(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migratePersonaDesignReviews097() {
+  safeMigration('personaDesignReviews097', () => {
+    const db = getConnection();
+    migrate097PersonaDesignReviews(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migratePersonaDesignPatterns098() {
+  safeMigration('personaDesignPatterns098', () => {
+    const db = getConnection();
+    migrate098PersonaDesignPatterns(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migrateReviewUseCaseFlows099() {
+  safeMigration('reviewUseCaseFlows099', () => {
+    const db = getConnection();
+    migrate099ReviewUseCaseFlows(db, migrationLogger);
+  }, migrationLogger);
+}
+
+function migrateBehavioralSignalDecayTracking100() {
+  safeMigration('behavioralSignalDecayTracking100', () => {
+    const db = getConnection();
+    migrate100BehavioralSignalDecayTracking(db as any, migrationLogger);
   }, migrationLogger);
 }

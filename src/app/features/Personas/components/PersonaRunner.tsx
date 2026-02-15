@@ -45,7 +45,11 @@ export function PersonaRunner() {
         const data = JSON.parse(event.data);
 
         if (data.line) {
-          setOutputLines((prev) => [...prev, data.line]);
+          setOutputLines((prev) => {
+            const next = [...prev, data.line];
+            // Cap at 500 lines to prevent browser OOM — full log available via Copy Log
+            return next.length > 500 ? next.slice(-500) : next;
+          });
         }
 
         if (data.done) {

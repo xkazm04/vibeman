@@ -1,8 +1,9 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { memo } from 'react';
-import type { Checkpoint } from '../lib/checkpoint.types';
+import { memo, useState, useEffect, useMemo } from 'react';
+import { CheckCircle, Circle, Loader2, Minus } from 'lucide-react';
+import type { Checkpoint, CheckpointStatus } from '../lib/checkpoint.types';
 import { getCheckpointProgress } from '../lib/checkpointExtractor';
 
 interface CheckpointProgressProps {
@@ -34,14 +35,107 @@ export const CheckpointProgress = memo(function CheckpointProgress({
     );
   }
 
+  const percentage = total > 0 ? (completed / total) * 100 : 0;
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
+      {/* Progress bar + elapsed time */}
+      <ProgressHeader
+        completed={completed}
+        total={total}
+        percentage={percentage}
+        checkpoints={checkpoints}
+      />
+
+      {/* Checkpoint list */}
       {checkpoints.map((checkpoint) => (
         <CheckpointItem key={checkpoint.id} checkpoint={checkpoint} />
       ))}
     </div>
   );
 });
+
+/**
+ * Progress bar with percentage and elapsed time
+ */
+function ProgressHeader({
+  completed,
+  total,
+  percentage,
+  checkpoints,
+}: {
+  completed: number;
+  total: number;
+  percentage: number;
+  checkpoints: Checkpoint[];
+}) {
+  const elapsed = useElapsedTime(checkpoints);
+
+  return (
+    <div className="mb-1">
+      <div className="flex items-center justify-between text-[11px] text-gray-400 mb-1">
+        <span className="font-mono tabular-nums">
+          {completed}/{total} checkpoints
+        </span>
+        {elapsed && (
+          <span className="font-mono tabular-nums text-gray-500">
+            {elapsed}
+          </span>
+        )}
+      </div>
+      <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Hook to compute elapsed time since first checkpoint started
+ */
+function useElapsedTime(checkpoints: Checkpoint[]): string | null {
+  const firstStartedAt = useMemo(() => {
+    const startTimes = checkpoints
+      .map(c => c.startedAt)
+      .filter((t): t is number => t != null);
+    return startTimes.length > 0 ? Math.min(...startTimes) : null;
+  }, [checkpoints]);
+
+  const isFinished = useMemo(() =>
+    checkpoints.every(c => c.status === 'completed' || c.status === 'skipped'),
+    [checkpoints]
+  );
+
+  const lastCompletedAt = useMemo(() => {
+    if (!isFinished) return null;
+    const endTimes = checkpoints
+      .map(c => c.completedAt)
+      .filter((t): t is number => t != null);
+    return endTimes.length > 0 ? Math.max(...endTimes) : null;
+  }, [checkpoints, isFinished]);
+
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (firstStartedAt == null || isFinished) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [firstStartedAt, isFinished]);
+
+  if (firstStartedAt == null) return null;
+
+  const endTime = isFinished && lastCompletedAt ? lastCompletedAt : now;
+  const seconds = Math.max(0, Math.floor((endTime - firstStartedAt) / 1000));
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
 /**
  * Compact version showing "3/7 Current activity..."
@@ -94,24 +188,27 @@ function CompactCheckpointProgress({
 }
 
 /**
- * Single checkpoint item with status icon
+ * SVG icon for checkpoint status
+ */
+function StatusIcon({ status }: { status: CheckpointStatus }) {
+  switch (status) {
+    case 'completed':
+      return <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />;
+    case 'in_progress':
+      return <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />;
+    case 'skipped':
+      return <Minus className="w-3.5 h-3.5 text-gray-600 shrink-0" />;
+    case 'pending':
+    default:
+      return <Circle className="w-3.5 h-3.5 text-gray-600 shrink-0" />;
+  }
+}
+
+/**
+ * Single checkpoint item with SVG status icon
  */
 function CheckpointItem({ checkpoint }: { checkpoint: Checkpoint }) {
   const { status, label, activeLabel } = checkpoint;
-
-  const statusIcon = {
-    pending: '[ ]',
-    in_progress: '[>]',
-    completed: '[x]',
-    skipped: '[-]',
-  }[status];
-
-  const statusColor = {
-    pending: 'text-gray-500',
-    in_progress: 'text-blue-400',
-    completed: 'text-green-400',
-    skipped: 'text-gray-600',
-  }[status];
 
   const labelColor = {
     pending: 'text-gray-500',
@@ -121,17 +218,12 @@ function CheckpointItem({ checkpoint }: { checkpoint: Checkpoint }) {
   }[status];
 
   return (
-    <motion.div
-      className="flex items-center gap-2 text-xs py-0.5"
-      initial={status === 'in_progress' ? { opacity: 0.5 } : false}
-      animate={status === 'in_progress' ? { opacity: [0.5, 1, 0.5] } : { opacity: 1 }}
-      transition={status === 'in_progress' ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } : undefined}
-    >
-      <span className={statusColor}>{statusIcon}</span>
+    <div className="flex items-center gap-2 text-xs py-0.5">
+      <StatusIcon status={status} />
       <span className={labelColor}>
         {status === 'in_progress' ? activeLabel : label}
       </span>
-    </motion.div>
+    </div>
   );
 }
 

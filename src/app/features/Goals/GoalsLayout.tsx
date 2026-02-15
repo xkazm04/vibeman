@@ -39,6 +39,7 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, onClic
   const statusConfig = getStatusConfig(goal.status);
   const StatusIcon = statusConfig.icon;
   const statusColor = statusConfig.color;
+  const progress = goal.progress || 0;
 
   return (
     <motion.button
@@ -66,7 +67,21 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, onClic
           </p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] font-mono text-muted-foreground/60 uppercase">ID-{goal.id.slice(0, 4)}</span>
+            {progress > 0 && (
+              <span className="text-[10px] font-mono text-blue-400/70">{progress}%</span>
+            )}
           </div>
+          {/* Lifecycle progress bar */}
+          {progress > 0 && (
+            <div className="mt-1.5 h-1 bg-primary/10 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+              />
+            </div>
+          )}
         </div>
         <ChevronRight className={'w-4 h-4 text-muted-foreground/60 transition-transform ' + (isSelected ? 'text-primary translate-x-1' : 'group-hover:text-muted-foreground')} />
       </div>

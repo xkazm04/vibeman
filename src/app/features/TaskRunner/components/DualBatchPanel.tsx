@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef, useCallback } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Play, Pause, CheckCircle2, Loader2, Plus, X, Zap, Clock, XCircle, Layers } from 'lucide-react';
 import { getStatusIcon, getStatusColor } from '@/components/ui/taskStatusUtils';
 import { useEffect } from 'react';
@@ -59,6 +59,115 @@ function LazyQueueItem({ children, height = 36 }: { children: React.ReactNode; h
   return <div ref={ref}>{children}</div>;
 }
 
+/**
+ * Status label for tooltip display
+ */
+function getTooltipStatusLabel(status: string): string {
+  switch (status) {
+    case 'running': return 'Running';
+    case 'completed': return 'Completed';
+    case 'failed': return 'Failed';
+    case 'session-limit': return 'Session Limit';
+    case 'queued': return 'Queued';
+    default: return 'Idle';
+  }
+}
+
+function getTooltipStatusColor(status: string): string {
+  switch (status) {
+    case 'running': return 'text-blue-400';
+    case 'completed': return 'text-emerald-400';
+    case 'failed': case 'session-limit': return 'text-red-400';
+    case 'queued': return 'text-amber-400';
+    default: return 'text-gray-400';
+  }
+}
+
+/**
+ * Rich hover tooltip for batch queue items.
+ * Shows full requirement name, project, status, elapsed time, and error info.
+ * Appears after 300ms hover delay with Framer Motion animation.
+ */
+function QueueItemTooltip({
+  children,
+  item,
+}: {
+  children: React.ReactNode;
+  item: ProjectRequirement;
+}) {
+  const [show, setShow] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleEnter = useCallback(() => {
+    timerRef.current = setTimeout(() => setShow(true), 300);
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setShow(false);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const isRunning = item.status === 'running';
+  const isFailed = item.status === 'failed' || item.status === 'session-limit';
+
+  return (
+    <div
+      className="relative flex-shrink-0"
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+    >
+      {children}
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none"
+          >
+            <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/60 rounded-lg shadow-xl shadow-black/40 px-3 py-2.5 min-w-[220px] max-w-[320px]">
+              {/* Requirement name */}
+              <p className="text-xs font-medium text-white break-all leading-relaxed">
+                {item.requirementName}
+              </p>
+              {/* Project name */}
+              <p className="text-[10px] text-gray-400 mt-1 truncate">
+                {item.projectName}
+              </p>
+              {/* Status row */}
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-700/40">
+                {getStatusIcon(item.status as any)}
+                <span className={`text-[10px] font-medium ${getTooltipStatusColor(item.status)}`}>
+                  {getTooltipStatusLabel(item.status)}
+                </span>
+                {isRunning && (
+                  <span className="text-[10px] text-gray-500 ml-auto animate-pulse">
+                    active
+                  </span>
+                )}
+              </div>
+              {/* Error message */}
+              {isFailed && (
+                <p className="text-[10px] text-red-400/80 mt-1.5 break-all line-clamp-2">
+                  {item.status === 'session-limit' ? 'Session limit reached' : 'Execution failed'}
+                </p>
+              )}
+              {/* Arrow */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-gray-700/60" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 interface DualBatchPanelProps {
   onStartBatch: (batchId: BatchId) => void;
   onPauseBatch: (batchId: BatchId) => void;
@@ -101,6 +210,8 @@ function BatchDisplay({
   onCreateBatch: (batchId: BatchId) => void;
   selectedCount: number;
 }) {
+  const prefersReducedMotion = useReducedMotion();
+
   // Auto-execution hooks - will automatically execute tasks when batch is running
   useAutoExecution(batchId, requirements);
   useExecutionMonitor(batchId, requirements);
@@ -371,39 +482,40 @@ function BatchDisplay({
                           }`} />
                         </div>
                       )}
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8, x: -10 }}
-                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, x: 10 }}
-                        transition={{ duration: 0.2 }}
-                        className={`
-                          relative flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded border
-                          transition-all duration-200
-                          ${getStatusColor(item.status)}
-                          min-w-[120px] max-w-[160px]
-                        `}
-                        title={`${item.projectName} / ${item.requirementName}`}
-                      >
-                        {/* Step number badge */}
-                        <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center">
-                          <span className="text-[8px] font-mono text-gray-400">{index + 1}</span>
-                        </div>
-                        {/* Status Icon */}
-                        <div className="flex-shrink-0">{getStatusIcon(item.status)}</div>
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[10px] font-medium text-gray-300 truncate">
-                            {item.requirementName}
+                      <QueueItemTooltip item={item}>
+                        <motion.div
+                          initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8, x: -10 }}
+                          animate={{ opacity: 1, scale: 1, x: 0 }}
+                          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8, x: 10 }}
+                          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
+                          className={`
+                            relative flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded border
+                            transition-all duration-200
+                            ${getStatusColor(item.status)}
+                            min-w-[120px] max-w-[160px]
+                          `}
+                        >
+                          {/* Step number badge */}
+                          <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center">
+                            <span className="text-[8px] font-mono text-gray-400">{index + 1}</span>
                           </div>
-                          <div className="text-[8px] text-gray-500 truncate">
-                            {item.projectName}
+                          {/* Status Icon */}
+                          <div className="flex-shrink-0">{getStatusIcon(item.status)}</div>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-medium text-gray-300 truncate">
+                              {item.requirementName}
+                            </div>
+                            <div className="text-[8px] text-gray-500 truncate">
+                              {item.projectName}
+                            </div>
                           </div>
-                        </div>
-                        {/* Running indicator */}
-                        {isRequirementRunning(item.status) && (
-                          <div className="absolute inset-0 rounded border-2 border-blue-500/60" />
-                        )}
-                      </motion.div>
+                          {/* Running indicator */}
+                          {isRequirementRunning(item.status) && (
+                            <div className="absolute inset-0 rounded border-2 border-blue-500/60" />
+                          )}
+                        </motion.div>
+                      </QueueItemTooltip>
                     </React.Fragment>
                   );
 

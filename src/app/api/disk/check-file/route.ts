@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { withAccessControl } from '@/lib/api-helpers/accessControl';
+import { validatePathTraversal } from '@/lib/pathSecurity';
 
 /**
  * POST /api/disk/check-file
@@ -12,7 +14,7 @@ import path from 'path';
  * Response:
  * - exists: boolean - Whether the file exists
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { filePath } = body;
@@ -21,6 +23,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid file path' },
         { status: 400 }
+      );
+    }
+
+    // Security check - prevent directory traversal
+    const traversalError = validatePathTraversal(filePath);
+    if (traversalError) {
+      return NextResponse.json(
+        { error: traversalError },
+        { status: 403 }
       );
     }
 
@@ -37,10 +48,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Failed to check file',
+        error: 'Failed to check file',
         exists: false
       },
       { status: 500 }
     );
   }
 }
+
+export const POST = withAccessControl(handlePost, '/api/disk/check-file', { skipProjectCheck: true, minRole: 'viewer' });

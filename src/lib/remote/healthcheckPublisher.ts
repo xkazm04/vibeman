@@ -23,11 +23,11 @@ async function getClientState(): Promise<{
   zenMode: boolean;
   activeSessions: number;
 }> {
-  const { useZenStore } = await import('@/app/zen/lib/zenStore');
+  const { useZenNavigation, getModeFromPath } = await import('@/app/zen/lib/zenNavigationStore');
   // Import directly from specific file to avoid circular dependency
   const { useCLISessionStore } = await import('@/components/cli/store/cliSessionStore');
 
-  const zenMode = useZenStore.getState().mode === 'online';
+  const zenMode = getModeFromPath(useZenNavigation.getState().viewPath) === 'online';
   const sessions = useCLISessionStore.getState().sessions;
 
   // Count active sessions (where isRunning === true)
@@ -82,9 +82,16 @@ class HealthcheckPublisher {
     // Publish immediately
     await this.publishNow();
 
-    // Start periodic publishing
+    // Start periodic publishing with overlap guard
+    let isPublishing = false;
     this.intervalId = setInterval(async () => {
-      await this.publishNow();
+      if (isPublishing) return;
+      isPublishing = true;
+      try {
+        await this.publishNow();
+      } finally {
+        isPublishing = false;
+      }
     }, HEALTHCHECK_INTERVAL_MS);
 
     console.log('[HealthcheckPublisher] Started with 30s interval for project:', projectId);

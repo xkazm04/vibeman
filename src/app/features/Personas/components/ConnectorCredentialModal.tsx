@@ -122,8 +122,11 @@ export function ConnectorCredentialModal({
       // Open Google consent screen in new tab
       window.open(authUrl, '_blank', 'noopener,noreferrer');
 
-      // Poll for completion
+      // Poll for completion with overlap guard
+      let isOauthPolling = false;
       pollRef.current = setInterval(async () => {
+        if (isOauthPolling) return;
+        isOauthPolling = true;
         try {
           const statusRes = await fetch(`/api/personas/google-oauth/status/${sessionId}`);
           if (!statusRes.ok) return;
@@ -150,6 +153,8 @@ export function ConnectorCredentialModal({
           }
         } catch {
           // Network errors during polling — keep trying
+        } finally {
+          isOauthPolling = false;
         }
       }, 1500);
 

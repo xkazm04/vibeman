@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Play } from 'lucide-react';
 import { useZenStore, type ActivityItem } from '../lib/zenStore';
 import { cn } from '@/lib/utils';
+import { zen } from '../lib/zenTheme';
 
 const EVENT_ICONS = {
   completed: CheckCircle,
@@ -50,7 +51,7 @@ function EventItem({ event }: EventItemProps) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.2 }}
-      className="px-4 py-2 border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+      className={`px-4 py-2 border-b ${zen.surfaceDividerSubtle} hover:bg-gray-800/30 transition-colors`}
     >
       <div className="flex items-start gap-2">
         <div className={cn("mt-0.5 p-1 rounded shrink-0", colorClass)}>
@@ -58,7 +59,7 @@ function EventItem({ event }: EventItemProps) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-gray-300 truncate">{event.title}</p>
-          <div className="flex items-center gap-2 text-[10px] text-gray-600 mt-0.5">
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
             <span>{formatTimeAgo(timestamp)}</span>
             {event.error && (
               <span className="text-red-400 truncate" title={event.error}>
@@ -89,9 +90,9 @@ export function ZenEventSidebar() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-800 shrink-0">
+      <div className={`px-4 py-3 border-b ${zen.surfaceDivider} shrink-0`}>
         <h3 className="text-sm font-medium text-gray-300">Event Feed</h3>
-        <p className="text-[10px] text-gray-500 mt-0.5">
+        <p className="text-xs text-gray-400 mt-0.5">
           {events.length > 0 ? `${events.length} recent events` : 'No events yet'}
         </p>
       </div>
@@ -103,7 +104,7 @@ export function ZenEventSidebar() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="px-4 py-8 text-center text-xs text-gray-600"
+              className="px-4 py-8 text-center text-xs text-gray-400"
             >
               Events will appear here when tasks run
             </motion.div>

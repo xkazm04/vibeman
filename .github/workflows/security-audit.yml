@@ -1,0 +1,101 @@
+name: Dependency Security Audit
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+  schedule:
+    # Run weekly on Wednesday at 8 AM UTC
+    - cron: '0 8 * * 3'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify lockfile integrity
+        run: node scripts/verify-lockfile.js
+
+      - name: Run npm audit (production deps)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+        id: audit_prod
+
+      - name: Run npm audit (all deps)
+        run: npm audit --audit-level=critical
+        continue-on-error: true
+        id: audit_all
+
+      - name: Generate audit report
+        if: always()
+        run: |
+          echo "## Dependency Security Audit Report" > audit-report.md
+          echo "" >> audit-report.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> audit-report.md
+          echo "" >> audit-report.md
+
+          echo "### Production Dependencies" >> audit-report.md
+          if [ "${{ steps.audit_prod.outcome }}" = "success" ]; then
+            echo "No high/critical vulnerabilities found." >> audit-report.md
+          else
+            echo "Vulnerabilities detected. Run \`npm audit --omit=dev\` for details." >> audit-report.md
+          fi
+          echo "" >> audit-report.md
+
+          echo "### All Dependencies" >> audit-report.md
+          if [ "${{ steps.audit_all.outcome }}" = "success" ]; then
+            echo "No critical vulnerabilities found." >> audit-report.md
+          else
+            echo "Vulnerabilities detected. Run \`npm audit\` for details." >> audit-report.md
+          fi
+
+          cat audit-report.md
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && (steps.audit_prod.outcome == 'failure' || steps.audit_all.outcome == 'failure')
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('audit-report.md', 'utf-8');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🔒 ${report}\n\n_Run \`npm audit fix\` to auto-fix where possible._`
+            });
+
+      - name: Fail on production critical vulnerabilities
+        if: steps.audit_prod.outcome == 'failure'
+        run: |
+          echo "::error::Production dependencies have high/critical vulnerabilities"
+          exit 1

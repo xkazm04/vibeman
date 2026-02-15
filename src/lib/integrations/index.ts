@@ -9,3 +9,4 @@ export * from './connectors/discord';
 export * from './connectors/webhook';
 export * from './engine';
 export * from './registry';
+export * from './webhookSignature';

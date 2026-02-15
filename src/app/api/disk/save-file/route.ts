@@ -2,17 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { withObservability } from '@/lib/observability/middleware';
+import { validateFilePath } from '@/lib/pathSecurity';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 async function handlePost(request: NextRequest) {
   try {
     const { filePath, content } = await request.json();
-
-    if (!filePath) {
-      return NextResponse.json(
-        { success: false, error: 'File path is required' },
-        { status: 400 }
-      );
-    }
 
     if (content === undefined || content === null) {
       return NextResponse.json(
@@ -21,11 +16,12 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    // Security check - prevent directory traversal
-    if (filePath.includes('..') || filePath.includes('~')) {
+    // Validate file path for traversal attacks
+    const validation = validateFilePath(filePath);
+    if (!validation.valid) {
       return NextResponse.json(
-        { success: false, error: 'Invalid file path' },
-        { status: 403 }
+        { success: false, error: validation.error },
+        { status: validation.error.includes('required') ? 400 : 403 }
       );
     }
 
@@ -47,18 +43,7 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    // Handle both absolute and relative paths
-    let fullPath: string;
-    const projectRoot = process.cwd();
-
-    // Check if it's an absolute path (Windows: C:\ or D:\ or Unix: /)
-    const isAbsolutePath = /^[A-Za-z]:[\\/]/.test(filePath) || filePath.startsWith('/');
-
-    if (isAbsolutePath) {
-      fullPath = filePath;
-    } else {
-      fullPath = join(projectRoot, filePath);
-    }
+    const fullPath = validation.resolvedPath;
 
     try {
       // Ensure directory exists
@@ -101,7 +86,7 @@ async function handlePost(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
+        error: 'Failed to save file'
       },
       { status: 500 }
     );

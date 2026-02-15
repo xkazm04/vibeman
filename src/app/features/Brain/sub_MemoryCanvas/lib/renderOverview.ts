@@ -1,6 +1,6 @@
-import type { Group } from './types';
-import { COLORS, FOCUS_ZOOM_THRESHOLD } from './constants';
-import { hexToRgba, getEventAlpha } from './helpers';
+import type { Group, FilterState } from './types';
+import { COLORS, FOCUS_ZOOM_THRESHOLD, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
+import { hexToRgba, getEventAlpha, getEventRadius, computeLabelRects } from './helpers';
 
 interface RenderOverviewParams {
   ctx: CanvasRenderingContext2D;
@@ -10,9 +10,10 @@ interface RenderOverviewParams {
   transform: { x: number; y: number; k: number };
   dpr: number;
   selectedGroupId: string | null;
+  filterState?: FilterState;
 }
 
-export function renderOverview({ ctx, groups, width, height, transform, dpr, selectedGroupId }: RenderOverviewParams): void {
+export function renderOverview({ ctx, groups, width, height, transform, dpr, selectedGroupId, filterState }: RenderOverviewParams): void {
   const k = transform.k;
 
   ctx.save();
@@ -40,7 +41,7 @@ export function renderOverview({ ctx, groups, width, height, transform, dpr, sel
   }
 
   for (const group of groups) {
-    renderGroupBubble(ctx, group, k, group.id === selectedGroupId);
+    renderGroupBubble(ctx, group, k, group.id === selectedGroupId, filterState);
   }
 
   ctx.restore();
@@ -81,7 +82,7 @@ export function renderOverview({ ctx, groups, width, height, transform, dpr, sel
   ctx.fillRect(0, height - 50, width, 50);
 }
 
-function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: number, isSelected: boolean): void {
+function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: number, isSelected: boolean, filterState?: FilterState): void {
   const color = group.dominantColor;
   const { x: gx, y: gy, radius } = group;
 
@@ -168,10 +169,15 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
   ctx.fillText(`${group.events.length} events`, gx, gy + radius + 3 / k);
 
   // Event dots
+  const labelCandidates: Array<{ x: number; y: number; radius: number; label: string; priority: number }> = [];
+
   for (const evt of group.events) {
+    // Skip filtered-out events
+    if (filterState && !filterState.visibleTypes.has(evt.type)) continue;
+
     const alpha = getEventAlpha(evt.timestamp);
     const evtColor = COLORS[evt.type];
-    const dotRadius = (2.5 + evt.weight * 2.5) / Math.max(0.7, k * 0.5);
+    const dotRadius = getEventRadius(evt.weight, evt.timestamp) / Math.max(0.7, k * 0.5);
 
     if ((evt.weight > 1.0 && alpha > 0.5) || alpha > 0.8) {
       ctx.save();
@@ -197,6 +203,49 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
       ctx.arc(evt.x, evt.y, dotRadius * 0.35, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(255,255,255,${0.5 * alpha})`;
       ctx.fill();
+    }
+
+    // Animated pulse ring for recent events
+    const ageHours = (Date.now() - evt.timestamp) / 3600000;
+    if (ageHours < RECENCY_GLOW_HOURS) {
+      const pulsePhase = (Date.now() % 2000) / 2000;
+      const pulseRadius = dotRadius * (1.5 + pulsePhase * 0.8);
+      const pulseAlpha = 0.3 * (1 - pulsePhase);
+      ctx.beginPath();
+      ctx.arc(evt.x, evt.y, pulseRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(evtColor, pulseAlpha);
+      ctx.lineWidth = 1.5 / k;
+      ctx.stroke();
+    }
+
+    // Collect label candidates
+    labelCandidates.push({
+      x: evt.x,
+      y: evt.y,
+      radius: dotRadius,
+      label: evt.summary,
+      priority: evt.weight * alpha,
+    });
+  }
+
+  // Collision-aware labels at sufficient zoom
+  if (k >= LABEL_MIN_ZOOM && labelCandidates.length > 0) {
+    const labelFont = `500 ${Math.max(8, Math.round(9 / k))}px Inter, system-ui, sans-serif`;
+    const maxLabels = Math.min(5, Math.ceil(group.events.length * 0.4));
+    const rects = computeLabelRects(labelCandidates, ctx, labelFont, maxLabels);
+
+    for (const rect of rects) {
+      // Frosted background pill
+      ctx.fillStyle = 'rgba(15,15,17,0.75)';
+      ctx.beginPath();
+      ctx.roundRect(rect.x - 3 / k, rect.y - 1 / k, rect.width + 6 / k, rect.height + 2 / k, 3 / k);
+      ctx.fill();
+      // Label text
+      ctx.fillStyle = 'rgba(228,228,231,0.85)';
+      ctx.font = labelFont;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(rect.label, rect.x, rect.y);
     }
   }
 }

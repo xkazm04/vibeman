@@ -84,9 +84,16 @@ export class ConnectionQualityMonitor {
     // Clear existing interval if any
     this.stopMonitoring(deviceId);
 
-    // Start ping interval
+    // Start ping interval with overlap guard
+    let isPinging = false;
     const interval = setInterval(async () => {
-      await this.ping(deviceId, pingFn);
+      if (isPinging) return;
+      isPinging = true;
+      try {
+        await this.ping(deviceId, pingFn);
+      } finally {
+        isPinging = false;
+      }
     }, this.config.pingIntervalMs);
 
     this.pingIntervals.set(deviceId, interval);

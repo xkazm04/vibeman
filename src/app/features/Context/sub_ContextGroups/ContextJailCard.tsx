@@ -342,7 +342,7 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
-      className="focus:outline-none rounded-lg"
+      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded-lg"
     >
       {/* Scan Line Animation - appears during DnD activation delay */}
       <AnimatePresence>

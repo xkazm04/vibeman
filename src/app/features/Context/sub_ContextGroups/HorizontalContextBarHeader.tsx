@@ -66,11 +66,12 @@ const HorizontalContextBarHeader = React.memo(({
         {/* Smart Save Button - Enhanced with better visuals */}
         <motion.button
           onClick={onSaveClick}
-          className={`relative group p-4 rounded-2xl transition-all duration-300 backdrop-blur-sm ${selectedFilesCount > 0 && groups.length > 0
+          className={`relative group p-4 rounded-2xl transition-all duration-300 backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${selectedFilesCount > 0 && groups.length > 0
             ? 'bg-gradient-to-r from-cyan-500/30 to-blue-500/30 text-cyan-300 shadow-lg shadow-cyan-500/20 hover:from-cyan-500/40 hover:to-blue-500/40 hover:shadow-cyan-500/30 border border-cyan-500/30'
             : 'bg-gradient-to-r from-blue-500/20 to-blue-500/20 text-blue-400 hover:from-blue-500/30 hover:to-blue-500/30 border border-blue-500/30'
             }`}
           title={selectedFilesCount > 0 && groups.length > 0 ? `Save ${selectedFilesCount} selected files` : 'Manage groups'}
+          aria-label={selectedFilesCount > 0 && groups.length > 0 ? `Save ${selectedFilesCount} selected files` : 'Manage groups'}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -126,7 +127,7 @@ const HorizontalContextBarHeader = React.memo(({
                 CONTEXT LIST
               </motion.h3>
               <motion.div 
-                className="flex items-center space-x-4 text-sm text-gray-400 font-mono"
+                className="flex items-center space-x-4 text-sm text-gray-300 font-mono"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
@@ -168,8 +169,9 @@ const HorizontalContextBarHeader = React.memo(({
               <div className={`flex items-center space-x-2 ${isReviewContextsActive ? 'onboarding-glow' : ''}`}>
                 <motion.button
                   onClick={onAddContextClick}
-                  className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30"
+                  className="p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl hover:from-green-500/30 hover:to-emerald-500/30 transition-all border border-green-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                   title="Create new context"
+                  aria-label="Create new context"
                   data-testid="add-context-btn"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -182,12 +184,13 @@ const HorizontalContextBarHeader = React.memo(({
                   <motion.button
                     onClick={handleExport}
                     disabled={isExporting}
-                    className={`p-3 rounded-xl transition-all border ${
+                    className={`p-3 rounded-xl transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                       exportSuccess
                         ? 'bg-gradient-to-r from-green-500/30 to-emerald-500/30 text-green-400 border-green-500/30'
                         : 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-400 hover:from-purple-500/30 hover:to-indigo-500/30 border-purple-500/30'
                     }`}
                     title="Export context map for Claude Code"
+                    aria-label="Export context map for Claude Code"
                     data-testid="export-context-map-btn"
                     whileHover={{ scale: isExporting ? 1 : 1.05 }}
                     whileTap={{ scale: isExporting ? 1 : 0.95 }}
@@ -207,8 +210,9 @@ const HorizontalContextBarHeader = React.memo(({
                   <div className="relative">
                     <motion.button
                       onClick={() => setShowDeleteConfirm(true)}
-                      className="p-3 bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 rounded-xl hover:from-red-500/30 hover:to-rose-500/30 transition-all border border-red-500/30"
+                      className="p-3 bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 rounded-xl hover:from-red-500/30 hover:to-rose-500/30 transition-all border border-red-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                       title="Delete all contexts"
+                      aria-label="Delete all contexts"
                       data-testid="delete-all-contexts-btn"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -288,7 +292,9 @@ const HorizontalContextBarHeader = React.memo(({
 
         <motion.button
           onClick={onToggleExpanded}
-          className="p-3 hover:bg-gray-700/50 rounded-xl transition-all duration-300"
+          className="p-3 hover:bg-gray-700/50 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          aria-label={isExpanded ? 'Collapse context list' : 'Expand context list'}
+          aria-expanded={isExpanded}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >

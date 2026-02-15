@@ -101,12 +101,16 @@ export function cleanupTest(designId: string): void {
 // Prompt Building
 // ============================================================================
 
-function buildDesignPrompt(
+export function buildDesignPrompt(
   instruction: string,
   persona: DbPersona,
   allTools: DbPersonaToolDefinition[],
   currentTools: DbPersonaToolDefinition[],
-  mode: 'create' | 'edit'
+  mode: 'create' | 'edit',
+  options?: {
+    referenceSection?: string;
+    learnedPatternsSection?: string;
+  }
 ): string {
   const parts: string[] = [];
 
@@ -173,6 +177,18 @@ function buildDesignPrompt(
       const credNote = t.requires_credential_type ? ` [requires: ${t.requires_credential_type}]` : '';
       parts.push(`- ${t.name} (${t.category}): ${t.description}${credNote}`);
     }
+    parts.push('');
+  }
+
+  // Inject read-only reference patterns (from QA-validated designs)
+  if (options?.referenceSection) {
+    parts.push(options.referenceSection);
+    parts.push('');
+  }
+
+  // Inject read-only learned patterns (from cross-review analysis)
+  if (options?.learnedPatternsSection) {
+    parts.push(options.learnedPatternsSection);
     parts.push('');
   }
 
@@ -290,7 +306,7 @@ function normalizeConnectors(result: DesignAnalysisResult): DesignAnalysisResult
   return result;
 }
 
-function extractDesignResult(rawOutput: string): DesignAnalysisResult | null {
+export function extractDesignResult(rawOutput: string): DesignAnalysisResult | null {
   if (!rawOutput.trim()) return null;
 
   // Strategy 1: Direct parse
@@ -350,6 +366,10 @@ export interface DesignEngineInput {
   allTools: DbPersonaToolDefinition[];
   currentTools: DbPersonaToolDefinition[];
   mode: 'create' | 'edit';
+  /** Read-only reference patterns section from QA-validated designs */
+  referenceSection?: string;
+  /** Read-only learned patterns section from cross-review analysis */
+  learnedPatternsSection?: string;
 }
 
 /**
@@ -373,13 +393,17 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
     designStatuses.set(input.designId, { done, result, error });
   };
 
-  // Build prompt
+  // Build prompt (with optional reference/learned patterns)
   const prompt = buildDesignPrompt(
     input.instruction,
     input.persona,
     input.allTools,
     input.currentTools,
-    input.mode
+    input.mode,
+    {
+      referenceSection: input.referenceSection,
+      learnedPatternsSection: input.learnedPatternsSection,
+    }
   );
 
   appendOutput(`[Design] Analyzing: "${input.instruction.slice(0, 100)}${input.instruction.length > 100 ? '...' : ''}"`);
@@ -538,7 +562,7 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
  * Extract assistant text content from Claude stream-json output.
  * The stream-json format outputs JSON lines with type fields.
  */
-function extractAssistantText(rawOutput: string): string {
+export function extractAssistantText(rawOutput: string): string {
   const textParts: string[] = [];
 
   for (const line of rawOutput.split('\n')) {

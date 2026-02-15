@@ -6,6 +6,7 @@
 import { WeeklyStats, DailyStats, WeeklySpecialistStats, WeeklyContextMapStats, WeeklyFilters, ProjectImplementationStats } from './types';
 import { ScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
+import { safeGet } from '@/lib/apiResponseGuard';
 
 /**
  * Get week date range based on offset
@@ -52,14 +53,14 @@ export async function fetchWeeklyStats(filters: WeeklyFilters): Promise<WeeklySt
   try {
     // Fetch ideas and directions in parallel based on filter
     const fetchIdeas = suggestionType === 'directions' ? Promise.resolve({ ideas: [] }) :
-      fetch(`/api/ideas?${params.toString()}`).then(r => r.ok ? r.json() : { ideas: [] });
+      fetch(`/api/ideas?${params.toString()}`).then(r => r.ok ? r.json() : { ideas: [] }).catch(() => ({ ideas: [] }));
 
     const fetchDirections = suggestionType === 'ideas' ? Promise.resolve({ directions: [] }) :
-      fetch(`/api/directions?${params.toString()}`).then(r => r.ok ? r.json() : { directions: [] });
+      fetch(`/api/directions?${params.toString()}`).then(r => r.ok ? r.json() : { directions: [] }).catch(() => ({ directions: [] }));
 
     const [ideasData, directionsData] = await Promise.all([fetchIdeas, fetchDirections]);
-    const ideas = ideasData.ideas || [];
-    const directions = directionsData.directions || [];
+    const ideas = safeGet<any[]>(ideasData, 'ideas', []);
+    const directions = safeGet<any[]>(directionsData, 'directions', []);
 
     // Fetch last week for comparison
     const lastWeekParams = new URLSearchParams(params);
@@ -68,14 +69,14 @@ export async function fetchWeeklyStats(filters: WeeklyFilters): Promise<WeeklySt
     lastWeekParams.set('endDate', lastEnd.toISOString());
 
     const fetchLastIdeas = suggestionType === 'directions' ? Promise.resolve({ ideas: [] }) :
-      fetch(`/api/ideas?${lastWeekParams.toString()}`).then(r => r.ok ? r.json() : { ideas: [] });
+      fetch(`/api/ideas?${lastWeekParams.toString()}`).then(r => r.ok ? r.json() : { ideas: [] }).catch(() => ({ ideas: [] }));
 
     const fetchLastDirections = suggestionType === 'ideas' ? Promise.resolve({ directions: [] }) :
-      fetch(`/api/directions?${lastWeekParams.toString()}`).then(r => r.ok ? r.json() : { directions: [] });
+      fetch(`/api/directions?${lastWeekParams.toString()}`).then(r => r.ok ? r.json() : { directions: [] }).catch(() => ({ directions: [] }));
 
     const [lastIdeasData, lastDirectionsData] = await Promise.all([fetchLastIdeas, fetchLastDirections]);
-    const lastWeekIdeas = lastIdeasData.ideas || [];
-    const lastWeekDirections = lastDirectionsData.directions || [];
+    const lastWeekIdeas = safeGet<any[]>(lastIdeasData, 'ideas', []);
+    const lastWeekDirections = safeGet<any[]>(lastDirectionsData, 'directions', []);
 
     return processWeeklyData(
       ideas,
@@ -380,7 +381,7 @@ export async function fetchProjectImplementationStats(): Promise<ProjectImplemen
     const response = await fetch('/api/reflector/project-implementations');
     if (!response.ok) throw new Error('Failed to fetch project implementation stats');
     const data = await response.json();
-    return data.projects || [];
+    return safeGet<ProjectImplementationStats[]>(data, 'projects', []);
   } catch (error) {
     console.error('[ProjectImplementationStats] Error fetching:', error);
     throw error;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { withObservability } from '@/lib/observability/middleware'
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter'
 
 interface DeleteResult {
   id: string
@@ -161,9 +162,9 @@ async function handleDelete(request: NextRequest) {
     })
 
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to process batch delete',
+      {
+        success: false,
+        error: 'Failed to process batch delete',
         deleted: [],
         failed: [],
       },
@@ -172,4 +173,4 @@ async function handleDelete(request: NextRequest) {
   }
 }
 
-export const DELETE = withObservability(handleDelete, '/api/ai/generations')
+export const DELETE = withObservability(withRateLimit(handleDelete, '/api/ai/generations', 'expensive'), '/api/ai/generations')

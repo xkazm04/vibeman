@@ -5,6 +5,7 @@
 
 import { DbQuestion } from '@/app/db';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
+import { safeResponseJson, parseApiResponse, QuestionsResponseSchema, QuestionMutationSchema, SuccessResponseSchema } from '@/lib/apiResponseGuard';
 
 // ============================================================================
 // API Response Types - Discriminated Unions for type-safe response handling
@@ -125,7 +126,8 @@ export async function fetchQuestions(
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch questions');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/questions');
+  return parseApiResponse(raw, QuestionsResponseSchema, '/api/questions') as unknown as QuestionsResponse;
 }
 
 /**
@@ -147,7 +149,8 @@ export async function createQuestion(data: {
     const error = await response.json();
     throw new Error(error.error || 'Failed to create question');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/questions POST');
+  return parseApiResponse(raw, QuestionMutationSchema, '/api/questions POST') as unknown as { success: boolean; question: DbQuestion };
 }
 
 /**
@@ -167,7 +170,7 @@ export async function answerQuestion(
     const error = await response.json();
     throw new Error(error.error || 'Failed to answer question');
   }
-  return response.json();
+  return safeResponseJson(response, '/api/questions PUT');
 }
 
 /**
@@ -182,7 +185,8 @@ export async function deleteQuestion(questionId: string): Promise<{ success: boo
     const error = await response.json();
     throw new Error(error.error || 'Failed to delete question');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/questions DELETE');
+  return parseApiResponse(raw, SuccessResponseSchema, '/api/questions DELETE');
 }
 
 /**
@@ -206,7 +210,7 @@ export async function generateQuestionRequirement(data: {
     const error = await response.json();
     throw new Error(error.error || 'Failed to generate requirement');
   }
-  return response.json();
+  return safeResponseJson(response, '/api/questions/generate');
 }
 
 /**
@@ -224,7 +228,7 @@ export async function setupContextMapGenerator(projectPath: string): Promise<Con
     const error = await response.json();
     throw new Error(error.error || 'Failed to setup context map generator');
   }
-  return response.json();
+  return safeResponseJson(response, '/api/context-map/setup');
 }
 
 /**

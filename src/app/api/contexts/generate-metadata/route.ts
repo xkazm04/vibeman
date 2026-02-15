@@ -5,6 +5,8 @@ import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
 import { contextGroupQueries } from '@/lib/queries/contextQueries';
 import { withObservability } from '@/lib/observability/middleware';
+import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
+import { validatePathTraversal, validatePathWithinBase } from '@/lib/pathSecurity';
 
 interface ContextMetadata {
   title: string;
@@ -72,7 +74,7 @@ async function handlePost(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to generate metadata',
+        error: 'Failed to generate metadata',
       },
       { status: 500 }
     );
@@ -124,9 +126,17 @@ async function readFileContents(
 
   for (const filePath of filePaths.slice(0, maxFiles)) {
     try {
+      // Validate path for directory traversal
+      const traversalError = validatePathTraversal(filePath);
+      if (traversalError) continue;
+
       const fullPath = path.isAbsolute(filePath)
         ? filePath
         : path.join(projectPath, filePath);
+
+      // Ensure resolved path stays within project directory
+      const baseError = validatePathWithinBase(fullPath, projectPath);
+      if (baseError) continue;
 
       if (!fs.existsSync(fullPath)) {
         continue;
@@ -273,4 +283,4 @@ function parseMetadataResponse(
   }
 }
 
-export const POST = withObservability(handlePost, '/api/contexts/generate-metadata');
+export const POST = withObservability(withRateLimit(handlePost, '/api/contexts/generate-metadata', 'expensive'), '/api/contexts/generate-metadata');

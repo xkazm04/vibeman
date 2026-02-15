@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { personaDb } from '@/app/db';
 import { personaExecutionQueue } from '@/lib/personas/executionQueue';
+import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const rateLimited = checkRateLimit(request, '/api/personas/[id]/execute', 'expensive');
+  if (rateLimited) return rateLimited;
+
   try {
     const { id } = await params;
     const body = await request.json();

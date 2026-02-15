@@ -9,8 +9,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
-import { useZenNavigation, getModeFromPath } from './zenNavigationStore';
-import type { ZenMode } from './zenNavigationStore';
 
 export interface ActivityItem {
   id: string;
@@ -27,8 +25,6 @@ export interface ZenStats {
   failed: number;
   sessionStart: Date;
 }
-
-export type { ZenMode };
 
 interface ZenState {
   // Selected batch to monitor
@@ -50,17 +46,6 @@ interface ZenState {
   // Session statistics
   stats: ZenStats;
 
-  /**
-   * @deprecated Read mode from useZenNavigation() or useZenMode() instead.
-   * Kept for backward compatibility — derives from navigation store.
-   */
-  mode: ZenMode;
-
-  /**
-   * @deprecated Use useZenNavigation().navigate() instead.
-   * Kept for backward compatibility — delegates to navigation store.
-   */
-  setMode: (mode: ZenMode) => void;
   selectBatch: (batchId: BatchId | null) => void;
   setConnected: (connected: boolean) => void;
   setCurrentTask: (task: { id: string; title: string; progress: number } | null) => void;
@@ -75,8 +60,6 @@ interface ZenState {
 export const useZenStore = create<ZenState>()(
   persist(
     (set) => ({
-      // Mode is derived from zenNavigationStore (getter computed on read via subscribe below)
-      mode: getModeFromPath(useZenNavigation.getState().viewPath),
       selectedBatchId: null,
       isConnected: false,
       currentTask: null,
@@ -89,11 +72,6 @@ export const useZenStore = create<ZenState>()(
       },
 
       // Actions
-      setMode: (mode) => {
-        // Delegate to navigation store (source of truth)
-        useZenNavigation.getState().navigate(mode);
-      },
-
       selectBatch: (batchId) => set({ selectedBatchId: batchId }),
 
       setConnected: (connected) => set({ isConnected: connected }),
@@ -140,11 +118,3 @@ export const useZenStore = create<ZenState>()(
     }
   )
 );
-
-// Sync mode from navigation store → zen store for backward compat
-useZenNavigation.subscribe((navState) => {
-  const derivedMode = getModeFromPath(navState.viewPath);
-  if (useZenStore.getState().mode !== derivedMode) {
-    useZenStore.setState({ mode: derivedMode });
-  }
-});

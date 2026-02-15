@@ -51,3 +51,6 @@ next-env.d.ts
 # GSD planning docs (local only)
 /.planning/
 
+# Design test output
+.claude-design-tests/
+

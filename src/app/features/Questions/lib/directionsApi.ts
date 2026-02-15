@@ -4,6 +4,11 @@
  */
 
 import { DbDirection } from '@/app/db';
+import { safeResponseJson, parseApiResponse, DirectionsResponseSchema, DirectionMutationSchema, AcceptDirectionResponseSchema, SuccessResponseSchema } from '@/lib/apiResponseGuard';
+
+// In-flight direction accept tracking to prevent double-submission.
+// Stores directionId → Promise so concurrent calls return the same result.
+const inflightAccepts = new Map<string, Promise<AcceptDirectionResponse>>();
 
 // Interrogative engine preset for directions. Provides the same accept/reject/generate
 // pattern as the functions below but through a unified engine interface.
@@ -62,7 +67,8 @@ export async function fetchDirections(
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch directions');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/directions');
+  return parseApiResponse(raw, DirectionsResponseSchema, '/api/directions') as unknown as DirectionsResponse;
 }
 
 /**
@@ -85,13 +91,36 @@ export async function createDirection(data: {
     const error = await response.json();
     throw new Error(error.error || 'Failed to create direction');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/directions POST');
+  return parseApiResponse(raw, DirectionMutationSchema, '/api/directions POST') as unknown as { success: boolean; direction: DbDirection };
 }
 
 /**
- * Accept a direction (creates Claude Code requirement for implementation)
+ * Accept a direction (creates Claude Code requirement for implementation).
+ *
+ * Idempotent: concurrent calls for the same directionId coalesce into one request.
+ * If the server returns 409 (already processed), returns the existing direction
+ * instead of throwing.
  */
 export async function acceptDirection(
+  directionId: string,
+  projectPath: string
+): Promise<AcceptDirectionResponse> {
+  // Deduplicate concurrent calls for the same direction
+  const existing = inflightAccepts.get(directionId);
+  if (existing) return existing;
+
+  const promise = performAcceptDirection(directionId, projectPath);
+  inflightAccepts.set(directionId, promise);
+
+  try {
+    return await promise;
+  } finally {
+    inflightAccepts.delete(directionId);
+  }
+}
+
+async function performAcceptDirection(
   directionId: string,
   projectPath: string
 ): Promise<AcceptDirectionResponse> {
@@ -101,11 +130,23 @@ export async function acceptDirection(
     body: JSON.stringify({ projectPath })
   });
 
+  // 409 Conflict means direction was already accepted — treat as success
+  if (response.status === 409) {
+    const data = await response.json();
+    return {
+      success: true,
+      direction: data.direction ?? { id: directionId, status: 'accepted' } as DbDirection,
+      requirementName: data.requirementName ?? '',
+      requirementPath: data.requirementPath ?? '',
+    };
+  }
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to accept direction');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/directions/accept');
+  return parseApiResponse(raw, AcceptDirectionResponseSchema, '/api/directions/accept') as unknown as AcceptDirectionResponse;
 }
 
 /**
@@ -124,7 +165,8 @@ export async function rejectDirection(
     const error = await response.json();
     throw new Error(error.error || 'Failed to reject direction');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/directions PUT');
+  return parseApiResponse(raw, DirectionMutationSchema, '/api/directions PUT') as unknown as { success: boolean; direction: DbDirection };
 }
 
 /**
@@ -141,7 +183,8 @@ export async function deleteDirection(
     const error = await response.json();
     throw new Error(error.error || 'Failed to delete direction');
   }
-  return response.json();
+  const raw = await safeResponseJson(response, '/api/directions DELETE');
+  return parseApiResponse(raw, SuccessResponseSchema, '/api/directions DELETE');
 }
 
 /**
@@ -171,5 +214,5 @@ export async function generateDirectionRequirement(data: {
     const error = await response.json();
     throw new Error(error.error || 'Failed to generate direction requirement');
   }
-  return response.json();
+  return safeResponseJson(response, '/api/directions/generate');
 }

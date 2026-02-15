@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Square, Copy, Check } from 'lucide-react';
-import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ExecutionTerminalProps {
   lines: string[];
@@ -11,12 +10,23 @@ interface ExecutionTerminalProps {
   executionId?: string | null;
 }
 
-/** Lines that are metadata, not assistant markdown content */
-const META_PREFIXES = ['Session started', 'Completed in', 'Cost: $', '> Using tool:', '  Tool result:', '[ERROR]', '=== '];
-
-function isMeta(line: string): boolean {
-  return META_PREFIXES.some(p => line.startsWith(p));
+/** Classify lines into visual categories for minimal styling */
+function lineStyle(line: string): 'meta' | 'tool' | 'error' | 'status' | 'text' {
+  if (line.startsWith('[ERROR]') || line.startsWith('[TIMEOUT]') || line.startsWith('[WARN]')) return 'error';
+  if (line.startsWith('> Using tool:')) return 'tool';
+  if (line.startsWith('  Tool result:')) return 'tool';
+  if (line.startsWith('Session started') || line.startsWith('Completed in') || line.startsWith('Cost: $') || line.startsWith('=== ')) return 'status';
+  if (line.startsWith('Process exited')) return 'meta';
+  return 'text';
 }
+
+const STYLE_MAP = {
+  meta: 'text-muted-foreground/40',
+  tool: 'text-cyan-400/70',
+  error: 'text-red-400/80',
+  status: 'text-emerald-400/70 font-semibold',
+  text: 'text-foreground/70',
+} as const;
 
 export function ExecutionTerminal({ lines, isRunning, onStop, executionId }: ExecutionTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -31,7 +41,6 @@ export function ExecutionTerminal({ lines, isRunning, onStop, executionId }: Exe
           const text = await res.text();
           await navigator.clipboard.writeText(text);
         } else {
-          // Fallback to terminal lines
           await navigator.clipboard.writeText(lines.join('\n'));
         }
       } catch {
@@ -48,7 +57,7 @@ export function ExecutionTerminal({ lines, isRunning, onStop, executionId }: Exe
     if (terminalRef.current && shouldAutoScroll.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
-  }, [lines]);
+  }, [lines.length]);
 
   const handleScroll = () => {
     if (terminalRef.current) {
@@ -57,31 +66,6 @@ export function ExecutionTerminal({ lines, isRunning, onStop, executionId }: Exe
       shouldAutoScroll.current = isAtBottom;
     }
   };
-
-  // Group lines into segments: meta lines render as styled spans, consecutive
-  // non-meta lines join into markdown blocks.
-  const segments = useMemo(() => {
-    const result: { type: 'meta' | 'markdown'; content: string }[] = [];
-    let mdBuffer: string[] = [];
-
-    const flushMd = () => {
-      if (mdBuffer.length > 0) {
-        result.push({ type: 'markdown', content: mdBuffer.join('\n') });
-        mdBuffer = [];
-      }
-    };
-
-    for (const line of lines) {
-      if (isMeta(line)) {
-        flushMd();
-        result.push({ type: 'meta', content: line });
-      } else {
-        mdBuffer.push(line);
-      }
-    }
-    flushMd();
-    return result;
-  }, [lines]);
 
   return (
     <div className="border border-border/30 rounded-2xl overflow-hidden bg-background shadow-[0_0_30px_rgba(0,0,0,0.3)]">
@@ -98,9 +82,10 @@ export function ExecutionTerminal({ lines, isRunning, onStop, executionId }: Exe
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 Running
+                <span className="text-muted-foreground/30">({lines.length} lines)</span>
               </span>
             ) : (
-              'Completed'
+              `Completed (${lines.length} lines)`
             )}
           </span>
         </div>
@@ -128,27 +113,27 @@ export function ExecutionTerminal({ lines, isRunning, onStop, executionId }: Exe
         </div>
       </div>
 
-      {/* Terminal Content */}
+      {/* Terminal Content — simple monospace text, no heavy Markdown rendering */}
       <div
         ref={terminalRef}
         onScroll={handleScroll}
-        className="max-h-[500px] overflow-y-auto text-sm bg-background"
+        className="max-h-[500px] overflow-y-auto text-sm bg-background font-mono"
       >
         {lines.length === 0 ? (
-          <div className="p-6 text-muted-foreground/30 text-center font-mono">
+          <div className="p-6 text-muted-foreground/30 text-center">
             No output yet...
           </div>
         ) : (
-          <div className="px-5 py-4 space-y-1">
-            {segments.map((seg, i) =>
-              seg.type === 'meta' ? (
-                <div key={i} className="font-mono text-xs text-muted-foreground/50 py-0.5">
-                  {seg.content}
+          <div className="px-4 py-3">
+            {lines.map((line, i) => {
+              if (!line.trim()) return <div key={i} className="h-2" />;
+              const style = lineStyle(line);
+              return (
+                <div key={i} className={`text-xs leading-5 whitespace-pre-wrap break-words ${STYLE_MAP[style]}`}>
+                  {line}
                 </div>
-              ) : (
-                <MarkdownRenderer key={i} content={seg.content} />
-              )
-            )}
+              );
+            })}
           </div>
         )}
       </div>

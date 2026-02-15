@@ -122,7 +122,7 @@ export function useDeviceDiscovery(options: UseDeviceDiscoveryOptions = {}): Use
     }
   }, [setConnecting, setConnectionError, setRegistered, setLocalDevice]);
 
-  // Unregister this device
+  // Unregister this device (not called on unmount — device stays online until manual disconnect)
   const unregisterDevice = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch('/api/remote/devices', {
@@ -262,14 +262,6 @@ export function useDeviceDiscovery(options: UseDeviceDiscoveryOptions = {}): Use
       }
     };
   }, [isRegistered]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Don't unregister on unmount - device should stay online
-      // User can manually disconnect if needed
-    };
-  }, []);
 
   return {
     localDeviceId,

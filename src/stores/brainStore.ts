@@ -11,6 +11,7 @@ import type {
   DbBrainReflection,
   ReflectionStatus,
 } from '@/app/db/models/brain.types';
+import { safeResponseJson, parseApiResponse, parseApiResponseSafe, BrainDecayResponseSchema, BrainContextResponseSchema, BrainOutcomesResponseSchema, BrainReflectionStatusSchema, BrainReflectionTriggerSchema } from '@/lib/apiResponseGuard';
 
 // ============================================================================
 // TYPES
@@ -173,8 +174,9 @@ export const useBrainStore = create<BrainStore>()(
             throw new Error('Failed to apply decay');
           }
 
-          const data = await response.json();
-          return { affected: data.affected || 0 };
+          const raw = await safeResponseJson(response, '/api/brain/signals/decay');
+          const data = parseApiResponseSafe(raw, BrainDecayResponseSchema, { success: false, affected: 0, decayed: 0, deleted: 0, settings: { decayFactor: 0.9, retentionDays: 30 } }, '/api/brain/signals/decay');
+          return { affected: data.affected };
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to apply decay' });
           return { affected: 0 };
@@ -227,9 +229,10 @@ export const useBrainStore = create<BrainStore>()(
             throw new Error('Failed to fetch behavioral context');
           }
 
-          const data = await response.json();
+          const raw = await safeResponseJson(response, '/api/brain/context');
+          const data = parseApiResponseSafe(raw, BrainContextResponseSchema, { context: null }, '/api/brain/context');
           set({
-            behavioralContext: data.context || null,
+            behavioralContext: (data.context as unknown as BehavioralContext) || null,
             isLoadingContext: false,
           });
         } catch (error) {
@@ -250,10 +253,11 @@ export const useBrainStore = create<BrainStore>()(
             throw new Error('Failed to fetch outcomes');
           }
 
-          const data = await response.json();
+          const raw = await safeResponseJson(response, '/api/brain/outcomes');
+          const data = parseApiResponseSafe(raw, BrainOutcomesResponseSchema, { outcomes: [], stats: initialState.outcomeStats }, '/api/brain/outcomes');
           set({
-            recentOutcomes: data.outcomes || [],
-            outcomeStats: data.stats || initialState.outcomeStats,
+            recentOutcomes: data.outcomes as unknown as DbDirectionOutcome[],
+            outcomeStats: data.stats,
             isLoadingOutcomes: false,
           });
         } catch (error) {
@@ -281,20 +285,18 @@ export const useBrainStore = create<BrainStore>()(
             throw new Error('Failed to fetch reflection status');
           }
 
-          const data = await response.json();
+          const raw = await safeResponseJson(response, '/api/brain/reflection');
+          const data = parseApiResponse(raw, BrainReflectionStatusSchema, '/api/brain/reflection');
           const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
 
-          // Note: promptContent is only available right after triggering, not on refresh
-          // If running but no promptContent, the CLI terminal won't show (reflection continues in background)
           set({
             reflectionStatus: status,
-            lastReflection: data.lastCompleted || null,
-            decisionsSinceReflection: data.decisionsSinceLastReflection || 0,
-            nextThreshold: data.nextThreshold || 20,
-            shouldTrigger: data.shouldTrigger || false,
-            triggerReason: data.triggerReason || null,
+            lastReflection: (data.lastCompleted as unknown as DbBrainReflection) || null,
+            decisionsSinceReflection: data.decisionsSinceLastReflection,
+            nextThreshold: data.nextThreshold,
+            shouldTrigger: data.shouldTrigger,
+            triggerReason: data.triggerReason,
             runningReflectionId: data.runningReflection?.id || null,
-            // Don't overwrite promptContent from GET - it's only set by triggerReflection
           });
 
           // Restore promptContent from sessionStorage if running but no prompt in memory
@@ -333,24 +335,25 @@ export const useBrainStore = create<BrainStore>()(
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await safeResponseJson<Record<string, unknown>>(response, '/api/brain/reflection POST');
 
             // Handle 409 (already running) - update state to reflect running, not failed
             // Note: no promptContent available for already-running reflections
             if (response.status === 409 && errorData.reflectionId) {
               set({
                 reflectionStatus: 'running',
-                runningReflectionId: errorData.reflectionId,
+                runningReflectionId: errorData.reflectionId as string,
                 promptContent: null, // Can't get prompt for already-running reflection
                 error: null,
               });
               return;
             }
 
-            throw new Error(errorData.error || 'Failed to trigger reflection');
+            throw new Error((errorData.error as string) || 'Failed to trigger reflection');
           }
 
-          const data = await response.json();
+          const raw = await safeResponseJson(response, '/api/brain/reflection POST');
+          const data = parseApiResponseSafe(raw, BrainReflectionTriggerSchema, { reflectionId: undefined, promptContent: null }, '/api/brain/reflection POST');
 
           set({
             reflectionStatus: 'running',
@@ -423,13 +426,13 @@ export const useBrainStore = create<BrainStore>()(
             return;
           }
 
-          const data = await response.json();
+          const raw = await safeResponseJson(response, '/api/brain/reflection?scope=global');
+          const data = parseApiResponseSafe(raw, BrainReflectionStatusSchema, { isRunning: false, lastCompleted: null, decisionsSinceLastReflection: 0, nextThreshold: 20, shouldTrigger: false, triggerReason: null, runningReflection: null }, '/api/brain/reflection?scope=global');
           const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
           set({
             globalReflectionStatus: status,
-            lastGlobalReflection: data.lastCompleted || null,
+            lastGlobalReflection: (data.lastCompleted as unknown as DbBrainReflection) || null,
             globalRunningReflectionId: data.runningReflection?.id || null,
-            // Don't overwrite globalPromptContent from GET
           });
 
           // Restore globalPromptContent from sessionStorage if running but no prompt in memory
@@ -463,22 +466,23 @@ export const useBrainStore = create<BrainStore>()(
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await safeResponseJson<Record<string, unknown>>(response, '/api/brain/reflection POST global');
 
             if (response.status === 409 && errorData.reflectionId) {
               set({
                 globalReflectionStatus: 'running',
-                globalRunningReflectionId: errorData.reflectionId,
+                globalRunningReflectionId: errorData.reflectionId as string,
                 globalPromptContent: null, // Can't get prompt for already-running reflection
                 error: null,
               });
               return;
             }
 
-            throw new Error(errorData.error || 'Failed to trigger global reflection');
+            throw new Error((errorData.error as string) || 'Failed to trigger global reflection');
           }
 
-          const data = await response.json();
+          const raw = await safeResponseJson(response, '/api/brain/reflection POST global');
+          const data = parseApiResponseSafe(raw, BrainReflectionTriggerSchema, { reflectionId: undefined, promptContent: null }, '/api/brain/reflection POST global');
 
           set({
             globalReflectionStatus: 'running',

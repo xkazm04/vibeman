@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat } from 'fs/promises';
 import { join } from 'path';
+import { withAccessControl } from '@/lib/api-helpers/accessControl';
+import { validatePathTraversal } from '@/lib/pathSecurity';
 
 /**
  * List subdirectories in a given path
  * POST /api/disk/list-directories
  * Body: { path: string }
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { path: targetPath } = body;
@@ -19,6 +21,15 @@ export async function POST(request: NextRequest) {
           error: 'Path is required',
         },
         { status: 400 }
+      );
+    }
+
+    // Security check - prevent directory traversal
+    const traversalError = validatePathTraversal(targetPath);
+    if (traversalError) {
+      return NextResponse.json(
+        { success: false, error: traversalError },
+        { status: 403 }
       );
     }
 
@@ -58,9 +69,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to list directories',
+        error: 'Failed to list directories',
       },
       { status: 500 }
     );
   }
 }
+
+export const POST = withAccessControl(handlePost, '/api/disk/list-directories', { skipProjectCheck: true, minRole: 'viewer' });

@@ -75,7 +75,6 @@ export {
   ChainBuilderPreview,
   DecisionNodeConfigPreview,
   // ZenLayout
-  ZenStatsPreview,
   ModeTogglePreview,
   // QuestionsLayout
   ContextMapSelectorPreview,

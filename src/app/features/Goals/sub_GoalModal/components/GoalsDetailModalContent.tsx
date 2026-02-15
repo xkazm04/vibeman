@@ -4,6 +4,7 @@ import {  Save, Edit3, Trash2 } from 'lucide-react';
 import { Goal } from '../../../../../types';
 import { useGoals } from '../../../../../hooks/useGoals';
 import { validateGoalData } from '../lib';
+import GoalLifecyclePanel from '../../components/GoalLifecyclePanel';
 
 interface GoalsDetailModalContentProps {
   goal: Goal;
@@ -101,6 +102,11 @@ export default function GoalsDetailModalContent({
             )}
           </div>
       </div>
+
+      {/* Lifecycle Engine Panel */}
+      {projectId && (
+        <GoalLifecyclePanel goalId={goal.id} projectId={projectId} />
+      )}
 
       {/* Error Message */}
       {saveError && (

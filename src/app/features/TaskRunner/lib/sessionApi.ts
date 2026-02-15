@@ -14,6 +14,7 @@ export interface SessionTask {
   errorMessage?: string;
 }
 import { sendSessionHeartbeat } from '../hooks/useSessionCleanup';
+import { safeResponseJson, safeGet } from '@/lib/apiResponseGuard';
 
 // ============================================================================
 // Types
@@ -106,8 +107,8 @@ export async function addTaskToSession(
     throw new Error(error.error || 'Failed to add task to session');
   }
 
-  const data = await response.json();
-  return data.task;
+  const data = await safeResponseJson<Record<string, unknown>>(response, 'addTaskToSession');
+  return safeGet(data, 'task', data) as unknown as SessionTaskResponse;
 }
 
 /**
@@ -201,8 +202,8 @@ export async function getNextPendingTask(sessionId: string): Promise<SessionTask
     throw new Error(error.error || 'Failed to get next pending task');
   }
 
-  const data = await response.json();
-  return data.task;
+  const data = await safeResponseJson<Record<string, unknown>>(response, 'getNextPendingTask');
+  return safeGet(data, 'task', null) as SessionTaskResponse | null;
 }
 
 /**
@@ -273,8 +274,13 @@ export async function getTaskExecutionStatus(taskId: string): Promise<{
     throw new Error(error.error || 'Failed to get task status');
   }
 
-  const data = await response.json();
-  return data.task || data;
+  const data = await safeResponseJson<Record<string, unknown>>(response, 'getTaskExecutionStatus');
+  return safeGet(data, 'task', data) as {
+    status: string;
+    capturedClaudeSessionId?: string;
+    error?: string;
+    output?: string;
+  };
 }
 
 // ============================================================================

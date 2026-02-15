@@ -14,20 +14,14 @@ export const LABELS: Record<SignalType, string> = {
   implementation: 'Impl',
 };
 
-export const CONTEXT_NAMES = [
-  'Auth Module', 'Payment Gateway', 'User Dashboard', 'API Layer',
-  'Data Pipeline', 'Search Engine', 'Notification System', 'File Storage',
-  'Analytics Engine', 'Config Service',
-];
-
-export const SUMMARIES: Record<SignalType, string[]> = {
-  git_activity: ['Committed refactor', 'Merged feature', 'Fixed conflicts', 'Pushed hotfix', 'Tagged release', 'Rebased branch'],
-  api_focus: ['Optimized endpoint', 'Added rate limit', 'Fixed CORS', 'Cached queries', 'Added versioning', 'Updated docs'],
-  context_focus: ['Analyzed deps', 'Mapped relations', 'Scanned debt', 'Reviewed arch', 'Updated bounds', 'Audited exports'],
-  implementation: ['Built feature', 'Created hook', 'Added dark mode', 'Refactored state', 'Built drag-drop', 'Added shortcuts'],
-};
-
 export const BG = '#0f0f11';
+
+// Visual hierarchy
+export const DOT_RADIUS_MIN = 3;
+export const DOT_RADIUS_MAX = 14;
+export const RECENCY_GLOW_HOURS = 6;
+export const LABEL_MIN_ZOOM = 0.8;
+export const LABEL_COLLISION_PADDING = 4;
 export const BUBBLE_SCALE = 28;
 export const BUBBLE_PADDING = 20;
 export const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));

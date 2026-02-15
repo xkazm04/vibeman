@@ -3,6 +3,20 @@
  * Types for automated standup reports and summaries
  */
 
+/**
+ * Automation session phases matching the DB CHECK constraint
+ * (migrations 043 + 048)
+ */
+export type AutomationPhase =
+  | 'pending'
+  | 'running'
+  | 'exploring'
+  | 'generating'
+  | 'evaluating'
+  | 'complete'
+  | 'failed'
+  | 'paused';
+
 // Database types for standup summaries
 export interface DbStandupSummary {
   id: string;
@@ -103,6 +117,94 @@ export interface GenerateStandupRequest {
   periodType: 'daily' | 'weekly';
   periodStart?: string; // Defaults to today/this week
   forceRegenerate?: boolean;
+}
+
+// ── Predictive Standup Types ──
+
+export interface PredictiveStandupData {
+  /** Goals at risk of stalling based on velocity and signal patterns */
+  goalsAtRisk: GoalRiskAssessment[];
+  /** Contexts needing attention based on decay signals */
+  contextDecayAlerts: ContextDecayAlert[];
+  /** Optimal task ordering for the day */
+  recommendedTaskOrder: TaskRecommendation[];
+  /** Proactive blocker detection */
+  predictedBlockers: PredictedBlocker[];
+  /** Velocity metrics for the current vs previous period */
+  velocityComparison: VelocityComparison;
+  /** Overall prescriptive summary */
+  missionBriefing: string;
+}
+
+export interface GoalRiskAssessment {
+  goalId: string;
+  goalTitle: string;
+  status: string;
+  progress: number;
+  /** Days since last signal */
+  daysSinceActivity: number;
+  /** Velocity trend for this specific goal */
+  velocityTrend: 'accelerating' | 'steady' | 'slowing' | 'stalled';
+  /** Risk level: high = stalling, medium = slowing, low = on track */
+  riskLevel: 'high' | 'medium' | 'low';
+  riskReason: string;
+  suggestedAction: string;
+}
+
+export interface ContextDecayAlert {
+  contextId: string;
+  contextName: string;
+  /** Signal weight decay percentage (0-100, higher = more decayed) */
+  decayPercent: number;
+  lastActivityDate: string | null;
+  /** Whether this context is linked to active goals */
+  linkedToActiveGoals: boolean;
+  urgency: 'critical' | 'warning' | 'info';
+  suggestion: string;
+}
+
+export interface TaskRecommendation {
+  /** What to work on */
+  title: string;
+  /** Why this task is recommended */
+  reason: string;
+  /** Associated goal or context */
+  goalId?: string;
+  contextId?: string;
+  contextName?: string;
+  /** Priority score (higher = do first) */
+  priorityScore: number;
+  /** Estimated complexity based on historical patterns */
+  estimatedComplexity: 'light' | 'medium' | 'heavy';
+  /** Suggested time slot */
+  suggestedSlot: 'morning' | 'afternoon' | 'anytime';
+}
+
+export interface PredictedBlocker {
+  title: string;
+  description: string;
+  /** What will be blocked if not addressed */
+  affectedGoals: string[];
+  severity: 'critical' | 'warning';
+  /** Recommended action to prevent the blocker */
+  preventiveAction: string;
+  /** Confidence 0-100 */
+  confidence: number;
+}
+
+export interface VelocityComparison {
+  currentPeriod: VelocityMetrics;
+  previousPeriod: VelocityMetrics;
+  trend: 'accelerating' | 'steady' | 'decelerating';
+  percentChange: number;
+}
+
+export interface VelocityMetrics {
+  implementationsPerDay: number;
+  ideasAcceptedPerDay: number;
+  signalsPerDay: number;
+  avgTaskDurationMinutes: number;
+  successRate: number;
 }
 
 // Stats for standup generation

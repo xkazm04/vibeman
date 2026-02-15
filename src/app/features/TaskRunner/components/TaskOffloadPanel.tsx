@@ -113,30 +113,51 @@ export default function TaskOffloadPanel({ sourceBatchId, onClose }: TaskOffload
         </div>
 
         <div className="space-y-1 max-h-48 overflow-y-auto bg-gray-900/50 rounded-lg border border-gray-700/50 p-2 shadow-inner">
-          {queuedTasks.map(task => (
-            <label
-              key={task.id}
-              className={`
-                flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all duration-200
-                ${selectedTaskIds.has(task.id)
-                  ? 'bg-cyan-500/20 border border-cyan-500/50 shadow-sm shadow-cyan-500/10'
-                  : 'hover:bg-gray-700/30 border border-transparent hover:border-gray-600/30'
-                }
-              `}
-              data-testid={`task-checkbox-${task.id}`}
-            >
-              <input
-                type="checkbox"
-                checked={selectedTaskIds.has(task.id)}
-                onChange={() => handleToggleTask(task.id)}
-                className="w-4 h-4 accent-cyan-500"
-              />
-              <span className="text-sm text-gray-300 truncate flex-1">{task.id}</span>
-              <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-800 rounded">
-                {task.status.type}
-              </span>
-            </label>
-          ))}
+          {queuedTasks.map(task => {
+            const isSelected = selectedTaskIds.has(task.id);
+            const displayName = task.requirementName
+              ? task.requirementName.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+              : task.id;
+            return (
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => handleToggleTask(task.id)}
+                className={`
+                  w-full flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all duration-200 text-left
+                  ${isSelected
+                    ? 'bg-cyan-500/20 border border-cyan-500/50 shadow-sm shadow-cyan-500/10'
+                    : 'hover:bg-gray-700/30 border border-transparent hover:border-gray-600/30'
+                  }
+                `}
+                data-testid={`task-checkbox-${task.id}`}
+              >
+                {/* Styled toggle */}
+                <div className={`
+                  w-4 h-4 rounded flex-shrink-0 border transition-all duration-200 flex items-center justify-center
+                  ${isSelected
+                    ? 'bg-cyan-500 border-cyan-400'
+                    : 'bg-gray-800 border-gray-600 hover:border-gray-500'
+                  }
+                `}>
+                  {isSelected && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-300 truncate block">{displayName}</span>
+                  {task.requirementName && (
+                    <span className="text-[10px] text-gray-600 font-mono truncate block">{task.id}</span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-800 rounded flex-shrink-0">
+                  {task.status.type}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -210,7 +210,10 @@ function startPollingFallback(
     clearInterval(existing.intervalId);
   }
 
+  let isPolling = false;
   const intervalId = setInterval(async () => {
+    if (isPolling) return;
+    isPolling = true;
     try {
       const response = await fetch(
         `/api/claude-terminal/status?executionId=${executionId}`
@@ -229,6 +232,8 @@ function startPollingFallback(
       }
     } catch {
       // Continue polling on error
+    } finally {
+      isPolling = false;
     }
   }, 10000); // Poll every 10 seconds
 

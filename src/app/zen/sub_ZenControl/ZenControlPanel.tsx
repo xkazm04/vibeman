@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import RemoteSetupPanel from './components/RemoteSetupPanel';
 import EmulatorPanel from './components/EmulatorPanel';
 import { useZenMode } from '../lib/zenNavigationStore';
+import { zen } from '../lib/zenTheme';
 
 /**
  * Zen Control Panel
@@ -48,7 +49,7 @@ export default function ZenControlPanel() {
           className="text-center py-12"
         >
           <p className="text-sm text-gray-500">
-            Switch to <span className="text-cyan-400 font-medium">Online</span> or{' '}
+            Switch to <span className={`${zen.accent} font-medium`}>Online</span> or{' '}
             <span className="text-purple-400 font-medium">Emulator</span> mode in the header to connect with other devices
           </p>
         </motion.div>

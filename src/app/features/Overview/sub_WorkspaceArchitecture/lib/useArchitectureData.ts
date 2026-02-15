@@ -350,16 +350,23 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
   useEffect(() => {
     if (!analysisStatus.isAnalyzing) return;
 
+    let isPolling = false;
     const pollInterval = setInterval(async () => {
-      await fetchAnalysisStatus();
-      // If no longer analyzing, refresh relationships too
-      const wsParam = workspaceId === 'default' ? '' : (workspaceId || '');
-      const response = await fetch(`/api/architecture/analyze?workspaceId=${wsParam}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (!data.isRunning) {
-          await fetchRelationships();
+      if (isPolling) return;
+      isPolling = true;
+      try {
+        await fetchAnalysisStatus();
+        // If no longer analyzing, refresh relationships too
+        const wsParam = workspaceId === 'default' ? '' : (workspaceId || '');
+        const response = await fetch(`/api/architecture/analyze?workspaceId=${wsParam}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.isRunning) {
+            await fetchRelationships();
+          }
         }
+      } finally {
+        isPolling = false;
       }
     }, 3000);
 
