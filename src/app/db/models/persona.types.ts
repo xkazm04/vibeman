@@ -87,6 +87,7 @@ export interface DbPersona {
   max_budget_usd: number | null;
   max_turns: number | null;
   design_context: string | null;       // JSON: DesignContext
+  group_id: string | null;           // FK to persona_groups
   created_at: string;
   updated_at: string;
 }
@@ -178,6 +179,7 @@ export interface CreatePersonaInput {
   max_budget_usd?: number;
   max_turns?: number;
   design_context?: string;
+  group_id?: string | null;
 }
 
 export interface UpdatePersonaInput {
@@ -196,6 +198,7 @@ export interface UpdatePersonaInput {
   max_budget_usd?: number | null;
   max_turns?: number | null;
   design_context?: string | null;
+  group_id?: string | null;
 }
 
 export interface CreateToolDefinitionInput {
@@ -573,4 +576,32 @@ export interface DbPersonaHealingIssue {
   status: HealingIssueStatus;
   created_at: string;
   resolved_at: string | null;
+}
+
+// ============================================================================
+// Persona Groups
+// ============================================================================
+
+export interface DbPersonaGroup {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  collapsed: number; // 0 or 1
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePersonaGroupInput {
+  id?: string;
+  name: string;
+  color?: string;
+  sort_order?: number;
+}
+
+export interface UpdatePersonaGroupInput {
+  name?: string;
+  color?: string;
+  sort_order?: number;
+  collapsed?: number;
 }

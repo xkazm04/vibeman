@@ -67,8 +67,8 @@ export const personaRepository = {
     const id = input.id || generateId('persona');
 
     db.prepare(`
-      INSERT INTO personas (id, name, description, system_prompt, structured_prompt, icon, color, enabled, max_concurrent, timeout_ms, model_profile, max_budget_usd, max_turns, design_context, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO personas (id, name, description, system_prompt, structured_prompt, icon, color, enabled, max_concurrent, timeout_ms, model_profile, max_budget_usd, max_turns, design_context, group_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.name,
@@ -84,6 +84,7 @@ export const personaRepository = {
       input.max_budget_usd ?? null,
       input.max_turns ?? null,
       input.design_context || null,
+      input.group_id || null,
       now,
       now
     );
@@ -110,6 +111,7 @@ export const personaRepository = {
     if (updates.max_budget_usd !== undefined) mapped.max_budget_usd = updates.max_budget_usd;
     if (updates.max_turns !== undefined) mapped.max_turns = updates.max_turns;
     if (updates.design_context !== undefined) mapped.design_context = updates.design_context;
+    if (updates.group_id !== undefined) mapped.group_id = updates.group_id;
 
     const result = buildUpdateStatement(db, 'personas', mapped);
     if (!result) return personaRepository.getById(id);
@@ -1476,6 +1478,26 @@ export const personaEventRepository = {
       "SELECT COUNT(*) as count FROM persona_events WHERE status = 'pending'"
     );
     return row?.count ?? 0;
+  },
+
+  getSince: (sinceTimestamp: string, limit: number = 50): DbPersonaEvent[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaEvent>(
+      db,
+      'SELECT * FROM persona_events WHERE created_at > ? ORDER BY created_at ASC LIMIT ?',
+      sinceTimestamp,
+      limit
+    );
+  },
+
+  getRecentlyProcessed: (sinceTimestamp: string, limit: number = 50): DbPersonaEvent[] => {
+    const db = getDatabase();
+    return selectAll<DbPersonaEvent>(
+      db,
+      "SELECT * FROM persona_events WHERE processed_at > ? AND status IN ('completed', 'failed') ORDER BY processed_at ASC LIMIT ?",
+      sinceTimestamp,
+      limit
+    );
   },
 
   cleanup: (olderThanDays: number = 30): number => {

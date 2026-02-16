@@ -113,6 +113,7 @@ import { insightEffectivenessCacheRepository } from './repositories/insight-effe
 import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
 import { personaTeamRepository, personaTeamMemberRepository, personaTeamConnectionRepository } from './repositories/personaTeamRepository';
 import { healingIssueRepository } from './repositories/healingIssueRepository';
+import { personaGroupRepository } from './repositories/personaGroupRepository';
 
 // Export types
 export * from './models/types';
@@ -710,6 +711,7 @@ export const personaDb = {
   teamMembers: personaTeamMemberRepository,
   teamConnections: personaTeamConnectionRepository,
   healingIssues: healingIssueRepository,
+  groups: personaGroupRepository,
   close: closeDatabase,
 };
 

@@ -37,6 +37,7 @@ import { migrate107PersonaModelSettings } from './107_persona_model_settings';
 import { migrate108Observability } from './108_observability';
 import { migrate109TeamCanvas } from './109_team_canvas';
 import { migrate110HealingIssues } from './110_healing_issues';
+import { migrate111PersonaGroups } from './111_persona_groups';
 
 /**
  * Migration logger utility
@@ -310,6 +311,9 @@ export function runMigrations() {
 
     // Migration 110: Healing Issues - track failed execution analysis
     migrate110HealingIssues(db as any, migrationLogger);
+
+    // Migration 111: Persona Groups - organize personas into collapsible groups
+    migrate111PersonaGroups(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
