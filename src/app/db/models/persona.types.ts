@@ -551,3 +551,26 @@ export interface UpdateTeamInput {
   color?: string | null;
   enabled?: boolean;
 }
+
+// ============================================================================
+// Healing Mechanism Models
+// ============================================================================
+
+export type HealingIssueSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type HealingIssueCategory = 'prompt' | 'tool' | 'config' | 'external';
+export type HealingIssueStatus = 'open' | 'resolved';
+
+export interface DbPersonaHealingIssue {
+  id: string;
+  persona_id: string;
+  execution_id: string | null;
+  title: string;
+  description: string;
+  severity: HealingIssueSeverity;
+  category: HealingIssueCategory;
+  suggested_fix: string | null;
+  auto_fixed: number;
+  status: HealingIssueStatus;
+  created_at: string;
+  resolved_at: string | null;
+}

@@ -27,6 +27,10 @@ import type {
   PersonaEventStatus,
   DbPersonaMetricsSnapshot,
   DbPersonaPromptVersion,
+  DbPersonaHealingIssue,
+  HealingIssueSeverity,
+  HealingIssueCategory,
+  HealingIssueStatus,
 } from '@/app/db/models/persona.types';
 
 // Re-export DB types for convenience
@@ -55,6 +59,10 @@ export type {
   PersonaEventStatus,
   DbPersonaMetricsSnapshot,
   DbPersonaPromptVersion,
+  DbPersonaHealingIssue,
+  HealingIssueSeverity,
+  HealingIssueCategory,
+  HealingIssueStatus,
 };
 
 /** Persona with associated tools, triggers, and event subscriptions */
@@ -100,13 +108,13 @@ export interface CredentialMetadata {
 }
 
 /** Sidebar section types */
-export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' | 'design-reviews' | 'observability' | 'team';
+export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' | 'design-reviews' | 'team';
 
 /** Editor tab types */
 export type EditorTab = 'prompt' | 'executions' | 'settings';
 
 /** Overview sub-tab types */
-export type OverviewTab = 'executions' | 'manual-review' | 'messages' | 'usage' | 'events';
+export type OverviewTab = 'executions' | 'manual-review' | 'messages' | 'usage' | 'events' | 'observability';
 
 /** Tool usage summary row */
 export interface ToolUsageSummary {
