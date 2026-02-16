@@ -16,7 +16,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { instruction } = body;
+    const { instruction, designContext } = body;
 
     if (!instruction || typeof instruction !== 'string' || !instruction.trim()) {
       return NextResponse.json(
@@ -51,6 +51,15 @@ export async function POST(
     const referenceSection = getReferencePatternsSection(instruction.trim()) ?? undefined;
     const learnedPatternsSection = getLearnedPatternsSection() ?? undefined;
 
+    // Parse design context if provided (files + references for richer design)
+    let parsedDesignContext: { files: Array<{ name: string; content: string; type: string }>; references: string[] } | undefined;
+    if (designContext && typeof designContext === 'object') {
+      parsedDesignContext = {
+        files: Array.isArray(designContext.files) ? designContext.files : [],
+        references: Array.isArray(designContext.references) ? designContext.references : [],
+      };
+    }
+
     // Start analysis non-blocking
     runDesignAnalysis({
       designId,
@@ -61,6 +70,7 @@ export async function POST(
       mode,
       referenceSection,
       learnedPatternsSection,
+      designContext: parsedDesignContext,
     });
 
     return NextResponse.json(

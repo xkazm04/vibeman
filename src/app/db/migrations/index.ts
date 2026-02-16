@@ -30,6 +30,12 @@ import { migrate099ReviewUseCaseFlows } from './099_review_use_case_flows';
 import { migrate100BehavioralSignalDecayTracking } from './100_behavioral_signal_decay_tracking';
 import { migrate101InsightEffectivenessCache } from './101_insight_effectiveness_cache';
 import { migrate103GoalLifecycle } from './103_goal_lifecycle';
+import { migrate104ExecutionFlows } from './104_execution_flows';
+import { migrate105PerformanceIndexes } from './105_performance_indexes';
+import { migrate106CleanupPhantomContextPaths } from './106_cleanup_phantom_context_paths';
+import { migrate107PersonaModelSettings } from './107_persona_model_settings';
+import { migrate108Observability } from './108_observability';
+import { migrate109TeamCanvas } from './109_team_canvas';
 
 /**
  * Migration logger utility
@@ -282,6 +288,24 @@ export function runMigrations() {
 
     // Migration 103: Goal Lifecycle Engine - autonomous progress tracking
     migrate103GoalLifecycle(db, migrationLogger);
+
+    // Migration 104: Execution Flows - store extracted flow diagrams
+    migrate104ExecutionFlows(db as any, migrationLogger);
+
+    // Migration 105: Composite indexes for date-range queries
+    migrate105PerformanceIndexes(db as any, migrationLogger);
+
+    // Migration 106: Cleanup phantom context file paths (re-validates all contexts)
+    migrate106CleanupPhantomContextPaths();
+
+    // Migration 107: Persona model settings - multi-model execution + design context
+    migrate107PersonaModelSettings(db as any, migrationLogger);
+
+    // Migration 108: Observability - metrics snapshots + prompt version history
+    migrate108Observability(db as any, migrationLogger);
+
+    // Migration 109: Team Canvas - multi-agent pipeline visual design
+    migrate109TeamCanvas(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

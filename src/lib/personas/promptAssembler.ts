@@ -60,6 +60,21 @@ To emit a custom event for any subscribed persona to pick up:
 \`\`\`
 Actions are processed IMMEDIATELY during execution. The target persona will be triggered automatically.`;
 
+const EXECUTION_FLOW_PROTOCOL = `## Execution Flow Reporting
+At the END of your execution (after completing all tasks), output a JSON block describing the workflow steps you performed as an activity diagram:
+\`\`\`json
+{"execution_flow": {"flows": [{"id": "flow-1", "name": "Flow Name", "description": "What was accomplished", "nodes": [{"id": "n1", "type": "start", "label": "Trigger"}, {"id": "n2", "type": "action", "label": "Step performed", "detail": "More context about this step", "request_data": "{\\"key\\": \\"value\\"}", "response_data": "{\\"result\\": \\"ok\\"}"}, {"id": "n3", "type": "end", "label": "Done"}], "edges": [{"id": "e1", "source": "n1", "target": "n2"}, {"id": "e2", "source": "n2", "target": "n3"}]}]}}
+\`\`\`
+Node types: start, end, action, decision, connector, event, error.
+For connector nodes, include a "connector" field (e.g. "gmail", "slack", "http").
+Edge variants: default, yes, no, error. Use "label" on decision edges (e.g. "Yes", "No").
+Optional enrichment fields on nodes:
+- "detail": A sentence describing what the step does (shown in the popover on click).
+- "request_data": JSON string of request/input data sent or consumed by this step.
+- "response_data": JSON string of response/output data produced by this step.
+- "error_message": Error details if this particular step failed.
+Keep concise: 3-12 nodes per flow, 1-2 flows total. Only emit this if you performed multi-step work.`;
+
 /**
  * Build an event trigger context section when the persona was triggered by an event.
  */
@@ -188,6 +203,9 @@ function assembleStructuredPrompt(
   // 11b. Event Action Protocol
   sections.push(EVENT_ACTION_PROTOCOL);
 
+  // 11c. Execution Flow Reporting Protocol
+  sections.push(EXECUTION_FLOW_PROTOCOL);
+
   // 12. Output format instructions
   sections.push('## Output Requirements');
   sections.push('After completing your task, output a JSON summary of what you did:');
@@ -259,6 +277,9 @@ function assembleFlatPrompt(input: PromptAssemblyInput): string {
 
   // 5b. Event Action Protocol
   sections.push(EVENT_ACTION_PROTOCOL);
+
+  // 5c. Execution Flow Reporting Protocol
+  sections.push(EXECUTION_FLOW_PROTOCOL);
 
   // 6. Output format instructions
   sections.push('## Output Requirements');
@@ -438,6 +459,36 @@ function buildDataFetchingGuidelines(input: PromptAssemblyInput): string | null 
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Build a design context section for persona prompt enrichment.
+ * Used to inject uploaded data sources (API specs, schemas, MCP configs)
+ * and free-text references into persona prompts.
+ */
+export function buildDesignContextSection(designContext: { files: Array<{ name: string; content: string; type: string }>; references: string[] } | null): string {
+  if (!designContext) return '';
+
+  const sections: string[] = [];
+
+  if (designContext.files.length > 0) {
+    sections.push('## Data Source References');
+    for (const file of designContext.files) {
+      sections.push(`### ${file.name} (${file.type})`);
+      sections.push('```');
+      sections.push(file.content.slice(0, 5000)); // Cap at 5k chars per file
+      sections.push('```');
+    }
+  }
+
+  if (designContext.references.length > 0) {
+    sections.push('## Additional References');
+    for (const ref of designContext.references) {
+      sections.push(`- ${ref}`);
+    }
+  }
+
+  return sections.join('\n');
 }
 
 /**

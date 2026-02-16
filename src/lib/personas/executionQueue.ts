@@ -136,6 +136,11 @@ class PersonaExecutionQueue {
           log_file_path: result.logFilePath,
           duration_ms: result.durationMs,
           completed_at: new Date().toISOString(),
+          execution_flows: result.executionFlows,
+          model_used: result.modelUsed,
+          input_tokens: result.inputTokens,
+          output_tokens: result.outputTokens,
+          cost_usd: result.costUsd,
         });
       } else {
         personaExecutionRepository.updateStatus(

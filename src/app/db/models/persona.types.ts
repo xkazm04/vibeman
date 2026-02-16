@@ -36,6 +36,36 @@ export type PersonaEventStatus =
   | 'skipped';
 
 // ============================================================================
+// Model & Provider Configuration
+// ============================================================================
+
+export type ModelProvider = 'anthropic' | 'ollama' | 'litellm' | 'custom';
+
+export interface ModelProfile {
+  model?: string;         // e.g., 'haiku', 'sonnet', 'opus', or custom model ID
+  provider?: ModelProvider;
+  base_url?: string;      // e.g., 'http://localhost:11434' for Ollama
+  auth_token?: string;    // e.g., 'ollama' for Ollama provider
+}
+
+// ============================================================================
+// Design Context (data sources for design engine)
+// ============================================================================
+
+export type DesignFileType = 'api-spec' | 'schema' | 'mcp-config' | 'other';
+
+export interface DesignFile {
+  name: string;
+  content: string;
+  type: DesignFileType;
+}
+
+export interface DesignContext {
+  files: DesignFile[];
+  references: string[];  // free-text URLs, credentials, notes
+}
+
+// ============================================================================
 // Database Models
 // ============================================================================
 
@@ -53,6 +83,10 @@ export interface DbPersona {
   timeout_ms: number;
   notification_channels: string | null; // JSON: NotificationChannel[]
   last_design_result: string | null; // JSON: DesignAnalysisResult
+  model_profile: string | null;       // JSON: ModelProfile
+  max_budget_usd: number | null;
+  max_turns: number | null;
+  design_context: string | null;       // JSON: DesignContext
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +134,11 @@ export interface DbPersonaExecution {
   output_data: string | null; // JSON
   claude_session_id: string | null;
   log_file_path: string | null;
+  execution_flows: string | null;
+  model_used: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
   error_message: string | null;
   duration_ms: number | null;
   started_at: string | null;
@@ -135,6 +174,10 @@ export interface CreatePersonaInput {
   enabled?: boolean;
   max_concurrent?: number;
   timeout_ms?: number;
+  model_profile?: string;
+  max_budget_usd?: number;
+  max_turns?: number;
+  design_context?: string;
 }
 
 export interface UpdatePersonaInput {
@@ -149,6 +192,10 @@ export interface UpdatePersonaInput {
   timeout_ms?: number;
   notification_channels?: string;
   last_design_result?: string | null;
+  model_profile?: string | null;
+  max_budget_usd?: number | null;
+  max_turns?: number | null;
+  design_context?: string | null;
 }
 
 export interface CreateToolDefinitionInput {
@@ -405,5 +452,102 @@ export interface CreateEventSubscriptionInput {
 export interface UpdateEventSubscriptionInput {
   event_type?: string;
   source_filter?: object;
+  enabled?: boolean;
+}
+
+// ============================================================================
+// Observability Models
+// ============================================================================
+
+export interface DbPersonaMetricsSnapshot {
+  id: string;
+  persona_id: string;
+  snapshot_date: string;
+  total_executions: number;
+  successful_executions: number;
+  failed_executions: number;
+  total_cost_usd: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  avg_duration_ms: number;
+  tools_used: string | null; // JSON: string[]
+  events_emitted: number;
+  events_consumed: number;
+  messages_sent: number;
+  created_at: string;
+}
+
+export interface DbPersonaPromptVersion {
+  id: string;
+  persona_id: string;
+  version_number: number;
+  structured_prompt: string | null;
+  system_prompt: string | null;
+  change_summary: string | null;
+  created_at: string;
+}
+
+// ============================================================================
+// Team Canvas Models
+// ============================================================================
+
+export type TeamRole = 'orchestrator' | 'worker' | 'reviewer' | 'router';
+export type ConnectionType = 'sequential' | 'conditional' | 'parallel' | 'feedback';
+
+export interface DbPersonaTeam {
+  id: string;
+  project_id: string | null;
+  name: string;
+  description: string | null;
+  canvas_data: string | null;      // JSON: React Flow nodes + edges
+  team_config: string | null;      // JSON: execution settings
+  icon: string | null;
+  color: string;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbPersonaTeamMember {
+  id: string;
+  team_id: string;
+  persona_id: string;
+  role: TeamRole;
+  position_x: number;
+  position_y: number;
+  config: string | null;           // JSON: node-specific overrides
+  created_at: string;
+}
+
+export interface DbPersonaTeamConnection {
+  id: string;
+  team_id: string;
+  source_member_id: string;
+  target_member_id: string;
+  connection_type: ConnectionType;
+  condition: string | null;        // JSON: condition config
+  label: string | null;
+  created_at: string;
+}
+
+export interface CreateTeamInput {
+  id?: string;
+  project_id?: string;
+  name: string;
+  description?: string;
+  canvas_data?: string;
+  team_config?: string;
+  icon?: string;
+  color?: string;
+  enabled?: boolean;
+}
+
+export interface UpdateTeamInput {
+  name?: string;
+  description?: string | null;
+  canvas_data?: string | null;
+  team_config?: string | null;
+  icon?: string | null;
+  color?: string | null;
   enabled?: boolean;
 }

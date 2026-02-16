@@ -9,6 +9,8 @@ import { DesignResultPreview } from './DesignResultPreview';
 import { ConnectorCredentialModal } from './ConnectorCredentialModal';
 import { Sparkles, Send, X, Check, RefreshCw, Loader2, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DesignInput } from './DesignInput';
+import type { DesignContext } from '@/app/db/models/persona.types';
 
 export function DesignTab() {
   const selectedPersona = usePersonaStore((s) => s.selectedPersona);
@@ -19,6 +21,7 @@ export function DesignTab() {
   const createCredential = usePersonaStore((s) => s.createCredential);
   const fetchCredentials = usePersonaStore((s) => s.fetchCredentials);
   const updateTrigger = usePersonaStore((s) => s.updateTrigger);
+  const updatePersona = usePersonaStore((s) => s.updatePersona);
 
   // Fetch connector definitions on mount
   useEffect(() => {
@@ -41,6 +44,7 @@ export function DesignTab() {
   } = useDesignAnalysis();
 
   const [instruction, setInstruction] = useState('');
+  const [designContext, setDesignContext] = useState<DesignContext>({ files: [], references: [] });
   const [refinementMessage, setRefinementMessage] = useState('');
   const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
   const [selectedTriggerIndices, setSelectedTriggerIndices] = useState<Set<number>>(new Set());
@@ -65,6 +69,20 @@ export function DesignTab() {
       return null;
     }
   }, [selectedPersona?.last_design_result]);
+
+  // Initialize design context from persona DB
+  useEffect(() => {
+    if (selectedPersona?.design_context) {
+      try {
+        const saved = JSON.parse(selectedPersona.design_context) as DesignContext;
+        setDesignContext(saved);
+      } catch {
+        setDesignContext({ files: [], references: [] });
+      }
+    } else {
+      setDesignContext({ files: [], references: [] });
+    }
+  }, [selectedPersona?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize selections when result arrives
   const resultId = result
@@ -91,8 +109,15 @@ export function DesignTab() {
     [selectedPersona]
   );
 
-  const handleStartAnalysis = () => {
+  const handleStartAnalysis = async () => {
     if (!selectedPersona || !instruction.trim()) return;
+    // Persist design context to persona before starting
+    const hasContext = designContext.files.length > 0 || designContext.references.length > 0;
+    if (hasContext) {
+      await updatePersona(selectedPersona.id, {
+        design_context: JSON.stringify(designContext),
+      });
+    }
     startAnalysis(selectedPersona.id, instruction.trim());
   };
 
@@ -121,6 +146,7 @@ export function DesignTab() {
   const handleDiscard = () => {
     reset();
     setInstruction('');
+    setDesignContext({ files: [], references: [] });
   };
 
   const handleReset = () => {
@@ -161,8 +187,15 @@ export function DesignTab() {
   };
 
   /** Start a new design analysis from the idle-with-overview chat input */
-  const handleOverviewRedesign = () => {
+  const handleOverviewRedesign = async () => {
     if (!selectedPersona || !instruction.trim()) return;
+    // Persist design context to persona before starting
+    const hasContext = designContext.files.length > 0 || designContext.references.length > 0;
+    if (hasContext) {
+      await updatePersona(selectedPersona.id, {
+        design_context: JSON.stringify(designContext),
+      });
+    }
     startAnalysis(selectedPersona.id, instruction.trim());
   };
 
@@ -248,12 +281,13 @@ export function DesignTab() {
             ) : (
               <>
                 {/* Fresh design: no saved result */}
-                <textarea
-                  value={instruction}
-                  onChange={(e) => setInstruction(e.target.value)}
-                  placeholder="Describe what this agent should do..."
-                  className="w-full min-h-[100px] bg-background/50 border border-primary/15 rounded-2xl p-4 text-sm text-foreground font-sans resize-y focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all placeholder-muted-foreground/30"
-                  spellCheck
+                <DesignInput
+                  instruction={instruction}
+                  onInstructionChange={setInstruction}
+                  designContext={designContext}
+                  onDesignContextChange={setDesignContext}
+                  disabled={phase !== 'idle'}
+                  onSubmit={handleStartAnalysis}
                 />
 
                 {error && (

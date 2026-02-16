@@ -106,9 +106,12 @@ import {
   eventSubscriptionRepository,
 } from './repositories/persona.repository';
 import { designReviewRepository } from './repositories/designReviewRepository';
+import { personaMetricsRepository } from './repositories/personaMetricsRepository';
+import { personaPromptVersionRepository } from './repositories/personaPromptVersionRepository';
 import { designPatternRepository } from './repositories/designPatternRepository';
 import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
 import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
+import { personaTeamRepository, personaTeamMemberRepository, personaTeamConnectionRepository } from './repositories/personaTeamRepository';
 
 // Export types
 export * from './models/types';
@@ -700,6 +703,11 @@ export const personaDb = {
   eventSubscriptions: eventSubscriptionRepository,
   designReviews: designReviewRepository,
   designPatterns: designPatternRepository,
+  metrics: personaMetricsRepository,
+  promptVersions: personaPromptVersionRepository,
+  teams: personaTeamRepository,
+  teamMembers: personaTeamMemberRepository,
+  teamConnections: personaTeamConnectionRepository,
   close: closeDatabase,
 };
 

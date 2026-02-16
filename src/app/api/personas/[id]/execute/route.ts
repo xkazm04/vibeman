@@ -37,11 +37,21 @@ export async function POST(
       ? { completed_at: recentExecs[0].completed_at!, duration_ms: recentExecs[0].duration_ms, status: recentExecs[0].status }
       : null;
 
+    // Parse model profile for execution record tracking
+    let modelUsed: string | undefined;
+    try {
+      if (persona.model_profile) {
+        const profile = JSON.parse(persona.model_profile);
+        modelUsed = profile.model || undefined;
+      }
+    } catch { /* ignore invalid JSON */ }
+
     // Create execution record
     const execution = await personaDb.executions.create(
       id,
       undefined,
-      inputData
+      inputData,
+      modelUsed
     );
 
     // Enqueue for background execution (don't await)

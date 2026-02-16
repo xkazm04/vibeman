@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Save, AlertTriangle, AlertCircle, FileText, Play, Settings, X, Bot } from 'lucide-react';
+import { Trash2, Save, AlertTriangle, AlertCircle, FileText, Play, Settings, X, Bot, Cpu, DollarSign } from 'lucide-react';
+import type { ModelProfile, ModelProvider } from '@/app/db/models/persona.types';
 import { usePersonaStore } from '@/stores/personaStore';
 import type { EditorTab } from '@/app/features/Personas/lib/types';
 import { PersonaPromptEditor } from './PersonaPromptEditor';
@@ -35,6 +36,15 @@ export default function PersonaEditor() {
   const [editedEnabled, setEditedEnabled] = useState(true);
   const [settingsDirty, setSettingsDirty] = useState(false);
 
+  // Model & Provider state
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<ModelProvider>('anthropic');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [authToken, setAuthToken] = useState('');
+  const [maxBudget, setMaxBudget] = useState<number | ''>('');
+  const [maxTurns, setMaxTurns] = useState<number | ''>('');
+  const [modelDirty, setModelDirty] = useState(false);
+
   useEffect(() => {
     if (selectedPersona) {
       setEditedName(selectedPersona.name);
@@ -45,6 +55,23 @@ export default function PersonaEditor() {
       setEditedTimeout(selectedPersona.timeout_ms || 300000);
       setEditedEnabled(!!selectedPersona.enabled);
       setSettingsDirty(false);
+
+      // Model & Provider
+      try {
+        const mp: ModelProfile = selectedPersona.model_profile ? JSON.parse(selectedPersona.model_profile) : {};
+        setSelectedModel(mp.model || '');
+        setSelectedProvider((mp.provider as ModelProvider) || 'anthropic');
+        setBaseUrl(mp.base_url || '');
+        setAuthToken(mp.auth_token || '');
+      } catch {
+        setSelectedModel('');
+        setSelectedProvider('anthropic');
+        setBaseUrl('');
+        setAuthToken('');
+      }
+      setMaxBudget(selectedPersona.max_budget_usd ?? '');
+      setMaxTurns(selectedPersona.max_turns ?? '');
+      setModelDirty(false);
     }
   }, [selectedPersona?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -104,6 +131,25 @@ export default function PersonaEditor() {
     });
     setSettingsDirty(false);
   };
+
+  const saveModelSettings = async () => {
+    if (!selectedPersona) return;
+    const profile = selectedModel === '' ? null : JSON.stringify({
+      model: selectedModel === 'custom' ? undefined : selectedModel,
+      provider: selectedModel === 'custom' ? selectedProvider : 'anthropic',
+      base_url: baseUrl || undefined,
+      auth_token: authToken || undefined,
+    } satisfies ModelProfile);
+
+    await updatePersona(selectedPersona.id, {
+      model_profile: profile,
+      max_budget_usd: maxBudget === '' ? null : maxBudget,
+      max_turns: maxTurns === '' ? null : maxTurns,
+    });
+    setModelDirty(false);
+  };
+
+  const markModelDirty = () => setModelDirty(true);
 
   const handleDelete = async () => {
     await deletePersona(selectedPersona.id);
@@ -214,6 +260,118 @@ export default function PersonaEditor() {
                     />
                     <span className="text-sm font-mono text-muted-foreground/40">{editedColor}</span>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Model & Provider */}
+            <div className="space-y-3">
+              <h4 className="flex items-center gap-2.5 text-sm font-semibold text-foreground/70 tracking-wide">
+                <span className="w-6 h-[2px] bg-gradient-to-r from-primary to-accent rounded-full" />
+                <Cpu className="w-3.5 h-3.5" />
+                Model &amp; Provider
+              </h4>
+              <div className="bg-secondary/40 backdrop-blur-sm border border-primary/15 rounded-xl p-3 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-foreground/60 mb-1">Model</label>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => { setSelectedModel(e.target.value); markModelDirty(); }}
+                    className="w-full px-3 py-1.5 bg-background/50 border border-primary/15 rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                  >
+                    <option value="">Default (Opus)</option>
+                    <option value="haiku">Haiku (fast/cheap)</option>
+                    <option value="sonnet">Sonnet (balanced)</option>
+                    <option value="opus">Opus (quality)</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+
+                {selectedModel === 'custom' && (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/60 mb-1">Provider</label>
+                    <select
+                      value={selectedProvider}
+                      onChange={(e) => { setSelectedProvider(e.target.value as ModelProvider); markModelDirty(); }}
+                      className="w-full px-3 py-1.5 bg-background/50 border border-primary/15 rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                    >
+                      <option value="anthropic">Anthropic</option>
+                      <option value="ollama">Ollama (local)</option>
+                      <option value="litellm">LiteLLM (proxy)</option>
+                      <option value="custom">Custom URL</option>
+                    </select>
+                  </div>
+                )}
+
+                {selectedModel === 'custom' && selectedProvider !== 'anthropic' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground/60 mb-1">Base URL</label>
+                      <input
+                        type="text"
+                        value={baseUrl}
+                        onChange={(e) => { setBaseUrl(e.target.value); markModelDirty(); }}
+                        placeholder="http://localhost:11434"
+                        className="w-full px-3 py-1.5 bg-background/50 border border-primary/15 rounded-lg text-sm text-foreground placeholder-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground/60 mb-1">Auth Token</label>
+                      <input
+                        type="text"
+                        value={authToken}
+                        onChange={(e) => { setAuthToken(e.target.value); markModelDirty(); }}
+                        placeholder={selectedProvider === 'ollama' ? 'ollama' : 'Bearer token'}
+                        className="w-full px-3 py-1.5 bg-background/50 border border-primary/15 rounded-lg text-sm text-foreground placeholder-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Budget Controls */}
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground/60 mb-1">
+                      <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> Max Budget (USD)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={maxBudget}
+                      onChange={(e) => { setMaxBudget(e.target.value === '' ? '' : parseFloat(e.target.value)); markModelDirty(); }}
+                      placeholder="No limit"
+                      min={0}
+                      step={0.01}
+                      className="w-full px-3 py-1.5 bg-background/50 border border-primary/15 rounded-lg text-sm text-foreground placeholder-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground/60 mb-1">Max Turns</label>
+                    <input
+                      type="number"
+                      value={maxTurns}
+                      onChange={(e) => { setMaxTurns(e.target.value === '' ? '' : parseInt(e.target.value, 10)); markModelDirty(); }}
+                      placeholder="No limit"
+                      min={1}
+                      step={1}
+                      className="w-full px-3 py-1.5 bg-background/50 border border-primary/15 rounded-lg text-sm text-foreground placeholder-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Save button */}
+                <div className="pt-1">
+                  <button
+                    onClick={saveModelSettings}
+                    disabled={!modelDirty}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-sm transition-all ${
+                      modelDirty
+                        ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/20 hover:from-primary/90 hover:to-accent/90'
+                        : 'bg-secondary/40 text-muted-foreground/30 cursor-not-allowed'
+                    }`}
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save Model Settings
+                  </button>
                 </div>
               </div>
             </div>

@@ -68,7 +68,11 @@ export async function PUT(
       enabled,
       max_concurrent,
       timeout_ms,
-      last_design_result
+      last_design_result,
+      model_profile,
+      max_budget_usd,
+      max_turns,
+      design_context,
     } = body;
 
     // Validate fields if provided
@@ -97,6 +101,10 @@ export async function PUT(
     if (timeout_ms !== undefined) updates.timeout_ms = timeout_ms;
     if (structured_prompt !== undefined) updates.structured_prompt = typeof structured_prompt === 'object' ? JSON.stringify(structured_prompt) : structured_prompt;
     if (last_design_result !== undefined) updates.last_design_result = last_design_result;
+    if (model_profile !== undefined) updates.model_profile = typeof model_profile === 'object' ? JSON.stringify(model_profile) : model_profile;
+    if (max_budget_usd !== undefined) updates.max_budget_usd = max_budget_usd;
+    if (max_turns !== undefined) updates.max_turns = max_turns;
+    if (design_context !== undefined) updates.design_context = typeof design_context === 'object' ? JSON.stringify(design_context) : design_context;
 
     const persona = personaDb.personas.update(personaId, updates);
     if (!persona) {

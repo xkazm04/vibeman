@@ -67,8 +67,8 @@ export const personaRepository = {
     const id = input.id || generateId('persona');
 
     db.prepare(`
-      INSERT INTO personas (id, name, description, system_prompt, structured_prompt, icon, color, enabled, max_concurrent, timeout_ms, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO personas (id, name, description, system_prompt, structured_prompt, icon, color, enabled, max_concurrent, timeout_ms, model_profile, max_budget_usd, max_turns, design_context, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.name,
@@ -80,6 +80,10 @@ export const personaRepository = {
       input.enabled !== false ? 1 : 0,
       input.max_concurrent || 1,
       input.timeout_ms || 300000,
+      input.model_profile || null,
+      input.max_budget_usd ?? null,
+      input.max_turns ?? null,
+      input.design_context || null,
       now,
       now
     );
@@ -102,6 +106,10 @@ export const personaRepository = {
     if (updates.timeout_ms !== undefined) mapped.timeout_ms = updates.timeout_ms;
     if (updates.notification_channels !== undefined) mapped.notification_channels = updates.notification_channels;
     if (updates.last_design_result !== undefined) mapped.last_design_result = updates.last_design_result;
+    if (updates.model_profile !== undefined) mapped.model_profile = updates.model_profile;
+    if (updates.max_budget_usd !== undefined) mapped.max_budget_usd = updates.max_budget_usd;
+    if (updates.max_turns !== undefined) mapped.max_turns = updates.max_turns;
+    if (updates.design_context !== undefined) mapped.design_context = updates.design_context;
 
     const result = buildUpdateStatement(db, 'personas', mapped);
     if (!result) return personaRepository.getById(id);
@@ -452,19 +460,20 @@ export const personaExecutionRepository = {
     return selectOne<DbPersonaExecution>(db, 'SELECT * FROM persona_executions WHERE id = ?', id);
   },
 
-  create: (personaId: string, triggerId?: string, inputData?: object): DbPersonaExecution => {
+  create: (personaId: string, triggerId?: string, inputData?: object, modelUsed?: string): DbPersonaExecution => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
     const id = generateId('pexec');
 
     db.prepare(`
-      INSERT INTO persona_executions (id, persona_id, trigger_id, status, input_data, created_at)
-      VALUES (?, ?, ?, 'queued', ?, ?)
+      INSERT INTO persona_executions (id, persona_id, trigger_id, status, input_data, model_used, input_tokens, output_tokens, cost_usd, created_at)
+      VALUES (?, ?, ?, 'queued', ?, ?, 0, 0, 0, ?)
     `).run(
       id,
       personaId,
       triggerId || null,
       inputData ? JSON.stringify(inputData) : null,
+      modelUsed || null,
       now
     );
 
@@ -478,10 +487,15 @@ export const personaExecutionRepository = {
       output_data?: object;
       claude_session_id?: string;
       log_file_path?: string;
+      execution_flows?: string;
       error_message?: string;
       duration_ms?: number;
       started_at?: string;
       completed_at?: string;
+      model_used?: string;
+      input_tokens?: number;
+      output_tokens?: number;
+      cost_usd?: number;
     }
   ): void => {
     const db = getDatabase();
@@ -500,6 +514,10 @@ export const personaExecutionRepository = {
       sets.push('log_file_path = ?');
       values.push(extra.log_file_path);
     }
+    if (extra?.execution_flows !== undefined) {
+      sets.push('execution_flows = ?');
+      values.push(extra.execution_flows);
+    }
     if (extra?.error_message !== undefined) {
       sets.push('error_message = ?');
       values.push(extra.error_message);
@@ -515,6 +533,22 @@ export const personaExecutionRepository = {
     if (extra?.completed_at !== undefined) {
       sets.push('completed_at = ?');
       values.push(extra.completed_at);
+    }
+    if (extra?.model_used !== undefined) {
+      sets.push('model_used = ?');
+      values.push(extra.model_used);
+    }
+    if (extra?.input_tokens !== undefined) {
+      sets.push('input_tokens = ?');
+      values.push(extra.input_tokens);
+    }
+    if (extra?.output_tokens !== undefined) {
+      sets.push('output_tokens = ?');
+      values.push(extra.output_tokens);
+    }
+    if (extra?.cost_usd !== undefined) {
+      sets.push('cost_usd = ?');
+      values.push(extra.cost_usd);
     }
 
     values.push(id);

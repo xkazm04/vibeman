@@ -111,6 +111,11 @@ export interface ExecutionResult {
   logFilePath?: string;
   claudeSessionId?: string;
   durationMs?: number;
+  executionFlows?: string;
+  modelUsed?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  costUsd?: number;
 }
 
 /**
@@ -217,6 +222,17 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
     log(`Exec dir: ${execDir}`);
     log('');
 
+    // Parse model profile for CLI flags
+    let modelProfile: { model?: string; provider?: string; base_url?: string; auth_token?: string } | null = null;
+    try {
+      if (input.persona.model_profile) {
+        modelProfile = JSON.parse(input.persona.model_profile);
+      }
+    } catch { /* ignore invalid JSON */ }
+
+    // Track execution metrics from stream output
+    const executionMetrics = { model_used: modelProfile?.model || null, input_tokens: 0, output_tokens: 0, cost_usd: 0 };
+
     return await new Promise<ExecutionResult>((resolve) => {
       try {
         const isWindows = process.platform === 'win32';
@@ -230,9 +246,36 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
           '--dangerously-skip-permissions',
         ];
 
+        // Model selection
+        if (modelProfile?.model) {
+          args.push('--model', modelProfile.model);
+        }
+
+        // Budget and turn limits
+        if (input.persona.max_budget_usd) {
+          args.push('--max-budget-usd', String(input.persona.max_budget_usd));
+        }
+        if (input.persona.max_turns) {
+          args.push('--max-turns', String(input.persona.max_turns));
+        }
+
         // Prepare environment - remove ANTHROPIC_API_KEY for web auth
         const env = { ...process.env };
         delete env.ANTHROPIC_API_KEY;
+
+        // Provider-specific environment
+        if (modelProfile?.provider === 'ollama') {
+          env.ANTHROPIC_BASE_URL = modelProfile.base_url || 'http://localhost:11434';
+          env.ANTHROPIC_AUTH_TOKEN = 'ollama';
+          env.ANTHROPIC_API_KEY = '';
+        } else if (modelProfile?.provider === 'litellm' || modelProfile?.provider === 'custom') {
+          if (modelProfile.base_url) {
+            env.ANTHROPIC_BASE_URL = modelProfile.base_url;
+          }
+          if (modelProfile.auth_token) {
+            env.ANTHROPIC_AUTH_TOKEN = modelProfile.auth_token;
+          }
+        }
 
         const childProcess = spawn(command, args, {
           cwd: execDir,
@@ -370,6 +413,16 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
                 userLog(`Completed in ${((parsed.duration_ms || 0) / 1000).toFixed(1)}s`);
                 if (parsed.total_cost_usd) {
                   userLog(`Cost: $${parsed.total_cost_usd.toFixed(4)}`);
+                  executionMetrics.cost_usd = parsed.total_cost_usd;
+                }
+                if (parsed.total_input_tokens) {
+                  executionMetrics.input_tokens = parsed.total_input_tokens;
+                }
+                if (parsed.total_output_tokens) {
+                  executionMetrics.output_tokens = parsed.total_output_tokens;
+                }
+                if (parsed.model) {
+                  executionMetrics.model_used = parsed.model;
                 }
               }
               // Skip: system hooks, session captures, other noise
@@ -405,6 +458,8 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
           parseUserMessages(assistantText, input.executionId, input.persona.id);
           // Record tool usage for analytics
           recordToolUsage(toolUseCounts, input.executionId, input.persona.id);
+          // Parse execution flow diagrams from output
+          const executionFlowsJson = parseExecutionFlows(assistantText);
 
           // Publish execution_completed event with depth metadata for loop prevention
           try {
@@ -433,6 +488,11 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
               logFilePath,
               claudeSessionId,
               durationMs,
+              executionFlows: executionFlowsJson || undefined,
+              modelUsed: executionMetrics.model_used || undefined,
+              inputTokens: executionMetrics.input_tokens,
+              outputTokens: executionMetrics.output_tokens,
+              costUsd: executionMetrics.cost_usd,
             });
           } else {
             const errorOutput = stderr.toLowerCase();
@@ -610,5 +670,51 @@ function parseUserMessages(output: string, executionId: string, personaId: strin
     }
   } catch {
     // Don't let message parsing errors affect execution
+  }
+}
+
+/**
+ * Parse output for execution_flow JSON blocks and return validated flow data.
+ * Post-mortem only (flow JSON is too large for reliable mid-stream detection).
+ */
+function parseExecutionFlows(output: string): string | null {
+  if (!output) return null;
+
+  try {
+    // Find {"execution_flow": ...} blocks using bracket counting
+    const marker = '"execution_flow"';
+    const idx = output.indexOf(marker);
+    if (idx === -1) return null;
+
+    // Walk backwards to find opening brace
+    let start = idx;
+    while (start > 0 && output[start] !== '{') start--;
+    if (output[start] !== '{') return null;
+
+    // Bracket-counting to find matching close
+    let depth = 0;
+    let end = start;
+    for (let i = start; i < output.length; i++) {
+      if (output[i] === '{') depth++;
+      else if (output[i] === '}') {
+        depth--;
+        if (depth === 0) { end = i + 1; break; }
+      }
+    }
+    if (depth !== 0) return null;
+
+    const jsonStr = output.slice(start, end);
+    const parsed = JSON.parse(jsonStr);
+
+    if (!parsed.execution_flow?.flows || !Array.isArray(parsed.execution_flow.flows)) return null;
+
+    const valid = parsed.execution_flow.flows.filter((f: Record<string, unknown>) =>
+      f.id && f.name && Array.isArray(f.nodes) && Array.isArray(f.edges) &&
+      (f.nodes as unknown[]).length >= 2
+    );
+
+    return valid.length > 0 ? JSON.stringify(valid) : null;
+  } catch {
+    return null;
   }
 }

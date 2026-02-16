@@ -110,6 +110,7 @@ export function buildDesignPrompt(
   options?: {
     referenceSection?: string;
     learnedPatternsSection?: string;
+    designContext?: { files: Array<{ name: string; content: string; type: string }>; references: string[] };
   }
 ): string {
   const parts: string[] = [];
@@ -190,6 +191,31 @@ export function buildDesignPrompt(
   if (options?.learnedPatternsSection) {
     parts.push(options.learnedPatternsSection);
     parts.push('');
+  }
+
+  // Inject design context (uploaded files and free-text references)
+  if (options?.designContext) {
+    const dc = options.designContext;
+    if (dc.files.length > 0 || dc.references.length > 0) {
+      parts.push('# Additional Context & Data Sources');
+      parts.push('');
+
+      for (const file of dc.files) {
+        parts.push(`## ${file.name} (${file.type})`);
+        parts.push('```');
+        parts.push(file.content.slice(0, 10000));
+        parts.push('```');
+        parts.push('');
+      }
+
+      if (dc.references.length > 0) {
+        parts.push('## References & Credentials');
+        for (const ref of dc.references) {
+          parts.push(`- ${ref}`);
+        }
+        parts.push('');
+      }
+    }
   }
 
   // Output requirements
@@ -370,6 +396,8 @@ export interface DesignEngineInput {
   referenceSection?: string;
   /** Read-only learned patterns section from cross-review analysis */
   learnedPatternsSection?: string;
+  /** Design context: uploaded files and free-text references */
+  designContext?: { files: Array<{ name: string; content: string; type: string }>; references: string[] };
 }
 
 /**
@@ -393,7 +421,7 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
     designStatuses.set(input.designId, { done, result, error });
   };
 
-  // Build prompt (with optional reference/learned patterns)
+  // Build prompt (with optional reference/learned patterns and design context)
   const prompt = buildDesignPrompt(
     input.instruction,
     input.persona,
@@ -403,6 +431,7 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
     {
       referenceSection: input.referenceSection,
       learnedPatternsSection: input.learnedPatternsSection,
+      designContext: input.designContext,
     }
   );
 
@@ -411,6 +440,9 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
   appendOutput(`[Design] Available tools: ${input.allTools.length}`);
   appendOutput(`[Design] Prompt length: ${prompt.length} chars`);
   appendOutput('');
+
+  // Handle MCP config injection from design context files
+  let mcpTempPath: string | null = null;
 
   try {
     const isWindows = process.platform === 'win32';
@@ -424,6 +456,17 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
       '--dangerously-skip-permissions',
     ];
 
+    // If design context contains an MCP config file, write to temp and pass to CLI
+    const mcpFile = input.designContext?.files.find(f => f.type === 'mcp-config');
+    if (mcpFile) {
+      const os = require('os');
+      const path = require('path');
+      const fs = require('fs');
+      mcpTempPath = path.join(os.tmpdir(), `mcp_design_${Date.now()}.json`) as string;
+      fs.writeFileSync(mcpTempPath, mcpFile.content, 'utf-8');
+      args.push('--mcp-config', mcpTempPath!);
+    }
+
     const env = { ...process.env };
     delete env.ANTHROPIC_API_KEY;
 
@@ -433,6 +476,14 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
       shell: isWindows,
       env,
     });
+
+    // Clean up MCP temp file when process exits
+    if (mcpTempPath) {
+      const tempPath = mcpTempPath;
+      childProcess.on('exit', () => {
+        try { require('fs').unlinkSync(tempPath); } catch { /* ignore */ }
+      });
+    }
 
     // Pipe prompt to stdin
     childProcess.stdin.write(prompt);
