@@ -6,7 +6,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { DollarSign, Zap, CheckCircle, TrendingUp, RefreshCw } from 'lucide-react';
+import { DollarSign, Zap, CheckCircle, TrendingUp, RefreshCw, Stethoscope, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import HealingIssueModal from './HealingIssueModal';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#818cf8', '#7c3aed', '#5b21b6', '#4f46e5'];
 
@@ -14,13 +15,20 @@ export default function ObservabilityDashboard() {
   const fetchObservabilityMetrics = usePersonaStore((s) => s.fetchObservabilityMetrics);
   const observabilityMetrics = usePersonaStore((s) => s.observabilityMetrics);
   const personas = usePersonaStore((s) => s.personas);
+  const healingIssues = usePersonaStore((s) => s.healingIssues);
+  const healingRunning = usePersonaStore((s) => s.healingRunning);
+  const fetchHealingIssues = usePersonaStore((s) => s.fetchHealingIssues);
+  const triggerHealing = usePersonaStore((s) => s.triggerHealing);
+  const resolveHealingIssue = usePersonaStore((s) => s.resolveHealingIssue);
   const [days, setDays] = useState(30);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>('');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [selectedIssue, setSelectedIssue] = useState<any>(null);
 
   useEffect(() => {
     fetchObservabilityMetrics(days, selectedPersonaId || undefined);
-  }, [days, selectedPersonaId, fetchObservabilityMetrics]);
+    fetchHealingIssues();
+  }, [days, selectedPersonaId, fetchObservabilityMetrics, fetchHealingIssues]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -174,6 +182,102 @@ export default function ObservabilityDashboard() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Health Issues Section */}
+      <div className="rounded-2xl border border-primary/15 bg-secondary/30 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-primary/10 bg-primary/5">
+          <div className="flex items-center gap-2">
+            <Stethoscope className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-sm font-semibold text-foreground/80">Health Issues</h3>
+            {healingIssues.length > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                {healingIssues.length}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => triggerHealing()}
+            disabled={healingRunning}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {healingRunning ? (
+              <>
+                <div className="w-3 h-3 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Stethoscope className="w-3.5 h-3.5" />
+                Run Analysis
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Issues List */}
+        {healingIssues.length === 0 ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="text-center">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-400/40" />
+              <p className="text-sm text-muted-foreground/50">No open issues</p>
+              <p className="text-xs text-muted-foreground/30 mt-1">Run analysis to check for problems</p>
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-primary/10">
+            {healingIssues.map((issue: any) => {
+              const sevColors: Record<string, string> = {
+                low: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
+                medium: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
+                high: 'bg-orange-500/15 text-orange-400 border-orange-500/20',
+                critical: 'bg-red-500/15 text-red-400 border-red-500/20',
+              };
+              const catColors: Record<string, string> = {
+                prompt: 'text-violet-400',
+                tool: 'text-cyan-400',
+                config: 'text-emerald-400',
+                external: 'text-gray-400',
+              };
+              const age = Math.floor((Date.now() - new Date(issue.created_at).getTime()) / (1000 * 60 * 60));
+              const ageLabel = age < 1 ? 'just now' : age < 24 ? `${age}h ago` : `${Math.floor(age / 24)}d ago`;
+
+              return (
+                <div key={issue.id} className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/40 transition-colors">
+                  <span className={`inline-flex px-1.5 py-0.5 text-[9px] font-mono uppercase rounded-md border ${sevColors[issue.severity] || sevColors.medium}`}>
+                    {issue.severity}
+                  </span>
+                  <button
+                    onClick={() => setSelectedIssue(issue)}
+                    className="flex-1 text-left text-sm text-foreground/80 hover:text-foreground transition-colors truncate"
+                  >
+                    {issue.title}
+                  </button>
+                  <span className={`text-[10px] font-mono ${catColors[issue.category] || 'text-muted-foreground/40'}`}>
+                    {issue.category}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/30 w-16 text-right">{ageLabel}</span>
+                  <button
+                    onClick={() => resolveHealingIssue(issue.id)}
+                    className="px-2 py-1 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-colors"
+                  >
+                    Resolve
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Healing Issue Detail Modal */}
+      {selectedIssue && (
+        <HealingIssueModal
+          issue={selectedIssue}
+          onResolve={(id) => { resolveHealingIssue(id); setSelectedIssue(null); }}
+          onClose={() => setSelectedIssue(null)}
+        />
+      )}
     </div>
   );
 }
