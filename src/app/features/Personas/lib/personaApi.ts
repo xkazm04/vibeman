@@ -696,3 +696,31 @@ export async function addTeamConnection(teamId: string, data: { source_member_id
 export async function removeTeamConnection(teamId: string, connectionId: string) {
   return fetchJson(`${BASE}/teams/${teamId}/connections?connection_id=${connectionId}`, { method: 'DELETE' });
 }
+
+// ============================================================================
+// Healing Issues
+// ============================================================================
+
+export async function fetchHealingIssues(status?: string): Promise<any[]> {
+  const params = status ? `?status=${status}` : '';
+  const res = await fetch(`/api/personas/healing${params}`);
+  if (!res.ok) throw new Error('Failed to fetch healing issues');
+  const data = await res.json();
+  return data.issues || [];
+}
+
+export async function triggerHealingAnalysis(personaId?: string): Promise<any[]> {
+  const res = await fetch('/api/personas/healing', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ persona_id: personaId }),
+  });
+  if (!res.ok) throw new Error('Failed to trigger healing analysis');
+  const data = await res.json();
+  return data.issues || [];
+}
+
+export async function resolveHealingIssue(id: string): Promise<void> {
+  const res = await fetch(`/api/personas/healing/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to resolve healing issue');
+}
