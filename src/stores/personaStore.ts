@@ -80,6 +80,10 @@ interface PersonaState {
   observabilityMetrics: { summary: any; timeSeries: any[] } | null;
   promptVersions: any[];
 
+  // Healing
+  healingIssues: any[];
+  healingRunning: boolean;
+
   // Teams
   teams: any[];
   selectedTeamId: string | null;
@@ -167,6 +171,11 @@ interface PersonaActions {
   fetchObservabilityMetrics: (days?: number, personaId?: string) => Promise<void>;
   fetchPromptVersions: (personaId: string) => Promise<void>;
 
+  // Healing
+  fetchHealingIssues: () => Promise<void>;
+  triggerHealing: (personaId?: string) => Promise<void>;
+  resolveHealingIssue: (id: string) => Promise<void>;
+
   // Teams
   fetchTeams: () => Promise<void>;
   selectTeam: (teamId: string | null) => void;
@@ -227,6 +236,8 @@ export const usePersonaStore = create<PersonaStore>()(
       pendingEventCount: 0,
       observabilityMetrics: null,
       promptVersions: [],
+      healingIssues: [],
+      healingRunning: false,
       teams: [],
       selectedTeamId: null,
       teamMembers: [],
@@ -726,6 +737,37 @@ export const usePersonaStore = create<PersonaStore>()(
           set({ promptVersions: (data as any).versions || [] });
         } catch (error) {
           console.error('Failed to fetch prompt versions:', error);
+        }
+      },
+
+      // ── Healing ──────────────────────────────────────────────────────
+      fetchHealingIssues: async () => {
+        try {
+          const issues = await api.fetchHealingIssues('open');
+          set({ healingIssues: issues });
+        } catch (err) {
+          console.error('Failed to fetch healing issues:', err);
+        }
+      },
+
+      triggerHealing: async (personaId?: string) => {
+        set({ healingRunning: true });
+        try {
+          const newIssues = await api.triggerHealingAnalysis(personaId);
+          const current = get().healingIssues;
+          set({ healingIssues: [...newIssues, ...current], healingRunning: false });
+        } catch (err) {
+          console.error('Failed to trigger healing:', err);
+          set({ healingRunning: false });
+        }
+      },
+
+      resolveHealingIssue: async (id: string) => {
+        try {
+          await api.resolveHealingIssue(id);
+          set({ healingIssues: get().healingIssues.filter((i: any) => i.id !== id) });
+        } catch (err) {
+          console.error('Failed to resolve healing issue:', err);
         }
       },
 
