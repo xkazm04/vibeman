@@ -14,6 +14,7 @@ import {
   type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Users } from 'lucide-react';
 import { usePersonaStore } from '@/stores/personaStore';
 import * as api from '../lib/personaApi';
 import TeamList from './team/TeamList';
@@ -21,6 +22,7 @@ import PersonaNode from './team/PersonaNode';
 import ConnectionEdge from './team/ConnectionEdge';
 import TeamToolbar from './team/TeamToolbar';
 import TeamConfigPanel from './team/TeamConfigPanel';
+import NodeContextMenu from './team/NodeContextMenu';
 
 const nodeTypes = { persona: PersonaNode };
 const edgeTypes = { connection: ConnectionEdge };
@@ -40,6 +42,7 @@ export default function TeamCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; member: any } | null>(null);
 
   const selectedTeam = useMemo(() => teams.find((t: any) => t.id === selectedTeamId), [teams, selectedTeamId]);
 
@@ -192,6 +195,32 @@ export default function TeamCanvas() {
     [removeTeamMember]
   );
 
+  // Handle edge click to delete connection
+  const onEdgeClick = useCallback(
+    (_event: React.MouseEvent, edge: Edge) => {
+      removeTeamConnection(edge.id);
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    },
+    [removeTeamConnection, setEdges]
+  );
+
+  // Handle node right-click context menu
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      const member = teamMembers.find((m: any) => m.id === node.id);
+      if (member) {
+        const persona = personas.find((p: any) => p.id === member.persona_id);
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          member: { ...member, persona_name: persona?.name || member.persona_name, persona_icon: persona?.icon, persona_color: persona?.color },
+        });
+      }
+    },
+    [teamMembers, personas]
+  );
+
   // If no team selected, show list
   if (!selectedTeamId) {
     return <TeamList />;
@@ -199,13 +228,15 @@ export default function TeamCanvas() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <TeamToolbar
-        teamName={selectedTeam?.name || 'Team'}
-        onBack={() => selectTeam(null)}
-        onAutoLayout={handleAutoLayout}
-        onSave={handleSave}
-        onAddMember={handleAddMember}
-      />
+      <div className="relative z-10">
+        <TeamToolbar
+          teamName={selectedTeam?.name || 'Team'}
+          onBack={() => selectTeam(null)}
+          onAutoLayout={handleAutoLayout}
+          onSave={handleSave}
+          onAddMember={handleAddMember}
+        />
+      </div>
 
       <div className="flex-1 relative">
         <ReactFlow
@@ -215,6 +246,9 @@ export default function TeamCanvas() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onNodeContextMenu={onNodeContextMenu}
+          onPaneClick={() => setContextMenu(null)}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
@@ -240,6 +274,33 @@ export default function TeamCanvas() {
             onRoleChange={handleRoleChange}
             onRemove={handleRemoveMember}
           />
+        )}
+
+        {/* Context Menu */}
+        {contextMenu && (
+          <NodeContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            memberName={contextMenu.member.persona_name || 'Agent'}
+            currentRole={contextMenu.member.role || 'worker'}
+            onChangeRole={(role) => handleRoleChange(contextMenu.member.id, role)}
+            onRemove={() => { handleRemoveMember(contextMenu.member.id); setContextMenu(null); }}
+            onConfigure={() => { setSelectedMember(contextMenu.member); setContextMenu(null); }}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
+
+        {/* Empty state */}
+        {teamMembers.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[5]">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <Users className="w-8 h-8 text-indigo-400/50" />
+              </div>
+              <p className="text-sm font-medium text-foreground/60 mb-1">No agents in this team</p>
+              <p className="text-xs text-muted-foreground/40">Click &quot;Add Agent&quot; above to get started</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

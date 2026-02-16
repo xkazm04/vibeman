@@ -70,6 +70,20 @@ export default function ConnectionEdge({
           </div>
         </foreignObject>
       )}
+      {/* Delete button - visible on hover */}
+      <foreignObject
+        x={labelX - 10}
+        y={labelY - 10}
+        width={20}
+        height={20}
+        className="opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+      >
+        <div className="w-5 h-5 rounded-full bg-red-500/80 border border-red-400/50 flex items-center justify-center hover:bg-red-500 transition-colors">
+          <svg width="10" height="10" viewBox="0 0 10 10" className="text-white">
+            <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+      </foreignObject>
     </>
   );
 }

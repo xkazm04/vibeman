@@ -22,7 +22,7 @@ function PersonaNodeComponent({ data, selected }: NodeProps) {
 
   return (
     <div
-      className={`relative px-4 py-3 rounded-xl bg-secondary/60 backdrop-blur-sm border transition-all min-w-[160px] ${
+      className={`group relative px-4 py-3 rounded-xl bg-secondary/60 backdrop-blur-sm border transition-all min-w-[160px] cursor-grab active:cursor-grabbing hover:shadow-lg hover:shadow-indigo-500/10 ${
         selected
           ? 'border-indigo-500/50 shadow-[0_0_16px_rgba(99,102,241,0.15)]'
           : 'border-primary/15 hover:border-primary/25'
@@ -31,7 +31,7 @@ function PersonaNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!w-3 !h-3 !rounded-full !border-2 !border-indigo-500/40 !bg-background"
+        className="!w-3 !h-3 !rounded-full !border-2 !border-indigo-500/40 !bg-background group-hover:!scale-150 group-hover:!border-indigo-400 !transition-transform"
       />
 
       <div className="flex items-center gap-2.5">
@@ -64,7 +64,7 @@ function PersonaNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-3 !h-3 !rounded-full !border-2 !border-indigo-500/40 !bg-background"
+        className="!w-3 !h-3 !rounded-full !border-2 !border-indigo-500/40 !bg-background group-hover:!scale-150 group-hover:!border-indigo-400 !transition-transform"
       />
     </div>
   );
