@@ -566,6 +566,18 @@ export async function deleteEventSubscription(id: string): Promise<void> {
 // Design Reviews
 // ============================================================================
 
+export async function deleteDesignReview(id: string): Promise<void> {
+  const res = await fetch('/api/personas/design-reviews', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to delete template');
+  }
+}
+
 export async function fetchDesignReviews(filters?: {
   latest?: boolean;
   connectors?: string[];
@@ -609,4 +621,22 @@ export async function fetchDesignReviewRun(testRunId: string): Promise<{
     reviews: import('@/lib/personas/testing/testTypes').DbDesignReview[];
     testRunId: string;
   }>(`${BASE}/design-reviews/${testRunId}`);
+}
+
+// ============================================================================
+// Observability API
+// ============================================================================
+
+export async function fetchObservabilityMetrics(days: number = 30, personaId?: string) {
+  const params = new URLSearchParams({ days: String(days) });
+  if (personaId) params.set('persona_id', personaId);
+  return fetchJson(`/api/personas/observability?${params.toString()}`);
+}
+
+export async function fetchPersonaMetrics(personaId: string, days: number = 30) {
+  return fetchJson(`/api/personas/observability/${personaId}?days=${days}`);
+}
+
+export async function fetchPromptVersions(personaId: string, limit: number = 50) {
+  return fetchJson(`/api/personas/prompt-versions/${personaId}?limit=${limit}`);
 }

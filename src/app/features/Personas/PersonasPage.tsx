@@ -10,6 +10,7 @@ import { TriggerList } from './components/TriggerList';
 import { CredentialManager } from './components/CredentialManager';
 import PersonaOverviewPage from './components/PersonaOverviewPage';
 import DesignReviewsPage from './components/DesignReviewsPage';
+import ObservabilityDashboard from './components/ObservabilityDashboard';
 
 export default function PersonasPage() {
   const sidebarSection = usePersonaStore((s) => s.sidebarSection);
@@ -30,6 +31,7 @@ export default function PersonasPage() {
     if (sidebarSection === 'overview') return <OverviewPage />;
     if (sidebarSection === 'credentials') return <CredentialManager />;
     if (sidebarSection === 'events') return <TriggerList />;
+    if (sidebarSection === 'observability') return <ObservabilityDashboard />;
     if (sidebarSection === 'design-reviews') return <DesignReviewsPage />;
     if (selectedPersonaId) return <PersonaEditor />;
     return <PersonaOverviewPage />;

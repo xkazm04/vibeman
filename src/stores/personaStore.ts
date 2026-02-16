@@ -76,6 +76,10 @@ interface PersonaState {
   recentEvents: any[];
   pendingEventCount: number;
 
+  // Observability
+  observabilityMetrics: { summary: any; timeSeries: any[] } | null;
+  promptVersions: any[];
+
   // Design Analysis
   designPhase: DesignPhase;
   activeDesignSession: ActiveDesignSession | null;
@@ -153,6 +157,10 @@ interface PersonaActions {
   // Events
   fetchRecentEvents: (limit?: number, eventType?: string) => Promise<void>;
 
+  // Observability
+  fetchObservabilityMetrics: (days?: number, personaId?: string) => Promise<void>;
+  fetchPromptVersions: (personaId: string) => Promise<void>;
+
   // Design
   setDesignPhase: (phase: DesignPhase) => void;
   setActiveDesignSession: (session: ActiveDesignSession | null) => void;
@@ -200,6 +208,8 @@ export const usePersonaStore = create<PersonaStore>()(
       toolUsageByPersona: [],
       recentEvents: [],
       pendingEventCount: 0,
+      observabilityMetrics: null,
+      promptVersions: [],
       designPhase: 'idle' as DesignPhase,
       activeDesignSession: null,
       sidebarSection: 'personas' as SidebarSection,
@@ -676,6 +686,25 @@ export const usePersonaStore = create<PersonaStore>()(
           set({ recentEvents: data.events, pendingEventCount: data.pendingCount });
         } catch (err) {
           console.error('Failed to fetch events:', err);
+        }
+      },
+
+      // ── Observability ────────────────────────────────────────────────
+      fetchObservabilityMetrics: async (days = 30, personaId) => {
+        try {
+          const data = await api.fetchObservabilityMetrics(days, personaId) as { summary: any; timeSeries: any[] };
+          set({ observabilityMetrics: data });
+        } catch (error) {
+          console.error('Failed to fetch observability metrics:', error);
+        }
+      },
+
+      fetchPromptVersions: async (personaId) => {
+        try {
+          const data = await api.fetchPromptVersions(personaId);
+          set({ promptVersions: (data as any).versions || [] });
+        } catch (error) {
+          console.error('Failed to fetch prompt versions:', error);
         }
       },
 

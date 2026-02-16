@@ -25,6 +25,8 @@ import type {
   PersonaEventType,
   PersonaEventSourceType,
   PersonaEventStatus,
+  DbPersonaMetricsSnapshot,
+  DbPersonaPromptVersion,
 } from '@/app/db/models/persona.types';
 
 // Re-export DB types for convenience
@@ -51,6 +53,8 @@ export type {
   PersonaEventType,
   PersonaEventSourceType,
   PersonaEventStatus,
+  DbPersonaMetricsSnapshot,
+  DbPersonaPromptVersion,
 };
 
 /** Persona with associated tools, triggers, and event subscriptions */
@@ -96,7 +100,7 @@ export interface CredentialMetadata {
 }
 
 /** Sidebar section types */
-export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' | 'design-reviews';
+export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' | 'design-reviews' | 'observability';
 
 /** Editor tab types */
 export type EditorTab = 'prompt' | 'executions' | 'settings';
@@ -175,6 +179,10 @@ export interface UpdatePersonaInput {
   max_concurrent?: number;
   timeout_ms?: number;
   last_design_result?: string | null;
+  model_profile?: string | null;
+  max_budget_usd?: number | null;
+  max_turns?: number | null;
+  design_context?: string | null;
 }
 
 /** Parsed frontend connector definition (JSON fields pre-parsed) */
