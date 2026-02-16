@@ -23,6 +23,8 @@ import {
   writeTempCredentialFile,
   deleteTempCredentialFile,
 } from './credentialCrypto';
+import { isCloudMode } from './cloudClient';
+import { executePersonaCloud, cancelCloudExecution } from './cloudExecutionEngine';
 import { personaCredentialRepository, manualReviewRepository, personaMessageRepository, personaToolUsageRepository, personaRepository } from '@/app/db/repositories/persona.repository';
 import { deliverMessage } from './messageDelivery';
 
@@ -56,11 +58,16 @@ export function consumeOutput(executionId: string, offset: number = 0): string[]
  * Cancel a running execution by killing the child process.
  */
 export function cancelExecution(executionId: string): boolean {
+  // Try local process first
   const proc = executionProcesses.get(executionId);
   if (proc && !proc.killed) {
     proc.kill();
     executionProcesses.delete(executionId);
     return true;
+  }
+  // If cloud mode, cancel via orchestrator
+  if (isCloudMode()) {
+    return cancelCloudExecution(executionId);
   }
   return false;
 }
@@ -122,6 +129,11 @@ export interface ExecutionResult {
  * Execute a persona task using Claude Code CLI.
  */
 export async function executePersona(input: ExecutionInput): Promise<ExecutionResult> {
+  // Route to cloud engine when in cloud mode
+  if (isCloudMode()) {
+    return executePersonaCloud(input);
+  }
+
   const { spawn } = require('child_process');
   const startTime = Date.now();
 

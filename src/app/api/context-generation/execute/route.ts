@@ -11,6 +11,8 @@ import { startExecution } from '@/lib/claude-terminal/cli-service';
 import { buildContextGenerationPrompt } from '@/app/features/Context/lib/contextGenerationPrompt';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
 
 interface ExecuteRequestBody {
   projectId: string;
@@ -43,6 +45,23 @@ async function handlePost(request: NextRequest) {
         { error: 'Project not found' },
         { status: 404 }
       );
+    }
+
+    // Pre-cleanup: Delete existing contexts and groups before regeneration
+    // This prevents the CLI from needing to handle cleanup (which causes infinite loops)
+    try {
+      const deletedContexts = contextRepository.deleteAllContextsByProject(projectId);
+      const existingGroups = contextGroupRepository.getGroupsByProject(projectId);
+      for (const group of existingGroups) {
+        contextGroupRepository.deleteGroup(group.id);
+      }
+      logger.info('[API] Pre-cleanup completed:', {
+        projectId,
+        deletedContexts,
+        deletedGroups: existingGroups.length,
+      });
+    } catch (cleanupError) {
+      logger.warn('[API] Pre-cleanup failed (continuing anyway):', { cleanupError });
     }
 
     // Build the context generation prompt

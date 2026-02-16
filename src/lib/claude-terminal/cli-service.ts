@@ -49,7 +49,7 @@ export interface CLIUserMessage {
     content: Array<{
       type: 'tool_result';
       tool_use_id: string;
-      content: string;
+      content: string | Array<{ type: string; text?: string }>;
     }>;
   };
 }
@@ -329,11 +329,20 @@ export function startExecution(
         // Tool results
         const results = parsed.message.content.filter(c => c.type === 'tool_result');
         for (const result of results) {
+          // Normalize content to string - Claude CLI can return content as
+          // string or Array<{type: "text", text: "..."}> (Anthropic API format)
+          const rawContent = result.content;
+          const normalizedContent = typeof rawContent === 'string'
+            ? rawContent
+            : Array.isArray(rawContent)
+              ? rawContent.map((block: { type: string; text?: string }) => block.text || '').join('\n')
+              : String(rawContent || '');
+
           emitEvent({
             type: 'tool_result',
             data: {
               toolUseId: result.tool_use_id,
-              content: result.content,
+              content: normalizedContent,
             },
             timestamp: Date.now(),
           });

@@ -74,8 +74,12 @@ Analyze this codebase and create context groups and contexts. Follow the guideli
 **IMPORTANT**:
 1. Use the Project ID "${projectId}" for all API calls
 2. Create groups first, then contexts within those groups
-3. Create relationships between groups after all groups are created
-4. Verify your work by listing the created entities at the end
+3. Wait for each group creation response and use the RETURNED group ID for contexts
+4. Create relationships between groups after all groups are created
+5. Verify your work by listing the created entities at the end
+6. Do NOT delete any existing data - cleanup was already done before you started
+7. If a creation fails, skip it and continue - do NOT retry by deleting and recreating
+8. Complete the task in ONE pass - do NOT loop or start over
 
 ---
 
