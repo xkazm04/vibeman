@@ -53,8 +53,10 @@ export function PersonaPromptEditor() {
   const lastLoadedPromptRef = useRef<string | null>(null);
 
   // Build dynamic tab list: standard tabs + one per custom section + add button
+  // Only show Design tab until first CLI design is complete (other tabs are empty/confusing before that)
   const allTabs = useMemo(() => {
-    const tabs: TabDef[] = [...STANDARD_TABS];
+    const hasDesign = !!selectedPersona?.last_design_result;
+    const tabs: TabDef[] = hasDesign ? [...STANDARD_TABS] : [STANDARD_TABS[0]]; // Only design tab when no design yet
     sp.customSections.forEach((section, index) => {
       const label = section.title.length > 12
         ? section.title.slice(0, 12) + '...'
@@ -66,7 +68,7 @@ export function PersonaPromptEditor() {
       });
     });
     return tabs;
-  }, [sp.customSections]);
+  }, [sp.customSections, selectedPersona?.last_design_result]);
 
   const highlightsBySection = useMemo<Record<string, DesignHighlight[]>>(() => {
     if (!selectedPersona?.last_design_result) return {};
