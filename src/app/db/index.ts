@@ -112,6 +112,7 @@ import { designPatternRepository } from './repositories/designPatternRepository'
 import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
 import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
 import { personaTeamRepository, personaTeamMemberRepository, personaTeamConnectionRepository } from './repositories/personaTeamRepository';
+import { healingIssueRepository } from './repositories/healingIssueRepository';
 
 // Export types
 export * from './models/types';
@@ -708,6 +709,7 @@ export const personaDb = {
   teams: personaTeamRepository,
   teamMembers: personaTeamMemberRepository,
   teamConnections: personaTeamConnectionRepository,
+  healingIssues: healingIssueRepository,
   close: closeDatabase,
 };
 

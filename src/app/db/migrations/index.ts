@@ -36,6 +36,7 @@ import { migrate106CleanupPhantomContextPaths } from './106_cleanup_phantom_cont
 import { migrate107PersonaModelSettings } from './107_persona_model_settings';
 import { migrate108Observability } from './108_observability';
 import { migrate109TeamCanvas } from './109_team_canvas';
+import { migrate110HealingIssues } from './110_healing_issues';
 
 /**
  * Migration logger utility
@@ -306,6 +307,9 @@ export function runMigrations() {
 
     // Migration 109: Team Canvas - multi-agent pipeline visual design
     migrate109TeamCanvas(db as any, migrationLogger);
+
+    // Migration 110: Healing Issues - track failed execution analysis
+    migrate110HealingIssues(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
