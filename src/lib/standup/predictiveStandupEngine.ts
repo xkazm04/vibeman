@@ -273,23 +273,12 @@ function computePeriodVelocity(
   const endISO = end.toISOString();
   const days = Math.max(1, (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Implementation logs in period
-  const allLogs = implementationLogDb.getLogsByProject(projectId);
-  const periodLogs = allLogs.filter(
-    l => l.created_at >= startISO && l.created_at <= endISO
-  );
+  // SQL-filtered counts — no client-side date filtering needed
+  const logCount = implementationLogDb.countLogsByProjectInRange(projectId, startISO, endISO);
+  const periodAccepted = ideaDb.countIdeasByProjectInRange(projectId, startISO, endISO, 'accepted');
 
-  // Ideas accepted in period
-  const allIdeas = ideaDb.getIdeasByProject(projectId);
-  const periodAccepted = allIdeas.filter(
-    i => i.created_at >= startISO && i.created_at <= endISO && i.status === 'accepted'
-  ).length;
-
-  // Behavioral signals in period
-  const signals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', 14);
-  const periodSignals = signals.filter(
-    s => s.timestamp >= startISO && s.timestamp <= endISO
-  );
+  // Behavioral signals in exact date range (SQL-filtered)
+  const periodSignals = behavioralSignalDb.getByTypeAndRange(projectId, 'implementation', startISO, endISO);
 
   // Average task duration from implementation signals
   let totalDuration = 0;
@@ -307,7 +296,7 @@ function computePeriodVelocity(
   }
 
   return {
-    implementationsPerDay: Math.round((periodLogs.length / days) * 10) / 10,
+    implementationsPerDay: Math.round((logCount / days) * 10) / 10,
     ideasAcceptedPerDay: Math.round((periodAccepted / days) * 10) / 10,
     signalsPerDay: Math.round((periodSignals.length / days) * 10) / 10,
     avgTaskDurationMinutes: durationCount > 0

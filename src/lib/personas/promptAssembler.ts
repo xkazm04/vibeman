@@ -75,6 +75,22 @@ Optional enrichment fields on nodes:
 - "error_message": Error details if this particular step failed.
 Keep concise: 3-12 nodes per flow, 1-2 flows total. Only emit this if you performed multi-step work.`;
 
+const MEMORY_PROTOCOL = `## Agent Memory Protocol
+When you discover something valuable that should be remembered for future executions, output a JSON block:
+\`\`\`json
+{"agent_memory": {"title": "Brief descriptive title", "content": "Detailed information to remember", "category": "fact|decision|insight|learning|warning", "importance": 3, "tags": ["relevant", "tags"]}}
+\`\`\`
+Categories:
+- **fact**: Objective information discovered (API endpoints, data formats, system behavior)
+- **decision**: A decision made and its rationale
+- **insight**: A pattern or observation worth noting
+- **learning**: Something learned from success or failure
+- **warning**: A hazard or gotcha to avoid in the future
+
+Importance: 1 (trivial) to 5 (critical). Default to 3.
+Use this sparingly — only for genuinely valuable knowledge that would help in future executions.
+Do NOT memorize transient data (timestamps, session IDs, temporary values).`;
+
 /**
  * Build an event trigger context section when the persona was triggered by an event.
  */
@@ -206,6 +222,9 @@ function assembleStructuredPrompt(
   // 11c. Execution Flow Reporting Protocol
   sections.push(EXECUTION_FLOW_PROTOCOL);
 
+  // 11d. Agent Memory Protocol
+  sections.push(MEMORY_PROTOCOL);
+
   // 12. Output format instructions
   sections.push('## Output Requirements');
   sections.push('After completing your task, output a JSON summary of what you did:');
@@ -280,6 +299,9 @@ function assembleFlatPrompt(input: PromptAssemblyInput): string {
 
   // 5c. Execution Flow Reporting Protocol
   sections.push(EXECUTION_FLOW_PROTOCOL);
+
+  // 5d. Agent Memory Protocol
+  sections.push(MEMORY_PROTOCOL);
 
   // 6. Output format instructions
   sections.push('## Output Requirements');

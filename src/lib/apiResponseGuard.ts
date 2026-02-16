@@ -10,6 +10,7 @@
  */
 
 import { z } from 'zod';
+import type { BehavioralContext, DbDirectionOutcome, DbBrainReflection } from '@/app/db/models/brain.types';
 
 /**
  * Safely parse a fetch Response as JSON.
@@ -150,12 +151,17 @@ export const BrainDecayResponseSchema = z.object({
   }),
 });
 
+const dbObject = <T>() => z.custom<T>(
+  (val) => val !== null && typeof val === 'object',
+  { message: 'Expected a non-null object' }
+);
+
 export const BrainContextResponseSchema = z.object({
-  context: z.record(z.unknown()).nullable().optional(),
+  context: dbObject<BehavioralContext>().nullable().optional(),
 });
 
 export const BrainOutcomesResponseSchema = z.object({
-  outcomes: z.array(z.record(z.unknown())).default([]),
+  outcomes: z.array(dbObject<DbDirectionOutcome>()).default([]),
   stats: z.object({
     total: z.number(),
     successful: z.number(),
@@ -167,7 +173,7 @@ export const BrainOutcomesResponseSchema = z.object({
 
 export const BrainReflectionStatusSchema = z.object({
   isRunning: z.boolean().default(false),
-  lastCompleted: z.record(z.unknown()).nullable().default(null),
+  lastCompleted: dbObject<DbBrainReflection>().nullable().default(null),
   decisionsSinceLastReflection: z.number().default(0),
   nextThreshold: z.number().default(20),
   shouldTrigger: z.boolean().default(false),

@@ -62,13 +62,17 @@ export default function EventsBarChart({
 
   // Fetch stats on mount and when projectId changes
   useEffect(() => {
+    if (!projectId) return;
+
+    const controller = new AbortController();
     const fetchStats = async () => {
       setIsLoading(true);
       setError(undefined);
 
       try {
         const response = await fetch(
-          `/api/blueprint/events/stats?projectId=${encodeURIComponent(projectId)}&limit=${limit}`
+          `/api/blueprint/events/stats?projectId=${encodeURIComponent(projectId)}&limit=${limit}`,
+          { signal: controller.signal }
         );
 
         if (!response.ok) {
@@ -78,15 +82,15 @@ export default function EventsBarChart({
         const data = await response.json();
         setStats(data.stats || []);
       } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (projectId) {
-      fetchStats();
-    }
+    fetchStats();
+    return () => controller.abort();
   }, [projectId, limit]);
 
   if (isLoading) {

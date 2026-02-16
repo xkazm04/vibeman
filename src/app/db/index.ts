@@ -114,6 +114,7 @@ import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal
 import { personaTeamRepository, personaTeamMemberRepository, personaTeamConnectionRepository } from './repositories/personaTeamRepository';
 import { healingIssueRepository } from './repositories/healingIssueRepository';
 import { personaGroupRepository } from './repositories/personaGroupRepository';
+import { personaMemoryRepository } from './repositories/personaMemoryRepository';
 
 // Export types
 export * from './models/types';
@@ -712,6 +713,7 @@ export const personaDb = {
   teamConnections: personaTeamConnectionRepository,
   healingIssues: healingIssueRepository,
   groups: personaGroupRepository,
+  memories: personaMemoryRepository,
   close: closeDatabase,
 };
 

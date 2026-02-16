@@ -33,13 +33,6 @@ interface ZenState {
   // Connection state (SSE/Supabase)
   isConnected: boolean;
 
-  // Current running task
-  currentTask: {
-    id: string;
-    title: string;
-    progress: number;
-  } | null;
-
   // Recent activity log
   recentActivity: ActivityItem[];
 
@@ -48,7 +41,6 @@ interface ZenState {
 
   selectBatch: (batchId: BatchId | null) => void;
   setConnected: (connected: boolean) => void;
-  setCurrentTask: (task: { id: string; title: string; progress: number } | null) => void;
   addActivity: (item: Omit<ActivityItem, 'id'>) => void;
   updateStats: (updates: Partial<ZenStats>) => void;
   incrementCompleted: () => void;
@@ -62,7 +54,6 @@ export const useZenStore = create<ZenState>()(
     (set) => ({
       selectedBatchId: null,
       isConnected: false,
-      currentTask: null,
       recentActivity: [],
       stats: {
         completed: 0,
@@ -75,8 +66,6 @@ export const useZenStore = create<ZenState>()(
       selectBatch: (batchId) => set({ selectedBatchId: batchId }),
 
       setConnected: (connected) => set({ isConnected: connected }),
-
-      setCurrentTask: (task) => set({ currentTask: task }),
 
       addActivity: (item) => set((state) => ({
         recentActivity: [
@@ -109,7 +98,6 @@ export const useZenStore = create<ZenState>()(
           failed: 0,
           sessionStart: new Date(),
         },
-        currentTask: null,
       }),
     }),
     {

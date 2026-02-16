@@ -227,6 +227,19 @@ export const implementationLogRepository = {
   },
 
   /**
+   * Count implementation logs for a project within a date range
+   */
+  countLogsByProjectInRange: (projectId: string, startDate: string, endDate: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM implementation_log
+      WHERE project_id = ? AND created_at >= ? AND created_at <= ?
+    `);
+    const result = stmt.get(projectId, startDate, endDate) as { count: number };
+    return result.count;
+  },
+
+  /**
    * Delete an implementation log
    */
   deleteLog: (id: string): void => {

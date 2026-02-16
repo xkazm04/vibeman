@@ -11,9 +11,9 @@ import type { ProjectRequirement } from './lib/types';
 import type { DbIdea } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
 import {
-  effortConfig,
-  impactConfig,
-  riskConfig,
+  effortScale,
+  impactScale,
+  riskScale,
   EffortIcon,
   ImpactIcon,
   RiskIcon,
@@ -280,25 +280,25 @@ const TaskItem = React.memo(function TaskItem({
             {idea.impact && (
               <div
                 className="w-5 h-5 rounded flex items-center justify-center bg-gray-800/60"
-                title={`Impact: ${idea.impact}/10 - ${impactConfig[idea.impact]?.description || ''}`}
+                title={`Impact: ${idea.impact}/10 - ${impactScale.entries[idea.impact]?.description || ''}`}
               >
-                <ImpactIcon className={`w-3 h-3 ${impactConfig[idea.impact]?.color || 'text-gray-400'}`} />
+                <ImpactIcon className={`w-3 h-3 ${impactScale.entries[idea.impact]?.color || 'text-gray-400'}`} />
               </div>
             )}
             {idea.effort && (
               <div
                 className="w-5 h-5 rounded flex items-center justify-center bg-gray-800/60"
-                title={`Effort: ${idea.effort}/10 - ${effortConfig[idea.effort]?.description || ''}`}
+                title={`Effort: ${idea.effort}/10 - ${effortScale.entries[idea.effort]?.description || ''}`}
               >
-                <EffortIcon className={`w-3 h-3 ${effortConfig[idea.effort]?.color || 'text-gray-400'}`} />
+                <EffortIcon className={`w-3 h-3 ${effortScale.entries[idea.effort]?.color || 'text-gray-400'}`} />
               </div>
             )}
             {idea.risk && (
               <div
                 className="w-5 h-5 rounded flex items-center justify-center bg-gray-800/60"
-                title={`Risk: ${idea.risk}/10 - ${riskConfig[idea.risk]?.description || ''}`}
+                title={`Risk: ${idea.risk}/10 - ${riskScale.entries[idea.risk]?.description || ''}`}
               >
-                <RiskIcon className={`w-3 h-3 ${riskConfig[idea.risk]?.color || 'text-gray-400'}`} />
+                <RiskIcon className={`w-3 h-3 ${riskScale.entries[idea.risk]?.color || 'text-gray-400'}`} />
               </div>
             )}
           </div>

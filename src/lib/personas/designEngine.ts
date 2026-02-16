@@ -8,7 +8,7 @@
  */
 
 import type { DbPersona, DbPersonaToolDefinition } from '@/app/db/models/persona.types';
-import type { DesignAnalysisResult, DesignStatus, DesignTestResult } from '@/app/features/Personas/lib/designTypes';
+import type { DesignAnalysisResult, DesignQuestion, DesignStatus, DesignTestResult } from '@/app/features/Personas/lib/designTypes';
 import { parseStructuredPrompt } from './promptMigration';
 
 // ============================================================================
@@ -306,6 +306,7 @@ export function buildDesignPrompt(
   parts.push('11. **suggested_connectors**: For each connector, provide the name, a setup_url pointing to official documentation for obtaining credentials (if known), brief setup_instructions, credential_fields describing what credentials are needed (key/label/type/required), and link related_tools (from suggested_tools) and related_triggers (indices into suggested_triggers array) to this connector. Set oauth_type to null for most connectors. IMPORTANT for Google services (gmail, google_calendar, google_drive): Set oauth_type to "google" — the app has a built-in OAuth 2.0 authorization flow that replaces manual token entry. credential_fields MUST be exactly: [{ "key": "client_id", "label": "Client ID", "type": "text", "required": true }, { "key": "client_secret", "label": "Client Secret", "type": "password", "required": true }, { "key": "refresh_token", "label": "Refresh Token", "type": "password", "required": true }]. Set setup_url to "https://console.cloud.google.com/apis/credentials" and setup_instructions to: "1. Go to Google Cloud Console > APIs & Services > Credentials\\n2. Create a new OAuth 2.0 Client ID (type: Desktop app)\\n3. Enable the required API (Gmail API, Calendar API, etc.)\\n4. Copy the Client ID and Client Secret below\\n5. Click Authorize with Google to complete the connection".');
   parts.push('12. **Notification channels**: If the user mentions wanting notifications, alerts, or messages via Slack, Telegram, email, or similar, populate suggested_notification_channels. This ensures the persona is configured with proper communication channels. Also add relevant messaging instructions to the prompt instructions section (e.g., "After completing the task, send a summary message to the user").');
   parts.push('13. **Data efficiency**: The toolGuidance section MUST include data-fetching constraints for EVERY data-reading tool. These constraints prevent the agent from fetching excessive data. For each tool, specify: (a) default maxResults/limit, (b) required date/time filters (e.g., Gmail: always use `after:{epoch}` in queries; Slack: always use `oldest` parameter; HTTP APIs: always use since/from_date parameters), (c) required scope narrowing (e.g., "only read channels listed in instructions", "only fetch unread emails"). The system will inject runtime timestamps automatically — write the toolGuidance assuming `after:` and `since:` values will be available at execution time. This is CRITICAL for personas that run on polling triggers.');
+  parts.push('14. **Clarification questions**: If the user\'s instruction is genuinely ambiguous or missing critical information that would significantly affect the design (e.g., unclear which data source to use, conflicting requirements, scope too broad to produce quality output), you may ask ONE clarification question. Output EXACTLY this JSON on its own line: {"design_question": "Your specific question here", "options": ["Option A", "Option B", "Option C"]}. Then STOP immediately - do not output any other JSON. Only ask when truly necessary - if you can make a reasonable default assumption, proceed and note it in the summary. Never ask more than one question per turn.');
   parts.push('15. **Event bus & inter-persona actions**: The persona system has a built-in event bus. Personas can trigger each other using `{"persona_action": {"target": "persona_name", "action": "execute|task", "input": {...}}}` and emit custom events using `{"emit_event": {"type": "...", "data": {...}}}`. If the user describes coordination between agents, cross-agent triggering, webhook reactions, or event-driven workflows: (a) Add clear instructions to the prompt about WHEN and WHY to trigger other personas and what data to pass. (b) For webhook-triggered personas, add instructions about expected webhook payload format and how to access it (input data contains `_event.payload`). (c) When suggesting a webhook trigger, set `config.hmac_secret` to a placeholder like "REPLACE_WITH_SECRET" if the user mentions security/signing. (d) For webhook personas, set the trigger_type to "webhook" — the system auto-generates the URL at `/api/personas/webhooks/{triggerId}`.');
   parts.push('16. **suggested_event_subscriptions**: If the persona should react to events from other personas, webhooks, or execution completions, populate the `suggested_event_subscriptions` array. Each entry has: `event_type` (one of: "webhook_received", "execution_completed", "persona_action", "credential_event", "task_created", "custom"), optional `source_filter` object (e.g. `{"source_type": "webhook"}` to only react to webhook events), and `description` (human-readable explanation). This is how personas subscribe to the event bus. Example: a QA persona subscribing to "execution_completed" events to review outputs of other personas.');
   const nextNum = 17;
@@ -378,6 +379,46 @@ export function extractDesignResult(rawOutput: string): DesignAnalysisResult | n
     } catch { /* continue */ }
   }
 
+  return null;
+}
+
+// ============================================================================
+// Question Extraction
+// ============================================================================
+
+/**
+ * Extract a design question from the LLM output.
+ * The LLM outputs: {"design_question": "...", "options": ["A", "B"]}
+ * Returns null if no question found.
+ */
+export function extractDesignQuestion(rawOutput: string): DesignQuestion | null {
+  const marker = rawOutput.indexOf('"design_question"');
+  if (marker === -1) return null;
+
+  // Find the opening brace before the marker
+  let start = marker;
+  while (start > 0 && rawOutput[start] !== '{') start--;
+  if (rawOutput[start] !== '{') return null;
+
+  // Find matching closing brace
+  let depth = 0;
+  for (let i = start; i < rawOutput.length; i++) {
+    if (rawOutput[i] === '{') depth++;
+    if (rawOutput[i] === '}') depth--;
+    if (depth === 0) {
+      try {
+        const parsed = JSON.parse(rawOutput.slice(start, i + 1));
+        if (parsed.design_question && typeof parsed.design_question === 'string') {
+          return {
+            question: parsed.design_question,
+            options: Array.isArray(parsed.options) ? parsed.options.filter((o: unknown) => typeof o === 'string') : undefined,
+            context: typeof parsed.context === 'string' ? parsed.context : undefined,
+          };
+        }
+      } catch { /* not valid JSON yet */ }
+      break;
+    }
+  }
   return null;
 }
 
@@ -533,6 +574,32 @@ export function runDesignAnalysis(input: DesignEngineInput): void {
       if (code === 0) {
         // Extract the assistant text content from stream-json output
         const assistantText = extractAssistantText(fullOutput);
+
+        // Check for design question BEFORE checking for design result
+        const question = extractDesignQuestion(assistantText);
+        if (question) {
+          appendOutput('[Design] LLM is asking for clarification');
+          appendOutput(`[Design] Question: ${question.question}`);
+          if (question.options?.length) {
+            appendOutput(`[Design] Options: ${question.options.join(', ')}`);
+          }
+
+          // Store as done-with-question (not error, not result)
+          setStatus(true, null, null);
+          // Also store the question on the status object
+          const statusObj = designStatuses.get(input.designId);
+          if (statusObj) {
+            statusObj.question = question;
+          }
+
+          // Save conversation for follow-up
+          const history = designConversations.get(input.designId) || [];
+          history.push({ role: 'user', content: input.instruction });
+          history.push({ role: 'assistant', content: assistantText });
+          designConversations.set(input.designId, history);
+          return;
+        }
+
         const result = extractDesignResult(assistantText);
 
         if (result) {
@@ -708,6 +775,11 @@ function buildRefinementPrompt(
     parts.push('');
   }
 
+  // Clarification questions
+  parts.push('');
+  parts.push('# Clarification Questions');
+  parts.push('If you need genuine clarification that would significantly change the design, output: {"design_question": "your question", "options": ["A", "B"]}. Then STOP. Only ask if truly ambiguous - prefer making reasonable assumptions.');
+
   // Same output schema as initial design
   parts.push('# Output Requirements');
   parts.push('');
@@ -805,6 +877,31 @@ export function runDesignRefinement(input: DesignRefineInput): void {
 
       if (code === 0) {
         const assistantText = extractAssistantText(fullOutput);
+
+        // Check for design question BEFORE checking for design result
+        const question = extractDesignQuestion(assistantText);
+        if (question) {
+          appendOutput('[Refine] LLM is asking for clarification');
+          appendOutput(`[Refine] Question: ${question.question}`);
+          if (question.options?.length) {
+            appendOutput(`[Refine] Options: ${question.options.join(', ')}`);
+          }
+
+          // Store as done-with-question (not error, not result)
+          setStatus(true, null, null);
+          const statusObj = designStatuses.get(input.designId);
+          if (statusObj) {
+            statusObj.question = question;
+          }
+
+          // Save conversation for follow-up
+          const history = designConversations.get(input.designId) || [];
+          history.push({ role: 'user', content: input.followUpMessage });
+          history.push({ role: 'assistant', content: assistantText });
+          designConversations.set(input.designId, history);
+          return;
+        }
+
         const result = extractDesignResult(assistantText);
 
         if (result) {

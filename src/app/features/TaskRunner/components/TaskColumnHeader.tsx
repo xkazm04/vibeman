@@ -14,6 +14,7 @@ interface TaskColumnHeaderProps {
   selectedInColumnCount: number;
   clearableCount: number;
   failedCount: number;
+  queuedCount: number;
   requirementsCount: number;
   aggregationCheck: AggregationCheckResult | null;
   isAggregating: boolean;
@@ -22,6 +23,7 @@ interface TaskColumnHeaderProps {
   onBulkDeleteSelected: () => void;
   onClearCompleted: () => void;
   onResetAllFailed: () => void;
+  onResetAllQueued: () => void;
   canBulkDelete: boolean;
   canReset: boolean;
 }
@@ -109,6 +111,7 @@ export default function TaskColumnHeader({
   selectedInColumnCount,
   clearableCount,
   failedCount,
+  queuedCount,
   requirementsCount,
   aggregationCheck,
   isAggregating,
@@ -117,6 +120,7 @@ export default function TaskColumnHeader({
   onBulkDeleteSelected,
   onClearCompleted,
   onResetAllFailed,
+  onResetAllQueued,
   canBulkDelete,
   canReset,
 }: TaskColumnHeaderProps) {
@@ -180,6 +184,19 @@ export default function TaskColumnHeader({
             >
               <RotateCcw className="w-3 h-3" />
               <span>{failedCount}</span>
+            </button>
+          )}
+
+          {/* Reset all queued button */}
+          {queuedCount > 0 && canReset && (
+            <button
+              onClick={onResetAllQueued}
+              className="text-blue-400 hover:text-blue-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+              title={`Reset ${queuedCount} queued task${queuedCount > 1 ? 's' : ''} to open`}
+              data-testid={`reset-queued-btn-${projectId}`}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>{queuedCount}q</span>
             </button>
           )}
 

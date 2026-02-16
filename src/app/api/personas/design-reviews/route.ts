@@ -70,14 +70,22 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const { olderThan } = body as { olderThan: string };
+    const { olderThan, id } = body as { olderThan?: string; id?: string };
 
-    if (!olderThan) {
-      return NextResponse.json({ error: 'olderThan date required' }, { status: 400 });
+    if (id) {
+      const deleted = personaDb.designReviews.deleteById(id);
+      if (!deleted) {
+        return NextResponse.json({ error: 'Review not found' }, { status: 404 });
+      }
+      return NextResponse.json({ ok: true });
     }
 
-    personaDb.designReviews.deleteOlderThan(olderThan);
-    return NextResponse.json({ ok: true });
+    if (olderThan) {
+      personaDb.designReviews.deleteOlderThan(olderThan);
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: 'id or olderThan required' }, { status: 400 });
   } catch (error) {
     console.error('Error deleting design reviews:', error);
     return NextResponse.json(

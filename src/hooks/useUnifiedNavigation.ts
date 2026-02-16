@@ -34,10 +34,6 @@ export function useUnifiedNavigation() {
     addRecentEntity,
     generateSuggestions,
     openCommandPalette,
-    startWorkflow,
-    advanceWorkflow,
-    activeWorkflow,
-    workflowProgress,
   } = useWorkflowStore();
   const { activeProject } = useActiveProjectStore();
 
@@ -83,12 +79,7 @@ export function useUnifiedNavigation() {
         projectId: entity.projectId || activeProject?.id,
       });
     }
-
-    // Advance workflow if following one and this is the next step
-    if (activeWorkflow && activeWorkflow.steps[workflowProgress] === module) {
-      advanceWorkflow();
-    }
-  }, [setActiveModule, pushStep, addRecentEntity, activeProject?.id, activeWorkflow, workflowProgress, advanceWorkflow]);
+  }, [setActiveModule, pushStep, addRecentEntity, activeProject?.id]);
 
   /**
    * Navigate to an entity (context, goal, idea, etc.)
@@ -154,19 +145,6 @@ export function useUnifiedNavigation() {
   }, [openCommandPalette]);
 
   /**
-   * Start a predefined workflow
-   */
-  const startWorkflowTemplate = useCallback((templateId: string) => {
-    const { WORKFLOW_TEMPLATES } = require('@/stores/workflowStore');
-    const template = WORKFLOW_TEMPLATES.find((t: { id: string }) => t.id === templateId);
-    if (template) {
-      startWorkflow(template);
-      // Navigate to first step
-      navigateTo(template.steps[0], { skipHistory: true });
-    }
-  }, [startWorkflow, navigateTo]);
-
-  /**
    * Get keyboard shortcut for module navigation
    */
   const getModuleShortcut = useCallback((module: AppModule): string | null => {
@@ -196,9 +174,6 @@ export function useUnifiedNavigation() {
 
     // Command palette
     openSearch,
-
-    // Workflows
-    startWorkflowTemplate,
 
     // Utilities
     getModuleShortcut,

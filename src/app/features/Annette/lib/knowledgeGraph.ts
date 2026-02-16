@@ -79,6 +79,33 @@ function dbEdgeToKnowledgeEdge(db: DbAnnetteKnowledgeEdge): KnowledgeEdge {
   };
 }
 
+/**
+ * Collect and deduplicate edges connecting a set of nodes.
+ * @param nodeIds - Set of node IDs to collect edges for
+ * @param getEdgesFn - Function to retrieve edges for a single node
+ * @param mode - 'any' keeps edges where either endpoint is in nodeIds,
+ *               'both' keeps only edges where both endpoints are in nodeIds
+ */
+export function buildEdgeMap(
+  nodeIds: Set<string>,
+  getEdgesFn: (nodeId: string) => KnowledgeEdge[],
+  mode: 'any' | 'both' = 'any',
+): KnowledgeEdge[] {
+  const edgeMap = new Map<string, KnowledgeEdge>();
+  for (const nodeId of nodeIds) {
+    const edges = getEdgesFn(nodeId);
+    for (const edge of edges) {
+      if (edgeMap.has(edge.id)) continue;
+      const inSource = nodeIds.has(edge.sourceNodeId);
+      const inTarget = nodeIds.has(edge.targetNodeId);
+      if (mode === 'both' ? (inSource && inTarget) : (inSource || inTarget)) {
+        edgeMap.set(edge.id, edge);
+      }
+    }
+  }
+  return Array.from(edgeMap.values());
+}
+
 export const knowledgeGraph = {
   /**
    * Add or update a knowledge node
@@ -350,23 +377,11 @@ Only extract meaningful entities and relationships. If none found, return empty 
 
     // Get edges connecting these nodes
     const nodeIds = new Set(relevantNodes.map(n => n.id));
-    const allEdges: KnowledgeEdge[] = [];
-
-    for (const node of relevantNodes) {
-      const edges = this.getEdges(node.id, 'both');
-      for (const edge of edges) {
-        if (nodeIds.has(edge.sourceNodeId) || nodeIds.has(edge.targetNodeId)) {
-          allEdges.push(edge);
-        }
-      }
-    }
-
-    // Deduplicate edges
-    const edgeMap = new Map<string, KnowledgeEdge>();
-    for (const edge of allEdges) {
-      edgeMap.set(edge.id, edge);
-    }
-    const relevantEdges = Array.from(edgeMap.values());
+    const relevantEdges = buildEdgeMap(
+      nodeIds,
+      (id) => this.getEdges(id, 'both'),
+      'any',
+    );
 
     // Build context for LLM
     const nodesContext = relevantNodes

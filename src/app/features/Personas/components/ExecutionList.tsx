@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePersonaStore } from '@/stores/personaStore';
 import { DbPersonaExecution } from '@/app/features/Personas/lib/types';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Workflow } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExecutionDetail } from './ExecutionDetail';
+import ActivityDiagramModal from './ActivityDiagramModal';
+import type { UseCaseFlow } from '@/lib/personas/testing/flowTypes';
 
 const STATUS_COLORS: Record<string, string> = {
   queued: 'bg-secondary/60 text-muted-foreground/60 border border-primary/15',
@@ -17,9 +19,17 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function ExecutionList() {
   const selectedPersona = usePersonaStore((state) => state.selectedPersona);
+  const isExecuting = usePersonaStore((state) => state.isExecuting);
   const [executions, setExecutions] = useState<DbPersonaExecution[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [diagramExecution, setDiagramExecution] = useState<DbPersonaExecution | null>(null);
+  const prevIsExecutingRef = useRef(isExecuting);
+
+  const diagramFlows: UseCaseFlow[] = useMemo(() => {
+    if (!diagramExecution?.execution_flows) return [];
+    try { return JSON.parse(diagramExecution.execution_flows); } catch { return []; }
+  }, [diagramExecution]);
 
   const personaId = selectedPersona?.id || '';
 
@@ -28,6 +38,14 @@ export function ExecutionList() {
       fetchExecutions();
     }
   }, [personaId]);
+
+  // Re-fetch when execution finishes (isExecuting transitions true → false)
+  useEffect(() => {
+    if (prevIsExecutingRef.current && !isExecuting && personaId) {
+      fetchExecutions();
+    }
+    prevIsExecutingRef.current = isExecuting;
+  }, [isExecuting, personaId]);
 
   if (!selectedPersona) {
     return (
@@ -118,8 +136,19 @@ export function ExecutionList() {
                 <div className="col-span-3 text-sm text-foreground/70">
                   {formatTimestamp(execution.started_at)}
                 </div>
-                <div className="col-span-5 text-sm text-muted-foreground/40 truncate">
-                  {execution.error_message || '-'}
+                <div className="col-span-5 flex items-center gap-2">
+                  {execution.execution_flows && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDiagramExecution(execution); }}
+                      className="p-1.5 rounded-lg text-violet-400/60 hover:text-violet-400 hover:bg-violet-500/10 transition-colors"
+                      title="View execution flow"
+                    >
+                      <Workflow className="w-4 h-4" />
+                    </button>
+                  )}
+                  <span className="text-sm text-muted-foreground/40 truncate">
+                    {execution.error_message || '-'}
+                  </span>
                 </div>
               </motion.div>
 
@@ -142,6 +171,15 @@ export function ExecutionList() {
           ))}
         </div>
       )}
+
+      <ActivityDiagramModal
+        isOpen={!!diagramExecution}
+        onClose={() => setDiagramExecution(null)}
+        templateName="Execution Flow"
+        titleOverride="Execution Flow"
+        subtitleOverride={diagramExecution?.started_at ? new Date(diagramExecution.started_at).toLocaleString() : undefined}
+        flows={diagramFlows}
+      />
     </div>
   );
 }

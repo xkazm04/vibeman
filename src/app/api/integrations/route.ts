@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { integrationDb, webhookDb } from '@/app/db';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
+import { encryptField } from '@/lib/personas/credentialCrypto';
 
 /**
  * GET /api/integrations
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
       description: description || null,
       status: 'pending',
       config: JSON.stringify(config || {}),
-      credentials: credentials ? JSON.stringify(credentials) : null,
+      credentials: credentials ? encryptField(JSON.stringify(credentials)) : null,
       enabled_events: JSON.stringify(enabledEvents || []),
       last_sync_at: null,
       last_error: null,
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
         url: webhookUrl,
         method: webhookMethod || 'POST',
         headers: webhookHeaders ? JSON.stringify(webhookHeaders) : null,
-        secret: webhookSecret || null,
+        secret: webhookSecret ? encryptField(webhookSecret) : null,
         retry_on_failure: 1,
         max_retries: 3,
         timeout_ms: 30000,
@@ -188,7 +189,7 @@ export async function PUT(request: Request) {
     if (description !== undefined) updates.description = description;
     if (status !== undefined) updates.status = status;
     if (config !== undefined) updates.config = JSON.stringify(config);
-    if (credentials !== undefined) updates.credentials = JSON.stringify(credentials);
+    if (credentials !== undefined) updates.credentials = credentials ? encryptField(JSON.stringify(credentials)) : null;
     if (enabledEvents !== undefined) updates.enabled_events = JSON.stringify(enabledEvents);
 
     const updated = integrationDb.update(id, updates);

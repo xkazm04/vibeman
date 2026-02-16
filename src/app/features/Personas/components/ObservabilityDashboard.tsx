@@ -242,14 +242,22 @@ export default function ObservabilityDashboard() {
               const age = Math.floor((Date.now() - new Date(issue.created_at).getTime()) / (1000 * 60 * 60));
               const ageLabel = age < 1 ? 'just now' : age < 24 ? `${age}h ago` : `${Math.floor(age / 24)}d ago`;
 
+              const isAutoFixed = issue.auto_fixed === 1;
+
               return (
-                <div key={issue.id} className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/40 transition-colors">
-                  <span className={`inline-flex px-1.5 py-0.5 text-[9px] font-mono uppercase rounded-md border ${sevColors[issue.severity] || sevColors.medium}`}>
-                    {issue.severity}
-                  </span>
+                <div key={issue.id} className={`flex items-center gap-3 px-5 py-3 hover:bg-secondary/40 transition-colors ${isAutoFixed ? 'opacity-70' : ''}`}>
+                  {isAutoFixed ? (
+                    <span className="inline-flex px-1.5 py-0.5 text-[9px] font-mono uppercase rounded-md border bg-emerald-500/15 text-emerald-400 border-emerald-500/20">
+                      fixed
+                    </span>
+                  ) : (
+                    <span className={`inline-flex px-1.5 py-0.5 text-[9px] font-mono uppercase rounded-md border ${sevColors[issue.severity] || sevColors.medium}`}>
+                      {issue.severity}
+                    </span>
+                  )}
                   <button
                     onClick={() => setSelectedIssue(issue)}
-                    className="flex-1 text-left text-sm text-foreground/80 hover:text-foreground transition-colors truncate"
+                    className={`flex-1 text-left text-sm transition-colors truncate ${isAutoFixed ? 'text-foreground/50 line-through decoration-emerald-500/30' : 'text-foreground/80 hover:text-foreground'}`}
                   >
                     {issue.title}
                   </button>
@@ -257,12 +265,14 @@ export default function ObservabilityDashboard() {
                     {issue.category}
                   </span>
                   <span className="text-[10px] text-muted-foreground/30 w-16 text-right">{ageLabel}</span>
-                  <button
-                    onClick={() => resolveHealingIssue(issue.id)}
-                    className="px-2 py-1 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-colors"
-                  >
-                    Resolve
-                  </button>
+                  {!isAutoFixed && (
+                    <button
+                      onClick={() => resolveHealingIssue(issue.id)}
+                      className="px-2 py-1 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-colors"
+                    >
+                      Resolve
+                    </button>
+                  )}
                 </div>
               );
             })}

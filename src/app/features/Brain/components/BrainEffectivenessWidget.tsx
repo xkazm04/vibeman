@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
+import GlowCard from './GlowCard';
 import type { InsightEffectiveness } from '@/app/api/brain/insights/effectiveness/route';
 import type { EffectivenessSummary } from '@/app/api/brain/insights/effectiveness/route';
 
@@ -147,37 +148,8 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
   const misleadingInsights = insights.filter(i => i.verdict === 'misleading' && i.reliable);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`relative overflow-hidden rounded-2xl border backdrop-blur-xl ${borderColor}`}
-      style={{
-        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
-        boxShadow: `0 0 40px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.05)`
-      }}
-    >
-      {/* Grid pattern overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(${accentColor} 1px, transparent 1px), linear-gradient(90deg, ${accentColor} 1px, transparent 1px)`,
-          backgroundSize: '20px 20px'
-        }}
-      />
-
-      {/* Ambient glow */}
-      <div
-        className="absolute -top-1/2 -right-1/2 w-full h-full blur-3xl pointer-events-none opacity-20"
-        style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)` }}
-      />
-
-      {/* Corner markers */}
-      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: accentColor }} />
-      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg" style={{ borderColor: accentColor }} />
-      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg" style={{ borderColor: accentColor }} />
-      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: accentColor }} />
-
-      <div className="relative z-10 p-6">
+    <GlowCard accentColor={accentColor} glowColor={glowColor} borderColorClass={borderColor}>
+      <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -302,12 +274,6 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           </motion.div>
         )}
       </div>
-
-      {/* Bottom accent line */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-0.5"
-        style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }}
-      />
-    </motion.div>
+    </GlowCard>
   );
 }

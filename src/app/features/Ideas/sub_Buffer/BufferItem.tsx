@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Trash2, Edit2, Zap, Play } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
-import { getCategoryConfig, EffortIcon, ImpactIcon, effortConfig, impactConfig } from '../lib/ideaConfig';
+import { getCategoryConfig, EffortIcon, ImpactIcon, effortScale, impactScale } from '../lib/ideaConfig';
 import { getStatusClasses, type StatusType } from '@/lib/design-tokens/useEntityStyling';
 
 interface BufferItemProps {
@@ -58,8 +58,8 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
   // Get status-based styling using design tokens
   const statusClasses = getStatusClasses((idea.status || 'pending') as StatusType);
 
-  const effortCfg = idea.effort ? effortConfig[idea.effort] || null : null;
-  const impactCfg = idea.impact ? impactConfig[idea.impact] || null : null;
+  const effortCfg = idea.effort ? effortScale.entries[idea.effort] || null : null;
+  const impactCfg = idea.impact ? impactScale.entries[idea.impact] || null : null;
 
   // Handle keyboard navigation for accessibility
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {

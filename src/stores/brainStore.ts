@@ -66,9 +66,6 @@ interface BrainState {
   // Loading states
   isLoading: boolean;
   error: string | null;
-
-  // Current project
-  projectId: string | null;
 }
 
 interface BrainActions {
@@ -77,8 +74,6 @@ interface BrainActions {
   applyDecay: (projectId: string) => Promise<{ affected: number }>;
 
   // Data loading
-  setProjectId: (projectId: string) => void;
-  loadBrainData: (projectId: string, projectName: string, projectPath: string) => Promise<void>;
   fetchBehavioralContext: (projectId: string) => Promise<void>;
   fetchRecentOutcomes: (projectId: string) => Promise<void>;
   fetchReflectionStatus: (projectId: string) => Promise<void>;
@@ -96,7 +91,6 @@ interface BrainActions {
 
   // Utilities
   clearError: () => void;
-  reset: () => void;
 }
 
 type BrainStore = BrainState & BrainActions;
@@ -135,7 +129,37 @@ const initialState: BrainState = {
   globalPromptContent: null,
   isLoading: false,
   error: null,
-  projectId: null,
+};
+
+// ============================================================================
+// SCOPE HELPERS (shared logic for project vs global reflection)
+// ============================================================================
+
+type ReflectionScope = 'project' | 'global';
+
+interface ScopeConfig {
+  statusKey: 'reflectionStatus' | 'globalReflectionStatus';
+  lastKey: 'lastReflection' | 'lastGlobalReflection';
+  runIdKey: 'runningReflectionId' | 'globalRunningReflectionId';
+  promptKey: 'promptContent' | 'globalPromptContent';
+  storagePrefix: string;
+}
+
+const scopeConfigs: Record<ReflectionScope, ScopeConfig> = {
+  project: {
+    statusKey: 'reflectionStatus',
+    lastKey: 'lastReflection',
+    runIdKey: 'runningReflectionId',
+    promptKey: 'promptContent',
+    storagePrefix: 'brain-prompt-',
+  },
+  global: {
+    statusKey: 'globalReflectionStatus',
+    lastKey: 'lastGlobalReflection',
+    runIdKey: 'globalRunningReflectionId',
+    promptKey: 'globalPromptContent',
+    storagePrefix: 'brain-prompt-global-',
+  },
 };
 
 // ============================================================================
@@ -144,379 +168,296 @@ const initialState: BrainState = {
 
 export const useBrainStore = create<BrainStore>()(
   devtools(
-    (set, get) => ({
-      ...initialState,
+    (set, get) => {
+      // ---- Internal helpers (not exposed on the store) ----
 
-      // ========================================
-      // DECAY SETTINGS
-      // ========================================
-
-      setDecaySettings: (settings) => {
-        set(state => ({
-          decaySettings: { ...state.decaySettings, ...settings },
-        }));
-      },
-
-      applyDecay: async (projectId) => {
-        const { decaySettings } = get();
+      const _fetchReflectionStatus = async (scope: ReflectionScope, query: string) => {
+        const cfg = scopeConfigs[scope];
         try {
-          const response = await fetch('/api/brain/signals/decay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              projectId,
-              decayFactor: decaySettings.decayFactor,
-              retentionDays: decaySettings.retentionDays,
-            }),
-          });
-
+          const response = await fetch(`/api/brain/reflection?${query}`);
           if (!response.ok) {
-            throw new Error('Failed to apply decay');
-          }
-
-          const raw = await safeResponseJson(response, '/api/brain/signals/decay');
-          const data = parseApiResponseSafe(raw, BrainDecayResponseSchema, { success: false, affected: 0, decayed: 0, deleted: 0, settings: { decayFactor: 0.9, retentionDays: 30 } }, '/api/brain/signals/decay');
-          return { affected: data.affected };
-        } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to apply decay' });
-          return { affected: 0 };
-        }
-      },
-
-      // ========================================
-      // DATA LOADING
-      // ========================================
-
-      setProjectId: (projectId) => {
-        set({ projectId });
-      },
-
-      loadBrainData: async (projectId, projectName, projectPath) => {
-        const state = get();
-
-        // Skip if already loading
-        if (state.isLoading) return;
-
-        set({ isLoading: true, error: null, projectId });
-
-        try {
-          // Load all data in parallel
-          await Promise.all([
-            get().fetchBehavioralContext(projectId),
-            get().fetchRecentOutcomes(projectId),
-            get().fetchReflectionStatus(projectId),
-          ]);
-
-          set({ isLoading: false });
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to load brain data',
-            isLoading: false,
-          });
-        }
-      },
-
-      fetchBehavioralContext: async (projectId) => {
-        set({ isLoadingContext: true });
-        try {
-          const response = await fetch(`/api/brain/context?projectId=${projectId}`);
-          if (!response.ok) {
-            // Context might not exist yet, that's ok
-            if (response.status === 404) {
-              set({ behavioralContext: null, isLoadingContext: false });
-              return;
-            }
-            throw new Error('Failed to fetch behavioral context');
-          }
-
-          const raw = await safeResponseJson(response, '/api/brain/context');
-          const data = parseApiResponseSafe(raw, BrainContextResponseSchema, { context: null }, '/api/brain/context');
-          set({
-            behavioralContext: (data.context as unknown as BehavioralContext) || null,
-            isLoadingContext: false,
-          });
-        } catch (error) {
-          console.error('Failed to fetch behavioral context:', error);
-          set({ behavioralContext: null, isLoadingContext: false });
-        }
-      },
-
-      fetchRecentOutcomes: async (projectId) => {
-        set({ isLoadingOutcomes: true });
-        try {
-          const response = await fetch(`/api/brain/outcomes?projectId=${projectId}&limit=10`);
-          if (!response.ok) {
-            if (response.status === 404) {
-              set({ recentOutcomes: [], isLoadingOutcomes: false });
-              return;
-            }
-            throw new Error('Failed to fetch outcomes');
-          }
-
-          const raw = await safeResponseJson(response, '/api/brain/outcomes');
-          const data = parseApiResponseSafe(raw, BrainOutcomesResponseSchema, { outcomes: [], stats: initialState.outcomeStats }, '/api/brain/outcomes');
-          set({
-            recentOutcomes: data.outcomes as unknown as DbDirectionOutcome[],
-            outcomeStats: data.stats,
-            isLoadingOutcomes: false,
-          });
-        } catch (error) {
-          console.error('Failed to fetch outcomes:', error);
-          set({ recentOutcomes: [], isLoadingOutcomes: false });
-        }
-      },
-
-      fetchReflectionStatus: async (projectId) => {
-        try {
-          const response = await fetch(`/api/brain/reflection?projectId=${projectId}`);
-          if (!response.ok) {
-            if (response.status === 404) {
-              set({
-                reflectionStatus: 'idle',
-                lastReflection: null,
+            const idleState: Partial<BrainState> = {
+              [cfg.statusKey]: 'idle',
+              [cfg.lastKey]: null,
+              [cfg.runIdKey]: null,
+              [cfg.promptKey]: null,
+            };
+            if (scope === 'project') {
+              Object.assign(idleState, {
                 decisionsSinceReflection: 0,
                 shouldTrigger: false,
                 triggerReason: null,
-                runningReflectionId: null,
-                promptContent: null,
               });
-              return;
             }
-            throw new Error('Failed to fetch reflection status');
+            set(idleState as Partial<BrainStore>);
+            return;
           }
 
-          const raw = await safeResponseJson(response, '/api/brain/reflection');
-          const data = parseApiResponse(raw, BrainReflectionStatusSchema, '/api/brain/reflection');
+          const label = `/api/brain/reflection?${query}`;
+          const raw = await safeResponseJson(response, label);
+          const fallback = { isRunning: false, lastCompleted: null, decisionsSinceLastReflection: 0, nextThreshold: 20, shouldTrigger: false, triggerReason: null, runningReflection: null };
+          const data = scope === 'project'
+            ? parseApiResponse(raw, BrainReflectionStatusSchema, label)
+            : parseApiResponseSafe(raw, BrainReflectionStatusSchema, fallback, label);
           const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
 
-          set({
-            reflectionStatus: status,
-            lastReflection: (data.lastCompleted as unknown as DbBrainReflection) || null,
-            decisionsSinceReflection: data.decisionsSinceLastReflection,
-            nextThreshold: data.nextThreshold,
-            shouldTrigger: data.shouldTrigger,
-            triggerReason: data.triggerReason,
-            runningReflectionId: data.runningReflection?.id || null,
-          });
+          const update: Partial<BrainState> = {
+            [cfg.statusKey]: status,
+            [cfg.lastKey]: data.lastCompleted || null,
+            [cfg.runIdKey]: data.runningReflection?.id || null,
+          };
+          if (scope === 'project') {
+            update.decisionsSinceReflection = data.decisionsSinceLastReflection;
+            update.nextThreshold = data.nextThreshold;
+            update.shouldTrigger = data.shouldTrigger;
+            update.triggerReason = data.triggerReason;
+          }
+          set(update as Partial<BrainStore>);
 
           // Restore promptContent from sessionStorage if running but no prompt in memory
-          const currentPrompt = get().promptContent;
+          const currentPrompt = get()[cfg.promptKey];
           const runId = data.runningReflection?.id;
           if (status === 'running' && !currentPrompt && runId && typeof window !== 'undefined') {
             try {
-              const savedPrompt = sessionStorage.getItem(`brain-prompt-${runId}`);
+              const savedPrompt = sessionStorage.getItem(`${cfg.storagePrefix}${runId}`);
               if (savedPrompt) {
-                set({ promptContent: savedPrompt });
+                set({ [cfg.promptKey]: savedPrompt } as Partial<BrainStore>);
               }
             } catch { /* sessionStorage unavailable */ }
           }
         } catch (error) {
-          console.error('Failed to fetch reflection status:', error);
-          set({ reflectionStatus: 'idle', lastReflection: null, runningReflectionId: null, promptContent: null });
+          console.error(`Failed to fetch ${scope} reflection status:`, error);
+          set({
+            [cfg.statusKey]: 'idle',
+            [cfg.lastKey]: null,
+            [cfg.runIdKey]: null,
+            [cfg.promptKey]: null,
+          } as Partial<BrainStore>);
         }
-      },
+      };
 
-      // ========================================
-      // ACTIONS
-      // ========================================
+      const _triggerReflection = async (scope: ReflectionScope, body: Record<string, unknown>) => {
+        const cfg = scopeConfigs[scope];
+        const label = `/api/brain/reflection POST${scope === 'global' ? ' global' : ''}`;
+        set({ [cfg.statusKey]: 'running', error: null } as Partial<BrainStore>);
 
-      triggerReflection: async (projectId, projectName, projectPath) => {
-        set({ reflectionStatus: 'running', error: null });
         try {
           const response = await fetch('/api/brain/reflection', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              projectId,
-              projectName,
-              projectPath,
-              triggerType: 'manual',
-            }),
+            body: JSON.stringify(body),
           });
 
           if (!response.ok) {
-            const errorData = await safeResponseJson<Record<string, unknown>>(response, '/api/brain/reflection POST');
+            const errorData = await safeResponseJson<Record<string, unknown>>(response, label);
 
-            // Handle 409 (already running) - update state to reflect running, not failed
-            // Note: no promptContent available for already-running reflections
             if (response.status === 409 && errorData.reflectionId) {
               set({
-                reflectionStatus: 'running',
-                runningReflectionId: errorData.reflectionId as string,
-                promptContent: null, // Can't get prompt for already-running reflection
+                [cfg.statusKey]: 'running',
+                [cfg.runIdKey]: errorData.reflectionId as string,
+                [cfg.promptKey]: null,
                 error: null,
-              });
+              } as Partial<BrainStore>);
               return;
             }
 
-            throw new Error((errorData.error as string) || 'Failed to trigger reflection');
+            throw new Error((errorData.error as string) || `Failed to trigger ${scope} reflection`);
           }
 
-          const raw = await safeResponseJson(response, '/api/brain/reflection POST');
-          const data = parseApiResponseSafe(raw, BrainReflectionTriggerSchema, { reflectionId: undefined, promptContent: null }, '/api/brain/reflection POST');
+          const raw = await safeResponseJson(response, label);
+          const data = parseApiResponseSafe(raw, BrainReflectionTriggerSchema, { reflectionId: undefined, promptContent: null }, label);
 
-          set({
-            reflectionStatus: 'running',
-            runningReflectionId: data.reflectionId || null,
-            promptContent: data.promptContent || null,
-            decisionsSinceReflection: 0,
-            shouldTrigger: false,
-            triggerReason: null,
-          });
+          const update: Partial<BrainState> = {
+            [cfg.statusKey]: 'running',
+            [cfg.runIdKey]: data.reflectionId || null,
+            [cfg.promptKey]: data.promptContent || null,
+          };
+          if (scope === 'project') {
+            update.decisionsSinceReflection = 0;
+            update.shouldTrigger = false;
+            update.triggerReason = null;
+          }
+          set(update as Partial<BrainStore>);
 
           // Persist promptContent to sessionStorage for refresh recovery
           if (typeof window !== 'undefined' && data.promptContent && data.reflectionId) {
             try {
               sessionStorage.setItem(
-                `brain-prompt-${data.reflectionId}`,
+                `${cfg.storagePrefix}${data.reflectionId}`,
                 data.promptContent
               );
             } catch { /* sessionStorage full or unavailable */ }
           }
         } catch (error) {
           set({
-            reflectionStatus: 'failed',
-            error: error instanceof Error ? error.message : 'Failed to trigger reflection',
-            runningReflectionId: null,
-            promptContent: null,
-          });
+            [cfg.statusKey]: 'failed',
+            error: error instanceof Error ? error.message : `Failed to trigger ${scope} reflection`,
+            [cfg.runIdKey]: null,
+            [cfg.promptKey]: null,
+          } as Partial<BrainStore>);
         }
-      },
+      };
 
-      cancelReflection: async (projectId) => {
-        try {
-          const response = await fetch('/api/brain/reflection', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId }),
-          });
+      // ---- Public store ----
+      return {
+        ...initialState,
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to cancel reflection');
-          }
+        // ========================================
+        // DECAY SETTINGS
+        // ========================================
 
-          set({
-            reflectionStatus: 'idle',
-            runningReflectionId: null,
-            promptContent: null,
-            error: null,
-          });
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to cancel reflection',
-          });
-        }
-      },
+        setDecaySettings: (settings) => {
+          set(state => ({
+            decaySettings: { ...state.decaySettings, ...settings },
+          }));
+        },
 
-      // ========================================
-      // GLOBAL REFLECTION
-      // ========================================
-
-      fetchGlobalReflectionStatus: async () => {
-        try {
-          const response = await fetch('/api/brain/reflection?scope=global');
-          if (!response.ok) {
-            set({
-              globalReflectionStatus: 'idle',
-              lastGlobalReflection: null,
-              globalRunningReflectionId: null,
-              globalPromptContent: null,
+        applyDecay: async (projectId) => {
+          const { decaySettings } = get();
+          try {
+            const response = await fetch('/api/brain/signals/decay', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId,
+                decayFactor: decaySettings.decayFactor,
+                retentionDays: decaySettings.retentionDays,
+              }),
             });
-            return;
-          }
 
-          const raw = await safeResponseJson(response, '/api/brain/reflection?scope=global');
-          const data = parseApiResponseSafe(raw, BrainReflectionStatusSchema, { isRunning: false, lastCompleted: null, decisionsSinceLastReflection: 0, nextThreshold: 20, shouldTrigger: false, triggerReason: null, runningReflection: null }, '/api/brain/reflection?scope=global');
-          const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
-          set({
-            globalReflectionStatus: status,
-            lastGlobalReflection: (data.lastCompleted as unknown as DbBrainReflection) || null,
-            globalRunningReflectionId: data.runningReflection?.id || null,
-          });
-
-          // Restore globalPromptContent from sessionStorage if running but no prompt in memory
-          const currentPrompt = get().globalPromptContent;
-          const runId = data.runningReflection?.id;
-          if (status === 'running' && !currentPrompt && runId && typeof window !== 'undefined') {
-            try {
-              const savedPrompt = sessionStorage.getItem(`brain-prompt-global-${runId}`);
-              if (savedPrompt) {
-                set({ globalPromptContent: savedPrompt });
-              }
-            } catch { /* sessionStorage unavailable */ }
-          }
-        } catch (error) {
-          console.error('Failed to fetch global reflection status:', error);
-          set({ globalReflectionStatus: 'idle', lastGlobalReflection: null });
-        }
-      },
-
-      triggerGlobalReflection: async (projects, workspacePath) => {
-        set({ globalReflectionStatus: 'running', error: null });
-        try {
-          const response = await fetch('/api/brain/reflection', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              scope: 'global',
-              projects,
-              workspacePath,
-            }),
-          });
-
-          if (!response.ok) {
-            const errorData = await safeResponseJson<Record<string, unknown>>(response, '/api/brain/reflection POST global');
-
-            if (response.status === 409 && errorData.reflectionId) {
-              set({
-                globalReflectionStatus: 'running',
-                globalRunningReflectionId: errorData.reflectionId as string,
-                globalPromptContent: null, // Can't get prompt for already-running reflection
-                error: null,
-              });
-              return;
+            if (!response.ok) {
+              throw new Error('Failed to apply decay');
             }
 
-            throw new Error((errorData.error as string) || 'Failed to trigger global reflection');
+            const raw = await safeResponseJson(response, '/api/brain/signals/decay');
+            const data = parseApiResponseSafe(raw, BrainDecayResponseSchema, { success: false, affected: 0, decayed: 0, deleted: 0, settings: { decayFactor: 0.9, retentionDays: 30 } }, '/api/brain/signals/decay');
+            return { affected: data.affected };
+          } catch (error) {
+            set({ error: error instanceof Error ? error.message : 'Failed to apply decay' });
+            return { affected: 0 };
           }
+        },
 
-          const raw = await safeResponseJson(response, '/api/brain/reflection POST global');
-          const data = parseApiResponseSafe(raw, BrainReflectionTriggerSchema, { reflectionId: undefined, promptContent: null }, '/api/brain/reflection POST global');
+        // ========================================
+        // DATA LOADING
+        // ========================================
 
-          set({
-            globalReflectionStatus: 'running',
-            globalRunningReflectionId: data.reflectionId || null,
-            globalPromptContent: data.promptContent || null,
-          });
+        fetchBehavioralContext: async (projectId) => {
+          set({ isLoadingContext: true });
+          try {
+            const response = await fetch(`/api/brain/context?projectId=${projectId}`);
+            if (!response.ok) {
+              // Context might not exist yet, that's ok
+              if (response.status === 404) {
+                set({ behavioralContext: null, isLoadingContext: false });
+                return;
+              }
+              throw new Error('Failed to fetch behavioral context');
+            }
 
-          // Persist globalPromptContent to sessionStorage for refresh recovery
-          if (typeof window !== 'undefined' && data.promptContent && data.reflectionId) {
-            try {
-              sessionStorage.setItem(
-                `brain-prompt-global-${data.reflectionId}`,
-                data.promptContent
-              );
-            } catch { /* sessionStorage full or unavailable */ }
+            const raw = await safeResponseJson(response, '/api/brain/context');
+            const data = parseApiResponseSafe(raw, BrainContextResponseSchema, { context: null }, '/api/brain/context');
+            set({
+              behavioralContext: data.context || null,
+              isLoadingContext: false,
+            });
+          } catch (error) {
+            console.error('Failed to fetch behavioral context:', error);
+            set({ behavioralContext: null, isLoadingContext: false });
           }
-        } catch (error) {
-          set({
-            globalReflectionStatus: 'failed',
-            error: error instanceof Error ? error.message : 'Failed to trigger global reflection',
-            globalRunningReflectionId: null,
-            globalPromptContent: null,
+        },
+
+        fetchRecentOutcomes: async (projectId) => {
+          set({ isLoadingOutcomes: true });
+          try {
+            const response = await fetch(`/api/brain/outcomes?projectId=${projectId}&limit=10`);
+            if (!response.ok) {
+              if (response.status === 404) {
+                set({ recentOutcomes: [], isLoadingOutcomes: false });
+                return;
+              }
+              throw new Error('Failed to fetch outcomes');
+            }
+
+            const raw = await safeResponseJson(response, '/api/brain/outcomes');
+            const data = parseApiResponseSafe(raw, BrainOutcomesResponseSchema, { outcomes: [], stats: initialState.outcomeStats }, '/api/brain/outcomes');
+            set({
+              recentOutcomes: data.outcomes,
+              outcomeStats: data.stats,
+              isLoadingOutcomes: false,
+            });
+          } catch (error) {
+            console.error('Failed to fetch outcomes:', error);
+            set({ recentOutcomes: [], isLoadingOutcomes: false });
+          }
+        },
+
+        fetchReflectionStatus: async (projectId) => {
+          await _fetchReflectionStatus('project', `projectId=${projectId}`);
+        },
+
+        // ========================================
+        // ACTIONS
+        // ========================================
+
+        triggerReflection: async (projectId, projectName, projectPath) => {
+          await _triggerReflection('project', {
+            projectId,
+            projectName,
+            projectPath,
+            triggerType: 'manual',
           });
-        }
-      },
+        },
 
-      // ========================================
-      // UTILITIES
-      // ========================================
+        cancelReflection: async (projectId) => {
+          try {
+            const response = await fetch('/api/brain/reflection', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ projectId }),
+            });
 
-      clearError: () => set({ error: null }),
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to cancel reflection');
+            }
 
-      reset: () => set(initialState),
-    }),
+            set({
+              reflectionStatus: 'idle',
+              runningReflectionId: null,
+              promptContent: null,
+              error: null,
+            });
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to cancel reflection',
+            });
+          }
+        },
+
+        // ========================================
+        // GLOBAL REFLECTION
+        // ========================================
+
+        fetchGlobalReflectionStatus: async () => {
+          await _fetchReflectionStatus('global', 'scope=global');
+        },
+
+        triggerGlobalReflection: async (projects, workspacePath) => {
+          await _triggerReflection('global', {
+            scope: 'global',
+            projects,
+            workspacePath,
+          });
+        },
+
+        // ========================================
+        // UTILITIES
+        // ========================================
+
+        clearError: () => set({ error: null }),
+      };
+    },
     { name: 'brain-store' }
   )
 );

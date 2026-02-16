@@ -33,6 +33,7 @@ import {
   Filter,
   X,
   Workflow,
+  Trash2,
 } from 'lucide-react';
 import { useDesignReviews } from '../hooks/useDesignReviews';
 import DesignReviewRunner from './DesignReviewRunner';
@@ -837,11 +838,25 @@ export default function DesignReviewsPage() {
     adoptTemplate,
     isAdopting,
     adoptError,
+    deleteReview,
   } = useDesignReviews();
 
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [showRunner, setShowRunner] = useState(false);
   const [diagramReview, setDiagramReview] = useState<DbDesignReview | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; reviewId: string } | null>(null);
+
+  // Close context menu on any click or scroll
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [contextMenu]);
 
   const sortedReviews = useMemo(() => {
     return [...reviews].sort((a, b) => a.test_case_name.localeCompare(b.test_case_name));
@@ -990,14 +1005,14 @@ export default function DesignReviewsPage() {
         ) : (
           <table className="w-full">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-secondary/40 border-b border-primary/10">
-                <th className="text-left text-xs font-medium text-muted-foreground/50 px-6 py-3 w-8" />
-                <th className="text-left text-xs font-medium text-muted-foreground/50 px-4 py-3">Template Name</th>
-                <th className="text-left text-xs font-medium text-muted-foreground/50 px-4 py-3">Connectors</th>
-                <th className="text-center text-xs font-medium text-muted-foreground/50 px-4 py-3">Quality</th>
-                <th className="text-center text-xs font-medium text-muted-foreground/50 px-4 py-3">Status</th>
-                <th className="text-center text-xs font-medium text-muted-foreground/50 px-4 py-3">Flows</th>
-                <th className="text-right text-xs font-medium text-muted-foreground/50 px-6 py-3 w-28" />
+              <tr className="bg-background border-b border-primary/10" style={{ backgroundColor: 'hsl(var(--background))' }}>
+                <th className="text-left text-xs font-medium text-muted-foreground/50 px-6 py-3 w-8 bg-secondary/80" />
+                <th className="text-left text-xs font-medium text-muted-foreground/50 px-4 py-3 bg-secondary/80">Template Name</th>
+                <th className="text-left text-xs font-medium text-muted-foreground/50 px-4 py-3 bg-secondary/80">Connectors</th>
+                <th className="text-center text-xs font-medium text-muted-foreground/50 px-4 py-3 bg-secondary/80">Quality</th>
+                <th className="text-center text-xs font-medium text-muted-foreground/50 px-4 py-3 bg-secondary/80">Status</th>
+                <th className="text-center text-xs font-medium text-muted-foreground/50 px-4 py-3 bg-secondary/80">Flows</th>
+                <th className="text-right text-xs font-medium text-muted-foreground/50 px-6 py-3 w-28 bg-secondary/80" />
               </tr>
             </thead>
             <tbody>
@@ -1019,6 +1034,10 @@ export default function DesignReviewsPage() {
                       {/* Main row */}
                       <tr
                         onClick={() => setExpandedRow(isExpanded ? null : review.id)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({ x: e.clientX, y: e.clientY, reviewId: review.id });
+                        }}
                         className="border-b border-primary/5 hover:bg-secondary/30 cursor-pointer transition-colors"
                       >
                         {/* Expand chevron */}
@@ -1154,6 +1173,34 @@ export default function DesignReviewsPage() {
           </table>
         )}
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-[160px] py-1 bg-background border border-primary/20 rounded-lg shadow-2xl backdrop-blur-sm animate-in fade-in-0 zoom-in-95 duration-100"
+          style={{
+            left: Math.min(contextMenu.x, window.innerWidth - 180),
+            top: Math.min(contextMenu.y, window.innerHeight - 60),
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={async () => {
+              const id = contextMenu.reviewId;
+              setContextMenu(null);
+              try {
+                await deleteReview(id);
+              } catch (err) {
+                console.error('Failed to delete template:', err);
+              }
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete template
+          </button>
+        </div>
+      )}
 
       {/* Runner modal */}
       <DesignReviewRunner

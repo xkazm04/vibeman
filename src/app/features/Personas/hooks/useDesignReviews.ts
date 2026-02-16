@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { DbDesignReview, TestRunResult } from '@/lib/personas/testing/testTypes';
 import type { DesignAnalysisResult } from '../lib/designTypes';
-import { fetchDesignReviews, startDesignReviewRun, createPersona } from '../lib/personaApi';
+import { fetchDesignReviews, startDesignReviewRun, createPersona, deleteDesignReview } from '../lib/personaApi';
 import { usePersonaStore } from '@/stores/personaStore';
 
 export interface UseDesignReviewsReturn {
@@ -23,6 +23,7 @@ export interface UseDesignReviewsReturn {
   cancelReview: () => void;
   adoptTemplate: (review: DbDesignReview) => Promise<void>;
   isAdopting: boolean;
+  deleteReview: (id: string) => Promise<void>;
   adoptError: string | null;
 }
 
@@ -114,6 +115,11 @@ export function useDesignReviews(): UseDesignReviewsReturn {
     }
   }, []);
 
+  const deleteReview = useCallback(async (id: string) => {
+    await deleteDesignReview(id);
+    setReviews((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
   const startNewReview = useCallback(async (options?: { useCaseIds?: string[]; customInstructions?: string[] }) => {
     setError(null);
     setRunLines([]);
@@ -186,6 +192,7 @@ export function useDesignReviews(): UseDesignReviewsReturn {
     cancelReview,
     adoptTemplate,
     isAdopting,
+    deleteReview,
     adoptError,
   };
 }

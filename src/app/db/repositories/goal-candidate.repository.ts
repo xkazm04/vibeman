@@ -1,5 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbGoalCandidate } from '../models/types';
+import { buildUpdateStatement } from './repository.utils';
 
 /**
  * Goal Candidate Repository
@@ -44,54 +45,6 @@ export const goalCandidateRepository = {
     `);
     const candidate = stmt.get(candidateId) as DbGoalCandidate | undefined;
     return candidate || null;
-  },
-
-  /**
-   * Create a new goal candidate
-   */
-  createCandidate: (candidate: {
-    id: string;
-    project_id: string;
-    context_id?: string;
-    title: string;
-    description?: string;
-    reasoning?: string;
-    priority_score: number;
-    source: string;
-    source_metadata?: string;
-    suggested_status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
-  }): DbGoalCandidate => {
-    const db = getDatabase();
-    const now = new Date().toISOString();
-
-    const stmt = db.prepare(`
-      INSERT INTO goal_candidates (
-        id, project_id, context_id, title, description, reasoning,
-        priority_score, source, source_metadata, suggested_status,
-        user_action, created_at, updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      candidate.id,
-      candidate.project_id,
-      candidate.context_id || null,
-      candidate.title,
-      candidate.description || null,
-      candidate.reasoning || null,
-      candidate.priority_score,
-      candidate.source,
-      candidate.source_metadata || null,
-      candidate.suggested_status || 'open',
-      'pending',
-      now,
-      now
-    );
-
-    // Return the created candidate
-    const selectStmt = db.prepare('SELECT * FROM goal_candidates WHERE id = ?');
-    return selectStmt.get(candidate.id) as DbGoalCandidate;
   },
 
   /**
@@ -162,64 +115,27 @@ export const goalCandidateRepository = {
     context_id?: string | null;
   }): DbGoalCandidate | null => {
     const db = getDatabase();
-    const now = new Date().toISOString();
 
-    // Build dynamic update query
-    const updateFields: string[] = [];
-    const values: (string | number | null)[] = [];
+    const result = buildUpdateStatement(
+      db,
+      'goal_candidates',
+      updates as Record<string, unknown>,
+      'id',
+      ['id', 'project_id', 'created_at', 'updated_at'],
+    );
 
-    if (updates.title !== undefined) {
-      updateFields.push('title = ?');
-      values.push(updates.title);
-    }
-    if (updates.description !== undefined) {
-      updateFields.push('description = ?');
-      values.push(updates.description || null);
-    }
-    if (updates.priority_score !== undefined) {
-      updateFields.push('priority_score = ?');
-      values.push(updates.priority_score);
-    }
-    if (updates.suggested_status !== undefined) {
-      updateFields.push('suggested_status = ?');
-      values.push(updates.suggested_status);
-    }
-    if (updates.user_action !== undefined) {
-      updateFields.push('user_action = ?');
-      values.push(updates.user_action);
-    }
-    if (updates.goal_id !== undefined) {
-      updateFields.push('goal_id = ?');
-      values.push(updates.goal_id);
-    }
-    if (updates.context_id !== undefined) {
-      updateFields.push('context_id = ?');
-      values.push(updates.context_id);
-    }
-
-    if (updateFields.length === 0) {
+    if (!result) {
       // No updates to make
       const selectStmt = db.prepare('SELECT * FROM goal_candidates WHERE id = ?');
       return selectStmt.get(id) as DbGoalCandidate | null;
     }
 
-    updateFields.push('updated_at = ?');
-    values.push(now);
-    values.push(id);
+    const runResult = result.stmt.run(...result.values, id);
 
-    const stmt = db.prepare(`
-      UPDATE goal_candidates
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `);
-
-    const result = stmt.run(...values);
-
-    if (result.changes === 0) {
+    if (runResult.changes === 0) {
       return null; // Candidate not found
     }
 
-    // Return the updated candidate
     const selectStmt = db.prepare('SELECT * FROM goal_candidates WHERE id = ?');
     return selectStmt.get(id) as DbGoalCandidate;
   },

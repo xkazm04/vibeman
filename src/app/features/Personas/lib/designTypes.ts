@@ -5,6 +5,13 @@
 
 import type { StructuredPromptSection } from '@/lib/personas/promptMigration';
 
+/** A question from the design engine asking for user clarification */
+export interface DesignQuestion {
+  question: string;
+  options?: string[];
+  context?: string;
+}
+
 /** A structured highlight category from design analysis */
 export interface DesignHighlight {
   category: string;       // "Connectors & Permissions", "Events & Triggers", etc.
@@ -72,7 +79,7 @@ export interface SuggestedTrigger {
 }
 
 /** Phase of the design analysis lifecycle */
-export type DesignPhase = 'idle' | 'analyzing' | 'preview' | 'applying' | 'applied' | 'refining';
+export type DesignPhase = 'idle' | 'analyzing' | 'preview' | 'applying' | 'applied' | 'refining' | 'awaiting-input';
 
 /** Result of a design feasibility test */
 export interface DesignTestResult {
@@ -93,4 +100,5 @@ export interface DesignStatus {
   done: boolean;
   result: DesignAnalysisResult | null;
   error: string | null;
+  question?: DesignQuestion | null;
 }

@@ -31,6 +31,12 @@ import type {
   HealingIssueSeverity,
   HealingIssueCategory,
   HealingIssueStatus,
+  DbPersonaGroup,
+  CreatePersonaGroupInput,
+  UpdatePersonaGroupInput,
+  DbPersonaMemory,
+  PersonaMemoryCategory,
+  CreatePersonaMemoryInput,
 } from '@/app/db/models/persona.types';
 
 // Re-export DB types for convenience
@@ -63,6 +69,12 @@ export type {
   HealingIssueSeverity,
   HealingIssueCategory,
   HealingIssueStatus,
+  DbPersonaGroup,
+  CreatePersonaGroupInput,
+  UpdatePersonaGroupInput,
+  DbPersonaMemory,
+  PersonaMemoryCategory,
+  CreatePersonaMemoryInput,
 };
 
 /** Persona with associated tools, triggers, and event subscriptions */
@@ -114,7 +126,7 @@ export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' 
 export type EditorTab = 'prompt' | 'executions' | 'settings';
 
 /** Overview sub-tab types */
-export type OverviewTab = 'executions' | 'manual-review' | 'messages' | 'usage' | 'events' | 'observability';
+export type OverviewTab = 'executions' | 'manual-review' | 'messages' | 'usage' | 'events' | 'observability' | 'realtime' | 'memories';
 
 /** Tool usage summary row */
 export interface ToolUsageSummary {
@@ -191,6 +203,7 @@ export interface UpdatePersonaInput {
   max_budget_usd?: number | null;
   max_turns?: number | null;
   design_context?: string | null;
+  group_id?: string | null;
 }
 
 /** Parsed frontend connector definition (JSON fields pre-parsed) */

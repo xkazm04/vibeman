@@ -56,23 +56,6 @@ export const goalSignalRepository = {
     `).all(goalId, limit) as DbGoalSignal[];
   },
 
-  getByProject: (projectId: string, limit: number = 100): DbGoalSignal[] => {
-    const db = getDatabase();
-    return db.prepare(`
-      SELECT * FROM goal_signals WHERE project_id = ? ORDER BY created_at DESC LIMIT ?
-    `).all(projectId, limit) as DbGoalSignal[];
-  },
-
-  getRecentByType: (goalId: string, signalType: string, windowHours: number = 24): DbGoalSignal[] => {
-    const db = getDatabase();
-    const cutoff = new Date(Date.now() - windowHours * 3600000).toISOString();
-    return db.prepare(`
-      SELECT * FROM goal_signals
-      WHERE goal_id = ? AND signal_type = ? AND created_at > ?
-      ORDER BY created_at DESC
-    `).all(goalId, signalType, cutoff) as DbGoalSignal[];
-  },
-
   getSignalCounts: (goalId: string): Record<string, number> => {
     const db = getDatabase();
     const rows = db.prepare(`
@@ -94,25 +77,6 @@ export const goalSignalRepository = {
  * Manages AI-decomposed sub-objectives within a parent goal
  */
 export const goalSubGoalRepository = {
-  create: (subGoal: {
-    parent_goal_id: string;
-    project_id: string;
-    title: string;
-    description?: string;
-    order_index: number;
-  }): DbGoalSubGoal => {
-    const db = getDatabase();
-    const id = generateId('gsg');
-    const now = new Date().toISOString();
-
-    db.prepare(`
-      INSERT INTO goal_sub_goals (id, parent_goal_id, project_id, title, description, order_index, status, progress, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'open', 0, ?, ?)
-    `).run(id, subGoal.parent_goal_id, subGoal.project_id, subGoal.title, subGoal.description || null, subGoal.order_index, now, now);
-
-    return db.prepare('SELECT * FROM goal_sub_goals WHERE id = ?').get(id) as DbGoalSubGoal;
-  },
-
   createBatch: (subGoals: Array<{
     parent_goal_id: string;
     project_id: string;
@@ -178,12 +142,6 @@ export const goalSubGoalRepository = {
 
     db.prepare(`UPDATE goal_sub_goals SET ${fields.join(', ')} WHERE id = ?`).run(...values);
     return db.prepare('SELECT * FROM goal_sub_goals WHERE id = ?').get(id) as DbGoalSubGoal | null;
-  },
-
-  delete: (id: string): boolean => {
-    const db = getDatabase();
-    const result = db.prepare('DELETE FROM goal_sub_goals WHERE id = ?').run(id);
-    return (result as any).changes > 0;
   },
 
   deleteByParent: (parentGoalId: string): number => {

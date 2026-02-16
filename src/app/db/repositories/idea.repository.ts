@@ -59,6 +59,32 @@ export const ideaRepository = {
   },
 
   /**
+   * Count ideas by project, date range, and optional status (SQL-filtered)
+   */
+  countIdeasByProjectInRange: (
+    projectId: string,
+    startDate: string,
+    endDate: string,
+    status?: string
+  ): number => {
+    const db = getDatabase();
+    if (status) {
+      const stmt = db.prepare(`
+        SELECT COUNT(*) as count FROM ideas
+        WHERE project_id = ? AND created_at >= ? AND created_at <= ? AND status = ?
+      `);
+      const result = stmt.get(projectId, startDate, endDate, status) as { count: number };
+      return result.count;
+    }
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM ideas
+      WHERE project_id = ? AND created_at >= ? AND created_at <= ?
+    `);
+    const result = stmt.get(projectId, startDate, endDate) as { count: number };
+    return result.count;
+  },
+
+  /**
    * Get ideas by scan ID
    * More efficient than fetching all project ideas and filtering in memory
    */
@@ -227,14 +253,6 @@ export const ideaRepository = {
       return null; // Return null if invalid instead of defaulting
     }
     return num;
-  },
-
-  /**
-   * @deprecated Use validateScore instead - kept for backwards compatibility
-   * Validate effort/impact value (must be 1-10 or null)
-   */
-  validateEffortImpact: (value: number | null | undefined): number | null => {
-    return ideaRepository.validateScore(value);
   },
 
   /**

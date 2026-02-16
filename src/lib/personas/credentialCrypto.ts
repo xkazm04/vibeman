@@ -58,6 +58,46 @@ export function decryptCredential(encrypted: string, iv: string): string {
 }
 
 /**
+ * Encrypt a string into a single combined token: "enc:<iv_hex>:<ciphertext_hex>"
+ * Useful for columns that store encrypted data in a single field.
+ */
+export function encryptField(data: string): string {
+  const { encrypted, iv } = encryptCredential(data);
+  return `enc:${iv}:${encrypted}`;
+}
+
+/**
+ * Decrypt a combined "enc:<iv_hex>:<ciphertext_hex>" token back to plaintext.
+ * Returns null if the input is not in encrypted format (backward compatible).
+ */
+export function decryptField(value: string): string | null {
+  if (!value.startsWith('enc:')) return null;
+  const parts = value.split(':');
+  if (parts.length < 3) return null;
+  const iv = parts[1];
+  const encrypted = parts.slice(2).join(':');
+  return decryptCredential(encrypted, iv);
+}
+
+/**
+ * Check if a value is in encrypted field format.
+ */
+export function isEncryptedField(value: string | null): boolean {
+  return value != null && value.startsWith('enc:');
+}
+
+/**
+ * Decrypt a field, falling back to the raw value for unencrypted legacy data.
+ */
+export function decryptFieldOrRaw(value: string): string {
+  if (value.startsWith('enc:')) {
+    const decrypted = decryptField(value);
+    if (decrypted !== null) return decrypted;
+  }
+  return value;
+}
+
+/**
  * Write credential data to a temporary file for tool script consumption.
  * Returns the temp file path. Caller MUST delete this file after use.
  */

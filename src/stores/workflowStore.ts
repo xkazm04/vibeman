@@ -40,42 +40,6 @@ export interface QuickAction {
   action?: () => void;
 }
 
-// Workflow template defining common user journeys
-export interface WorkflowTemplate {
-  id: string;
-  name: string;
-  description: string;
-  steps: AppModule[];
-}
-
-// Predefined workflow templates
-export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
-  {
-    id: 'idea-to-implementation',
-    name: 'Idea to Implementation',
-    description: 'Full cycle from idea generation to code execution',
-    steps: ['ideas', 'tinder', 'coder', 'tasker'],
-  },
-  {
-    id: 'context-review',
-    name: 'Context Review',
-    description: 'Review and organize code contexts',
-    steps: ['contexts', 'ideas', 'manager'],
-  },
-  {
-    id: 'daily-standup',
-    name: 'Daily Standup',
-    description: 'Morning workflow for daily progress',
-    steps: ['coder', 'tasker', 'manager'],
-  },
-  {
-    id: 'refactoring-flow',
-    name: 'Refactoring Flow',
-    description: 'Analyze and refactor code systematically',
-    steps: ['refactor', 'contexts', 'tasker'],
-  },
-];
-
 // Module metadata for quick navigation
 export const MODULE_METADATA: Record<AppModule, { label: string; description: string; keywords: string[]; icon: string }> = {
   overview: { label: 'Overview', description: 'Architecture and system overview', keywords: ['overview', 'architecture', 'dashboard', 'system', 'map'], icon: 'Compass' },
@@ -117,10 +81,6 @@ interface WorkflowState {
     timestamp: number;
   }>;
 
-  // Active workflow template (if following a predefined workflow)
-  activeWorkflow: WorkflowTemplate | null;
-  workflowProgress: number; // 0-based index of current step in workflow
-
   // Suggested next actions based on context
   suggestions: WorkflowSuggestion[];
 
@@ -140,11 +100,6 @@ interface WorkflowState {
   addRecentEntity: (entity: Omit<WorkflowState['recentEntities'][0], 'timestamp'>) => void;
   clearRecentEntities: () => void;
 
-  // Workflow templates
-  startWorkflow: (template: WorkflowTemplate) => void;
-  advanceWorkflow: () => void;
-  exitWorkflow: () => void;
-
   // Suggestions
   setSuggestions: (suggestions: WorkflowSuggestion[]) => void;
   generateSuggestions: (currentModule: AppModule, projectId?: string) => void;
@@ -158,8 +113,6 @@ export const useWorkflowStore = create<WorkflowState>()(
       isCommandPaletteOpen: false,
       commandPaletteQuery: '',
       recentEntities: [],
-      activeWorkflow: null,
-      workflowProgress: 0,
       suggestions: [],
 
       pushStep: (step) => {
@@ -225,26 +178,6 @@ export const useWorkflowStore = create<WorkflowState>()(
       },
 
       clearRecentEntities: () => set({ recentEntities: [] }),
-
-      startWorkflow: (template) => set({
-        activeWorkflow: template,
-        workflowProgress: 0,
-      }),
-
-      advanceWorkflow: () => {
-        const { activeWorkflow, workflowProgress } = get();
-        if (!activeWorkflow) return;
-
-        const nextProgress = workflowProgress + 1;
-        if (nextProgress >= activeWorkflow.steps.length) {
-          // Workflow complete
-          set({ activeWorkflow: null, workflowProgress: 0 });
-        } else {
-          set({ workflowProgress: nextProgress });
-        }
-      },
-
-      exitWorkflow: () => set({ activeWorkflow: null, workflowProgress: 0 }),
 
       setSuggestions: (suggestions) => set({ suggestions }),
 

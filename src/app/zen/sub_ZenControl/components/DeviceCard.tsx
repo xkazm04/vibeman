@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Monitor, Tablet, Wifi, WifiOff, Play, Loader2 } from 'lucide-react';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
+import { getStatusColor, getStatusText } from '../lib/deviceUtils';
 
 interface DeviceCardProps {
   device: RemoteDevice;
@@ -15,31 +16,6 @@ function getDeviceIcon(deviceType: string) {
   return deviceType === 'emulator' ? Tablet : Monitor;
 }
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'online':
-      return 'bg-green-400';
-    case 'busy':
-      return 'bg-amber-400 animate-pulse';
-    case 'idle':
-      return 'bg-cyan-400';
-    default:
-      return 'bg-gray-500';
-  }
-}
-
-function getStatusText(status: string): string {
-  switch (status) {
-    case 'online':
-      return 'Online';
-    case 'busy':
-      return 'Busy';
-    case 'idle':
-      return 'Idle';
-    default:
-      return 'Offline';
-  }
-}
 
 function formatLastSeen(lastHeartbeat: string): string {
   const last = new Date(lastHeartbeat);

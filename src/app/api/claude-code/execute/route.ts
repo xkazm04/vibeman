@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateRequired, errorResponse } from '../helpers';
+import { validateRequired, errorResponse } from '@/lib/api-errors';
 import { queueExecution, executeSync } from '../executionHandlers';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';

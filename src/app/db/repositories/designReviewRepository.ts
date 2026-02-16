@@ -96,6 +96,13 @@ export const designReviewRepository = {
     return (result as { changes: number }).changes;
   },
 
+  /** Delete a single review by ID */
+  deleteById(id: string): boolean {
+    const db = getConnection();
+    const result = db.prepare('DELETE FROM persona_design_reviews WHERE id = ?').run(id);
+    return (result as { changes: number }).changes > 0;
+  },
+
   /** Get passing reviews for reference pattern matching */
   getPassingReviews(maxAgeDays: number = 30): Record<string, unknown>[] {
     const db = getConnection();

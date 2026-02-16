@@ -21,7 +21,12 @@ const PUBLISHER_STRUCTURED: StructuredPrompt = {
 After emitting the event, output a brief confirmation:
 "Event emitted successfully. The event bus should deliver this to any subscribed personas."
 
-Do NOT use any tools. Do NOT perform any other actions. Just emit the event and confirm.`,
+Do NOT use any tools. Do NOT perform any other actions. Just emit the event and confirm.
+
+Then output your execution flow diagram:
+\`\`\`json
+{"execution_flow": {"flows": [{"id": "flow-pub", "name": "Publish Ping Event", "description": "Scheduled ping event publication to event bus", "nodes": [{"id": "n1", "type": "start", "label": "Schedule trigger"}, {"id": "n2", "type": "action", "label": "Build payload", "detail": "Construct test ping payload with timestamp", "response_data": "{\\"event_type\\": \\"ping\\", \\"timestamp\\": \\"...\\"}"}, {"id": "n3", "type": "event", "label": "Emit ping event", "detail": "Publish to persona event bus", "request_data": "{\\"type\\": \\"custom\\", \\"payload\\": {\\"ping\\": true}}"}, {"id": "n4", "type": "end", "label": "Confirmed"}], "edges": [{"id": "e1", "source": "n1", "target": "n2"}, {"id": "e2", "source": "n2", "target": "n3"}, {"id": "e3", "source": "n3", "target": "n4"}]}]}}
+\`\`\``,
   toolGuidance: 'This persona does not use any tools. All output is via JSON protocol blocks.',
   examples: `Example output:
 {"emit_event": {"type": "ping", "data": {"message": "Hello from Event Publisher", "timestamp": "2026-02-11T20:00:00.000Z", "test_run": true}}}
@@ -41,7 +46,12 @@ Based on the event data, send a message to the user by outputting this JSON bloc
 After sending the message, output a brief confirmation:
 "Message sent. The event bus smoke test is complete."
 
-Do NOT use any tools. Do NOT perform any other actions. Just read the event and send the message.`,
+Do NOT use any tools. Do NOT perform any other actions. Just read the event and send the message.
+
+Then output your execution flow diagram:
+\`\`\`json
+{"execution_flow": {"flows": [{"id": "flow-listen", "name": "Process Ping Event", "description": "Receive and respond to ping events from event bus", "nodes": [{"id": "n1", "type": "start", "label": "Event received"}, {"id": "n2", "type": "action", "label": "Parse payload", "detail": "Extract and validate event data", "request_data": "{\\"event_type\\": \\"custom\\", \\"payload\\": {\\"ping\\": true}}"}, {"id": "n3", "type": "decision", "label": "Valid payload?"}, {"id": "n4", "type": "action", "label": "Build response", "detail": "Compose pong acknowledgement message", "response_data": "{\\"pong\\": true, \\"received_at\\": \\"...\\"}"}, {"id": "n5", "type": "event", "label": "Send pong message", "detail": "Deliver acknowledgement via messaging system"}, {"id": "n6", "type": "end", "label": "Complete"}, {"id": "n7", "type": "error", "label": "Log error", "error_message": "Invalid or missing payload data"}], "edges": [{"id": "e1", "source": "n1", "target": "n2"}, {"id": "e2", "source": "n2", "target": "n3"}, {"id": "e3", "source": "n3", "target": "n4", "label": "Yes", "variant": "yes"}, {"id": "e4", "source": "n4", "target": "n5"}, {"id": "e5", "source": "n5", "target": "n6"}, {"id": "e6", "source": "n3", "target": "n7", "label": "No", "variant": "no"}, {"id": "e7", "source": "n7", "target": "n6", "variant": "error"}]}]}}
+\`\`\``,
   toolGuidance: 'This persona does not use any tools. All output is via JSON protocol blocks.',
   examples: `Example output when triggered by a ping event:
 {"user_message": {"title": "Pong! Event Received", "content": "Successfully received event from the event bus. Event type: custom. Payload: A ping from Event Publisher with test_run=true. The persona event bus is working end-to-end!", "priority": "normal"}}

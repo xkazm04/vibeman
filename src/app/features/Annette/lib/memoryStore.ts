@@ -93,22 +93,6 @@ export const memoryStore = {
   },
 
   /**
-   * Get memories for a session
-   */
-  getBySession(sessionId: string, limit = 100): Memory[] {
-    const dbMemories = annetteDb.memories.getBySession(sessionId, limit);
-    return dbMemories.map(dbToMemory);
-  },
-
-  /**
-   * Get recently accessed memories
-   */
-  getRecentlyAccessed(projectId: string, limit = 20): Memory[] {
-    const dbMemories = annetteDb.memories.getRecentActive(projectId, limit);
-    return dbMemories.map(dbToMemory);
-  },
-
-  /**
    * Update memory importance
    */
   updateImportance(id: string, importance: number): void {
@@ -120,14 +104,6 @@ export const memoryStore = {
    */
   applyDecay(projectId: string, decayRate = 0.99): number {
     return annetteDb.memories.applyDecay(projectId, decayRate);
-  },
-
-  /**
-   * Get stale memories that need consolidation
-   */
-  getStaleMemories(projectId: string, maxDecayFactor = 0.1): Memory[] {
-    const dbMemories = annetteDb.memories.getStaleMemories(projectId, maxDecayFactor);
-    return dbMemories.map(dbToMemory);
   },
 
   /**

@@ -47,7 +47,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 function contextToListItem(
   context: DbContext,
   isSelected: boolean,
-  _parsedFilePaths?: string[] // Pre-parsed for efficiency (currently unused but available for future badges)
+  parsedFilePaths?: string[]
 ): CompactListItem {
   // Build badges array
   const badges: CompactListItem['badges'] = [];
@@ -58,6 +58,15 @@ function contextToListItem(
       icon: FileCode,
       label: context.category,
       color: CATEGORY_COLORS[context.category] || 'text-gray-400'
+    });
+  }
+
+  // File count badge
+  const fileCount = parsedFilePaths?.length ?? 0;
+  if (fileCount > 0) {
+    badges.push({
+      label: `${fileCount}f`,
+      color: 'text-gray-500'
     });
   }
 
@@ -100,6 +109,14 @@ export default function ContextMapSelector({
     }
     return map;
   }, [allContexts]);
+
+  const totalFileCount = useMemo(() => {
+    let count = 0;
+    for (const paths of parsedFilePathsMap.values()) {
+      count += paths.length;
+    }
+    return count;
+  }, [parsedFilePathsMap]);
 
   const handleSetup = async () => {
     if (!onSetupContextMap) return;
@@ -215,7 +232,7 @@ export default function ContextMapSelector({
           <Layers className="w-4 h-4" />
           <span className="text-sm font-medium">Contexts</span>
           <span className="text-xs text-gray-500">
-            ({selectedContextIds.length}/{allContexts.length} selected)
+            ({selectedContextIds.length}/{allContexts.length} selected{totalFileCount > 0 ? ` \u00b7 ${totalFileCount} files` : ''})
           </span>
         </div>
         <div className="flex gap-2">

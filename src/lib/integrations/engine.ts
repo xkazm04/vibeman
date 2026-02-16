@@ -15,6 +15,7 @@ import type {
   IntegrationProvider,
 } from '@/app/db/models/integration.types';
 import { isEventSupported } from './registry';
+import { decryptFieldOrRaw } from '@/lib/personas/credentialCrypto';
 import { GitHubConnector } from './connectors/github';
 import { SlackConnector } from './connectors/slack';
 import { DiscordConnector } from './connectors/discord';
@@ -172,7 +173,9 @@ export class IntegrationEngine {
     }
 
     const config = parseJson<Record<string, unknown>>(integration.config, {});
-    const credentials = parseJson<Record<string, unknown>>(integration.credentials, {});
+    // Decrypt credentials — handles both encrypted ("enc:...") and legacy plaintext formats
+    const rawCreds = integration.credentials ? decryptFieldOrRaw(integration.credentials) : null;
+    const credentials = parseJson<Record<string, unknown>>(rawCreds, {});
 
     // For webhook integrations, get additional config from webhooks table
     if (integration.provider === 'webhook') {
@@ -182,7 +185,7 @@ export class IntegrationEngine {
           url: webhook.url,
           method: webhook.method,
           headers: parseJson(webhook.headers, {}),
-          secret: webhook.secret,
+          secret: webhook.secret ? decryptFieldOrRaw(webhook.secret) : webhook.secret,
           retryOnFailure: webhook.retry_on_failure === 1,
           maxRetries: webhook.max_retries,
           timeoutMs: webhook.timeout_ms,

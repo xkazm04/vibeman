@@ -468,6 +468,8 @@ export async function executePersona(input: ExecutionInput): Promise<ExecutionRe
           parseManualReviews(assistantText, input.executionId, input.persona.id);
           // Parse user message blocks (backup for multi-line JSON not caught mid-stream)
           parseUserMessages(assistantText, input.executionId, input.persona.id);
+          // Parse agent memory blocks (knowledge/facts the agent wants to remember)
+          parseAgentMemories(assistantText, input.executionId, input.persona.id);
           // Record tool usage for analytics
           recordToolUsage(toolUseCounts, input.executionId, input.persona.id);
           // Parse execution flow diagrams from output
@@ -682,6 +684,46 @@ function parseUserMessages(output: string, executionId: string, personaId: strin
     }
   } catch {
     // Don't let message parsing errors affect execution
+  }
+}
+
+/**
+ * Parse agent_memory JSON blocks from execution output and store as memories.
+ */
+function parseAgentMemories(output: string, executionId: string, personaId: string): void {
+  if (!output) return;
+
+  try {
+    const regex = /\{[\s\S]*?"agent_memory"[\s\S]*?\{[\s\S]*?\}[\s\S]*?\}/g;
+    const matches = output.match(regex);
+    if (!matches) return;
+
+    for (const match of matches) {
+      try {
+        const parsed = JSON.parse(match);
+        if (parsed.agent_memory && typeof parsed.agent_memory === 'object') {
+          const mem = parsed.agent_memory;
+          const { personaMemoryRepository } = require('@/app/db/repositories/personaMemoryRepository');
+          personaMemoryRepository.create({
+            persona_id: personaId,
+            title: (mem.title || 'Untitled Memory').slice(0, 200),
+            content: mem.content || '',
+            category: ['fact', 'decision', 'insight', 'learning', 'warning'].includes(mem.category)
+              ? mem.category
+              : 'fact',
+            source_execution_id: executionId,
+            importance: typeof mem.importance === 'number'
+              ? Math.min(5, Math.max(1, Math.round(mem.importance)))
+              : 3,
+            tags: Array.isArray(mem.tags) ? mem.tags.map(String).slice(0, 10) : undefined,
+          });
+        }
+      } catch {
+        // Individual match parse failure - skip
+      }
+    }
+  } catch {
+    // Don't let memory parsing errors affect execution
   }
 }
 

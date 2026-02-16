@@ -8,6 +8,7 @@ import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
 import { InsightsTable } from './InsightsTable';
 import type { InsightWithMeta, InsightType, SortField, SortDir } from './InsightsTable';
+import GlowCard from './GlowCard';
 
 interface Props {
   scope?: 'project' | 'global';
@@ -323,40 +324,9 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     return list;
   }, [insights, typeFilter, sortField, sortDir, debouncedSearch]);
 
-  const baseCardStyle = {
-    background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
-    boxShadow: `0 0 40px ${GLOW_COLOR}, inset 0 1px 0 rgba(255,255,255,0.05)`
-  };
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-2xl border border-amber-500/20 backdrop-blur-xl"
-      style={baseCardStyle}
-    >
-      {/* Grid pattern overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(${ACCENT_COLOR} 1px, transparent 1px), linear-gradient(90deg, ${ACCENT_COLOR} 1px, transparent 1px)`,
-          backgroundSize: '20px 20px'
-        }}
-      />
-
-      {/* Ambient glow */}
-      <div
-        className="absolute -top-1/2 -right-1/2 w-full h-full blur-3xl pointer-events-none opacity-20"
-        style={{ background: `radial-gradient(circle, ${ACCENT_COLOR} 0%, transparent 70%)` }}
-      />
-
-      {/* Corner markers */}
-      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: ACCENT_COLOR }} />
-      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg" style={{ borderColor: ACCENT_COLOR }} />
-      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg" style={{ borderColor: ACCENT_COLOR }} />
-      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: ACCENT_COLOR }} />
-
-      <div className="relative z-10 p-6">
+    <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-amber-500/20">
+      <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <motion.div
@@ -481,12 +451,6 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
           />
         )}
       </div>
-
-      {/* Bottom accent line */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-0.5"
-        style={{ background: `linear-gradient(90deg, transparent, ${ACCENT_COLOR}, transparent)` }}
-      />
-    </motion.div>
+    </GlowCard>
   );
 }

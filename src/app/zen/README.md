@@ -26,9 +26,12 @@ src/app/zen/
 │   └── zenStore.ts             # Main Zustand store (mode, stats)
 ├── components/
 │   ├── ZenHeader.tsx           # Header with connection status & clock
-│   ├── ZenBatchSelector.tsx    # Dropdown to select batch to monitor
-│   ├── ZenStats.tsx            # Completed/Pending/Failed counters
-│   └── ZenTaskFeed.tsx         # Real-time activity feed
+│   ├── ZenCommandCenter.tsx    # Main command interface
+│   ├── ZenSessionGrid.tsx      # Session grid layout
+│   ├── ZenSessionPanel.tsx     # Individual session panel
+│   ├── ZenEventSidebar.tsx     # Real-time activity sidebar
+│   ├── ZenStatusBar.tsx        # Status bar with counters
+│   └── ModeToggleGroup.tsx     # Mode toggle controls
 └── sub_ZenControl/
     ├── ZenControlPanel.tsx     # Main control panel with Supabase integration
     ├── lib/

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Power, PowerOff, Loader2, RefreshCw } from 'lucide-react';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
+import { getStatusColor } from '../lib/deviceUtils';
 import BreakpointJumperBar from './BreakpointJumperBar';
 
 interface EmulatorHeaderProps {
@@ -104,13 +105,7 @@ export default function EmulatorHeader({
             {selectedDevice ? (
               <>
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    selectedDevice.status === 'online'
-                      ? 'bg-green-400'
-                      : selectedDevice.status === 'busy'
-                      ? 'bg-amber-400'
-                      : 'bg-gray-400'
-                  }`}
+                  className={`w-2 h-2 rounded-full ${getStatusColor(selectedDevice.status)}`}
                 />
                 <span className="text-gray-200 max-w-[120px] truncate">
                   {selectedDevice.device_name}
@@ -190,13 +185,7 @@ export default function EmulatorHeader({
                         `}
                       >
                         <div
-                          className={`w-2 h-2 rounded-full ${
-                            device.status === 'online'
-                              ? 'bg-green-400'
-                              : device.status === 'busy'
-                              ? 'bg-amber-400'
-                              : 'bg-gray-400'
-                          }`}
+                          className={`w-2 h-2 rounded-full ${getStatusColor(device.status)}`}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-gray-200 truncate">{device.device_name}</p>

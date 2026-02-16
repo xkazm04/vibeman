@@ -33,22 +33,6 @@ export type ScanType =
 
 export type ScanState = 'idle' | 'scanning' | 'success' | 'error';
 
-export interface QueueItem {
-  scanType: ScanType;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  ideaCount: number;
-  error?: string;
-}
-
-export interface ContextQueueItem {
-  contextId: string | null;
-  contextName: string;
-  scanType: ScanType;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  ideaCount: number;
-  error?: string;
-}
-
 export type AgentCategory = 'technical' | 'user' | 'business' | 'mastermind';
 
 /**
@@ -509,11 +493,6 @@ export function getScanTypeName(scanType: ScanType): string {
   return AGENT_REGISTRY[scanType]?.label ?? scanType;
 }
 
-/** @deprecated Use getAgentsByCategory() instead */
-export function getScanTypesByCategory(category: ScanTypeConfig['category']): ScanTypeConfig[] {
-  return SCAN_TYPE_CONFIGS.filter(t => t.category === category);
-}
-
 /** Check if a string is a valid scan type */
 export function isValidScanType(value: string): value is ScanType {
   return value in AGENT_REGISTRY;
@@ -522,12 +501,6 @@ export function isValidScanType(value: string): value is ScanType {
 /** Get abbreviation for a scan type */
 export function getScanTypeAbbr(scanType: ScanType): string {
   return AGENT_REGISTRY[scanType]?.abbr ?? scanType.slice(0, 2);
-}
-
-/** Get scan type by abbreviation */
-export function getScanTypeByAbbr(abbr: string): ScanType | undefined {
-  const agent = getAllAgents().find(a => a.abbr === abbr);
-  return agent?.id;
 }
 
 /** Abbreviation to ScanType lookup map (for fast lookups) */

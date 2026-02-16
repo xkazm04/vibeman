@@ -22,6 +22,8 @@ import type {
   ToolUsageSummary,
   ToolUsageOverTime,
   PersonaUsageSummary,
+  DbPersonaGroup,
+  DbPersonaMemory,
 } from './types';
 
 const BASE = '/api/personas';
@@ -723,4 +725,74 @@ export async function triggerHealingAnalysis(personaId?: string): Promise<any[]>
 export async function resolveHealingIssue(id: string): Promise<void> {
   const res = await fetch(`/api/personas/healing/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to resolve healing issue');
+}
+
+// ============================================================================
+// Event Bus Test Flow
+// ============================================================================
+
+export async function triggerTestFlow(): Promise<{ ok: boolean; eventIds: string[]; message: string }> {
+  const res = await fetch('/api/personas/events/test-flow', { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to trigger test flow');
+  return res.json();
+}
+
+// ============================================================================
+// Groups
+// ============================================================================
+
+export async function fetchGroups(): Promise<DbPersonaGroup[]> {
+  const data = await fetchJson<{ groups: DbPersonaGroup[] }>(`${BASE}/groups`);
+  return data.groups || [];
+}
+
+export async function createGroup(input: { name: string; color?: string }): Promise<DbPersonaGroup> {
+  const data = await fetchJson<{ group: DbPersonaGroup }>(`${BASE}/groups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return data.group;
+}
+
+export async function updateGroup(id: string, updates: { name?: string; color?: string; collapsed?: number; sort_order?: number }): Promise<DbPersonaGroup> {
+  const data = await fetchJson<{ group: DbPersonaGroup }>(`${BASE}/groups`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...updates }),
+  });
+  return data.group;
+}
+
+export async function deleteGroup(id: string): Promise<void> {
+  await fetchJson(`${BASE}/groups`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+}
+
+export async function movePersonaToGroup(personaId: string, groupId: string | null): Promise<void> {
+  await updatePersona(personaId, { group_id: groupId });
+}
+
+// ============================================================================
+// Memories
+// ============================================================================
+
+export async function fetchMemories(
+  filters?: { persona_id?: string; category?: string; search?: string; limit?: number; offset?: number }
+): Promise<{ memories: DbPersonaMemory[]; total: number }> {
+  const params = new URLSearchParams();
+  if (filters?.persona_id) params.set('persona_id', filters.persona_id);
+  if (filters?.category) params.set('category', filters.category);
+  if (filters?.search) params.set('search', filters.search);
+  if (filters?.limit) params.set('limit', String(filters.limit));
+  if (filters?.offset) params.set('offset', String(filters.offset));
+  const qs = params.toString() ? `?${params}` : '';
+  return fetchJson<{ memories: DbPersonaMemory[]; total: number }>(`${BASE}/memories${qs}`);
+}
+
+export async function deleteMemory(id: string): Promise<void> {
+  await fetchJson(`${BASE}/memories/${id}`, { method: 'DELETE' });
 }

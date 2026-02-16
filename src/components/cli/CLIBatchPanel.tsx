@@ -90,9 +90,27 @@ export function CLIBatchPanel({
   }, [selectedRequirements, getRequirementId, addTasksToSession, updateTaskRunnerStatus, onClearSelection]);
 
   // Delete a session (abort execution if running, clear all state)
+  // Reset queued tasks back to open in TaskRunner store so they reappear in TaskColumn
   const handleDeleteSession = useCallback(async (sessionId: CLISessionId) => {
+    const session = sessions[sessionId];
+    // Collect queued task IDs before clearing the session
+    const queuedTaskIds = session.queue
+      .filter(t => t.status === 'pending')
+      .map(t => t.id);
+
     await abortSessionExecution(sessionId);
-  }, []);
+
+    // Reset queued tasks to open in TaskRunner store (delete from tasks map = idle/open)
+    if (queuedTaskIds.length > 0) {
+      useTaskRunnerStore.setState((state) => {
+        const newTasks = { ...state.tasks };
+        for (const id of queuedTaskIds) {
+          delete newTasks[id];
+        }
+        return { tasks: newTasks };
+      });
+    }
+  }, [sessions]);
 
   // Start session (enable autoStart)
   const handleStartSession = useCallback((sessionId: CLISessionId) => {

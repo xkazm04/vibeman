@@ -4,8 +4,6 @@
  */
 
 // Components
-export { MemoryBrowser } from './components/MemoryBrowser';
-export { KnowledgeGraphView } from './components/KnowledgeGraphView';
 export { MiniTerminal } from './components/MiniTerminal';
 export type { MiniTerminalProps } from './components/MiniTerminal';
 

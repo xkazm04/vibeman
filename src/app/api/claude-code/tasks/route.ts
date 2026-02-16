@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { errorResponse, successResponse } from '../helpers';
+import { errorResponse, successResponse } from '@/lib/api-errors';
 import { withObservability } from '@/lib/observability/middleware';
 
 /**

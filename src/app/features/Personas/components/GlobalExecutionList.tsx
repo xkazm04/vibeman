@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, RefreshCw, Workflow } from 'lucide-react';
 import { usePersonaStore } from '@/stores/personaStore';
 import type { GlobalExecution, PersonaExecutionStatus } from '@/app/features/Personas/lib/types';
+import ActivityDiagramModal from './ActivityDiagramModal';
+import type { UseCaseFlow } from '@/lib/personas/testing/flowTypes';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,7 +69,13 @@ export default function GlobalExecutionList() {
 
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [diagramExecution, setDiagramExecution] = useState<GlobalExecution | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const diagramFlows: UseCaseFlow[] = useMemo(() => {
+    if (!diagramExecution?.execution_flows) return [];
+    try { return JSON.parse(diagramExecution.execution_flows); } catch { return []; }
+  }, [diagramExecution]);
 
   // Initial fetch and filter changes
   useEffect(() => {
@@ -145,6 +153,7 @@ export default function GlobalExecutionList() {
               execution={exec}
               isExpanded={expandedId === exec.id}
               onToggle={() => setExpandedId(expandedId === exec.id ? null : exec.id)}
+              onShowDiagram={() => setDiagramExecution(exec)}
             />
           ))}
         </AnimatePresence>
@@ -161,6 +170,15 @@ export default function GlobalExecutionList() {
           </div>
         )}
       </div>
+
+      <ActivityDiagramModal
+        isOpen={!!diagramExecution}
+        onClose={() => setDiagramExecution(null)}
+        templateName={diagramExecution?.persona_name || 'Execution'}
+        titleOverride={diagramExecution ? `${diagramExecution.persona_name || 'Persona'} Execution` : undefined}
+        subtitleOverride={diagramExecution?.started_at ? new Date(diagramExecution.started_at).toLocaleString() : undefined}
+        flows={diagramFlows}
+      />
     </div>
   );
 }
@@ -173,10 +191,12 @@ function ExecutionRow({
   execution,
   isExpanded,
   onToggle,
+  onShowDiagram,
 }: {
   execution: GlobalExecution;
   isExpanded: boolean;
   onToggle: () => void;
+  onShowDiagram: () => void;
 }) {
   const status = statusConfig[execution.status] || statusConfig.queued;
 
@@ -189,9 +209,12 @@ function ExecutionRow({
       className="rounded-xl border border-border/40 bg-secondary/20 hover:bg-secondary/30 transition-colors overflow-hidden"
     >
       {/* Main row */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer"
       >
         {/* Expand icon */}
         <div className="text-muted-foreground/40">
@@ -232,13 +255,24 @@ function ExecutionRow({
           {formatRelativeTime(execution.started_at || execution.created_at)}
         </span>
 
+        {/* Execution flow diagram */}
+        {execution.execution_flows && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onShowDiagram(); }}
+            className="p-1.5 rounded-lg text-violet-400/60 hover:text-violet-400 hover:bg-violet-500/10 transition-colors"
+            title="View execution flow"
+          >
+            <Workflow className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Error (truncated) */}
         {execution.error_message && (
           <span className="flex-1 text-xs text-red-400/70 truncate ml-2">
             {execution.error_message}
           </span>
         )}
-      </button>
+      </div>
 
       {/* Expanded detail */}
       <AnimatePresence>

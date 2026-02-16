@@ -8,6 +8,7 @@ import { integrationDb, webhookDb } from '@/app/db';
 import { integrationEngine } from '@/lib/integrations';
 import type { IntegrationProvider } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
+import { decryptFieldOrRaw } from '@/lib/personas/credentialCrypto';
 
 /**
  * POST /api/integrations/test
@@ -43,7 +44,8 @@ export async function POST(request: Request) {
 
       testProvider = integration.provider;
       testConfig = safeJsonParse(integration.config, {});
-      testCredentials = safeJsonParse(integration.credentials, {});
+      const rawCreds = integration.credentials ? decryptFieldOrRaw(integration.credentials) : null;
+      testCredentials = safeJsonParse(rawCreds, {});
 
       // For webhook integrations, include webhook config
       if (testProvider === 'webhook') {
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
             url: webhook.url,
             method: webhook.method,
             headers: safeJsonParse(webhook.headers, {}),
-            secret: webhook.secret,
+            secret: webhook.secret ? decryptFieldOrRaw(webhook.secret) : webhook.secret,
             retryOnFailure: webhook.retry_on_failure === 1,
             maxRetries: webhook.max_retries,
             timeoutMs: webhook.timeout_ms,

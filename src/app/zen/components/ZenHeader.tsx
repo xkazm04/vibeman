@@ -25,25 +25,31 @@ export default function ZenHeader({ embedded = false }: ZenHeaderProps) {
   const { stats } = useZenStore();
   const [currentTime, setCurrentTime] = React.useState(new Date());
 
-  // Update clock every second
+  // Update clock every minute, aligned to the next minute boundary
   React.useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
+    const scheduleNext = () => {
+      const now = new Date();
+      const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+      return setTimeout(() => {
+        setCurrentTime(new Date());
+        timerRef.current = scheduleNext();
+      }, msUntilNextMinute);
+    };
+    const timerRef = { current: scheduleNext() };
+    return () => clearTimeout(timerRef.current);
   }, []);
 
-  // Format elapsed time
+  // Format elapsed time (minutes granularity)
   const formatElapsed = () => {
-    const elapsed = Math.floor((currentTime.getTime() - stats.sessionStart.getTime()) / 1000);
-    const hours = Math.floor(elapsed / 3600);
-    const minutes = Math.floor((elapsed % 3600) / 60);
-    const seconds = elapsed % 60;
+    const elapsedMs = currentTime.getTime() - stats.sessionStart.getTime();
+    const totalMinutes = Math.floor(elapsedMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
 
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
-    return `${minutes}m ${seconds}s`;
+    return `${minutes}m`;
   };
 
   return (

@@ -2,20 +2,20 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { BarChart3, Bot, Zap, Key, Plus, Activity, ClipboardCheck, MessageSquare, FlaskConical, LayoutGrid, Eye, Users } from 'lucide-react';
+import { BarChart3, Bot, Zap, Key, Plus, Activity, ClipboardCheck, MessageSquare, FlaskConical, LayoutGrid, Eye, Users, Radio, Brain } from 'lucide-react';
 import { usePersonaStore } from '@/stores/personaStore';
 import type { SidebarSection, OverviewTab } from '@/app/features/Personas/lib/types';
 import PersonaCard from './PersonaCard';
+import GroupedAgentSidebar from './GroupedAgentSidebar';
 import CreatePersonaModal from './CreatePersonaModal';
 
 const sections: Array<{ id: SidebarSection; icon: typeof Bot; label: string }> = [
-  { id: 'team', icon: Users, label: 'Teams' },
   { id: 'overview', icon: BarChart3, label: 'Overview' },
   { id: 'personas', icon: Bot, label: 'Agents' },
   { id: 'events', icon: Zap, label: 'Events' },
   { id: 'credentials', icon: Key, label: 'Keys' },
-  { id: 'observability', icon: Eye, label: 'Observability' },
   { id: 'design-reviews', icon: FlaskConical, label: 'Templates' },
+  { id: 'team', icon: Users, label: 'Teams' },
 ];
 
 export default function Sidebar() {
@@ -32,13 +32,16 @@ export default function Sidebar() {
   const fetchPendingReviewCount = usePersonaStore((s) => s.fetchPendingReviewCount);
   const unreadMessageCount = usePersonaStore((s) => s.unreadMessageCount);
   const fetchUnreadMessageCount = usePersonaStore((s) => s.fetchUnreadMessageCount);
+  const pendingEventCount = usePersonaStore((s) => s.pendingEventCount);
+  const fetchRecentEvents = usePersonaStore((s) => s.fetchRecentEvents);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     fetchPendingReviewCount();
     fetchUnreadMessageCount();
-  }, [fetchPendingReviewCount, fetchUnreadMessageCount]);
+    fetchRecentEvents();
+  }, [fetchPendingReviewCount, fetchUnreadMessageCount, fetchRecentEvents]);
 
   const handleCreatePersona = () => {
     setShowCreateModal(true);
@@ -48,7 +51,11 @@ export default function Sidebar() {
     { id: 'executions', icon: Activity, label: 'Executions' },
     { id: 'manual-review', icon: ClipboardCheck, label: 'Manual Review' },
     { id: 'messages', icon: MessageSquare, label: 'Messages' },
+    { id: 'events', icon: Zap, label: 'Events' },
     { id: 'usage', icon: BarChart3, label: 'Usage' },
+    { id: 'observability', icon: Eye, label: 'Observability' },
+    { id: 'realtime', icon: Radio, label: 'Realtime' },
+    { id: 'memories', icon: Brain, label: 'Memories' },
   ];
 
   const renderLevel2 = () => {
@@ -88,6 +95,11 @@ export default function Sidebar() {
                     {unreadMessageCount}
                   </span>
                 )}
+                {item.id === 'events' && pendingEventCount > 0 && (
+                  <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold leading-none rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                    {pendingEventCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -96,67 +108,7 @@ export default function Sidebar() {
     }
 
     if (sidebarSection === 'personas') {
-      return (
-        <>
-          {/* All Agents overview button */}
-          <button
-            onClick={() => selectPersona(null)}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 mb-2 rounded-xl transition-all ${
-              selectedPersonaId === null
-                ? 'bg-primary/10 border border-primary/20'
-                : 'hover:bg-secondary/50 border border-transparent'
-            }`}
-          >
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${
-              selectedPersonaId === null
-                ? 'bg-primary/15 border-primary/25'
-                : 'bg-secondary/40 border-primary/15'
-            }`}>
-              <LayoutGrid className={`w-3.5 h-3.5 ${selectedPersonaId === null ? 'text-primary' : 'text-muted-foreground/50'}`} />
-            </div>
-            <span className={`text-sm font-medium ${selectedPersonaId === null ? 'text-foreground/90' : 'text-muted-foreground/60'}`}>
-              All Agents
-            </span>
-            <span className="ml-auto text-[10px] font-mono text-muted-foreground/40">
-              {personas.length}
-            </span>
-          </button>
-
-          <button
-            onClick={handleCreatePersona}
-            className="w-full flex items-center gap-3 px-3 py-2.5 mb-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all group"
-          >
-            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Plus className="w-4 h-4 text-primary" />
-            </div>
-            <span className="text-sm font-medium text-primary/80 group-hover:text-primary">New Persona</span>
-          </button>
-
-          <AnimatePresence>
-            {personas.map((persona, i) => (
-              <motion.div
-                key={persona.id}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ delay: i * 0.03, duration: 0.2 }}
-              >
-                <PersonaCard
-                  persona={persona}
-                  isSelected={selectedPersonaId === persona.id}
-                  onClick={() => selectPersona(persona.id)}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {personas.length === 0 && (
-            <div className="text-center py-10 text-sm text-muted-foreground/50">
-              No personas yet
-            </div>
-          )}
-        </>
-      );
+      return <GroupedAgentSidebar onCreatePersona={handleCreatePersona} />;
     }
 
     if (sidebarSection === 'events') {
@@ -199,18 +151,6 @@ export default function Sidebar() {
             </div>
           )}
         </>
-      );
-    }
-
-    if (sidebarSection === 'observability') {
-      return (
-        <div className="text-center py-12">
-          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-            <Eye className="w-6 h-6 text-cyan-400/60" />
-          </div>
-          <p className="text-sm text-muted-foreground/60">Performance metrics</p>
-          <p className="text-xs text-muted-foreground/40 mt-1">Cost, tokens, execution health</p>
-        </div>
       );
     }
 

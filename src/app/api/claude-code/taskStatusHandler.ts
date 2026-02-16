@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import {
@@ -64,7 +66,6 @@ function reconstructTaskFromLog(
   logPath: string,
   logContent: string
 ): Task {
-  const path = require('path');
   const logFileName = path.basename(logPath, '.log');
   const requirementName = extractRequirementName(logFileName, taskId);
   const status = determineTaskStatus(logContent);
@@ -92,8 +93,6 @@ function reconstructTaskFromLog(
  * Searches for log file across all projects
  */
 async function findLogFileAcrossProjects(taskId: string): Promise<Task | null> {
-  const fs = await import('fs');
-  const path = await import('path');
   const { getLogsDirectory } = await import('@/app/Claude/lib/claudeCodeManager');
   const { projectDb } = await import('@/lib/project_database');
 

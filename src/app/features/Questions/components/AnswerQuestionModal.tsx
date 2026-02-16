@@ -23,15 +23,25 @@ export default function AnswerQuestionModal({
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const autoResize = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }, []);
+
   // Reset state when modal opens with new question
   useEffect(() => {
     if (isOpen && question) {
       setAnswer(question.answer || '');
       setError(null);
-      // Focus textarea after modal animation
-      setTimeout(() => textareaRef.current?.focus(), 100);
+      // Focus textarea and auto-resize after modal animation
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        autoResize();
+      }, 100);
     }
-  }, [isOpen, question?.id]);
+  }, [isOpen, question?.id, autoResize]);
 
   const handleSave = async () => {
     if (!question || !answer.trim()) return;
@@ -129,16 +139,22 @@ export default function AnswerQuestionModal({
                   <textarea
                     ref={textareaRef}
                     value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
+                    onChange={(e) => { setAnswer(e.target.value); autoResize(); }}
                     onKeyDown={handleKeyDown}
                     placeholder="Enter your answer..."
-                    rows={6}
-                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 resize-none"
+                    rows={3}
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 resize-none overflow-y-auto"
+                    style={{ maxHeight: '60vh' }}
                     disabled={saving}
                   />
-                  <p className="text-xs text-gray-500 mt-1.5">
-                    Press Ctrl+Enter to save
-                  </p>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <p className="text-xs text-gray-500">
+                      Press Ctrl+Enter to save
+                    </p>
+                    <p className={`text-xs ${answer.length > 2000 ? 'text-amber-400' : 'text-gray-500'}`}>
+                      {answer.length.toLocaleString()}{answer.length > 2000 ? ' / 2,000+ chars' : ' chars'}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Error */}

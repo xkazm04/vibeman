@@ -13,6 +13,35 @@ import {
 } from '../models/session.types';
 
 // ============================================================================
+// SHARED HELPERS
+// ============================================================================
+
+function buildStatsFromQuery<T extends Record<string, number>>(
+  table: string,
+  whereColumn: string,
+  paramValue: string,
+  defaultStats: T
+): T & { total: number } {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    SELECT status, COUNT(*) as count
+    FROM ${table}
+    WHERE ${whereColumn} = ?
+    GROUP BY status
+  `);
+  const rows = stmt.all(paramValue) as Array<{ status: string; count: number }>;
+
+  const stats = { ...defaultStats, total: 0 };
+  for (const row of rows) {
+    if (row.status in stats) {
+      (stats as Record<string, number>)[row.status] = row.count;
+    }
+    stats.total += row.count;
+  }
+  return stats;
+}
+
+// ============================================================================
 // SESSION REPOSITORY
 // ============================================================================
 
@@ -373,27 +402,6 @@ export const sessionRepository = {
   },
 
   /**
-   * Bulk update status for multiple sessions
-   */
-  bulkUpdateStatus(sessionIds: string[], status: ClaudeCodeSessionStatus): number {
-    if (sessionIds.length === 0) return 0;
-
-    const db = getDatabase();
-    const now = new Date().toISOString();
-
-    // Use placeholders for array of IDs
-    const placeholders = sessionIds.map(() => '?').join(',');
-    const stmt = db.prepare(`
-      UPDATE claude_code_sessions
-      SET status = ?, updated_at = ?
-      WHERE id IN (${placeholders})
-    `);
-
-    const result = stmt.run(status, now, ...sessionIds);
-    return result.changes;
-  },
-
-  /**
    * Delete multiple sessions by IDs
    */
   bulkDelete(sessionIds: string[]): number {
@@ -414,40 +422,13 @@ export const sessionRepository = {
   /**
    * Get session statistics for a project
    */
-  getStats(projectId: string): {
-    pending: number;
-    running: number;
-    paused: number;
-    completed: number;
-    failed: number;
-    total: number;
-  } {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT status, COUNT(*) as count
-      FROM claude_code_sessions
-      WHERE project_id = ?
-      GROUP BY status
-    `);
-    const results = stmt.all(projectId) as Array<{ status: string; count: number }>;
-
-    const stats = {
-      pending: 0,
-      running: 0,
-      paused: 0,
-      completed: 0,
-      failed: 0,
-      total: 0,
-    };
-
-    for (const row of results) {
-      if (row.status in stats) {
-        (stats as Record<string, number>)[row.status] = row.count;
-      }
-      stats.total += row.count;
-    }
-
-    return stats;
+  getStats(projectId: string) {
+    return buildStatsFromQuery(
+      'claude_code_sessions',
+      'project_id',
+      projectId,
+      { pending: 0, running: 0, paused: 0, completed: 0, failed: 0 }
+    );
   },
 };
 
@@ -552,37 +533,12 @@ export const sessionTaskRepository = {
   /**
    * Get task statistics for a session
    */
-  getStats(sessionId: string): {
-    pending: number;
-    running: number;
-    completed: number;
-    failed: number;
-    total: number;
-  } {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT status, COUNT(*) as count
-      FROM session_tasks
-      WHERE session_id = ?
-      GROUP BY status
-    `);
-    const results = stmt.all(sessionId) as Array<{ status: string; count: number }>;
-
-    const stats = {
-      pending: 0,
-      running: 0,
-      completed: 0,
-      failed: 0,
-      total: 0,
-    };
-
-    for (const row of results) {
-      if (row.status in stats) {
-        (stats as Record<string, number>)[row.status] = row.count;
-      }
-      stats.total += row.count;
-    }
-
-    return stats;
+  getStats(sessionId: string) {
+    return buildStatsFromQuery(
+      'session_tasks',
+      'session_id',
+      sessionId,
+      { pending: 0, running: 0, completed: 0, failed: 0 }
+    );
   },
 };

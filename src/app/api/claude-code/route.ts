@@ -10,7 +10,7 @@ import {
   readClaudeSettings,
   updateClaudeSettings,
 } from '@/app/Claude/lib/claudeCodeManager';
-import { validateRequired, successResponse, errorResponse, handleOperationResult } from './helpers';
+import { validateRequired, successResponse, errorResponse, handleOperationResult } from '@/lib/api-errors';
 import { getTaskStatus } from './taskStatusHandler';
 import { queueExecution, executeSync } from './executionHandlers';
 import { withObservability } from '@/lib/observability/middleware';

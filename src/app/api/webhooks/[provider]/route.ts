@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { integrationDb } from '@/app/db';
 import { verifyWebhookSignature } from '@/lib/integrations/webhookSignature';
 import { dispatchIntegrationEvent } from '@/lib/integrations/engine';
+import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
+import { decryptFieldOrRaw } from '@/lib/personas/credentialCrypto';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
 
 const VALID_PROVIDERS = new Set<string>([
@@ -17,6 +19,7 @@ const VALID_PROVIDERS = new Set<string>([
 
 /**
  * Extract the webhook secret from an integration's config or credentials.
+ * Handles both encrypted ("enc:...") and legacy plaintext credential formats.
  */
 function extractSecret(integration: { config: string; credentials: string | null }): string | null {
   try {
@@ -26,7 +29,8 @@ function extractSecret(integration: { config: string; credentials: string | null
 
   try {
     if (integration.credentials) {
-      const creds = JSON.parse(integration.credentials);
+      const rawCreds = decryptFieldOrRaw(integration.credentials);
+      const creds = JSON.parse(rawCreds);
       if (creds.webhookSecret) return creds.webhookSecret;
     }
   } catch { /* ignore */ }
@@ -62,6 +66,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> }
 ) {
+  const rateLimited = checkRateLimit(request, '/api/webhooks', 'strict');
+  if (rateLimited) return rateLimited;
+
   try {
     const { provider } = await params;
 

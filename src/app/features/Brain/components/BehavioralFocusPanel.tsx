@@ -13,6 +13,7 @@ import { Activity, TrendingUp, TrendingDown, Minus, GitCommit, ChevronRight } fr
 import { useBrainStore } from '@/stores/brainStore';
 import SignalDetailDrawer, { type DrillDownTarget } from './SignalDetailDrawer';
 import ContextSignalDetail from './ContextSignalDetail';
+import GlowCard from './GlowCard';
 
 interface Props {
   isLoading: boolean;
@@ -26,35 +27,10 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
   const { behavioralContext } = useBrainStore();
   const [drillTarget, setDrillTarget] = useState<DrillDownTarget | null>(null);
 
-  const baseCardStyle = {
-    background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
-    boxShadow: `0 0 40px ${GLOW_COLOR}, inset 0 1px 0 rgba(255,255,255,0.05)`
-  };
-
   if (scope === 'global') {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl border border-cyan-500/20 backdrop-blur-xl"
-        style={baseCardStyle}
-      >
-        {/* Grid pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(${ACCENT_COLOR} 1px, transparent 1px), linear-gradient(90deg, ${ACCENT_COLOR} 1px, transparent 1px)`,
-            backgroundSize: '20px 20px'
-          }}
-        />
-
-        {/* Corner markers */}
-        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: ACCENT_COLOR }} />
-        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg" style={{ borderColor: ACCENT_COLOR }} />
-        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg" style={{ borderColor: ACCENT_COLOR }} />
-        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: ACCENT_COLOR }} />
-
-        <div className="relative z-10 p-6">
+      <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-cyan-500/20">
+        <div className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <motion.div
               className="p-2 rounded-xl border"
@@ -84,44 +60,32 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
             </p>
           </div>
         </div>
-
-        {/* Bottom accent line */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-0.5"
-          style={{ background: `linear-gradient(90deg, transparent, ${ACCENT_COLOR}, transparent)` }}
-        />
-      </motion.div>
+      </GlowCard>
     );
   }
 
   if (isLoading) {
     return (
-      <div
-        className="relative overflow-hidden rounded-2xl border border-cyan-500/20 p-6"
-        style={baseCardStyle}
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <Activity className="w-5 h-5 text-cyan-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Current Focus</h2>
+      <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-cyan-500/20" animate={false}>
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-5 h-5 text-cyan-400" />
+            <h2 className="text-lg font-semibold text-zinc-200">Current Focus</h2>
+          </div>
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 bg-zinc-800 rounded w-3/4" />
+            <div className="h-4 bg-zinc-800 rounded w-1/2" />
+            <div className="h-4 bg-zinc-800 rounded w-2/3" />
+          </div>
         </div>
-        <div className="animate-pulse space-y-3">
-          <div className="h-4 bg-zinc-800 rounded w-3/4" />
-          <div className="h-4 bg-zinc-800 rounded w-1/2" />
-          <div className="h-4 bg-zinc-800 rounded w-2/3" />
-        </div>
-      </div>
+      </GlowCard>
     );
   }
 
   if (!behavioralContext?.hasData) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl border border-cyan-500/20 backdrop-blur-xl"
-        style={baseCardStyle}
-      >
-        <div className="relative z-10 p-6">
+      <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-cyan-500/20">
+        <div className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <motion.div
               className="p-2 rounded-xl border"
@@ -139,7 +103,7 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
             No behavioral data yet. Activity will be tracked as you work on directions and implementations.
           </p>
         </div>
-      </motion.div>
+      </GlowCard>
     );
   }
 
@@ -147,34 +111,8 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl border border-cyan-500/20 backdrop-blur-xl"
-        style={baseCardStyle}
-      >
-        {/* Grid pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(${ACCENT_COLOR} 1px, transparent 1px), linear-gradient(90deg, ${ACCENT_COLOR} 1px, transparent 1px)`,
-            backgroundSize: '20px 20px'
-          }}
-        />
-
-        {/* Ambient glow */}
-        <div
-          className="absolute -top-1/2 -right-1/2 w-full h-full blur-3xl pointer-events-none opacity-20"
-          style={{ background: `radial-gradient(circle, ${ACCENT_COLOR} 0%, transparent 70%)` }}
-        />
-
-        {/* Corner markers */}
-        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: ACCENT_COLOR }} />
-        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg" style={{ borderColor: ACCENT_COLOR }} />
-        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg" style={{ borderColor: ACCENT_COLOR }} />
-        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: ACCENT_COLOR }} />
-
-        <div className="relative z-10 p-6">
+      <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-cyan-500/20">
+        <div className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <motion.div
               className="p-2 rounded-xl border"
@@ -310,13 +248,7 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
             </div>
           )}
         </div>
-
-        {/* Bottom accent line */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-0.5"
-          style={{ background: `linear-gradient(90deg, transparent, ${ACCENT_COLOR}, transparent)` }}
-        />
-      </motion.div>
+      </GlowCard>
 
       {/* Signal Detail Drawer */}
       <SignalDetailDrawer target={drillTarget} onClose={() => setDrillTarget(null)}>

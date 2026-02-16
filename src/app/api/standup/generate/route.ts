@@ -106,6 +106,54 @@ async function handlePost(request: NextRequest) {
       (scan) => scan.created_at >= startISO && scan.created_at <= endISO
     );
 
+    // Content hash check: if existing summary has identical stats, skip LLM call
+    if (existing && forceRegenerate) {
+      const ideasAccepted = periodIdeas.filter((i) => i.status === 'accepted').length;
+      const ideasRejected = periodIdeas.filter((i) => i.status === 'rejected').length;
+      const ideasImplemented = periodIdeas.filter((i) => i.status === 'implemented').length;
+
+      const dataUnchanged =
+        existing.implementations_count === periodLogs.length &&
+        existing.ideas_generated === periodIdeas.length &&
+        existing.ideas_accepted === ideasAccepted &&
+        existing.ideas_rejected === ideasRejected &&
+        existing.ideas_implemented === ideasImplemented &&
+        existing.scans_count === periodScans.length;
+
+      if (dataUnchanged) {
+        const summary: StandupSummaryResponse = {
+          id: existing.id,
+          projectId: existing.project_id,
+          periodType: existing.period_type,
+          periodStart: existing.period_start,
+          periodEnd: existing.period_end,
+          title: existing.title,
+          summary: existing.summary,
+          stats: {
+            implementationsCount: existing.implementations_count,
+            ideasGenerated: existing.ideas_generated,
+            ideasAccepted: existing.ideas_accepted,
+            ideasRejected: existing.ideas_rejected,
+            ideasImplemented: existing.ideas_implemented,
+            scansCount: existing.scans_count,
+          },
+          blockers: existing.blockers ? JSON.parse(existing.blockers) as StandupBlocker[] : [],
+          highlights: existing.highlights ? JSON.parse(existing.highlights) as StandupHighlight[] : [],
+          insights: {
+            velocityTrend: existing.velocity_trend,
+            burnoutRisk: existing.burnout_risk,
+            focusAreas: existing.focus_areas ? JSON.parse(existing.focus_areas) as StandupFocusArea[] : [],
+          },
+          generatedAt: existing.generated_at,
+        };
+
+        let predictions = null;
+        try { predictions = generatePredictiveStandup(projectId); } catch { /* supplementary */ }
+
+        return NextResponse.json({ success: true, summary, predictions, cached: true });
+      }
+    }
+
     // Get contexts with activity
     const contexts = contextDb.getContextsByProject(projectId);
 

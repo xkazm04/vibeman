@@ -605,3 +605,33 @@ export interface UpdatePersonaGroupInput {
   sort_order?: number;
   collapsed?: number;
 }
+
+// ============================================================================
+// Persona Memories
+// ============================================================================
+
+export type PersonaMemoryCategory = 'fact' | 'decision' | 'insight' | 'learning' | 'warning';
+
+export interface DbPersonaMemory {
+  id: string;
+  persona_id: string;
+  title: string;
+  content: string;
+  category: PersonaMemoryCategory;
+  source_execution_id: string | null;
+  importance: number; // 1-5
+  tags: string | null; // JSON: string[]
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePersonaMemoryInput {
+  id?: string;
+  persona_id: string;
+  title: string;
+  content: string;
+  category?: PersonaMemoryCategory;
+  source_execution_id?: string;
+  importance?: number;
+  tags?: string[];
+}

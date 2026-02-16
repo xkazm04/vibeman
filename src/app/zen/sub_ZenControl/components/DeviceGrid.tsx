@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Monitor, Plus } from 'lucide-react';
+import { RefreshCw, Monitor, Wifi } from 'lucide-react';
 import DeviceCard from './DeviceCard';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
 
@@ -81,8 +81,8 @@ export default function DeviceGrid({
 
         {sortedDevices.length === 0 ? (
           <div className="bg-gray-800/30 border border-dashed border-gray-700 rounded-lg p-6 text-center">
-            <div className="p-3 bg-gray-700/20 rounded-full w-fit mx-auto mb-3">
-              <Plus className="w-6 h-6 text-gray-500" />
+            <div className="p-3 bg-gray-700/20 rounded-full w-fit mx-auto mb-3 animate-pulse">
+              <Wifi className="w-6 h-6 text-gray-500" />
             </div>
             <p className="text-sm text-gray-400 mb-1">No other devices online</p>
             <p className="text-xs text-gray-500">

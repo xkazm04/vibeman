@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, CheckCircle2, Clock, Zap, GitCommit, FileText,
@@ -86,14 +86,17 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
   const [catchingUp, setCatchingUp] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/goals/lifecycle?goalId=${goalId}`);
+      const res = await fetch(`/api/goals/lifecycle?goalId=${goalId}`, { signal });
       if (res.ok) {
         const json = await res.json();
         setData(json.data);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       // Silent fail - lifecycle is supplementary
     } finally {
       setLoading(false);
@@ -101,7 +104,12 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
   }, [goalId]);
 
   useEffect(() => {
-    fetchData();
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoading(true);
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [fetchData]);
 
   const handleCatchUp = async () => {
@@ -142,7 +150,24 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
   };
 
   const handleSubGoalStatusChange = async (subGoalId: string, newStatus: string) => {
-    await fetch('/api/goals/lifecycle', {
+    // Optimistic update — mutate local state immediately
+    setData(prev => {
+      if (!prev) return prev;
+      const subGoals = prev.subGoals.map(sg =>
+        sg.id === subGoalId ? { ...sg, status: newStatus as SubGoal['status'] } : sg
+      );
+      const done = subGoals.filter(sg => sg.status === 'done').length;
+      const inProgress = subGoals.filter(sg => sg.status === 'in_progress').length;
+      const open = subGoals.filter(sg => sg.status === 'open').length;
+      return {
+        ...prev,
+        subGoals,
+        subGoalStats: { ...prev.subGoalStats, done, inProgress, open },
+      };
+    });
+
+    // Fire-and-forget — no refetch needed
+    fetch('/api/goals/lifecycle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -150,8 +175,10 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
         subGoalId,
         updates: { status: newStatus },
       }),
+    }).catch(() => {
+      // Revert on failure by refetching
+      fetchData();
     });
-    await fetchData();
   };
 
   if (loading) {

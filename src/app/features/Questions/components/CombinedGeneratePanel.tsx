@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   HelpCircle,
   Compass,
-  Sparkles,
   Loader2,
   ChevronDown,
   CheckSquare,
@@ -150,13 +149,14 @@ export default function CombinedGeneratePanel({
               onClick={handleGenerateQuestions}
               disabled={disabled || isGenerating || selectedContextCount === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-purple-600/80 hover:bg-purple-500 text-white"
+              title={selectedContextCount > 0 ? `~${questionsPerContext * selectedContextCount} questions (${questionsPerContext}/ctx × ${selectedContextCount} contexts)` : 'Select contexts first'}
             >
               {generatingQuestions ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Sparkles className="w-3.5 h-3.5" />
+                <HelpCircle className="w-3.5 h-3.5" />
               )}
-              Generate
+              Ask Questions
             </button>
           </div>
 
@@ -183,13 +183,14 @@ export default function CombinedGeneratePanel({
               onClick={handleGenerateDirections}
               disabled={disabled || isGenerating || (!brainstormAll && selectedContextCount === 0)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-cyan-600/80 hover:bg-cyan-500 text-white"
+              title={brainstormAll ? `~${directionsPerContext} directions across all contexts` : selectedContextCount > 0 ? `~${directionsPerContext * selectedContextCount} directions (${directionsPerContext}/ctx × ${selectedContextCount} contexts)` : 'Select contexts first'}
             >
               {generatingDirections ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Sparkles className="w-3.5 h-3.5" />
+                <Compass className="w-3.5 h-3.5" />
               )}
-              Generate
+              Get Directions
             </button>
             {/* Brainstorm All toggle */}
             <button

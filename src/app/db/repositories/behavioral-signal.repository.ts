@@ -9,7 +9,7 @@ import type {
   BehavioralSignalType,
   CreateBehavioralSignalInput,
 } from '../models/brain.types';
-import { getCurrentTimestamp, selectOne, selectAll, buildUpdateQuery } from './repository.utils';
+import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 
 /**
  * Get the start of the current week (Monday 00:00 UTC) as ISO string.
@@ -118,6 +118,28 @@ export const behavioralSignalRepository = {
       projectId,
       signalType,
       since
+    );
+  },
+
+  /**
+   * Get signals by type within an exact date range (SQL-filtered)
+   */
+  getByTypeAndRange: (
+    projectId: string,
+    signalType: BehavioralSignalType,
+    startDate: string,
+    endDate: string
+  ): DbBehavioralSignal[] => {
+    const db = getDatabase();
+    return selectAll<DbBehavioralSignal>(
+      db,
+      `SELECT * FROM behavioral_signals
+       WHERE project_id = ? AND signal_type = ? AND timestamp >= ? AND timestamp <= ?
+       ORDER BY timestamp DESC`,
+      projectId,
+      signalType,
+      startDate,
+      endDate
     );
   },
 

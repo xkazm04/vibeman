@@ -6,7 +6,7 @@
 import { annetteDb, contextDb } from '@/app/db';
 import type { DbAnnetteMemory, DbAnnetteKnowledgeNode } from '@/app/db/models/annette.types';
 import { memoryStore, Memory } from './memoryStore';
-import { knowledgeGraph, KnowledgeNode, KnowledgeEdge } from './knowledgeGraph';
+import { knowledgeGraph, buildEdgeMap, KnowledgeNode, KnowledgeEdge } from './knowledgeGraph';
 import { semanticIndexer } from './semanticIndexer';
 import { generateWithLLM } from '@/lib/llm';
 
@@ -176,17 +176,11 @@ Respond in JSON format:
 
     // Get edges connecting recalled nodes
     const nodeIds = new Set(knowledgeNodes.map(n => n.id));
-    const knowledgeEdges: KnowledgeEdge[] = [];
-    for (const node of knowledgeNodes) {
-      const edges = knowledgeGraph.getEdges(node.id, 'both');
-      for (const edge of edges) {
-        if (nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId)) {
-          if (!knowledgeEdges.some(e => e.id === edge.id)) {
-            knowledgeEdges.push(edge);
-          }
-        }
-      }
-    }
+    const knowledgeEdges = buildEdgeMap(
+      nodeIds,
+      (id) => knowledgeGraph.getEdges(id, 'both'),
+      'both',
+    );
 
     // Generate summary
     const summary = await this.generateContextSummary(

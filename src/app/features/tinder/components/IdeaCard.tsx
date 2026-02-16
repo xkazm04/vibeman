@@ -4,9 +4,9 @@ import { motion, useTransform } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import {
   getCategoryConfig,
-  effortConfig,
-  impactConfig,
-  riskConfig,
+  effortScale,
+  impactScale,
+  riskScale,
   EffortIcon,
   ImpactIcon,
   RiskIcon,
@@ -107,10 +107,10 @@ export default function IdeaCard({
           <div className="flex items-center gap-3 mb-6">
             {idea.impact && (
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg transition-all duration-200 hover:bg-gray-800/80 hover:border-gray-600/60 hover:shadow-md">
-                <ImpactIcon className={`w-5 h-5 ${impactConfig[idea.impact]?.color || 'text-gray-400'} transition-transform duration-200`} />
+                <ImpactIcon className={`w-5 h-5 ${impactScale.entries[idea.impact]?.color || 'text-gray-400'} transition-transform duration-200`} />
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Impact</div>
-                  <div className={`text-lg font-bold ${impactConfig[idea.impact]?.color || 'text-gray-400'}`}>
+                  <div className={`text-lg font-bold ${impactScale.entries[idea.impact]?.color || 'text-gray-400'}`}>
                     {idea.impact}
                   </div>
                 </div>
@@ -119,10 +119,10 @@ export default function IdeaCard({
 
             {idea.effort && (
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg transition-all duration-200 hover:bg-gray-800/80 hover:border-gray-600/60 hover:shadow-md">
-                <EffortIcon className={`w-5 h-5 ${effortConfig[idea.effort]?.color || 'text-gray-400'} transition-transform duration-200`} />
+                <EffortIcon className={`w-5 h-5 ${effortScale.entries[idea.effort]?.color || 'text-gray-400'} transition-transform duration-200`} />
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Effort</div>
-                  <div className={`text-lg font-bold ${effortConfig[idea.effort]?.color || 'text-gray-400'}`}>
+                  <div className={`text-lg font-bold ${effortScale.entries[idea.effort]?.color || 'text-gray-400'}`}>
                     {idea.effort}
                   </div>
                 </div>
@@ -131,10 +131,10 @@ export default function IdeaCard({
 
             {idea.risk && (
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg transition-all duration-200 hover:bg-gray-800/80 hover:border-gray-600/60 hover:shadow-md">
-                <RiskIcon className={`w-5 h-5 ${riskConfig[idea.risk]?.color || 'text-gray-400'} transition-transform duration-200`} />
+                <RiskIcon className={`w-5 h-5 ${riskScale.entries[idea.risk]?.color || 'text-gray-400'} transition-transform duration-200`} />
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Risk</div>
-                  <div className={`text-lg font-bold ${riskConfig[idea.risk]?.color || 'text-gray-400'}`}>
+                  <div className={`text-lg font-bold ${riskScale.entries[idea.risk]?.color || 'text-gray-400'}`}>
                     {idea.risk}
                   </div>
                 </div>

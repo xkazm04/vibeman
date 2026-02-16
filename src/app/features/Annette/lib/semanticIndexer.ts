@@ -4,8 +4,9 @@
  */
 
 import { annetteDb } from '@/app/db';
+import { getConnection } from '@/app/db/drivers';
 import type { DbAnnetteMemory, DbAnnetteKnowledgeNode } from '@/app/db/models/annette.types';
-import { generateWithLLM } from '@/lib/llm';
+
 
 interface EmbeddingResult {
   id: string;
@@ -91,7 +92,7 @@ export const semanticIndexer = {
     if (!memory) return false;
 
     const embedding = await this.generateEmbedding(memory.content);
-    const db = (await import('@/app/db/drivers')).getConnection();
+    const db = getConnection();
 
     db.prepare(`
       UPDATE annette_memories
@@ -111,7 +112,7 @@ export const semanticIndexer = {
 
     const textToEmbed = `${node.name} ${node.description || ''}`;
     const embedding = await this.generateEmbedding(textToEmbed);
-    const db = (await import('@/app/db/drivers')).getConnection();
+    const db = getConnection();
 
     db.prepare(`
       UPDATE annette_knowledge_nodes
@@ -126,7 +127,7 @@ export const semanticIndexer = {
    * Index all unindexed memories for a project
    */
   async indexAllMemories(projectId: string): Promise<number> {
-    const db = (await import('@/app/db/drivers')).getConnection();
+    const db = getConnection();
     const unindexed = db.prepare(`
       SELECT id, content FROM annette_memories
       WHERE project_id = ? AND embedding IS NULL
@@ -151,7 +152,7 @@ export const semanticIndexer = {
    * Index all unindexed knowledge nodes for a project
    */
   async indexAllKnowledgeNodes(projectId: string): Promise<number> {
-    const db = (await import('@/app/db/drivers')).getConnection();
+    const db = getConnection();
     const unindexed = db.prepare(`
       SELECT id, name, description FROM annette_knowledge_nodes
       WHERE project_id = ? AND embedding IS NULL
@@ -183,7 +184,7 @@ export const semanticIndexer = {
     minSimilarity = 0.3
   ): Promise<SimilarityResult<DbAnnetteMemory>[]> {
     const queryEmbedding = await this.generateEmbedding(query);
-    const db = (await import('@/app/db/drivers')).getConnection();
+    const db = getConnection();
 
     const memories = db.prepare(`
       SELECT * FROM annette_memories
@@ -222,7 +223,7 @@ export const semanticIndexer = {
     minSimilarity = 0.3
   ): Promise<SimilarityResult<DbAnnetteKnowledgeNode>[]> {
     const queryEmbedding = await this.generateEmbedding(query);
-    const db = (await import('@/app/db/drivers')).getConnection();
+    const db = getConnection();
 
     const nodes = db.prepare(`
       SELECT * FROM annette_knowledge_nodes
@@ -252,42 +253,13 @@ export const semanticIndexer = {
   },
 
   /**
-   * Find memories and nodes similar to a given memory
-   */
-  async findRelated(
-    memoryId: string,
-    limit = 10
-  ): Promise<{
-    memories: SimilarityResult<DbAnnetteMemory>[];
-    nodes: SimilarityResult<DbAnnetteKnowledgeNode>[];
-  }> {
-    const memory = annetteDb.memories.getById(memoryId);
-    if (!memory) {
-      return { memories: [], nodes: [] };
-    }
-
-    const [memories, nodes] = await Promise.all([
-      this.findSimilarMemories(memory.project_id, memory.content, limit),
-      this.findSimilarNodes(memory.project_id, memory.content, limit),
-    ]);
-
-    // Filter out the source memory
-    const filteredMemories = memories.filter(m => m.item.id !== memoryId);
-
-    return {
-      memories: filteredMemories,
-      nodes,
-    };
-  },
-
-  /**
    * Cluster similar memories together
    */
   async clusterMemories(
     projectId: string,
     similarityThreshold = 0.7
   ): Promise<DbAnnetteMemory[][]> {
-    const db = (await import('@/app/db/drivers')).getConnection();
+    const db = getConnection();
     const memories = db.prepare(`
       SELECT * FROM annette_memories
       WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
@@ -333,43 +305,4 @@ export const semanticIndexer = {
     return clusters;
   },
 
-  /**
-   * Get embedding statistics for a project
-   */
-  async getStats(projectId: string): Promise<{
-    totalMemories: number;
-    indexedMemories: number;
-    totalNodes: number;
-    indexedNodes: number;
-    indexingProgress: number;
-  }> {
-    const db = (await import('@/app/db/drivers')).getConnection();
-
-    const memoryStats = db.prepare(`
-      SELECT
-        COUNT(*) as total,
-        SUM(CASE WHEN embedding IS NOT NULL THEN 1 ELSE 0 END) as indexed
-      FROM annette_memories
-      WHERE project_id = ? AND consolidated_into IS NULL
-    `).get(projectId) as { total: number; indexed: number };
-
-    const nodeStats = db.prepare(`
-      SELECT
-        COUNT(*) as total,
-        SUM(CASE WHEN embedding IS NOT NULL THEN 1 ELSE 0 END) as indexed
-      FROM annette_knowledge_nodes
-      WHERE project_id = ?
-    `).get(projectId) as { total: number; indexed: number };
-
-    const totalItems = memoryStats.total + nodeStats.total;
-    const indexedItems = memoryStats.indexed + nodeStats.indexed;
-
-    return {
-      totalMemories: memoryStats.total,
-      indexedMemories: memoryStats.indexed,
-      totalNodes: nodeStats.total,
-      indexedNodes: nodeStats.indexed,
-      indexingProgress: totalItems > 0 ? indexedItems / totalItems : 1,
-    };
-  },
 };

@@ -89,6 +89,10 @@ export function calculateSelectionStats(
     (r) => r.status === 'failed' || r.status === 'session-limit'
   );
 
+  const queuedRequirements = requirements.filter(
+    (r) => r.status === 'queued'
+  );
+
   const selectedInColumn = requirements.filter((r) => selectedRequirements.has(getRequirementId(r)));
 
   return {
@@ -100,6 +104,8 @@ export function calculateSelectionStats(
     clearableCount: clearableRequirements.length,
     failedRequirements,
     failedCount: failedRequirements.length,
+    queuedRequirements,
+    queuedCount: queuedRequirements.length,
     selectedInColumn,
   };
 }

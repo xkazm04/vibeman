@@ -69,6 +69,17 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
     const todosData = includeSources.includes('todos') ? await scanTodos(projectPath) : '';
     const gitHistoryData = includeSources.includes('git_history') ? await scanGitHistory(projectPath) : '';
 
+    // Skip LLM call if no meaningful data was collected
+    if (!repoData && !techDebtData && !ideasData && !todosData && !gitHistoryData) {
+      return {
+        success: false,
+        candidates: [],
+        candidateIds: [],
+        totalGenerated: 0,
+        error: 'No project data available for goal generation'
+      };
+    }
+
     // Get context information
     const contexts = contextRepository.getContextsByProject(projectId);
     const contextSummary = contexts.map(ctx => ({
@@ -199,14 +210,14 @@ async function scanRepository(projectPath: string, depth: 'quick' | 'standard' |
 
       if (readmePath) {
         const readme = await fs.readFile(path.join(projectPath, readmePath), 'utf-8');
-        results.push(`README:\n${readme.substring(0, depth === 'quick' ? 500 : depth === 'standard' ? 1500 : 3000)}`);
+        results.push(`README:\n${readme.substring(0, 500)}`);
       }
     } catch {
       // No README
     }
 
-    // Scan file structure (limited based on depth)
-    const fileLimit = depth === 'quick' ? 20 : depth === 'standard' ? 50 : 100;
+    // Scan file structure (limited based on depth — small samples are sufficient)
+    const fileLimit = depth === 'quick' ? 5 : depth === 'standard' ? 10 : 20;
     const files = await scanDirectoryStructure(projectPath, fileLimit);
     results.push(`File Structure:\n${files.join('\n')}`);
 
@@ -294,8 +305,8 @@ async function scanTodos(projectPath: string): Promise<string> {
     const todos: string[] = [];
     const todoRegex = /(TODO|FIXME|HACK|XXX|NOTE):\s*(.+)/gi;
 
-    // Only scan source files (simplified version)
-    const sourceFiles = await findSourceFiles(projectPath, 30);
+    // Scan a small sample of source files for TODOs
+    const sourceFiles = await findSourceFiles(projectPath, 10);
 
     for (const filePath of sourceFiles) {
       try {
@@ -304,13 +315,13 @@ async function scanTodos(projectPath: string): Promise<string> {
 
         for (const match of matches) {
           todos.push(`${path.basename(filePath)}: ${match[1]} - ${match[2].trim()}`);
-          if (todos.length >= 20) break;
+          if (todos.length >= 10) break;
         }
       } catch {
         // Skip files we can't read
       }
 
-      if (todos.length >= 20) break;
+      if (todos.length >= 10) break;
     }
 
     return todos.length > 0 ? `TODO Comments:\n${todos.join('\n')}` : '';

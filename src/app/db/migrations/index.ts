@@ -38,6 +38,7 @@ import { migrate108Observability } from './108_observability';
 import { migrate109TeamCanvas } from './109_team_canvas';
 import { migrate110HealingIssues } from './110_healing_issues';
 import { migrate111PersonaGroups } from './111_persona_groups';
+import { migrate112PersonaMemories } from './112_persona_memories';
 
 /**
  * Migration logger utility
@@ -314,6 +315,9 @@ export function runMigrations() {
 
     // Migration 111: Persona Groups - organize personas into collapsible groups
     migrate111PersonaGroups(db as any, migrationLogger);
+
+    // Migration 112: Persona Memories - agent knowledge storage
+    migrate112PersonaMemories(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

@@ -10,7 +10,6 @@ import { TriggerList } from './components/TriggerList';
 import { CredentialManager } from './components/CredentialManager';
 import PersonaOverviewPage from './components/PersonaOverviewPage';
 import DesignReviewsPage from './components/DesignReviewsPage';
-import ObservabilityDashboard from './components/ObservabilityDashboard';
 import TeamCanvas from './components/TeamCanvas';
 
 export default function PersonasPage() {
@@ -20,20 +19,21 @@ export default function PersonasPage() {
   const fetchToolDefinitions = usePersonaStore((s) => s.fetchToolDefinitions);
   const fetchCredentials = usePersonaStore((s) => s.fetchCredentials);
   const fetchPendingReviewCount = usePersonaStore((s) => s.fetchPendingReviewCount);
+  const fetchGroups = usePersonaStore((s) => s.fetchGroups);
 
   useEffect(() => {
     fetchPersonas();
     fetchToolDefinitions();
     fetchCredentials();
     fetchPendingReviewCount();
-  }, [fetchPersonas, fetchToolDefinitions, fetchCredentials, fetchPendingReviewCount]);
+    fetchGroups();
+  }, [fetchPersonas, fetchToolDefinitions, fetchCredentials, fetchPendingReviewCount, fetchGroups]);
 
   const renderContent = () => {
     if (sidebarSection === 'team') return <TeamCanvas />;
     if (sidebarSection === 'overview') return <OverviewPage />;
     if (sidebarSection === 'credentials') return <CredentialManager />;
     if (sidebarSection === 'events') return <TriggerList />;
-    if (sidebarSection === 'observability') return <ObservabilityDashboard />;
     if (sidebarSection === 'design-reviews') return <DesignReviewsPage />;
     if (selectedPersonaId) return <PersonaEditor />;
     return <PersonaOverviewPage />;

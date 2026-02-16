@@ -4,17 +4,19 @@ import { useRef, useCallback, useEffect } from 'react';
 import { usePersonaStore } from '@/stores/personaStore';
 import type { ActiveDesignSession } from '@/stores/personaStore';
 import * as api from '@/app/features/Personas/lib/personaApi';
-import type { DesignAnalysisResult, DesignPhase } from '@/app/features/Personas/lib/designTypes';
+import type { DesignAnalysisResult, DesignPhase, DesignQuestion } from '@/app/features/Personas/lib/designTypes';
 
 interface UseDesignAnalysisReturn {
   phase: DesignPhase;
   outputLines: string[];
   result: DesignAnalysisResult | null;
   error: string | null;
+  question: DesignQuestion | null;
   currentDesignId: string | null;
   startAnalysis: (personaId: string, instruction: string) => Promise<void>;
   cancelAnalysis: () => void;
   refineAnalysis: (personaId: string, designId: string, followUpMessage: string) => Promise<void>;
+  answerQuestion: (answer: string) => void;
   applyResult: (
     personaId: string,
     selectedTools: string[],
@@ -67,6 +69,9 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
   const error = activeDesignSession?.personaId === selectedPersonaId
     ? (activeDesignSession?.error ?? null)
     : null;
+  const question: DesignQuestion | null = (activeDesignSession?.personaId === selectedPersonaId)
+    ? (activeDesignSession?.question || null)
+    : null;
   const currentDesignId = activeDesignSession?.personaId === selectedPersonaId
     ? (activeDesignSession?.designId ?? null)
     : null;
@@ -88,7 +93,7 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
 
   // ── SSE connection ─────────────────────────────────────────────
   const connectToStream = useCallback(
-    (designId: string, onDone: (data: { result?: DesignAnalysisResult; error?: string }) => void, replaceLines = false) => {
+    (designId: string, onDone: (data: { result?: DesignAnalysisResult; error?: string; question?: DesignQuestion }) => void, replaceLines = false) => {
       const url = `/api/personas/design/${designId}/stream`;
       const eventSource = new EventSource(url);
       eventSourceRef.current = eventSource;
@@ -109,7 +114,7 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
           if (data.done) {
             eventSource.close();
             eventSourceRef.current = null;
-            onDone({ result: data.result, error: data.error });
+            onDone({ result: data.result, error: data.error, question: data.question });
           }
         } catch {
           // Skip unparseable events
@@ -141,6 +146,11 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
     const wasRefining = activeDesignSession.phase === 'refining';
 
     connectToStream(designId, (data) => {
+      if (data.question) {
+        updateSession({ phase: 'awaiting-input', question: data.question });
+        setDesignPhase('awaiting-input');
+        return;
+      }
       if (data.result) {
         const patched = patchOAuthType(data.result as DesignAnalysisResult);
         updateSession({ result: patched, phase: 'preview' });
@@ -182,6 +192,11 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
         setActiveDesignSession({ ...newSession, designId });
 
         connectToStream(designId, (data) => {
+          if (data.question) {
+            updateSession({ phase: 'awaiting-input', question: data.question, designId });
+            setDesignPhase('awaiting-input');
+            return;
+          }
           if (data.result) {
             const patched = patchOAuthType(data.result as DesignAnalysisResult);
             updateSession({ result: patched, phase: 'preview', designId });
@@ -214,6 +229,11 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
         await api.refineDesignAnalysis(personaId, designId, followUpMessage);
 
         connectToStream(designId, (data) => {
+          if (data.question) {
+            updateSession({ phase: 'awaiting-input', question: data.question });
+            setDesignPhase('awaiting-input');
+            return;
+          }
           if (data.result) {
             const patched = patchOAuthType(data.result as DesignAnalysisResult);
             updateSession({ result: patched, phase: 'preview' });
@@ -245,6 +265,23 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
     setActiveDesignSession(null);
     setDesignPhase('idle');
   }, [setActiveDesignSession, setDesignPhase]);
+
+  const answerQuestion = useCallback(
+    (answer: string) => {
+      if (!activeDesignSession?.personaId || !activeDesignSession?.designId) return;
+
+      const personaId = activeDesignSession.personaId;
+      const designId = activeDesignSession.designId;
+
+      // Clear question, transition to refining phase
+      updateSession({ phase: 'refining', question: null, outputLines: [], error: null });
+      setDesignPhase('refining');
+
+      // Reuse existing refinement - the answer IS the follow-up message
+      refineAnalysis(personaId, designId, answer);
+    },
+    [activeDesignSession?.personaId, activeDesignSession?.designId, updateSession, setDesignPhase, refineAnalysis]
+  );
 
   const applyResult = useCallback(
     async (
@@ -369,10 +406,12 @@ export function useDesignAnalysis(): UseDesignAnalysisReturn {
     outputLines,
     result,
     error,
+    question,
     currentDesignId,
     startAnalysis,
     cancelAnalysis,
     refineAnalysis,
+    answerQuestion,
     applyResult,
     reset,
   };

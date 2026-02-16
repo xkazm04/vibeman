@@ -40,7 +40,7 @@ export async function POST(
     // Always read body as text first to support HMAC verification
     const bodyText = await request.text();
 
-    // HMAC signature verification when secret is configured
+    // HMAC signature verification
     if (config.hmac_secret) {
       const signature = request.headers.get('x-hub-signature-256') || request.headers.get('x-signature');
       const result = verifyGenericHmacSignature(
@@ -52,6 +52,12 @@ export async function POST(
       if (!result.valid) {
         return NextResponse.json({ error: result.error || 'Invalid signature' }, { status: 401 });
       }
+    } else {
+      // No secret configured — reject the request to prevent webhook spoofing
+      return NextResponse.json(
+        { error: 'Webhook HMAC secret not configured. Set an hmac_secret in trigger config to enable webhook ingestion.' },
+        { status: 403 }
+      );
     }
 
     // Parse verified body

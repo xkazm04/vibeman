@@ -117,6 +117,14 @@ const TaskColumn = React.memo(function TaskColumn({
     }
   }, [stats.failedCount, stats.failedRequirements, onReset, getRequirementId]);
 
+  const handleResetAllQueued = useCallback(() => {
+    if (stats.queuedCount > 0 && onReset) {
+      stats.queuedRequirements.forEach((r) => {
+        onReset(getRequirementId(r));
+      });
+    }
+  }, [stats.queuedCount, stats.queuedRequirements, onReset, getRequirementId]);
+
   const handleProjectSelectionToggle = useCallback(() => {
     onToggleProjectSelection(projectId);
   }, [onToggleProjectSelection, projectId]);
@@ -139,6 +147,7 @@ const TaskColumn = React.memo(function TaskColumn({
         selectedInColumnCount={stats.selectedInColumn.length}
         clearableCount={stats.clearableCount}
         failedCount={stats.failedCount}
+        queuedCount={stats.queuedCount}
         requirementsCount={requirements.length}
         aggregationCheck={aggregationCheck}
         isAggregating={isAggregating}
@@ -147,6 +156,7 @@ const TaskColumn = React.memo(function TaskColumn({
         onBulkDeleteSelected={handleBulkDeleteSelected}
         onClearCompleted={handleClearCompleted}
         onResetAllFailed={handleResetAllFailed}
+        onResetAllQueued={handleResetAllQueued}
         canBulkDelete={!!onBulkDelete}
         canReset={!!onReset}
       />

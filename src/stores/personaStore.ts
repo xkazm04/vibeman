@@ -21,6 +21,8 @@ import type {
   ToolUsageSummary,
   ToolUsageOverTime,
   PersonaUsageSummary,
+  DbPersonaGroup,
+  DbPersonaMemory,
 } from '@/app/features/Personas/lib/types';
 import type { DesignPhase, DesignAnalysisResult } from '@/app/features/Personas/lib/designTypes';
 import type { CredentialTemplate } from '@/lib/personas/credentialTemplates';
@@ -37,6 +39,7 @@ export interface ActiveDesignSession {
   outputLines: string[];
   result: DesignAnalysisResult | null;
   error: string | null;
+  question?: { question: string; options?: string[]; context?: string } | null;
 }
 
 interface PersonaState {
@@ -89,6 +92,13 @@ interface PersonaState {
   selectedTeamId: string | null;
   teamMembers: any[];
   teamConnections: any[];
+
+  // Groups
+  groups: DbPersonaGroup[];
+
+  // Memories
+  memories: DbPersonaMemory[];
+  memoriesTotal: number;
 
   // Design Analysis
   designPhase: DesignPhase;
@@ -187,6 +197,17 @@ interface PersonaActions {
   addTeamConnection: (sourceMemberId: string, targetMemberId: string, connectionType?: string) => Promise<void>;
   removeTeamConnection: (connectionId: string) => Promise<void>;
 
+  // Groups
+  fetchGroups: () => Promise<void>;
+  createGroup: (input: { name: string; color?: string }) => Promise<DbPersonaGroup | null>;
+  updateGroup: (id: string, updates: { name?: string; color?: string; collapsed?: number }) => Promise<void>;
+  deleteGroup: (id: string) => Promise<void>;
+  movePersonaToGroup: (personaId: string, groupId: string | null) => Promise<void>;
+
+  // Memories
+  fetchMemories: (filters?: { persona_id?: string; category?: string; search?: string }) => Promise<void>;
+  deleteMemory: (id: string) => Promise<void>;
+
   // Design
   setDesignPhase: (phase: DesignPhase) => void;
   setActiveDesignSession: (session: ActiveDesignSession | null) => void;
@@ -242,6 +263,9 @@ export const usePersonaStore = create<PersonaStore>()(
       selectedTeamId: null,
       teamMembers: [],
       teamConnections: [],
+      groups: [],
+      memories: [],
+      memoriesTotal: 0,
       designPhase: 'idle' as DesignPhase,
       activeDesignSession: null,
       sidebarSection: 'personas' as SidebarSection,
@@ -743,7 +767,7 @@ export const usePersonaStore = create<PersonaStore>()(
       // ── Healing ──────────────────────────────────────────────────────
       fetchHealingIssues: async () => {
         try {
-          const issues = await api.fetchHealingIssues('open');
+          const issues = await api.fetchHealingIssues();
           set({ healingIssues: issues });
         } catch (err) {
           console.error('Failed to fetch healing issues:', err);
@@ -858,6 +882,84 @@ export const usePersonaStore = create<PersonaStore>()(
           await get().fetchTeamDetails(teamId);
         } catch (error) {
           console.error('Failed to remove connection:', error);
+        }
+      },
+
+      // ── Groups ──────────────────────────────────────────────────────
+      fetchGroups: async () => {
+        try {
+          const groups = await api.fetchGroups();
+          set({ groups });
+        } catch (err) {
+          console.error('Failed to fetch groups:', err);
+        }
+      },
+
+      createGroup: async (input) => {
+        try {
+          const group = await api.createGroup(input);
+          set(state => ({ groups: [...state.groups, group] }));
+          return group;
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : 'Failed to create group' });
+          return null;
+        }
+      },
+
+      updateGroup: async (id, updates) => {
+        try {
+          const group = await api.updateGroup(id, updates);
+          set(state => ({
+            groups: state.groups.map(g => g.id === id ? group : g),
+          }));
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : 'Failed to update group' });
+        }
+      },
+
+      deleteGroup: async (id) => {
+        try {
+          await api.deleteGroup(id);
+          set(state => ({
+            groups: state.groups.filter(g => g.id !== id),
+          }));
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : 'Failed to delete group' });
+        }
+      },
+
+      movePersonaToGroup: async (personaId, groupId) => {
+        try {
+          await api.movePersonaToGroup(personaId, groupId);
+          set(state => ({
+            personas: state.personas.map(p =>
+              p.id === personaId ? { ...p, group_id: groupId } : p
+            ),
+          }));
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : 'Failed to move persona' });
+        }
+      },
+
+      // ── Memories ──────────────────────────────────────────────────────
+      fetchMemories: async (filters?) => {
+        try {
+          const data = await api.fetchMemories({ ...filters, limit: 100 });
+          set({ memories: data.memories, memoriesTotal: data.total });
+        } catch (err) {
+          console.error('Failed to fetch memories:', err);
+        }
+      },
+
+      deleteMemory: async (id) => {
+        try {
+          await api.deleteMemory(id);
+          set(state => ({
+            memories: state.memories.filter(m => m.id !== id),
+            memoriesTotal: Math.max(0, state.memoriesTotal - 1),
+          }));
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : 'Failed to delete memory' });
         }
       },
 

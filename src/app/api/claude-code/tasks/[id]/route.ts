@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { errorResponse } from '../../helpers';
+import { errorResponse } from '@/lib/api-errors';
 import { getTaskStatus } from '../../taskStatusHandler';
 import { withObservability } from '@/lib/observability/middleware';
 

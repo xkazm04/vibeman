@@ -78,12 +78,24 @@ export async function GET(
               }
 
               clearInterval(pollInterval);
-              sendEvent({
-                done: true,
-                status: currentStatus.error ? 'error' : 'completed',
-                result: currentStatus.result,
-                error: currentStatus.error,
-              });
+
+              // Check for question (design engine asking for user clarification)
+              if ((currentStatus as Record<string, unknown>).question) {
+                sendEvent({
+                  done: true,
+                  status: 'question',
+                  question: (currentStatus as Record<string, unknown>).question,
+                  result: null,
+                  error: null,
+                });
+              } else {
+                sendEvent({
+                  done: true,
+                  status: currentStatus.error ? 'error' : 'completed',
+                  result: currentStatus.result,
+                  error: currentStatus.error,
+                });
+              }
               controller.close();
             }
           } catch (error) {

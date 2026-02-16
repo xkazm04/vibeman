@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Loader2, AlertCircle, Zap } from 'lucide-react';
 import { UniversalModal } from '@/components/UniversalModal';
@@ -40,22 +40,19 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const generatingRef = useRef(false);
 
-  // Load candidates when modal opens
-  useEffect(() => {
-    if (isOpen && activeProject?.id) {
-      loadCandidates();
-    }
-  }, [isOpen, activeProject?.id]);
-
-  const loadCandidates = async () => {
+  const loadCandidates = async (signal?: AbortSignal) => {
     if (!activeProject?.id) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/goals/generate-candidates?projectId=${activeProject.id}`);
+      const response = await fetch(
+        `/api/goals/generate-candidates?projectId=${activeProject.id}`,
+        { signal }
+      );
 
       if (!response.ok) {
         const data = await response.json();
@@ -65,15 +62,26 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
       const data = await response.json();
       setCandidates(data.candidates || []);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load candidates');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGenerate = async () => {
-    if (!activeProject?.id || !activeProject?.path) return;
+  // Load candidates when modal opens
+  useEffect(() => {
+    if (!isOpen || !activeProject?.id) return;
 
+    const controller = new AbortController();
+    loadCandidates(controller.signal);
+    return () => controller.abort();
+  }, [isOpen, activeProject?.id]);
+
+  const handleGenerate = async () => {
+    if (!activeProject?.id || !activeProject?.path || generatingRef.current) return;
+
+    generatingRef.current = true;
     setGenerating(true);
     setError(null);
 
@@ -101,6 +109,7 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
       setError(err instanceof Error ? err.message : 'Failed to generate candidates');
     } finally {
       setGenerating(false);
+      generatingRef.current = false;
     }
   };
 

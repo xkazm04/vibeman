@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   HelpCircle,
@@ -31,6 +31,32 @@ interface QuestionDirectionRowProps {
   onAccept?: () => Promise<void>;
   onReject?: () => Promise<void>;
   onDelete: () => Promise<void>;
+}
+
+function AnswerPreview({ answer }: { answer: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = answer.length > 200;
+
+  return (
+    <motion.div
+      className="mt-2 rounded-md bg-green-500/5 border border-green-500/10 pl-3 border-l-2 border-l-green-500/30 pr-3 py-2"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      transition={{ delay: 0.1 }}
+    >
+      <p className={`text-sm text-gray-300 leading-relaxed ${!expanded && isLong ? 'line-clamp-3' : ''}`}>
+        {answer}
+      </p>
+      {isLong && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          className="text-xs text-green-400 hover:text-green-300 mt-1 transition-colors"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </motion.div>
+  );
 }
 
 /**
@@ -127,14 +153,7 @@ export function QuestionDirectionRow({
           )}
         </div>
         {isAnswered && questionData?.answer && (
-          <motion.p
-            className="text-xs text-gray-500 mt-2 pl-0 border-l-2 border-green-500/30 pl-3"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            transition={{ delay: 0.1 }}
-          >
-            {questionData.answer}
-          </motion.p>
+          <AnswerPreview answer={questionData.answer} />
         )}
       </td>
 

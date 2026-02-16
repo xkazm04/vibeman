@@ -101,13 +101,6 @@ export function createScaleConfig(
   };
 }
 
-/** @deprecated Use ScaleEntry instead */
-export type EffortConfig = ScaleEntry;
-/** @deprecated Use ScaleEntry instead */
-export type ImpactConfig = ScaleEntry;
-/** @deprecated Use ScaleEntry instead */
-export type RiskConfig = ScaleEntry;
-
 /**
  * Category configuration
  * Maps standard idea categories to their visual representation
@@ -171,13 +164,6 @@ export const riskScale = createScaleConfig('Risk', true, [
   'High risk',
   'Critical risk',
 ]);
-
-/** @deprecated Use effortScale.entries instead */
-export const effortConfig = effortScale.entries;
-/** @deprecated Use impactScale.entries instead */
-export const impactConfig = impactScale.entries;
-/** @deprecated Use riskScale.entries instead */
-export const riskConfig = riskScale.entries;
 
 /**
  * Effort icon (for visual display)
