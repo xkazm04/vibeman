@@ -80,6 +80,12 @@ interface PersonaState {
   observabilityMetrics: { summary: any; timeSeries: any[] } | null;
   promptVersions: any[];
 
+  // Teams
+  teams: any[];
+  selectedTeamId: string | null;
+  teamMembers: any[];
+  teamConnections: any[];
+
   // Design Analysis
   designPhase: DesignPhase;
   activeDesignSession: ActiveDesignSession | null;
@@ -161,6 +167,17 @@ interface PersonaActions {
   fetchObservabilityMetrics: (days?: number, personaId?: string) => Promise<void>;
   fetchPromptVersions: (personaId: string) => Promise<void>;
 
+  // Teams
+  fetchTeams: () => Promise<void>;
+  selectTeam: (teamId: string | null) => void;
+  fetchTeamDetails: (teamId: string) => Promise<void>;
+  createTeam: (data: { name: string; description?: string; icon?: string; color?: string }) => Promise<any>;
+  deleteTeam: (teamId: string) => Promise<void>;
+  addTeamMember: (personaId: string, role?: string, posX?: number, posY?: number) => Promise<void>;
+  removeTeamMember: (memberId: string) => Promise<void>;
+  addTeamConnection: (sourceMemberId: string, targetMemberId: string, connectionType?: string) => Promise<void>;
+  removeTeamConnection: (connectionId: string) => Promise<void>;
+
   // Design
   setDesignPhase: (phase: DesignPhase) => void;
   setActiveDesignSession: (session: ActiveDesignSession | null) => void;
@@ -210,6 +227,10 @@ export const usePersonaStore = create<PersonaStore>()(
       pendingEventCount: 0,
       observabilityMetrics: null,
       promptVersions: [],
+      teams: [],
+      selectedTeamId: null,
+      teamMembers: [],
+      teamConnections: [],
       designPhase: 'idle' as DesignPhase,
       activeDesignSession: null,
       sidebarSection: 'personas' as SidebarSection,
@@ -705,6 +726,96 @@ export const usePersonaStore = create<PersonaStore>()(
           set({ promptVersions: (data as any).versions || [] });
         } catch (error) {
           console.error('Failed to fetch prompt versions:', error);
+        }
+      },
+
+      // ── Teams ──────────────────────────────────────────────────────
+      fetchTeams: async () => {
+        try {
+          const data = await api.fetchTeams();
+          set({ teams: (data as any).teams || [] });
+        } catch (error) {
+          console.error('Failed to fetch teams:', error);
+        }
+      },
+
+      selectTeam: (teamId) => {
+        set({ selectedTeamId: teamId, teamMembers: [], teamConnections: [] });
+        if (teamId) get().fetchTeamDetails(teamId);
+      },
+
+      fetchTeamDetails: async (teamId) => {
+        try {
+          const data = await api.fetchTeam(teamId);
+          const d = data as any;
+          set({ teamMembers: d.members || [], teamConnections: d.connections || [] });
+        } catch (error) {
+          console.error('Failed to fetch team details:', error);
+        }
+      },
+
+      createTeam: async (data) => {
+        try {
+          const result = await api.createTeam(data);
+          await get().fetchTeams();
+          return (result as any).team;
+        } catch (error) {
+          console.error('Failed to create team:', error);
+          return null;
+        }
+      },
+
+      deleteTeam: async (teamId) => {
+        try {
+          await api.deleteTeam(teamId);
+          if (get().selectedTeamId === teamId) set({ selectedTeamId: null, teamMembers: [], teamConnections: [] });
+          await get().fetchTeams();
+        } catch (error) {
+          console.error('Failed to delete team:', error);
+        }
+      },
+
+      addTeamMember: async (personaId, role, posX, posY) => {
+        const teamId = get().selectedTeamId;
+        if (!teamId) return;
+        try {
+          await api.addTeamMember(teamId, { persona_id: personaId, role, position_x: posX, position_y: posY });
+          await get().fetchTeamDetails(teamId);
+        } catch (error) {
+          console.error('Failed to add team member:', error);
+        }
+      },
+
+      removeTeamMember: async (memberId) => {
+        const teamId = get().selectedTeamId;
+        if (!teamId) return;
+        try {
+          await api.removeTeamMember(teamId, memberId);
+          await get().fetchTeamDetails(teamId);
+        } catch (error) {
+          console.error('Failed to remove team member:', error);
+        }
+      },
+
+      addTeamConnection: async (sourceMemberId, targetMemberId, connectionType) => {
+        const teamId = get().selectedTeamId;
+        if (!teamId) return;
+        try {
+          await api.addTeamConnection(teamId, { source_member_id: sourceMemberId, target_member_id: targetMemberId, connection_type: connectionType });
+          await get().fetchTeamDetails(teamId);
+        } catch (error) {
+          console.error('Failed to add connection:', error);
+        }
+      },
+
+      removeTeamConnection: async (connectionId) => {
+        const teamId = get().selectedTeamId;
+        if (!teamId) return;
+        try {
+          await api.removeTeamConnection(teamId, connectionId);
+          await get().fetchTeamDetails(teamId);
+        } catch (error) {
+          console.error('Failed to remove connection:', error);
         }
       },
 

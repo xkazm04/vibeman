@@ -2,13 +2,14 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { BarChart3, Bot, Zap, Key, Plus, Activity, ClipboardCheck, MessageSquare, FlaskConical, LayoutGrid, Eye } from 'lucide-react';
+import { BarChart3, Bot, Zap, Key, Plus, Activity, ClipboardCheck, MessageSquare, FlaskConical, LayoutGrid, Eye, Users } from 'lucide-react';
 import { usePersonaStore } from '@/stores/personaStore';
 import type { SidebarSection, OverviewTab } from '@/app/features/Personas/lib/types';
 import PersonaCard from './PersonaCard';
 import CreatePersonaModal from './CreatePersonaModal';
 
 const sections: Array<{ id: SidebarSection; icon: typeof Bot; label: string }> = [
+  { id: 'team', icon: Users, label: 'Teams' },
   { id: 'overview', icon: BarChart3, label: 'Overview' },
   { id: 'personas', icon: Bot, label: 'Agents' },
   { id: 'events', icon: Zap, label: 'Events' },
@@ -221,6 +222,18 @@ export default function Sidebar() {
           </div>
           <p className="text-sm text-muted-foreground/60">Agentic Templates</p>
           <p className="text-xs text-muted-foreground/40 mt-1">Browse and adopt persona templates</p>
+        </div>
+      );
+    }
+
+    if (sidebarSection === 'team') {
+      return (
+        <div className="text-center py-12">
+          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+            <Users className="w-6 h-6 text-indigo-400/60" />
+          </div>
+          <p className="text-sm text-muted-foreground/60">Multi-Agent Teams</p>
+          <p className="text-xs text-muted-foreground/40 mt-1">Design agent pipelines visually</p>
         </div>
       );
     }

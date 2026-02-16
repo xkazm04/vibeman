@@ -11,6 +11,7 @@ import { CredentialManager } from './components/CredentialManager';
 import PersonaOverviewPage from './components/PersonaOverviewPage';
 import DesignReviewsPage from './components/DesignReviewsPage';
 import ObservabilityDashboard from './components/ObservabilityDashboard';
+import TeamCanvas from './components/TeamCanvas';
 
 export default function PersonasPage() {
   const sidebarSection = usePersonaStore((s) => s.sidebarSection);
@@ -28,6 +29,7 @@ export default function PersonasPage() {
   }, [fetchPersonas, fetchToolDefinitions, fetchCredentials, fetchPendingReviewCount]);
 
   const renderContent = () => {
+    if (sidebarSection === 'team') return <TeamCanvas />;
     if (sidebarSection === 'overview') return <OverviewPage />;
     if (sidebarSection === 'credentials') return <CredentialManager />;
     if (sidebarSection === 'events') return <TriggerList />;

@@ -640,3 +640,59 @@ export async function fetchPersonaMetrics(personaId: string, days: number = 30) 
 export async function fetchPromptVersions(personaId: string, limit: number = 50) {
   return fetchJson(`/api/personas/prompt-versions/${personaId}?limit=${limit}`);
 }
+
+// ============================================================================
+// Teams API
+// ============================================================================
+
+export async function fetchTeams() {
+  return fetchJson<{ teams: any[] }>(`${BASE}/teams`);
+}
+
+export async function fetchTeam(teamId: string) {
+  return fetchJson<{ team: any; members: any[]; connections: any[] }>(`${BASE}/teams/${teamId}`);
+}
+
+export async function createTeam(data: { name: string; description?: string; icon?: string; color?: string }) {
+  return fetchJson<{ team: any }>(`${BASE}/teams`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateTeam(teamId: string, data: Record<string, unknown>) {
+  return fetchJson(`${BASE}/teams/${teamId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTeam(teamId: string) {
+  return fetchJson(`${BASE}/teams/${teamId}`, { method: 'DELETE' });
+}
+
+export async function addTeamMember(teamId: string, data: { persona_id: string; role?: string; position_x?: number; position_y?: number }) {
+  return fetchJson(`${BASE}/teams/${teamId}/members`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function removeTeamMember(teamId: string, memberId: string) {
+  return fetchJson(`${BASE}/teams/${teamId}/members?member_id=${memberId}`, { method: 'DELETE' });
+}
+
+export async function addTeamConnection(teamId: string, data: { source_member_id: string; target_member_id: string; connection_type?: string; label?: string }) {
+  return fetchJson(`${BASE}/teams/${teamId}/connections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function removeTeamConnection(teamId: string, connectionId: string) {
+  return fetchJson(`${BASE}/teams/${teamId}/connections?connection_id=${connectionId}`, { method: 'DELETE' });
+}

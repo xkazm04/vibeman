@@ -100,7 +100,7 @@ export interface CredentialMetadata {
 }
 
 /** Sidebar section types */
-export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' | 'design-reviews' | 'observability';
+export type SidebarSection = 'overview' | 'personas' | 'events' | 'credentials' | 'design-reviews' | 'observability' | 'team';
 
 /** Editor tab types */
 export type EditorTab = 'prompt' | 'executions' | 'settings';
