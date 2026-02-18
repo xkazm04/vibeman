@@ -239,8 +239,10 @@ export function startExecution(
   logMessage('');
 
   // Spawn CLI process
+  // On Windows, use 'claude' (not 'claude.cmd') because the shell resolves
+  // both .exe (WinGet installs) and .cmd (npm global installs) automatically.
   const isWindows = process.platform === 'win32';
-  const command = isWindows ? 'claude.cmd' : 'claude';
+  const command = 'claude';
   const args = [
     '-p',
     '-', // Read from stdin

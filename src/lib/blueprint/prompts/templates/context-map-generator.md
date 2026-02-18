@@ -69,7 +69,7 @@ Explore the project directory tree (max depth 3-4) and identify:
 
 **The formula**: Each feature-folder + its-matching-API-routes + its-DB-repositories + its-store = ONE context.
 
-**Monorepo detection**: If the project has multiple `package.json` files at different levels, treat each package with 20+ files as its own group. Single apps group by business features.
+**Monorepo / Multi-codebase detection**: If the project has multiple sub-directories each with their own project manifest files (`package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, etc.), this is a multi-codebase project. Each sub-project with 20+ files gets its own group(s). If a **MULTI-CODEBASE PROJECT STRUCTURE** section was provided above, follow those specific instructions for sub-project grouping, cross-codebase groups, and root-relative file paths. Single apps group by business features.
 
 **Key principle**: Start by listing feature folders, then find the API routes and DB repos that serve each feature. This mapping IS your context list.
 
@@ -388,9 +388,55 @@ Dashboard: Infrastructure → B2B Management SDK (uses)
 - **Merge** if package is small utility (<15 files) → add to nearest related group
 - **Dashboard apps** always split by user-facing business domain, not by SDK usage
 
+### Example 4: Multi-Codebase Project (Multiple Independent Repos)
+
+**3 independent codebases under one root, different tech stacks, separate git repos**
+
+**Project Structure:**
+```
+personas/
+├── personas-web/       # Next.js 16 marketing + auth site (independent .git)
+├── personas-desktop/   # Tauri 2.0 + React 19 desktop app (independent .git)
+│   ├── src/            # React frontend
+│   └── src-tauri/      # Rust backend
+└── personas-cloud/     # Node.js monorepo (independent .git)
+    └── packages/       # orchestrator, worker, shared
+```
+
+**Key Differences from Monorepo:**
+- Each sub-project has its OWN `.git` directory (separate repositories)
+- No shared `package.json` at root
+- Different tech stacks (Next.js + Tauri/Rust + Node.js)
+- May share business domains but no shared code imports
+
+**Grouping Strategy:**
+1. **Web: Marketing & Auth** (`#3B82F6`) - Landing pages, OAuth flows, subscription
+2. **Desktop: Core Engine** (`#8B5CF6`) - Tauri commands, Rust execution engine, IPC
+3. **Desktop: UI & State** (`#EC4899`) - React components, Zustand stores, hooks
+4. **Desktop: Security & Credentials** (`#F97316`) - Vault, crypto, credential management
+5. **Cloud: Orchestrator** (`#F59E0B`) - Job scheduling, worker pool, Kafka integration
+6. **Cloud: Worker** (`#10B981`) - Task execution, Claude CLI spawn, output parsing
+7. **Shared: Authentication** (`#EF4444`) - Cross-cutting: web OAuth + desktop deep links + cloud JWT
+8. **Shared: Event Bus** (`#7C3AED`) - Cross-cutting: desktop local bus + cloud Kafka bridge
+
+**File paths are root-relative:**
+- `personas-web/src/app/auth/page.tsx` (NOT `src/app/auth/page.tsx`)
+- `personas-desktop/src-tauri/src/engine/execution.rs`
+- `personas-cloud/packages/orchestrator/src/index.ts`
+
+**Cross-codebase relationships:**
+```
+Web: Marketing & Auth → Shared: Authentication (uses)
+Desktop: Core Engine → Shared: Authentication (uses)
+Desktop: Core Engine → Shared: Event Bus (uses)
+Cloud: Orchestrator → Cloud: Worker (triggers)
+Cloud: Orchestrator → Shared: Event Bus (uses)
+Cloud: Worker → Shared: Authentication (depends-on)
+```
+
 ---
 
-**IMPORTANT: Do NOT delete or clean up existing data.** Data cleanup is handled automatically before this process starts. Focus only on CREATING new groups and contexts. If you encounter errors during creation, skip that item and continue with the next one. Do NOT retry by deleting and recreating.
+**IMPORTANT: Do NOT delete or clean up existing data.** Old data may be present alongside what you create — it will be cleaned up automatically after you finish. Focus only on CREATING new groups and contexts. If you encounter errors during creation, skip that item and continue with the next one. Do NOT retry by deleting and recreating.
 
 ---
 

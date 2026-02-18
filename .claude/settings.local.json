@@ -147,7 +147,10 @@
       "Skill(gsd:plan-phase)",
       "Bash(npx next build:*)",
       "Bash(git checkout:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(git init:*)",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(npx:*)"
     ],
     "deny": [],
     "ask": []

@@ -13,6 +13,7 @@ import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextGroupRelationshipRepository } from '@/app/db/repositories/context-group-relationship.repository';
 
 interface ExecuteRequestBody {
   projectId: string;
@@ -47,21 +48,31 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    // Pre-cleanup: Delete existing contexts and groups before regeneration
-    // This prevents the CLI from needing to handle cleanup (which causes infinite loops)
+    // Snapshot existing data IDs for deferred cleanup after successful generation.
+    // We do NOT delete here — if the CLI fails, user data must survive.
+    // Old data is cleaned up by /api/context-generation/cleanup after success.
+    let previousDataIds: { contextIds: string[]; groupIds: string[]; relationshipIds: string[] } = {
+      contextIds: [],
+      groupIds: [],
+      relationshipIds: [],
+    };
     try {
-      const deletedContexts = contextRepository.deleteAllContextsByProject(projectId);
+      const existingContexts = contextRepository.getContextsByProject(projectId);
       const existingGroups = contextGroupRepository.getGroupsByProject(projectId);
-      for (const group of existingGroups) {
-        contextGroupRepository.deleteGroup(group.id);
-      }
-      logger.info('[API] Pre-cleanup completed:', {
+      const existingRelationships = contextGroupRelationshipRepository.getByProject(projectId);
+      previousDataIds = {
+        contextIds: existingContexts.map(c => c.id),
+        groupIds: existingGroups.map(g => g.id),
+        relationshipIds: existingRelationships.map(r => r.id),
+      };
+      logger.info('[API] Snapshot of existing data for deferred cleanup:', {
         projectId,
-        deletedContexts,
-        deletedGroups: existingGroups.length,
+        contexts: previousDataIds.contextIds.length,
+        groups: previousDataIds.groupIds.length,
+        relationships: previousDataIds.relationshipIds.length,
       });
-    } catch (cleanupError) {
-      logger.warn('[API] Pre-cleanup failed (continuing anyway):', { cleanupError });
+    } catch (snapshotError) {
+      logger.warn('[API] Failed to snapshot existing data (continuing anyway):', { snapshotError });
     }
 
     // Build the context generation prompt
@@ -102,6 +113,7 @@ async function handlePost(request: NextRequest) {
       success: true,
       executionId,
       streamUrl,
+      previousDataIds,
     });
   } catch (error) {
     logger.error('[API] Context generation execute error:', { error });

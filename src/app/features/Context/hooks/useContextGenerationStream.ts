@@ -173,6 +173,19 @@ export function useContextGenerationStream({ streamUrl }: UseContextGenerationSt
           setSummary(summaryDataRef.current);
           setStatus('completed');
 
+          // Deferred cleanup: delete old data now that new data has been created
+          const scan = useContextGenerationStore.getState().activeScan;
+          if (scan?.previousDataIds) {
+            fetch('/api/context-generation/cleanup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId: scan.projectId,
+                previousDataIds: scan.previousDataIds,
+              }),
+            }).catch(err => console.error('[ContextGeneration] Deferred cleanup failed:', err));
+          }
+
           // Close connection
           eventSource.close();
           eventSourceRef.current = null;

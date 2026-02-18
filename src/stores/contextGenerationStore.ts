@@ -32,6 +32,16 @@ export interface ContextGenerationSummary {
 /**
  * Active scan state
  */
+/**
+ * IDs of existing data snapshotted before generation.
+ * Used for deferred cleanup after successful completion.
+ */
+export interface PreviousDataIds {
+  contextIds: string[];
+  groupIds: string[];
+  relationshipIds: string[];
+}
+
 export interface ActiveContextGeneration {
   scanId: string;
   executionId: string | null;
@@ -41,6 +51,7 @@ export interface ActiveContextGeneration {
   summary: ContextGenerationSummary | null;
   streamUrl: string | null;
   error: string | null;
+  previousDataIds: PreviousDataIds | null;
 }
 
 interface ContextGenerationStore {
@@ -98,6 +109,7 @@ export const useContextGenerationStore = create<ContextGenerationStore>()((set, 
         summary: null,
         streamUrl: null,
         error: null,
+        previousDataIds: null,
       };
 
       set({ activeScan });
@@ -115,7 +127,7 @@ export const useContextGenerationStore = create<ContextGenerationStore>()((set, 
         return { success: false, error: err.error || 'Failed to execute context generation' };
       }
 
-      const { executionId, streamUrl } = await executeResponse.json();
+      const { executionId, streamUrl, previousDataIds } = await executeResponse.json();
 
       // Update scan state with execution info
       set((state) => {
@@ -126,6 +138,7 @@ export const useContextGenerationStore = create<ContextGenerationStore>()((set, 
             ...state.activeScan,
             executionId,
             streamUrl,
+            previousDataIds: previousDataIds || null,
             status: 'running',
             messages: [
               ...state.activeScan.messages,
