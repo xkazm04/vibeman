@@ -58,10 +58,6 @@ const ContextSectionHeader = React.memo(({ group, contexts, projectId, openGroup
                 borderColor: `${group?.color}30`
               }}
               whileHover={{ scale: 1.1 }}
-              animate={{
-                boxShadow: [`0 0 0 ${group?.color}00`, `0 0 20px ${group?.color}40`, `0 0 0 ${group?.color}00`]
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
             >
               <GroupIcon
                 className="w-6 h-6 transition-colors duration-300"

@@ -109,30 +109,6 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-slate-500/5 to-blue-500/5" />
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent" />
 
-      {/* Floating Neural Particles */}
-      {Array.from({ length: 8 }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute w-1 h-1 rounded-full"
-          style={{
-            backgroundColor: `${groupColor}40`,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-          }}
-          animate={{
-            y: [0, -50, 0],
-            x: [0, Math.random() * 30 - 15, 0],
-            opacity: [0, 1, 0],
-            scale: [0, 1, 0],
-          }}
-          transition={{
-            duration: 3 + Math.random() * 3,
-            repeat: Infinity,
-            delay: Math.random() * 2,
-            ease: "easeInOut"
-          }}
-        />
-      ))}
 
       {/* Header with Tab Switcher */}
       <ContextOverviewHeader

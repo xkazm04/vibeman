@@ -13,56 +13,33 @@ export default function ModalHeader({ groupsCount, onClose }: ModalHeaderProps) 
     <div className="relative flex items-center justify-between p-8 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/30 via-slate-900/20 to-gray-800/30 backdrop-blur-sm">
       <div className="flex items-center space-x-4">
         <div className="relative">
-          <motion.div
+          <div
             className="w-16 h-16 bg-gradient-to-br from-cyan-500/20 via-slate-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-cyan-500/30"
-            animate={{
-              rotate: [0, 360],
-            }}
-            transition={{
-              rotate: { duration: 30, repeat: Infinity, ease: "linear" },
-            }}
           >
             <Grid3X3 className="w-8 h-8 text-cyan-400" />
-          </motion.div>
-          <motion.div
+          </div>
+          <div
             className="absolute -inset-2 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 rounded-2xl blur-xl opacity-50"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
           />
-          
-          {/* Orbiting Elements */}
+
+          {/* Static Orbiting Elements */}
           {Array.from({ length: 2 }).map((_, i) => (
-            <motion.div
+            <div
               key={i}
               className="absolute inset-0 flex items-center justify-center"
-              animate={{
-                rotate: [0, 360],
-              }}
-              transition={{
-                duration: 8 + i * 2,
-                repeat: Infinity,
-                ease: "linear",
-                delay: i * 1,
+              style={{
+                transform: `rotate(${i * 90}deg)`,
               }}
             >
-              <motion.div
+              <div
                 className={`w-2 h-2 rounded-full ${
                   i === 0 ? 'bg-cyan-400' : 'bg-blue-400'
                 }`}
                 style={{
                   transform: `translateX(${30 + i * 6}px)`,
                 }}
-                animate={{
-                  scale: [1, 1.5, 1],
-                  opacity: [0.6, 1, 0.6],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.4,
-                }}
               />
-            </motion.div>
+            </div>
           ))}
         </div>
         <div>

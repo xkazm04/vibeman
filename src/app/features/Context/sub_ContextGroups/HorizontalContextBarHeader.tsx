@@ -92,27 +92,6 @@ const HorizontalContextBarHeader = React.memo(({
             }}
           />
           
-          {/* Floating Particles Effect */}
-          {Array.from({ length: 3 }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
-              style={{
-                left: `${20 + i * 20}%`,
-                top: `${30 + i * 15}%`,
-              }}
-              animate={{
-                y: [0, -10, 0],
-                opacity: [0, 1, 0],
-                scale: [0, 1, 0],
-              }}
-              transition={{
-                duration: 2 + Math.random() * 2,
-                repeat: Infinity,
-                delay: i * 0.5,
-              }}
-            />
-          ))}
         </motion.button>
 
         <div className="flex items-center space-x-4">
@@ -133,30 +112,21 @@ const HorizontalContextBarHeader = React.memo(({
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
                 <div className="flex items-center space-x-2">
-                  <motion.div 
+                  <div
                     className="w-2 h-2 bg-blue-400 rounded-full"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
                   />
                   <span>{groups.length + (ungroupedContextsCount > 0 ? 1 : 0)} neural clusters</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <motion.div 
+                  <div
                     className="w-2 h-2 bg-cyan-400 rounded-full"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
                   />
                   <span>{contextsCount} context nodes</span>
                 </div>
                 {ungroupedContextsCount > 0 && (
                   <div className="flex items-center space-x-2">
-                    <motion.div 
-                      className="w-2 h-2 bg-yellow-400 rounded-full"
-                      animate={{ 
-                        scale: [1, 1.5, 1],
-                        opacity: [0.6, 1, 0.6] 
-                      }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
+                    <div
+                      className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"
                     />
                     <span className="text-yellow-400">{ungroupedContextsCount} unlinked</span>
                   </div>
@@ -279,10 +249,8 @@ const HorizontalContextBarHeader = React.memo(({
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <motion.div
+            <div
               className="w-3 h-3 bg-cyan-400 rounded-full"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
             />
             <span className="text-sm font-bold text-cyan-400 font-mono">
               {selectedFilesCount} files ready

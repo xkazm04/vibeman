@@ -33,7 +33,6 @@ export function useUnifiedNavigation() {
     pushStep,
     addRecentEntity,
     generateSuggestions,
-    openCommandPalette,
   } = useWorkflowStore();
   const { activeProject } = useActiveProjectStore();
 
@@ -138,13 +137,6 @@ export function useUnifiedNavigation() {
   }, [navigateToEntity]);
 
   /**
-   * Open the command palette
-   */
-  const openSearch = useCallback(() => {
-    openCommandPalette();
-  }, [openCommandPalette]);
-
-  /**
    * Get keyboard shortcut for module navigation
    */
   const getModuleShortcut = useCallback((module: AppModule): string | null => {
@@ -172,9 +164,6 @@ export function useUnifiedNavigation() {
     navigateToIdea,
     navigateToTask,
 
-    // Command palette
-    openSearch,
-
     // Utilities
     getModuleShortcut,
     getModuleLabel,
@@ -185,7 +174,7 @@ export function useUnifiedNavigation() {
  * Hook to set up global keyboard shortcuts for navigation
  */
 export function useNavigationShortcuts() {
-  const { navigateTo, openSearch } = useUnifiedNavigation();
+  const { navigateTo } = useUnifiedNavigation();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -217,10 +206,9 @@ export function useNavigationShortcuts() {
         }
       }
 
-      // Note: Ctrl+K is handled by CommandPalette component
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigateTo, openSearch]);
+  }, [navigateTo]);
 }

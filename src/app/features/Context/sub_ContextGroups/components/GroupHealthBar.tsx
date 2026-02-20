@@ -67,12 +67,6 @@ export const GroupHealthBar: React.FC<GroupHealthBarProps> = ({
           animate={{ width: `${score}%` }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
-          {/* Shine effect */}
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-            animate={{ x: ['-100%', '100%'] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
-          />
         </motion.div>
       </div>
 

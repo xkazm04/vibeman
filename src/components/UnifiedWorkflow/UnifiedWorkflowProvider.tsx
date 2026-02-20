@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import CommandPalette from '../CommandPalette';
 import { useNavigationShortcuts } from '@/hooks/useUnifiedNavigation';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -12,7 +11,6 @@ interface UnifiedWorkflowProviderProps {
 
 /**
  * UnifiedWorkflowProvider wraps the app to provide:
- * - Command palette (Ctrl+K)
  * - Global keyboard shortcuts for navigation
  * - Workflow tracking and context awareness
  */
@@ -36,7 +34,6 @@ export default function UnifiedWorkflowProvider({ children }: UnifiedWorkflowPro
   return (
     <>
       {children}
-      <CommandPalette />
     </>
   );
 }

@@ -92,11 +92,9 @@ export function ContextHealthDot({
   };
 
   return (
-    <motion.div
+    <div
       className={`w-2 h-2 rounded-full ${dotColors[level]} ${className}`}
       title={issues.length > 0 ? issues.join('\n') : 'Healthy'}
-      animate={level === 'critical' ? { scale: [1, 1.2, 1] } : undefined}
-      transition={level === 'critical' ? { duration: 1.5, repeat: Infinity } : undefined}
     />
   );
 }

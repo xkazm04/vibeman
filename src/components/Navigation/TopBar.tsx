@@ -2,11 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Wand2, Component, Activity, Users, Sunrise, Search, Command, HelpCircle, Plug, Brain, Bot, Compass, Sparkles } from 'lucide-react';
+import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, Sparkles } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
-import { useWorkflowStore } from '@/stores/workflowStore';
-import AnnetteTopBarWidget from '@/app/features/Commander/components/AnnetteTopBarWidget';
-import NotificationBell from './NotificationBell';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 interface NavigationItem {
   module: AppModule;
@@ -230,30 +228,15 @@ function OtherDropdown({
   );
 }
 
-// Command palette trigger button
-function CommandPaletteTrigger() {
-  const { openCommandPalette } = useWorkflowStore();
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: 0.3 }}
-      onClick={openCommandPalette}
-      className="group flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800/30 hover:bg-gray-800/50 border border-gray-700/50 hover:border-gray-600 rounded-lg transition-all"
-      data-testid="command-palette-trigger"
-    >
-      <Search className="w-4 h-4" />
-      <span className="hidden sm:inline text-xs">Search...</span>
-      <kbd className="hidden sm:flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-800 rounded border border-gray-700 text-gray-500 group-hover:text-gray-400">
-        <Command className="w-2.5 h-2.5" />K
-      </kbd>
-    </motion.button>
-  );
-}
-
 export default function TopBar() {
   const { activeModule, setActiveModule } = useOnboardingStore();
+  const { activeWorkspaceId } = useWorkspaceStore();
+
+  // Hide Overview when default (unassigned) workspace is selected
+  const isDefaultWorkspace = !activeWorkspaceId || activeWorkspaceId === 'default';
+  const visibleMainItems = isDefaultWorkspace
+    ? mainNavigationItems.filter(item => item.module !== 'overview')
+    : mainNavigationItems;
 
   return (
     <motion.header
@@ -263,15 +246,10 @@ export default function TopBar() {
       className="fixed top-7 left-0 right-0 z-50 bg-black/20 backdrop-blur-xl border-b border-white/10"
     >
       <div className="max-w-7xl mx-auto px-6 py-4">
-        <nav className="flex items-center justify-between">
-          {/* Left: Command Palette Trigger */}
-          <div className="flex-shrink-0 w-40">
-            <CommandPaletteTrigger />
-          </div>
-
-          {/* Center: Module Navigation */}
+        <nav className="flex items-center justify-center">
+          {/* Module Navigation */}
           <div className="flex items-center space-x-6">
-            {mainNavigationItems.map((item, index) => (
+            {visibleMainItems.map((item, index) => (
               <NavItem
                 key={item.module}
                 item={item}
@@ -286,14 +264,8 @@ export default function TopBar() {
               items={otherNavigationItems}
               activeModule={activeModule}
               onSelect={setActiveModule}
-              startIndex={mainNavigationItems.length}
+              startIndex={visibleMainItems.length}
             />
-          </div>
-
-          {/* Right: Notifications + Annette Widget */}
-          <div className="flex-shrink-0 w-40 flex items-center justify-end gap-2">
-            <NotificationBell />
-            <AnnetteTopBarWidget />
           </div>
         </nav>
       </div>

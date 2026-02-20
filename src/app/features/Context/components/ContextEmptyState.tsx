@@ -47,11 +47,9 @@ export const ContextEmptyState: React.FC<ContextEmptyStateProps> = ({
           {/* Floating sparkle */}
           <motion.div
             className="absolute -top-2 -right-2"
-            animate={{
-              scale: [1, 1.2, 1],
-              rotate: [0, 180, 360],
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
+            initial={{ scale: 0.8, rotate: -10 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', damping: 15, delay: 0.2 }}
           >
             <Sparkles className="w-6 h-6 text-yellow-400" />
           </motion.div>

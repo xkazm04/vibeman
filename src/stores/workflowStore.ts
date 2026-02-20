@@ -24,22 +24,6 @@ export interface WorkflowSuggestion {
   icon?: string;
 }
 
-// Quick action for command palette
-export interface QuickAction {
-  id: string;
-  label: string;
-  description: string;
-  keywords: string[];
-  category: 'navigation' | 'action' | 'entity' | 'recent';
-  module?: AppModule;
-  entityType?: string;
-  entityId?: string;
-  entityName?: string;
-  shortcut?: string;
-  icon?: string;
-  action?: () => void;
-}
-
 // Module metadata for quick navigation
 export const MODULE_METADATA: Record<AppModule, { label: string; description: string; keywords: string[]; icon: string }> = {
   overview: { label: 'Overview', description: 'Architecture and system overview', keywords: ['overview', 'architecture', 'dashboard', 'system', 'map'], icon: 'Compass' },
@@ -67,10 +51,6 @@ interface WorkflowState {
   history: WorkflowStep[];
   maxHistoryLength: number;
 
-  // Command palette state
-  isCommandPaletteOpen: boolean;
-  commandPaletteQuery: string;
-
   // Recent entities for quick access
   recentEntities: Array<{
     id: string;
@@ -90,12 +70,6 @@ interface WorkflowState {
   clearHistory: () => void;
   getBackStep: () => WorkflowStep | undefined;
 
-  // Command palette
-  openCommandPalette: () => void;
-  closeCommandPalette: () => void;
-  toggleCommandPalette: () => void;
-  setCommandPaletteQuery: (query: string) => void;
-
   // Recent entities
   addRecentEntity: (entity: Omit<WorkflowState['recentEntities'][0], 'timestamp'>) => void;
   clearRecentEntities: () => void;
@@ -110,8 +84,6 @@ export const useWorkflowStore = create<WorkflowState>()(
     (set, get) => ({
       history: [],
       maxHistoryLength: 20,
-      isCommandPaletteOpen: false,
-      commandPaletteQuery: '',
       recentEntities: [],
       suggestions: [],
 
@@ -154,14 +126,6 @@ export const useWorkflowStore = create<WorkflowState>()(
         // Get the second-to-last step (the previous location)
         return history.length >= 2 ? history[history.length - 2] : undefined;
       },
-
-      openCommandPalette: () => set({ isCommandPaletteOpen: true, commandPaletteQuery: '' }),
-      closeCommandPalette: () => set({ isCommandPaletteOpen: false, commandPaletteQuery: '' }),
-      toggleCommandPalette: () => set((state) => ({
-        isCommandPaletteOpen: !state.isCommandPaletteOpen,
-        commandPaletteQuery: state.isCommandPaletteOpen ? '' : state.commandPaletteQuery,
-      })),
-      setCommandPaletteQuery: (query) => set({ commandPaletteQuery: query }),
 
       addRecentEntity: (entity) => {
         set((state) => {
@@ -252,128 +216,3 @@ export function getModuleLabel(module: AppModule): string {
   return MODULE_METADATA[module]?.label || module;
 }
 
-// Helper to get all quick actions for command palette
-export function getQuickActions(
-  currentModule: AppModule,
-  recentEntities: WorkflowState['recentEntities'],
-  onNavigate: (module: AppModule) => void
-): QuickAction[] {
-  const actions: QuickAction[] = [];
-
-  // Navigation actions for each module
-  Object.entries(MODULE_METADATA).forEach(([module, meta]) => {
-    actions.push({
-      id: `nav-${module}`,
-      label: meta.label,
-      description: meta.description,
-      keywords: meta.keywords,
-      category: 'navigation',
-      module: module as AppModule,
-      icon: meta.icon,
-      shortcut: module === 'coder' ? 'Ctrl+1' : undefined,
-      action: () => onNavigate(module as AppModule),
-    });
-  });
-
-  // Recent entity actions
-  recentEntities.forEach((entity) => {
-    actions.push({
-      id: `recent-${entity.type}-${entity.id}`,
-      label: entity.name,
-      description: `Recent ${entity.type}`,
-      keywords: [entity.name.toLowerCase(), entity.type],
-      category: 'recent',
-      module: entity.module,
-      entityType: entity.type,
-      entityId: entity.id,
-      entityName: entity.name,
-    });
-  });
-
-  // Common actions
-  actions.push(
-    {
-      id: 'action-generate-ideas',
-      label: 'Generate Ideas',
-      description: 'Run AI idea generation for current project',
-      keywords: ['generate', 'ideas', 'ai', 'suggestions'],
-      category: 'action',
-      module: 'ideas',
-      icon: 'Sparkles',
-    },
-    {
-      id: 'action-run-blueprint',
-      label: 'Run Blueprint Scan',
-      description: 'Analyze project structure',
-      keywords: ['blueprint', 'scan', 'analyze', 'structure'],
-      category: 'action',
-      module: 'composer',
-      icon: 'Scan',
-    },
-    {
-      id: 'action-run-tasks',
-      label: 'Run All Tasks',
-      description: 'Execute pending tasks in batch',
-      keywords: ['run', 'tasks', 'execute', 'batch'],
-      category: 'action',
-      module: 'tasker',
-      icon: 'Play',
-    },
-    {
-      id: 'action-refactor',
-      label: 'Start Refactoring',
-      description: 'Analyze code for refactoring opportunities',
-      keywords: ['refactor', 'improve', 'clean', 'analyze'],
-      category: 'action',
-      module: 'refactor',
-      icon: 'Wand2',
-    }
-  );
-
-  return actions;
-}
-
-// Filter quick actions based on query
-export function filterQuickActions(actions: QuickAction[], query: string): QuickAction[] {
-  if (!query.trim()) {
-    // Return top actions when no query
-    return actions.slice(0, 8);
-  }
-
-  const lowerQuery = query.toLowerCase();
-  const terms = lowerQuery.split(/\s+/);
-
-  return actions
-    .map((action) => {
-      // Calculate match score
-      let score = 0;
-
-      // Check label match
-      if (action.label.toLowerCase().includes(lowerQuery)) {
-        score += 10;
-      }
-
-      // Check description match
-      if (action.description.toLowerCase().includes(lowerQuery)) {
-        score += 5;
-      }
-
-      // Check keyword matches
-      terms.forEach((term) => {
-        if (action.keywords.some((kw) => kw.includes(term))) {
-          score += 3;
-        }
-      });
-
-      // Boost recent items
-      if (action.category === 'recent') {
-        score += 2;
-      }
-
-      return { action, score };
-    })
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .map(({ action }) => action)
-    .slice(0, 10);
-}

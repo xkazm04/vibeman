@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Plus, FolderPlus } from 'lucide-react';
+import { Save, Plus, FolderPlus, Scan } from 'lucide-react';
 import { Caveat } from 'next/font/google';
 import { DndContext, DragOverlay, DragEndEvent } from '@dnd-kit/core';
 import { useContextStore } from '../../../stores/contextStore';
@@ -279,18 +279,35 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                   className="relative"
                 >
                   {allGroups.length === 0 ? (
-                    <EmptyStateIllustration
-                      type="contexts"
-                      headline="Initialize your context network"
-                      description="Contexts help you organize your codebase into logical groups. Define business domains, features, or modules to make AI analysis more targeted and effective."
-                      action={{
-                        label: 'Create First Group',
-                        onClick: () => setShowGroupModal(true),
-                        icon: FolderPlus,
-                      }}
-                      height="py-32"
-                      testId="context-empty"
-                    />
+                    <div className="py-32 flex flex-col items-center justify-center text-center" data-testid="context-empty">
+                      <EmptyStateIllustration
+                        type="contexts"
+                        headline="Initialize your context network"
+                        description="Contexts help you organize your codebase into logical groups. Create groups manually, or let Claude scan your codebase and map contexts automatically."
+                        height="py-0"
+                      />
+                      <div className="flex items-center gap-4 mt-6">
+                        <button
+                          onClick={() => setShowGroupModal(true)}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 hover:from-blue-500/30 hover:to-indigo-500/30 text-blue-400 rounded-xl transition-all border-blue-500/30 border backdrop-blur-sm font-medium"
+                        >
+                          <FolderPlus className="w-4 h-4" />
+                          Create First Group
+                        </button>
+                        <span className="text-gray-500 text-sm">or</span>
+                        <button
+                          onClick={() => {
+                            if (activeProject?.id) {
+                              useContextGenerationStore.getState().startGeneration(activeProject.id);
+                            }
+                          }}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-400 hover:to-blue-400 rounded-xl transition-all shadow-lg shadow-cyan-500/25 font-medium"
+                        >
+                          <Scan className="w-4 h-4" />
+                          Scan Codebase for Contexts
+                        </button>
+                      </div>
+                    </div>
                   ) : hasGroupsButNoContexts ? (
                     /* Empty state when groups exist but no contexts */
                     <ContextEmptyState

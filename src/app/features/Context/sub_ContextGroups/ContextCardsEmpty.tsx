@@ -35,14 +35,12 @@ const ContextCardsEmpty = React.memo(({
             style={{ color: `${group?.color}` }}
           />
         </div>
-        <motion.div
+        <div
           className="absolute -inset-2 rounded-2xl opacity-50"
           style={{
             background: `linear-gradient(45deg, ${group?.color}20, transparent, ${group?.color}20)`,
             filter: 'blur(12px)',
           }}
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
         />
       </div>
 
