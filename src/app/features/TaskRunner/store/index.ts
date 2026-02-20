@@ -1,10 +1,11 @@
 /**
  * Task Runner Store - Main Export
+ *
+ * Batch mode removed. Store is a minimal shim preserving types and no-op actions.
+ * CLI session system (src/components/cli/) is the sole execution mode.
  */
 
 export * from './taskRunnerStore';
-export * from './useTaskRunnerHooks';
-// Remote batch store removed - migrating to Supabase Realtime
 
 // Re-export discriminated union types and utilities from types.ts
 export type {

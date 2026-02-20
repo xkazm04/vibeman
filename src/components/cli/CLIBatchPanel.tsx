@@ -25,7 +25,7 @@ import {
   executeGitOperations,
   generateCommitMessage,
 } from '@/app/features/TaskRunner/sub_Git/gitApi';
-import RemoteBatchSection from '@/app/features/TaskRunner/components/RemoteBatchSection';
+
 
 const SESSIONS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
 
@@ -255,8 +255,6 @@ export function CLIBatchPanel({
         ))}
       </div>
 
-      {/* Remote Batch Section - Shows when remote mode is active */}
-      {isRemoteMode && <RemoteBatchSection />}
     </div>
   );
 }

@@ -34,16 +34,17 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   tasker: { label: 'Tasker', description: 'Run and manage tasks', keywords: ['tasks', 'run', 'execute', 'batch'], icon: 'Play' },
   manager: { label: 'Manager', description: 'Analytics and project management', keywords: ['analytics', 'stats', 'metrics', 'management'], icon: 'BarChart3' },
   reflector: { label: 'Reflector', description: 'Reflect on past implementations', keywords: ['reflect', 'review', 'history', 'analysis'], icon: 'Activity' },
-  refactor: { label: 'Refactor Wizard', description: 'Analyze and plan refactoring', keywords: ['refactor', 'wizard', 'improve', 'clean'], icon: 'Wand2' },
+
   halloffame: { label: 'Hall of Fame', description: 'Showcase of best implementations', keywords: ['hall', 'fame', 'best', 'showcase'], icon: 'Trophy' },
   social: { label: 'Social', description: 'Community and sharing', keywords: ['social', 'community', 'share', 'team'], icon: 'Users' },
-  composer: { label: 'Blueprint Composer', description: 'Compose project blueprints', keywords: ['blueprint', 'compose', 'setup', 'wizard'], icon: 'Layers' },
+
   zen: { label: 'Zen Mode', description: 'Focused work mode', keywords: ['zen', 'focus', 'calm', 'work'], icon: 'Sunrise' },
   blueprint: { label: 'Blueprint', description: 'Project blueprint and setup', keywords: ['blueprint', 'setup', 'project'], icon: 'Map' },
   questions: { label: 'Questions', description: 'Generate clarifying questions for precise idea generation', keywords: ['questions', 'clarify', 'context', 'requirements'], icon: 'HelpCircle' },
   integrations: { label: 'Integrations', description: 'Manage external integrations and connectors', keywords: ['integrations', 'connectors', 'webhooks', 'external'], icon: 'Plug' },
   brain: { label: 'Brain', description: 'AI learning and memory system', keywords: ['brain', 'ai', 'learning', 'memory', 'signals'], icon: 'Brain' },
   commander: { label: 'Annette', description: 'Voice assistant and commander', keywords: ['annette', 'assistant', 'voice', 'commander'], icon: 'Bot' },
+  personas: { label: 'Personas', description: 'AI agent personas and teams', keywords: ['personas', 'agents', 'teams', 'ai'], icon: 'Sparkles' },
 };
 
 interface WorkflowState {
@@ -160,7 +161,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           case 'contexts':
             suggestions.push(
               { id: 'generate-ideas', label: 'Generate Ideas', description: 'Get suggestions for selected contexts', module: 'ideas', priority: 'high' },
-              { id: 'run-blueprint', label: 'Run Blueprint', description: 'Analyze project structure', module: 'composer', priority: 'medium' },
+              { id: 'run-blueprint', label: 'Run Blueprint', description: 'Analyze project structure', module: 'blueprint', priority: 'medium' },
             );
             break;
 
@@ -187,7 +188,7 @@ export const useWorkflowStore = create<WorkflowState>()(
 
           case 'manager':
             suggestions.push(
-              { id: 'run-refactor', label: 'Run Refactor Wizard', description: 'Analyze code for improvements', module: 'refactor', priority: 'medium' },
+              { id: 'run-refactor', label: 'Run Refactor Wizard', description: 'Analyze code for improvements', module: 'manager', priority: 'medium' },
               { id: 'view-contexts', label: 'Organize Contexts', description: 'Review code organization', module: 'contexts', priority: 'low' },
             );
             break;

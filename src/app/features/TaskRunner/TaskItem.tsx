@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2, Layers, RotateCcw } from 'lucide-react';
+import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2, RotateCcw } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { TaskProgress } from './components/TaskProgress';
@@ -18,8 +18,7 @@ import {
   ImpactIcon,
   RiskIcon,
 } from '@/app/features/Ideas/lib/ideaConfig';
-import { useTaskRunnerStore } from './store';
-import { createSession as createSessionApi } from './lib/sessionApi';
+
 
 interface TaskItemProps {
   requirement: ProjectRequirement;
@@ -48,12 +47,6 @@ const TaskItem = React.memo(function TaskItem({
   const [showDeleteHint, setShowDeleteHint] = useState(false);
   const { showFullScreenModal } = useGlobalModal();
 
-  // Session management
-  const taskId = `${projectId}:${requirementName}`;
-  const sessionBatchId = useTaskRunnerStore((state) => state.isTaskInAnyBatch(taskId));
-  const isInSession = sessionBatchId !== null;
-  const { createSessionBatch, getNextAvailableBatchId } = useTaskRunnerStore();
-
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -77,49 +70,6 @@ const TaskItem = React.memo(function TaskItem({
         maxHeight: 'max-h-[90vh]',
       }
     );
-  };
-
-  const handleCreateSession = async () => {
-    const availableBatchId = getNextAvailableBatchId();
-    if (!availableBatchId) {
-      console.warn('No available batch slots');
-      return;
-    }
-
-    const sessionName = `Session for ${requirementName}`;
-
-    try {
-      // Create session in database
-      const result = await createSessionApi({
-        projectId,
-        name: sessionName,
-        taskId,
-        requirementName,
-      });
-
-      console.log('📦 Created session in database:', result.session.id);
-
-      // Create session batch in local store
-      createSessionBatch(
-        availableBatchId,
-        projectId,
-        projectPath,
-        sessionName,
-        taskId,
-        requirementName
-      );
-    } catch (error) {
-      console.error('Failed to create session:', error);
-      // Still create in local store for offline support
-      createSessionBatch(
-        availableBatchId,
-        projectId,
-        projectPath,
-        sessionName,
-        taskId,
-        requirementName
-      );
-    }
   };
 
   // Determine if task is in progress (running or queued)
@@ -160,16 +110,6 @@ const TaskItem = React.memo(function TaskItem({
               },
             ]
           : []),
-        // Create Session (only if not in session and slot available)
-        ...(!isInSession && getNextAvailableBatchId() !== null
-          ? [
-              {
-                label: 'Create Session',
-                icon: Layers,
-                onClick: handleCreateSession,
-              },
-            ]
-          : []),
         {
           label: 'Edit Requirement',
           icon: Edit2,
@@ -200,23 +140,6 @@ const TaskItem = React.memo(function TaskItem({
   };
 
   const getStatusColor = () => {
-    // Purple background for tasks in a session (takes precedence)
-    if (isInSession) {
-      switch (status) {
-        case 'running':
-          return 'border-purple-500/60 bg-purple-500/15';
-        case 'completed':
-          return 'border-purple-400/50 bg-purple-500/10';
-        case 'failed':
-        case 'session-limit':
-          return 'border-red-500/40 bg-purple-500/5';
-        case 'queued':
-          return 'border-purple-500/40 bg-purple-500/10';
-        default:
-          return 'border-purple-700/50 bg-purple-900/20';
-      }
-    }
-
     switch (status) {
       case 'running':
         return 'border-blue-500/40 bg-blue-500/5';
@@ -266,12 +189,6 @@ const TaskItem = React.memo(function TaskItem({
           <span className="text-sm text-gray-200 font-mono truncate" title={requirementName}>
             {requirementName}
           </span>
-          {/* Session indicator */}
-          {isInSession && (
-            <span title="In session">
-              <Layers className="w-3 h-3 text-purple-400 flex-shrink-0" />
-            </span>
-          )}
         </div>
 
         {/* Metric indicators */}
